@@ -1,13 +1,14 @@
 # Builds the portable (no-install) STL Editor and zips it for sharing.
-#   powershell -ExecutionPolicy Bypass -File packaging\build_portable.ps1
+#   powershell -ExecutionPolicy Bypass -File packaging\build_portable.ps1 [-Repo owner/name] [-OutDir folder]
+# GitHub Actions runs this on every v* tag (.github/workflows/release.yml).
 # Output: <Documents>\STL Editor - Share\STL Editor Portable <version>.zip
 # Release asset name on GitHub: STL-Editor-Windows-portable.zip (stable, so the website's download link always works)
-param([string]$Repo = '')
+param([string]$Repo = '', [string]$OutDir = '')
 $ErrorActionPreference = 'Stop'
 $src = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $version = (Select-String -Path "$src\stleditor\__init__.py" -Pattern '__version__ = "(.+)"').Matches[0].Groups[1].Value
 $work = Join-Path $env:TEMP 'stle-build'
-$out = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'STL Editor - Share'
+$out = if ($OutDir) { $OutDir } else { Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'STL Editor - Share' }
 Write-Host "Building STL Editor $version"
 
 # clean copy of the source (no caches, no user files)

@@ -16,6 +16,7 @@ Sketch on any face, extrude, cut, drill holes, add printable threads and split b
 ![Licence GPL-3.0](https://img.shields.io/badge/licence-GPL--3.0-2f855a)
 ![No install needed](https://img.shields.io/badge/install-not%20needed-66727f)
 ![Latest release](https://img.shields.io/github/v/release/natterman12/STL-Editor?color=e8763a)
+[![Tests](https://github.com/natterman12/STL-Editor/actions/workflows/tests.yml/badge.svg)](https://github.com/natterman12/STL-Editor/actions/workflows/tests.yml)
 
 <img src="docs/img/fit-to-bed.webp" alt="A tall vase cut into colour-coded pieces that fit a Bambu A1 mini, with the Fit to Bed panel open" width="100%">
 
@@ -79,7 +80,7 @@ The full manual, with every tool and shortcut, is in [USER_GUIDE.md](USER_GUIDE.
 
 ## Run from source
 
-You need Python 3.11 or newer on Windows (tested with 3.13 and 3.14). The WebView2 runtime is already part of Windows 10/11.
+You need Python 3.12 or newer on Windows (tested with 3.12, 3.13 and 3.14). The WebView2 runtime is already part of Windows 10/11.
 
 ```powershell
 git clone https://github.com/natterman12/STL-Editor.git
@@ -93,7 +94,11 @@ python main.py --browser            # or open it in your browser instead
 
 The engine and the browser UI aren't tied to Windows: `python main.py --browser` should work on macOS and Linux too. Only Windows is tested so far. Reports and fixes are welcome.
 
+Run the tests with `pip install pytest` and then `python -m pytest -q tests`.
+
 ### Build the portable zip
+
+GitHub Actions builds it for every release tag. To build it yourself:
 
 ```powershell
 pip install pyinstaller
@@ -127,7 +132,7 @@ The zip lands in `Documents\STL Editor - Share\`.
 
 ## Contributing
 
-Bug reports, ideas and pull requests are welcome. [Open an issue](https://github.com/natterman12/STL-Editor/issues) with the STL, if you can share it, and the steps that went wrong. Ideas already on the list: text and logo emboss, colour 3MF for the AMS, wall-thickness and overhang checks, a move gizmo and plate layout.
+Bug reports, ideas and pull requests are welcome. [Open an issue](https://github.com/natterman12/STL-Editor/issues/new/choose): the forms ask for the model file and steps, which makes mesh bugs much faster to fix. [CONTRIBUTING.md](CONTRIBUTING.md) covers setup, the code layout, how to add a tool and how releases are made. Tests run on GitHub for every push and pull request, and pushing a `v*` tag builds and publishes the portable zip automatically. Ideas already on the list: text and logo emboss, colour 3MF for the AMS, wall-thickness and overhang checks, a move gizmo and plate layout.
 
 ## Licence
 

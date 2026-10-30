@@ -1,0 +1,32 @@
+name: Feature idea
+description: A tool or change that would make STL Editor more useful.
+title: "[Idea]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: Describe the job, not just the feature. It helps to know what you're printing and why the current tools don't cover it.
+      placeholder: I add the same M3 heat-set insert pattern to lots of enclosures and have to place every hole by hand.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help?
+      description: How you picture it working. Sketches, screenshots or examples from other programs are welcome.
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: Example model
+      description: Optional. A model where this would come up (drag it in, zip it if needed, or link it).
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Can you help?
+      options:
+        - label: I'd be happy to test a preview build
+        - label: I might try to write this myself and send a pull request

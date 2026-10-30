@@ -1,0 +1,99 @@
+name: Release
+
+# Push a tag like v1.2.1 (matching __version__ in stleditor/__init__.py) and this
+# builds the portable Windows zip, smoke-tests it and publishes a GitHub release.
+# Optional release notes: .github/release-notes/<tag>.md (otherwise GitHub writes them).
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re)build, e.g. v1.2.1"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      ASSET: STL-Editor-Windows-portable.zip
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt pytest "pyinstaller>=6.10,<7"
+
+      - name: Check the tag matches the app version
+        shell: pwsh
+        run: |
+          $ver = (Select-String stleditor/__init__.py -Pattern '__version__ = "(.+)"').Matches[0].Groups[1].Value
+          if ("v$ver" -ne $env:TAG) { throw "Tag $env:TAG doesn't match __version__ = $ver. Bump the version first." }
+          "Building version $ver"
+
+      - name: Run tests
+        run: python -m pytest -q tests
+
+      - name: Build the portable zip
+        shell: pwsh
+        run: |
+          powershell -ExecutionPolicy Bypass -File packaging/build_portable.ps1 -Repo "${{ github.repository }}" -OutDir "$env:GITHUB_WORKSPACE\out"
+          if ($LASTEXITCODE -ne 0) { throw "build failed" }
+          $zip = Get-ChildItem out\*.zip | Select-Object -First 1
+          Copy-Item $zip.FullName $env:ASSET
+
+      - name: Smoke-test the built app
+        shell: pwsh
+        run: |
+          $env:STLEDITOR_PORT = "8799"
+          $exe = Join-Path $env:TEMP "stle-build\dist\STL Editor\STL Editor.exe"
+          $p = Start-Process $exe -ArgumentList "--server", "--no-autosave" -PassThru
+          $ok = $false
+          for ($i = 0; $i -lt 60 -and -not $ok; $i++) {
+            Start-Sleep 2
+            try {
+              $s = Invoke-RestMethod http://127.0.0.1:8799/api/state
+              $r = Invoke-RestMethod http://127.0.0.1:8799/api/feature/add -Method Post -Body '{"type":"primitive","params":{"shape":"box","length":20,"width":20,"height":20}}'
+              $r = Invoke-RestMethod http://127.0.0.1:8799/api/feature/add -Method Post -Body '{"type":"hole","params":{"points":[[0,0,20]],"normal":[0,0,1],"diameter":5}}'
+              if ($r.ok -and $r.state.bodies.Count -eq 1) { $ok = $true }
+            } catch { }
+          }
+          Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+          if (-not $ok) { throw "The built app didn't answer on its local API" }
+          "Built app works"
+
+      - name: Publish the release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $hash = (Get-FileHash $env:ASSET -Algorithm SHA256).Hash.ToLower()
+          $notes = ".github/release-notes/$env:TAG.md"
+          $body = if (Test-Path $notes) { Get-Content $notes -Raw } else { "" }
+          $body += "`n`nSHA-256 of $($env:ASSET): ``$hash``"
+          Set-Content notes.md $body -Encoding utf8
+          gh release view $env:TAG *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $env:TAG $env:ASSET --clobber
+          } elseif (Test-Path $notes) {
+            gh release create $env:TAG $env:ASSET --title "STL Editor $($env:TAG.TrimStart('v'))" --notes-file notes.md --latest
+          } else {
+            gh release create $env:TAG $env:ASSET --title "STL Editor $($env:TAG.TrimStart('v'))" --generate-notes --notes-file notes.md --latest
+          }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: STL-Editor-Windows-portable
+          path: ${{ env.ASSET }}
+          retention-days: 14

@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: User guide
+    url: https://github.com/natterman12/STL-Editor/blob/main/USER_GUIDE.md
+    about: Every tool and keyboard shortcut. Your question may already be answered there.
+  - name: Project website and FAQ
+    url: https://natterman12.github.io/STL-Editor/#faq
+    about: Download, install steps and common questions.

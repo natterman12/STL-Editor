@@ -1,0 +1,85 @@
+name: Bug report
+description: Something went wrong, a tool gave a bad result, or the app crashed.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this. The quickest fixes come from reports with the **model file** and the **steps** that went wrong.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you expect, and what did you get instead? Screenshots help a lot (paste them right in here).
+      placeholder: I cut a 5 mm pocket into the top face, but the cut went outward and made the part taller.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The tools you used, in order, and any numbers you typed.
+      placeholder: |
+        1. Open bracket.stl
+        2. Double-click the top face, draw a 20 x 10 rectangle
+        3. Finish & Extrude, Cut, 5 mm
+        4. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part of the app?
+      options:
+        - Opening / importing a file
+        - Repair, simplify or remesh
+        - Sketching or constraints
+        - Extrude, revolve or cut
+        - Holes or threads
+        - Split, Fit to Bed or connectors
+        - Mirror, pattern, move or scale
+        - Hollow or sculpt
+        - Export or Send to Slicer
+        - Toolbar, panels or display
+        - Saving, autosave or recovery
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: model
+    attributes:
+      label: Model file
+      description: |
+        Drag the STL / 3MF / OBJ (or your `.stlx` project) into this box. If GitHub won't take the file, zip it first. A link to the model on Printables, MakerWorld or Thingiverse works too. Leave it out if the model is private.
+  - type: input
+    id: version
+    attributes:
+      label: STL Editor version
+      description: Shown in Help › About STL Editor.
+      placeholder: "1.2.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How do you run it?
+      options:
+        - Portable zip from the Releases page
+        - From source (python main.py)
+    validations:
+      required: true
+  - type: dropdown
+    id: windows
+    attributes:
+      label: Windows version
+      options:
+        - Windows 11
+        - Windows 10
+        - Other (macOS / Linux, from source)
+  - type: textarea
+    id: log
+    attributes:
+      label: Log (if it crashed or showed an error)
+      description: Paste the end of `%LOCALAPPDATA%\STL Editor\log.txt` (type that path into the File Explorer address bar).
+      render: text
