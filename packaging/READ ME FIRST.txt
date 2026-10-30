@@ -1,0 +1,42 @@
+STL Editor (portable)
+=====================
+
+CAD-style editing for STL, 3MF and OBJ files: sketch on a face and extrude or cut, drill
+holes (with presets for heat-set inserts, screws, nuts and magnets), split big parts to fit
+your print bed with alignment pins, mirror, hollow, repair, sculpt and more.
+
+Starting it
+-----------
+1. Unzip the whole folder somewhere you like (Desktop, Documents, a USB stick...).
+   Don't run it from inside the zip.
+2. Double-click "STL Editor.exe".
+
+The first time, Windows may show "Windows protected your PC". The app isn't code-signed,
+which is normal for small free tools. Click "More info", then "Run anyway".
+
+Needs Windows 10 or 11 (64-bit). Nothing gets installed and no admin rights are needed.
+Your settings are kept in %APPDATA%\STL Editor.
+
+Quick start
+-----------
+- Drag an STL onto the window (or File > Open).
+- Double-click a flat face to sketch on it, draw a rectangle or circle, then click
+  "Finish & Extrude", choose Cut and press OK.
+- Double-click any step in the timeline at the bottom to change it later.
+- File > Export STL / 3MF when you're done.
+
+"User guide.md" has every tool and keyboard shortcut.
+
+Notes
+-----
+- Your work is autosaved every minute; after a crash, the next start offers to recover it.
+- When a new version is posted, a small notice appears with a Download button.
+- View > Units switches to inches; View > Theme has a dark mode.
+- The "Send to Slicer" buttons work if you have Bambu Studio or OrcaSlicer installed in
+  the usual place. "To STEP" needs SolidCraft.
+- Licences for the open-source parts are in the LICENSES folder.
+
+Project page, source code and new versions:
+  https://natterman12.github.io/STL-Editor/
+  https://github.com/natterman12/STL-Editor
+STL Editor is free software under the GNU GPL v3 (see LICENSE.txt).
