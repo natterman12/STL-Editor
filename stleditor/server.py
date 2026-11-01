@@ -325,12 +325,65 @@ def r_sketch_op(app, d):
         out = []
         for e in ents:
             out.extend(S.explode(e) if e.get("id") in d.get("ids", []) else [e])
+    elif op == "project":
+        from . import meshtools as MT
+        st = app.doc.state
+        ids = d.get("bodies") or [k for k, b in st.bodies.items()
+                                  if k not in app.doc.ui["hidden"] and b.is_solid]
+        solids = [st.body(i).require_solid() for i in ids if i in st.bodies]
+        if not solids:
+            raise GeometryError("There are no solid bodies to project.")
+        polys = MT.outline(solids, d["frame"], d.get("mode", "section"),
+                           float(d.get("tolerance", 0.02)), float(d.get("offset", 0)))
+        add = MT.outline_entities(polys, new_id, bool(d.get("construction")))
+        return {"ok": True, "entities": ents + add, "added": [e["id"] for e in add]}
+    elif op == "text":
+        from . import meshtools as MT
+        import math as _m
+        cont = MT.text_contours(d.get("text", ""), d.get("font"), float(d.get("size", 10)),
+                                bool(d.get("bold")), bool(d.get("italic")), float(d.get("spacing", 0)),
+                                d.get("align", "left"))
+        if not cont:
+            raise GeometryError("Type some text first.")
+        lo, hi = MT.text_extent(cont)
+        anchor = d.get("anchor", "baseline")
+        ox = {"left": 0.0, "center": (lo[0] + hi[0]) / 2, "right": hi[0]}.get(d.get("align", "left"), 0.0) \
+            if anchor != "center" else (lo[0] + hi[0]) / 2
+        oy = (lo[1] + hi[1]) / 2 if anchor == "center" else 0.0
+        a = _m.radians(float(d.get("angle", 0)))
+        ca, sa = _m.cos(a), _m.sin(a)
+        x0, y0 = float(d.get("x", 0)), float(d.get("y", 0))
+        group = d.get("group") or f"t{d.get('seed', 'x')}"
+        meta = {k: d.get(k) for k in ("text", "font", "size", "bold", "italic", "spacing", "align", "angle", "x", "y", "anchor")}
+        keep = [e for e in ents if e.get("group") != group]
+        add = []
+        for c in cont:
+            px, py = c[:, 0] - ox, c[:, 1] - oy
+            pts = [[round(x0 + ca * u - sa * w, 4), round(y0 + sa * u + ca * w, 4)] for u, w in zip(px, py)]
+            add.append({"id": new_id(), "type": "polyline", "closed": True, "pts": pts, "group": group, "text": meta})
+        return {"ok": True, "entities": keep + add, "added": [e["id"] for e in add], "group": group}
     elif op == "faces":
         return {"ok": True, "faces": [[list(map(list, f.exterior.coords))] + [list(map(list, h.coords)) for h in f.interiors]
                                       for f in S.faces(ents)]}
     else:
         raise GeometryError(f"Unknown sketch operation {op}.")
     return {"ok": True, "entities": out}
+
+
+def r_cylinder(app, d):
+    from . import meshtools as MT
+    b = app.doc.state.body(d["body"])
+    v, f = b.mesh()
+    tri = int(d["tri"]) if d.get("tri") is not None else MT.nearest_triangle(v, f, d["point"])
+    cyl = MT.fit_cylinder(v, f, tri)
+    return {"ok": True, "kind": cyl["kind"], "diameter": round(2 * cyl["radius"], 3),
+            "length": round(cyl["z1"] - cyl["z0"], 3), "axis": cyl["axis"], "tris": cyl["tris"][:200000]}
+
+
+def r_fonts(app, d):
+    from . import meshtools as MT
+    fams = MT.list_fonts()
+    return {"ok": True, "fonts": list(fams), "default": MT.default_font()}
 
 
 def r_recovery_list(app, d):
@@ -611,6 +664,7 @@ def r_status(app, d):
 
 
 ROUTES = {
+    "cylinder": r_cylinder, "fonts": r_fonts,
     "feature/add": r_feature_add, "feature/edit": r_feature_edit, "feature/delete": r_feature_delete,
     "feature/move": r_feature_move, "rollback": r_rollback, "preview": r_preview, "face": r_face,
     "body": r_body, "info": r_info, "undo": r_undo, "redo": r_redo, "new": r_new, "open": r_open,

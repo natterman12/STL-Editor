@@ -501,6 +501,10 @@ def f_combine(state, fid, p, res, ctx):
     if op == "join":
         out = m3.Manifold.batch_boolean([s] + ts, m3.OpType.Add)
     elif op == "cut":
+        clearance = float(p.get("clearance") or 0)
+        if clearance > 0:
+            from . import meshtools as MT
+            ts = [MT.offset_solid(t, clearance) for t in ts]
         out = s - m3.Manifold.batch_boolean(ts, m3.OpType.Add) if len(ts) > 1 else s - ts[0]
     elif op == "intersect":
         out = s
@@ -896,13 +900,52 @@ def f_thread(state, fid, p, res, ctx):
                p.get("body_name") or (f"M{D:g} screw" if kind == "external" else "Thread"), res)
 
 
+def f_offset(state, fid, p, res, ctx):
+    from . import meshtools as MT
+    bids = p.get("bodies") or []
+    if not bids:
+        raise GeometryError("Choose a body to offset.")
+    d = _float(p, "distance", 0.2)
+    if p.get("direction", "grow") == "shrink":
+        d = -abs(d)
+    else:
+        d = abs(d)
+    if abs(d) < 1e-6:
+        raise GeometryError("Distance can't be zero.")
+    for bid in bids:
+        b = state.body(bid)
+        state.bodies[bid] = b.copy(solid=MT.offset_solid(b.require_solid(), d))
+        res["modified"].append(bid)
+
+
+def f_resizehole(state, fid, p, res, ctx):
+    from . import meshtools as MT
+    bid = p.get("body")
+    if not bid or not p.get("point"):
+        raise GeometryError("Click the wall of a round hole or pin.")
+    b = state.body(bid)
+    s = b.require_solid()
+    v, f = b.mesh()
+    tri = MT.nearest_triangle(v, f, p["point"])
+    cyl = MT.fit_cylinder(v, f, tri)
+    res["info"] = {"kind": cyl["kind"], "diameter": round(2 * cyl["radius"], 3),
+                   "length": round(cyl["z1"] - cyl["z0"], 3)}
+    fill = p.get("mode") == "fill"
+    out = MT.resize_round(s, cyl, None if fill else _float(p, "diameter", 2 * cyl["radius"]), fill=fill)
+    if out.is_empty():
+        raise GeometryError("The result is empty.")
+    state.bodies[bid] = b.copy(solid=out)
+    res["modified"].append(bid)
+
+
 EVALUATORS = {
     "import": f_import, "primitive": f_primitive, "plane": f_plane, "sketch": f_sketch,
     "extrude": f_extrude, "revolve": f_revolve, "hole": f_hole, "combine": f_combine,
     "split": f_split, "mirror": f_mirror, "move": f_move, "scale": f_scale, "hollow": f_hollow,
     "repair": f_repair, "simplify": f_simplify, "pattern": f_pattern, "delete": f_delete,
     "separate": f_separate, "bedsplit": f_bedsplit, "pushpull": f_pushpull, "sculpt": f_sculpt,
-    "remesh": f_remesh, "layflat": f_layflat, "thread": f_thread,
+    "remesh": f_remesh, "layflat": f_layflat, "thread": f_thread, "offset": f_offset,
+    "resizehole": f_resizehole,
 }
 
 LABELS = {
@@ -911,5 +954,6 @@ LABELS = {
     "split": "Split", "mirror": "Mirror", "move": "Move", "scale": "Scale", "hollow": "Hollow",
     "repair": "Repair", "simplify": "Simplify", "pattern": "Pattern", "delete": "Remove",
     "separate": "Separate", "bedsplit": "Fit to Bed", "pushpull": "Push/Pull", "sculpt": "Sculpt",
-    "remesh": "Remesh", "layflat": "Lay Flat", "thread": "Thread",
+    "remesh": "Remesh", "layflat": "Lay Flat", "thread": "Thread", "offset": "Offset",
+    "resizehole": "Resize Hole",
 }

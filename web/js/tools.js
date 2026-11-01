@@ -45,6 +45,16 @@ export const REPEATABLE = ['extrude', 'revolve', 'hole', 'primitive'];
 export const repeatableFeatures = state => state.features.filter(f => REPEATABLE.includes(f.type) && f.active && !f.error && !f.suppressed);
 const lastRepeatable = ctx => repeatableFeatures(ctx.state).at(-1)?.id;
 
+// common sizes for Resize Hole: [key, label, diameter]
+export const RESIZE_SIZES = [
+  ['custom', 'Custom'],
+  ['m2', 'M2 screw clearance (2.4)', 2.4], ['m25', 'M2.5 screw clearance (2.9)', 2.9], ['m3', 'M3 screw clearance (3.4)', 3.4],
+  ['m4', 'M4 screw clearance (4.5)', 4.5], ['m5', 'M5 screw clearance (5.5)', 5.5],
+  ['m3tap', 'M3 self-tapping into plastic (2.8)', 2.8], ['m3ins', 'M3 heat-set insert (4.0)', 4.0], ['m4ins', 'M4 heat-set insert (5.6)', 5.6],
+  ['mag6', '6 mm magnet (6.2)', 6.2], ['mag8', '8 mm magnet (8.2)', 8.2], ['mag10', '10 mm magnet (10.2)', 10.2],
+  ['fil', '1.75 mm filament pin (1.9)', 1.9], ['b608', '608 bearing seat (22.1)', 22.1],
+];
+
 export const TOOLS = {
   // ----------------------------------------------------------------- create
   extrude: {
@@ -124,9 +134,10 @@ export const TOOLS = {
       { key: 'target', label: 'Target body', kind: 'bodies', multi: false },
       { key: 'tools', label: 'Tool bodies', kind: 'bodies', multi: true },
       { key: 'operation', label: 'Operation', kind: 'select', options: [['join', 'Join'], ['cut', 'Cut'], ['intersect', 'Intersect']] },
+      { key: 'clearance', label: 'Clearance', kind: 'number', unit: 'mm', show: v => v.operation === 'cut', help: 'Grow the tool bodies first, so a part made to fit this cut-out isn\'t too tight. 0.2–0.3 mm suits most FDM printers.' },
       { key: 'keep_tools', label: 'Keep tools', kind: 'bool' },
     ],
-    defaults: ctx => { const s = selBody(ctx); return { target: s[0] ? [s[0]] : [], tools: s.slice(1), operation: 'join', keep_tools: false }; },
+    defaults: ctx => { const s = selBody(ctx); return { target: s[0] ? [s[0]] : [], tools: s.slice(1), operation: 'join', clearance: 0, keep_tools: false }; },
     toParams: v => ({ ...v, target: v.target[0] }),
     fromParams: p => ({ ...p, target: p.target ? [p.target] : [] }),
     hint: 'Pick the body to keep, then the bodies to join, cut away or intersect with it',
@@ -201,6 +212,35 @@ export const TOOLS = {
     },
     placeOnFace: true,
     hint: 'Click a face to put the thread there (tapped holes go into the face, screws stand on it). For FDM, pitches of 1 mm or more and 0.2–0.4 mm clearance print best',
+  },
+  offset: {
+    label: 'Offset Body', icon: 'offset', type: 'offset',
+    fields: [
+      { key: 'bodies', label: 'Bodies', kind: 'bodies', multi: true },
+      { key: 'direction', label: 'Direction', kind: 'select', options: [['grow', 'Grow (thicker)'], ['shrink', 'Shrink (thinner)']] },
+      { key: 'distance', label: 'Distance', kind: 'number', unit: 'mm' },
+    ],
+    defaults: ctx => ({ bodies: selBody(ctx), direction: 'grow', distance: 0.2 }),
+    noLivePreview: true,
+    hint: 'Makes the whole body bigger or smaller by the same distance everywhere: for fit adjustments, moulds and clearance. Detailed meshes take a few seconds',
+  },
+  resizehole: {
+    label: 'Resize Hole', icon: 'resizehole', type: 'resizehole',
+    fields: [
+      { key: 'face', label: 'Hole or pin', kind: 'cylface' },
+      { key: 'mode', label: 'Change', kind: 'select', options: [['resize', 'New diameter'], ['fill', 'Fill the hole']] },
+      { key: 'size', label: 'Size', kind: 'select', options: RESIZE_SIZES.map(([k, l]) => [k, l]), show: v => v.mode !== 'fill' },
+      { key: 'diameter', label: 'Diameter', kind: 'number', unit: 'mm', show: v => v.mode !== 'fill' },
+    ],
+    defaults: () => ({ face: null, body: null, point: null, mode: 'resize', size: 'custom', diameter: 5 }),
+    toParams: v => ({ body: v.body, point: v.point, diameter: v.diameter, mode: v.mode, measured: v.measured, kind: v.kind }),
+    fromParams: p => ({ ...p, size: 'custom', face: p.point ? { label: p.measured ? `${p.kind === 'pin' ? 'Pin' : 'Hole'} Ø${(+p.measured).toFixed(2)}` : 'Picked' } : null }),
+    onChange: (key, v) => {
+      if (key === 'size') { const s = RESIZE_SIZES.find(x => x[0] === v.size); return s && s[2] ? { diameter: s[2], _sized: true } : null; }
+      if (key === 'diameter') return { size: 'custom', _sized: true };
+      return null;
+    },
+    hint: 'Click the inside wall of a round hole (or the side of a pin). It is measured, then type the diameter you need',
   },
   pushpull: {
     label: 'Push/Pull', icon: 'pushpull', type: 'pushpull',

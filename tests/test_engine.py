@@ -206,3 +206,102 @@ def test_http_api():
             assert b"STL Editor" in r.read()
     finally:
         httpd.shutdown()
+
+
+# ------------------------------------------------------------------ v1.3 tools
+def test_resize_hole_shrink_grow_fill(block):
+    doc, B = block
+    doc.add_feature("hole", {"points": [[20, 15, 20]], "normal": [0, 0, 1], "diameter": 5, "through": True})
+    v0 = vol(doc, B)
+    doc.add_feature("resizehole", {"body": B, "point": [22.5, 15, 10], "diameter": 3.4})
+    v1 = vol(doc, B)
+    assert v1 - v0 == pytest.approx(math.pi * (2.5 ** 2 - 1.7 ** 2) * 20, rel=0.02)
+    doc.add_feature("resizehole", {"body": B, "point": [21.7, 15, 10], "diameter": 6})
+    assert v1 - vol(doc, B) == pytest.approx(math.pi * (3 ** 2 - 1.7 ** 2) * 20, rel=0.02)
+    doc.add_feature("resizehole", {"body": B, "point": [23, 15, 10], "mode": "fill"})
+    assert vol(doc, B) == pytest.approx(40 * 30 * 20, rel=1e-3)
+
+
+def test_resize_blind_hole_keeps_bottom(block):
+    doc, B = block
+    doc.add_feature("hole", {"points": [[20, 15, 20]], "normal": [0, 0, 1], "diameter": 5, "through": False,
+                             "depth": 8, "tip": False})
+    v0 = vol(doc, B)
+    doc.add_feature("resizehole", {"body": B, "point": [22.5, 15, 16], "diameter": 6.2})
+    assert v0 - vol(doc, B) == pytest.approx(math.pi * (3.1 ** 2 - 2.5 ** 2) * 8, rel=0.03)
+
+
+def test_resize_pin():
+    doc = Document()
+    f, _ = doc.add_feature("primitive", {"shape": "box", "length": 40, "width": 30, "height": 5, "anchor": "corner"})
+    P = f["id"]
+    doc.add_feature("primitive", {"shape": "cylinder", "radius": 3, "height": 10, "offset": [20, 15, 5],
+                                  "operation": "join", "targets": [P]})
+    v0 = vol(doc, P)
+    doc.add_feature("resizehole", {"body": P, "point": [23, 15, 10], "diameter": 5.6})
+    assert v0 - vol(doc, P) == pytest.approx(math.pi * (9 - 2.8 ** 2) * 10, rel=0.03)
+
+
+def test_resize_hole_rejects_flat_face(block):
+    doc, B = block
+    with pytest.raises(GeometryError):
+        doc.add_feature("resizehole", {"body": B, "point": [20, 15, 20], "diameter": 4})
+
+
+def test_offset_grow_and_shrink():
+    doc = Document()
+    f, _ = doc.add_feature("primitive", {"shape": "box", "length": 20, "width": 20, "height": 20})
+    C = f["id"]
+    doc.add_feature("offset", {"bodies": [C], "distance": 0.5, "direction": "grow"})
+    lo, hi = bbox(doc, C)
+    assert np.all(hi - lo >= 21 - 1e-6) and np.all(hi - lo <= 21.2)
+    doc.add_feature("offset", {"bodies": [C], "distance": 0.5, "direction": "shrink"})
+    assert vol(doc, C) == pytest.approx(8000, rel=0.01)
+
+
+def test_cut_with_clearance():
+    doc = Document()
+    a, _ = doc.add_feature("primitive", {"shape": "box", "length": 30, "width": 30, "height": 10})
+    t, _ = doc.add_feature("primitive", {"shape": "cylinder", "radius": 5, "height": 20, "offset": [0, 0, 2]})
+    peg = doc.state.body(t["id"]).require_solid()
+    doc.add_feature("combine", {"target": a["id"], "tools": [t["id"]], "operation": "cut", "clearance": 0.3,
+                                "keep_tools": True})
+    box = doc.state.body(a["id"]).require_solid()
+    # the original peg fits with a gap: no overlap, and the pocket is wider than the peg
+    assert (box ^ peg).volume() < 1e-6
+    assert 9000 - box.volume() > math.pi * 5.3 ** 2 * 8
+
+
+def test_project_outline():
+    import itertools
+    from stleditor import meshtools as MT
+    doc = Document()
+    f, _ = doc.add_feature("primitive", {"shape": "box", "length": 40, "width": 30, "height": 20})
+    doc.add_feature("hole", {"points": [[0, 0, 20]], "normal": [0, 0, 1], "diameter": 8, "through": True})
+    solid = doc.state.body(f["id"]).solid
+    ids = itertools.count()
+    ents = MT.outline_entities(MT.outline([solid], G.plane_frame([0, 0, 10], [0, 0, 1])), lambda: f"p{next(ids)}")
+    kinds = sorted(e["type"] for e in ents)
+    assert kinds == ["circle", "polyline"]
+    circle = next(e for e in ents if e["type"] == "circle")
+    assert circle["r"] == pytest.approx(4, abs=0.02)
+    # an outline offset outward by 1 mm, extruded, makes a frame 2 mm wider than the part
+    grown = MT.outline([solid], G.plane_frame([0, 0, 0], [0, 1, 0]), "silhouette", offset=1.0)
+    pts = np.concatenate(grown)
+    assert pts[:, 0].max() - pts[:, 0].min() == pytest.approx(42, abs=0.05)
+
+
+def test_text_profile():
+    from stleditor import meshtools as MT
+    if MT.default_font() is None:
+        pytest.skip("no fonts on this machine")
+    cont = MT.text_contours("O", size=10)
+    assert len(cont) == 2, "the O keeps its hole"
+    lo, hi = MT.text_extent(cont)
+    assert 4 < hi[1] - lo[1] < 10
+    doc = Document()
+    ents = [{"id": f"t{i}", "type": "polyline", "closed": True, "pts": c.tolist()} for i, c in enumerate(cont)]
+    sk, _ = doc.add_feature("sketch", {"plane": "XY", "entities": ents})
+    f, _ = doc.add_feature("extrude", {"sketch": sk["id"], "distance": 2, "operation": "new"})
+    body = doc.state.bodies[f["id"]].require_solid()
+    assert body.genus() == 1, "a ring, not a disc"

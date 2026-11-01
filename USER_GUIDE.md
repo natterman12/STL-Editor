@@ -50,10 +50,10 @@ icons, and anything that still doesn't fit goes under **»**.
 two sides; through all; taper), Revolve, Box, Cylinder, Sphere, Cone, Torus (click a face
 to place them on it).
 
-**Modify**: Hole (simple, counterbore, countersink, nut trap; click several points; presets for
+**Modify**: Resize Hole (click the wall of any round hole or pin, even in a downloaded STL: it's measured, then type a new diameter, pick a common size like *M3 heat-set insert* or *6 mm magnet*, or fill the hole), Offset Body (grow or shrink a whole part by a set distance, e.g. 0.2 mm for a tighter or looser fit), Hole (simple, counterbore, countersink, nut trap; click several points; presets for
 heat-set inserts M2–M5, screw clearance, socket-head counterbores, hex nut traps and magnet
 pockets, with a print tolerance), Push/Pull (drag a flat face out or in), Combine (join /
-cut / intersect bodies), Split (by a plane or flat face),
+cut / intersect bodies; Cut takes a *Clearance* that grows the cutting bodies first, so a part made to fit the cut-out isn't too tight), Split (by a plane or flat face),
 Move / Rotate (with "drop to bed" and "centre on origin"), Scale (factor, to size, or unit
 conversion), Pattern (linear or circular, of bodies or of features), Mirror (bodies or
 features), Hollow (wall thickness). Split can add connectors at the cut.
@@ -72,7 +72,10 @@ holes for 1.75 mm filament (good for thin shells like helmets), 6×3 magnet pock
 works as a plane.
 
 **Sketch tools**: Line (connected segments), 3-Point Arc, Rectangle, Centre Rectangle,
-Circle, Polygon, Slot, Trim, Offset, Mirror (across a sketch line), Construction. Click a
+Circle, Polygon, Slot, Text, Project, Trim, Offset, Mirror (across a sketch line), Construction.
+
+- **Text**: click where it should start, then type. Any font installed on your computer works, with height, bold / italic, alignment, letter spacing and rotation. Letters with holes keep them. Extrude to emboss, or cut to engrave. Select the text and press *Edit…* to change it later.
+- **Project**: adds the model's outline to the sketch as shapes, either where the sketch plane cuts through the model or the model's shadow on the plane. An offset makes a matching lid, collar or gasket, e.g. +0.3 mm to fit over the part. Round outlines come in as real circles. Click a
 dimension label on the sketch to change it. Closed loops of lines and arcs become profiles,
 and when extruding or revolving you can pick single regions under **Profiles**.
 

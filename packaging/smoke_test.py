@@ -100,10 +100,16 @@ def main(exe):
                                                                               "entities": [{"id": "c", "type": "circle", "cx": 0, "cy": 0, "r": 6}]}),
                                                      "distance": 5, "operation": "cut"}))
         step("hole", lambda: add("hole", {"points": [[60, 0, 30]], "normal": [0, 0, 1], "diameter": 5}))
+        step("resize hole", lambda: add("resizehole", {"body": X, "point": [62.5, 0, 15], "diameter": 6}))
         step("thread", lambda: add("thread", {"kind": "internal", "diameter": 8, "pitch": 1.25, "length": 10,
                                               "plane": {"origin": [-60, 0, 30], "normal": [0, 0, 1]}, "operation": "cut"}))
+        step("offset", lambda: add("offset", {"bodies": [st["b"]], "distance": 0.3}))
         step("lay flat", lambda: add("layflat", {"bodies": [X], "auto": True}))
         step("fit to bed", lambda: add("bedsplit", {"body": X, "printer": "bambu_a1mini", "connector": "pins"}))
+        frame = [[0, 0, 15], [1, 0, 0], [0, 1, 0], [0, 0, 1]]
+        step("project", lambda: call("sketch_op", {"op": "project", "entities": [], "frame": frame}))
+        step("fonts + text", lambda: call("sketch_op", {"op": "text", "entities": [], "text": "Hi 3D",
+                                                        "font": call("fonts", {})["default"], "size": 8}))
         for fmt in ("stl", "3mf", "obj"):
             path = os.path.join(tmp, "out." + fmt)
             step("export " + fmt, lambda p=path, f=fmt: call("export", {"format": f, "path": p}))

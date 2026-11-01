@@ -8,3 +8,4 @@ pywebview>=5.0
 networkx
 lxml
 shapely>=2.0
+fonttools>=4.40

@@ -43,6 +43,7 @@ Every step goes into a **timeline**. Double-click an earlier step to change it a
 | | |
 |---|---|
 | <img src="docs/img/planter-edit.webp" alt="A twisted vase STL turned into a planter"> | **Edit downloaded models.** This vase came in as a 200k-triangle STL. A sketched circle cut the planter pocket, then a drain hole and three magnet pockets went into the base, giving four timeline steps that all stay editable. |
+| <img src="docs/img/project-outline.webp" alt="A ring traced from the vase's outline, with embossed text"> | **New in 1.3: trace, resize, fit.** *Project* drops a model's outline into a sketch: here, a holder ring that follows the twisted vase with 0.4 mm of clearance, plus a text label. *Resize Hole* measures any round hole or pin you click and changes its diameter (or fills it). *Combine › Cut* takes a clearance so printed parts fit, and *Offset Body* grows or shrinks a whole part. |
 | <img src="docs/img/sketch-constraints.webp" alt="Sketch with dimensions and constraints"> | **Real sketches.** Lines, arcs, rectangles, circles, polygons and slots. Constraints include coincident, horizontal/vertical, parallel, perpendicular, equal, tangent, concentric, midpoint, symmetric and fix, plus driving dimensions. Change a number and the shape follows. Trim, offset and mirror are included. |
 | <img src="docs/img/hole-presets.webp" alt="Hole tool with the heat-set insert preset"> | **Holes for real hardware.** Presets for heat-set inserts M2–M5, screw clearance, socket-head counterbores, hex nut traps and magnet pockets, all with a print tolerance. Click as many points as you like. |
 | <img src="docs/img/threads.webp" alt="Printed M8 bolt and nut"> | **Printable threads.** Tapped holes or bolts/studs, ISO metric M3–M30 or any size, right or left hand, chamfered ends and a print clearance. An M8 bolt and nut made with the defaults screw together. |
@@ -52,18 +53,19 @@ Every step goes into a **timeline**. Double-click an earlier step to change it a
 ### All tools
 
 - **Create:** Sketch · Extrude (new / join / cut / intersect, one side / two sides / symmetric, through all, taper) · Revolve · Box · Cylinder · Sphere · Cone · Torus
-- **Modify:** Hole · Thread · Push/Pull · Combine · Split (with connectors) · Mirror (bodies *or* features) · Pattern (linear / circular, bodies or features) · Move/Rotate · Scale · Hollow
+- **Modify:** Hole · Resize Hole (measure and change, or fill, any round hole or pin) · Thread · Push/Pull · Combine (cut with clearance) · Offset Body · Split (with connectors) · Mirror (bodies *or* features) · Pattern (linear / circular, bodies or features) · Move/Rotate · Scale · Hollow
 - **Print:**
   - Lay Flat: click a face, or let it pick the most stable side.
   - Fit to Bed: pick your printer and big parts are cut into pieces that fit, with pins, pin holes, filament-pin holes or magnet pockets at every seam. *Smart cut positions* put the seams where the part is thinnest.
   - Export STL / 3MF / OBJ and Send to Bambu Studio / OrcaSlicer.
 - **Construct:** Offset Plane · Plane at Angle · 3-Point Plane · Midplane. Any flat face works as a plane too.
 - **Mesh:** Repair (quick fix, or rebuild as one watertight solid) · Simplify · Remesh · Sculpt brushes (smooth / flatten / inflate / deflate) · Separate · To STEP (through SolidCraft)
+- **Sketcher:** Line · Arc · Rectangle · Circle · Polygon · Slot · Text (any installed font) · Project (section or silhouette of the model, with offset) · Trim · Offset · Mirror · 11 constraints and driving dimensions
 - **Everything else:** undo/redo · `.stlx` projects that keep the whole timeline · inch mode with fractions (`1 3/8`) · light and dark themes · autosave with crash recovery · update notice
 
 ## Install
 
-1. Download **[STL-Editor-Windows-portable.zip](https://github.com/natterman12/STL-Editor/releases/latest/download/STL-Editor-Windows-portable.zip)** (about 90 MB).
+1. Download **[STL-Editor-Windows-portable.zip](https://github.com/natterman12/STL-Editor/releases/latest/download/STL-Editor-Windows-portable.zip)** (about 65 MB).
 2. Unzip it anywhere (Desktop, Documents, a USB stick) and run **STL Editor.exe**.
 3. The app isn't code-signed yet, so Windows SmartScreen may say *"Windows protected your PC"*. Click **More info › Run anyway**.
 
@@ -132,7 +134,7 @@ The zip lands in `Documents\STL Editor - Share\`.
 
 ## Contributing
 
-Bug reports, ideas and pull requests are welcome. [Open an issue](https://github.com/natterman12/STL-Editor/issues/new/choose): the forms ask for the model file and steps, which makes mesh bugs much faster to fix. [CONTRIBUTING.md](CONTRIBUTING.md) covers setup, the code layout, how to add a tool and how releases are made. Tests run on GitHub for every push and pull request, and pushing a `v*` tag builds and publishes the portable zip automatically. Ideas already on the list: text and logo emboss, colour 3MF for the AMS, wall-thickness and overhang checks, a move gizmo and plate layout.
+Bug reports, ideas and pull requests are welcome. [Open an issue](https://github.com/natterman12/STL-Editor/issues/new/choose): the forms ask for the model file and steps, which makes mesh bugs much faster to fix. [CONTRIBUTING.md](CONTRIBUTING.md) covers setup, the code layout, how to add a tool and how releases are made. Tests run on GitHub for every push and pull request, and pushing a `v*` tag builds and publishes the portable zip automatically. Ideas already on the list: SVG/DXF import, colour 3MF for the AMS, wall-thickness and overhang checks, a move gizmo and plate layout.
 
 ## Licence
 

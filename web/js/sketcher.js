@@ -87,6 +87,7 @@ export class Sketcher {
       circle: 'Click the centre, then the edge · or type a diameter',
       polygon: 'Click the centre, then a corner · type radius, Tab, number of sides',
       slot: 'Click both arc centres, then the width',
+      text: 'Click where the text should start',
       ...Object.fromEntries(Object.entries(CTOOLS).map(([k, v]) => [k, v.hint])),
     }[this.tool] || '';
   }
@@ -214,11 +215,17 @@ export class Sketcher {
       return;
     }
     if (t.startsWith('c_')) return this.constraintClick(uv, ev);
+    if (t === 'text') {
+      this.setTool('select');
+      this.app.sketchText({ x: +uv[0].toFixed(3), y: +uv[1].toFixed(3) });
+      return;
+    }
     if (t === 'select') {
       const id = this.entityAt(uv, ev);
       this.selC = null;
-      if (ev.shiftKey && id) { const s = new Set(this.sel); s.has(id) ? s.delete(id) : s.add(id); this.setSel([...s]); }
-      else this.setSel(id ? [id] : []);
+      const ids = id ? this.groupOf(id) : [];
+      if (ev.shiftKey && id) { const s = new Set(this.sel); const on = s.has(id); for (const g of ids) on ? s.delete(g) : s.add(g); this.setSel([...s]); }
+      else this.setSel(ids);
       return;
     }
     if (!this.draw) {
@@ -797,6 +804,18 @@ export class Sketcher {
   panelHTML() {
     const rows = this.entities.map(e => `<div class="ent ${this.sel.has(e.id) ? 'sel' : ''}" data-id="${e.id}"><span>${ENTITY_LABEL[e.type] || e.type}${e.construction ? ' (construction)' : ''}</span><span class="t">${describe(e)}</span></div>`).join('');
     return `<div class="ent-list">${rows || '<div class="ent"><span class="t">No shapes yet — pick a tool above.</span></div>'}</div>`;
+  }
+
+  // text is stored as one closed outline per letter part; they select together
+  groupOf(id) {
+    const e = this.entities.find(x => x.id === id);
+    return e?.group ? this.entities.filter(x => x.group === e.group).map(x => x.id) : [id];
+  }
+
+  selectedText() {
+    const sel = this.entities.filter(e => this.sel.has(e.id));
+    if (!sel.length || !sel[0].group || !sel[0].text) return null;
+    return sel.every(e => e.group === sel[0].group) ? { group: sel[0].group, meta: sel[0].text } : null;
   }
 
   selectedEntity() { return this.sel.size === 1 ? this.entities.find(e => this.sel.has(e.id)) : null; }

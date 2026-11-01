@@ -15,7 +15,7 @@ const num = v => (Math.round(v * 1000) / 1000).toString();
 const FEATURE_ICON = { import: 'import', primitive: 'primitive', plane: 'plane', sketch: 'sketch', extrude: 'extrude', revolve: 'revolve', hole: 'hole',
   combine: 'combine', split: 'split', mirror: 'mirror', move: 'move', scale: 'scale', hollow: 'hollow', repair: 'repair', simplify: 'simplify',
   pattern: 'pattern', delete: 'delete', separate: 'separate', bedsplit: 'bedsplit', pushpull: 'pushpull', sculpt: 'sculpt', remesh: 'remesh',
-  layflat: 'layflat', thread: 'thread' };
+  layflat: 'layflat', thread: 'thread', offset: 'offset', resizehole: 'resizehole' };
 
 class App {
   constructor() {
@@ -81,7 +81,8 @@ class App {
       groups: [
         ['Draw', [['line', 'Line', 'line'], ['arc3', 'Arc', 'arc'],
           { drop: 'sk_rect', label: 'Rectangle', items: [['rect', 'Rectangle', 'rect'], ['rect_center', 'Center Rectangle', 'rect_center']] },
-          ['circle', 'Circle', 'circle'], { stack: [['polygon', 'Polygon', 'polygon'], ['slot', 'Slot', 'slot']] }]],
+          ['circle', 'Circle', 'circle'], { stack: [['polygon', 'Polygon', 'polygon'], ['slot', 'Slot', 'slot'], ['text', 'Text', 'text']] },
+          ['sk_project', 'Project', 'project']]],
         ['Modify', [['select', 'Select', 'select'], ['trim', 'Trim', 'trim'],
           { stack: [['sk_offset', 'Offset', 'offset'], ['sk_mirror', 'Mirror', 'sk_mirror'], ['sk_delete', 'Delete', 'delete']] },
           { stack: [['construction', 'Construction', 'construction'], ['look', 'Look At', 'look']] }]],
@@ -98,15 +99,16 @@ class App {
             ['primitive_sphere', 'Sphere', 'sphere'], ['primitive_cone', 'Cone', 'cone'], ['primitive_torus', 'Torus', 'torus']] }]],
         ['Modify', [['hole', 'Hole', 'hole'], ['pushpull', 'Push/Pull', 'pushpull'], ['combine', 'Combine', 'combine'], ['split', 'Split', 'split'],
           ['mirror', 'Mirror', 'mirror'], ['pattern', 'Pattern', 'pattern'],
-          { stack: [['move', 'Move', 'move'], ['scale', 'Scale', 'scale'], ['hollow', 'Hollow', 'hollow']] }]],
+          { stack: [['move', 'Move', 'move'], ['scale', 'Scale', 'scale'], ['hollow', 'Hollow', 'hollow']] },
+          { stack: [['offset', 'Offset Body', 'offset'], ['resizehole', 'Resize Hole', 'resizehole']] }]],
         ['Construct', [{ drop: 'plane', label: 'Plane', items: planes }]],
         inspect,
       ],
       print: [
         ['Orient', [['layflat', 'Lay Flat', 'layflat'], { stack: [['move', 'Move', 'move'], ['scale', 'Scale', 'scale']] }]],
         ['Fit', [['bedsplit', 'Fit to Bed', 'bedsplit'], ['split', 'Split', 'split']]],
-        ['Hardware', [['hole', 'Hole', 'hole'], ['thread', 'Thread', 'thread']]],
-        ['Prepare', [['hollow', 'Hollow', 'hollow'], ['repair', 'Repair', 'repair']]],
+        ['Hardware', [['hole', 'Hole', 'hole'], ['thread', 'Thread', 'thread'], ['resizehole', 'Resize Hole', 'resizehole']]],
+        ['Prepare', [['hollow', 'Hollow', 'hollow'], ['repair', 'Repair', 'repair'], { stack: [['offset', 'Offset Body', 'offset']] }]],
         ['Output', [['export', 'Export', 'export'], ['send', 'Send to Slicer', 'slicer']]],
         ['Inspect', [['info', 'Properties', 'info'], { stack: [['measure', 'Measure', 'measure'], ['section', 'Section', 'section']] }]],
       ],
@@ -262,7 +264,8 @@ class App {
   onRibbon(k) {
     if (this.sketcher.active) {
       const sk = this.sketcher;
-      if (['line', 'arc3', 'rect', 'rect_center', 'circle', 'polygon', 'slot', 'select', 'trim', 'sk_mirror'].includes(k) || k.startsWith('c_')) sk.setTool(k);
+      if (['line', 'arc3', 'rect', 'rect_center', 'circle', 'polygon', 'slot', 'select', 'trim', 'sk_mirror', 'text'].includes(k) || k.startsWith('c_')) sk.setTool(k);
+      else if (k === 'sk_project') this.sketchProject();
       else if (k === 'sk_offset') this.sketchOffset();
       else if (k === 'construction') sk.toggleConstruction();
       else if (k === 'sk_delete') sk.deleteSelected();
@@ -397,7 +400,8 @@ class App {
 
   fieldHTML(f, val, active) {
     const unit = f.unit ? `<span class="unit">${f.unit}</span>` : '';
-    const wrap = (ctl, cls = '') => `<div class="field ${cls}" data-key="${f.key}"><label>${f.label}</label><div class="ctl">${ctl}</div></div>`;
+    const lab = f.help ? `<label title="${esc(f.help)}">${f.label} <span class="help">?</span></label>` : `<label>${f.label}</label>`;
+    const wrap = (ctl, cls = '') => `<div class="field ${cls}" data-key="${f.key}">${lab}<div class="ctl">${ctl}</div></div>`;
     switch (f.kind) {
       case 'number': {
         const isLen = f.unit === 'mm';
@@ -440,6 +444,10 @@ class App {
       case 'facepoints': {
         const n = (val || []).length;
         return wrap(`<div class="sel-box ${active ? 'active' : ''}" data-pick="${f.key}">${n ? `<span class="chip">${n} point${n > 1 ? 's' : ''}<b data-unpick="${f.key}">×</b></span>` : '<span class="ph">Click on a face</span>'}</div>`);
+      }
+      case 'cylface': {
+        const lbl = val?.label;
+        return wrap(`<div class="sel-box ${active ? 'active' : ''}" data-pick="${f.key}">${lbl ? `<span class="chip">${esc(lbl)}<b data-unpick="${f.key}">×</b></span>` : '<span class="ph">Click the wall of a round hole or pin</span>'}</div>`);
       }
       case 'pface': {
         const lbl = val?.label;
@@ -497,7 +505,7 @@ class App {
       if (f.kind === 'facepoints' && !(v || []).length) return false;
       if (f.kind === 'points3' && (v || []).length !== 3) return false;
       if (f.kind === 'features' && !(v || []).length) return false;
-      if (f.kind === 'pface' && !v) return false;
+      if ((f.kind === 'pface' || f.kind === 'cylface') && !v) return false;
     }
     return true;
   }
@@ -630,6 +638,19 @@ class App {
         this.viewer.highlightFace(hit.id, face.tris);
       }
       this.advanceField(key);
+    } else if (f.kind === 'cylface') {
+      if (hit?.kind !== 'body') return true;
+      let cyl;
+      try { cyl = await post('cylinder', { body: hit.id, tri: hit.tri }, { quiet: true }); }
+      catch (e) { this.toolMsg(e.message, 'err'); return true; }
+      const what = cyl.kind === 'pin' ? 'Pin' : 'Hole';
+      v[key] = { label: `${what} Ø${U.str(cyl.diameter)} × ${U.str(cyl.length)} deep` };
+      v.body = hit.id; v.point = hit.point.map(x => +x.toFixed(4)); v.measured = cyl.diameter; v.kind = cyl.kind;
+      if (!v._sized) { v.diameter = cyl.diameter; v.size = 'custom'; }
+      this.viewer.clearOverlay('face');
+      this.viewer.highlightFace(hit.id, cyl.tris);
+      this.toolMsg(`Measured ${what.toLowerCase()} Ø${U.str(cyl.diameter)}. Type the new diameter${cyl.kind === 'hole' ? ' or choose Fill' : ''}.`, 'info');
+      this.advanceField(key);
     } else if (f.kind === 'pface') {
       if (hit?.kind !== 'body') return true;
       const face = await post('face', { body: hit.id, tri: hit.tri, outline: true }, { quiet: true });
@@ -740,7 +761,12 @@ class App {
     const sk = this.sketcher;
     const e = sk.selectedEntity();
     let h = `<div class="section-label">Shapes</div>${sk.panelHTML()}`;
-    if (e) {
+    const txt = sk.selectedText();
+    if (txt) {
+      h += `<div class="section-label">Text</div><div class="field"><label>Text</label><div class="ctl"><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">“${esc(txt.meta.text)}”</span><button data-sk-act="edit-text">Edit…</button></div></div>
+        <div class="field"><label>Font</label><div class="ctl">${esc(txt.meta.font || '')} · ${U.str(txt.meta.size || 10)}</div></div>`;
+    }
+    if (e && !txt) {
       h += `<div class="section-label">${ENTITY_LABEL[e.type] || 'Shape'} · ${describe(e)}</div>`;
       const fields = {
         rect: [['x', 'Corner X'], ['y', 'Corner Y'], ['w', 'Width'], ['h', 'Height'], ['fillet', 'Corner radius'], ['angle', 'Rotation °']],
@@ -758,7 +784,8 @@ class App {
         const val = isAngle ? val0 : U.toDisp(val0);
         h += `<div class="field"><label>${l}</label><div class="ctl"><input type="text" data-ent="${k}" value="${num(val)}"></div></div>`;
       }
-      if (e.type === 'polyline') h += (e.pts || []).map((p, i) => `<div class="field vec"><label>Point ${i + 1}</label><div class="ctl"><input type="text" data-pt="${i}" data-i="0" value="${U.toDisp(p[0])}"><input type="text" data-pt="${i}" data-i="1" value="${U.toDisp(p[1])}"></div></div>`).join('');
+      if (e.type === 'polyline' && (e.pts || []).length > 24) h += `<div class="field"><label>Points</label><div class="ctl">${e.pts.length}${e.projected ? ' (projected outline)' : ''} · use Offset, Trim or Explode to edit</div></div>`;
+      else if (e.type === 'polyline') h += (e.pts || []).map((p, i) => `<div class="field vec"><label>Point ${i + 1}</label><div class="ctl"><input type="text" data-pt="${i}" data-i="0" value="${U.toDisp(p[0])}"><input type="text" data-pt="${i}" data-i="1" value="${U.toDisp(p[1])}"></div></div>`).join('');
       h += `<div class="field"><label>Construction</label><div class="ctl"><input type="checkbox" data-ent-bool="construction" ${e.construction ? 'checked' : ''}></div></div>`;
     }
     if (sk.constraints.length) {
@@ -781,6 +808,63 @@ class App {
     try {
       const r = await post('sketch_op', { op: 'offset', entities: sk.entities, ids: [...sk.sel], distance: d, seed: Date.now().toString(36) }, { quiet: true });
       sk.replaceEntities(r.entities);
+    } catch (e) { this.toast(e.message, 'err'); }
+  }
+
+  async sketchText(opts = {}, group = null) {
+    const sk = this.sketcher;
+    if (!this._fonts) { try { this._fonts = await post('fonts', {}, { quiet: true }); } catch (e) { this.toast(e.message, 'err'); return; } }
+    const F = this._fonts;
+    const o = { text: 'Text', font: this._lastFont || F.default, size: 10, bold: false, italic: false, align: 'left', angle: 0, x: 0, y: 0, spacing: 0, ...opts };
+    const sel = (id, opts2, cur) => `<select id="${id}">${opts2.map(([v, l]) => `<option value="${esc(v)}" ${v === cur ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
+    const row = (l, c) => `<div class="field"><label>${l}</label><div class="ctl">${c}</div></div>`;
+    const html = `<h3>${group ? 'Edit text' : 'Text'}</h3>
+      <textarea id="tx-text" rows="2" style="width:100%;font:inherit;padding:6px;box-sizing:border-box">${esc(o.text)}</textarea>
+      ${row('Font', sel('tx-font', F.fonts.map(f => [f, f]), o.font))}
+      ${row('Height', `<input type="text" id="tx-size" value="${U.toDisp(o.size)}"><span class="unit">${U.label}</span>`)}
+      ${row('Style', `<label class="check"><input type="checkbox" id="tx-bold" ${o.bold ? 'checked' : ''}> Bold</label><label class="check"><input type="checkbox" id="tx-italic" ${o.italic ? 'checked' : ''}> Italic</label>`)}
+      ${row('Align', sel('tx-align', [['left', 'Left'], ['center', 'Centre'], ['right', 'Right']], o.align))}
+      ${row('Letter spacing', `<input type="text" id="tx-spacing" value="${U.toDisp(o.spacing || 0)}"><span class="unit">${U.label}</span>`)}
+      ${row('Position', `<input type="text" id="tx-x" value="${U.toDisp(o.x)}"><input type="text" id="tx-y" value="${U.toDisp(o.y)}"><span class="unit">${U.label}</span>`)}
+      ${row('Rotation', `<input type="text" id="tx-angle" value="${o.angle}"><span class="unit">°</span>`)}
+      <div class="msg info">Height is the font's full height (capitals come out a little smaller). Letters with holes, like O and A, keep their holes. Extrude the text to emboss it, or cut to engrave it.</div>`;
+    const read = () => {
+      const g = id => document.getElementById(id);
+      return { text: g('tx-text').value, font: g('tx-font').value, size: U.parse(g('tx-size').value), bold: g('tx-bold').checked, italic: g('tx-italic').checked,
+        align: g('tx-align').value, spacing: U.parse(g('tx-spacing').value) || 0, x: U.parse(g('tx-x').value) || 0, y: U.parse(g('tx-y').value) || 0, angle: parseFloat(g('tx-angle').value) || 0 };
+    };
+    const v = await this.modal(html, [{ label: 'Cancel', value: () => null }, { label: group ? 'Update' : 'Add text', primary: true, value: read }]);
+    if (!v) return;
+    if (!v.text.trim()) { this.toast('Type some text first.', 'warn'); return; }
+    if (!(v.size > 0)) { this.toast('Enter a text height.', 'warn'); return; }
+    this._lastFont = v.font;
+    try {
+      const r = await this.sketchServerOp({ op: 'text', ...v, group });
+      sk.setSel(r.added);
+    } catch (e) { this.toast(e.message, 'err'); }
+  }
+
+  async sketchProject() {
+    const sk = this.sketcher;
+    const visible = this.state.bodies.filter(b => !b.hidden && b.solid);
+    if (!visible.length) { this.toast('There are no solid bodies to project.', 'warn'); return; }
+    const row = (l, c) => `<div class="field"><label>${l}</label><div class="ctl">${c}</div></div>`;
+    const html = `<h3>Project outline</h3>
+      <p style="margin:0 0 10px;color:var(--muted)">Adds the outline of the model to this sketch as shapes you can offset, trim or extrude.</p>
+      ${row('Outline', `<select id="pj-mode"><option value="section">Where the sketch plane cuts the model</option><option value="silhouette">Shadow of the whole model on the plane</option></select>`)}
+      ${row('Bodies', `<select id="pj-bodies"><option value="">All visible bodies</option>${visible.map(b => `<option value="${esc(b.id)}" ${b.id === sk.bodyId ? 'selected' : ''}>${esc(b.name)}</option>`).join('')}</select>`)}
+      ${row('Offset', `<input type="text" id="pj-offset" value="0"><span class="unit">${U.label}</span>`)}
+      ${row('Construction', `<label class="check"><input type="checkbox" id="pj-cons"> Reference only (not part of the profile)</label>`)}
+      <div class="msg info">Offset grows (+) or shrinks (−) the outline, e.g. +0.3 for a lid that fits over the part. Round outlines come in as circles.</div>`;
+    const v = await this.modal(html, [{ label: 'Cancel', value: () => null }, { label: 'Project', primary: true, value: () => {
+      const g = id => document.getElementById(id);
+      return { mode: g('pj-mode').value, body: g('pj-bodies').value, offset: U.parse(g('pj-offset').value) || 0, construction: g('pj-cons').checked };
+    } }]);
+    if (!v) return;
+    try {
+      const r = await this.sketchServerOp({ op: 'project', frame: sk.frameArr, mode: v.mode, bodies: v.body ? [v.body] : null, offset: v.offset, construction: v.construction });
+      sk.setSel(r.added);
+      this.toast(`Added ${r.added.length} outline${r.added.length === 1 ? '' : 's'}.`, 'ok');
     } catch (e) { this.toast(e.message, 'err'); }
   }
 
@@ -1205,8 +1289,9 @@ class App {
       if (del) { sk.deleteConstraint(del.dataset.cdel); return; }
       const ce = e.target.closest('.ent[data-cid]');
       if (ce) { sk.selC = sk.selC === ce.dataset.cid ? null : ce.dataset.cid; sk.sel.clear(); sk.redraw(); this.renderSketchPanel(); return; }
+      if (e.target.closest('[data-sk-act="edit-text"]')) { const t = sk.selectedText(); if (t) this.sketchText(t.meta, t.group); return; }
       const ent = e.target.closest('.ent[data-id]');
-      if (ent) sk.setSel([ent.dataset.id]);
+      if (ent) sk.setSel(sk.groupOf(ent.dataset.id));
       return;
     }
     if (this.mode === 'section') {
@@ -1623,7 +1708,7 @@ class App {
 }
 
 // ------------------------------------------------------------------ helpers
-function isSelKind(k) { return ['bodies', 'plane', 'facepoints', 'points3', 'pface', 'regions'].includes(k); }
+function isSelKind(k) { return ['bodies', 'plane', 'facepoints', 'points3', 'pface', 'cylface', 'regions'].includes(k); }
 function isEmptySel(v) { return v == null || v === '' || (Array.isArray(v) && !v.length); }
 function parseNum(v) {
   if (typeof v === 'number') return v;

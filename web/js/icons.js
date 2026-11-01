@@ -77,6 +77,10 @@ export const ICONS = {
   c_dimension: S(`<path d="M4 8v8M20 8v8M4 12h16" /><path d="m7 10-3 2 3 2M17 10l3 2-3 2"/><path d="M9 7h6" stroke="${ORANGE}"/>`),
   layflat: S(`<path d="M3 20h18"/><path d="M6 19l3-8h8l-3 8z" fill="${BLUE}" fill-opacity=".25"/><path d="M15 4a5 5 0 0 1 3 4" stroke="${ORANGE}"/><path d="m18.5 5 .3 3.2-3-.6" stroke="${ORANGE}"/>`),
   thread: S(`<path d="M8 3h8v18H8z" fill="${BLUE}" fill-opacity=".15"/><path d="M6 6l12-2M6 10l12-2M6 14l12-2M6 18l12-2" stroke="${ORANGE}"/>`),
+  offset: S(`<rect x="7" y="7" width="10" height="10" rx="1" fill="${BLUE}" fill-opacity=".25"/><rect x="3.5" y="3.5" width="17" height="17" rx="4" stroke-dasharray="2.5 2"/>`),
+  resizehole: S(`<path d="M4 15 12 19l8-4-8-4z" fill="${BLUE}" fill-opacity=".18"/><path d="M4 9l8 4 8-4-8-4z" fill="${BLUE}" fill-opacity=".18"/><path d="M4 9v6M20 9v6"/><ellipse cx="12" cy="9" rx="3" ry="1.5" fill="#fff"/><path d="M15.5 6.5l3-2M18.5 4.5h-2.4M18.5 4.5v2.4" stroke="${ORANGE}"/>`),
+  project: S(`<path d="M12 3 5 6.5v6l7 3.5 7-3.5v-6z" fill="${BLUE}" fill-opacity=".15"/><path d="M3 20h18" stroke="${ORANGE}" stroke-width="2"/><path d="M5 12.5 3.5 19M19 12.5l1.5 6.5" stroke-dasharray="1.5 1.5"/>`),
+  text: S(`<path d="M5 6V4h14v2M12 4v16M9 20h6" stroke-width="2"/>`),
   more: S('<path d="m6 7 5 5-5 5M13 7l5 5-5 5"/>'),
   primitive: S(`<path d="M12 3 3 7.5v9L12 21l9-4.5v-9z" fill="${BLUE}" fill-opacity=".18"/>`),
 };

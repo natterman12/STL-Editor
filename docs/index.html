@@ -243,6 +243,21 @@ footer .credits { max-width: 640px; }
     </div>
 
     <div class="feat">
+      <div class="media wide"><img src="img/project-outline.webp" loading="lazy" width="1280" height="800" alt="A ring traced from the twisted vase's outline with 0.4 mm clearance, and an embossed BASIL label"></div>
+      <div>
+        <span class="tag">New in 1.3</span>
+        <h3>Trace it, resize it, make it fit</h3>
+        <p>Tools for the most common job: changing a model somebody else made. This ring follows the twisted vase exactly, with 0.4 mm of clearance, because its outline was <em>projected</em> into the sketch and offset.</p>
+        <ul>
+          <li><b>Project</b>: a model's cross-section or silhouette becomes sketch shapes you can offset, trim and extrude</li>
+          <li><b>Resize Hole</b>: click any round hole or pin in an STL, see its size, type the new one, or fill it</li>
+          <li><b>Cut with clearance</b> and <b>Offset Body</b>: holders, sockets and lids that fit after printing</li>
+          <li><b>Text</b> in any installed font, embossed or engraved</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="feat">
       <div class="media wide"><img src="img/sketch-constraints.webp" loading="lazy" width="1600" height="960" alt="Sketch mode with dimensions, equal and horizontal/vertical constraints and the constraint list"></div>
       <div>
         <span class="tag">Sketcher</span>
@@ -342,11 +357,11 @@ footer .credits { max-width: 640px; }
     </div>
     <div class="tools">
       <div class="card" style="--c:#1f6fd1"><h3><i></i>Create</h3><div class="chips"><span>Sketch</span><span>Extrude</span><span>Revolve</span><span>Box</span><span>Cylinder</span><span>Sphere</span><span>Cone</span><span>Torus</span></div></div>
-      <div class="card" style="--c:#7b61d1"><h3><i></i>Modify</h3><div class="chips"><span>Hole</span><span>Thread</span><span>Push/Pull</span><span>Combine</span><span>Split</span><span>Mirror</span><span>Pattern</span><span>Move / Rotate</span><span>Scale</span><span>Hollow</span></div></div>
+      <div class="card" style="--c:#7b61d1"><h3><i></i>Modify</h3><div class="chips"><span>Hole</span><span>Resize Hole</span><span>Thread</span><span>Push/Pull</span><span>Combine</span><span>Cut with clearance</span><span>Offset Body</span><span>Split</span><span>Mirror</span><span>Pattern</span><span>Move / Rotate</span><span>Scale</span><span>Hollow</span></div></div>
       <div class="card" style="--c:#e8763a"><h3><i></i>Print</h3><div class="chips"><span>Fit to Bed</span><span>Connectors</span><span>Lay Flat</span><span>Export STL / 3MF / OBJ</span><span>Send to Slicer</span></div></div>
       <div class="card" style="--c:#2f855a"><h3><i></i>Mesh</h3><div class="chips"><span>Repair</span><span>Rebuild solid</span><span>Simplify</span><span>Remesh</span><span>Sculpt brushes</span><span>Separate</span><span>To STEP</span></div></div>
       <div class="card" style="--c:#b7791f"><h3><i></i>Construct &amp; inspect</h3><div class="chips"><span>Offset plane</span><span>Plane at angle</span><span>3-point plane</span><span>Midplane</span><span>Measure</span><span>Section</span><span>Properties</span></div></div>
-      <div class="card" style="--c:#d9480f"><h3><i></i>Sketcher</h3><div class="chips"><span>Line</span><span>Arc</span><span>Rectangle</span><span>Circle</span><span>Polygon</span><span>Slot</span><span>Trim</span><span>Offset</span><span>Mirror</span><span>11 constraints</span><span>Dimensions</span></div></div>
+      <div class="card" style="--c:#d9480f"><h3><i></i>Sketcher</h3><div class="chips"><span>Line</span><span>Arc</span><span>Rectangle</span><span>Circle</span><span>Polygon</span><span>Slot</span><span>Text</span><span>Project outline</span><span>Trim</span><span>Offset</span><span>Mirror</span><span>11 constraints</span><span>Dimensions</span></div></div>
     </div>
   </div>
 </section>
@@ -362,7 +377,7 @@ footer .credits { max-width: 640px; }
       <div class="dl-card">
         <h3>Install in under a minute</h3>
         <ol>
-          <li><a href="https://github.com/natterman12/STL-Editor/releases/latest/download/STL-Editor-Windows-portable.zip" style="color:#ffb48a">Download the portable zip</a> (about 90 MB).</li>
+          <li><a href="https://github.com/natterman12/STL-Editor/releases/latest/download/STL-Editor-Windows-portable.zip" style="color:#ffb48a">Download the portable zip</a> (about 65 MB).</li>
           <li>Unzip the whole folder anywhere: Desktop, Documents or a USB stick.</li>
           <li>Double-click <b>STL Editor.exe</b>.</li>
           <li>If Windows says <i>"Windows protected your PC"</i>, click <b>More info › Run anyway</b>. The app isn't code-signed yet, which is normal for small free tools.</li>
@@ -379,7 +394,7 @@ footer .credits { max-width: 640px; }
         <h3>Requirements</h3>
         <dl class="spec">
           <dt>System</dt><dd>Windows 10 or 11, 64-bit</dd>
-          <dt>Disk</dt><dd>About 200 MB unzipped</dd>
+          <dt>Disk</dt><dd>About 150 MB unzipped</dd>
           <dt>Opens</dt><dd>STL, 3MF, OBJ, and <code>.stlx</code> projects</dd>
           <dt>Exports</dt><dd>STL, 3MF, OBJ</dd>
           <dt>Optional</dt><dd>Bambu Studio / OrcaSlicer for Send to Slicer, SolidCraft for To STEP</dd>

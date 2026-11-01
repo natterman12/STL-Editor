@@ -34,6 +34,7 @@ $piArgs = @(
   '--collect-all', 'manifold3d',
   '--collect-all', 'fast_simplification',
   '--collect-submodules', 'skimage.measure',
+  '--collect-submodules', 'fontTools.ttLib.tables',
   '--collect-all', 'webview',
   '--hidden-import', 'clr',
   '--exclude-module', 'matplotlib', '--exclude-module', 'IPython', '--exclude-module', 'pandas',

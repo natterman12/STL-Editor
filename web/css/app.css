@@ -292,3 +292,5 @@ html[data-theme=dark] #dims .dim.driving { color: #8cc0ff; }
 .recov button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
 
 #dims.passive .dim, #dims.passive .cg { pointer-events: none; opacity: .8; }
+.field label .help { display: inline-grid; place-items: center; width: 14px; height: 14px; border-radius: 50%; border: 1px solid var(--line);
+  font-size: 9.5px; color: var(--muted); cursor: help; vertical-align: 1px; margin-left: 2px; }
