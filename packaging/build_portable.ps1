@@ -39,6 +39,20 @@ $piArgs = @(
   '--exclude-module', 'matplotlib', '--exclude-module', 'IPython', '--exclude-module', 'pandas',
   '--exclude-module', 'PyQt5', '--exclude-module', 'PyQt6', '--exclude-module', 'PySide2', '--exclude-module', 'PySide6',
   '--exclude-module', 'torch', '--exclude-module', 'cv2', '--exclude-module', 'pytest', '--exclude-module', 'notebook',
+  # never used at run time (checked by packaging/smoke_test.py after every build); saves ~45 MB
+  '--exclude-module', 'tkinter', '--exclude-module', '_tkinter', '--exclude-module', 'PIL.ImageTk', '--exclude-module', 'PIL._imagingtk',
+  '--exclude-module', 'PIL._avif', '--exclude-module', 'PIL.AvifImagePlugin',
+  '--exclude-module', 'cryptography', '--exclude-module', 'bcrypt', '--exclude-module', 'zstandard',
+  '--exclude-module', 'scipy.stats', '--exclude-module', 'scipy.signal', '--exclude-module', 'scipy.interpolate',
+  '--exclude-module', 'scipy.integrate', '--exclude-module', 'scipy.io', '--exclude-module', 'scipy.odr',
+  '--exclude-module', 'scipy.cluster', '--exclude-module', 'scipy.datasets', '--exclude-module', 'scipy.differentiate',
+  '--exclude-module', 'scipy.fftpack', '--exclude-module', 'scipy.misc',
+  '--exclude-module', 'skimage.data', '--exclude-module', 'skimage.feature', '--exclude-module', 'skimage.filters',
+  '--exclude-module', 'skimage.segmentation', '--exclude-module', 'skimage.restoration', '--exclude-module', 'skimage.registration',
+  '--exclude-module', 'skimage.io', '--exclude-module', 'skimage.color', '--exclude-module', 'skimage.draw',
+  '--exclude-module', 'skimage.exposure', '--exclude-module', 'skimage.future', '--exclude-module', 'skimage.graph',
+  '--exclude-module', 'skimage.metrics', '--exclude-module', 'skimage.transform', '--exclude-module', 'skimage.morphology',
+  '--exclude-module', 'skimage.util',
   '--distpath', "$work\dist", '--workpath', "$work\build", '--specpath', "$work",
   'main.py'
 )
@@ -52,6 +66,10 @@ $app = "$work\dist\STL Editor"
 Copy-Item "$work\src\packaging\READ ME FIRST.txt" "$app\" -Force
 Copy-Item "$work\src\USER_GUIDE.md" "$app\User guide.md" -Force
 Copy-Item "$work\src\LICENSE" "$app\LICENSE.txt" -Force
+
+# run every engine tool once in the built app; a missing library fails the build here
+& python "$work\src\packaging\smoke_test.py" "$app\STL Editor.exe"
+if ($LASTEXITCODE -ne 0) { throw "Smoke test of the built app failed" }
 
 New-Item -ItemType Directory -Force $out | Out-Null
 $zip = Join-Path $out "STL Editor Portable $version.zip"
