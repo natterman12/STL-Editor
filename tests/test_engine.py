@@ -305,3 +305,13 @@ def test_text_profile():
     f, _ = doc.add_feature("extrude", {"sketch": sk["id"], "distance": 2, "operation": "new"})
     body = doc.state.bodies[f["id"]].require_solid()
     assert body.genus() == 1, "a ring, not a disc"
+
+
+def test_project_outline_on_a_face():
+    """Sketching on the top face and projecting gives that face's outline (looks just inside)."""
+    from stleditor import meshtools as MT
+    doc = Document()
+    f, _ = doc.add_feature("primitive", {"shape": "box", "length": 40, "width": 30, "height": 20})
+    polys = MT.outline([doc.state.body(f["id"]).solid], G.plane_frame([0, 0, 20], [0, 0, 1]))
+    pts = np.concatenate(polys)
+    assert pts[:, 0].max() - pts[:, 0].min() == pytest.approx(40, abs=0.01)

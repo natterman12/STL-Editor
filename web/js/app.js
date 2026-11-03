@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { post, get, upload } from './api.js';
+import { post, get, upload, WEB, requestLocalFonts } from './api.js';
 import { Viewer } from './viewer.js';
 import { Sketcher } from './sketcher.js';
 import { TOOLS, repeatableFeatures, HOLE_PRESETS } from './tools.js';
@@ -9,6 +9,9 @@ import { U, parseExpr } from './units.js';
 import { CTYPES, CTOOLS } from './constraints.js';
 
 const $ = s => document.querySelector(s);
+// tools the web edition leaves to the desktop app (they need the voxel engine or local programs)
+const DESKTOP_TOOLS = new Set(['hollow', 'remesh', 'sculpt', 'to_step', 'send']);
+const DESKTOP_URL = 'https://natterman12.github.io/STL-Editor/#download';
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const num = v => (Math.round(v * 1000) / 1000).toString();
 
@@ -30,8 +33,10 @@ class App {
     this.apps = {};
     this._previewTimer = null;
     this._previewSeq = 0;
+    if (WEB) document.documentElement.classList.add('web');
     this.buildRibbon();
     this.bindUI();
+    if (WEB) this.webWelcome();
     this.loadSettings().then(() => this.refresh()).then(() => { this.viewer.setView('iso'); this.checkRecovery(); });
     setTimeout(() => this.checkUpdates(false), 6000);
     setInterval(() => this.renderAutosave(), 15000);
@@ -61,7 +66,7 @@ class App {
   renderTitle() {
     const d = this.state.doc || {};
     $('#doc-title').textContent = `${d.name || 'Untitled'}${d.dirty ? ' •' : ''}`;
-    document.title = `${d.name || 'Untitled'}${d.dirty ? ' •' : ''} — STL Editor`;
+    document.title = `${d.name || 'Untitled'}${d.dirty ? ' •' : ''} — STL Editor${WEB ? ' (web)' : ''}`;
     $('#btn-undo').disabled = !d.can_undo; $('#btn-redo').disabled = !d.can_redo;
   }
 
@@ -254,6 +259,7 @@ class App {
       const k = b.dataset.tool;
       b.classList.toggle('active', !!isOn(k));
       if (k === 'to_step') b.disabled = !this.apps.cli;
+      if (WEB && DESKTOP_TOOLS.has(k)) { b.disabled = false; b.classList.add('desk-only'); b.title = `${b.title.replace(/ · desktop app$/, '')} · desktop app`; }
     }
     for (const b of document.querySelectorAll('.tool-btn[data-drop]')) {
       const d = this._drops?.[b.dataset.drop];
@@ -276,6 +282,7 @@ class App {
       this.updateRibbonState();
       return;
     }
+    if (WEB && DESKTOP_TOOLS.has(k)) return this.desktopOnly();
     if (k === 'sketch') return this.beginSketch();
     if (k === 'import') return this.cmd('import');
     if (k === 'export') return this.exportMenu();
@@ -815,12 +822,13 @@ class App {
     const sk = this.sketcher;
     if (!this._fonts) { try { this._fonts = await post('fonts', {}, { quiet: true }); } catch (e) { this.toast(e.message, 'err'); return; } }
     const F = this._fonts;
+    const LOCAL = '__local__';
     const o = { text: 'Text', font: this._lastFont || F.default, size: 10, bold: false, italic: false, align: 'left', angle: 0, x: 0, y: 0, spacing: 0, ...opts };
     const sel = (id, opts2, cur) => `<select id="${id}">${opts2.map(([v, l]) => `<option value="${esc(v)}" ${v === cur ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
     const row = (l, c) => `<div class="field"><label>${l}</label><div class="ctl">${c}</div></div>`;
     const html = `<h3>${group ? 'Edit text' : 'Text'}</h3>
       <textarea id="tx-text" rows="2" style="width:100%;font:inherit;padding:6px;box-sizing:border-box">${esc(o.text)}</textarea>
-      ${row('Font', sel('tx-font', F.fonts.map(f => [f, f]), o.font))}
+      ${row('Font', sel('tx-font', [...F.fonts.map(f => [f, f]), ...(F.canAskLocal ? [[LOCAL, 'More: fonts on this computer…']] : [])], o.font))}
       ${row('Height', `<input type="text" id="tx-size" value="${U.toDisp(o.size)}"><span class="unit">${U.label}</span>`)}
       ${row('Style', `<label class="check"><input type="checkbox" id="tx-bold" ${o.bold ? 'checked' : ''}> Bold</label><label class="check"><input type="checkbox" id="tx-italic" ${o.italic ? 'checked' : ''}> Italic</label>`)}
       ${row('Align', sel('tx-align', [['left', 'Left'], ['center', 'Centre'], ['right', 'Right']], o.align))}
@@ -833,6 +841,18 @@ class App {
       return { text: g('tx-text').value, font: g('tx-font').value, size: U.parse(g('tx-size').value), bold: g('tx-bold').checked, italic: g('tx-italic').checked,
         align: g('tx-align').value, spacing: U.parse(g('tx-spacing').value) || 0, x: U.parse(g('tx-x').value) || 0, y: U.parse(g('tx-y').value) || 0, angle: parseFloat(g('tx-angle').value) || 0 };
     };
+    setTimeout(() => {
+      const fs = document.getElementById('tx-font');
+      if (fs) fs.onchange = async () => {
+        if (fs.value !== LOCAL) return;
+        try {
+          const fams = await requestLocalFonts();
+          this._fonts = await post('fonts', {}, { quiet: true });
+          fs.innerHTML = this._fonts.fonts.map(f => `<option value="${esc(f)}">${esc(f)}</option>`).join('');
+          fs.value = fams.includes('Arial') ? 'Arial' : this._fonts.default;
+        } catch (e) { this.toast(e.message, 'warn'); fs.value = this._fonts.default; }
+      };
+    }, 0);
     const v = await this.modal(html, [{ label: 'Cancel', value: () => null }, { label: group ? 'Update' : 'Add text', primary: true, value: read }]);
     if (!v) return;
     if (!v.text.trim()) { this.toast('Type some text first.', 'warn'); return; }
@@ -1050,7 +1070,26 @@ class App {
     ]);
   }
 
+  webWelcome() {
+    let seen = false;
+    try { seen = localStorage.getItem('stle.webWelcome') === '1'; } catch { /* storage off */ }
+    const bar = document.createElement('div');
+    bar.id = 'web-bar';
+    bar.innerHTML = `<span><b>Web edition</b> · runs in your browser, your files stay on your computer.${seen ? '' : ' Hollow, Remesh, Sculpt, Repair › Rebuild and Send to Slicer need the desktop app.'}</span>
+      <a href="${DESKTOP_URL}" target="_blank" rel="noopener">Desktop app</a><button title="Hide" data-x>×</button>`;
+    bar.querySelector('[data-x]').onclick = () => { bar.remove(); try { localStorage.setItem('stle.webWelcome', '1'); } catch { /* storage off */ } };
+    document.getElementById('viewport').appendChild(bar);
+    if (seen) setTimeout(() => bar.remove(), 6000);
+  }
+
+  desktopOnly(what = 'This tool') {
+    this.alert('Desktop app tool', `${esc(what)} runs in the desktop app, which has the voxel engine and can open your slicer directly.<br><br>
+      Save your project (File › Save) and open it in the desktop app: everything carries over, timeline included.<br><br>
+      <a href="${DESKTOP_URL}" target="_blank" rel="noopener">Get the desktop app (Windows, free)</a>`);
+  }
+
   sendMenu(anchor) {
+    if (WEB) return this.desktopOnly('Send to Slicer');
     const go = app => post('send_to', { app, bodies: this.selection.length ? this.selection : null }, { msg: 'Sending…' }).then(() => this.toast('Opened')).catch(e => this.toast(e.message, 'err'));
     this.showMenu(anchor || $('[data-tool="send"]'), [
       { label: 'Bambu Studio', fn: () => go('bambu'), dis: !this.apps.bambu },
@@ -1453,9 +1492,9 @@ class App {
         { label: 'Export STL…', fn: () => this.exportBodies('stl') },
         { label: 'Export 3MF…', fn: () => this.exportBodies('3mf') },
         { label: 'Export OBJ…', fn: () => this.exportBodies('obj') },
-        { label: 'Send to Slicer ▸', fn: () => setTimeout(() => this.sendMenu(btn), 0) },
-        { sep: true },
-        { label: 'Quit', fn: () => this.cmd('quit') },
+        ...(WEB ? [] : [{ label: 'Send to Slicer ▸', fn: () => setTimeout(() => this.sendMenu(btn), 0) },
+          { sep: true },
+          { label: 'Quit', fn: () => this.cmd('quit') }]),
       ],
       edit: [
         { label: 'Undo', k: 'Ctrl+Z', fn: () => this.cmd('undo'), dis: !this.state.doc.can_undo },
@@ -1485,10 +1524,15 @@ class App {
       ],
       help: [
         { label: 'Keyboard Shortcuts', fn: () => this.showHelp() },
-        { label: 'Check for Updates…', fn: () => this.checkUpdates(true) },
-        { label: 'Update Settings…', fn: () => this.updateSettings() },
-        { label: 'Recover Unsaved Work…', fn: () => this.checkRecovery(true) },
-        { label: 'About STL Editor', fn: () => this.alert('STL Editor', `Version ${esc(this.state.doc.version || '')}<br>CAD-style editing for STL, 3MF and OBJ meshes.<br><br>Geometry by Manifold (Apache-2.0), viewport by three.js (MIT), repair helpers from trimesh (MIT), scikit-image, SciPy, NumPy and Shapely (BSD). Licence texts are in the LICENSES folder.`) },
+        ...(WEB ? [{ label: 'User Guide', fn: () => window.open('https://github.com/natterman12/STL-Editor/blob/main/USER_GUIDE.md', '_blank', 'noopener') },
+          { label: 'Get the Desktop App', fn: () => window.open(DESKTOP_URL, '_blank', 'noopener') },
+          { label: 'Report a Problem', fn: () => window.open('https://github.com/natterman12/STL-Editor/issues/new/choose', '_blank', 'noopener') }] : [
+          { label: 'Check for Updates…', fn: () => this.checkUpdates(true) },
+          { label: 'Update Settings…', fn: () => this.updateSettings() },
+          { label: 'Recover Unsaved Work…', fn: () => this.checkRecovery(true) }]),
+        { label: 'About STL Editor', fn: () => this.alert('STL Editor', WEB
+          ? `Web edition ${esc(this.state.doc.version || '')}<br>CAD-style editing for STL, 3MF and OBJ meshes, running entirely in your browser: your files never leave your computer.<br><br>Geometry by Manifold (Apache-2.0), viewport by three.js (MIT), fflate (MIT), opentype.js (MIT), DejaVu fonts (free licence). Free software under the GPL-3.0: <a href="https://github.com/natterman12/STL-Editor" target="_blank" rel="noopener">source on GitHub</a>.`
+          : `Version ${esc(this.state.doc.version || '')}<br>CAD-style editing for STL, 3MF and OBJ meshes.<br><br>Geometry by Manifold (Apache-2.0), viewport by three.js (MIT), repair helpers from trimesh (MIT), scikit-image, SciPy, NumPy and Shapely (BSD). Licence texts are in the LICENSES folder.`) },
       ],
     }[m];
     this.showMenu(btn, items);
@@ -1512,8 +1556,8 @@ class App {
       { sep: true },
       { label: 'Export STL…', fn: () => this.exportBodies('stl', [id]) },
       { label: 'Export 3MF…', fn: () => this.exportBodies('3mf', [id]) },
-      { label: 'Send to Slicer ▸', fn: () => setTimeout(() => this.sendMenu(ev), 0) },
-      { label: 'Convert to STEP (SolidCraft)…', fn: () => this.toStep(), dis: !this.apps.cli },
+      ...(WEB ? [] : [{ label: 'Send to Slicer ▸', fn: () => setTimeout(() => this.sendMenu(ev), 0) },
+        { label: 'Convert to STEP (SolidCraft)…', fn: () => this.toStep(), dis: !this.apps.cli }]),
       { sep: true },
       { label: 'Remove', fn: () => this.openTool('delete') },
     ]);

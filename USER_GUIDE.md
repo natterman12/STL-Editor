@@ -12,6 +12,8 @@ goes into an editable history (the timeline), so you can change an earlier step 
 - Drag files onto the window to insert them.
 - `STL Editor (debug).bat` starts it with a console window if something goes wrong.
   The log is in `%LOCALAPPDATA%\STL Editor\log.txt`.
+- Web edition: open https://natterman12.github.io/STL-Editor/app/ in Chrome, Edge, Firefox or Safari.
+  Nothing is installed. See *Web edition* below for what's different.
 
 ## Mouse
 
@@ -117,6 +119,22 @@ Help › Check for Updates asks the project's GitHub Releases page whether a new
 exists (only that public page is contacted; nothing about you or your files is sent). The
 repository is set in Help › Update Settings (default: `natterman12/STL-Editor`; leave it empty to turn checks off).
 
+## Web edition
+
+The web edition is the same editor running in your browser. Your files are opened from and
+saved to your computer; nothing is uploaded.
+
+- **Open / Import** show your browser's file picker; you can also drag files onto the window.
+- **Save** and **Export** download the file. Chrome and Edge ask where to save it; other
+  browsers put it in your Downloads folder.
+- `.stlx` projects move freely between the web edition and the desktop app.
+- **Text** comes with the DejaVu fonts. In Chrome and Edge, *More: fonts on this computer…*
+  in the font list lets you use your installed fonts (the browser asks first).
+- **Desktop only:** Hollow, Remesh, Sculpt, Repair › Rebuild, Send to Slicer and To STEP. Their
+  buttons are dimmed and point you to the download.
+- There's no autosave or recovery yet: save your project before closing the tab.
+- Settings (units, theme) are remembered by your browser.
+
 ## Projects
 
 **Save** writes a `.stlx` project with the original meshes and the full timeline, so every
@@ -134,8 +152,9 @@ step stays editable. **Export** writes plain mesh files for slicers.
 
 A local Python engine (Manifold for booleans, trimesh/scikit-image for repair and voxel
 work) serves a three.js interface shown in a desktop window (pywebview / WebView2).
-Nothing leaves your computer.
+The web edition runs a JavaScript port of the engine (Manifold compiled to WebAssembly)
+inside the page. Nothing leaves your computer in either.
 
 Libraries: manifold3d (Apache-2.0), three.js (MIT), three-mesh-bvh (MIT), trimesh (MIT), Shapely (BSD-3),
 scikit-image (BSD-3), SciPy (BSD-3), NumPy (BSD-3), fast-simplification (MIT),
-pywebview (BSD-3).
+pywebview (BSD-3); in the web edition also fflate (MIT), opentype.js (MIT) and the DejaVu fonts (free licence).

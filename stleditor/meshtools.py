@@ -29,10 +29,20 @@ def outline(solids, frame, mode="section", tolerance=0.02, offset=0.0):
     """Closed 2D contours (sketch coordinates) of where `solids` meet the sketch plane
     ("section") or of their shadow on it ("silhouette")."""
     cs = None
-    for s in solids:
-        loc = _to_local(s, frame)
-        c = loc.slice(0.0) if mode == "section" else loc.project()
-        cs = c if cs is None else cs + c
+    locs = [_to_local(s, frame) for s in solids]
+    if mode == "section":
+        # a sketch drawn on a face lies exactly on the surface: look just inside it then
+        for h in (0.0, -0.01, 0.01):
+            cs = None
+            for loc in locs:
+                c = loc.slice(h)
+                cs = c if cs is None else cs + c
+            if cs is not None and not cs.is_empty():
+                break
+    else:
+        for loc in locs:
+            c = loc.project()
+            cs = c if cs is None else cs + c
     if cs is None or cs.is_empty():
         raise GeometryError("The sketch plane doesn't cut through the body here. "
                             "Try Silhouette, or sketch on a plane that crosses the part."

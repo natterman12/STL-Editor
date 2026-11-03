@@ -8,6 +8,7 @@
 Sketch on any face, extrude, cut, drill holes, add printable threads and split big parts to fit your printer. The meshes you download from Printables, Thingiverse or MakerWorld become editable solids.
 
 [**Download for Windows**](https://github.com/natterman12/STL-Editor/releases/latest/download/STL-Editor-Windows-portable.zip) ·
+[**Try it in your browser**](https://natterman12.github.io/STL-Editor/app/) ·
 [Project website](https://natterman12.github.io/STL-Editor/) ·
 [User guide](USER_GUIDE.md) ·
 [Releases](https://github.com/natterman12/STL-Editor/releases)
@@ -15,6 +16,7 @@ Sketch on any face, extrude, cut, drill holes, add printable threads and split b
 ![Windows 10/11](https://img.shields.io/badge/Windows-10%20%7C%2011-1f6fd1)
 ![Licence GPL-3.0](https://img.shields.io/badge/licence-GPL--3.0-2f855a)
 ![No install needed](https://img.shields.io/badge/install-not%20needed-66727f)
+[![Web edition](https://img.shields.io/badge/web%20edition-open-e8763a)](https://natterman12.github.io/STL-Editor/app/)
 ![Latest release](https://img.shields.io/github/v/release/natterman12/STL-Editor?color=e8763a)
 [![Tests](https://github.com/natterman12/STL-Editor/actions/workflows/tests.yml/badge.svg)](https://github.com/natterman12/STL-Editor/actions/workflows/tests.yml)
 
@@ -71,6 +73,12 @@ Every step goes into a **timeline**. Double-click an earlier step to change it a
 
 Nothing gets installed and no admin rights are needed. Settings live in `%APPDATA%\STL Editor`. When a new release is posted here, the app shows a small notice with a download button.
 
+### Web edition
+
+**[Open STL Editor in your browser](https://natterman12.github.io/STL-Editor/app/)**: nothing to download, works on Windows, macOS, Linux and ChromeOS in a recent Chrome, Edge, Firefox or Safari. It's the same interface and the same `.stlx` project files. The geometry engine (Manifold compiled to WebAssembly) runs inside the page, so your models never leave your computer.
+
+A few tools still need the desktop app: Hollow, Remesh, Sculpt, *Repair › Rebuild*, Send to Slicer and To STEP. The desktop app is also faster on very large meshes and keeps autosave recovery copies.
+
 ### Quick start
 
 1. Drag an STL onto the window.
@@ -124,6 +132,7 @@ The zip lands in `Documents\STL Editor - Share\`.
 - **Booleans:** [Manifold](https://github.com/elalish/manifold) gives exact, watertight results fast, even on meshes with hundreds of thousands of triangles.
 - **Repair and voxel work:** trimesh, scikit-image and SciPy.
 - **Sketch constraints:** solved in the browser with a small Gauss-Newton solver (`web/js/constraints.js`).
+- **Web edition:** the same UI runs the JavaScript engine in `web/engine/` in a Web Worker instead of the Python one. It answers the same API routes, uses [manifold-3d](https://www.npmjs.com/package/manifold-3d) (WebAssembly) for booleans, [fflate](https://github.com/101arrowz/fflate) for `.stlx` and 3MF and [opentype.js](https://opentype.js.org) for text. `packaging/build_web.py` publishes it to `docs/app/` for GitHub Pages.
 - **Privacy:** nothing leaves your computer. The only network request is an optional check of this repository's *latest release* page.
 
 ## Limits
