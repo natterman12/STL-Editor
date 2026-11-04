@@ -1,2 +1,4 @@
-# Vendored bundles are checked against their SHA-256; keep them byte for byte on every checkout.
+# Vendored files (and the web edition's published copy of them) are checked against their SHA-256
+# and against each other; keep them byte for byte on every checkout.
 web/vendor/** -text
+docs/app/vendor/** -text
