@@ -42,8 +42,9 @@ Double-click any item on the timeline to change it later; the steps after it upd
 
 ## Tools
 
-The toolbar has four tabs: **Solid** (modelling), **Print** (getting parts ready to print),
-**Construct** (planes and inspection) and **Mesh** (repair, remesh, sculpt). Some tools are on
+The toolbar has four tabs: **Solid** (modelling, planes and inspection), **Print** (getting
+parts ready to print), **Supports** (Support Fins, with the orient and output tools you use
+alongside it) and **Mesh** (repair, remesh, sculpt). Some tools are on
 more than one tab. Buttons with a ▾ open a short list (Primitive, Plane, Rectangle). Press
 `Ctrl+K` or `/` and type to find any tool by name. In a narrow window the toolbar shrinks to
 icons, and anything that still doesn't fit goes under **»**.
@@ -72,7 +73,7 @@ connectors at every seam. Connector types: printed pins, holes plus loose printe
 holes for 1.75 mm filament (good for thin shells like helmets), 6×3 magnet pockets, or none.
 "Smart cut positions" moves each seam to where the part is thinnest.
 
-**Support Fins** (Print tab, built from [Support Fins](https://github.com/gittrahan/support-fins)
+**Support Fins** (Supports tab, built from [Support Fins](https://github.com/gittrahan/support-fins)
 by gittrahan): printing a part tipped on an edge is often much stronger than printing it flat,
 but it needs supports. Support Fins adds breakaway fins (thin walls with one-layer *tines*
 that grip the part and snap off) and a bed pad, as part of the mesh, so it prints the same in
@@ -96,6 +97,13 @@ tines (grip, horizontal for FDM or vertical pins for resin, layer height), suppo
 pad, sway braces for tall parts, cutouts, wide-face coverage and plate-only. Hover the **?**
 for each one.
 
+Supports stay editable. Clicking **Support Fins** (or **Draw Walls**) again on a part that
+already has them opens the same step to change it, rather than stacking a second set on top.
+Double-clicking the step on the timeline does the same. If you move, turn, scale or lay flat
+a part after its fins were added, the move goes in before the fins on the timeline, so the
+fins are rebuilt for the new position instead of tipping over with the part. Walls you drew
+by hand stay where you drew them, so check those afterwards.
+
 **Draw Walls** is Support Fins' Draw mode: the red faces show where support is needed, and
 you place breakaway walls under them by hand, as many as you like:
 
@@ -114,8 +122,8 @@ from the next start (if update checks are on). Settings a new release adds show 
 panel by themselves, and settings you haven't changed follow the new defaults. Help › About
 Support Fins shows the version in use.
 
-**Construct**: Offset Plane, Plane at Angle, 3-Point Plane, Midplane. Any flat face also
-works as a plane.
+**Planes** (Solid tab › Plane): Offset Plane, Plane at Angle, 3-Point Plane, Midplane. Any
+flat face also works as a plane.
 
 **Sketch tools**: Line (connected segments), 3-Point Arc, Rectangle, Centre Rectangle,
 Circle, Polygon, Slot, Text, Project, Trim, Offset, Mirror (across a sketch line), Construction.

@@ -51,7 +51,7 @@ Every step goes into a **timeline**. Double-click an earlier step to change it a
 | <img src="docs/img/hole-presets.webp" alt="Hole tool with the heat-set insert preset"> | **Holes for real hardware.** Presets for heat-set inserts M2–M5, screw clearance, socket-head counterbores, hex nut traps and magnet pockets, all with a print tolerance. Click as many points as you like. |
 | <img src="docs/img/threads.webp" alt="Printed M8 bolt and nut"> | **Printable threads.** Tapped holes or bolts/studs, ISO metric M3–M30 or any size, right or left hand, chamfered ends and a print clearance. An M8 bolt and nut made with the defaults screw together. |
 | <img src="docs/img/section-view.webp" alt="Section view through the planter"> | **See inside.** Section view on X, Y or Z, plus measure and properties: size, volume, triangle count and print weight. |
-| <img src="docs/img/tool-search.webp" alt="Toolbar tabs and the tool search"> | **A toolbar that stays out of the way.** Four tabs: Solid, Print, Construct and Mesh. Press `Ctrl+K` to find any tool by name. The toolbar shrinks to fit narrow windows instead of scrolling. |
+| <img src="docs/img/tool-search.webp" alt="Toolbar tabs and the tool search"> | **A toolbar that stays out of the way.** Four tabs: Solid, Print, Supports and Mesh. Press `Ctrl+K` to find any tool by name. The toolbar shrinks to fit narrow windows instead of scrolling. |
 
 ### All tools
 

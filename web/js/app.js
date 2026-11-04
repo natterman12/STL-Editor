@@ -35,7 +35,7 @@ class App {
     this.tool = null;      // active tool session
     this.mode = 'model';   // model | sketch | measure | section | info
     this.tab = 'solid';
-    try { const t = localStorage.getItem('stle.tab'); if (['solid', 'print', 'construct', 'mesh'].includes(t)) this.tab = t; } catch { /* storage unavailable */ }
+    try { const t = localStorage.getItem('stle.tab'); if (['solid', 'print', 'supports', 'mesh'].includes(t)) this.tab = t; } catch { /* storage unavailable */ }
     this.apps = {};
     this._previewTimer = null;
     this._previewSeq = 0;
@@ -118,17 +118,17 @@ class App {
       ],
       print: [
         ['Orient', [['layflat', 'Lay Flat', 'layflat'], { stack: [['move', 'Move', 'move'], ['rotate', 'Rotate', 'rotate'], ['scale', 'Scale', 'scale']] }]],
-        ['Supports', [['supportfins', 'Support Fins', 'fins'], ['supportwall', 'Draw Walls', 'finwall']]],
         ['Fit', [['bedsplit', 'Fit to Bed', 'bedsplit'], ['split', 'Split', 'split']]],
         ['Hardware', [['hole', 'Hole', 'hole'], ['thread', 'Thread', 'thread'], ['resizehole', 'Resize Hole', 'resizehole']]],
         ['Prepare', [['hollow', 'Hollow', 'hollow'], ['repair', 'Repair', 'repair'], { stack: [['offset', 'Offset Body', 'offset']] }]],
         ['Output', [['export', 'Export', 'export'], ['send', 'Send to Slicer', 'slicer']]],
         ['Inspect', [['info', 'Properties', 'info'], { stack: [['measure', 'Measure', 'measure'], ['section', 'Section', 'section']] }]],
       ],
-      construct: [
-        ['Planes', planes],
-        ['Sketch', [['sketch', 'Sketch', 'sketch']]],
-        ['Inspect', [['measure', 'Measure', 'measure'], ['section', 'Section', 'section'], ['info', 'Properties', 'info']]],
+      supports: [
+        ['Supports', [['supportfins', 'Support Fins', 'fins'], ['supportwall', 'Draw Walls', 'finwall']]],
+        ['Orient', [['layflat', 'Lay Flat', 'layflat'], { stack: [['move', 'Move', 'move'], ['rotate', 'Rotate', 'rotate'], ['scale', 'Scale', 'scale']] }]],
+        ['Output', [['export', 'Export', 'export'], ['send', 'Send to Slicer', 'slicer']]],
+        ['Support Fins', [{ stack: [['sf_about', 'About Support Fins', 'info']] }]],
       ],
       mesh: [
         ['Mesh', [['repair', 'Repair', 'repair'], ['simplify', 'Simplify', 'simplify'], ['remesh', 'Remesh', 'remesh'],
@@ -138,7 +138,7 @@ class App {
         inspect,
       ],
     };
-    return { tabs: [['solid', 'SOLID'], ['print', 'PRINT'], ['construct', 'CONSTRUCT'], ['mesh', 'MESH']], groups: groups[tab] || groups.solid };
+    return { tabs: [['solid', 'SOLID'], ['print', 'PRINT'], ['supports', 'SUPPORTS'], ['mesh', 'MESH']], groups: groups[tab] || groups.solid };
   }
 
   // every [key, label, icon] inside a list of ribbon items
@@ -221,7 +221,7 @@ class App {
 
   bindSearch() {
     const inp = $('#tool-search'); if (!inp) return;
-    const TAB = { solid: 'Solid', print: 'Print', construct: 'Construct', mesh: 'Mesh', sketch: 'Sketch' };
+    const TAB = { solid: 'Solid', print: 'Print', supports: 'Supports', mesh: 'Mesh', sketch: 'Sketch' };
     const matches = () => {
       const q = inp.value.trim().toLowerCase();
       if (!q) return [];
@@ -301,6 +301,7 @@ class App {
     if (k === 'to_step') return this.toStep();
     if (k === 'supportfins' || k === 'supportwall') return this.openSupportTool(k);
     if (k === 'rotate') return this.openTool('move', { values: { _gizmo: 'rotate' } });
+    if (k === 'sf_about') return this.aboutSupportFins();
     if (TOOLS[k]) this.openTool(k);
   }
 
@@ -412,7 +413,59 @@ class App {
 
   async openSupportTool(k, opts) {
     try { await this.supportTools(); } catch (e) { this.toast(e.message, 'err'); return; }
+    if (!opts?.editFeature) {
+      // a part that already has supports: open those again instead of adding a second set on top
+      const bid = TOOLS[k].defaults(this.ctx()).body?.[0];
+      if (bid && this.reopenSupports(k, bid)) return;
+    }
     return this.openTool(k, opts);
+  }
+
+  /** The Support Fins (or Draw Walls) step already on a body, the last one in the timeline. */
+  supportFeatureFor(bid, types = ['supportfins', 'supportwall']) {
+    return [...this.state.features].reverse().find(f => types.includes(f.type) && f.active !== false && !f.suppressed
+      && (f.params?.body === bid || (f.params?.bodies || []).includes(bid))) || null;
+  }
+
+  /** Open the supports a body already has, for editing; true when there were some. */
+  reopenSupports(k, bid) {
+    const f = this.supportFeatureFor(bid, k === 'supportwall' ? ['supportwall', 'supportfins'] : ['supportfins', 'supportwall']);
+    if (!f) return false;
+    const key = f.type === 'supportwall' ? 'supportwall' : 'supportfins';
+    this.toast(`${this.bodyName(bid)} already has ${f.name}: opened it to change it`, 'info');
+    this.openTool(key, { editFeature: f, values: k === 'supportwall' && key === 'supportfins' ? { _mode: 'add' } : (k === 'supportfins' && key === 'supportfins' ? { _mode: 'rotate' } : undefined) });
+    return true;
+  }
+
+  /** Where a Move, Scale or Lay Flat of these bodies goes in the timeline: before the supports
+   *  they already have, so the fins are rebuilt for the new position instead of being carried
+   *  along with the part (null: at the end, as usual). */
+  insertBeforeSupports(type, params) {
+    if (!['move', 'scale', 'layflat'].includes(type) || params.copy) return null;
+    const ids = params.bodies || (params.body ? [params.body] : []);
+    const end = this.state.rollback ?? this.state.features.length;
+    let at = null;
+    this.state.features.forEach((f, i) => {
+      if (i >= end || at !== null) return;
+      if (['supportfins', 'supportwall'].includes(f.type) && !f.suppressed && ids.some(b => f.params?.body === b || (f.params?.bodies || []).includes(b))) at = i;
+    });
+    return at;
+  }
+
+  /** Add a feature, before the part's supports when it moves the part (see insertBeforeSupports). */
+  async addFeatureSmart(type, params, extra = {}) {
+    const at = this.insertBeforeSupports(type, params);
+    if (at === null) return { res: await post('feature/add', { type, params, ...extra }, extra.quiet ? { quiet: true } : { msg: extra.msg }), moved: false };
+    const before = this.state.rollback ?? null;
+    await post('rollback', { index: at }, { quiet: true });
+    const res = await post('feature/add', { type, params, ...extra }, extra.quiet ? { quiet: true } : { msg: extra.msg });
+    // back to where the timeline was, one step further along
+    const back = await post('rollback', { index: before === null ? null : before + 1 }, { quiet: true });
+    const sf = this.state.features[at];
+    if ((sf?.params?.walls || []).length || (sf?.params?.removed || []).length || sf?.type === 'supportwall')
+      this.toast(`${sf.name} is rebuilt for the new position. Walls you drew by hand stay where they were drawn: check them in ${sf.name}.`, 'warn');
+    else this.toast(`${sf.name} is rebuilt for the new position`, 'info');
+    return { res: { ...res, state: back.state }, moved: true, at };
   }
 
   // =================================================================== browser tree
@@ -747,7 +800,7 @@ class App {
       if (t.editId) await this.apply(await post('feature/edit', { id: t.editId, params }, { quiet: true }));
       else {
         const before = this.state.rollback ?? null;
-        const r = await post('feature/add', { type: t.def.type, params }, { quiet: true });
+        const { res: r } = await this.addFeatureSmart(t.def.type, params, { quiet: true });
         if (this.tool !== t) return;
         const idx = r.state.features.findIndex(f => f.id === r.feature.id);
         t.editId = r.feature.id;
@@ -822,7 +875,7 @@ class App {
         res = await post('feature/edit', { id: t.editId, params, rollback_after: t.prevRollback ?? null }, { msg: `Updating ${t.def.label}…` });
       } else {
         const name = t.def.type === 'plane' && t.values.name ? t.values.name : undefined;
-        res = await post('feature/add', { type: t.def.type, params, name }, { msg: `${t.def.label}…` });
+        res = (await this.addFeatureSmart(t.def.type, params, { name, msg: `${t.def.label}…` })).res;
         if (res.result?.warning) this.toast(res.result.warning, 'warn');
       }
       await this.closeTool(true);
@@ -899,6 +952,7 @@ class App {
       else cur = [hit.id];
       v[key] = cur;
       if (!f.multi) this.advanceField(key);
+      if ((t.key === 'supportfins' || t.key === 'supportwall') && !t.editId && this.reopenSupports(t.key, hit.id)) return true;
       if (t.def.paint) this.quickPaint();
     } else if (f.kind === 'plane') {
       if (!hit) return true;
@@ -1423,15 +1477,23 @@ class App {
       <a href="${DESKTOP_URL}" target="_blank" rel="noopener">Get the desktop app (Windows, free)</a>`);
   }
 
+  /** The programs a model can be sent to (a menu, or the submenu of File › Send to Slicer). */
+  slicerItems(bodies = null) {
+    const go = app => post('send_to', { app, bodies: bodies || (this.selection.length ? this.selection : null) }, { msg: 'Sending…' }).then(() => this.toast('Opened')).catch(e => this.toast(e.message, 'err'));
+    const items = [
+      { hdr: bodies ? 'Send this body to' : (this.selection.length ? `Send ${this.selection.length} selected to` : 'Send all visible bodies to') },
+      { label: 'Bambu Studio', ic: 'slicer', fn: () => go('bambu'), dis: !this.apps.bambu, title: this.apps.bambu ? '' : 'Bambu Studio wasn’t found on this computer' },
+      { label: 'OrcaSlicer', ic: 'slicer', fn: () => go('orca'), dis: !this.apps.orca, title: this.apps.orca ? '' : 'OrcaSlicer wasn’t found on this computer' },
+      { sep: true },
+      { label: 'SolidCraft', fn: () => go('solidcraft'), dis: !this.apps.solidcraft, title: this.apps.solidcraft ? '' : 'SolidCraft wasn’t found on this computer' },
+    ];
+    if (!this.apps.bambu && !this.apps.orca && !this.apps.solidcraft) items.push({ sep: true }, { label: 'No slicer found: install Bambu Studio or OrcaSlicer', dis: true });
+    return items;
+  }
+
   sendMenu(anchor) {
     if (WEB) return this.desktopOnly('Send to Slicer');
-    const go = app => post('send_to', { app, bodies: this.selection.length ? this.selection : null }, { msg: 'Sending…' }).then(() => this.toast('Opened')).catch(e => this.toast(e.message, 'err'));
-    this.showMenu(anchor || $('[data-tool="send"]'), [
-      { label: 'Bambu Studio', fn: () => go('bambu'), dis: !this.apps.bambu },
-      { label: 'OrcaSlicer', fn: () => go('orca'), dis: !this.apps.orca },
-      { sep: true },
-      { label: 'SolidCraft', fn: () => go('solidcraft'), dis: !this.apps.solidcraft },
-    ]);
+    this.showMenu(anchor || $('[data-tool="send"]'), this.slicerItems());
   }
 
   async toStep() {
@@ -1468,7 +1530,8 @@ class App {
     $('#ribbon-body').onclick = e => {
       const d = e.target.closest('[data-drop]'); if (d) { e.stopPropagation(); return this.dropMenu(d.dataset.drop, d); }
       const m = e.target.closest('[data-more]'); if (m) { e.stopPropagation(); return this.moreMenu(m); }
-      const b = e.target.closest('[data-tool]'); if (b && !b.disabled) this.onRibbon(b.dataset.tool);
+      const b = e.target.closest('[data-tool]');
+      if (b && !b.disabled) { if (['export', 'send'].includes(b.dataset.tool)) e.stopPropagation(); this.onRibbon(b.dataset.tool); }
     };
     let fitRaf = 0;
     window.addEventListener('resize', () => { cancelAnimationFrame(fitRaf); fitRaf = requestAnimationFrame(() => this.fitRibbon()); });
@@ -1840,7 +1903,7 @@ class App {
         { label: 'Export STL…', fn: () => this.exportBodies('stl') },
         { label: 'Export 3MF…', fn: () => this.exportBodies('3mf') },
         { label: 'Export OBJ…', fn: () => this.exportBodies('obj') },
-        ...(WEB ? [] : [{ label: 'Send to Slicer ▸', fn: () => setTimeout(() => this.sendMenu(btn), 0) },
+        ...(WEB ? [] : [{ label: 'Send to Slicer', ic: 'slicer', sub: () => this.slicerItems() },
           { sep: true },
           { label: 'Quit', fn: () => this.cmd('quit') }]),
       ],
@@ -1908,7 +1971,7 @@ class App {
       { sep: true },
       { label: 'Export STL…', fn: () => this.exportBodies('stl', [id]) },
       { label: 'Export 3MF…', fn: () => this.exportBodies('3mf', [id]) },
-      ...(WEB ? [] : [{ label: 'Send to Slicer ▸', fn: () => setTimeout(() => this.sendMenu(ev), 0) },
+      ...(WEB ? [] : [{ label: 'Send to Slicer', ic: 'slicer', sub: () => this.slicerItems([id]) },
         { label: 'Convert to STEP (SolidCraft)…', fn: () => this.toStep(), dis: !this.apps.cli }]),
       { sep: true },
       { label: 'Remove', fn: () => this.openTool('delete') },
@@ -1946,15 +2009,43 @@ class App {
 
   showMenu(anchor, items) {
     const m = $('#menu');
-    m.innerHTML = items.map((it, i) => it.sep ? '<div class="sep"></div>' : it.hdr ? `<div class="hdr">${esc(it.hdr)}</div>` :
-      `<div class="mi ${it.dis ? 'dis' : ''}" data-i="${i}" ${it.tool ? `data-mtool="${it.tool}"` : ''} title="${esc(it.title || '')}"><span class="ml">${it.ic ? icon(it.ic) : ''}<span>${esc(it.label)}</span></span>${it.k ? `<span class="k">${it.k}</span>` : ''}</div>`).join('');
+    const row = (it, i) => it.sep ? '<div class="sep"></div>' : it.hdr ? `<div class="hdr">${esc(it.hdr)}</div>` :
+      `<div class="mi ${it.dis ? 'dis' : ''} ${it.sub ? 'has-sub' : ''}" data-i="${i}" ${it.tool ? `data-mtool="${it.tool}"` : ''} title="${esc(it.title || '')}"><span class="ml">${it.ic ? icon(it.ic) : ''}<span>${esc(it.label)}</span></span>${it.sub ? '<span class="k arrow">▸</span>' : it.k ? `<span class="k">${it.k}</span>` : ''}</div>`;
+    m.innerHTML = items.map(row).join('');
     m.classList.remove('hidden');
     let x, y;
     if (anchor instanceof Event || anchor?.clientX !== undefined) { x = anchor.clientX; y = anchor.clientY; }
     else { const r = anchor.getBoundingClientRect(); x = r.left; y = r.bottom + 2; }
     const mw = m.offsetWidth, mh = m.offsetHeight;
     m.style.left = `${Math.min(x, innerWidth - mw - 6)}px`; m.style.top = `${Math.min(y, innerHeight - mh - 6)}px`;
-    m.onclick = e => { const it = e.target.closest('[data-i]'); if (!it) return; this.hideMenu(); items[+it.dataset.i].fn?.(); };
+    // a submenu opens beside its item (on hover, or a click/tap) instead of replacing the menu
+    let open = null;
+    const openSub = el => {
+      const it = items[+el.dataset.i];
+      if (open?.el === el) return;
+      m.querySelector('.submenu')?.remove();
+      m.querySelectorAll('.mi.hot').forEach(x => x.classList.remove('hot'));
+      if (!it?.sub) { open = null; return; }
+      const subItems = typeof it.sub === 'function' ? it.sub() : it.sub;
+      const sm = document.createElement('div');
+      sm.className = 'submenu';
+      sm.innerHTML = subItems.map(row).join('');
+      m.appendChild(sm);
+      el.classList.add('hot');
+      const mr = m.getBoundingClientRect(), er = el.getBoundingClientRect();
+      const left = mr.right + sm.offsetWidth + 6 > innerWidth ? -sm.offsetWidth - 2 : mr.width - 6;
+      sm.style.left = `${left}px`;
+      sm.style.top = `${Math.min(er.top - mr.top - 5, innerHeight - mr.top - sm.offsetHeight - 6)}px`;
+      sm.onclick = e => { e.stopPropagation(); const r = e.target.closest('[data-i]'); if (!r) return; const s2 = subItems[+r.dataset.i]; if (s2.dis) return; this.hideMenu(); s2.fn?.(); };
+      open = { el, sm };
+    };
+    m.onmouseover = e => { const el = e.target.closest('.mi[data-i]'); if (el && el.parentElement === m) openSub(el); };
+    m.onclick = e => {
+      const it = e.target.closest('[data-i]'); if (!it || it.parentElement !== m) return;
+      const item = items[+it.dataset.i];
+      if (item.sub) { openSub(it); return; }
+      this.hideMenu(); item.fn?.();
+    };
   }
   hideMenu() { $('#menu').classList.add('hidden'); for (const b of document.querySelectorAll('.menu-btn.open')) b.classList.remove('open'); }
 
