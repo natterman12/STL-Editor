@@ -3,6 +3,7 @@ import { init, sweep } from './wasm.js';
 import { GeometryError } from './geom.js';
 import { setFontLoader } from './meshtools.js';
 import opentype from '../vendor/opentype.module.js';
+import * as SFX from './supportfins.js';
 
 let ROUTES = null, app = null;
 const supplied = new Map();   // fonts the page passed in (fonts installed on this computer)
@@ -28,6 +29,7 @@ async function loadFont(name, bold, italic) {
 const ready = (async () => {
   await init();
   setFontLoader(loadFont);
+  await SFX.load();
   ({ ROUTES, app } = await import('./routes.js'));
 })();
 

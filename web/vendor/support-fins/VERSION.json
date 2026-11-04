@@ -1,0 +1,14 @@
+{
+ "name": "Support Fins",
+ "tag": "v1.0.2",
+ "version": "1.0.2",
+ "commit": "0ca880a31803a8498617af3d6958563f50809049",
+ "source": "https://github.com/gittrahan/support-fins",
+ "api": 1,
+ "built": "2026-11-04T04:15:19Z",
+ "sha256": {
+  "engine.esm.js": "d361bc1fa0dedfd936d0e8d17a0acaf06b791963e1844bb3010b18459dc1754e",
+  "engine.iife.js": "afed56af850c1a77b7e609ba755fe3a5dc3ee18f37dbd4f94b1f0c2b896d37d3"
+ },
+ "options": 19
+}

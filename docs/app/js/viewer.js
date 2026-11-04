@@ -336,14 +336,14 @@ export class Viewer {
     this.requestRender();
   }
 
-  highlightFace(bodyId, tris, tag = 'face') {
+  highlightFace(bodyId, tris, tag = 'face', color = FACE_HL) {
     const o = this.bodies.get(bodyId); if (!o) return;
     const pos = o.geo.attributes.position.array, idx = o.geo.index.array;
     const out = new Float32Array(tris.length * 9);
     let k = 0;
     for (const t of tris) for (let j = 0; j < 3; j++) { const vi = idx[t * 3 + j] * 3; out[k++] = pos[vi]; out[k++] = pos[vi + 1]; out[k++] = pos[vi + 2]; }
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(out, 3));
-    const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: FACE_HL, transparent: true, opacity: 0.45, side: THREE.DoubleSide, depthWrite: false,
+    const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.45, side: THREE.DoubleSide, depthWrite: false,
       polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
     m.userData.tag = tag; m.renderOrder = 3;
     this.overlay.add(m);

@@ -340,3 +340,68 @@ def test_weld_keeps_one_duplicate_and_cancels_opposite_pairs():
     f = np.array([[0, 1, 2], [2, 1, 0], [0, 1, 3], [0, 1, 3], [1, 3, 2]])
     _, nf = G.weld(v, f)
     assert len(nf) == 2
+
+
+def _doc_with(man, name="part.stl"):
+    v, f = _arrays(man)
+    d = Document()
+    fe, _ = d.import_file(name, G.stl_bytes(v, f), True, "keep")
+    return d, fe["id"]
+
+
+def test_support_fins():
+    pytest.importorskip("py_mini_racer")
+    from stleditor import supportfins as SF
+    inf = SF.info()
+    assert inf["schema"]["version"] == 1 and any(o["key"] == "tineDensity" for o in inf["schema"]["options"])
+    d, bid = _doc_with(m3.Manifold.cube([30, 20, 10], True).rotate([0, 40, 0]))
+    f, r = d.add_feature("supportfins", {"body": bid, "output": "join", "options": {}})
+    assert "3 walls, 15 tines" in r["info"] and r["paint"]["over"]
+    assert abs(d.state.body(bid).info()["volume"] - 6796) < 15   # the web edition gives the same
+    d.edit_feature(f["id"], {"body": bid, "output": "separate", "options": {"tineDensity": 1}})
+    assert len(d.state.bodies) == 2 and abs(d.state.body(bid).info()["volume"] - 6000) < 1e-3
+    with pytest.raises(GeometryError, match="tineDensity"):
+        d.add_feature("supportfins", {"body": bid, "options": {"tineDensity": 5}})
+    # a hand-drawn wall under the arm of an upside-down L
+    ell = m3.Manifold.batch_boolean([m3.Manifold.cube([10, 20, 35]), m3.Manifold.cube([30, 20, 8]).translate([0, 0, 27])],
+                                    m3.OpType.Add)
+    d2, eid = _doc_with(ell, "ell.stl")
+    v0 = d2.state.body(eid).info()["volume"]
+    _, rw = d2.add_feature("supportwall", {"body": eid, "points": [[22, 3, 27], [22, 17, 27]], "output": "join", "options": {}})
+    assert "wall 14.0 mm long" in rw["info"] and d2.state.body(eid).info()["volume"] > v0 + 100
+
+
+def test_support_fins_engine_update(tmp_path, monkeypatch):
+    """The desktop app downloads a newer published engine, checks it, and ignores bad ones."""
+    import functools
+    import hashlib
+    import http.server
+    import shutil
+    import threading
+    from stleditor import supportfins as SF
+    pub = tmp_path / "pub"
+    pub.mkdir()
+    shutil.copyfile(os.path.join(SF.BUNDLED, "engine.iife.js"), pub / "engine.iife.js")
+    data = (pub / "engine.iife.js").read_bytes()
+
+    def publish(**kw):
+        info = {"tag": "v9.9.9", "version": "9.9.9", "api": SF.API, "sha256": {"engine.iife.js": hashlib.sha256(data).hexdigest()}}
+        info.update(kw)
+        (pub / "VERSION.json").write_text(json.dumps(info), encoding="utf-8")
+
+    httpd = http.server.ThreadingHTTPServer(("127.0.0.1", 0), functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(pub)))
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    try:
+        monkeypatch.setattr(SF, "published_url", lambda repo=None: f"http://127.0.0.1:{httpd.server_address[1]}/")
+        monkeypatch.setattr(SF, "USER_DIR", str(tmp_path / "user"))
+        publish(api=SF.API + 1)
+        assert SF.check_update(force=True) is None, "a newer integration API waits for an app update"
+        publish(sha256={"engine.iife.js": "0" * 64})
+        assert SF.check_update(force=True) is None, "a bad checksum is refused"
+        publish()
+        assert SF.check_update(force=True) == "v9.9.9"
+        assert SF._read_info(SF.USER_DIR)["tag"] == "v9.9.9"
+        assert SF._choose()["tag"] == "v9.9.9", "the newer engine is used from the next start"
+        assert SF.check_update(force=True) is None, "nothing newer the second time"
+    finally:
+        httpd.shutdown()

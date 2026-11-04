@@ -22,6 +22,8 @@ export const ICONS = {
   move: S('<path d="M12 2v20M2 12h20"/><path d="m9 5 3-3 3 3M9 19l3 3 3-3M5 9l-3 3 3 3M19 9l3 3-3 3"/>'),
   scale: S(`<rect x="3" y="11" width="10" height="10" rx="1" fill="${BLUE}" fill-opacity=".18"/><path d="M3 11V3h18v18h-8"/><path d="m14 10 6-6M15 4h5v5"/>`),
   pattern: S(`<rect x="3" y="3" width="6" height="6" rx="1" fill="${BLUE}" fill-opacity=".25"/><rect x="15" y="3" width="6" height="6" rx="1"/><rect x="3" y="15" width="6" height="6" rx="1"/><rect x="15" y="15" width="6" height="6" rx="1"/>`),
+  fins: S(`<path d="M3 21h18"/><path d="M6 12 14 5l5 5-8 7z" fill="${BLUE}" fill-opacity=".25"/><path d="M9 15v6M12 17.5V21M15 15v6M17.5 12.5V21" stroke="${ORANGE}"/>`),
+  finwall: S(`<path d="M3 21h18"/><path d="M5 8h14" stroke-width="2.2"/><path d="M8 11h8v10H8z" fill="${ORANGE}" fill-opacity=".25" stroke="${ORANGE}"/><circle cx="8" cy="8" r="1.6" fill="${ORANGE}" stroke="${ORANGE}"/><circle cx="16" cy="8" r="1.6" fill="${ORANGE}" stroke="${ORANGE}"/>`),
   hollow: S(`<rect x="3" y="3" width="18" height="18" rx="2" fill="${BLUE}" fill-opacity=".25"/><rect x="7" y="7" width="10" height="10" rx="1" fill="#fff"/>`),
   plane: S(`<path d="M3 15 9 7h12l-6 8z" fill="${ORANGE}" fill-opacity=".2" stroke="${ORANGE}"/>`),
   plane_angle: S(`<path d="M3 18h18" /><path d="M4 18 14 5h7l-10 13" fill="${ORANGE}" fill-opacity=".2" stroke="${ORANGE}"/><path d="M8 18a5 5 0 0 0-1.5-3.6"/>`),

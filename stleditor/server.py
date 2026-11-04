@@ -656,6 +656,11 @@ def shutdown(app):
 HEARTBEAT = 0.0
 
 
+def r_supportfins_info(app, d):
+    from . import supportfins
+    return {"ok": True, **supportfins.info()}
+
+
 def r_status(app, d):
     global HEARTBEAT
     import time
@@ -672,7 +677,7 @@ ROUTES = {
     "to_step": r_to_step, "quit": r_quit, "status": r_status, "sketch_op": r_sketch_op,
     "printers": r_printers, "recovery/list": r_recovery_list, "recovery/open": r_recovery_open,
     "recovery/discard": r_recovery_discard, "settings/get": r_settings_get, "settings/set": r_settings_set,
-    "update/status": r_update_status, "open_url": r_open_url,
+    "update/status": r_update_status, "open_url": r_open_url, "supportfins/info": r_supportfins_info,
 }
 
 

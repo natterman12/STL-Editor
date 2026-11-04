@@ -45,6 +45,8 @@ def main():
     if "--server" not in sys.argv:
         from stleditor import updates
         updates.check_in_background()
+        from stleditor import supportfins
+        supportfins.check_in_background()   # a newer Support Fins engine, used from the next start
     port = int(os.environ.get("STLEDITOR_PORT", "0"))
     httpd, port = server.serve(app, port)
     url = f"http://127.0.0.1:{port}/"

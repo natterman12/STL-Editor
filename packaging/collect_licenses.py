@@ -7,8 +7,9 @@ from importlib import metadata
 PACKAGES = ["manifold3d", "numpy", "scipy", "scikit-image", "trimesh", "fast-simplification",
             "pywebview", "pythonnet", "clr-loader", "shapely", "networkx", "lxml", "pillow",
             "imageio", "lazy-loader", "packaging", "proxy-tools", "bottle", "typing-extensions",
-            "cffi", "pycparser", "tifffile"]
-WEB_LICENSES = {"three.js (MIT)": "THREE-LICENSE.txt", "three-mesh-bvh (MIT)": "THREE-MESH-BVH-LICENSE.txt"}
+            "cffi", "pycparser", "tifffile", "mini-racer"]
+WEB_LICENSES = {"three.js (MIT)": "THREE-LICENSE.txt", "three-mesh-bvh (MIT)": "THREE-MESH-BVH-LICENSE.txt",
+                "Support Fins (MIT)": "support-fins/LICENSE.txt"}
 
 
 def main(dest):
@@ -37,7 +38,7 @@ def main(dest):
     for label, fn in WEB_LICENSES.items():
         p = os.path.join(here, "web", "vendor", fn)
         if os.path.isfile(p):
-            shutil.copyfile(p, os.path.join(dest, fn))
+            shutil.copyfile(p, os.path.join(dest, fn.replace("/", "-")))
             summary.append(label)
     with open(os.path.join(dest, "_THIRD-PARTY.txt"), "w", encoding="utf-8") as fh:
         fh.write("STL Editor bundles these open-source components. Their licence texts are in this folder.\n\n")

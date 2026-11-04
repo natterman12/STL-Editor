@@ -8,6 +8,7 @@ import * as MT from './meshtools.js';
 import * as VX from './voxel.js';
 import * as ME from './meshedit.js';
 import { decimate } from './decimate.js';
+import * as SFX from './supportfins.js';
 
 const OPS = ['new', 'join', 'cut', 'intersect'];
 
@@ -473,6 +474,54 @@ function f_repair(state, fid, p, res) {
   res.modified.push(bid);
 }
 
+// ---------------------------------------------------------------- Support Fins
+// Breakaway support fins from Support Fins (github.com/gittrahan/support-fins) for the part as
+// it is posed now: tip it to the orientation you want to print, then add fins.
+function addSupports(state, fid, res, bid, solids, output, suffix = 'supports') {
+  const b = state.body(bid);
+  const fins = solids.length > 1 ? Manifold.union(solids) : solids[0];
+  if (output === 'separate' || !b.isSolid) {
+    let nid = fid, n = 1;
+    while (state.bodies.has(nid)) nid = `${fid}.${++n}`;
+    state.bodies.set(nid, new Body(`${b.name} ${suffix}`, { solid: fins }));
+    res.created.push(nid);
+    if (!b.isSolid && output !== 'separate') res.warning = `"${b.name}" isn't a watertight solid, so the supports were added as a separate body.`;
+  } else {
+    state.bodies.set(bid, b.copy({ solid: b.solid.add(fins) }));
+    res.modified.push(bid);
+  }
+}
+
+function f_supportfins(state, fid, p, res) {
+  const ids = p.bodies || (p.body ? [p.body] : []);
+  if (!ids.length) throw new GeometryError('Choose the body to support.');
+  const notes = [];
+  for (const bid of ids) {
+    const b = state.body(bid);
+    const r = SFX.fins(b.mesh(), p.options || {});
+    res.info = `Support Fins ${r.version}: ${r.report}`;
+    res.paint = { body: bid, over: r.over, small: r.small };
+    if (!r.solids.length) {
+      notes.push(r.stats.overhangRegions
+        ? `"${b.name}": ${r.report}. Nothing could be placed; try Full coverage, or tip the part differently.`
+        : `"${b.name}" has no overhangs in this position. Rotate it to the way you want to print it (Move › Rotate), then add fins.`);
+      continue;
+    }
+    if (r.skipped) notes.push(`${r.skipped} support piece(s) weren't closed solids and were left out.`);
+    addSupports(state, fid, res, bid, r.solids, p.output);
+  }
+  if (notes.length) res.warning = notes.join(' ');
+}
+
+function f_supportwall(state, fid, p, res) {
+  const bid = p.body, b = state.body(bid);
+  const pts = p.points || [];
+  if (pts.length !== 2) throw new GeometryError('Click the two ends of the wall on the part.');
+  const r = SFX.wall(b.mesh(), pts[0], pts[1], p.options || {});
+  res.info = `Support Fins ${r.version}: wall ${r.stats.length.toFixed(1)} mm long, ${r.stats.height.toFixed(1)} mm tall, ${r.stats.tines} tines${r.stats.partAttached ? ', standing on the part' : ''}`;
+  addSupports(state, fid, res, bid, r.solids, p.output, 'wall');
+}
+
 function f_hollow(state, fid, p, res) {
   const bid = p.body, b = state.body(bid), s = b.requireSolid();
   const t = num(p.thickness, 2);
@@ -646,7 +695,7 @@ export const EVALUATORS = {
   hole: f_hole, combine: f_combine, split: f_split, mirror: f_mirror, move: f_move, scale: f_scale, hollow: f_hollow,
   repair: f_repair, simplify: f_simplify, pattern: f_pattern, delete: f_delete, separate: f_separate, bedsplit: f_bedsplit,
   pushpull: f_pushpull, sculpt: f_sculpt, remesh: f_remesh, layflat: f_layflat, thread: f_thread, offset: f_offset,
-  resizehole: f_resizehole,
+  resizehole: f_resizehole, supportfins: f_supportfins, supportwall: f_supportwall,
 };
 
 export const DESKTOP_ONLY_TYPES = [];
@@ -655,5 +704,5 @@ export const LABELS = {
   import: 'Import', primitive: 'Primitive', plane: 'Plane', sketch: 'Sketch', extrude: 'Extrude', revolve: 'Revolve', hole: 'Hole',
   combine: 'Combine', split: 'Split', mirror: 'Mirror', move: 'Move', scale: 'Scale', hollow: 'Hollow', repair: 'Repair',
   simplify: 'Simplify', pattern: 'Pattern', delete: 'Remove', separate: 'Separate', bedsplit: 'Fit to Bed', pushpull: 'Push/Pull',
-  sculpt: 'Sculpt', remesh: 'Remesh', layflat: 'Lay Flat', thread: 'Thread', offset: 'Offset', resizehole: 'Resize Hole',
+  sculpt: 'Sculpt', remesh: 'Remesh', layflat: 'Lay Flat', thread: 'Thread', offset: 'Offset', resizehole: 'Resize Hole', supportfins: 'Support Fins', supportwall: 'Support Wall',
 };

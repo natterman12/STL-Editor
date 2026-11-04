@@ -104,6 +104,8 @@ def main(exe):
         step("thread", lambda: add("thread", {"kind": "internal", "diameter": 8, "pitch": 1.25, "length": 10,
                                               "plane": {"origin": [-60, 0, 30], "normal": [0, 0, 1]}, "operation": "cut"}))
         step("offset", lambda: add("offset", {"bodies": [st["b"]], "distance": 0.3}))
+        step("support fins info", lambda: call("supportfins/info", {}))
+        step("support fins", lambda: add("supportfins", {"body": S, "output": "separate", "options": {"mode": "full"}}))
         step("lay flat", lambda: add("layflat", {"bodies": [X], "auto": True}))
         step("fit to bed", lambda: add("bedsplit", {"body": X, "printer": "bambu_a1mini", "connector": "pins"}))
         frame = [[0, 0, 15], [1, 0, 0], [0, 1, 0], [0, 0, 1]]

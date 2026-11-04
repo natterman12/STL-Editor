@@ -306,3 +306,33 @@ test('import PLY, OFF and glTF', () => {
   for (const p of parts) approx(G.manifoldFromArrays(p.v, p.f).volume(), 6000, 1e-9, 'GLB part (mirrored one flipped back)');
   assert.ok(G.vertsBBox(parts[0].v)[0][0] < 0 && G.vertsBBox(parts[1].v)[0][0] >= 100, 'sorted by position');
 });
+
+test('Support Fins: fins, a drawn wall, separate body', async () => {
+  const SFX = await load('engine/supportfins.js');
+  await SFX.load();
+  const inf = SFX.info();
+  assert.equal(inf.schema.version, 1);
+  assert.ok(inf.schema.options.some(o => o.key === 'tineDensity'), 'settings come from Support Fins');
+  const doc = new Document();
+  const [a] = doc.importFile('tip.stl', stlOf(W.Manifold.cube([30, 20, 10], true).rotate([0, 40, 0])), true, 'keep');
+  const [f, r] = doc.addFeature('supportfins', { body: a.id, output: 'join', options: {} });
+  assert.match(r.info, /3 walls, 15 tines/);
+  assert.ok(r.paint.over.length > 0, 'overhang faces reported');
+  approx(vol(doc, a.id), 6796, 2e-3, 'part + fins');   // the desktop engine gives the same
+  doc.editFeature(f.id, { body: a.id, output: 'separate', options: { tineDensity: 1 } });
+  assert.equal(doc.state.bodies.size, 2);
+  approx(vol(doc, a.id), 6000, 1e-6, 'part untouched');
+  assert.match(doc._results.at(-1).info, /30 tines/);
+  assert.throws(() => doc.addFeature('supportfins', { body: a.id, options: { tineDensity: 5 } }), /tineDensity/);
+  // nothing to hold up on a block lying flat
+  const [flat] = doc.importFile('flat.stl', stlOf(W.Manifold.cube([30, 20, 10]).translate([100, 0, 0])), true, 'keep');
+  const [, r2] = doc.addFeature('supportfins', { body: flat.id, options: {} });
+  assert.match(r2.warning, /no overhangs/);
+  // a hand-drawn wall under the arm of an upside-down L
+  const ell = W.Manifold.union([W.Manifold.cube([10, 20, 35]), W.Manifold.cube([30, 20, 8]).translate([0, 0, 27])]).translate([0, 100, 0]);
+  const [e] = doc.importFile('ell.stl', stlOf(ell), true, 'keep');
+  const ve = vol(doc, e.id);
+  const [, rw] = doc.addFeature('supportwall', { body: e.id, points: [[22, 103, 27], [22, 117, 27]], output: 'join', options: {} });
+  assert.match(rw.info, /wall 14\.0 mm long/);
+  assert.ok(vol(doc, e.id) > ve + 100);
+});

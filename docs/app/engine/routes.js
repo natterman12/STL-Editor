@@ -4,8 +4,9 @@ import { GeometryError, faceRegion, planeFrame, regionBoundary, dot, sub } from 
 import * as S from './sketch2d.js';
 import * as PR from './printing.js';
 import * as MT from './meshtools.js';
+import * as SFX from './supportfins.js';
 
-export const VERSION = '1.6.0';
+export const VERSION = '1.7.0';
 const PALETTE = ['#9aa7b4', '#c9a66b', '#7fa8c9', '#a3c48a', '#c98a8a', '#a993c9', '#c9b98a', '#8ac9c0'];
 
 export const app = { doc: new Document() };
@@ -117,6 +118,7 @@ export const ROUTES = {
     } else throw new GeometryError(`Unknown sketch operation ${op}.`);
     return { ok: true, entities: out };
   },
+  'supportfins/info': () => ({ ok: true, ...SFX.info() }),
   printers: () => ({ ok: true, printers: Object.fromEntries(Object.entries(PR.PRINTERS).map(([k, v]) => [k, { name: v[0], bed: v[1] }])) }),
   body: d => { app.doc.setBodyProps(d.id, d.name, d.color, d.hidden); return ok(); },
   info: d => ({ ok: true, info: { ...app.doc.state.body(d.id).info(), name: app.doc.bodyName(d.id) } }),

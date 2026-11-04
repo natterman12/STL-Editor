@@ -39,7 +39,7 @@ const connectorFields = cond => [
 ];
 const connectorChange = (key, v) => key === 'connector' ? { pin_d: CONNECTOR_DEF[v.connector][0], pin_len: CONNECTOR_DEF[v.connector][1] } : null;
 
-const selBody = ctx => ctx.selection.filter(id => ctx.state.bodies.some(b => b.id === id));
+export const selBody = ctx => ctx.selection.filter(id => ctx.state.bodies.some(b => b.id === id));
 // features whose result can be repeated (mirrored / patterned): anything that cut or added a tool shape
 export const REPEATABLE = ['extrude', 'revolve', 'hole', 'primitive'];
 export const repeatableFeatures = state => state.features.filter(f => REPEATABLE.includes(f.type) && f.active && !f.error && !f.suppressed);

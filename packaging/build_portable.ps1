@@ -21,7 +21,8 @@ Get-ChildItem "$work\src" -Recurse -Directory -Filter __pycache__ | Remove-Item 
 # the web edition's JavaScript engine, its fonts and libraries are only used in the browser
 foreach ($item in 'engine', 'fonts', 'vendor\manifold', 'vendor\fflate.module.js', 'vendor\FFLATE-LICENSE.txt',
                   'vendor\opentype.module.js', 'vendor\OPENTYPE-LICENSE.txt',
-                  'sw.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'icon-maskable.png') {
+                  'sw.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'icon-maskable.png',
+                  'vendor\support-fins\engine.esm.js', 'vendor\support-fins\version.js') {
   $p = Join-Path "$work\src\web" $item
   if (Test-Path $p) { Remove-Item $p -Recurse -Force }
 }
@@ -40,6 +41,7 @@ $piArgs = @(
   '--collect-data', 'trimesh',
   '--collect-all', 'manifold3d',
   '--collect-all', 'fast_simplification',
+  '--collect-all', 'py_mini_racer',
   '--collect-submodules', 'skimage.measure',
   '--collect-submodules', 'fontTools.ttLib.tables',
   '--collect-all', 'webview',

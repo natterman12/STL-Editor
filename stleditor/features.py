@@ -938,6 +938,66 @@ def f_resizehole(state, fid, p, res, ctx):
     res["modified"].append(bid)
 
 
+# ------------------------------------------------------------------------------------------
+# Support Fins (github.com/gittrahan/support-fins): breakaway fins for the part as posed now
+# ------------------------------------------------------------------------------------------
+def _add_supports(state, fid, res, bid, solids, output, suffix="supports"):
+    b = state.body(bid)
+    fins = solids[0] if len(solids) == 1 else m3.Manifold.batch_boolean(solids, m3.OpType.Add)
+    if output == "separate" or not b.is_solid:
+        nid, n = fid, 1
+        while nid in state.bodies:
+            n += 1
+            nid = f"{fid}.{n}"
+        state.bodies[nid] = Body(f"{b.name} {suffix}", solid=fins)
+        res["created"].append(nid)
+        if not b.is_solid and output != "separate":
+            res["warning"] = f'"{b.name}" isn\'t a watertight solid, so the supports were added as a separate body.'
+    else:
+        state.bodies[bid] = b.copy(solid=b.solid + fins)
+        res["modified"].append(bid)
+
+
+def f_supportfins(state, fid, p, res, ctx):
+    from . import supportfins as SF
+    ids = p.get("bodies") or ([p["body"]] if p.get("body") else [])
+    if not ids:
+        raise GeometryError("Choose the body to support.")
+    notes = []
+    for bid in ids:
+        b = state.body(bid)
+        v, f = b.mesh()
+        r = SF.fins(v, f, p.get("options") or {})
+        res["info"] = f"Support Fins {r['version']}: {r['report']}"
+        res["paint"] = {"body": bid, "over": r["over"], "small": r["small"]}
+        if not r["solids"]:
+            notes.append(f'"{b.name}": {r["report"]}. Nothing could be placed; try Full coverage, or tip the part differently.'
+                         if r["stats"].get("overhangRegions") else
+                         f'"{b.name}" has no overhangs in this position. Rotate it to the way you want to print it '
+                         "(Move › Rotate), then add fins.")
+            continue
+        if r["skipped"]:
+            notes.append(f"{r['skipped']} support piece(s) weren't closed solids and were left out.")
+        _add_supports(state, fid, res, bid, r["solids"], p.get("output"))
+    if notes:
+        res["warning"] = " ".join(notes)
+
+
+def f_supportwall(state, fid, p, res, ctx):
+    from . import supportfins as SF
+    bid = p.get("body")
+    b = state.body(bid)
+    pts = p.get("points") or []
+    if len(pts) != 2:
+        raise GeometryError("Click the two ends of the wall on the part.")
+    v, f = b.mesh()
+    r = SF.wall(v, f, pts[0], pts[1], p.get("options") or {})
+    st = r["stats"]
+    res["info"] = (f"Support Fins {r['version']}: wall {st['length']:.1f} mm long, {st['height']:.1f} mm tall, "
+                   f"{st.get('tines', 0)} tines" + (", standing on the part" if st.get("partAttached") else ""))
+    _add_supports(state, fid, res, bid, r["solids"], p.get("output"), "wall")
+
+
 EVALUATORS = {
     "import": f_import, "primitive": f_primitive, "plane": f_plane, "sketch": f_sketch,
     "extrude": f_extrude, "revolve": f_revolve, "hole": f_hole, "combine": f_combine,
@@ -945,7 +1005,7 @@ EVALUATORS = {
     "repair": f_repair, "simplify": f_simplify, "pattern": f_pattern, "delete": f_delete,
     "separate": f_separate, "bedsplit": f_bedsplit, "pushpull": f_pushpull, "sculpt": f_sculpt,
     "remesh": f_remesh, "layflat": f_layflat, "thread": f_thread, "offset": f_offset,
-    "resizehole": f_resizehole,
+    "resizehole": f_resizehole, "supportfins": f_supportfins, "supportwall": f_supportwall,
 }
 
 LABELS = {
@@ -955,5 +1015,5 @@ LABELS = {
     "repair": "Repair", "simplify": "Simplify", "pattern": "Pattern", "delete": "Remove",
     "separate": "Separate", "bedsplit": "Fit to Bed", "pushpull": "Push/Pull", "sculpt": "Sculpt",
     "remesh": "Remesh", "layflat": "Lay Flat", "thread": "Thread", "offset": "Offset",
-    "resizehole": "Resize Hole",
+    "resizehole": "Resize Hole", "supportfins": "Support Fins", "supportwall": "Support Wall",
 }

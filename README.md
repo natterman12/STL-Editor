@@ -58,6 +58,7 @@ Every step goes into a **timeline**. Double-click an earlier step to change it a
 - **Modify:** Hole · Resize Hole (measure and change, or fill, any round hole or pin) · Thread · Push/Pull · Combine (cut with clearance) · Offset Body · Split (with connectors) · Mirror (bodies *or* features) · Pattern (linear / circular, bodies or features) · Move/Rotate · Scale · Hollow
 - **Print:**
   - Lay Flat: click a face, or let it pick the most stable side.
+  - **Support Fins** ([Support Fins](https://github.com/gittrahan/support-fins) by gittrahan, built in): tip a part to its strong print orientation and add the breakaway fins and bed pad that hold up its overhangs, baked into the mesh. Every Support Fins setting is there (placement, tines, nozzle, sway braces for tall parts, cutouts...), plus *Draw Wall* to stand a wall exactly where you click. New Support Fins releases reach both editions automatically.
   - Fit to Bed: pick your printer and big parts are cut into pieces that fit, with pins, pin holes, filament-pin holes or magnet pockets at every seam. *Smart cut positions* put the seams where the part is thinnest.
   - Export STL / 3MF / OBJ and Send to Bambu Studio / OrcaSlicer.
 - **Construct:** Offset Plane · Plane at Angle · 3-Point Plane · Midplane. Any flat face works as a plane too.
@@ -158,4 +159,6 @@ It's built on open-source libraries, whose licence texts ship in the `LICENSES` 
 [scikit-image](https://scikit-image.org) (BSD-3) ·
 [SciPy](https://scipy.org) / [NumPy](https://numpy.org) (BSD-3) ·
 [fast-simplification](https://github.com/pyvista/fast-simplification) (MIT) ·
-[pywebview](https://pywebview.flowrl.com) (BSD-3)
+[pywebview](https://pywebview.flowrl.com) (BSD-3) ·
+[Support Fins](https://github.com/gittrahan/support-fins) (MIT) ·
+[mini-racer](https://github.com/bpcreech/PyMiniRacer) (ISC)

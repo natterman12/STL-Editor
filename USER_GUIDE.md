@@ -70,6 +70,32 @@ connectors at every seam. Connector types: printed pins, holes plus loose printe
 holes for 1.75 mm filament (good for thin shells like helmets), 6×3 magnet pockets, or none.
 "Smart cut positions" moves each seam to where the part is thinnest.
 
+**Support Fins** (Print tab, built from [Support Fins](https://github.com/gittrahan/support-fins)
+by gittrahan): printing a part tipped on an edge is often much stronger than printing it flat,
+but it needs supports. Support Fins adds breakaway fins (thin walls with one-layer *tines*
+that grip the part and snap off) and a bed pad, as part of the mesh, so it prints the same in
+any slicer with supports turned off.
+
+1. Rotate the part to the way you want to print it (Move › Rotate). You choose the
+   orientation; Support Fins doesn't.
+2. Click **Support Fins**. Faces that need support turn red (amber ones are small enough to
+   bridge), and the fins appear as a preview with a one-line summary (walls, tines, anything
+   it couldn't reach).
+3. Adjust the settings and press OK. *Add as: Part of the body* joins the fins to the part
+   so it exports as one object; *Separate body* keeps them apart so you can hide them.
+
+The settings are Support Fins' own: Auto or Full coverage placement, overhang angle, nozzle,
+tines (grip, horizontal for FDM or vertical pins for resin, layer height), support gap, bed
+pad, sway braces for tall parts, cutouts, wide-face coverage and plate-only. Hover the **?**
+for each one. **Draw Wall** stands one breakaway wall between two points you click under an
+overhang, like Support Fins' Draw mode. Both are timeline steps you can edit later.
+
+New Support Fins releases are picked up automatically: the web edition gets them when the
+site updates, and the desktop app downloads the new engine in the background and uses it
+from the next start (if update checks are on). Settings a new release adds show up in the
+panel by themselves, and settings you haven't changed follow the new defaults. Help › About
+Support Fins shows the version in use.
+
 **Construct**: Offset Plane, Plane at Angle, 3-Point Plane, Midplane. Any flat face also
 works as a plane.
 

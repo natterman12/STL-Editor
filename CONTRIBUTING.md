@@ -65,6 +65,18 @@ python -m http.server 8000 -d web   # then open http://127.0.0.1:8000/?web
 - Keep the UI free of build steps: plain ES modules, no bundler.
 - Run `python -m pytest -q tests` before opening a pull request. GitHub runs the tests on every pull request.
 
+## Support Fins
+
+`web/vendor/support-fins/` is [Support Fins](https://github.com/gittrahan/support-fins)' own
+plugin engine, bundled unmodified by `python packaging/update_support_fins.py [vX.Y.Z]` (needs
+git and Node; esbuild is fetched with npx). The web edition imports `engine.esm.js`
+(`web/engine/supportfins.js`); the desktop app runs `engine.iife.js` in mini-racer
+(`stleditor/supportfins.py`). The tool panels are built from the engine's options schema, so
+don't hard-code its settings. The **Support Fins update** workflow runs the script daily and,
+when the tests pass, pushes the new engine; installed desktop apps then download it from the
+Pages site (checked against `VERSION.json`'s SHA-256). A release that changes the integration
+contract (`API` in the script) is refused until this app is updated for it.
+
 ## Releasing (maintainer)
 
 1. Bump `__version__` in `stleditor/__init__.py` and `VERSION` in `web/engine/routes.js` (a test checks they match), and run `python packaging/build_web.py`. Optionally add `.github/release-notes/v<version>.md`.

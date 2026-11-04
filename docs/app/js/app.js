@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { post, get, upload, WEB, requestLocalFonts, addFontFiles, openLaunchFiles, flushAutosave } from './api.js';
 import { Viewer } from './viewer.js';
 import { Sketcher } from './sketcher.js';
-import { TOOLS, repeatableFeatures, HOLE_PRESETS } from './tools.js';
+import { TOOLS, repeatableFeatures, HOLE_PRESETS, selBody } from './tools.js';
 import { icon } from './icons.js';
 import { describe, ENTITY_LABEL } from './sketchgeom.js';
 import { U, parseExpr } from './units.js';
@@ -18,7 +18,7 @@ const num = v => (Math.round(v * 1000) / 1000).toString();
 const FEATURE_ICON = { import: 'import', primitive: 'primitive', plane: 'plane', sketch: 'sketch', extrude: 'extrude', revolve: 'revolve', hole: 'hole',
   combine: 'combine', split: 'split', mirror: 'mirror', move: 'move', scale: 'scale', hollow: 'hollow', repair: 'repair', simplify: 'simplify',
   pattern: 'pattern', delete: 'delete', separate: 'separate', bedsplit: 'bedsplit', pushpull: 'pushpull', sculpt: 'sculpt', remesh: 'remesh',
-  layflat: 'layflat', thread: 'thread', offset: 'offset', resizehole: 'resizehole' };
+  layflat: 'layflat', thread: 'thread', offset: 'offset', resizehole: 'resizehole', supportfins: 'fins', supportwall: 'finwall' };
 
 class App {
   constructor() {
@@ -112,6 +112,7 @@ class App {
       ],
       print: [
         ['Orient', [['layflat', 'Lay Flat', 'layflat'], { stack: [['move', 'Move', 'move'], ['scale', 'Scale', 'scale']] }]],
+        ['Supports', [['supportfins', 'Support Fins', 'fins'], ['supportwall', 'Draw Wall', 'finwall']]],
         ['Fit', [['bedsplit', 'Fit to Bed', 'bedsplit'], ['split', 'Split', 'split']]],
         ['Hardware', [['hole', 'Hole', 'hole'], ['thread', 'Thread', 'thread'], ['resizehole', 'Resize Hole', 'resizehole']]],
         ['Prepare', [['hollow', 'Hollow', 'hollow'], ['repair', 'Repair', 'repair'], { stack: [['offset', 'Offset Body', 'offset']] }]],
@@ -292,7 +293,97 @@ class App {
     if (k === 'section') return this.startSection();
     if (k === 'info') return this.startInfo();
     if (k === 'to_step') return this.toStep();
+    if (k === 'supportfins' || k === 'supportwall') return this.openSupportTool(k);
     if (TOOLS[k]) this.openTool(k);
+  }
+
+  // =================================================================== Support Fins
+  /** The Support Fins tools are built from Support Fins' own settings list (its options.json,
+   *  read from the engine), so settings a new Support Fins release adds appear here by themselves. */
+  async supportTools() {
+    if (this._sfInfo) return this._sfInfo;
+    const inf = await post('supportfins/info', {}, { msg: 'Loading Support Fins…' });
+    const schema = inf.schema, opts = schema.options;
+    const fk = k => 'sf:' + k;
+    const vis = (o, v) => {
+      const get = k => { const x = v[fk(k)]; return x === undefined || x === null || x === '' ? opts.find(q => q.key === k)?.default : x; };
+      const holds = c => typeof c === 'string' ? get(c) === true : c.any ? c.any.some(holds) : c.in.includes(get(c.key));
+      return (o.showIf || []).every(holds);
+    };
+    const shown = o => o.percent ? Math.round(o.default * 100 * 1000) / 1000 : o.default;
+    const fieldOf = o => {
+      const base = { key: fk(o.key), label: o.label, help: o.tooltip, show: v => vis(o, v) };
+      if (o.type === 'bool') return { ...base, kind: 'bool' };
+      if (o.type === 'choice') return { ...base, kind: 'select', options: o.choices.map(c => [c.value, c.label]) };
+      return { ...base, kind: 'number', unit: o.percent ? '%' : (/^mm\b/.test(o.hint || '') ? 'mm' : (/^[°%]/.test(o.hint || '') ? o.hint : '')) };
+    };
+    const sections = (keys) => {
+      const out = [];
+      for (const sec of schema.sections) {
+        const items = opts.filter(o => o.section === sec.id && (!keys || keys.includes(o.key)));
+        if (!items.length) continue;
+        out.push({ key: '_hdr_' + sec.id, kind: 'hdr', label: sec.label, show: v => items.some(o => vis(o, v)) }, ...items.map(fieldOf));
+      }
+      return out;
+    };
+    const defaults = keys => Object.fromEntries(opts.filter(o => !keys || keys.includes(o.key)).map(o => [fk(o.key), shown(o)]));
+    const toOptions = (v, keys) => {
+      const out = {};
+      for (const o of opts) {
+        if (keys && !keys.includes(o.key)) continue;
+        let x = v[fk(o.key)];
+        if (x === undefined || x === null || x === '') continue;
+        if (o.type === 'number') { x = parseNum(x); if (o.percent) x = Math.round(x * 1e6 / 100) / 1e6; }
+        // only what differs from Support Fins' defaults is kept, so a project follows the
+        // defaults a newer Support Fins release brings
+        if (x === o.default || (o.type === 'number' && Math.abs(x - o.default) < 1e-9)) continue;
+        out[o.key] = x;
+      }
+      return out;
+    };
+    const fromOptions = (options = {}) => Object.fromEntries(Object.entries(options).map(([k, x]) => {
+      const o = opts.find(q => q.key === k);
+      return [fk(k), o?.percent && typeof x === 'number' ? Math.round(x * 100 * 1000) / 1000 : x];
+    }));
+    const output = { key: 'output', label: 'Add as', kind: 'select', options: [['join', 'Part of the body'], ['separate', 'Separate body']],
+      help: 'Part of the body: the fins are joined to it, so it exports and slices as one object (what Support Fins itself does). Separate body: a body of its own you can hide or remove; export both together.' };
+    const credit = `Support Fins ${inf.version} by gittrahan (MIT)`;
+    // the settings a drawn wall uses (Support Fins' drawWall)
+    const WALL_KEYS = ['threshold', 'nozzle', 'gap', 'tines', 'tineDensity', 'layerHeight', 'plateOnly'];
+    TOOLS.supportfins = {
+      label: 'Support Fins', icon: 'fins', type: 'supportfins',
+      fields: [{ key: 'body', label: 'Body', kind: 'bodies', multi: false }, output, ...sections(null)],
+      defaults: ctx => ({ body: selBody(ctx).slice(0, 1), output: 'join', ...defaults(null) }),
+      toParams: v => ({ body: v.body[0], output: v.output, options: toOptions(v, null) }),
+      fromParams: p => ({ body: p.body ? [p.body] : [], output: p.output || 'join', ...defaults(null), ...fromOptions(p.options) }),
+      hint: `Tip the part to the way you want to print it first (Move › Rotate). Red faces need support; fins and a bed pad go under them. ${credit}`,
+      paint: true,
+    };
+    TOOLS.supportwall = {
+      label: 'Support Wall', icon: 'finwall', type: 'supportwall',
+      fields: [{ key: 'body', label: 'Body', kind: 'bodies', multi: false }, { key: 'points', label: 'Wall ends', kind: 'points3', count: 2 }, output,
+        ...sections(WALL_KEYS)],
+      defaults: ctx => ({ body: selBody(ctx).slice(0, 1), points: [], output: 'join', ...defaults(WALL_KEYS) }),
+      toParams: v => ({ body: v.body[0], points: v.points, output: v.output, options: toOptions(v, WALL_KEYS) }),
+      fromParams: p => ({ body: p.body ? [p.body] : [], points: p.points || [], output: p.output || 'join', ...defaults(WALL_KEYS), ...fromOptions(p.options) }),
+      hint: `Click two points under an overhang to stand a breakaway wall between them, like Support Fins' Draw mode. ${credit}`,
+    };
+    this._sfInfo = inf;
+    return inf;
+  }
+
+  async aboutSupportFins() {
+    let inf;
+    try { inf = await this.supportTools(); } catch (e) { this.toast(e.message, 'err'); return; }
+    const pend = inf.pending ? `<br><br>Support Fins ${esc(String(inf.pending).replace(/^v/, ''))} has been downloaded and is used from the next time you start STL Editor.` : '';
+    this.alert('Support Fins', `Support Fins ${esc(inf.version || '')} (${esc((inf.commit || '').slice(0, 7))}) adds the breakaway support fins that let a part print tipped over, in its strong orientation. The fins come from Support Fins' own engine, unchanged.<br><br>
+      By gittrahan, MIT licence: <a href="${esc(inf.source || 'https://github.com/gittrahan/support-fins')}" target="_blank" rel="noopener">github.com/gittrahan/support-fins</a> · <a href="https://printfins.com" target="_blank" rel="noopener">printfins.com</a>. The technique is Slant3D's designed-in supports.<br><br>
+      ${WEB ? 'New Support Fins releases reach the web edition automatically.' : 'New Support Fins releases are downloaded automatically when update checks are on (Help › Update Settings).'}${pend}`);
+  }
+
+  async openSupportTool(k, opts) {
+    try { await this.supportTools(); } catch (e) { this.toast(e.message, 'err'); return; }
+    return this.openTool(k, opts);
   }
 
   // =================================================================== browser tree
@@ -472,9 +563,10 @@ class App {
         return `<div class="field wide" data-key="${f.key}"><label>${f.label}</label><div class="ent-list">${rows || '<div class="ent"><span class="t">No cuts, holes or extrudes yet</span></div>'}</div></div>`;
       }
       case 'points3': {
-        const n = (val || []).length;
-        return wrap(`<div class="sel-box ${active ? 'active' : ''}" data-pick="${f.key}">${n ? `<span class="chip">${n} of 3<b data-unpick="${f.key}">×</b></span>` : '<span class="ph">Click 3 points</span>'}</div>`);
+        const n = (val || []).length, c = f.count || 3;
+        return wrap(`<div class="sel-box ${active ? 'active' : ''}" data-pick="${f.key}">${n ? `<span class="chip">${n} of ${c}<b data-unpick="${f.key}">×</b></span>` : `<span class="ph">Click ${c} points</span>`}</div>`);
       }
+      case 'hdr': return `<div class="field-hdr">${esc(f.label)}</div>`;
     }
     return '';
   }
@@ -511,7 +603,7 @@ class App {
       if (['bodies'].includes(f.kind) && !f.placeholder && isEmptySel(v)) return false;
       if (['plane', 'sketch'].includes(f.kind) && !v) return false;
       if (f.kind === 'facepoints' && !(v || []).length) return false;
-      if (f.kind === 'points3' && (v || []).length !== 3) return false;
+      if (f.kind === 'points3' && (v || []).length !== (f.count || 3)) return false;
       if (f.kind === 'features' && !(v || []).length) return false;
       if ((f.kind === 'pface' || f.kind === 'cylface') && !v) return false;
     }
@@ -543,7 +635,13 @@ class App {
       const r = pack.result;
       if (r.error) { this.viewer.clearPreview(); this.toolMsg(r.error, 'err'); return; }
       this.viewer.showPreview(pack);
-      this.toolMsg(r.warning ? r.warning : (r.flipped ? 'Cutting into the material (direction flipped).' : ''), r.warning ? 'warn' : 'info');
+      this.toolMsg(r.warning ? r.warning : (r.flipped ? 'Cutting into the material (direction flipped).' : (r.info || '')), r.warning ? 'warn' : 'info');
+      this.viewer.clearOverlay('sf-over'); this.viewer.clearOverlay('sf-small');
+      if (r.paint && t.def.paint) {
+        // the faces Support Fins holds up (red), and the small ones it leaves to bridge (amber)
+        this.viewer.highlightFace(r.paint.body, r.paint.over, 'sf-over', 0xd64545);
+        this.viewer.highlightFace(r.paint.body, r.paint.small, 'sf-small', 0xe0a030);
+      }
       if (t.def.type === 'plane' && r.created_plane === undefined) {}
     } catch (e) { if (seq === this._previewSeq) this.toolMsg(e.message, 'err'); }
   }
@@ -680,9 +778,11 @@ class App {
     } else if (f.kind === 'points3') {
       if (!hit) return true;
       const pts = [...(v[key] || [])];
-      if (pts.length >= 3) pts.length = 0;
+      if (pts.length >= (f.count || 3)) pts.length = 0;
       pts.push(hit.point.map(x => +x.toFixed(4)));
       v[key] = pts;
+      // a tool with a body field takes the body the points are on
+      if (hit.kind === 'body' && t.def.fields.some(x => x.key === 'body' && x.kind === 'bodies') && isEmptySel(v.body)) v.body = [hit.id];
     }
     this.renderForm();
     this.schedulePreview(60);
@@ -1182,6 +1282,7 @@ class App {
     if (f.type === 'sketch') { await this.closeTool(); return this.enterSketch({ feature: f }); }
     const key = toolKeyFor(f);
     if (!key) { this.renameFeature(f); return; }
+    if (key === 'supportfins' || key === 'supportwall') return this.openSupportTool(key, { editFeature: f });
     this.openTool(key, { editFeature: f });
   }
 
@@ -1600,6 +1701,7 @@ class App {
           { label: 'Check for Updates…', fn: () => this.checkUpdates(true) },
           { label: 'Update Settings…', fn: () => this.updateSettings() },
           { label: 'Recover Unsaved Work…', fn: () => this.checkRecovery(true) }]),
+        { label: 'About Support Fins…', fn: () => this.aboutSupportFins() },
         { label: 'About STL Editor', fn: () => this.alert('STL Editor', WEB
           ? `Web edition ${esc(this.state.doc.version || '')}<br>CAD-style editing for STL, 3MF and OBJ meshes, running entirely in your browser: your files never leave your computer.<br><br>Geometry by Manifold (Apache-2.0), viewport by three.js (MIT), fflate (MIT), opentype.js (MIT), DejaVu fonts (free licence). Free software under the GPL-3.0: <a href="https://github.com/natterman12/STL-Editor" target="_blank" rel="noopener">source on GitHub</a>.`
           : `Version ${esc(this.state.doc.version || '')}<br>CAD-style editing for STL, 3MF and OBJ meshes.<br><br>Geometry by Manifold (Apache-2.0), viewport by three.js (MIT), repair helpers from trimesh (MIT), scikit-image, SciPy, NumPy and Shapely (BSD). Licence texts are in the LICENSES folder.`) },
@@ -1847,6 +1949,7 @@ function cross(a, b) { return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b
 function toolKeyFor(f) {
   if (f.type === 'primitive') return `primitive_${f.params.shape}`;
   if (f.type === 'plane') return { offset: 'plane_offset', face: 'plane_offset', angle: 'plane_angle', three_points: 'plane_3pt', midplane: 'plane_mid' }[f.params.mode];
+  if (f.type === 'supportfins' || f.type === 'supportwall') return f.type;   // built on first use
   return TOOLS[f.type] ? f.type : null;
 }
 

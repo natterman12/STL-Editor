@@ -9,3 +9,4 @@ networkx
 lxml
 shapely>=2.0
 fonttools>=4.40
+mini-racer==0.14.1
