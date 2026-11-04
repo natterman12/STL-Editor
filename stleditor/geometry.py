@@ -515,7 +515,7 @@ def hollow(solid: m3.Manifold, thickness: float, pitch: float | None = None) -> 
     if field.max() <= 0:
         raise GeometryError("Wall thickness is too large for this body; nothing would be left hollow.")
     cavity = _field_to_manifold(field.astype(np.float32), origin, pitch, level=0.0)
-    cavity = cavity.simplify(pitch * 0.25)
+    cavity = cavity.simplify(pitch * 0.1)   # more and the cavity drifts by up to 0.1 mm
     return solid - cavity
 
 

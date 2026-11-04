@@ -184,3 +184,55 @@ test('project outline on a face', () => {
   const xs = polys.flat().map(p => p[0]);
   approx(Math.max(...xs) - Math.min(...xs), 40, 1e-3);
 });
+
+test('hollow keeps the outside and leaves an even wall', () => {
+  const doc = new Document();
+  const [f] = doc.importFile('cube.stl', stlOf(W.Manifold.cube([40, 40, 40])), true, 'keep');
+  doc.addFeature('hollow', { body: f.id, thickness: 2, resolution: 'normal' });
+  const info = doc.state.body(f.id).info();
+  approx(info.volume, 40 ** 3 - 36 ** 3, 5e-3, 'hollow volume');   // the desktop engine gives 17371
+  approx(info.size[0], 40, 1e-6);
+  assert.equal(info.genus, -1, 'outer skin and cavity are two shells');
+  assert.throws(() => doc.addFeature('hollow', { body: f.id, thickness: 25 }), /too large/);
+});
+
+test('repair rebuild closes a mesh with holes', () => {
+  const sphere = W.Manifold.sphere(20, 64), m = sphere.getMesh();
+  const f = Array.from(m.triVerts).filter((_, i) => Math.floor(i / 3) % 400 !== 7);   // punch small holes
+  const doc = new Document();
+  const [imp] = doc.importFile('holey.stl', IO.stlBytes([{ v: m.vertProperties, f: Uint32Array.from(f) }]), true, 'keep');
+  const [, res] = doc.addFeature('repair', { body: imp.id, mode: 'rebuild', resolution: 'normal' });
+  const b = doc.state.body(imp.id);
+  assert.ok(b.isSolid, 'rebuilt body is a solid');
+  approx(b.info().volume, 34350, 0.01, 'rebuilt volume (the desktop engine gives 34350; the true sphere is 33321)');
+  assert.match(res.warning || '', /Rebuilt as a watertight solid/);
+});
+
+test('remesh evens out triangles and keeps sharp edges', () => {
+  const doc = new Document();
+  const [f] = doc.importFile('cube.stl', stlOf(W.Manifold.cube([20, 20, 20])), true, 'keep');
+  doc.addFeature('remesh', { body: f.id, edge: 1 });
+  const b = doc.state.body(f.id), { v, f: tris } = b.mesh();
+  approx(b.info().volume, 8000, 1e-3, 'volume');
+  const ls = [];
+  for (let t = 0; t < tris.length; t += 3) for (let e = 0; e < 3; e++) { const a = tris[t + e] * 3, c = tris[t + (e + 1) % 3] * 3; ls.push(Math.hypot(v[a] - v[c], v[a + 1] - v[c + 1], v[a + 2] - v[c + 2])); }
+  const mean = ls.reduce((s, x) => s + x, 0) / ls.length;
+  assert.ok(mean > 0.85 && mean < 1.15, `mean edge ${mean}`);
+  ls.sort((x, y) => x - y);
+  assert.ok(ls[Math.floor(ls.length * 0.95)] < 1.4, 'no long edges');
+});
+
+test('sculpt brushes', () => {
+  const doc = new Document();
+  const [f] = doc.importFile('ball.stl', stlOf(W.Manifold.sphere(10, 48)), true, 'keep');
+  doc.addFeature('remesh', { body: f.id, edge: 0.6 });
+  const v0 = vol(doc, f.id);
+  const stroke = mode => [{ mode, radius: 3, strength: 0.8, points: [[-7, 0, 7], [0, 0, 10], [7, 0, 7]] }];
+  const [sc] = doc.addFeature('sculpt', { body: f.id, strokes: stroke('inflate') });
+  assert.ok(vol(doc, f.id) > v0 + 5, 'inflate adds volume');
+  doc.editFeature(sc.id, { body: f.id, strokes: stroke('deflate') });
+  assert.ok(vol(doc, f.id) < v0 - 5, 'deflate removes volume');
+  doc.editFeature(sc.id, { body: f.id, strokes: stroke('flatten') });
+  assert.ok(vol(doc, f.id) < v0, 'flatten shaves the top');
+  assert.throws(() => doc.addFeature('sculpt', { body: f.id, strokes: [] }), /Drag over the model/);
+});

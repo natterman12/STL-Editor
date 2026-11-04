@@ -5,9 +5,10 @@ import { Body, GeometryError, num, unit, add, sub, mul, dot, cross, norm, mat4, 
 import * as S from './sketch2d.js';
 import * as PR from './printing.js';
 import * as MT from './meshtools.js';
+import * as VX from './voxel.js';
+import * as ME from './meshedit.js';
 
 const OPS = ['new', 'join', 'cut', 'intersect'];
-const DESKTOP_ONLY = "This tool needs the desktop app (it uses the voxel engine). Download it from the project page; your project opens there with the full timeline.";
 
 export class State {
   constructor() { this.bodies = new Map(); this.planes = new Map(); this.sketches = new Map(); this.tools = new Map(); }
@@ -141,7 +142,7 @@ function f_import(state, fid, p, res, ctx) {
     } else { state.bodies.set(bid, new Body(name, { verts: v, faces: f })); broken++; }
     res.created.push(bid);
   });
-  if (broken) res.warning = `${broken} mesh(es) are not watertight. They display and export, but editing needs Repair. Badly broken meshes need Repair › Rebuild in the desktop app.`;
+  if (broken) res.warning = `${broken} mesh(es) are not watertight. They display and export, but editing needs Repair. Badly broken meshes need Repair › Rebuild.`;
 }
 
 function f_primitive(state, fid, p, res) {
@@ -456,10 +457,42 @@ function f_scale(state, fid, p, res) {
 function f_repair(state, fid, p, res) {
   const bid = p.body, b = state.body(bid);
   const { v, f } = b.mesh();
-  if ((p.mode || 'auto') === 'rebuild') throw new GeometryError(DESKTOP_ONLY);
-  const man = G.localRepair(v, f);
-  if (!man) throw new GeometryError("Quick repair wasn't enough for this mesh. Repair › Rebuild in the desktop app can fix it.");
+  const mode = p.mode || 'auto';
+  let man = null;
+  if (mode === 'auto' || mode === 'quick') {
+    man = G.localRepair(v, f);
+    if (!man && mode === 'quick') throw new GeometryError("Quick repair wasn't enough. Use Rebuild.");
+  }
+  if (!man) {
+    const pitch = p.voxel ? +p.voxel : VX.autoPitch(v, { draft: 120, normal: 220, fine: 360 }[p.resolution] || 220);
+    man = VX.voxelRebuild(v, f, pitch);
+    res.warning = `Rebuilt as a watertight solid on a ${+pitch.toPrecision(3)} mm grid.`;
+  }
   state.bodies.set(bid, new Body(b.name, { solid: man }));
+  res.modified.push(bid);
+}
+
+function f_hollow(state, fid, p, res) {
+  const bid = p.body, b = state.body(bid), s = b.requireSolid();
+  const t = num(p.thickness, 2);
+  const bb = s.boundingBox(), diag = Math.hypot(bb.max[0] - bb.min[0], bb.max[1] - bb.min[1], bb.max[2] - bb.min[2]);
+  const div = { draft: 80, normal: 150, fine: 260 }[p.resolution || 'normal'] || 150;
+  const pitch = Math.max(Math.min(t / 2.5, diag / div), diag / (div * 2.5));
+  state.bodies.set(bid, b.copy({ solid: VX.hollow(s, t, pitch) }));
+  res.modified.push(bid);
+}
+
+function f_sculpt(state, fid, p, res) {
+  const bid = p.body, b = state.body(bid);
+  const strokes = p.strokes || [];
+  if (!strokes.length) throw new GeometryError('Drag over the model to sculpt.');
+  state.bodies.set(bid, b.copy({ solid: ME.sculpt(b.requireSolid(), strokes) }));
+  res.modified.push(bid);
+}
+
+function f_remesh(state, fid, p, res) {
+  const bid = p.body, b = state.body(bid);
+  state.bodies.set(bid, b.copy({ solid: ME.remesh(b.requireSolid(), num(p.edge, 1)) }));
   res.modified.push(bid);
 }
 
@@ -591,17 +624,15 @@ function f_resizehole(state, fid, p, res) {
   res.modified.push(bid);
 }
 
-const desktopOnly = () => { throw new GeometryError(DESKTOP_ONLY); };
-
 export const EVALUATORS = {
   import: f_import, primitive: f_primitive, plane: f_plane, sketch: f_sketch, extrude: f_extrude, revolve: f_revolve,
-  hole: f_hole, combine: f_combine, split: f_split, mirror: f_mirror, move: f_move, scale: f_scale, hollow: desktopOnly,
+  hole: f_hole, combine: f_combine, split: f_split, mirror: f_mirror, move: f_move, scale: f_scale, hollow: f_hollow,
   repair: f_repair, simplify: f_simplify, pattern: f_pattern, delete: f_delete, separate: f_separate, bedsplit: f_bedsplit,
-  pushpull: f_pushpull, sculpt: desktopOnly, remesh: desktopOnly, layflat: f_layflat, thread: f_thread, offset: f_offset,
+  pushpull: f_pushpull, sculpt: f_sculpt, remesh: f_remesh, layflat: f_layflat, thread: f_thread, offset: f_offset,
   resizehole: f_resizehole,
 };
 
-export const DESKTOP_ONLY_TYPES = ['hollow', 'sculpt', 'remesh'];
+export const DESKTOP_ONLY_TYPES = [];
 
 export const LABELS = {
   import: 'Import', primitive: 'Primitive', plane: 'Plane', sketch: 'Sketch', extrude: 'Extrude', revolve: 'Revolve', hole: 'Hole',

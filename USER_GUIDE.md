@@ -130,8 +130,11 @@ saved to your computer; nothing is uploaded.
 - `.stlx` projects move freely between the web edition and the desktop app.
 - **Text** comes with the DejaVu fonts. In Chrome and Edge, *More: fonts on this computer…*
   in the font list lets you use your installed fonts (the browser asks first).
-- **Desktop only:** Hollow, Remesh, Sculpt, Repair › Rebuild, Send to Slicer and To STEP. Their
+- **Desktop only:** Send to Slicer and To STEP, which start programs on your computer. Their
   buttons are dimmed and point you to the download.
+- **Hollow, Repair › Rebuild and Remesh** take a few seconds on big models. The browser has
+  less memory than the desktop app, so *Fine* quality on a very large model may ask you to
+  pick a coarser setting.
 - There's no autosave or recovery yet: save your project before closing the tab.
 - Settings (units, theme) are remembered by your browser.
 

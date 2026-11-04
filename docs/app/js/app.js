@@ -9,8 +9,8 @@ import { U, parseExpr } from './units.js';
 import { CTYPES, CTOOLS } from './constraints.js';
 
 const $ = s => document.querySelector(s);
-// tools the web edition leaves to the desktop app (they need the voxel engine or local programs)
-const DESKTOP_TOOLS = new Set(['hollow', 'remesh', 'sculpt', 'to_step', 'send']);
+// tools the web edition leaves to the desktop app (they run programs on your computer)
+const DESKTOP_TOOLS = new Set(['to_step', 'send']);
 const DESKTOP_URL = 'https://natterman12.github.io/STL-Editor/#download';
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const num = v => (Math.round(v * 1000) / 1000).toString();
@@ -1075,7 +1075,7 @@ class App {
     try { seen = localStorage.getItem('stle.webWelcome') === '1'; } catch { /* storage off */ }
     const bar = document.createElement('div');
     bar.id = 'web-bar';
-    bar.innerHTML = `<span><b>Web edition</b> · runs in your browser, your files stay on your computer.${seen ? '' : ' Hollow, Remesh, Sculpt, Repair › Rebuild and Send to Slicer need the desktop app.'}</span>
+    bar.innerHTML = `<span><b>Web edition</b> · runs in your browser, your files stay on your computer.${seen ? '' : ' Send to Slicer and To STEP need the desktop app.'}</span>
       <a href="${DESKTOP_URL}" target="_blank" rel="noopener">Desktop app</a><button title="Hide" data-x>×</button>`;
     bar.querySelector('[data-x]').onclick = () => { bar.remove(); try { localStorage.setItem('stle.webWelcome', '1'); } catch { /* storage off */ } };
     document.getElementById('viewport').appendChild(bar);
@@ -1083,7 +1083,7 @@ class App {
   }
 
   desktopOnly(what = 'This tool') {
-    this.alert('Desktop app tool', `${esc(what)} runs in the desktop app, which has the voxel engine and can open your slicer directly.<br><br>
+    this.alert('Desktop app tool', `${esc(what)} runs in the desktop app, which can open your slicer and SolidCraft directly.<br><br>
       Save your project (File › Save) and open it in the desktop app: everything carries over, timeline included.<br><br>
       <a href="${DESKTOP_URL}" target="_blank" rel="noopener">Get the desktop app (Windows, free)</a>`);
   }
