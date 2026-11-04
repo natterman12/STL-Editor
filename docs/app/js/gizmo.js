@@ -43,16 +43,23 @@ export class Gizmo {
   /** A click that landed on a handle isn't a click on the part. */
   consumeClick() { const g = this.grabbed; this.grabbed = false; return g; }
 
-  get tool() { const t = this.app.tool; return t?.def.gizmo ? t : null; }
+  // Move / Rotate, Scale, or Support Fins' Rotate mode ('pose': turn the part to print it)
+  get tool() {
+    const t = this.app.tool;
+    if (!t?.def.gizmo) return null;
+    if (t.def.gizmo === 'pose' && (t.values._mode || 'rotate') !== 'rotate') return null;
+    return t;
+  }
 
   mode(t = this.tool) {
     if (!t) return null;
     if (t.def.gizmo === 'scale') return 'scale';
+    if (t.def.gizmo === 'pose') return 'rotate';
     return t.values._gizmo === 'rotate' ? 'rotate' : 'translate';
   }
 
   bodies(t = this.tool) {
-    const ids = t?.values.bodies || [];
+    const ids = (t?.def.gizmo === 'pose' ? t.values.body : t?.values.bodies) || [];
     return ids.map(id => [id, this.app.viewer.bodies.get(id), this.app.state.bodies.find(b => b.id === id)]).filter(x => x[1] && x[2]?.bbox);
   }
 
@@ -119,6 +126,7 @@ export class Gizmo {
 
   /** The tool's numbers, with the scale tool's as three factors (_k). */
   values(t = this.tool) {
+    if (t.def.gizmo === 'pose') return { translate: [0, 0, 0], rotate: [0, 0, 0], pivot: 'center', bed: true };
     const v = { ...t.values };
     if (t.def.gizmo === 'scale') {
       const b = this.bodies(t)[0]?.[2];
@@ -176,6 +184,14 @@ export class Gizmo {
   drop() {
     const t = this.tool; if (!t) return;
     const v = this.dragValues(t);
+    if (t.def.gizmo === 'pose') {
+      // Support Fins: the turn is applied to the part straight away (it lands on the bed)
+      const [, o, b] = this.bodies(t)[0];
+      const m = this.matrixFor(o, b, v);
+      if (v.rotate.every(a => Math.abs(a) < 1e-9)) { this.reset(); this.sync(); return; }
+      this.app.poseDrop(m);
+      return;
+    }
     if (t.def.gizmo === 'scale') {
       const k = v._k;
       if (t.values.uniform || (Math.abs(k[0] - k[1]) < 1e-9 && Math.abs(k[1] - k[2]) < 1e-9)) Object.assign(t.values, { mode: 'factor', uniform: true, factor: k[0] });
@@ -184,8 +200,9 @@ export class Gizmo {
       t.values.translate = v.translate; t.values.rotate = v.rotate;
     }
     this.app.renderForm();
-    this.app.schedulePreview(0);
     this.sync();
+    // no OK needed: letting go puts the part there
+    this.app.autoAccept();
   }
 
   /** Put the parts back where the scene has them (the preview shows the moved copy). */

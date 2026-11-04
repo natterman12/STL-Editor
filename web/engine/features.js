@@ -516,17 +516,45 @@ function f_supportfins(state, fid, p, res, ctx = {}) {
   const notes = [];
   for (const bid of ids) {
     const b = state.body(bid);
-    const r = SFX.fins(b.mesh(), p.options || {});
-    res.info = `Support Fins ${r.version}: ${r.report}`;
+    const mesh = b.mesh();
+    const r = SFX.fins(mesh, p.options || {});
     res.paint = { body: bid, over: r.over, small: r.small };
-    if (!r.solids.length) {
-      notes.push(r.stats.overhangRegions
-        ? `"${b.name}": ${r.report}. Nothing could be placed; try Full coverage, or tip the part differently.`
-        : `"${b.name}" has no overhangs in this position. Rotate it to the way you want to print it (Move › Rotate), then add fins.`);
+    // fins you clicked away, and walls you drew by hand (Support Fins' "+ Add walls by hand")
+    const { gone, missing } = SFX.matchRemoved(r.pieces, p.removed);
+    const hand = drawnWalls(p).filter(w => (w.points || []).length >= 2);
+    const wr = hand.length ? SFX.walls(mesh, hand, p.options || {}) : null;
+    if (wr) res.walls = wr.walls.map(w => ({ ok: w.ok, reason: w.reason || null }));
+    const extra = [gone.size ? `${gone.size} removed` : '', wr ? `${wr.walls.filter(w => w.ok).length} drawn by hand` : ''].filter(Boolean).join(', ');
+    res.info = `Support Fins ${r.version}: ${r.report}${extra ? ` (${extra})` : ''}`;
+    if (missing) notes.push(`${missing} fin(s) you removed aren't there any more in this build, so nothing was removed for them.`);
+    if (wr) wr.walls.forEach((w, i) => { if (!w.ok || w.failed) notes.push(`Hand wall ${i + 1}${w.ok ? ' (part of it)' : ''}: ${w.reason}.`); });
+    const kept = r.solids.filter((_, i) => !gone.has(i));
+    const all = [...kept, ...(wr ? wr.solids : [])];
+    if (ctx.preview) {
+      // every fin a body of its own beside the untouched part, so one can be clicked to remove
+      // it; removed ones stay as see-through ghosts to click back
+      res.pieces = {};
+      res.colors = res.colors || {};
+      res.ghosts = res.ghosts || [];
+      res.previewOnly = true;
+      const put = (nid, solid, info) => {
+        state.bodies.set(nid, new Body(`${b.name} supports`, { solid }));
+        res.created.push(nid); res.pieces[nid] = info; res.colors[nid] = info.removed ? '#d64545' : SUPPORT_COLOR;
+        if (info.removed) res.ghosts.push(nid);
+      };
+      r.solids.forEach((sd, i) => put(`${fid}~p${i}`, sd, { ...r.pieces[i], removed: gone.has(i) }));
+      if (wr) wr.byWall.forEach((list, i) => { if (list.length) put(`${fid}~w${i}`, list.length > 1 ? Manifold.union(list) : list[0], { kind: 'hand', wall: i }); });
+      if (!all.length && !r.stats.overhangRegions && !hand.length) notes.push(`"${b.name}" has no overhangs in this position. Turn it the way you want to print it (drag the rings), then add fins.`);
+      continue;
+    }
+    if (!all.length) {
+      notes.push(r.stats.overhangRegions || hand.length
+        ? `"${b.name}": ${r.report}. Nothing could be placed; try Full coverage, draw walls by hand, or tip the part differently.`
+        : `"${b.name}" has no overhangs in this position. Rotate it to the way you want to print it, then add fins.`);
       continue;
     }
     if (r.skipped) notes.push(`${r.skipped} support piece(s) weren't closed solids and were left out.`);
-    addSupports(state, fid, res, bid, r.solids, p.output, 'supports', ctx);
+    addSupports(state, fid, res, bid, all, p.output, 'supports', ctx);
   }
   if (notes.length) res.warning = notes.join(' ');
 }

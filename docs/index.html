@@ -152,6 +152,9 @@ details p { margin: 0 0 16px; color: var(--muted); }
 footer { padding: 40px 0 56px; color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); }
 footer .wrap { display: flex; flex-wrap: wrap; gap: 14px 28px; justify-content: space-between; }
 footer .credits { max-width: 640px; }
+.support-note { margin: 26px auto 0; text-align: center; color: var(--muted); font-size: 15px; }
+.support-note a { color: inherit; text-decoration: underline; text-decoration-color: #ff5e5b; text-underline-offset: 3px; }
+.support-note span { color: #ff5e5b; }
 </style>
 </head>
 <body>
@@ -427,6 +430,7 @@ python main.py</pre>
       </div>
       <p class="small">Very large meshes (a million triangles and up) are faster in the desktop app.</p>
     </div>
+    <p class="support-note">STL Editor is free, with no ads and no account. If it saves you a reprint or an evening in CAD, you can <a href="https://ko-fi.com/natterman12">buy me a coffee on Ko-fi</a>&nbsp;<span aria-hidden="true">&hearts;</span></p>
   </div>
 </section>
 
@@ -451,7 +455,7 @@ python main.py</pre>
 
 <footer>
   <div class="wrap">
-    <div>© 2026 natterman12 · <a href="https://github.com/natterman12/STL-Editor/blob/main/LICENSE">GPL-3.0</a> · <a href="https://github.com/natterman12/STL-Editor">Source on GitHub</a> · <a href="https://github.com/natterman12/STL-Editor/blob/main/USER_GUIDE.md">User guide</a></div>
+    <div>© 2026 natterman12 · <a href="https://github.com/natterman12/STL-Editor/blob/main/LICENSE">GPL-3.0</a> · <a href="https://github.com/natterman12/STL-Editor">Source on GitHub</a> · <a href="https://github.com/natterman12/STL-Editor/blob/main/USER_GUIDE.md">User guide</a> · <a href="https://ko-fi.com/natterman12">Support on Ko-fi <span aria-hidden="true">&hearts;</span></a></div>
     <div class="credits">Built on <a href="https://github.com/elalish/manifold">Manifold</a>, <a href="https://threejs.org">three.js</a>, <a href="https://github.com/gkjohnson/three-mesh-bvh">three-mesh-bvh</a>, <a href="https://trimesh.org">trimesh</a>, <a href="https://shapely.readthedocs.io">Shapely</a>, <a href="https://scikit-image.org">scikit-image</a>, SciPy, NumPy, <a href="https://pywebview.flowrl.com">pywebview</a>, <a href="https://github.com/101arrowz/fflate">fflate</a> and <a href="https://opentype.js.org">opentype.js</a>; supports by <a href="https://github.com/gittrahan/support-fins">Support Fins</a> (MIT).</div>
   </div>
 </footer>

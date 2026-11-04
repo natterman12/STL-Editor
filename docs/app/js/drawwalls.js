@@ -49,7 +49,8 @@ export class WallDrawer {
     try { this.shape = SHAPES.some(s => s[0] === localStorage.getItem(SHAPE_KEY)) ? localStorage.getItem(SHAPE_KEY) : 'line'; } catch { this.shape = 'line'; }
   }
 
-  get tool() { const t = this.app.tool; return t?.def.wallTool ? t : null; }
+  // Draw Walls, or Support Fins' "Add fins" (walls drawn by hand next to the auto fins)
+  get tool() { const t = this.app.tool; return t && (t.def.wallTool || (t.def.type === 'supportfins' && t.values._mode === 'add')) ? t : null; }
   get active() { return !!this.tool; }
   get walls() { return this.tool?.values.walls || []; }
 

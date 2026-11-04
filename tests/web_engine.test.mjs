@@ -344,6 +344,35 @@ test('Draw Walls: several walls, a multi-section line and a curve; preview besid
   console.log(`walls: ${v0} -> ${v1}, curve ${curved.toFixed(1)} vs chord ${straight.toFixed(1)}`);
 });
 
+test('Support Fins: remove a fin, add one by hand, each fin its own preview piece', async () => {
+  const SFX = await load('engine/supportfins.js');
+  await SFX.load();
+  const doc = new Document();
+  const [a] = doc.importFile('tip.stl', stlOf(W.Manifold.cube([30, 20, 10], true).rotate([0, 40, 0])), true, 'keep');
+  const [, pr] = doc.preview('supportfins', { body: a.id, output: 'join', options: {} });
+  const ids = Object.keys(pr.pieces);
+  assert.deepEqual(Object.values(pr.pieces).map(p => p.kind), ['prop', 'prop', 'prop', 'pad']);
+  const { kind, c, size } = pr.pieces[ids[1]];
+  const [, pr2] = doc.preview('supportfins', { body: a.id, output: 'join', options: {}, removed: [{ kind, c, size }] });
+  assert.deepEqual(pr2.ghosts, [ids[1]]);
+  assert.match(pr2.info, /1 removed/);
+  // a slightly different build (gap 0.25) still finds it
+  const [, pr3] = doc.preview('supportfins', { body: a.id, output: 'join', options: { gap: 0.25 }, removed: [{ kind, c, size }] });
+  assert.equal(pr3.ghosts.length, 1);
+  const [f] = doc.addFeature('supportfins', { body: a.id, output: 'join', options: {}, removed: [{ kind, c, size }] });
+  approx(vol(doc, a.id), 6543.19, 1e-3, 'one fin fewer');   // the desktop engine gives the same
+  // a removal that matches nothing removes nothing
+  doc.editFeature(f.id, { body: a.id, output: 'join', options: {}, removed: [{ kind: 'prop', c: [50, 50, 50], size }] });
+  approx(vol(doc, a.id), 6796, 2e-3);
+  assert.match(doc._results.at(-1).warning, /aren't there any more/);
+  // walls by hand next to the auto fins, on the L
+  const ell = W.Manifold.union([W.Manifold.cube([10, 20, 35]), W.Manifold.cube([30, 20, 8]).translate([0, 0, 27])]).translate([0, 100, 0]);
+  const [e] = doc.importFile('ell.stl', stlOf(ell), true, 'keep');
+  const [, ph] = doc.preview('supportfins', { body: e.id, output: 'join', options: {}, walls: [{ shape: 'line', points: [[24, 104, 27], [24, 116, 27]] }] });
+  assert.match(ph.info, /1 drawn by hand/);
+  assert.ok(Object.values(ph.pieces).some(p => p.kind === 'hand'));
+});
+
 test('Move: a rotated part lands on the bed', () => {
   const [doc, B] = block();
   doc.addFeature('move', { bodies: [B], translate: [0, 0, 0], rotate: [30, 0, 0], pivot: 'center', bed: true });

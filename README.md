@@ -18,6 +18,7 @@ Sketch on any face, extrude, cut, drill holes, add printable threads and split b
 ![No install needed](https://img.shields.io/badge/install-not%20needed-66727f)
 [![Web edition](https://img.shields.io/badge/web%20edition-open-e8763a)](https://natterman12.github.io/STL-Editor/app/)
 ![Latest release](https://img.shields.io/github/v/release/natterman12/STL-Editor?color=e8763a)
+[![Support on Ko-fi](https://img.shields.io/badge/Ko--fi-support%20the%20project-ff5e5b?logo=kofi&logoColor=white)](https://ko-fi.com/natterman12)
 [![Tests](https://github.com/natterman12/STL-Editor/actions/workflows/tests.yml/badge.svg)](https://github.com/natterman12/STL-Editor/actions/workflows/tests.yml)
 
 <img src="docs/img/fit-to-bed.webp" alt="A tall vase cut into colour-coded pieces that fit a Bambu A1 mini, with the Fit to Bed panel open" width="100%">
@@ -144,7 +145,11 @@ The zip lands in `Documents\STL Editor - Share\`.
 
 ## Contributing
 
-Bug reports, ideas and pull requests are welcome. [Open an issue](https://github.com/natterman12/STL-Editor/issues/new/choose): the forms ask for the model file and steps, which makes mesh bugs much faster to fix. [CONTRIBUTING.md](CONTRIBUTING.md) covers setup, the code layout, how to add a tool and how releases are made. Tests run on GitHub for every push and pull request, and pushing a `v*` tag builds and publishes the portable zip automatically. Ideas already on the list: SVG/DXF import, colour 3MF for the AMS, wall-thickness and overhang checks, a move gizmo and plate layout.
+Bug reports, ideas and pull requests are welcome. [Open an issue](https://github.com/natterman12/STL-Editor/issues/new/choose): the forms ask for the model file and steps, which makes mesh bugs much faster to fix. [CONTRIBUTING.md](CONTRIBUTING.md) covers setup, the code layout, how to add a tool and how releases are made. Tests run on GitHub for every push and pull request, and pushing a `v*` tag builds and publishes the portable zip automatically. Ideas already on the list: SVG/DXF import, colour 3MF for the AMS, wall-thickness and overhang checks, and plate layout.
+
+## Support the project
+
+STL Editor is free, with no ads and no account, and it stays that way. I build it in my spare time. If it saved you a reprint or an evening in CAD, you can [buy me a coffee on Ko-fi](https://ko-fi.com/natterman12) ♥. Bug reports, ideas and telling a friend about it help just as much.
 
 ## Licence
 

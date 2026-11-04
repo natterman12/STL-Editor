@@ -8,12 +8,14 @@ import { describe, ENTITY_LABEL } from './sketchgeom.js';
 import { U, parseExpr } from './units.js';
 import { CTYPES, CTOOLS } from './constraints.js';
 import { WallDrawer } from './drawwalls.js';
-import { Gizmo } from './gizmo.js';
+import { Gizmo, rotOf } from './gizmo.js';
 
 const $ = s => document.querySelector(s);
 // tools the web edition leaves to the desktop app (they run programs on your computer)
 const DESKTOP_TOOLS = new Set(['to_step', 'send']);
 const DESKTOP_URL = 'https://natterman12.github.io/STL-Editor/#download';
+const KOFI = 'https://ko-fi.com/natterman12';
+const THANKS = `<br><br>STL Editor is free and made in spare time. If it saves you time, you can <a href="#" data-url="${KOFI}">buy me a coffee on Ko-fi</a> <span style="color:#ff5e5b">&hearts;</span>`;
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const num = v => (Math.round(v * 1000) / 1000).toString();
 
@@ -361,14 +363,29 @@ class App {
       const shown = ctx.state.bodies.filter(b => !b.hidden);
       return shown.length === 1 ? [shown[0].id] : [];
     };
+    const MODES = [['rotate', 'Rotate'], ['add', 'Add fins'], ['remove', 'Remove fins']];
     TOOLS.supportfins = {
-      label: 'Support Fins', icon: 'fins', type: 'supportfins',
-      fields: [{ key: 'body', label: 'Body', kind: 'bodies', multi: false }, output, ...sections(null)],
-      defaults: ctx => ({ body: oneBody(ctx), output: 'join', ...defaults(null) }),
-      toParams: v => ({ body: v.body[0], output: v.output, options: toOptions(v, null) }),
-      fromParams: p => ({ body: p.body ? [p.body] : [], output: p.output || 'join', ...defaults(null), ...fromOptions(p.options) }),
-      hint: `Red faces need support; Support Fins puts breakaway fins and a bed pad under them. Tip the part to the way you want to print it first (Move / Rotate). ${credit}`,
-      paint: true,
+      label: 'Support Fins', icon: 'fins', type: 'supportfins', paint: true, gizmo: 'pose',
+      fields: [{ key: 'body', label: 'Body', kind: 'bodies', multi: false },
+        { key: '_mode', label: 'On the part', kind: 'select', options: MODES,
+          help: 'Rotate: drag the rings to turn the part the way it will print (it stays on the bed, and the fins follow). Add fins: draw walls by hand where Auto left a gap. Remove fins: click a fin to take it away, click it again to bring it back.' },
+        { key: 'walls', label: 'Hand walls', kind: 'walls', show: v => v._mode === 'add' },
+        { key: 'removed', label: 'Removed', kind: 'removed', show: v => v._mode === 'remove' || (v.removed || []).length > 0 },
+        output, ...sections(null)],
+      defaults: ctx => ({ body: oneBody(ctx), _mode: 'rotate', walls: [], removed: [], output: 'join', ...defaults(null) }),
+      toParams: v => {
+        const p = { body: v.body[0], output: v.output, options: toOptions(v, null) };
+        if ((v.walls || []).length) p.walls = v.walls;
+        if ((v.removed || []).length) p.removed = v.removed;
+        return p;
+      },
+      fromParams: p => ({ body: p.body ? [p.body] : [], _mode: 'rotate', walls: p.walls || [], removed: p.removed || [], output: p.output || 'join', ...defaults(null), ...fromOptions(p.options) }),
+      hint: `Red faces need support. Turn the part with the rings (it stays on the bed); Support Fins puts breakaway fins and a bed pad under the red. ${credit}`,
+      modeHints: {
+        rotate: `Drag the rings to turn the part the way you want to print it (5° steps, Shift for any angle). It stays on the bed, and the fins are rebuilt. ${credit}`,
+        add: null,
+        remove: 'Click a fin to remove it; click a red one to bring it back. Walls you drew by hand are removed for good (Ctrl+Z in Add fins brings them back).',
+      },
     };
     TOOLS.supportwall = {
       label: 'Draw Walls', icon: 'finwall', type: 'supportwall', wallTool: true, paint: true,
@@ -461,11 +478,11 @@ class App {
       await this.apply(await post('rollback', { index: idx }));
     }
     $('#tool-title').textContent = (editFeature ? 'Edit ' : '') + def.label;
-    $('#tool-ok').textContent = 'OK';
+    $('#tool-ok').textContent = 'OK'; $('#tool-cancel').textContent = 'Cancel';
     $('#tool-panel').classList.remove('hidden');
     this.tool.activeField = def.fields.find(f => isSelKind(f.kind) && !f.placeholder && f.kind !== 'regions' && (f.show ? f.show(v) : true) && isEmptySel(v[f.key]))?.key || null;
     this.renderForm();
-    this.hint(def.wallTool ? `${this.walls.hint()} Support Fins ${this._sfInfo?.version || ''} by gittrahan (MIT)` : (def.hint || ''));
+    this.hint(this.modeHint());
     this.viewer.setMouseMode(def.sculpt ? 'sculpt' : 'model');
     if (def.paint) this.quickPaint();
     this.updateRibbonState();
@@ -584,6 +601,10 @@ class App {
       }
       case 'hdr': return `<div class="field-hdr">${esc(f.label)}</div>`;
       case 'walls': return this.walls.fieldHTML(f);
+      case 'removed': {
+        const n = (val || []).length;
+        return `<div class="field" data-key="${f.key}"><label>${f.label}</label><div class="ctl walls-ctl"><span class="walls-n">${n ? `${n} fin${n > 1 ? 's' : ''}` : '<span class="ph">None: click a fin to remove it</span>'}</span>${n ? '<button data-sfact="restore">Bring all back</button>' : ''}</div></div>`;
+      }
     }
     return '';
   }
@@ -601,6 +622,7 @@ class App {
     t.values[key] = val;
     if (t.def.onChange) { const patch = t.def.onChange(key, t.values); if (patch) { Object.assign(t.values, patch); rerender = true; } }
     if (t.def.paint && (key === 'body' || key === 'sf:threshold')) this.quickPaint();
+    if (key === '_mode') { this.walls.reset(); this.viewer.setPreviewHover(null); this.hint(this.modeHint()); rerender = true; }
     if (t.key === 'scale' && key === 'size' && t.values.uniform && t.values._size0) {
       // keep proportions: scale the other axes from the edited one
       const s0 = t.values._size0, prev = t._lastSize || s0;
@@ -623,7 +645,7 @@ class App {
       if (['plane', 'sketch'].includes(f.kind) && !v) return false;
       if (f.kind === 'facepoints' && !(v || []).length) return false;
       if (f.kind === 'points3' && (v || []).length !== (f.count || 3)) return false;
-      if (f.kind === 'walls' && !(v || []).length) return false;
+      if (f.kind === 'walls' && !(v || []).length && t.def.wallTool) return false;
       if (f.kind === 'features' && !(v || []).length) return false;
       if ((f.kind === 'pface' || f.kind === 'cylface') && !v) return false;
     }
@@ -657,7 +679,8 @@ class App {
       this.gizmo.reset();
       clearTimeout(this._busyTimer);
       const r = pack.result;
-      if (t.def.wallTool) { t._wallStatus = r.walls || []; this.renderForm(); }
+      if (t.def.wallTool || t.def.type === 'supportfins') { t._wallStatus = r.walls || []; if (t.def.wallTool || t.values._mode === 'add') this.renderForm(); }
+      this._sfPieces = r.pieces || null;
       if (r.error) { this.viewer.clearPreview(); this.toolMsg(r.error, 'err'); return; }
       this.viewer.showPreview(pack);
       this.toolMsg(r.warning ? (t.def.wallTool && r.info ? `${r.info}. ${r.warning}` : r.warning) : (r.flipped ? 'Cutting into the material (direction flipped).' : (r.info || '')), r.warning ? 'warn' : 'info');
@@ -668,6 +691,18 @@ class App {
         this.viewer.highlightFace(r.paint.body, r.paint.small, 'sf-small', 0xe0a030);
       }
     } catch (e) { if (seq === this._previewSeq) { clearTimeout(this._busyTimer); this.toolMsg(e.message, 'err'); } }
+  }
+
+  /** The hint for the tool, or for the mode Support Fins is in. */
+  modeHint() {
+    const t = this.tool; if (!t) return '';
+    const credit = `Support Fins ${this._sfInfo?.version || ''} by gittrahan (MIT)`;
+    if (t.def.wallTool) return `${this.walls.hint()} ${credit}`;
+    if (t.def.modeHints) {
+      const m = t.values._mode || 'rotate';
+      return t.def.modeHints[m] || `Draw walls by hand where the auto fins left a gap. ${this.walls.hint()}`;
+    }
+    return t.def.hint || '';
   }
 
   /** Paint the faces that need support straight away, from the mesh on screen (Support Fins'
@@ -682,6 +717,84 @@ class App {
     this.viewer.highlightFace(body, faces, 'sf-over', 0xd64545);
     if (!faces.length && !t.def.wallTool) this.toolMsg('No overhangs in this position: nothing needs support. Rotate the part the way you want to print it.', 'info');
   }
+
+  /** Remove mode: a click on a fin takes it away; a click on a removed (red) one brings it back. */
+  removeFinAt(e) {
+    const t = this.tool, id = this.viewer.pickPreview(e), info = id && this._sfPieces?.[id];
+    if (!info) { this.toolMsg('Click a green fin to remove it.', 'info'); return; }
+    if (info.kind === 'hand') {
+      const w = [...(t.values.walls || [])]; w.splice(info.wall, 1);
+      t._wallStatus = []; this.setValue('walls', w);
+    } else if (info.removed) {
+      const list = [...(t.values.removed || [])];
+      let best = -1, bd = Infinity;
+      list.forEach((r, i) => { const d = Math.hypot(...r.c.map((x, k) => x - info.c[k])); if (r.kind === info.kind && d < bd) { bd = d; best = i; } });
+      if (best >= 0) list.splice(best, 1);
+      this.setValue('removed', list);
+    } else {
+      this.setValue('removed', [...(t.values.removed || []), { kind: info.kind, c: info.c, size: info.size }]);
+    }
+    this.viewer.setPreviewHover(null);
+    this.schedulePreview(0);
+  }
+
+  /** A handle was let go in Move / Rotate or Scale: put the part there at once. The first time
+   *  the step is added to the timeline, then the tool goes on editing that same step. */
+  async autoAccept() {
+    const t = this.tool; if (!t || !this.validTool()) return;
+    const params = this.params();
+    try {
+      if (t.editId) await this.apply(await post('feature/edit', { id: t.editId, params }, { quiet: true }));
+      else {
+        const before = this.state.rollback ?? null;
+        const r = await post('feature/add', { type: t.def.type, params }, { quiet: true });
+        if (this.tool !== t) return;
+        const idx = r.state.features.findIndex(f => f.id === r.feature.id);
+        t.editId = r.feature.id;
+        t.prevRollback = before === null ? null : before + 1;
+        await this.apply(await post('rollback', { index: idx }));
+      }
+      if (this.tool !== t) return;
+      t.accepted = true;
+      $('#tool-ok').textContent = 'Done'; $('#tool-cancel').textContent = 'Close';
+      this.renderTimeline();
+      this.runPreview();
+    } catch (e) { this.toolMsg(e.message, 'err'); }
+  }
+
+  /** Support Fins' Rotate mode: a turn of the rings is applied to the part straight away, as
+   *  one Rotate step on the timeline for the whole session (exact: built from the turns so far
+   *  as one matrix), and walls drawn by hand turn with it. */
+  async poseDrop(m) {
+    const t = this.tool; if (!t) return;
+    const bid = t.values.body?.[0], b = this.state.bodies.find(x => x.id === bid);
+    if (!b?.bbox) return;
+    const ps = t._pose || (t._pose = { fid: null, M: new THREE.Matrix4(),
+      c0: new THREE.Vector3(...[0, 1, 2].map(i => (b.bbox[0][i] + b.bbox[1][i]) / 2)) });
+    ps.M.premultiply(m);
+    const c0 = ps.c0, img = c0.clone().applyMatrix4(ps.M);
+    const params = { bodies: [bid], translate: [img.x - c0.x, img.y - c0.y, img.z - c0.z].map(x => Math.round(x * 1e5) / 1e5),
+      rotate: rotOf(new THREE.Quaternion().setFromRotationMatrix(ps.M)), pivot: 'center', bed: false, copy: false };
+    this.toolMsg('Turning the part…', 'busy');
+    try {
+      let res;
+      if (ps.fid) res = await post('feature/edit', { id: ps.fid, params }, { quiet: true });
+      else { res = await post('feature/add', { type: 'move', params, name: 'Rotate' }, { quiet: true }); ps.fid = res.feature.id; }
+      if (this.tool !== t) { await this.apply(res); return; }
+      // walls drawn by hand turn with the part; removed fins are rebuilt, so they come back
+      t.values.walls = (t.values.walls || []).map(w => ({ ...w, points: w.points.map(p => new THREE.Vector3(...p).applyMatrix4(m).toArray().map(x => +x.toFixed(4))) }));
+      t.values.removed = [];
+      this.gizmo.reset();
+      this.viewer.clearPreview();
+      await this.apply(res);
+      this.quickPaint();
+      this.renderForm();
+      this.schedulePreview(0);
+    } catch (e) { this.gizmo.reset(); this.toolMsg(e.message, 'err'); }
+  }
+
+  /** Open a web page in the browser (the desktop app hands it to Windows). */
+  openUrl(url) { post('open_url', { url }, { quiet: true }).catch(e => this.toast(e.message, 'err')); }
 
   clearPreviewTimer() { clearTimeout(this._previewTimer); this._previewSeq++; }
 
@@ -736,7 +849,7 @@ class App {
     this.viewer.setBasePlanesVisible(needPlanes || this.viewer.baseVisibleUser);
     this.drawRegionOverlay();
     if (t.def.sculpt) this.viewer.drawStrokes(v.strokes || []);
-    if (t.def.wallTool) this.walls.redraw();
+    this.walls.redraw();
     if (t.def.gizmo) this.gizmo.sync();
   }
 
@@ -1458,6 +1571,7 @@ class App {
         const hit = this.viewer.pick(e, { planes: !!this.tool && !this.walls.active });
         this.viewer.setHover(hit?.kind === 'body' && !this.walls.active ? hit.id : null);
         this.walls.hover(hit);
+        if (this.tool?.def.type === 'supportfins' && this.tool.values._mode === 'remove') this.viewer.setPreviewHover(this.viewer.pickPreview(e));
         if (hit) this.status(hit.kind === 'body' ? `${this.bodyName(hit.id)}  ·  ${hit.point.map(v => U.fmt(v)).join(', ')} ${U.label}` : this.planeLabel(hit.id));
         else this.status('');
       });
@@ -1489,6 +1603,8 @@ class App {
       }
       if (files.length) this.viewer.fit();
     });
+    // links that open in the browser, in the desktop app too
+    document.addEventListener('click', e => { const a = e.target.closest('a[data-url]'); if (a) { e.preventDefault(); this.openUrl(a.dataset.url); } });
     document.addEventListener('click', e => { if (!e.target.closest('#menu') && !e.target.closest('.menu-btn') && !e.target.closest('#tool-search')) this.hideMenu(); });
     window.addEventListener('beforeunload', e => { if (this.state.doc?.dirty && !this._desktop) { e.preventDefault(); e.returnValue = ''; } });
   }
@@ -1496,6 +1612,7 @@ class App {
   async onViewportClick(e) {
     if (this.tool?.def.sculpt) return;
     if (this.walls.active) { this.walls.click(this.viewer.pick(e, { planes: false }), e); return; }
+    if (this.tool?.def.type === 'supportfins' && this.tool.values._mode === 'remove') { this.removeFinAt(e); return; }
     if (this.tool && this.tool.activeField === 'regions') {
       const sk = this.state.sketches.find(x => x.id === this.tool.values.sketch);
       if (sk) {
@@ -1564,7 +1681,8 @@ class App {
       return;
     }
     const t = this.tool; if (!t) return;
-    if (t.def.wallTool && this.walls.onFormClick(e)) return;
+    if (this.walls.active && this.walls.onFormClick(e)) return;
+    if (e.target.closest('[data-sfact="restore"]')) { this.setValue('removed', []); return; }
     const un = e.target.closest('[data-unpick]');
     if (un) {
       const k = un.dataset.unpick, f = t.def.fields.find(x => x.key === k);
@@ -1763,9 +1881,10 @@ class App {
           { label: 'Update Settings…', fn: () => this.updateSettings() },
           { label: 'Recover Unsaved Work…', fn: () => this.checkRecovery(true) }]),
         { label: 'About Support Fins…', fn: () => this.aboutSupportFins() },
+        { label: 'Support STL Editor ♥', fn: () => this.openUrl(KOFI) },
         { label: 'About STL Editor', fn: () => this.alert('STL Editor', WEB
-          ? `Web edition ${esc(this.state.doc.version || '')}<br>CAD-style editing for STL, 3MF and OBJ meshes, running entirely in your browser: your files never leave your computer.<br><br>Geometry by Manifold (Apache-2.0), viewport by three.js (MIT), fflate (MIT), opentype.js (MIT), DejaVu fonts (free licence). Free software under the GPL-3.0: <a href="https://github.com/natterman12/STL-Editor" target="_blank" rel="noopener">source on GitHub</a>.`
-          : `Version ${esc(this.state.doc.version || '')}<br>CAD-style editing for STL, 3MF and OBJ meshes.<br><br>Geometry by Manifold (Apache-2.0), viewport by three.js (MIT), repair helpers from trimesh (MIT), scikit-image, SciPy, NumPy and Shapely (BSD). Licence texts are in the LICENSES folder.`) },
+          ? `Web edition ${esc(this.state.doc.version || '')}<br>CAD-style editing for STL, 3MF and OBJ meshes, running entirely in your browser: your files never leave your computer.<br><br>Geometry by Manifold (Apache-2.0), viewport by three.js (MIT), fflate (MIT), opentype.js (MIT), DejaVu fonts (free licence). Free software under the GPL-3.0: <a href="https://github.com/natterman12/STL-Editor" target="_blank" rel="noopener">source on GitHub</a>.${THANKS}`
+          : `Version ${esc(this.state.doc.version || '')}<br>CAD-style editing for STL, 3MF and OBJ meshes.<br><br>Geometry by Manifold (Apache-2.0), viewport by three.js (MIT), repair helpers from trimesh (MIT), scikit-image, SciPy, NumPy and Shapely (BSD). Licence texts are in the LICENSES folder.${THANKS}`) },
       ],
     }[m];
     this.showMenu(btn, items);

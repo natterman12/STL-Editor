@@ -258,6 +258,7 @@ export class Viewer {
 
   // ---------------------------------------------------------------- preview
   clearPreview() {
+    this._pvHover = null;
     for (const c of [...this.previewGroup.children]) { this.previewGroup.remove(c); c.geometry?.dispose(); c.material?.dispose(); }
     for (const o of this.bodies.values()) { o.mesh.material.visible = true; if (o.edges) o.edges.material.visible = true; if (o.back) o.back.material.visible = true; }
     this.requestRender();
@@ -280,8 +281,13 @@ export class Viewer {
       const mat = new THREE.MeshStandardMaterial({ color, metalness: 0.05, roughness: 0.6, emissive: new THREE.Color(0x2f6fd1).multiplyScalar(existing || tint ? 0.08 : 0.2),
         polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1, clippingPlanes: this.section ? [this.section] : [] });
       const mesh = new THREE.Mesh(disp, mat);
+      mesh.userData = { kind: 'preview', id: m.id };
+      if (pack.result?.ghosts?.includes(m.id)) {
+        // a fin you removed: see-through, to click back
+        mat.transparent = true; mat.opacity = 0.28; mat.depthWrite = false;
+      }
       this.previewGroup.add(mesh);
-      if (m.nf < 400000) {
+      if (m.nf < 400000 && !pack.result?.ghosts?.includes(m.id)) {
         const e = new THREE.LineSegments(new THREE.EdgesGeometry(geo, 32), new THREE.LineBasicMaterial({ color: 0x1f4f8f, transparent: true, opacity: 0.6, clippingPlanes: this.section ? [this.section] : [] }));
         this.previewGroup.add(e);
       }
@@ -509,6 +515,28 @@ export class Viewer {
       return { kind: 'body', id: ud.id, tri: h.faceIndex, point: h.point.toArray(), normal: n.toArray() };
     }
     return { kind: 'plane', id: ud.id, point: h.point.toArray() };
+  }
+
+  /** The preview mesh under the pointer (a Support Fins fin), by its id. */
+  pickPreview(ev) {
+    this.raycaster.setFromCamera(this.ndc(ev), this.camera);
+    const objs = this.previewGroup.children.filter(c => c.isMesh && c.userData.kind === 'preview');
+    const hits = this.raycaster.intersectObjects(objs, false);
+    return hits.length ? hits[0].object.userData.id : null;
+  }
+
+  /** Show which fin a click would remove (or bring back). */
+  setPreviewHover(id) {
+    if (this._pvHover === id) return;
+    this._pvHover = id;
+    for (const c of this.previewGroup.children) {
+      if (!c.isMesh || c.userData.kind !== 'preview') continue;
+      const on = c.userData.id === id;
+      if (on && !c.userData.base) c.userData.base = c.material.emissive.clone();
+      if (on) c.material.emissive.set(0xd64545).multiplyScalar(0.6);
+      else if (c.userData.base) c.material.emissive.copy(c.userData.base);
+    }
+    this.requestRender();
   }
 
   rayToPlane(ev, frame) {

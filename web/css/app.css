@@ -342,3 +342,9 @@ html[data-theme=dark] #dims .dim.driving { color: #8cc0ff; }
 
 .field-hdr { margin: 12px 0 2px; padding-top: 8px; border-top: 1px solid var(--line-2); font-size: 11px; font-weight: 600; letter-spacing: .4px;
   text-transform: uppercase; color: var(--muted); }
+
+/* a quiet thank-you link on the start screen */
+.empty-foot { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--line, #e3e7eb); font-size: 12px; color: var(--muted, #7b8794); }
+.empty-foot a { color: inherit; text-decoration: none; }
+.empty-foot a:hover { color: var(--text, #1f2933); text-decoration: underline; }
+.empty-foot span { color: #ff5e5b; }

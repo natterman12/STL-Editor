@@ -458,3 +458,22 @@ def test_move_lands_on_bed():
     doc2, B2 = _doc_with(m3.Manifold.cube((40, 30, 20)), "block.stl")
     doc2.add_feature("move", {"bodies": [B2], "translate": [0, 0, 0], "rotate": [30, 0, 0], "pivot": "center"})
     assert low(doc2, B2) < -1
+
+
+def test_support_fins_remove_and_hand_walls():
+    pytest.importorskip("py_mini_racer")
+    d, a = _doc_with(m3.Manifold.cube([30, 20, 10], True).rotate([0, 40, 0]), "tip.stl")
+    _, pr = d.preview("supportfins", {"body": a, "output": "join", "options": {}})
+    ids = list(pr["pieces"])
+    assert [p["kind"] for p in pr["pieces"].values()] == ["prop", "prop", "prop", "pad"]
+    rem = [{k: pr["pieces"][ids[1]][k] for k in ("kind", "c", "size")}]
+    _, pr2 = d.preview("supportfins", {"body": a, "output": "join", "options": {}, "removed": rem})
+    assert pr2["ghosts"] == [ids[1]] and "1 removed" in pr2["info"]
+    d.add_feature("supportfins", {"body": a, "output": "join", "options": {}, "removed": rem})
+    assert abs(d.state.body(a).info()["volume"] - 6543.19) < 7    # the web engine gives the same
+    ell = (m3.Manifold.cube([10, 20, 35]) + m3.Manifold.cube([30, 20, 8]).translate([0, 0, 27])).translate([0, 100, 0])
+    d2, e = _doc_with(ell, "ell.stl")
+    _, ph = d2.preview("supportfins", {"body": e, "output": "join", "options": {},
+                                       "walls": [{"shape": "line", "points": [[24, 104, 27], [24, 116, 27]]}]})
+    assert "1 drawn by hand" in ph["info"]
+    assert any(p["kind"] == "hand" for p in ph["pieces"].values())

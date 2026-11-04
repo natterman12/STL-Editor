@@ -985,21 +985,63 @@ def f_supportfins(state, fid, p, res, ctx):
     if not ids:
         raise GeometryError("Choose the body to support.")
     notes = []
+    preview = bool((ctx or {}).get("preview"))
     for bid in ids:
         b = state.body(bid)
         v, f = b.mesh()
         r = SF.fins(v, f, p.get("options") or {})
-        res["info"] = f"Support Fins {r['version']}: {r['report']}"
         res["paint"] = {"body": bid, "over": r["over"], "small": r["small"]}
-        if not r["solids"]:
-            notes.append(f'"{b.name}": {r["report"]}. Nothing could be placed; try Full coverage, or tip the part differently.'
-                         if r["stats"].get("overhangRegions") else
-                         f'"{b.name}" has no overhangs in this position. Rotate it to the way you want to print it '
-                         "(Move › Rotate), then add fins.")
+        # fins you clicked away, and walls you drew by hand (Support Fins' "+ Add walls by hand")
+        gone, missing = SF.match_removed(r["pieces"], p.get("removed"))
+        hand = [w for w in drawn_walls(p) if len(w.get("points") or []) >= 2]
+        wr = SF.walls(v, f, hand, p.get("options") or {}) if hand else None
+        if wr:
+            res["walls"] = [{"ok": w["ok"], "reason": w.get("reason")} for w in wr["walls"]]
+        extra = ", ".join(x for x in (f"{len(gone)} removed" if gone else "",
+                                      f"{sum(1 for w in wr['walls'] if w['ok'])} drawn by hand" if wr else "") if x)
+        res["info"] = f"Support Fins {r['version']}: {r['report']}" + (f" ({extra})" if extra else "")
+        if missing:
+            notes.append(f"{missing} fin(s) you removed aren't there any more in this build, so nothing was removed for them.")
+        if wr:
+            for i, w in enumerate(wr["walls"]):
+                if not w["ok"] or w["failed"]:
+                    notes.append(f"Hand wall {i + 1}{' (part of it)' if w['ok'] else ''}: {w.get('reason')}.")
+        kept = [sd for i, sd in enumerate(r["solids"]) if i not in gone]
+        every = kept + (wr["solids"] if wr else [])
+        if preview:
+            # every fin a body of its own beside the untouched part, so one can be clicked to
+            # remove it; removed ones stay as see-through ghosts to click back
+            res["pieces"], res["previewOnly"] = {}, True
+            res.setdefault("colors", {})
+            res.setdefault("ghosts", [])
+
+            def put(nid, solid, info):
+                state.bodies[nid] = Body(f"{b.name} supports", solid=solid)
+                res["created"].append(nid)
+                res["pieces"][nid] = info
+                res["colors"][nid] = "#d64545" if info.get("removed") else SUPPORT_COLOR
+                if info.get("removed"):
+                    res["ghosts"].append(nid)
+            for i, sd in enumerate(r["solids"]):
+                put(f"{fid}~p{i}", sd, dict(r["pieces"][i], removed=i in gone))
+            if wr:
+                for i, lst in enumerate(wr["byWall"]):
+                    if lst:
+                        put(f"{fid}~w{i}", lst[0] if len(lst) == 1 else m3.Manifold.batch_boolean(lst, m3.OpType.Add),
+                            {"kind": "hand", "wall": i})
+            if not every and not r["stats"].get("overhangRegions") and not hand:
+                notes.append(f'"{b.name}" has no overhangs in this position. Turn it the way you want to print it '
+                             "(drag the rings), then add fins.")
+            continue
+        if not every:
+            notes.append(f'"{b.name}": {r["report"]}. Nothing could be placed; try Full coverage, draw walls by hand, '
+                         "or tip the part differently." if r["stats"].get("overhangRegions") or hand else
+                         f'"{b.name}" has no overhangs in this position. Rotate it to the way you want to print it, '
+                         "then add fins.")
             continue
         if r["skipped"]:
             notes.append(f"{r['skipped']} support piece(s) weren't closed solids and were left out.")
-        _add_supports(state, fid, res, bid, r["solids"], p.get("output"), "supports", ctx)
+        _add_supports(state, fid, res, bid, every, p.get("output"), "supports", ctx)
     if notes:
         res["warning"] = " ".join(notes)
 

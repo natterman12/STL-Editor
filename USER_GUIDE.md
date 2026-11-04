@@ -56,8 +56,8 @@ to place them on it).
 heat-set inserts M2–M5, screw clearance, socket-head counterbores, hex nut traps and magnet
 pockets, with a print tolerance), Push/Pull (drag a flat face out or in), Combine (join /
 cut / intersect bodies; Cut takes a *Clearance* that grows the cutting bodies first, so a part made to fit the cut-out isn't too tight), Split (by a plane or flat face),
-Move / Rotate and Scale (drag the arrows, rings or handles on the part, or type the
-numbers; a rotated part lands on the bed instead of hanging through it, and Move Z then lifts
+Move / Rotate and Scale (drag the arrows, rings or handles on the part and the change is
+applied as soon as you let go, or type the numbers and press OK; a rotated part lands on the bed instead of hanging through it, and Move Z then lifts
 it off; also "drop to bed" and "centre on origin"; Scale by factor, to size, or unit
 conversion), Pattern (linear or circular, of bodies or of features), Mirror (bodies or
 features), Hollow (wall thickness). Split can add connectors at the cut.
@@ -78,12 +78,17 @@ but it needs supports. Support Fins adds breakaway fins (thin walls with one-lay
 that grip the part and snap off) and a bed pad, as part of the mesh, so it prints the same in
 any slicer with supports turned off.
 
-1. Rotate the part to the way you want to print it (**Rotate**: drag the rings on the part; it
-   stays on the bed). You choose the orientation; Support Fins doesn't.
-2. Click **Support Fins**. Faces that need support turn red straight away (amber ones are
+1. Click **Support Fins**. Faces that need support turn red straight away (amber ones are
    small enough to bridge), and the green fins appear next to the part a moment later with a
    one-line summary (walls, tines, anything it couldn't reach).
-3. Adjust the settings and press OK. *Add as: Part of the body* joins the fins to the part
+2. **Rotate** (the panel starts here): drag the rings on the part to turn it the way you want
+   to print it. It stays on the bed, the turn is applied as soon as you let go (one *Rotate*
+   step on the timeline), and the fins are rebuilt. You choose the orientation; Support Fins
+   doesn't.
+3. **Add fins**: draw walls by hand where the auto fins left a gap (line, multi-line or curve,
+   as in Draw Walls below). **Remove fins**: click a fin to take it away (it turns see-through
+   red); click it again to bring it back, or *Bring all back*.
+4. Adjust the settings and press OK. *Add as: Part of the body* joins the fins to the part
    so it exports as one object; *Separate body* keeps them apart so you can hide them.
 
 The settings are Support Fins' own: Auto or Full coverage placement, overhang angle, nozzle,
@@ -219,3 +224,8 @@ inside the page. Nothing leaves your computer in either.
 Libraries: manifold3d (Apache-2.0), three.js (MIT), three-mesh-bvh (MIT), trimesh (MIT), Shapely (BSD-3),
 scikit-image (BSD-3), SciPy (BSD-3), NumPy (BSD-3), fast-simplification (MIT),
 pywebview (BSD-3); in the web edition also fflate (MIT), opentype.js (MIT) and the DejaVu fonts (free licence).
+
+---
+
+STL Editor is free and made in spare time. If it's useful to you, you can
+[support it on Ko-fi](https://ko-fi.com/natterman12).

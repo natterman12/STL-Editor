@@ -164,7 +164,32 @@ def _mesh_key(verts, faces):
     return h.hexdigest()
 
 
-def _solids(tri, offset, ranges):
+def _where(v):
+    """Where a piece is: the middle of its box and its size (how a removed fin is found again)."""
+    lo, hi = v.min(0), v.max(0)
+    return {"c": [round(float(x), 3) for x in (lo + hi) / 2], "size": [round(float(x), 3) for x in hi - lo]}
+
+
+def match_removed(pieces, removed):
+    """Which fins a list of removed ones means in this build (see web/engine/supportfins.js)."""
+    gone, missing = set(), 0
+    for r in removed or []:
+        best, bd = -1, float("inf")
+        for i, p in enumerate(pieces):
+            if not p or i in gone or (r.get("kind") and p["kind"] != r["kind"]):
+                continue
+            d = math.dist(p["c"], r["c"])
+            ds = max(abs(a - b) for a, b in zip(p["size"], r["size"])) if r.get("size") else 0
+            if d <= 1.0 and ds <= 2.0 and d < bd:
+                bd, best = d, i
+        if best >= 0:
+            gone.add(best)
+        else:
+            missing += 1
+    return gone, missing
+
+
+def _solids(tri, offset, ranges, info=None):
     """Fin triangles (seated frame) -> one closed solid per piece, in the part's frame."""
     import trimesh
     shift = np.array([offset["x"], offset["y"], offset["z"]], np.float64)
@@ -188,8 +213,12 @@ def _solids(tri, offset, ranges):
                 m = m3.Manifold.batch_boolean(parts, m3.OpType.Add)
         if m is not None and not m.is_empty():
             out.append(m)
+            if info is not None:
+                info.append(_where(v))
         else:
             skipped += 1
+            if info is not None:
+                info.append(None)
     return out, skipped
 
 
@@ -203,8 +232,10 @@ def fins(verts, faces, values):
         return r
     r = _cached("fins", (_mesh_key(verts, faces), opts), build)
     tri = np.frombuffer(base64.b64decode(r["triangles"]), dtype="<f4").reshape(-1, 3, 3)
-    solids, skipped = _solids(tri, r["offset"], [p["ranges"] for p in r["pieces"]])
-    return {"solids": solids, "skipped": skipped, "stats": r["stats"], "report": r["report"],
+    info = []
+    solids, skipped = _solids(tri, r["offset"], [p["ranges"] for p in r["pieces"]], info)
+    pieces = [dict(kind=p["kind"], **w) for p, w in zip(r["pieces"], info) if w]
+    return {"solids": solids, "pieces": pieces, "skipped": skipped, "stats": r["stats"], "report": r["report"],
             "over": r["overFaces"], "small": r["smallFaces"], "version": _active.get("version")}
 
 
@@ -267,8 +298,10 @@ def walls(verts, faces, wall_list, values):
             return json.loads(r)
         return _cached("wall", (mk, json.dumps([a, b, m]), opts), build)
 
-    solids, report = [], []
+    solids, report, by_wall = [], [], []
     for w in wall_list:
+        mine = []
+        by_wall.append(mine)
         st = {"ok": True, "length": 0.0, "height": 0.0, "tines": 0, "partAttached": False, "sections": 0,
               "failed": 0, "reason": None}
         for a, b, m in wall_sections(w, curves):
@@ -285,6 +318,7 @@ def walls(verts, faces, wall_list, values):
                 st["reason"] = st["reason"] or "it didn’t come out as a closed solid"
                 continue
             solids += got
+            mine += got
             s = r["stats"]
             st["length"] += s.get("length", 0)
             st["height"] = max(st["height"], s.get("height", 0))
@@ -292,7 +326,7 @@ def walls(verts, faces, wall_list, values):
             st["partAttached"] = st["partAttached"] or bool(s.get("partAttached"))
         st["ok"] = st["failed"] < st["sections"]
         report.append(st)
-    return {"solids": solids, "walls": report, "version": _active.get("version")}
+    return {"solids": solids, "byWall": by_wall, "walls": report, "version": _active.get("version")}
 
 
 def wall(verts, faces, a, b, values):

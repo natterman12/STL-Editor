@@ -64,7 +64,7 @@ function soupOf(v, f) {
 
 /** Fin triangles (seated frame) -> closed solids in our frame, one per piece. */
 function solidsOf(tris, offset, ranges) {
-  const out = [];
+  const out = [], info = [];
   let skipped = 0;
   for (const rs of ranges) {
     let n = 0;
@@ -79,9 +79,41 @@ function solidsOf(tris, offset, ranges) {
       const parts = shells(w.v, w.f).map(s => manifoldFromArrays(s.v, s.f)).filter(Boolean);
       m = parts.length ? Manifold.union(parts) : null;
     }
-    if (m && !m.isEmpty()) out.push(m); else skipped++;
+    if (m && !m.isEmpty()) { out.push(m); info.push(where(v)); } else { skipped++; info.push(null); }
   }
-  return { solids: out, skipped };
+  return { solids: out, skipped, info };
+}
+
+/** Where a piece is: the middle of its box and its size (how a removed fin is found again). */
+function where(v) {
+  const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  for (let i = 0; i < v.length; i++) { const k = i % 3; if (v[i] < lo[k]) lo[k] = v[i]; if (v[i] > hi[k]) hi[k] = v[i]; }
+  const r = x => Math.round(x * 1000) / 1000;
+  return { c: lo.map((a, k) => r((a + hi[k]) / 2)), size: lo.map((a, k) => r(hi[k] - a)) };
+}
+
+/**
+ * Which fins a list of removed ones means in this build. A removal is kept as the fin's
+ * kind, middle and size, not its id (ids change from build to build), and matches the
+ * nearest fin of the same kind that is still close to where it was; one that no longer
+ * matches comes back (a fin silently lost is worse than one that returns, as Support
+ * Fins' own remove tool has it).
+ * @returns {{gone: Set<number>, missing: number}}  indices into `pieces`
+ */
+export function matchRemoved(pieces, removed) {
+  const gone = new Set();
+  let missing = 0;
+  for (const r of removed || []) {
+    let best = -1, bd = Infinity;
+    pieces.forEach((p, i) => {
+      if (!p || gone.has(i) || (r.kind && p.kind !== r.kind)) return;
+      const d = Math.hypot(p.c[0] - r.c[0], p.c[1] - r.c[1], p.c[2] - r.c[2]);
+      const ds = r.size ? Math.max(...p.size.map((x, k) => Math.abs(x - r.size[k]))) : 0;
+      if (d <= 1.0 && ds <= 2.0 && d < bd) { bd = d; best = i; }
+    });
+    if (best >= 0) gone.add(best); else missing++;
+  }
+  return { gone, missing };
 }
 
 function optionsOf(sf, values) {
@@ -102,8 +134,10 @@ export function fins(mesh, values) {
     return { triangles: x.triangles, offset: x.offset, pieces: x.pieces, stats: x.stats, report: sf.reportLine(x.stats),
       over: Array.from(x.overFaces), small: Array.from(x.smallFaces) };
   });
-  const { solids, skipped } = solidsOf(r.triangles, r.offset, r.pieces.map(p => p.ranges));
-  return { solids, skipped, stats: r.stats, report: r.report, over: r.over, small: r.small, version: INFO.version };
+  const { solids, skipped, info } = solidsOf(r.triangles, r.offset, r.pieces.map(p => p.ranges));
+  // one entry per solid: what kind of piece it is and where (for removing single fins)
+  const pieces = r.pieces.map((p, i) => info[i] && { kind: p.kind, ...info[i] }).filter(Boolean);
+  return { solids, pieces, skipped, stats: r.stats, report: r.report, over: r.over, small: r.small, version: INFO.version };
 }
 
 function oneWall(sf, mesh, soup, a, b, m, opts) {
@@ -164,9 +198,11 @@ export function walls(mesh, list, values) {
   let soupMemo = null;
   const soup = () => soupMemo || (soupMemo = soupOf(mesh.v, mesh.f));
   const curves = typeof sf.drawWallThrough === 'function';
-  const solids = [], report = [];
+  const solids = [], report = [], byWall = [];
   for (const w of list) {
     const st = { ok: true, length: 0, height: 0, tines: 0, partAttached: false, sections: 0, failed: 0 };
+    const mine = [];
+    byWall.push(mine);
     for (const [a, b, m] of wallSections(w, curves)) {
       const r = oneWall(sf, mesh, soup, a, b, m, opts);
       st.sections++;
@@ -174,14 +210,14 @@ export function walls(mesh, list, values) {
       const n = r.triangles.length / 9;
       const got = solidsOf(r.triangles, r.offset, [[[0, n]]]).solids;
       if (!got.length) { st.failed++; st.reason = st.reason || 'it didn’t come out as a closed solid'; continue; }
-      solids.push(...got);
+      solids.push(...got); mine.push(...got);
       st.length += r.stats.length; st.height = Math.max(st.height, r.stats.height); st.tines += r.stats.tines || 0;
       st.partAttached = st.partAttached || !!r.stats.partAttached;
     }
     st.ok = st.failed < st.sections;
     report.push(st);
   }
-  return { solids, walls: report, version: INFO.version };
+  return { solids, byWall, walls: report, version: INFO.version };
 }
 
 /** One hand-drawn wall between two points on the body (kept for older callers). */
