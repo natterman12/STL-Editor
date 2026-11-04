@@ -1,0 +1,97 @@
+name: Support Fins update
+
+# Keeps the Support Fins engine (github.com/gittrahan/support-fins) current in both editions.
+# Every day, if Support Fins has published a new vX.Y.Z release: vendor its engine
+# (packaging/update_support_fins.py), rebuild the web edition's copy, run every test, and push.
+#   - The web edition updates when GitHub Pages deploys the push (open tabs get the update bar).
+#   - Installed desktop apps download the new engine from the Pages site at their next start
+#     and use it from the start after that (stleditor/supportfins.py), no new app release needed.
+# If the tests fail, nothing is pushed and an issue is opened instead.
+# Run it by hand (Actions > Support Fins update > Run workflow) to vendor a given tag now.
+
+on:
+  schedule:
+    - cron: '23 7 * * *'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Support Fins tag to vendor, e.g. v1.0.3 (empty = the newest release)'
+        type: string
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+  issues: write
+  pages: write
+
+concurrency:
+  group: support-fins-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ inputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Look for a new Support Fins release
+        id: check
+        run: |
+          set +e
+          python packaging/update_support_fins.py --check $TAG
+          code=$?
+          set -e
+          if [ "$code" = "10" ] || { [ -n "$TAG" ] && [ "$code" = "0" ]; }; then echo "newer=true" >> "$GITHUB_OUTPUT";
+          elif [ "$code" = "0" ]; then echo "newer=false" >> "$GITHUB_OUTPUT";
+          else exit "$code"; fi
+
+      - name: Vendor the engine
+        if: steps.check.outputs.newer == 'true'
+        run: |
+          python packaging/update_support_fins.py $TAG --force
+          echo "VENDORED=$(python -c "import json;print(json.load(open('web/vendor/support-fins/VERSION.json'))['tag'])")" >> "$GITHUB_ENV"
+
+      - name: Rebuild the web edition's copy
+        if: steps.check.outputs.newer == 'true'
+        run: python packaging/build_web.py
+
+      - name: Run the tests
+        if: steps.check.outputs.newer == 'true'
+        run: |
+          python -m pip install -r requirements.txt pytest
+          python -m pytest -q tests
+
+      - name: Publish
+        if: steps.check.outputs.newer == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add web docs
+          git commit -m "Support Fins $VENDORED" -m "Vendored by the Support Fins update workflow; all tests passed."
+          git push
+          # ask Pages to deploy now (a push made by this workflow may not start a build on its own)
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/pages/builds" >/dev/null || true
+
+      - name: Report a failed update
+        if: failure() && steps.check.outputs.newer == 'true'
+        run: |
+          title="Support Fins ${VENDORED:-update} didn't pass the tests"
+          if [ -z "$(gh issue list --state open --search "\"$title\" in:title" --json number -q '.[].number')" ]; then
+            gh issue create --title "$title" --body "The daily Support Fins update vendored ${VENDORED:-a new release}, but the tests failed, so nothing was published. Both apps keep the previous engine.
+
+          Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          fi
