@@ -173,6 +173,10 @@ input, select { font: inherit; color: inherit; }
 #tool-msg .msg.err { background: #fdecec; color: var(--danger); }
 #tool-msg .msg.warn { background: #fdf5e6; color: var(--warn); }
 #tool-msg .msg.info { background: #eef3f8; color: #3b4652; }
+#tool-msg .msg.busy { background: #eef3f8; color: #3b4652; display: flex; align-items: center; gap: 8px; }
+#tool-msg .msg.busy::before { content: ''; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #9fb3c8; border-top-color: #1f6fd1; animation: spin .8s linear infinite; flex: none; }
+.walls-n .bad { color: var(--danger); }
+.walls-n .ph { color: var(--muted, #7b8794); }
 .tool-actions { display: flex; gap: 8px; justify-content: flex-end; padding: 10px; border-top: 1px solid var(--line-2); }
 button.primary, .tool-actions button, .modal-actions button, .empty-actions button { border: 1px solid var(--line); background: #fff; border-radius: 4px; padding: 6px 14px; cursor: pointer; }
 button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
@@ -264,7 +268,7 @@ html[data-theme=dark] #empty-state .empty-card, html[data-theme=dark] #menu, htm
 html[data-theme=dark] #busy-msg { background: #1f2328; border-color: var(--line); }
 html[data-theme=dark] #busy { background: rgba(10,12,14,.35); }
 html[data-theme=dark] .help-grid kbd { background: #2a3037; border-color: var(--line); }
-html[data-theme=dark] #tool-msg .msg.info, html[data-theme=dark] .msg.info { background: #232a32; color: #b9c3cd; }
+html[data-theme=dark] #tool-msg .msg.busy, html[data-theme=dark] #tool-msg .msg.info, html[data-theme=dark] .msg.info { background: #232a32; color: #b9c3cd; }
 html[data-theme=dark] #tool-msg .msg.err { background: #3a1f22; color: #ff9d9d; }
 html[data-theme=dark] #tool-msg .msg.warn { background: #3a3020; color: #f1c26b; }
 html[data-theme=dark] #dims .dim { background: rgba(31,35,40,.92); color: #ffb38a; border-color: #8a4d2b; }

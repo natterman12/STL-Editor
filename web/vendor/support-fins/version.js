@@ -6,10 +6,14 @@ export default {
  "commit": "0ca880a31803a8498617af3d6958563f50809049",
  "source": "https://github.com/gittrahan/support-fins",
  "api": 1,
- "built": "2026-11-04T04:15:19Z",
+ "built": "2026-11-04T15:14:40Z",
  "sha256": {
-  "engine.esm.js": "d361bc1fa0dedfd936d0e8d17a0acaf06b791963e1844bb3010b18459dc1754e",
-  "engine.iife.js": "afed56af850c1a77b7e609ba755fe3a5dc3ee18f37dbd4f94b1f0c2b896d37d3"
+  "engine.esm.js": "112ec806b4707a219575bc93990aa0aa910aeb6725b88308bc7eb327755b1bc5",
+  "engine.iife.js": "6457c0e8c318370021057094b4c842fef03dfa4e3264e5bc819edbad32ed4726"
  },
- "options": 19
+ "options": 19,
+ "extras": [
+  "drawWallThrough",
+  "drawWallThroughB64"
+ ]
 };

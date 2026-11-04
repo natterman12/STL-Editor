@@ -274,14 +274,18 @@ export const TOOLS = {
     label: 'Move / Rotate', icon: 'move', type: 'move',
     fields: [
       { key: 'bodies', label: 'Bodies', kind: 'bodies', multi: true },
+      { key: '_gizmo', label: 'Drag handles', kind: 'select', options: [['move', 'Move (W)'], ['rotate', 'Rotate (R)']], help: 'Which handles show on the part: arrows to move it, or rings to turn it (5° steps; hold Shift to turn freely)' },
       { key: 'translate', label: 'Move X Y Z', kind: 'vec3', unit: 'mm' },
       { key: 'rotate', label: 'Rotate X Y Z', kind: 'vec3', unit: '°' },
       { key: 'pivot', label: 'Rotate about', kind: 'select', options: [['center', 'Centre'], ['base', 'Base'], ['origin', 'Origin']] },
+      { key: 'bed', label: 'Land on bed', kind: 'bool', help: 'After a rotation the part rests on the bed instead of hanging through it (Move Z then lifts it off the bed)' },
       { key: 'copy', label: 'Make a copy', kind: 'bool' },
     ],
-    defaults: ctx => ({ bodies: selBody(ctx), translate: [0, 0, 0], rotate: [0, 0, 0], pivot: 'center', copy: false }),
+    defaults: ctx => ({ bodies: selBody(ctx), _gizmo: 'move', translate: [0, 0, 0], rotate: [0, 0, 0], pivot: 'center', bed: true, copy: false }),
+    fromParams: p => ({ _gizmo: 'move', bed: false, ...p }),
     extra: 'dropToBed',
-    hint: 'Type distances and angles, or use Drop to bed / Centre on origin',
+    gizmo: 'move',
+    hint: 'Drag the arrows to move and the rings to rotate, or type distances and angles',
   },
   scale: {
     label: 'Scale', icon: 'scale', type: 'scale',
@@ -310,7 +314,8 @@ export const TOOLS = {
       return p;
     },
     fromParams: p => ({ ...p, factor: Array.isArray(p.factor) ? 1 : (p.factor ?? 1), factor3: Array.isArray(p.factor) ? p.factor : [1, 1, 1], size: p.size || [10, 10, 10] }),
-    hint: 'To size with Uniform on: change one dimension and the others follow',
+    gizmo: 'scale',
+    hint: 'Drag the handles on the part to stretch it (the middle one scales evenly), or type factors and sizes. To size with Uniform on: change one dimension and the others follow',
   },
   pattern: {
     label: 'Pattern', icon: 'pattern', type: 'pattern',

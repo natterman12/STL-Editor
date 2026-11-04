@@ -275,8 +275,9 @@ export class Viewer {
       const existing = this.bodies.get(m.id);
       const disp = m.nf < 1500000 ? toCreasedNormals(geo, 30 * Math.PI / 180) : geo;
       const PAL = [0x7fb0e8, 0xe8a87f, 0x8fd18a, 0xd88fd1, 0xe8d27f, 0x7fe0d6, 0xb39ae8, 0xe87f8f];
-      const color = existing ? existing.mesh.material.color.clone() : new THREE.Color(PAL[(this._pi = (this._pi || 0) + 1) % PAL.length]);
-      const mat = new THREE.MeshStandardMaterial({ color, metalness: 0.05, roughness: 0.6, emissive: new THREE.Color(0x2f6fd1).multiplyScalar(existing ? 0.08 : 0.2),
+      const tint = pack.result?.colors?.[m.id];
+      const color = tint ? new THREE.Color(tint) : existing ? existing.mesh.material.color.clone() : new THREE.Color(PAL[(this._pi = (this._pi || 0) + 1) % PAL.length]);
+      const mat = new THREE.MeshStandardMaterial({ color, metalness: 0.05, roughness: 0.6, emissive: new THREE.Color(0x2f6fd1).multiplyScalar(existing || tint ? 0.08 : 0.2),
         polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1, clippingPlanes: this.section ? [this.section] : [] });
       const mesh = new THREE.Mesh(disp, mat);
       this.previewGroup.add(mesh);
@@ -368,6 +369,77 @@ export class Viewer {
     const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(...a), new THREE.Vector3(...b)]),
       new THREE.LineBasicMaterial({ color, depthTest: false }));
     l.userData.tag = tag; l.renderOrder = 20; this.overlay.add(l); this.requestRender();
+  }
+
+  addPolyline(points, color = 0x1f6fd1, tag = 'line') {
+    if (!points || points.length < 2) return;
+    const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(points.map(p => new THREE.Vector3(...p))),
+      new THREE.LineBasicMaterial({ color, depthTest: false, transparent: true, linewidth: 2 }));
+    l.userData.tag = tag; l.renderOrder = 21; this.overlay.add(l); this.requestRender();
+  }
+
+  /** The rubber band of a wall being drawn, and a dot where the pointer meets the part. */
+  setBand(points, cursor = null, color = 0x59d98e) {
+    if (!this._band) {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(130 * 3), 3));
+      this._band = new THREE.Line(g, new THREE.LineBasicMaterial({ color, depthTest: false, transparent: true }));
+      this._band.frustumCulled = false; this._band.renderOrder = 22;
+      this._cursor = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), new THREE.MeshBasicMaterial({ color: 0xcffbe4, depthTest: false, transparent: true, opacity: 0.75 }));
+      this._cursor.renderOrder = 23;
+      this.scene.add(this._band, this._cursor);
+    }
+    const b = this._band, pts = (points || []).slice(0, 130);
+    b.visible = pts.length >= 2;
+    if (b.visible) {
+      const a = b.geometry.attributes.position;
+      pts.forEach((p, i) => a.setXYZ(i, p[0], p[1], p[2]));
+      a.needsUpdate = true; b.geometry.setDrawRange(0, pts.length);
+      b.material.color.set(color);
+    }
+    this._cursor.visible = !!cursor;
+    if (cursor) { this._cursor.position.set(...cursor); this._cursor.scale.setScalar(this.pixelSize(cursor) * 5); }
+    this.requestRender();
+  }
+
+  /**
+   * Faces that point down more steeply than `thresholdDeg` from the plate, as Support Fins
+   * judges them (overhangs.js analyze: not the faces on the bed, regions of 12 mm² or more).
+   * Instant, from the mesh on screen, so the red shows before the fins are built.
+   */
+  overhangFaces(bodyId, thresholdDeg = 45) {
+    const o = this.bodies.get(bodyId); if (!o) return [];
+    const pos = o.geo.attributes.position.array, idx = o.geo.index.array, nf = idx.length / 3;
+    const cut = -(Math.cos(thresholdDeg * Math.PI / 180) + 1e-4);
+    let minZ = Infinity;
+    for (let i = 2; i < pos.length; i += 3) if (pos[i] < minZ) minZ = pos[i];
+    const over = new Uint8Array(nf), area = new Float64Array(nf);
+    for (let f = 0; f < nf; f++) {
+      const a = idx[f * 3] * 3, b = idx[f * 3 + 1] * 3, c = idx[f * 3 + 2] * 3;
+      const top = Math.max(pos[a + 2], pos[b + 2], pos[c + 2]) - minZ;
+      if (top < 0.35) continue;
+      const ux = pos[b] - pos[a], uy = pos[b + 1] - pos[a + 1], uz = pos[b + 2] - pos[a + 2];
+      const vx = pos[c] - pos[a], vy = pos[c + 1] - pos[a + 1], vz = pos[c + 2] - pos[a + 2];
+      const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx, len = Math.hypot(nx, ny, nz);
+      if (!(len > 0)) continue;
+      if (nz / len < cut) { over[f] = 1; area[f] = len / 2; }
+    }
+    // join faces sharing a vertex into regions; drop the slivers
+    const parent = new Int32Array(nf).map((_, i) => i);
+    const find = x => { while (parent[x] !== x) x = parent[x] = parent[parent[x]]; return x; };
+    const firstAt = new Int32Array(pos.length / 3).fill(-1);
+    for (let f = 0; f < nf; f++) {
+      if (!over[f]) continue;
+      for (let j = 0; j < 3; j++) {
+        const vi = idx[f * 3 + j], g = firstAt[vi];
+        if (g < 0) firstAt[vi] = f; else { const ra = find(f), rb = find(g); if (ra !== rb) parent[ra] = rb; }
+      }
+    }
+    const sum = new Map();
+    for (let f = 0; f < nf; f++) if (over[f]) { const r = find(f); sum.set(r, (sum.get(r) || 0) + area[f]); }
+    const out = [];
+    for (let f = 0; f < nf; f++) if (over[f] && sum.get(find(f)) >= 12) out.push(f);
+    return out;
   }
 
   addPlaneGhost(frame, tag = 'plane-ghost', color = PLANE_COL) {

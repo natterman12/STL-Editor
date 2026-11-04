@@ -23,7 +23,36 @@ function engine() {
 /** Settings schema (Support Fins' options.json) and which release this is. */
 export function info() {
   const sf = engine();
-  return { schema: sf.OPTIONS_SCHEMA, version: INFO.version, tag: INFO.tag, commit: INFO.commit, source: INFO.source };
+  return { schema: sf.OPTIONS_SCHEMA, version: INFO.version, tag: INFO.tag, commit: INFO.commit, source: INFO.source,
+    curves: typeof sf.drawWallThrough === 'function' };
+}
+
+// ------------------------------------------------------------------ result cache
+// The engine takes a second or more on a big part, and the same build is asked for more
+// than once (the live preview, then OK; an edit that changes nothing upstream; each new
+// wall while drawing), so its raw output is kept for the last few inputs.
+const CACHE = new Map(), CACHE_MAX = { fins: 6, wall: 64 };
+function digest(arr) {
+  // FNV-1a over the bytes, 32 bits, plus the length
+  const u = new Uint32Array(arr.buffer, arr.byteOffset, arr.byteLength >> 2);
+  let h = 0x811c9dc5 ^ u.length;
+  for (let i = 0; i < u.length; i++) { h ^= u[i]; h = Math.imul(h, 0x01000193); }
+  return (h >>> 0).toString(36) + ':' + u.length;
+}
+const meshKeys = new WeakMap();
+function meshKey(mesh) {
+  let k = meshKeys.get(mesh);
+  if (!k) { k = digest(mesh.v) + '/' + digest(mesh.f); meshKeys.set(mesh, k); }
+  return k;
+}
+function cached(key, fn) {
+  if (CACHE.has(key)) { const r = CACHE.get(key); CACHE.delete(key); CACHE.set(key, r); return r; }
+  const r = fn();
+  CACHE.set(key, r);
+  const kind = key.slice(0, key.indexOf('|'));
+  const same = [...CACHE.keys()].filter(k => k.startsWith(kind + '|'));
+  for (let i = 0; i < same.length - CACHE_MAX[kind]; i++) CACHE.delete(same[i]);
+  return r;
 }
 
 /** The body's triangles as the float64 soup Support Fins takes (9 numbers per face). */
@@ -55,6 +84,10 @@ function solidsOf(tris, offset, ranges) {
   return { solids: out, skipped };
 }
 
+function optionsOf(sf, values) {
+  try { return sf.optionsFromDialog(values || {}); } catch (e) { throw new GeometryError(`Support Fins setting: ${e.message}`); }
+}
+
 /**
  * Support Fins under a posed body.
  * @param {{v: Float32Array, f: Uint32Array}} mesh  the body as it will print (z up)
@@ -63,22 +96,98 @@ function solidsOf(tris, offset, ranges) {
  */
 export function fins(mesh, values) {
   const sf = engine();
-  let opts;
-  try { opts = sf.optionsFromDialog(values || {}); } catch (e) { throw new GeometryError(`Support Fins setting: ${e.message}`); }
-  const r = sf.computeFins(soupOf(mesh.v, mesh.f), opts);
+  const opts = optionsOf(sf, values);
+  const r = cached(`fins|${meshKey(mesh)}|${JSON.stringify(opts)}`, () => {
+    const x = sf.computeFins(soupOf(mesh.v, mesh.f), opts);
+    return { triangles: x.triangles, offset: x.offset, pieces: x.pieces, stats: x.stats, report: sf.reportLine(x.stats),
+      over: Array.from(x.overFaces), small: Array.from(x.smallFaces) };
+  });
   const { solids, skipped } = solidsOf(r.triangles, r.offset, r.pieces.map(p => p.ranges));
-  return { solids, skipped, stats: r.stats, report: sf.reportLine(r.stats), over: Array.from(r.overFaces), small: Array.from(r.smallFaces), version: INFO.version };
+  return { solids, skipped, stats: r.stats, report: r.report, over: r.over, small: r.small, version: INFO.version };
 }
 
-/** One hand-drawn wall between two points on the body (Support Fins' Draw mode). */
-export function wall(mesh, a, b, values) {
+function oneWall(sf, mesh, soup, a, b, m, opts) {
+  const key = `wall|${meshKey(mesh)}|${JSON.stringify([a, b, m])}|${JSON.stringify(opts)}`;
+  return cached(key, () => {
+    const r = m && sf.drawWallThrough ? sf.drawWallThrough(soup(), a, b, m, opts) : sf.drawWall(soup(), a, b, opts);
+    return r.ok ? { ok: true, triangles: r.triangles, offset: r.offset, stats: r.stats } : { ok: false, reason: r.reason };
+  });
+}
+
+/** The circle through a, b and m in plan, sampled as a path from a to b (null when in line). */
+export function arcPath(a, b, m, step = 4) {
+  const d = 2 * (a[0] * (b[1] - m[1]) + b[0] * (m[1] - a[1]) + m[0] * (a[1] - b[1]));
+  if (Math.abs(d) < 1e-9) return null;
+  const sa = a[0] ** 2 + a[1] ** 2, sb = b[0] ** 2 + b[1] ** 2, sm = m[0] ** 2 + m[1] ** 2;
+  const cx = (sa * (b[1] - m[1]) + sb * (m[1] - a[1]) + sm * (a[1] - b[1])) / d;
+  const cy = (sa * (m[0] - b[0]) + sb * (a[0] - m[0]) + sm * (b[0] - a[0])) / d;
+  const r = Math.hypot(a[0] - cx, a[1] - cy);
+  if (!(r < 1e4)) return null;
+  const TAU = 2 * Math.PI, ang = p => Math.atan2(p[1] - cy, p[0] - cx), a0 = ang(a);
+  const toB = ((ang(b) - a0) % TAU + TAU) % TAU, toM = ((ang(m) - a0) % TAU + TAU) % TAU;
+  const sweep = toM < toB ? toB : toB - TAU;
+  const fm = sweep > 0 ? toM / sweep : (TAU - toM) / -sweep;
+  const n = Math.max(2, Math.ceil(Math.abs(sweep) * r / step));
+  const out = [];
+  for (let k = 0; k <= n; k++) {
+    const t = k / n, th = a0 + sweep * t;
+    const z = t <= fm ? a[2] + (m[2] - a[2]) * (fm > 0 ? t / fm : 1) : m[2] + (b[2] - m[2]) * ((t - fm) / (1 - fm));
+    out.push([cx + r * Math.cos(th), cy + r * Math.sin(th), z]);
+  }
+  return out;
+}
+
+/** The straight sections a drawn wall is built from: [[a, b, m|null], ...]. */
+export function wallSections(w, curves) {
+  const p = w.points || [];
+  if (w.shape === 'curve' && p.length === 3) {
+    if (curves) return [[p[0], p[1], p[2]]];
+    // an engine without the curve extra: short straight walls round the same arc
+    const path = arcPath(p[0], p[1], p[2], 5);
+    if (path) return path.slice(1).map((q, i) => [path[i], q, null]);
+    return [[p[0], p[1], null]];
+  }
+  const out = [];
+  for (let i = 1; i < p.length; i++) out.push([p[i - 1], p[i], null]);
+  return out;
+}
+
+/**
+ * Hand-drawn walls (Support Fins' Draw mode): each a line, a line of several sections, or
+ * a curve through three points.
+ * @param walls  [{shape: 'line'|'path'|'curve', points: [[x, y, z], ...]}]
+ * @returns {{solids, walls: [{ok, reason?, length, height, tines}], version}}
+ */
+export function walls(mesh, list, values) {
   const sf = engine();
-  let opts;
-  try { opts = sf.optionsFromDialog(values || {}); } catch (e) { throw new GeometryError(`Support Fins setting: ${e.message}`); }
-  const r = sf.drawWall(soupOf(mesh.v, mesh.f), a, b, opts);
-  if (!r.ok) throw new GeometryError(r.reason || 'Support Fins couldn’t place a wall there.');
-  const n = r.triangles.length / 9;
-  const { solids } = solidsOf(r.triangles, r.offset, [[[0, n]]]);
-  if (!solids.length) throw new GeometryError('Support Fins made a wall that isn’t a closed solid.');
-  return { solids, stats: r.stats, version: INFO.version };
+  const opts = optionsOf(sf, values);
+  let soupMemo = null;
+  const soup = () => soupMemo || (soupMemo = soupOf(mesh.v, mesh.f));
+  const curves = typeof sf.drawWallThrough === 'function';
+  const solids = [], report = [];
+  for (const w of list) {
+    const st = { ok: true, length: 0, height: 0, tines: 0, partAttached: false, sections: 0, failed: 0 };
+    for (const [a, b, m] of wallSections(w, curves)) {
+      const r = oneWall(sf, mesh, soup, a, b, m, opts);
+      st.sections++;
+      if (!r.ok) { st.failed++; st.reason = st.reason || r.reason; continue; }
+      const n = r.triangles.length / 9;
+      const got = solidsOf(r.triangles, r.offset, [[[0, n]]]).solids;
+      if (!got.length) { st.failed++; st.reason = st.reason || 'it didn’t come out as a closed solid'; continue; }
+      solids.push(...got);
+      st.length += r.stats.length; st.height = Math.max(st.height, r.stats.height); st.tines += r.stats.tines || 0;
+      st.partAttached = st.partAttached || !!r.stats.partAttached;
+    }
+    st.ok = st.failed < st.sections;
+    report.push(st);
+  }
+  return { solids, walls: report, version: INFO.version };
+}
+
+/** One hand-drawn wall between two points on the body (kept for older callers). */
+export function wall(mesh, a, b, values) {
+  const r = walls(mesh, [{ shape: 'line', points: [a, b] }], values);
+  const w = r.walls[0];
+  if (!w.ok) throw new GeometryError(w.reason || 'Support Fins couldn’t place a wall there.');
+  return { solids: r.solids, stats: w, version: r.version };
 }

@@ -422,7 +422,13 @@ function f_move(state, fid, p, res) {
   const R = rotation(...(p.rotate || [0, 0, 0])), tr = (p.translate || [0, 0, 0]).map(Number);
   bids.forEach((bid, i) => {
     const b = state.body(bid), c = pivot(b, p.pivot || 'center');
-    const nb = transformBody(b, R, add(sub(c, matVec3(R, c)), tr));
+    let nb = transformBody(b, R, add(sub(c, matVec3(R, c)), tr));
+    // Land on bed: a turned part rests on the bed (Move Z then lifts it off), so it never
+    // hangs through the bed after a rotation
+    if (p.bed && (p.rotate || []).some(a => Math.abs(+a) > 1e-9)) {
+      const dz = tr[2] - nb.bbox()[0][2];
+      if (Math.abs(dz) > 1e-9) nb = transformBody(nb, rotation(0, 0, 0), [0, 0, dz]);
+    }
     if (p.copy) { const id = bids.length === 1 ? fid : `${fid}.${i + 1}`; nb.name = `${b.name} (copy)`; state.bodies.set(id, nb); res.created.push(id); }
     else { state.bodies.set(bid, nb); res.modified.push(bid); }
   });
@@ -477,22 +483,34 @@ function f_repair(state, fid, p, res) {
 // ---------------------------------------------------------------- Support Fins
 // Breakaway support fins from Support Fins (github.com/gittrahan/support-fins) for the part as
 // it is posed now: tip it to the orientation you want to print, then add fins.
-function addSupports(state, fid, res, bid, solids, output, suffix = 'supports') {
+function addSupports(state, fid, res, bid, solids, output, suffix = 'supports', ctx = {}) {
   const b = state.body(bid);
   const fins = solids.length > 1 ? Manifold.union(solids) : solids[0];
+  if (ctx.preview && output !== 'separate' && b.isSolid) {
+    // the live preview shows the supports next to the untouched part (no union to wait for,
+    // and only the supports are sent to the screen); OK joins them for real
+    let nid = `${fid}~sf`;
+    state.bodies.set(nid, new Body(`${b.name} ${suffix}`, { solid: fins }));
+    res.created.push(nid);
+    res.previewOnly = true;
+    res.colors = { ...(res.colors || {}), [nid]: SUPPORT_COLOR };
+    return;
+  }
   if (output === 'separate' || !b.isSolid) {
     let nid = fid, n = 1;
     while (state.bodies.has(nid)) nid = `${fid}.${++n}`;
     state.bodies.set(nid, new Body(`${b.name} ${suffix}`, { solid: fins }));
     res.created.push(nid);
+    if (ctx.preview) res.colors = { ...(res.colors || {}), [nid]: SUPPORT_COLOR };
     if (!b.isSolid && output !== 'separate') res.warning = `"${b.name}" isn't a watertight solid, so the supports were added as a separate body.`;
   } else {
     state.bodies.set(bid, b.copy({ solid: b.solid.add(fins) }));
     res.modified.push(bid);
   }
 }
+const SUPPORT_COLOR = '#59d98e';   // Support Fins' own fin green
 
-function f_supportfins(state, fid, p, res) {
+function f_supportfins(state, fid, p, res, ctx = {}) {
   const ids = p.bodies || (p.body ? [p.body] : []);
   if (!ids.length) throw new GeometryError('Choose the body to support.');
   const notes = [];
@@ -508,18 +526,36 @@ function f_supportfins(state, fid, p, res) {
       continue;
     }
     if (r.skipped) notes.push(`${r.skipped} support piece(s) weren't closed solids and were left out.`);
-    addSupports(state, fid, res, bid, r.solids, p.output);
+    addSupports(state, fid, res, bid, r.solids, p.output, 'supports', ctx);
   }
   if (notes.length) res.warning = notes.join(' ');
 }
 
-function f_supportwall(state, fid, p, res) {
+/** The walls of a Draw Walls feature (older projects keep one wall in `points`). */
+export function drawnWalls(p) {
+  if (Array.isArray(p.walls)) return p.walls;
+  return (p.points || []).length === 2 ? [{ shape: 'line', points: p.points }] : [];
+}
+
+function f_supportwall(state, fid, p, res, ctx = {}) {
   const bid = p.body, b = state.body(bid);
-  const pts = p.points || [];
-  if (pts.length !== 2) throw new GeometryError('Click the two ends of the wall on the part.');
-  const r = SFX.wall(b.mesh(), pts[0], pts[1], p.options || {});
-  res.info = `Support Fins ${r.version}: wall ${r.stats.length.toFixed(1)} mm long, ${r.stats.height.toFixed(1)} mm tall, ${r.stats.tines} tines${r.stats.partAttached ? ', standing on the part' : ''}`;
-  addSupports(state, fid, res, bid, r.solids, p.output, 'wall');
+  const list = drawnWalls(p).filter(w => (w.points || []).length >= 2);
+  if (!list.length) throw new GeometryError('Click on the part to draw a wall under an overhang.');
+  const r = SFX.walls(b.mesh(), list, p.options || {});
+  res.walls = r.walls.map(w => ({ ok: w.ok, reason: w.reason || null }));
+  const good = r.walls.filter(w => w.ok);
+  const bad = r.walls.map((w, i) => [w, i]).filter(([w]) => !w.ok || w.failed);
+  if (!good.length) {
+    throw new GeometryError(list.length === 1 ? `Support Fins couldn’t place that wall: ${r.walls[0].reason}.`
+      : `Support Fins couldn’t place any of the ${list.length} walls (${r.walls[0].reason}).`);
+  }
+  const len = good.reduce((s, w) => s + w.length, 0), tines = good.reduce((s, w) => s + w.tines, 0);
+  const tall = Math.max(...good.map(w => w.height));
+  res.info = good.length === 1
+    ? `Support Fins ${r.version}: wall ${len.toFixed(1)} mm long, ${tall.toFixed(1)} mm tall, ${tines} tines${good[0].partAttached ? ', standing on the part' : ''}`
+    : `Support Fins ${r.version}: ${good.length} walls, ${len.toFixed(1)} mm in all, ${tines} tines`;
+  if (bad.length) res.warning = bad.map(([w, i]) => `Wall ${i + 1}${w.ok ? ' (part of it)' : ''}: ${w.reason}`).join('. ') + '.';
+  addSupports(state, fid, res, bid, r.solids, p.output, 'walls', ctx);
 }
 
 function f_hollow(state, fid, p, res) {
@@ -704,5 +740,5 @@ export const LABELS = {
   import: 'Import', primitive: 'Primitive', plane: 'Plane', sketch: 'Sketch', extrude: 'Extrude', revolve: 'Revolve', hole: 'Hole',
   combine: 'Combine', split: 'Split', mirror: 'Mirror', move: 'Move', scale: 'Scale', hollow: 'Hollow', repair: 'Repair',
   simplify: 'Simplify', pattern: 'Pattern', delete: 'Remove', separate: 'Separate', bedsplit: 'Fit to Bed', pushpull: 'Push/Pull',
-  sculpt: 'Sculpt', remesh: 'Remesh', layflat: 'Lay Flat', thread: 'Thread', offset: 'Offset', resizehole: 'Resize Hole', supportfins: 'Support Fins', supportwall: 'Support Wall',
+  sculpt: 'Sculpt', remesh: 'Remesh', layflat: 'Lay Flat', thread: 'Thread', offset: 'Offset', resizehole: 'Resize Hole', supportfins: 'Support Fins', supportwall: 'Draw Walls',
 };

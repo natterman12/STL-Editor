@@ -38,7 +38,10 @@ NEEDED = ["computeFins", "drawWall", "optionsFromDialog", "optionVisible", "OPTI
 
 
 def run(cmd, **kw):
-    return subprocess.run(cmd, check=True, capture_output=True, text=True, **kw).stdout
+    r = subprocess.run(cmd, capture_output=True, text=True, **kw)
+    if r.returncode:
+        sys.exit(f"{os.path.basename(str(cmd[0]))} failed ({r.returncode}):\n{(r.stderr or r.stdout).strip()}")
+    return r.stdout
 
 
 def semver(tag):
@@ -71,6 +74,58 @@ def esbuild():
     return [shutil.which("npx") or "npx", "--yes", "esbuild@0.28"]
 
 
+# Extras this app adds on top of the plugin entry, generated from Support Fins' own files so
+# they follow every release. Optional: when a release changes the code they are made from,
+# the extra is left out and the app falls back (a curve is then drawn as short straight walls).
+CURVE_SIG = re.compile(r"export function drawWall\(positions, a, b, options = \{\}\) \{")
+CURVE_CALL = "drawnWall(seat(a), seat(b), tris, 0, {"
+ENTRY = """// written by STL Editor's packaging/update_support_fins.py: Support Fins' plugin entry,
+// plus the extras STL Editor uses
+export * from './bridge.js';
+%s
+"""
+CURVE_EXPORTS = """import { b64ToBytes, bytesToB64 } from './bridge.js';
+import { drawWallThrough } from './stle_draw_through.js';
+export { drawWallThrough };
+// a curved wall: a and b its ends, m a point it runs through (Support Fins' Curve tool)
+export function drawWallThroughB64(soupB64, aJson, bJson, mJson, optionsJson) {
+  const options = optionsJson ? JSON.parse(optionsJson) : {};
+  const bytes = b64ToBytes(soupB64);
+  const soup = bytes.byteOffset % 8 ? new Float64Array(bytes.slice().buffer) : new Float64Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 8);
+  const res = drawWallThrough(soup, JSON.parse(aJson), JSON.parse(bJson), mJson ? JSON.parse(mJson) : null, options);
+  if (!res.ok) return JSON.stringify(res);
+  const t = res.triangles;
+  return JSON.stringify({ ok: true, triangles: bytesToB64(new Uint8Array(t.buffer, t.byteOffset, t.byteLength)), offset: res.offset, stats: res.stats });
+}"""
+
+
+def write_entry(src):
+    """The bundle entry: bridge.js plus the extras that apply to this release. Returns the extras."""
+    eng = os.path.join(src, "plugins", "shared", "engine")
+    extras, parts = [], []
+    try:
+        with open(os.path.join(eng, "draw_entry.js"), encoding="utf-8") as fh:
+            d = fh.read()
+        with open(os.path.join(eng, "bridge.js"), encoding="utf-8") as fh:
+            b = fh.read()
+    except OSError:
+        d = b = ""
+    # drawWallThrough: draw_entry.js's drawWall with the curve point Support Fins' own
+    # drawnWall takes (opts.through, the site's Curve tool) passed on
+    if (len(CURVE_SIG.findall(d)) == 1 and d.count(CURVE_CALL) == 1
+            and "export function b64ToBytes" in b and "export function bytesToB64" in b):
+        d = CURVE_SIG.sub("export function drawWallThrough(positions, a, b, through, options = {}) {", d)
+        d = d.replace(CURVE_CALL, "drawnWall(seat(a), seat(b), tris, 0, { through: through ? seat(through) : null,")
+        with open(os.path.join(eng, "stle_draw_through.js"), "w", encoding="utf-8") as fh:
+            fh.write(d)
+        parts.append(CURVE_EXPORTS)
+        extras += ["drawWallThrough", "drawWallThroughB64"]
+    path = os.path.join(eng, "stle_entry.js")
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(ENTRY.replace("%s", "\n".join(parts)))
+    return path, extras
+
+
 def build(tag):
     tmp = tempfile.mkdtemp(prefix="support-fins-")
     try:
@@ -86,21 +141,30 @@ def build(tag):
             sys.exit(f"{tag}: options.json is version {schema.get('version')}, this app reads {SCHEMA_VERSION}.")
         stage = os.path.join(tmp, "out")
         os.makedirs(stage)
+        entry, extras = write_entry(src)
         common = ["--bundle", "--target=es2022", "--minify", "--log-level=warning", "--legal-comments=eof"]
-        run(esbuild() + [bridge, "--format=esm", f"--outfile={os.path.join(stage, 'engine.esm.js')}"] + common)
-        run(esbuild() + [bridge, "--format=iife", "--global-name=SupportFinsEngine",
+        run(esbuild() + [entry, "--format=esm", f"--outfile={os.path.join(stage, 'engine.esm.js')}"] + common)
+        run(esbuild() + [entry, "--format=iife", "--global-name=SupportFinsEngine",
                          f"--outfile={os.path.join(stage, 'engine.iife.js')}"] + common)
         # the bundle must still offer everything this app calls
         probe = ("import('./engine.esm.js').then(m => { const miss = %s.filter(k => !(k in m));"
                  " if (miss.length) { console.error('missing: ' + miss.join(', ')); process.exit(1); }"
                  " const r = m.computeFins(cube(), {});"
-                 " if (!(r.triangles instanceof Float32Array)) process.exit(1); console.log(m.reportLine(r.stats)); });"
-                 % json.dumps(NEEDED))
+                 " if (!(r.triangles instanceof Float32Array)) process.exit(1);"
+                 " for (const k of %s) if (typeof m[k] !== 'function') { console.error('extra missing: ' + k); process.exit(1); }"
+                 " if (m.drawWallThrough) { const w = m.drawWallThrough(ell(), [22, 3, 27], [22, 17, 27], [25, 10, 27], {});"
+                 "   if (!w.ok) { console.error('curve: ' + w.reason); process.exit(1); } }"
+                 " console.log(m.reportLine(r.stats)); });"
+                 % (json.dumps(NEEDED), json.dumps(extras)))
         cube = ("function cube(){const s=[],P=[[0,0,0],[20,0,0],[20,10,0],[0,10,0],[0,0,10],[20,0,10],[20,10,10],[0,10,10]],"
                 "F=[[0,2,1],[0,3,2],[4,5,6],[4,6,7],[0,1,5],[0,5,4],[1,2,6],[1,6,5],[2,3,7],[2,7,6],[3,0,4],[3,4,7]];"
                 "for(const f of F)for(const i of f)s.push(...P[i]);return new Float64Array(s)}")
+        # an upside-down L: a post and an arm out over the plate, for the curved wall
+        ell = ("function box(s,x0,y0,z0,x1,y1,z1){const P=[[x0,y0,z0],[x1,y0,z0],[x1,y1,z0],[x0,y1,z0],[x0,y0,z1],[x1,y0,z1],[x1,y1,z1],[x0,y1,z1]],"
+               "F=[[0,2,1],[0,3,2],[4,5,6],[4,6,7],[0,1,5],[0,5,4],[1,2,6],[1,6,5],[2,3,7],[2,7,6],[3,0,4],[3,4,7]];for(const f of F)for(const i of f)s.push(...P[i])}"
+               "function ell(){const s=[];box(s,0,0,0,10,20,27);box(s,0,0,27,30,20,35);return new Float64Array(s)}")
         with open(os.path.join(stage, "probe.mjs"), "w", encoding="utf-8") as fh:
-            fh.write(cube + "\n" + probe)
+            fh.write(cube + "\n" + ell + "\n" + probe)
         report = run(["node", "probe.mjs"], cwd=stage).strip()
         os.remove(os.path.join(stage, "probe.mjs"))
         shutil.copyfile(os.path.join(src, "LICENSE"), os.path.join(stage, "LICENSE.txt"))
@@ -111,6 +175,7 @@ def build(tag):
             "sha256": {f: hashlib.sha256(open(os.path.join(stage, f), "rb").read()).hexdigest()
                        for f in ("engine.esm.js", "engine.iife.js")},
             "options": len(schema.get("options", [])),
+            "extras": extras,
         }
         with open(os.path.join(stage, "VERSION.json"), "w", encoding="utf-8", newline="\n") as fh:
             json.dump(info, fh, indent=1)

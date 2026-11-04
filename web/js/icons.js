@@ -19,6 +19,7 @@ export const ICONS = {
   combine: S(`<rect x="3" y="7" width="11" height="11" rx="1" fill="${BLUE}" fill-opacity=".18"/><circle cx="15" cy="10" r="6"/>`),
   split: S(`<path d="M4 14 10 18l10-6-6-4z" fill="${BLUE}" fill-opacity=".18"/><path d="M4 9l6 4 10-6-6-4z"/><path d="M2 11.5h20" stroke="${ORANGE}" stroke-dasharray="3 2"/>`),
   mirror: S(`<path d="M12 2v20" stroke="${ORANGE}" stroke-dasharray="2 2"/><path d="M9 6 3 18h6z" fill="${BLUE}" fill-opacity=".2"/><path d="M15 6l6 12h-6z"/>`),
+  rotate: S('<path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/><circle cx="12" cy="12" r="2"/>'),
   move: S('<path d="M12 2v20M2 12h20"/><path d="m9 5 3-3 3 3M9 19l3 3 3-3M5 9l-3 3 3 3M19 9l3 3-3 3"/>'),
   scale: S(`<rect x="3" y="11" width="10" height="10" rx="1" fill="${BLUE}" fill-opacity=".18"/><path d="M3 11V3h18v18h-8"/><path d="m14 10 6-6M15 4h5v5"/>`),
   pattern: S(`<rect x="3" y="3" width="6" height="6" rx="1" fill="${BLUE}" fill-opacity=".25"/><rect x="15" y="3" width="6" height="6" rx="1"/><rect x="3" y="15" width="6" height="6" rx="1"/><rect x="15" y="15" width="6" height="6" rx="1"/>`),

@@ -124,15 +124,17 @@ export class Document {
   }
 
   preview(type, params, editId = null) {
+    const ctx = { loadSource: sid => this.loadSource(sid), preview: true };
     if (editId) {
       const idx = this.index(editId);
       const f = { ...this.features[idx], params };
-      const [st, res] = this.runFeature(this.stateBefore(idx), f);
-      if (!res.error) this._remember(idx, f, st, res);
+      const [st, res] = this.runFeature(this.stateBefore(idx), f, ctx);
+      // a preview-only result (Support Fins shown beside the part) isn't the real one
+      if (!res.error && !res.previewOnly) this._remember(idx, f, st, res);
       return [st, res];
     }
     const at = this.rollback === null ? this.features.length : this.rollback;
-    return this.runFeature(this.stateBefore(at), { id: 'preview', type, name: 'preview', params });
+    return this.runFeature(this.stateBefore(at), { id: 'preview', type, name: 'preview', params }, ctx);
   }
 
   editFeature(fid, params = null, name = null, suppressed = null, rollbackAfter = 'keep') {

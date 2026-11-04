@@ -418,3 +418,43 @@ def test_support_fins_engine_crlf_checkout(tmp_path):
     assert SF._read_info(str(tmp_path)) is not None
     js.write_bytes(js.read_bytes() + b"// tampered\r\n")
     assert SF._read_info(str(tmp_path)) is None
+
+
+def test_draw_walls_lines_paths_curves():
+    """Several walls, a multi-section line and a curve; the preview shows them beside the part."""
+    pytest.importorskip("py_mini_racer")
+    from stleditor import supportfins as SF
+    assert SF.info()["curves"], "the curved-wall extra is built in"
+    ell = m3.Manifold.cube([10, 20, 35]) + m3.Manifold.cube([30, 20, 8]).translate([0, 0, 27])
+    d, e = _doc_with(ell, "ell.stl")
+    v0 = d.state.body(e).info()["volume"]
+    walls = [
+        {"shape": "line", "points": [[17, 3, 27], [17, 17, 27]]},
+        {"shape": "path", "points": [[21, 2, 27], [26, 6, 27], [26, 14, 27]]},
+        {"shape": "curve", "points": [[28.5, 2, 27], [28.5, 18, 27], [24, 10, 27]]},
+        {"shape": "line", "points": [[22, 3, 27], [22.5, 3, 27]]},
+    ]
+    pst, pr = d.preview("supportwall", {"body": e, "walls": walls, "output": "join", "options": {}})
+    assert pr["previewOnly"] and len(pr["created"]) == 1
+    assert abs(pst.body(e).info()["volume"] - v0) < 1e-6
+    assert [w["ok"] for w in pr["walls"]] == [True, True, True, False]
+    assert "Wall 4: wall too short" in pr["warning"]
+    f, r = d.add_feature("supportwall", {"body": e, "walls": walls, "output": "join", "options": {}})
+    assert "3 walls" in r["info"]
+    v1 = d.state.body(e).info()["volume"]
+    assert abs(v1 - 11550.85) < 2, v1     # the web engine gives the same
+    d.edit_feature(f["id"], {"body": e, "walls": [walls[2]], "output": "separate", "options": {}})
+    curved = list(d.state.bodies.values())[-1].info()["volume"]
+    assert abs(curved - 576.5) < 1, curved
+
+
+def test_move_lands_on_bed():
+    low = lambda d, b: float(d.state.body(b).mesh()[0][:, 2].min())  # noqa: E731
+    doc, B = _doc_with(m3.Manifold.cube((40, 30, 20)), "block.stl")
+    doc.add_feature("move", {"bodies": [B], "translate": [0, 0, 0], "rotate": [30, 0, 0], "pivot": "center", "bed": True})
+    assert abs(low(doc, B)) < 1e-6
+    doc.add_feature("move", {"bodies": [B], "translate": [0, 0, 5], "rotate": [0, 20, 0], "pivot": "center", "bed": True})
+    assert abs(low(doc, B) - 5) < 1e-6
+    doc2, B2 = _doc_with(m3.Manifold.cube((40, 30, 20)), "block.stl")
+    doc2.add_feature("move", {"bodies": [B2], "translate": [0, 0, 0], "rotate": [30, 0, 0], "pivot": "center"})
+    assert low(doc2, B2) < -1

@@ -307,6 +307,54 @@ test('import PLY, OFF and glTF', () => {
   assert.ok(G.vertsBBox(parts[0].v)[0][0] < 0 && G.vertsBBox(parts[1].v)[0][0] >= 100, 'sorted by position');
 });
 
+test('Draw Walls: several walls, a multi-section line and a curve; preview beside the part', async () => {
+  const SFX = await load('engine/supportfins.js');
+  await SFX.load();
+  assert.ok(SFX.info().curves, 'the curved-wall extra is built in');
+  const doc = new Document();
+  const ell = W.Manifold.union([W.Manifold.cube([10, 20, 35]), W.Manifold.cube([30, 20, 8]).translate([0, 0, 27])]);
+  const [e] = doc.importFile('ell.stl', stlOf(ell), true, 'keep');
+  const v0 = vol(doc, e.id);
+  const walls = [
+    { shape: 'line', points: [[17, 3, 27], [17, 17, 27]] },
+    { shape: 'path', points: [[21, 2, 27], [26, 6, 27], [26, 14, 27]] },
+    { shape: 'curve', points: [[28.5, 2, 27], [28.5, 18, 27], [24, 10, 27]] },
+    { shape: 'line', points: [[22, 3, 27], [22.5, 3, 27]] },
+  ];
+  // the live preview: the walls as a body of their own next to the untouched part
+  const [pst, pr] = doc.preview('supportwall', { body: e.id, walls, output: 'join', options: {} });
+  assert.ok(pr.previewOnly && pr.created.length === 1, 'preview shows the walls only');
+  approx(pst.body(e.id).info().volume, v0, 1e-9, 'part untouched in the preview');
+  assert.deepEqual(pr.walls.map(w => w.ok), [true, true, true, false]);
+  assert.match(pr.warning, /Wall 4: wall too short/);
+  const [f, r] = doc.addFeature('supportwall', { body: e.id, walls, output: 'join', options: {} });
+  assert.match(r.info, /3 walls/);
+  assert.equal(doc.state.bodies.size, 1);
+  const v1 = vol(doc, e.id);
+  assert.ok(v1 > v0 + 600, `walls joined: ${v0} -> ${v1}`);
+  // a curve built as one wall is not the same as its chord
+  doc.editFeature(f.id, { body: e.id, walls: [walls[2]], output: 'separate', options: {} });
+  const curved = [...doc.state.bodies.values()].at(-1).info().volume;
+  doc.editFeature(f.id, { body: e.id, walls: [{ shape: 'line', points: [walls[2].points[0], walls[2].points[1]] }], output: 'separate', options: {} });
+  const straight = [...doc.state.bodies.values()].at(-1).info().volume;
+  assert.ok(Math.abs(curved - straight) > 1, `curve ${curved} vs line ${straight}`);
+  // an older project's single wall still opens
+  doc.editFeature(f.id, { body: e.id, points: [[22, 3, 27], [22, 17, 27]], output: 'join', options: {} });
+  assert.match(doc._results.at(-1).info, /wall 14\.0 mm long/);
+  console.log(`walls: ${v0} -> ${v1}, curve ${curved.toFixed(1)} vs chord ${straight.toFixed(1)}`);
+});
+
+test('Move: a rotated part lands on the bed', () => {
+  const [doc, B] = block();
+  doc.addFeature('move', { bodies: [B], translate: [0, 0, 0], rotate: [30, 0, 0], pivot: 'center', bed: true });
+  approx(doc.state.body(B).bbox()[0][2] + 1, 1, 1e-6, 'lowest point on the bed');
+  doc.addFeature('move', { bodies: [B], translate: [0, 0, 5], rotate: [0, 20, 0], pivot: 'center', bed: true });
+  approx(doc.state.body(B).bbox()[0][2], 5, 1e-6, 'Move Z lifts it off the bed');
+  const [doc2, B2] = block();
+  doc2.addFeature('move', { bodies: [B2], translate: [0, 0, 0], rotate: [30, 0, 0], pivot: 'center' });
+  assert.ok(doc2.state.body(B2).bbox()[0][2] < -1, 'older projects (no bed) keep turning about the centre');
+});
+
 test('Support Fins: fins, a drawn wall, separate body', async () => {
   const SFX = await load('engine/supportfins.js');
   await SFX.load();

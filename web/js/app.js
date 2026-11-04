@@ -7,6 +7,8 @@ import { icon } from './icons.js';
 import { describe, ENTITY_LABEL } from './sketchgeom.js';
 import { U, parseExpr } from './units.js';
 import { CTYPES, CTOOLS } from './constraints.js';
+import { WallDrawer } from './drawwalls.js';
+import { Gizmo } from './gizmo.js';
 
 const $ = s => document.querySelector(s);
 // tools the web edition leaves to the desktop app (they run programs on your computer)
@@ -24,6 +26,8 @@ class App {
   constructor() {
     this.viewer = new Viewer($('#view3d'));
     this.sketcher = new Sketcher(this);
+    this.walls = new WallDrawer(this);
+    this.gizmo = new Gizmo(this);
     this.state = { features: [], bodies: [], planes: [], sketches: [], doc: {}, recent: [] };
     this.selection = [];
     this.tool = null;      // active tool session
@@ -105,14 +109,14 @@ class App {
             ['primitive_sphere', 'Sphere', 'sphere'], ['primitive_cone', 'Cone', 'cone'], ['primitive_torus', 'Torus', 'torus']] }]],
         ['Modify', [['hole', 'Hole', 'hole'], ['pushpull', 'Push/Pull', 'pushpull'], ['combine', 'Combine', 'combine'], ['split', 'Split', 'split'],
           ['mirror', 'Mirror', 'mirror'], ['pattern', 'Pattern', 'pattern'],
-          { stack: [['move', 'Move', 'move'], ['scale', 'Scale', 'scale'], ['hollow', 'Hollow', 'hollow']] },
-          { stack: [['offset', 'Offset Body', 'offset'], ['resizehole', 'Resize Hole', 'resizehole']] }]],
+          { stack: [['move', 'Move', 'move'], ['rotate', 'Rotate', 'rotate'], ['scale', 'Scale', 'scale']] },
+          { stack: [['hollow', 'Hollow', 'hollow'], ['offset', 'Offset Body', 'offset'], ['resizehole', 'Resize Hole', 'resizehole']] }]],
         ['Construct', [{ drop: 'plane', label: 'Plane', items: planes }]],
         inspect,
       ],
       print: [
-        ['Orient', [['layflat', 'Lay Flat', 'layflat'], { stack: [['move', 'Move', 'move'], ['scale', 'Scale', 'scale']] }]],
-        ['Supports', [['supportfins', 'Support Fins', 'fins'], ['supportwall', 'Draw Wall', 'finwall']]],
+        ['Orient', [['layflat', 'Lay Flat', 'layflat'], { stack: [['move', 'Move', 'move'], ['rotate', 'Rotate', 'rotate'], ['scale', 'Scale', 'scale']] }]],
+        ['Supports', [['supportfins', 'Support Fins', 'fins'], ['supportwall', 'Draw Walls', 'finwall']]],
         ['Fit', [['bedsplit', 'Fit to Bed', 'bedsplit'], ['split', 'Split', 'split']]],
         ['Hardware', [['hole', 'Hole', 'hole'], ['thread', 'Thread', 'thread'], ['resizehole', 'Resize Hole', 'resizehole']]],
         ['Prepare', [['hollow', 'Hollow', 'hollow'], ['repair', 'Repair', 'repair'], { stack: [['offset', 'Offset Body', 'offset']] }]],
@@ -294,6 +298,7 @@ class App {
     if (k === 'info') return this.startInfo();
     if (k === 'to_step') return this.toStep();
     if (k === 'supportfins' || k === 'supportwall') return this.openSupportTool(k);
+    if (k === 'rotate') return this.openTool('move', { values: { _gizmo: 'rotate' } });
     if (TOOLS[k]) this.openTool(k);
   }
 
@@ -350,23 +355,30 @@ class App {
     const credit = `Support Fins ${inf.version} by gittrahan (MIT)`;
     // the settings a drawn wall uses (Support Fins' drawWall)
     const WALL_KEYS = ['threshold', 'nozzle', 'gap', 'tines', 'tineDensity', 'layerHeight', 'plateOnly'];
+    const oneBody = ctx => {
+      const sel = selBody(ctx).slice(0, 1);
+      if (sel.length) return sel;
+      const shown = ctx.state.bodies.filter(b => !b.hidden);
+      return shown.length === 1 ? [shown[0].id] : [];
+    };
     TOOLS.supportfins = {
       label: 'Support Fins', icon: 'fins', type: 'supportfins',
       fields: [{ key: 'body', label: 'Body', kind: 'bodies', multi: false }, output, ...sections(null)],
-      defaults: ctx => ({ body: selBody(ctx).slice(0, 1), output: 'join', ...defaults(null) }),
+      defaults: ctx => ({ body: oneBody(ctx), output: 'join', ...defaults(null) }),
       toParams: v => ({ body: v.body[0], output: v.output, options: toOptions(v, null) }),
       fromParams: p => ({ body: p.body ? [p.body] : [], output: p.output || 'join', ...defaults(null), ...fromOptions(p.options) }),
-      hint: `Tip the part to the way you want to print it first (Move › Rotate). Red faces need support; fins and a bed pad go under them. ${credit}`,
+      hint: `Red faces need support; Support Fins puts breakaway fins and a bed pad under them. Tip the part to the way you want to print it first (Move / Rotate). ${credit}`,
       paint: true,
     };
     TOOLS.supportwall = {
-      label: 'Support Wall', icon: 'finwall', type: 'supportwall',
-      fields: [{ key: 'body', label: 'Body', kind: 'bodies', multi: false }, { key: 'points', label: 'Wall ends', kind: 'points3', count: 2 }, output,
+      label: 'Draw Walls', icon: 'finwall', type: 'supportwall', wallTool: true, paint: true,
+      fields: [{ key: 'body', label: 'Body', kind: 'bodies', multi: false, placeholder: 'The part you draw on' }, { key: 'walls', label: 'Walls', kind: 'walls' }, output,
         ...sections(WALL_KEYS)],
-      defaults: ctx => ({ body: selBody(ctx).slice(0, 1), points: [], output: 'join', ...defaults(WALL_KEYS) }),
-      toParams: v => ({ body: v.body[0], points: v.points, output: v.output, options: toOptions(v, WALL_KEYS) }),
-      fromParams: p => ({ body: p.body ? [p.body] : [], points: p.points || [], output: p.output || 'join', ...defaults(WALL_KEYS), ...fromOptions(p.options) }),
-      hint: `Click two points under an overhang to stand a breakaway wall between them, like Support Fins' Draw mode. ${credit}`,
+      defaults: ctx => ({ body: oneBody(ctx), walls: [], output: 'join', ...defaults(WALL_KEYS) }),
+      toParams: v => ({ body: v.body[0], walls: v.walls, output: v.output, options: toOptions(v, WALL_KEYS) }),
+      fromParams: p => ({ body: p.body ? [p.body] : [], walls: Array.isArray(p.walls) ? p.walls : ((p.points || []).length === 2 ? [{ shape: 'line', points: p.points }] : []),
+        output: p.output || 'join', ...defaults(WALL_KEYS), ...fromOptions(p.options) }),
+      hint: `${this.walls.hint()} ${credit}`,
     };
     this._sfInfo = inf;
     return inf;
@@ -453,8 +465,9 @@ class App {
     $('#tool-panel').classList.remove('hidden');
     this.tool.activeField = def.fields.find(f => isSelKind(f.kind) && !f.placeholder && f.kind !== 'regions' && (f.show ? f.show(v) : true) && isEmptySel(v[f.key]))?.key || null;
     this.renderForm();
-    this.hint(def.hint || '');
+    this.hint(def.wallTool ? `${this.walls.hint()} Support Fins ${this._sfInfo?.version || ''} by gittrahan (MIT)` : (def.hint || ''));
     this.viewer.setMouseMode(def.sculpt ? 'sculpt' : 'model');
+    if (def.paint) this.quickPaint();
     this.updateRibbonState();
     this.renderTimeline();
     this.renderEmpty();
@@ -466,6 +479,9 @@ class App {
     if (!this.tool) return;
     const t = this.tool;
     this.tool = null;
+    clearTimeout(this._busyTimer);
+    this.walls.reset();
+    this.gizmo.hide();
     this.viewer.clearPreview();
     this.viewer.clearOverlay();
     this.viewer.setBasePlanesVisible(false);
@@ -567,6 +583,7 @@ class App {
         return wrap(`<div class="sel-box ${active ? 'active' : ''}" data-pick="${f.key}">${n ? `<span class="chip">${n} of ${c}<b data-unpick="${f.key}">×</b></span>` : `<span class="ph">Click ${c} points</span>`}</div>`);
       }
       case 'hdr': return `<div class="field-hdr">${esc(f.label)}</div>`;
+      case 'walls': return this.walls.fieldHTML(f);
     }
     return '';
   }
@@ -583,6 +600,7 @@ class App {
     const t = this.tool; if (!t) return;
     t.values[key] = val;
     if (t.def.onChange) { const patch = t.def.onChange(key, t.values); if (patch) { Object.assign(t.values, patch); rerender = true; } }
+    if (t.def.paint && (key === 'body' || key === 'sf:threshold')) this.quickPaint();
     if (t.key === 'scale' && key === 'size' && t.values.uniform && t.values._size0) {
       // keep proportions: scale the other axes from the edited one
       const s0 = t.values._size0, prev = t._lastSize || s0;
@@ -592,6 +610,7 @@ class App {
       rerender = true;
     }
     if (rerender) this.renderForm();
+    else if (t.def.gizmo) this.gizmo.sync();
     this.schedulePreview();
   }
 
@@ -604,6 +623,7 @@ class App {
       if (['plane', 'sketch'].includes(f.kind) && !v) return false;
       if (f.kind === 'facepoints' && !(v || []).length) return false;
       if (f.kind === 'points3' && (v || []).length !== (f.count || 3)) return false;
+      if (f.kind === 'walls' && !(v || []).length) return false;
       if (f.kind === 'features' && !(v || []).length) return false;
       if ((f.kind === 'pface' || f.kind === 'cylface') && !v) return false;
     }
@@ -627,23 +647,54 @@ class App {
 
   async runPreview() {
     const t = this.tool; if (!t) return;
-    if (!this.validTool() || (t.def.sculpt && !(t.values.strokes || []).length)) { this.viewer.clearPreview(); this.toolMsg(''); return; }
+    if (!this.validTool() || (t.def.sculpt && !(t.values.strokes || []).length)) { this.viewer.clearPreview(); this.toolMsg(''); if (t.def.wallTool) { t._wallStatus = []; } return; }
     const seq = ++this._previewSeq;
+    clearTimeout(this._busyTimer);
+    if (t.def.paint) this._busyTimer = setTimeout(() => { if (seq === this._previewSeq && this.tool === t) this.toolMsg(t.def.wallTool ? 'Building the walls…' : 'Building supports…', 'busy'); }, 150);
     try {
       const pack = await post('preview', { type: t.def.type, params: this.params(), edit_id: t.editId }, { quiet: true });
-      if (seq !== this._previewSeq || this.tool !== t) return;
+      if (seq !== this._previewSeq || this.tool !== t || this.gizmo.tc.dragging) return;
+      this.gizmo.reset();
+      clearTimeout(this._busyTimer);
       const r = pack.result;
+      if (t.def.wallTool) { t._wallStatus = r.walls || []; this.renderForm(); }
       if (r.error) { this.viewer.clearPreview(); this.toolMsg(r.error, 'err'); return; }
       this.viewer.showPreview(pack);
-      this.toolMsg(r.warning ? r.warning : (r.flipped ? 'Cutting into the material (direction flipped).' : (r.info || '')), r.warning ? 'warn' : 'info');
-      this.viewer.clearOverlay('sf-over'); this.viewer.clearOverlay('sf-small');
+      this.toolMsg(r.warning ? (t.def.wallTool && r.info ? `${r.info}. ${r.warning}` : r.warning) : (r.flipped ? 'Cutting into the material (direction flipped).' : (r.info || '')), r.warning ? 'warn' : 'info');
       if (r.paint && t.def.paint) {
         // the faces Support Fins holds up (red), and the small ones it leaves to bridge (amber)
+        this.viewer.clearOverlay('sf-over'); this.viewer.clearOverlay('sf-small');
         this.viewer.highlightFace(r.paint.body, r.paint.over, 'sf-over', 0xd64545);
         this.viewer.highlightFace(r.paint.body, r.paint.small, 'sf-small', 0xe0a030);
       }
-      if (t.def.type === 'plane' && r.created_plane === undefined) {}
-    } catch (e) { if (seq === this._previewSeq) this.toolMsg(e.message, 'err'); }
+    } catch (e) { if (seq === this._previewSeq) { clearTimeout(this._busyTimer); this.toolMsg(e.message, 'err'); } }
+  }
+
+  /** Paint the faces that need support straight away, from the mesh on screen (Support Fins'
+   *  own angle test); the exact faces replace them when the engine's build comes back. */
+  quickPaint() {
+    const t = this.tool; if (!t?.def.paint) return;
+    const body = Array.isArray(t.values.body) ? t.values.body[0] : t.values.body;
+    this.viewer.clearOverlay('sf-over'); this.viewer.clearOverlay('sf-small');
+    if (!body) return;
+    const thr = parseNum(t.values['sf:threshold']);
+    const faces = this.viewer.overhangFaces(body, Number.isFinite(thr) && thr > 0 ? thr : 45);
+    this.viewer.highlightFace(body, faces, 'sf-over', 0xd64545);
+    if (!faces.length && !t.def.wallTool) this.toolMsg('No overhangs in this position: nothing needs support. Rotate the part the way you want to print it.', 'info');
+  }
+
+  clearPreviewTimer() { clearTimeout(this._previewTimer); this._previewSeq++; }
+
+  /** The numbers in the panel while a handle is dragged (the form is rebuilt on release). */
+  liveNumbers(v) {
+    const put = (sel, x) => { const el = document.querySelector(sel); if (el && document.activeElement !== el) el.value = x; };
+    if (this.tool?.def.gizmo === 'scale') {
+      put('[data-num="factor"]', num(v._k[0]));
+      v._k.forEach((k, i) => put(`[data-vec="factor3"][data-i="${i}"]`, num(k)));
+      return;
+    }
+    (v.translate || []).forEach((x, i) => put(`[data-vec="translate"][data-i="${i}"]`, U.toDisp(x)));
+    (v.rotate || []).forEach((x, i) => put(`[data-vec="rotate"][data-i="${i}"]`, num(x)));
   }
 
   toolMsg(m, kind = 'info') { $('#tool-msg').innerHTML = m ? `<div class="msg ${kind}">${esc(m)}</div>` : ''; }
@@ -685,6 +736,8 @@ class App {
     this.viewer.setBasePlanesVisible(needPlanes || this.viewer.baseVisibleUser);
     this.drawRegionOverlay();
     if (t.def.sculpt) this.viewer.drawStrokes(v.strokes || []);
+    if (t.def.wallTool) this.walls.redraw();
+    if (t.def.gizmo) this.gizmo.sync();
   }
 
   async sketchFaces(sk) {
@@ -733,6 +786,7 @@ class App {
       else cur = [hit.id];
       v[key] = cur;
       if (!f.multi) this.advanceField(key);
+      if (t.def.paint) this.quickPaint();
     } else if (f.kind === 'plane') {
       if (!hit) return true;
       if (hit.kind === 'plane') v[key] = hit.id;
@@ -1385,6 +1439,7 @@ class App {
     let down = null;
     c.addEventListener('pointerdown', e => { down = { x: e.clientX, y: e.clientY, b: e.button }; });
     c.addEventListener('pointerup', async e => {
+      if (this.gizmo.consumeClick()) { down = null; return; }
       if (!down) return;
       const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5;
       const btn = down.b; down = null;
@@ -1400,8 +1455,9 @@ class App {
       if (hoverRaf) return;
       hoverRaf = requestAnimationFrame(() => {
         hoverRaf = null;
-        const hit = this.viewer.pick(e, { planes: !!this.tool });
-        this.viewer.setHover(hit?.kind === 'body' ? hit.id : null);
+        const hit = this.viewer.pick(e, { planes: !!this.tool && !this.walls.active });
+        this.viewer.setHover(hit?.kind === 'body' && !this.walls.active ? hit.id : null);
+        this.walls.hover(hit);
         if (hit) this.status(hit.kind === 'body' ? `${this.bodyName(hit.id)}  ·  ${hit.point.map(v => U.fmt(v)).join(', ')} ${U.label}` : this.planeLabel(hit.id));
         else this.status('');
       });
@@ -1439,6 +1495,7 @@ class App {
 
   async onViewportClick(e) {
     if (this.tool?.def.sculpt) return;
+    if (this.walls.active) { this.walls.click(this.viewer.pick(e, { planes: false }), e); return; }
     if (this.tool && this.tool.activeField === 'regions') {
       const sk = this.state.sketches.find(x => x.id === this.tool.values.sketch);
       if (sk) {
@@ -1507,6 +1564,7 @@ class App {
       return;
     }
     const t = this.tool; if (!t) return;
+    if (t.def.wallTool && this.walls.onFormClick(e)) return;
     const un = e.target.closest('[data-unpick]');
     if (un) {
       const k = un.dataset.unpick, f = t.def.fields.find(x => x.key === k);
@@ -1523,7 +1581,8 @@ class App {
     if (e.target.id === 'drop-bed') {
       const ids = t.values.bodies || [];
       const bs = this.state.bodies.filter(b => ids.includes(b.id) && b.bbox);
-      if (bs.length) { const zmin = Math.min(...bs.map(b => b.bbox[0][2])); const tr = [...t.values.translate]; tr[2] = +(-zmin).toFixed(4); this.setValue('translate', tr); }
+      const landed = t.values.bed && (t.values.rotate || []).some(a => Math.abs(+a) > 1e-9);   // Move Z is then the height above the bed
+      if (bs.length) { const zmin = Math.min(...bs.map(b => b.bbox[0][2])); const tr = [...t.values.translate]; tr[2] = landed ? 0 : +(-zmin).toFixed(4); this.setValue('translate', tr); }
     }
     if (e.target.id === 'center-origin') {
       const ids = t.values.bodies || [];
@@ -1634,6 +1693,8 @@ class App {
       return;
     }
     if (inField) return;
+    if (this.walls.key(e)) { e.preventDefault(); return; }
+    if (this.tool?.def.gizmo === 'move' && !ctrl && ['w', 'r'].includes(k.toLowerCase())) { this.setValue('_gizmo', k.toLowerCase() === 'r' ? 'rotate' : 'move'); return; }
     if (ctrl && k.toLowerCase() === 'z') { e.preventDefault(); this.cmd('undo'); return; }
     if (ctrl && (k.toLowerCase() === 'y' || (e.shiftKey && k.toLowerCase() === 'z'))) { e.preventDefault(); this.cmd('redo'); return; }
     if (k === 'Escape') { if (this.tool || this.mode !== 'model') this.panelCancel(); else { this.selection = []; this.viewer.setSelection([]); this.renderTree(); } return; }

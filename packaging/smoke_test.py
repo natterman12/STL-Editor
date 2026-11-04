@@ -106,6 +106,9 @@ def main(exe):
         step("offset", lambda: add("offset", {"bodies": [st["b"]], "distance": 0.3}))
         step("support fins info", lambda: call("supportfins/info", {}))
         step("support fins", lambda: add("supportfins", {"body": S, "output": "separate", "options": {"mode": "full"}}))
+        step("draw walls", lambda: add("supportwall", {"body": S, "output": "separate", "options": {}, "walls": [
+            {"shape": "curve", "points": [[9, 0, 3], [0, 9, 3], [6.4, 6.4, 3]]},
+            {"shape": "path", "points": [[-9, 0, 3], [-6, -6, 3], [0, -9, 3]]}]}))
         step("lay flat", lambda: add("layflat", {"bodies": [X], "auto": True}))
         step("fit to bed", lambda: add("bedsplit", {"body": X, "printer": "bambu_a1mini", "connector": "pins"}))
         frame = [[0, 0, 15], [1, 0, 0], [0, 1, 0], [0, 0, 1]]

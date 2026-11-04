@@ -177,19 +177,20 @@ class Document:
 
     def preview(self, ftype, params, edit_id=None):
         """Evaluate a feature without committing; returns (state, result)."""
+        ctx = {"load_source": self.load_source, "preview": True}
         if edit_id:
             idx = self.index(edit_id)
             base = self._state_before(idx)
             f = dict(self.features[idx], params=params)
-            st, res = self.run_feature(base, f)
-            if not res["error"]:
+            st, res = self.run_feature(base, f, ctx)
+            # a preview-only result (Support Fins shown beside the part) isn't the real one
+            if not res["error"] and not res.get("previewOnly"):
                 self._remember(idx, f, st, res)
             return st, res
-        else:
-            at = len(self.features) if self.rollback is None else self.rollback
-            base = self._state_before(at)
-            f = {"id": "preview", "type": ftype, "name": "preview", "params": params}
-        return self.run_feature(base, f)
+        at = len(self.features) if self.rollback is None else self.rollback
+        base = self._state_before(at)
+        f = {"id": "preview", "type": ftype, "name": "preview", "params": params}
+        return self.run_feature(base, f, ctx)
 
     def edit_feature(self, fid: str, params: dict | None = None, name: str | None = None,
                      suppressed: bool | None = None, rollback_after="keep"):

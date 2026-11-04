@@ -56,7 +56,9 @@ to place them on it).
 heat-set inserts M2–M5, screw clearance, socket-head counterbores, hex nut traps and magnet
 pockets, with a print tolerance), Push/Pull (drag a flat face out or in), Combine (join /
 cut / intersect bodies; Cut takes a *Clearance* that grows the cutting bodies first, so a part made to fit the cut-out isn't too tight), Split (by a plane or flat face),
-Move / Rotate (with "drop to bed" and "centre on origin"), Scale (factor, to size, or unit
+Move / Rotate and Scale (drag the arrows, rings or handles on the part, or type the
+numbers; a rotated part lands on the bed instead of hanging through it, and Move Z then lifts
+it off; also "drop to bed" and "centre on origin"; Scale by factor, to size, or unit
 conversion), Pattern (linear or circular, of bodies or of features), Mirror (bodies or
 features), Hollow (wall thickness). Split can add connectors at the cut.
 
@@ -76,19 +78,30 @@ but it needs supports. Support Fins adds breakaway fins (thin walls with one-lay
 that grip the part and snap off) and a bed pad, as part of the mesh, so it prints the same in
 any slicer with supports turned off.
 
-1. Rotate the part to the way you want to print it (Move › Rotate). You choose the
-   orientation; Support Fins doesn't.
-2. Click **Support Fins**. Faces that need support turn red (amber ones are small enough to
-   bridge), and the fins appear as a preview with a one-line summary (walls, tines, anything
-   it couldn't reach).
+1. Rotate the part to the way you want to print it (**Rotate**: drag the rings on the part; it
+   stays on the bed). You choose the orientation; Support Fins doesn't.
+2. Click **Support Fins**. Faces that need support turn red straight away (amber ones are
+   small enough to bridge), and the green fins appear next to the part a moment later with a
+   one-line summary (walls, tines, anything it couldn't reach).
 3. Adjust the settings and press OK. *Add as: Part of the body* joins the fins to the part
    so it exports as one object; *Separate body* keeps them apart so you can hide them.
 
 The settings are Support Fins' own: Auto or Full coverage placement, overhang angle, nozzle,
 tines (grip, horizontal for FDM or vertical pins for resin, layer height), support gap, bed
 pad, sway braces for tall parts, cutouts, wide-face coverage and plate-only. Hover the **?**
-for each one. **Draw Wall** stands one breakaway wall between two points you click under an
-overhang, like Support Fins' Draw mode. Both are timeline steps you can edit later.
+for each one.
+
+**Draw Walls** is Support Fins' Draw mode: the red faces show where support is needed, and
+you place breakaway walls under them by hand, as many as you like:
+
+- *Line*: click the two ends of a wall; keep clicking pairs to add more.
+- *Multi-line*: click each corner of a wall that changes direction; double-click the last
+  point (or press Enter, or *Finish wall*) to end it.
+- *Curve*: click the two ends, then a point on the curve between them.
+
+A green band follows the pointer while you draw. Esc drops the wall in progress, Ctrl+Z (or
+*Undo*) takes back the last point or wall. A wall Support Fins can't build is drawn red with
+the reason. Both tools are timeline steps you can edit later.
 
 New Support Fins releases are picked up automatically: the web edition gets them when the
 site updates, and the desktop app downloads the new engine in the background and uses it

@@ -640,6 +640,12 @@ def f_move(state, fid, p, res, ctx):
         c = _pivot(b, p.get("pivot", "center"))
         M = _affine(R, c - R @ c + t)
         nb = _transform_body(b, M)
+        # Land on bed: a turned part rests on the bed (Move Z then lifts it off), so it never
+        # hangs through the bed after a rotation
+        if p.get("bed") and any(abs(float(a)) > 1e-9 for a in p.get("rotate", (0, 0, 0))):
+            dz = t[2] - float(nb.mesh()[0][:, 2].min())
+            if abs(dz) > 1e-9:
+                nb = _transform_body(nb, _affine(np.eye(3), np.array([0.0, 0.0, dz])))
         if p.get("copy"):
             nid = fid if len(bids) == 1 else f"{fid}.{i + 1}"
             nb.name = f"{b.name} (copy)"
@@ -941,9 +947,22 @@ def f_resizehole(state, fid, p, res, ctx):
 # ------------------------------------------------------------------------------------------
 # Support Fins (github.com/gittrahan/support-fins): breakaway fins for the part as posed now
 # ------------------------------------------------------------------------------------------
-def _add_supports(state, fid, res, bid, solids, output, suffix="supports"):
+SUPPORT_COLOR = "#59d98e"   # Support Fins' own fin green
+
+
+def _add_supports(state, fid, res, bid, solids, output, suffix="supports", ctx=None):
     b = state.body(bid)
     fins = solids[0] if len(solids) == 1 else m3.Manifold.batch_boolean(solids, m3.OpType.Add)
+    preview = bool((ctx or {}).get("preview"))
+    if preview and output != "separate" and b.is_solid:
+        # the live preview shows the supports next to the untouched part (no union to wait
+        # for, and only the supports are sent to the screen); OK joins them for real
+        nid = f"{fid}~sf"
+        state.bodies[nid] = Body(f"{b.name} {suffix}", solid=fins)
+        res["created"].append(nid)
+        res["previewOnly"] = True
+        res.setdefault("colors", {})[nid] = SUPPORT_COLOR
+        return
     if output == "separate" or not b.is_solid:
         nid, n = fid, 1
         while nid in state.bodies:
@@ -951,6 +970,8 @@ def _add_supports(state, fid, res, bid, solids, output, suffix="supports"):
             nid = f"{fid}.{n}"
         state.bodies[nid] = Body(f"{b.name} {suffix}", solid=fins)
         res["created"].append(nid)
+        if preview:
+            res.setdefault("colors", {})[nid] = SUPPORT_COLOR
         if not b.is_solid and output != "separate":
             res["warning"] = f'"{b.name}" isn\'t a watertight solid, so the supports were added as a separate body.'
     else:
@@ -978,24 +999,45 @@ def f_supportfins(state, fid, p, res, ctx):
             continue
         if r["skipped"]:
             notes.append(f"{r['skipped']} support piece(s) weren't closed solids and were left out.")
-        _add_supports(state, fid, res, bid, r["solids"], p.get("output"))
+        _add_supports(state, fid, res, bid, r["solids"], p.get("output"), "supports", ctx)
     if notes:
         res["warning"] = " ".join(notes)
+
+
+def drawn_walls(p):
+    """The walls of a Draw Walls feature (older projects keep one wall in `points`)."""
+    if isinstance(p.get("walls"), list):
+        return p["walls"]
+    pts = p.get("points") or []
+    return [{"shape": "line", "points": pts}] if len(pts) == 2 else []
 
 
 def f_supportwall(state, fid, p, res, ctx):
     from . import supportfins as SF
     bid = p.get("body")
     b = state.body(bid)
-    pts = p.get("points") or []
-    if len(pts) != 2:
-        raise GeometryError("Click the two ends of the wall on the part.")
+    walls = [w for w in drawn_walls(p) if len(w.get("points") or []) >= 2]
+    if not walls:
+        raise GeometryError("Click on the part to draw a wall under an overhang.")
     v, f = b.mesh()
-    r = SF.wall(v, f, pts[0], pts[1], p.get("options") or {})
-    st = r["stats"]
-    res["info"] = (f"Support Fins {r['version']}: wall {st['length']:.1f} mm long, {st['height']:.1f} mm tall, "
-                   f"{st.get('tines', 0)} tines" + (", standing on the part" if st.get("partAttached") else ""))
-    _add_supports(state, fid, res, bid, r["solids"], p.get("output"), "wall")
+    r = SF.walls(v, f, walls, p.get("options") or {})
+    res["walls"] = [{"ok": w["ok"], "reason": w.get("reason")} for w in r["walls"]]
+    good = [w for w in r["walls"] if w["ok"]]
+    bad = [(i, w) for i, w in enumerate(r["walls"]) if not w["ok"] or w["failed"]]
+    if not good:
+        raise GeometryError(f"Support Fins couldn’t place that wall: {r['walls'][0].get('reason')}." if len(walls) == 1 else
+                            f"Support Fins couldn’t place any of the {len(walls)} walls ({r['walls'][0].get('reason')}).")
+    length = sum(w["length"] for w in good)
+    tines = sum(w["tines"] for w in good)
+    tall = max(w["height"] for w in good)
+    if len(good) == 1:
+        res["info"] = (f"Support Fins {r['version']}: wall {length:.1f} mm long, {tall:.1f} mm tall, {tines} tines"
+                       + (", standing on the part" if good[0]["partAttached"] else ""))
+    else:
+        res["info"] = f"Support Fins {r['version']}: {len(good)} walls, {length:.1f} mm in all, {tines} tines"
+    if bad:
+        res["warning"] = ". ".join(f"Wall {i + 1}{' (part of it)' if w['ok'] else ''}: {w.get('reason')}" for i, w in bad) + "."
+    _add_supports(state, fid, res, bid, r["solids"], p.get("output"), "walls", ctx)
 
 
 EVALUATORS = {
@@ -1015,5 +1057,5 @@ LABELS = {
     "repair": "Repair", "simplify": "Simplify", "pattern": "Pattern", "delete": "Remove",
     "separate": "Separate", "bedsplit": "Fit to Bed", "pushpull": "Push/Pull", "sculpt": "Sculpt",
     "remesh": "Remesh", "layflat": "Lay Flat", "thread": "Thread", "offset": "Offset",
-    "resizehole": "Resize Hole", "supportfins": "Support Fins", "supportwall": "Support Wall",
+    "resizehole": "Resize Hole", "supportfins": "Support Fins", "supportwall": "Draw Walls",
 }
