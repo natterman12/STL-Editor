@@ -1,0 +1,2 @@
+# Vendored bundles are checked against their SHA-256; keep them byte for byte on every checkout.
+web/vendor/** -text

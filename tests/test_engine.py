@@ -405,3 +405,16 @@ def test_support_fins_engine_update(tmp_path, monkeypatch):
         assert SF.check_update(force=True) is None, "nothing newer the second time"
     finally:
         httpd.shutdown()
+
+
+def test_support_fins_engine_crlf_checkout(tmp_path):
+    """A Windows checkout with CRLF line endings still counts as a valid engine."""
+    import shutil
+    from stleditor import supportfins as SF
+    for name in ("VERSION.json", "engine.iife.js"):
+        shutil.copy(os.path.join(SF.BUNDLED, name), tmp_path / name)
+    js = tmp_path / "engine.iife.js"
+    js.write_bytes(js.read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))
+    assert SF._read_info(str(tmp_path)) is not None
+    js.write_bytes(js.read_bytes() + b"// tampered\r\n")
+    assert SF._read_info(str(tmp_path)) is None

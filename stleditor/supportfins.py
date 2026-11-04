@@ -44,6 +44,11 @@ def _semver(tag):
     return tuple(int(x) for x in m.groups()) if m else (0, 0, 0)
 
 
+def _digest(data):
+    """SHA-256 of a bundle, ignoring line endings (a Windows git checkout may turn LF into CRLF)."""
+    return hashlib.sha256(data.replace(b"\r\n", b"\n")).hexdigest()
+
+
 def _read_info(folder):
     try:
         with open(os.path.join(folder, "VERSION.json"), encoding="utf-8") as fh:
@@ -51,7 +56,7 @@ def _read_info(folder):
         path = os.path.join(folder, "engine.iife.js")
         with open(path, "rb") as fh:
             data = fh.read()
-        if info.get("api") != API or hashlib.sha256(data).hexdigest() != info.get("sha256", {}).get("engine.iife.js"):
+        if info.get("api") != API or _digest(data) != info.get("sha256", {}).get("engine.iife.js"):
             return None
         return {**info, "path": path, "folder": folder}
     except (OSError, ValueError):
@@ -206,7 +211,7 @@ def check_update(force=False):
         if have and _semver(info.get("tag")) <= _semver(have.get("tag")):
             return None
         data = _get(base + "engine.iife.js", timeout=60)
-        if hashlib.sha256(data).hexdigest() != info.get("sha256", {}).get("engine.iife.js"):
+        if _digest(data) != info.get("sha256", {}).get("engine.iife.js"):
             raise ValueError("checksum mismatch")
         os.makedirs(USER_DIR, exist_ok=True)
         tmp = os.path.join(USER_DIR, "engine.iife.js.tmp")
