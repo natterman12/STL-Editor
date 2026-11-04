@@ -125,17 +125,36 @@ The web edition is the same editor running in your browser. Your files are opene
 saved to your computer; nothing is uploaded.
 
 - **Open / Import** show your browser's file picker; you can also drag files onto the window.
-- **Save** and **Export** download the file. Chrome and Edge ask where to save it; other
-  browsers put it in your Downloads folder.
+  Both editions open STL, OBJ, 3MF, PLY, OFF, GLB and glTF (a `.gltf` file must have its data
+  embedded; use `.glb` otherwise).
+- **Save** in Chrome and Edge asks where to save the first time, then saves straight back to
+  that file. Other browsers download the project to your Downloads folder each time.
+  **Export** always asks (or downloads).
+- **File › Recent** lists the last ten projects and meshes. In Chrome and Edge it reopens the
+  file itself (the browser may ask for permission again); other browsers keep a copy of files
+  up to 25 MB in the browser so they can be reopened.
+- **Autosave:** unsaved work is copied into the browser every minute and whenever you switch
+  away from the tab. If the tab closes or crashes before you save, the next visit offers to
+  recover it (also Help › Recover Unsaved Work). Clearing the site's data in your browser
+  removes these copies.
 - `.stlx` projects move freely between the web edition and the desktop app.
-- **Text** comes with the DejaVu fonts. In Chrome and Edge, *More: fonts on this computer…*
-  in the font list lets you use your installed fonts (the browser asks first).
+- **Text** comes with the DejaVu fonts. *Add a font file…* in the font list adds a `.ttf`,
+  `.otf` or `.woff` font (pick the bold and italic files too if you want those); the browser
+  keeps it for next time. In Chrome and Edge, *More: fonts on this computer…* uses your
+  installed fonts (the browser asks first).
+- **Offline and installing:** after the first visit the editor works without an internet
+  connection. In Chrome and Edge, Help › Install STL Editor (or the install icon in the address
+  bar) adds it to your apps; the installed app can open `.stlx`, STL and other mesh files from
+  your file manager. When a new version is published, a bar offers to reload into it.
+- **Tablets and phones:** one finger orbits, two fingers zoom and pan. While sketching or
+  sculpting, one finger draws and two fingers move the view. Double-tap a face to sketch on
+  it. On narrow screens the Browser panel opens with the *Bodies* button and tool settings
+  slide up from the bottom.
 - **Desktop only:** Send to Slicer and To STEP, which start programs on your computer. Their
   buttons are dimmed and point you to the download.
 - **Hollow, Repair › Rebuild and Remesh** take a few seconds on big models. The browser has
   less memory than the desktop app, so *Fine* quality on a very large model may ask you to
   pick a coarser setting.
-- There's no autosave or recovery yet: save your project before closing the tab.
 - Settings (units, theme) are remembered by your browser.
 
 ## Projects

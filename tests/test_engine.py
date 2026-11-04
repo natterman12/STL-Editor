@@ -315,3 +315,28 @@ def test_project_outline_on_a_face():
     polys = MT.outline([doc.state.body(f["id"]).solid], G.plane_frame([0, 0, 20], [0, 0, 1]))
     pts = np.concatenate(polys)
     assert pts[:, 0].max() - pts[:, 0].min() == pytest.approx(40, abs=0.01)
+
+
+def _arrays(man):
+    mm = man.to_mesh()
+    return np.asarray(mm.vert_properties)[:, :3], np.asarray(mm.tri_verts)
+
+
+def test_repair_touching_shells_and_fins():
+    # two cubes sharing a wall: the wall cancels out and the result is one 20 x 10 x 10 block
+    va, fa = _arrays(m3.Manifold.cube([10, 10, 10]))
+    vb, fb = _arrays(m3.Manifold.cube([10, 10, 10]).translate([10, 0, 0]))
+    man = G.local_repair(np.concatenate([va, vb]), np.concatenate([fa, fb + len(va)]))
+    assert man is not None and abs(man.volume() - 2000) < 1e-6
+    # a stray triangle hanging off a sphere's edge is dropped
+    s = m3.Manifold.sphere(10, 32)
+    v, f = _arrays(s)
+    man = G.local_repair(np.concatenate([v, [[0, 0, 20]]]), np.concatenate([f, [[f[0][0], f[0][1], len(v)]]]))
+    assert man is not None and abs(man.volume() - s.volume()) < 1e-3
+
+
+def test_weld_keeps_one_duplicate_and_cancels_opposite_pairs():
+    v = np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1]], float)
+    f = np.array([[0, 1, 2], [2, 1, 0], [0, 1, 3], [0, 1, 3], [1, 3, 2]])
+    _, nf = G.weld(v, f)
+    assert len(nf) == 2

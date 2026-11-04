@@ -236,3 +236,73 @@ test('sculpt brushes', () => {
   assert.ok(vol(doc, f.id) < v0, 'flatten shaves the top');
   assert.throws(() => doc.addFeature('sculpt', { body: f.id, strokes: [] }), /Drag over the model/);
 });
+
+test('simplify matches the desktop and works on open meshes', () => {
+  const sphere = W.Manifold.sphere(20, 96), m = sphere.getMesh();
+  const doc = new Document();
+  const [a] = doc.importFile('ball.stl', stlOf(sphere), true, 'keep');
+  const n0 = doc.state.body(a.id).info().triangles;
+  doc.addFeature('simplify', { body: a.id, ratio: 0.25 });
+  const b = doc.state.body(a.id);
+  assert.ok(b.isSolid);
+  assert.equal(b.info().triangles, Math.floor(n0 * 0.25), 'hits the requested share exactly');
+  approx(b.info().volume, sphere.volume(), 0.01);
+  // an open mesh (one triangle removed): still simplified, and closed again afterwards
+  const f = m.triVerts.slice(3);
+  const [o] = doc.importFile('open.stl', IO.stlBytes([{ v: m.vertProperties, f }]), false, 'keep');
+  doc.addFeature('simplify', { body: o.id, ratio: 0.5 });
+  assert.ok(doc.state.body(o.id).info().triangles < f.length / 3 * 0.6);
+});
+
+test('repair touching shells, fins and inside-out meshes', () => {
+  const ga = W.Manifold.cube([10, 10, 10]).getMesh(), gb = W.Manifold.cube([10, 10, 10]).translate([10, 0, 0]).getMesh();
+  const v = new Float32Array([...ga.vertProperties, ...gb.vertProperties]);
+  const f = new Uint32Array([...ga.triVerts, ...Array.from(gb.triVerts, i => i + ga.vertProperties.length / 3)]);
+  approx(G.localRepair(v, f).volume(), 2000, 1e-6, 'two cubes sharing a wall');
+  const s = W.Manifold.sphere(10, 32), sm = s.getMesh(), nv = sm.vertProperties.length / 3;
+  const fin = G.localRepair(new Float32Array([...sm.vertProperties, 0, 0, 20]), new Uint32Array([...sm.triVerts, sm.triVerts[0], sm.triVerts[1], nv]));
+  approx(fin.volume(), s.volume(), 1e-6, 'stray fin');
+  const inv = Uint32Array.from(sm.triVerts); for (let i = 0; i < inv.length; i += 3) { const x = inv[i + 1]; inv[i + 1] = inv[i + 2]; inv[i + 2] = x; }
+  approx(G.localRepair(sm.vertProperties, inv).volume(), s.volume(), 1e-6, 'inside out');
+});
+
+test('import PLY, OFF and glTF', () => {
+  const g = W.Manifold.cube([10, 20, 30]).getMesh(), v = g.vertProperties, f = g.triVerts, nv = v.length / 3, nt = f.length / 3;
+  const enc = s => new TextEncoder().encode(s).buffer;
+  const vol = parts => G.manifoldFromArrays(parts[0].v, parts[0].f).volume();
+  // OFF with quads
+  const off = 'OFF\n# cube\n8 6 0\n0 0 0\n1 0 0\n1 1 0\n0 1 0\n0 0 1\n1 0 1\n1 1 1\n0 1 1\n4 0 3 2 1\n4 4 5 6 7\n4 0 1 5 4\n4 1 2 6 5\n4 2 3 7 6\n4 3 0 4 7\n';
+  approx(vol(IO.loadMeshFile(enc(off), 'q.off')), 1, 1e-9, 'OFF');
+  // PLY ascii and binary
+  const head = fmt => `ply\nformat ${fmt} 1.0\nelement vertex ${nv}\nproperty float x\nproperty float y\nproperty float z\nelement face ${nt}\nproperty list uchar int vertex_indices\nend_header\n`;
+  let txt = head('ascii');
+  for (let i = 0; i < nv; i++) txt += `${v[i * 3]} ${v[i * 3 + 1]} ${v[i * 3 + 2]}\n`;
+  for (let t = 0; t < nt; t++) txt += `3 ${f[t * 3]} ${f[t * 3 + 1]} ${f[t * 3 + 2]}\n`;
+  approx(vol(IO.loadMeshFile(enc(txt), 'a.ply')), 6000, 1e-9, 'PLY ascii');
+  const h = new TextEncoder().encode(head('binary_little_endian'));
+  const bin = new DataView(new ArrayBuffer(h.length + nv * 12 + nt * 13));
+  new Uint8Array(bin.buffer).set(h);
+  let o = h.length;
+  for (let i = 0; i < nv * 3; i++, o += 4) bin.setFloat32(o, v[i], true);
+  for (let t = 0; t < nt; t++) { bin.setUint8(o++, 3); for (let k = 0; k < 3; k++, o += 4) bin.setInt32(o, f[t * 3 + k], true); }
+  approx(vol(IO.loadMeshFile(bin.buffer, 'b.ply')), 6000, 1e-9, 'PLY binary');
+  // GLB with two placed instances of the cube, one mirrored
+  const pos = new Float32Array(v), idx = new Uint32Array(f);
+  const binData = new Uint8Array(pos.byteLength + idx.byteLength); binData.set(new Uint8Array(pos.buffer)); binData.set(new Uint8Array(idx.buffer), pos.byteLength);
+  const gltf = { asset: { version: '2.0' }, scene: 0, scenes: [{ nodes: [0, 1] }],
+    nodes: [{ mesh: 0, translation: [100, 0, 0] }, { mesh: 0, scale: [-1, 1, 1] }],
+    meshes: [{ primitives: [{ attributes: { POSITION: 0 }, indices: 1 }] }],
+    buffers: [{ byteLength: binData.length }],
+    bufferViews: [{ buffer: 0, byteOffset: 0, byteLength: pos.byteLength }, { buffer: 0, byteOffset: pos.byteLength, byteLength: idx.byteLength }],
+    accessors: [{ bufferView: 0, componentType: 5126, count: nv, type: 'VEC3' }, { bufferView: 1, componentType: 5125, count: f.length, type: 'SCALAR' }] };
+  let js = new TextEncoder().encode(JSON.stringify(gltf));
+  const pad = n => (4 - n % 4) % 4, jl = js.length + pad(js.length), bl = binData.length + pad(binData.length);
+  const glb = new Uint8Array(12 + 8 + jl + 8 + bl), d = new DataView(glb.buffer);
+  d.setUint32(0, 0x46546C67, true); d.setUint32(4, 2, true); d.setUint32(8, glb.length, true);
+  d.setUint32(12, jl, true); d.setUint32(16, 0x4E4F534A, true); glb.fill(32, 20, 20 + jl); glb.set(js, 20);
+  d.setUint32(20 + jl, bl, true); d.setUint32(24 + jl, 0x004E4942, true); glb.set(binData, 28 + jl);
+  const parts = IO.loadMeshFile(glb.buffer, 's.glb');
+  assert.equal(parts.length, 2);
+  for (const p of parts) approx(G.manifoldFromArrays(p.v, p.f).volume(), 6000, 1e-9, 'GLB part (mirrored one flipped back)');
+  assert.ok(G.vertsBBox(parts[0].v)[0][0] < 0 && G.vertsBBox(parts[1].v)[0][0] >= 100, 'sorted by position');
+});

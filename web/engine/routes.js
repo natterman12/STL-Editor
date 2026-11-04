@@ -5,7 +5,7 @@ import * as S from './sketch2d.js';
 import * as PR from './printing.js';
 import * as MT from './meshtools.js';
 
-export const VERSION = '1.5.0';
+export const VERSION = '1.6.0';
 const PALETTE = ['#9aa7b4', '#c9a66b', '#7fa8c9', '#a3c48a', '#c98a8a', '#a993c9', '#c9b98a', '#8ac9c0'];
 
 export const app = { doc: new Document() };
@@ -129,7 +129,10 @@ export const ROUTES = {
   },
   // file routes: the page reads and writes the files; the engine works on their bytes
   open_bytes: d => {
-    if (/\.stlx$/i.test(d.name)) app.doc = Document.fromBytes(d.data, d.name);
+    if (d.recovered) {
+      app.doc = Document.fromBytes(d.data, d.name);
+      app.doc.path = d.path || null; app.doc.title = d.title || null; app.doc.dirty = true;
+    } else if (/\.stlx$/i.test(d.name)) app.doc = Document.fromBytes(d.data, d.name);
     else {
       app.doc = new Document();
       app.doc.importFile(d.name, new Uint8Array(d.data));
@@ -139,12 +142,13 @@ export const ROUTES = {
     return ok();
   },
   upload: d => { app.doc.importFile(d.name, new Uint8Array(d.data), true, d.place || 'center'); return ok(); },
+  // the page writes the bytes to a file; only then does `saved` mark the project as saved
   save_bytes: () => {
-    const bytes = app.doc.saveBytes();
+    const bytes = app.doc.saveBytes(false);
     const base = (app.doc.path || app.doc.title || 'Untitled').replace(/\.stlx$/i, '');
-    app.doc.path = `${base}.stlx`;
-    return { result: { ok: true, name: app.doc.path, bytes, state: stateJson() }, transfer: [bytes.buffer] };
+    return { result: { ok: true, name: `${base}.stlx`, bytes }, transfer: [bytes.buffer] };
   },
+  saved: d => { app.doc.path = d.name; app.doc.dirty = false; return ok(); },
   export_bytes: d => {
     const { bytes, count } = app.doc.exportBytes(d.format || 'stl', d.bodies);
     const ids = d.bodies;
@@ -152,4 +156,15 @@ export const ROUTES = {
     return { result: { ok: true, name: `${base}.${d.format || 'stl'}`, count, bytes }, transfer: [bytes.buffer] };
   },
   status: () => ({ ok: true, dirty: app.doc.dirty, desktop: false, web: true }),
+  // autosave copy: the project as .stlx bytes without marking it saved; `key` changes when
+  // the timeline does, so unchanged work isn't written again
+  snapshot: () => {
+    const d = app.doc;
+    if (!d.features.length) return { ok: true, empty: true, dirty: d.dirty };
+    const s = d._snapshot();
+    let h = 2166136261;
+    for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+    const bytes = d.saveBytes(false);
+    return { result: { ok: true, bytes, key: `${s.length}-${(h >>> 0).toString(36)}`, title: d.path || d.title || 'Untitled', path: d.path, steps: d.features.length, dirty: d.dirty }, transfer: [bytes.buffer] };
+  },
 };

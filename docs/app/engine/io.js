@@ -1,8 +1,8 @@
 // Mesh file reading and writing: STL (binary / ASCII), OBJ, 3MF; .stlx projects use zip.
 import * as fflate from '../vendor/fflate.module.js';
-import { GeometryError, weld } from './geom.js';
+import { GeometryError, weld, vertsBBox } from './geom.js';
 
-export const MESH_EXTS = ['.stl', '.obj', '.3mf'];
+export const MESH_EXTS = ['.stl', '.obj', '.3mf', '.ply', '.off', '.glb', '.gltf'];
 
 export const extOf = name => { const m = /\.[^./\\]+$/.exec(name || ''); return m ? m[0].toLowerCase() : ''; };
 export const baseOf = name => (name || 'model').replace(/^.*[\\/]/, '').replace(/\.[^.]+$/, '');
@@ -131,6 +131,199 @@ export function read3MF(buf) {
   return parts;
 }
 
+// ---------------------------------------------------------------- PLY, OFF, glTF
+const fan = (idx, out) => { for (let k = 1; k + 1 < idx.length; k++) out.push(idx[0], idx[k], idx[k + 1]); };
+
+/** PLY, ASCII or binary (either byte order). Polygons are split into triangle fans. */
+export function readPLY(buf) {
+  const u8 = new Uint8Array(buf);
+  const headEnd = (() => {
+    const t = new TextDecoder('latin1').decode(u8.subarray(0, Math.min(u8.length, 65536)));
+    const m = /end_header[^\n]*\n/.exec(t);
+    if (!t.startsWith('ply') || !m) throw new GeometryError('Could not read this PLY file.');
+    return { text: t.slice(0, m.index), end: m.index + m[0].length };
+  })();
+  const lines = headEnd.text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  let format = 'ascii';
+  const elements = [];
+  for (const l of lines) {
+    const w = l.split(/\s+/);
+    if (w[0] === 'format') format = w[1];
+    else if (w[0] === 'element') elements.push({ name: w[1], count: +w[2], props: [] });
+    else if (w[0] === 'property' && elements.length) {
+      const el = elements[elements.length - 1];
+      if (w[1] === 'list') el.props.push({ list: true, ct: w[2], it: w[3], name: w[4] });
+      else el.props.push({ type: w[1], name: w[2] });
+    }
+  }
+  const SIZE = { char: 1, int8: 1, uchar: 1, uint8: 1, short: 2, int16: 2, ushort: 2, uint16: 2, int: 4, int32: 4, uint: 4, uint32: 4, float: 4, float32: 4, double: 8, float64: 8 };
+  const v = [], f = [];
+  if (format === 'ascii') {
+    const tok = new TextDecoder('latin1').decode(u8.subarray(headEnd.end)).split(/\s+/).filter(Boolean);
+    let p = 0;
+    for (const el of elements) for (let i = 0; i < el.count; i++) {
+      const rec = {};
+      for (const pr of el.props) {
+        if (pr.list) { const n = +tok[p++]; rec[pr.name] = tok.slice(p, p + n).map(Number); p += n; }
+        else rec[pr.name] = +tok[p++];
+      }
+      if (el.name === 'vertex') v.push(rec.x, rec.y, rec.z);
+      else if (el.name === 'face') fan(rec.vertex_indices || rec.vertex_index || [], f);
+    }
+  } else {
+    const le = format === 'binary_little_endian';
+    if (!le && format !== 'binary_big_endian') throw new GeometryError('Could not read this PLY file.');
+    const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+    let o = headEnd.end;
+    const read = t => {
+      let x;
+      switch (t) {
+        case 'char': case 'int8': x = dv.getInt8(o); break;
+        case 'uchar': case 'uint8': x = dv.getUint8(o); break;
+        case 'short': case 'int16': x = dv.getInt16(o, le); break;
+        case 'ushort': case 'uint16': x = dv.getUint16(o, le); break;
+        case 'int': case 'int32': x = dv.getInt32(o, le); break;
+        case 'uint': case 'uint32': x = dv.getUint32(o, le); break;
+        case 'float': case 'float32': x = dv.getFloat32(o, le); break;
+        case 'double': case 'float64': x = dv.getFloat64(o, le); break;
+        default: throw new GeometryError(`PLY property type "${t}" isn't supported.`);
+      }
+      o += SIZE[t];
+      return x;
+    };
+    try {
+      for (const el of elements) {
+        const ix = el.props.findIndex(p => p.name === 'x'), iy = el.props.findIndex(p => p.name === 'y'), iz = el.props.findIndex(p => p.name === 'z');
+        const il = el.props.findIndex(p => p.list && (p.name === 'vertex_indices' || p.name === 'vertex_index'));
+        for (let i = 0; i < el.count; i++) {
+          const vals = [];
+          let idx = null;
+          for (let k = 0; k < el.props.length; k++) {
+            const pr = el.props[k];
+            if (pr.list) { const n = read(pr.ct), a = new Array(n); for (let j = 0; j < n; j++) a[j] = read(pr.it); if (k === il) idx = a; }
+            else vals[k] = read(pr.type);
+          }
+          if (el.name === 'vertex') v.push(vals[ix], vals[iy], vals[iz]);
+          else if (el.name === 'face' && idx) fan(idx, f);
+        }
+      }
+    } catch (e) {
+      if (e instanceof GeometryError) throw e;
+      throw new GeometryError('This PLY file is cut short.');
+    }
+  }
+  if (!f.length) throw new GeometryError('No triangles found in this PLY file (point clouds can’t be edited).');
+  return { v: new Float32Array(v), f: new Uint32Array(f) };
+}
+
+/** OFF (and its COFF / NOFF variants): vertices, then polygons. */
+export function readOFF(buf) {
+  const lines = new TextDecoder('latin1').decode(new Uint8Array(buf)).split(/\r?\n/)
+    .map(l => l.replace(/#.*/, '').trim()).filter(Boolean);
+  if (!lines.length || !/^[A-Z]*OFF/.test(lines[0])) throw new GeometryError('Could not read this OFF file.');
+  let head = lines[0].replace(/^[A-Z]*OFF/, '').trim(), li = 1;
+  if (!head) head = lines[li++] || '';
+  const [nv, nf] = head.split(/\s+/).map(Number);
+  if (!(nv >= 0 && nf >= 0) || li + nv + nf > lines.length) throw new GeometryError('Could not read this OFF file.');
+  const v = [], f = [];
+  for (let i = 0; i < nv; i++) { const w = lines[li++].split(/\s+/); v.push(+w[0], +w[1], +w[2]); }
+  for (let i = 0; i < nf; i++) { const w = lines[li++].split(/\s+/).map(Number); fan(w.slice(1, 1 + w[0]), f); }
+  if (!f.length) throw new GeometryError('No triangles found in this OFF file.');
+  return { v: new Float32Array(v), f: new Uint32Array(f) };
+}
+
+/** glTF 2.0, as .glb or as .gltf with embedded data. One part per mesh primitive placed in
+ *  the scene, with the node transforms applied (like the desktop app). */
+export function readGLTF(buf) {
+  const u8 = new Uint8Array(buf), dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+  let json, bin = null;
+  if (u8.length >= 12 && dv.getUint32(0, true) === 0x46546C67) {   // "glTF"
+    let o = 12;
+    while (o + 8 <= u8.length) {
+      const len = dv.getUint32(o, true), type = dv.getUint32(o + 4, true);
+      const chunk = u8.subarray(o + 8, o + 8 + len);
+      if (type === 0x4E4F534A) json = JSON.parse(new TextDecoder().decode(chunk));
+      else if (type === 0x004E4942) bin = chunk;
+      o += 8 + len;
+    }
+  } else {
+    try { json = JSON.parse(new TextDecoder().decode(u8)); } catch { json = null; }
+  }
+  if (!json || !json.asset) throw new GeometryError('Could not read this glTF file.');
+  const ext = [...(json.extensionsRequired || [])];
+  if (ext.some(e => /draco|meshopt/i.test(e))) throw new GeometryError('This glTF file uses mesh compression (Draco or meshopt), which STL Editor can’t read. Export it again without compression.');
+  const buffers = (json.buffers || []).map((b, i) => {
+    if (b.uri === undefined) { if (!bin) throw new GeometryError('Could not read this glTF file.'); return bin; }
+    const m = /^data:[^,]*;base64,(.*)$/.exec(b.uri);
+    if (!m) throw new GeometryError('This .gltf file keeps its data in a separate file. Open the .glb version, or export it as .glb (a single file).');
+    const s = atob(m[1]), a = new Uint8Array(s.length);
+    for (let k = 0; k < s.length; k++) a[k] = s.charCodeAt(k);
+    return a;
+  });
+  const NC = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4, MAT4: 16 };
+  const accessor = i => {
+    const a = json.accessors[i], bv = json.bufferViews[a.bufferView], b = buffers[bv.buffer];
+    const nc = NC[a.type], ct = a.componentType;
+    const size = { 5120: 1, 5121: 1, 5122: 2, 5123: 2, 5125: 4, 5126: 4 }[ct];
+    const stride = bv.byteStride || nc * size, base = (bv.byteOffset || 0) + (a.byteOffset || 0);
+    const d = new DataView(b.buffer, b.byteOffset, b.byteLength), out = new Float64Array(a.count * nc);
+    const get = { 5120: o => d.getInt8(o), 5121: o => d.getUint8(o), 5122: o => d.getInt16(o, true), 5123: o => d.getUint16(o, true), 5125: o => d.getUint32(o, true), 5126: o => d.getFloat32(o, true) }[ct];
+    for (let i2 = 0; i2 < a.count; i2++) for (let c = 0; c < nc; c++) out[i2 * nc + c] = get(base + i2 * stride + c * size);
+    return out;
+  };
+  const mul = (A, B) => { const C = new Array(16).fill(0); for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) for (let k = 0; k < 4; k++) C[c * 4 + r] += A[k * 4 + r] * B[c * 4 + k]; return C; };
+  const local = n => {
+    if (n.matrix) return n.matrix;
+    const [tx, ty, tz] = n.translation || [0, 0, 0], [x, y, z, w] = n.rotation || [0, 0, 0, 1], [sx, sy, sz] = n.scale || [1, 1, 1];
+    return [(1 - 2 * (y * y + z * z)) * sx, 2 * (x * y + z * w) * sx, 2 * (x * z - y * w) * sx, 0,
+      2 * (x * y - z * w) * sy, (1 - 2 * (x * x + z * z)) * sy, 2 * (y * z + x * w) * sy, 0,
+      2 * (x * z + y * w) * sz, 2 * (y * z - x * w) * sz, (1 - 2 * (x * x + y * y)) * sz, 0, tx, ty, tz, 1];
+  };
+  const parts = [];
+  const visit = (ni, M, depth) => {
+    const n = json.nodes[ni];
+    if (!n || depth > 64) return;
+    const W = mul(M, local(n));
+    if (n.mesh !== undefined) {
+      for (const pr of json.meshes[n.mesh].primitives || []) {
+        const mode = pr.mode ?? 4;
+        if (![4, 5, 6].includes(mode) || pr.attributes?.POSITION === undefined) continue;
+        const P = accessor(pr.attributes.POSITION), nvx = P.length / 3;
+        let idx = pr.indices !== undefined ? accessor(pr.indices) : Float64Array.from({ length: nvx }, (_, i) => i);
+        const f = [];
+        if (mode === 4) for (let i = 0; i + 2 < idx.length; i += 3) f.push(idx[i], idx[i + 1], idx[i + 2]);
+        else if (mode === 5) for (let i = 0; i + 2 < idx.length; i++) f.push(...(i % 2 ? [idx[i + 1], idx[i], idx[i + 2]] : [idx[i], idx[i + 1], idx[i + 2]]));
+        else for (let i = 1; i + 1 < idx.length; i++) f.push(idx[0], idx[i], idx[i + 1]);
+        if (!f.length) continue;
+        const v = new Float32Array(nvx * 3);
+        for (let i = 0; i < nvx; i++) {
+          const x = P[i * 3], y = P[i * 3 + 1], z = P[i * 3 + 2];
+          v[i * 3] = W[0] * x + W[4] * y + W[8] * z + W[12];
+          v[i * 3 + 1] = W[1] * x + W[5] * y + W[9] * z + W[13];
+          v[i * 3 + 2] = W[2] * x + W[6] * y + W[10] * z + W[14];
+        }
+        // a mirroring transform turns the triangles inside out; flip them back
+        const det = W[0] * (W[5] * W[10] - W[9] * W[6]) - W[4] * (W[1] * W[10] - W[9] * W[2]) + W[8] * (W[1] * W[6] - W[5] * W[2]);
+        const F = Uint32Array.from(f);
+        if (det < 0) for (let i = 0; i < F.length; i += 3) { const t = F[i + 1]; F[i + 1] = F[i + 2]; F[i + 2] = t; }
+        parts.push({ name: null, v, f: F });
+      }
+    }
+    for (const c of n.children || []) visit(c, W, depth + 1);
+  };
+  const I = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+  const scene = json.scenes?.[json.scene ?? 0];
+  if (scene) for (const ni of scene.nodes || []) visit(ni, I, 0);
+  else (json.nodes || []).forEach((_, ni) => visit(ni, I, 0));
+  if (!parts.length) throw new GeometryError('No triangles found in this glTF file.');
+  // scene order differs between glTF readers: sort by position so both editions agree
+  const r3 = x => Math.round(x * 1000) / 1000;
+  const key = p => { const [lo] = vertsBBox(weld(p.v, p.f).v); return [r3(lo[0]), r3(lo[1]), r3(lo[2]), weld(p.v, p.f).f.length]; };
+  const keyed = parts.map(p => ({ p, k: key(p) }));
+  keyed.sort((a, b) => { for (let i = 0; i < 4; i++) if (a.k[i] !== b.k[i]) return a.k[i] - b.k[i]; return 0; });
+  return keyed.map(x => x.p);
+}
+
 /** Read a mesh file into [{name, v, f}] parts with welded vertices. */
 export function loadMeshFile(buf, filename) {
   const ext = extOf(filename), base = baseOf(filename);
@@ -138,7 +331,10 @@ export function loadMeshFile(buf, filename) {
   if (ext === '.stl') parts = [{ name: base, ...readSTL(buf) }];
   else if (ext === '.obj') parts = readOBJ(buf);
   else if (ext === '.3mf') parts = read3MF(buf);
-  else throw new GeometryError('Unsupported file type. The web edition opens STL, OBJ and 3MF.');
+  else if (ext === '.ply') parts = [{ name: base, ...readPLY(buf) }];
+  else if (ext === '.off') parts = [{ name: base, ...readOFF(buf) }];
+  else if (ext === '.glb' || ext === '.gltf') parts = readGLTF(buf);
+  else throw new GeometryError('Unsupported file type. STL Editor opens STL, OBJ, 3MF, PLY, OFF, GLB and glTF.');
   return parts.map((p, i) => {
     const w = weld(p.v, p.f);
     return { name: parts.length === 1 ? base : (p.name || `${base} ${i + 1}`), v: w.v, f: w.f };

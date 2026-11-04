@@ -60,9 +60,13 @@ export class Viewer {
 
   setMouseMode(mode) {
     // model: left orbit (click = select), right pan; sketch: left draws, right orbit, middle pan
+    // touch: one finger orbits (model) or draws (sketch, sculpt); two fingers zoom and pan, or
+    // zoom and orbit while sculpting
     const c = this.controls;
-    if (mode === 'sketch') c.mouseButtons = { LEFT: null, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.ROTATE };
+    if (mode === 'sketch' || mode === 'sculpt') c.mouseButtons = { LEFT: null, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.ROTATE };
     else c.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.PAN };
+    c.touches = mode === 'model' ? { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN }
+      : { ONE: null, TWO: mode === 'sculpt' ? THREE.TOUCH.DOLLY_ROTATE : THREE.TOUCH.DOLLY_PAN };
   }
 
   resize() {
@@ -457,12 +461,18 @@ export class Viewer {
   }
 
   // ---------------------------------------------------------------- views
+  /** half the narrower field of view (tall, narrow screens are limited by the width) */
+  halfFov() {
+    const v = THREE.MathUtils.degToRad(this.camera.fov / 2);
+    return Math.min(v, Math.atan(Math.tan(v) * Math.max(this.camera.aspect || 1, 0.05)));
+  }
+
   fit(box) {
     box = box && !box.isEmpty() ? box : this.sceneBox();
     if (box.isEmpty()) box = new THREE.Box3(new THREE.Vector3(-50, -50, 0), new THREE.Vector3(50, 50, 50));
     const c = box.getCenter(new THREE.Vector3()), r = box.getSize(new THREE.Vector3()).length() / 2 || 50;
     const dir = this.camera.position.clone().sub(this.controls.target).normalize();
-    const dist = r / Math.sin(THREE.MathUtils.degToRad(this.camera.fov / 2)) * 1.05;
+    const dist = r / Math.sin(this.halfFov()) * 1.05;
     this._flyTo(c, c.clone().addScaledVector(dir, dist), this.camera.up.clone());
   }
 
@@ -473,7 +483,7 @@ export class Viewer {
     const box = this.sceneBox();
     const c = box.isEmpty() ? new THREE.Vector3() : box.getCenter(new THREE.Vector3());
     const r = box.isEmpty() ? 60 : box.getSize(new THREE.Vector3()).length() / 2;
-    const dist = r / Math.sin(THREE.MathUtils.degToRad(this.camera.fov / 2)) * 1.05;
+    const dist = r / Math.sin(this.halfFov()) * 1.05;
     const up = Math.abs(d.z) > 0.99 ? new THREE.Vector3(0, d.z > 0 ? 1 : -1, 0) : new THREE.Vector3(0, 0, 1);
     this._flyTo(c, c.clone().addScaledVector(d, dist), up);
   }
@@ -484,7 +494,7 @@ export class Viewer {
     const r = radius || (box.isEmpty() ? 60 : box.getSize(new THREE.Vector3()).length() / 2);
     let c = o.clone();
     if (!box.isEmpty()) { const bc = box.getCenter(new THREE.Vector3()); c = bc.sub(n.clone().multiplyScalar(n.dot(bc.clone().sub(o)))); }
-    const dist = r / Math.sin(THREE.MathUtils.degToRad(this.camera.fov / 2)) * 1.0;
+    const dist = r / Math.sin(this.halfFov()) * 1.0;
     this._flyTo(c, c.clone().addScaledVector(n, dist), y);
   }
 

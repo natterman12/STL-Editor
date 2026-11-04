@@ -177,17 +177,28 @@ export function weld(v, f, tol = 1e-5) {
     if (j === undefined) { j = nv.length / 3; map.set(key, j); nv.push(v[i * 3], v[i * 3 + 1], v[i * 3 + 2]); }
     remap[i] = j;
   }
-  const seen = new Set();
-  const nf = [];
+  // triangles on the same three vertices: duplicates facing the same way collapse to one, and
+  // pairs facing opposite ways (the shared wall of two touching shells) cancel out
+  const groups = new Map(), tris = [];
   for (let i = 0; i < f.length; i += 3) {
     const a = remap[f[i]], b = remap[f[i + 1]], c = remap[f[i + 2]];
     if (a === b || b === c || a === c) continue;
-    const s = [a, b, c].sort((x, y) => x - y).join(',');
-    if (seen.has(s)) continue;
-    seen.add(s);
-    nf.push(a, b, c);
+    const lo = Math.min(a, b, c), hi = Math.max(a, b, c), mid = a + b + c - lo - hi;
+    const key = lo + ',' + mid + ',' + hi;
+    // even permutation of (lo, mid, hi) = same orientation
+    const sign = (a === lo && b === mid) || (b === lo && c === mid) || (c === lo && a === mid) ? 1 : -1;
+    let g = groups.get(key);
+    if (!g) { g = { bal: 0, first: { 1: -1, '-1': -1 } }; groups.set(key, g); }
+    g.bal += sign;
+    if (g.first[sign] < 0) g.first[sign] = tris.length / 3;
+    tris.push(a, b, c);
   }
-  return { v: new Float32Array(nv), f: new Uint32Array(nf) };
+  const keep = [];
+  for (const g of groups.values()) if (g.bal) keep.push(g.first[Math.sign(g.bal)]);
+  keep.sort((x, y) => x - y);
+  const nf = new Uint32Array(keep.length * 3);
+  keep.forEach((t, i) => { nf[i * 3] = tris[t * 3]; nf[i * 3 + 1] = tris[t * 3 + 1]; nf[i * 3 + 2] = tris[t * 3 + 2]; });
+  return { v: new Float32Array(nv), f: nf };
 }
 
 // ---------------------------------------------------------------- quick repair
@@ -197,6 +208,8 @@ function edgeKey(a, b) { return a < b ? a * 4294967296 + b : b * 4294967296 + a;
  *  cap holes with fans, fix inside-out shells. Returns a Manifold or null. */
 export function localRepair(v0, f0) {
   let { v, f } = weld(v0, f0);
+  const touching = touchingShells(v, f);
+  if (touching) return touching;
   for (let iter = 0; iter < 3; iter++) {
     // faces on edges shared by more than two triangles go
     const cnt = new Map();
@@ -219,7 +232,158 @@ export function localRepair(v0, f0) {
       if (man) return mergeOverlappingShells(man).man;
     }
   }
-  return null;
+  // last try: shell by shell, union of the shells that are (or became) closed
+  const solids = [];
+  for (const sh of shells(v, f)) {
+    let m = manifoldFromArrays(sh.v, sh.f);
+    if (!m) { const c = capHoles(sh.v, sh.f); m = manifoldFromArrays(c.v, c.f); }
+    if (!m) return null;
+    if (m.volume() < 0) m = manifoldFromArrays(sh.v, flip(sh.f));
+    if (!m) return null;
+    solids.push(m);
+  }
+  if (!solids.length) return null;
+  return solids.length > 1 ? Manifold.union(solids) : solids[0];
+}
+
+/** Shells that touch each other (sharing a wall or an edge) make edges with more than two
+ *  triangles. Split the mesh where that happens, close each piece and union the solid ones;
+ *  flat leftovers (a shared wall, a stray fin) are dropped. Returns a Manifold or null. */
+function touchingShells(v, f) {
+  const nt = f.length / 3, edges = new Map();
+  for (let t = 0; t < nt; t++) for (let k = 0; k < 3; k++) {
+    const key = edgeKey(f[t * 3 + k], f[t * 3 + (k + 1) % 3]);
+    const a = edges.get(key); if (a) a.push(t); else edges.set(key, [t]);
+  }
+  let crowded = false;
+  for (const a of edges.values()) if (a.length > 2) { crowded = true; break; }
+  if (!crowded) return null;
+  const comp = new Int32Array(nt).fill(-1), pieces = [];
+  for (let s = 0; s < nt; s++) {
+    if (comp[s] >= 0) continue;
+    const id = pieces.length, tris = [s], stack = [s];
+    comp[s] = id;
+    while (stack.length) {
+      const t = stack.pop();
+      for (let k = 0; k < 3; k++) {
+        const a = edges.get(edgeKey(f[t * 3 + k], f[t * 3 + (k + 1) % 3]));
+        if (a.length !== 2) continue;
+        for (const u of a) if (comp[u] < 0) { comp[u] = id; tris.push(u); stack.push(u); }
+      }
+    }
+    pieces.push(tris);
+  }
+  const [lo, hi] = vertsBBox(v), scale = Math.max(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) ** 3;
+  const solids = [];
+  for (const tris of pieces) {
+    const remap = new Map(), vs = [], fs = [];
+    for (const t of tris) for (let k = 0; k < 3; k++) {
+      const w = f[t * 3 + k];
+      let j = remap.get(w);
+      if (j === undefined) { j = vs.length / 3; remap.set(w, j); vs.push(v[w * 3], v[w * 3 + 1], v[w * 3 + 2]); }
+      fs.push(j);
+    }
+    const pv = new Float32Array(vs);
+    let pf = fixWinding(new Uint32Array(fs));
+    let m = manifoldFromArrays(pv, pf);
+    if (!m) { const c = capHoles(pv, pf); pf = c.f; m = manifoldFromArrays(c.v, c.f); if (m && m.volume() < 0) m = manifoldFromArrays(c.v, flip(c.f)); }
+    else if (m.volume() < 0) m = manifoldFromArrays(pv, flip(pf));
+    if (!m) {
+      // a flat piece can't be closed; anything else means this isn't a case of touching shells
+      if (isFlat(pv)) continue;
+      return null;
+    }
+    if (Math.abs(m.volume()) <= 1e-6 * scale) continue;
+    solids.push(m);
+  }
+  if (!solids.length) return null;
+  return solids.length > 1 ? Manifold.union(solids) : solids[0];
+}
+
+function isFlat(v) {
+  const [lo, hi] = vertsBBox(v), size = Math.max(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) || 1;
+  // plane through the first triangle with any area
+  for (let i = 3; i + 3 < v.length; i += 3) {
+    const u = [v[i] - v[0], v[i + 1] - v[1], v[i + 2] - v[2]], w = [v[i + 3] - v[0], v[i + 4] - v[1], v[i + 5] - v[2]];
+    const n = cross(u, w), l = norm(n);
+    if (l < 1e-9 * size * size) continue;
+    for (let j = 0; j < v.length; j += 3) if (Math.abs(((v[j] - v[0]) * n[0] + (v[j + 1] - v[1]) * n[1] + (v[j + 2] - v[2]) * n[2]) / l) > 1e-5 * size) return false;
+    return true;
+  }
+  return true;
+}
+
+/** Split a mesh into its edge-connected pieces (like trimesh's split). */
+export function shells(v, f) {
+  const nt = f.length / 3, edges = new Map();
+  for (let t = 0; t < nt; t++) for (let k = 0; k < 3; k++) {
+    const key = edgeKey(f[t * 3 + k], f[t * 3 + (k + 1) % 3]);
+    let a = edges.get(key); if (!a) edges.set(key, a = []); a.push(t);
+  }
+  const comp = new Int32Array(nt).fill(-1), out = [];
+  for (let s = 0; s < nt; s++) {
+    if (comp[s] >= 0) continue;
+    const id = out.length, tris = [s], stack = [s];
+    comp[s] = id;
+    while (stack.length) {
+      const t = stack.pop();
+      for (let k = 0; k < 3; k++) for (const u of edges.get(edgeKey(f[t * 3 + k], f[t * 3 + (k + 1) % 3]))) {
+        if (comp[u] < 0) { comp[u] = id; tris.push(u); stack.push(u); }
+      }
+    }
+    const remap = new Map(), vs = [], fs = [];
+    for (const t of tris) for (let k = 0; k < 3; k++) {
+      const w = f[t * 3 + k];
+      let j = remap.get(w);
+      if (j === undefined) { j = vs.length / 3; remap.set(w, j); vs.push(v[w * 3], v[w * 3 + 1], v[w * 3 + 2]); }
+      fs.push(j);
+    }
+    out.push({ v: new Float32Array(vs), f: new Uint32Array(fs) });
+  }
+  return out;
+}
+
+/** The desktop's second quick fix (trimesh's repairs): weld, unify winding, turn inside-out
+ *  shells the right way round and fill holes of one triangle or quad. */
+export function quickRepair(v0, f0) {
+  let { v, f } = weld(v0, f0);
+  f = fixWinding(f);
+  // fix inversion shell by shell
+  const parts = shells(v, f);
+  const vs = [], fs = [];
+  for (const sh of parts) {
+    let vol = 0;
+    for (let i = 0; i < sh.f.length; i += 3) {
+      const a = sh.f[i] * 3, b = sh.f[i + 1] * 3, c = sh.f[i + 2] * 3, V = sh.v;
+      vol += V[a] * (V[b + 1] * V[c + 2] - V[b + 2] * V[c + 1]) - V[a + 1] * (V[b] * V[c + 2] - V[b + 2] * V[c]) + V[a + 2] * (V[b] * V[c + 1] - V[b + 1] * V[c]);
+    }
+    const off = vs.length / 3, ff = vol < 0 ? flip(sh.f) : sh.f;
+    vs.push(...sh.v); for (const i of ff) fs.push(i + off);
+  }
+  v = new Float32Array(vs); f = new Uint32Array(fs);
+  // fill holes made of 3 or 4 edges
+  const directed = new Set(), nxt = new Map();
+  for (let i = 0; i < f.length; i += 3) for (let k = 0; k < 3; k++) directed.add(f[i + k] * 4294967296 + f[i + (k + 1) % 3]);
+  for (let i = 0; i < f.length; i += 3) for (let k = 0; k < 3; k++) {
+    const a = f[i + k], b = f[i + (k + 1) % 3];
+    if (!directed.has(b * 4294967296 + a)) { const l = nxt.get(a); if (l) l.push(b); else nxt.set(a, [b]); }
+  }
+  const add = [], seen = new Set();
+  for (const [a, outs] of nxt) {
+    if (outs.length !== 1 || seen.has(a)) continue;
+    const loop = [a];
+    let cur = outs[0];
+    while (cur !== a && loop.length <= 4) { const o = nxt.get(cur); if (!o || o.length !== 1) break; loop.push(cur); cur = o[0]; }
+    if (cur !== a || loop.length < 3 || loop.length > 4) continue;
+    for (const x of loop) seen.add(x);
+    // boundary runs a -> b along existing faces, so the patch goes the other way
+    if (loop.length === 3) add.push(loop[2], loop[1], loop[0]);
+    else add.push(loop[3], loop[2], loop[1], loop[3], loop[1], loop[0]);
+  }
+  if (add.length) { const g = new Uint32Array(f.length + add.length); g.set(f); g.set(add, f.length); f = g; }
+  let man = manifoldFromArrays(v, f);
+  if (man && man.volume() < 0) man = manifoldFromArrays(v, flip(f));
+  return man;
 }
 
 function flip(f) {

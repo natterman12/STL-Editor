@@ -213,13 +213,13 @@ export class Document {
 
   // -- files
   importFile(name, data, repair = true, place = 'center') {
-    if (!IO.MESH_EXTS.includes(IO.extOf(name))) throw new GeometryError('Unsupported file type. The web edition opens STL, OBJ and 3MF.');
+    if (!IO.MESH_EXTS.includes(IO.extOf(name))) throw new GeometryError('Unsupported file type. STL Editor opens STL, OBJ, 3MF, PLY, OFF, GLB and glTF.');
     const sid = this.addSource(name, data);
     try { return this.addFeature('import', { source: sid, repair, place }, IO.baseOf(name)); }
     catch (e) { delete this.sources[sid]; throw e; }
   }
 
-  saveBytes() {
+  saveBytes(markClean = true) {
     const used = new Set(this.features.filter(f => f.type === 'import').map(f => f.params.source));
     const files = {
       'document.json': IO.strToU8(JSON.stringify({
@@ -228,7 +228,7 @@ export class Document {
       }, null, 1)),
     };
     for (const [sid, src] of Object.entries(this.sources)) if (used.has(sid)) files[`sources/${sid}${src.ext}`] = [src.data, { level: 6 }];
-    this.dirty = false;
+    if (markClean) this.dirty = false;
     return IO.zipSync(files);
   }
 

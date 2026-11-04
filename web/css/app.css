@@ -302,3 +302,36 @@ html[data-theme=dark] #dims .dim.driving { color: #8cc0ff; }
 #web-bar button { border: 0; background: none; font-size: 16px; line-height: 1; color: var(--muted); cursor: pointer; padding: 0 4px; }
 .tool-btn.desk-only { opacity: .38; }
 .tool-btn.desk-only:hover { opacity: .55; }
+
+/* ---------- tablets and phones ---------- */
+#browser-toggle { display: none; position: absolute; top: 10px; left: 10px; z-index: 6; border: 1px solid var(--line); background: var(--panel-2);
+  border-radius: 6px; padding: 5px 10px; font: inherit; font-size: 12px; cursor: pointer; color: var(--text); }
+@media (max-width: 1200px) {
+  #web-bar { left: 10px; transform: none; max-width: calc(100% - 290px); }
+}
+@media (max-width: 760px), (max-height: 520px) {
+  #workspace { grid-template-columns: minmax(0, 1fr); position: relative; }
+  /* the browser becomes a drawer over the model */
+  #browser { position: absolute; z-index: 8; top: 0; bottom: 0; left: 0; width: min(280px, 85vw); transform: translateX(-102%);
+    transition: transform .18s ease; box-shadow: 4px 0 18px rgba(20,30,40,.18); }
+  html.browser-open #browser { transform: none; }
+  #browser-toggle { display: block; }
+  html.browser-open #browser-toggle { left: calc(min(280px, 85vw) + 8px); }
+  /* tool settings slide up from the bottom, leaving the model visible above */
+  #tool-panel { position: absolute; z-index: 7; left: 0; right: 0; bottom: 0; width: auto; max-height: 48%; border-left: 0;
+    border-top: 1px solid var(--line); box-shadow: 0 -4px 18px rgba(20,30,40,.16); }
+  #tool-form { overflow: auto; }
+  #web-bar { top: auto; bottom: 10px; left: 10px; right: 10px; max-width: none; }
+  #viewcube { grid-template-columns: repeat(4, auto); }
+  #viewcube button { padding: 5px 7px; }
+  #topbar .brand { font-size: 0; gap: 0; }
+  #doc-title { display: none; }
+  #timeline-bar { grid-template-columns: auto 1fr; }
+  #status { display: none; }
+  .field { grid-template-columns: 92px 1fr; }
+}
+@media (pointer: coarse) {
+  /* bigger targets for fingers */
+  .tool-btn, .menu-btn, #viewcube button, .mi { min-height: 32px; }
+  .tnode { padding-top: 7px; padding-bottom: 7px; }
+}

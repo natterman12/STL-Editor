@@ -7,6 +7,7 @@ import * as PR from './printing.js';
 import * as MT from './meshtools.js';
 import * as VX from './voxel.js';
 import * as ME from './meshedit.js';
+import { decimate } from './decimate.js';
 
 const OPS = ['new', 'join', 'cut', 'intersect'];
 
@@ -460,7 +461,7 @@ function f_repair(state, fid, p, res) {
   const mode = p.mode || 'auto';
   let man = null;
   if (mode === 'auto' || mode === 'quick') {
-    man = G.localRepair(v, f);
+    man = G.localRepair(v, f) || G.quickRepair(v, f);
     if (!man && mode === 'quick') throw new GeometryError("Quick repair wasn't enough. Use Rebuild.");
   }
   if (!man) {
@@ -497,17 +498,33 @@ function f_remesh(state, fid, p, res) {
 }
 
 function f_simplify(state, fid, p, res) {
-  const bid = p.body, b = state.body(bid), s = b.requireSolid();
-  let out;
-  if (p.tolerance) out = s.simplify(+p.tolerance);
-  else {
-    const ratio = Math.min(Math.max(+(p.ratio || 0.5), 0.001), 1), want = s.numTri() * ratio;
-    const [lo, hi] = b.bbox();
-    let tol = norm(sub(hi, lo)) * 1e-4;
-    out = s;
-    for (let i = 0; i < 16 && out.numTri() > want * 1.1; i++) { out = s.simplify(tol); tol *= 1.6; }
+  // same steps as geometry.simplify on the desktop: quadric decimation to the requested share of
+  // triangles (works on open meshes too), then make it a solid again if possible
+  const bid = p.body, b = state.body(bid);
+  if (p.tolerance && b.isSolid && !p.ratio) {
+    state.bodies.set(bid, b.copy({ solid: b.solid.simplify(+p.tolerance) }));
+    res.modified.push(bid);
+    return;
   }
-  state.bodies.set(bid, b.copy({ solid: out }));
+  const ratio = Math.min(Math.max(+(p.ratio || 0.5), 0.001), 1);
+  const { v, f } = b.mesh();
+  const nt = f.length / 3;
+  const d = decimate(v, f, Math.floor(ratio * nt));
+  const w = G.weld(d.v, d.f);
+  let man = G.manifoldFromArrays(w.v, w.f);
+  if (!man) man = G.quickRepair(w.v, w.f);
+  if (!man && b.isSolid) {
+    // fall back to Manifold's own (topology-safe) simplification
+    const [lo, hi] = b.bbox();
+    let tol = norm(sub(hi, lo)) * 1e-3;
+    man = b.solid;
+    for (let i = 0; i < 12; i++) { man = b.solid.simplify(tol); if (man.numTri() <= nt * ratio * 1.15) break; tol *= 1.8; }
+  }
+  if (man) state.bodies.set(bid, b.copy({ solid: man }));
+  else {
+    state.bodies.set(bid, new Body(b.name, { verts: w.v, faces: w.f }));
+    res.warning = "Simplified mesh isn't watertight; run Repair to edit it.";
+  }
   res.modified.push(bid);
 }
 

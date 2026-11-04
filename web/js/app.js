@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { post, get, upload, WEB, requestLocalFonts } from './api.js';
+import { post, get, upload, WEB, requestLocalFonts, addFontFiles, openLaunchFiles, flushAutosave } from './api.js';
 import { Viewer } from './viewer.js';
 import { Sketcher } from './sketcher.js';
 import { TOOLS, repeatableFeatures, HOLE_PRESETS } from './tools.js';
@@ -36,7 +36,8 @@ class App {
     if (WEB) document.documentElement.classList.add('web');
     this.buildRibbon();
     this.bindUI();
-    if (WEB) this.webWelcome();
+    if (WEB) { this.webWelcome(); this.setupWebApp(); }
+    this.setupDrawer();
     this.loadSettings().then(() => this.refresh()).then(() => { this.viewer.setView('iso'); this.checkRecovery(); });
     setTimeout(() => this.checkUpdates(false), 6000);
     setInterval(() => this.renderAutosave(), 15000);
@@ -74,7 +75,7 @@ class App {
     const empty = !this.state.features.length && !this.sketcher.active && !this.tool;
     $('#empty-state').classList.toggle('hidden', !empty);
     const rec = (this.state.recent || []).slice(0, 6);
-    $('#empty-recent').innerHTML = rec.length ? `<div class="section-label">Recent</div>` + rec.map(p => `<div class="rec" data-path="${esc(p)}" title="${esc(p)}">${esc(p.split(/[\\/]/).pop())}</div>`).join('') : '';
+    $('#empty-recent').innerHTML = rec.length ? `<div class="section-label">Recent</div>` + rec.map(p => `<div class="rec" data-path="${esc(p)}" title="${esc(WEB ? p.split('/').pop() : p)}">${esc(p.split(/[\\/]/).pop())}</div>`).join('') : '';
   }
 
   // =================================================================== ribbon
@@ -362,7 +363,7 @@ class App {
     this.tool.activeField = def.fields.find(f => isSelKind(f.kind) && !f.placeholder && f.kind !== 'regions' && (f.show ? f.show(v) : true) && isEmptySel(v[f.key]))?.key || null;
     this.renderForm();
     this.hint(def.hint || '');
-    this.viewer.setMouseMode(def.sculpt ? 'sketch' : 'model');
+    this.viewer.setMouseMode(def.sculpt ? 'sculpt' : 'model');
     this.updateRibbonState();
     this.renderTimeline();
     this.renderEmpty();
@@ -822,13 +823,13 @@ class App {
     const sk = this.sketcher;
     if (!this._fonts) { try { this._fonts = await post('fonts', {}, { quiet: true }); } catch (e) { this.toast(e.message, 'err'); return; } }
     const F = this._fonts;
-    const LOCAL = '__local__';
+    const LOCAL = '__local__', FILE = '__file__';
     const o = { text: 'Text', font: this._lastFont || F.default, size: 10, bold: false, italic: false, align: 'left', angle: 0, x: 0, y: 0, spacing: 0, ...opts };
     const sel = (id, opts2, cur) => `<select id="${id}">${opts2.map(([v, l]) => `<option value="${esc(v)}" ${v === cur ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
     const row = (l, c) => `<div class="field"><label>${l}</label><div class="ctl">${c}</div></div>`;
     const html = `<h3>${group ? 'Edit text' : 'Text'}</h3>
       <textarea id="tx-text" rows="2" style="width:100%;font:inherit;padding:6px;box-sizing:border-box">${esc(o.text)}</textarea>
-      ${row('Font', sel('tx-font', [...F.fonts.map(f => [f, f]), ...(F.canAskLocal ? [[LOCAL, 'More: fonts on this computer…']] : [])], o.font))}
+      ${row('Font', sel('tx-font', [...F.fonts.map(f => [f, f]), ...(F.canAskLocal ? [[LOCAL, 'More: fonts on this computer…']] : []), ...(F.canAddFile ? [[FILE, 'Add a font file…']] : [])], o.font))}
       ${row('Height', `<input type="text" id="tx-size" value="${U.toDisp(o.size)}"><span class="unit">${U.label}</span>`)}
       ${row('Style', `<label class="check"><input type="checkbox" id="tx-bold" ${o.bold ? 'checked' : ''}> Bold</label><label class="check"><input type="checkbox" id="tx-italic" ${o.italic ? 'checked' : ''}> Italic</label>`)}
       ${row('Align', sel('tx-align', [['left', 'Left'], ['center', 'Centre'], ['right', 'Right']], o.align))}
@@ -844,12 +845,16 @@ class App {
     setTimeout(() => {
       const fs = document.getElementById('tx-font');
       if (fs) fs.onchange = async () => {
-        if (fs.value !== LOCAL) return;
+        if (fs.value !== LOCAL && fs.value !== FILE) return;
         try {
-          const fams = await requestLocalFonts();
+          let pickFam;
+          if (fs.value === LOCAL) { const fams = await requestLocalFonts(); pickFam = fams.includes('Arial') ? 'Arial' : null; }
+          else { const added = await addFontFiles(); pickFam = added[0] || null; if (added.length) this.toast(`Added ${added.join(', ')}`); }
           this._fonts = await post('fonts', {}, { quiet: true });
-          fs.innerHTML = this._fonts.fonts.map(f => `<option value="${esc(f)}">${esc(f)}</option>`).join('');
-          fs.value = fams.includes('Arial') ? 'Arial' : this._fonts.default;
+          const F2 = this._fonts;
+          fs.innerHTML = [...F2.fonts.map(f => [f, f]), ...(F2.canAskLocal ? [[LOCAL, 'More: fonts on this computer…']] : []), ...(F2.canAddFile ? [[FILE, 'Add a font file…']] : [])]
+            .map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join('');
+          fs.value = pickFam || F2.default;
         } catch (e) { this.toast(e.message, 'warn'); fs.value = this._fonts.default; }
       };
     }, 0);
@@ -1080,6 +1085,69 @@ class App {
     bar.querySelector('[data-x]').onclick = () => { bar.remove(); try { localStorage.setItem('stle.webWelcome', '1'); } catch { /* storage off */ } };
     document.getElementById('viewport').appendChild(bar);
     if (seen) setTimeout(() => bar.remove(), 6000);
+  }
+
+  /** On narrow screens the browser panel is a drawer, opened with a button over the model. */
+  setupDrawer() {
+    const b = document.createElement('button');
+    b.id = 'browser-toggle'; b.textContent = 'Bodies';
+    b.onclick = () => { document.documentElement.classList.toggle('browser-open'); b.textContent = document.documentElement.classList.contains('browser-open') ? 'Close' : 'Bodies'; };
+    document.getElementById('viewport').appendChild(b);
+  }
+
+  /** Web edition as an app: offline copy (service worker), install, files opened with it. */
+  setupWebApp() {
+    const head = document.head;
+    if (!head.querySelector('link[rel="manifest"]')) {
+      const l = document.createElement('link'); l.rel = 'manifest'; l.href = 'manifest.webmanifest'; head.appendChild(l);
+      const m = document.createElement('meta'); m.name = 'theme-color'; m.content = '#1f6fd1'; head.appendChild(m);
+    }
+    window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); this._install = e; });
+    window.addEventListener('appinstalled', () => { this._install = null; this.toast('STL Editor is installed. Open it from your apps like any other program.'); });
+    // not on a local test server (it would keep serving old files while you edit), unless ?sw
+    const local = ['localhost', '127.0.0.1'].includes(location.hostname);
+    if ('serviceWorker' in navigator && (local ? new URLSearchParams(location.search).has('sw') : location.protocol === 'https:')) {
+      navigator.serviceWorker.register('sw.js').then(reg => {
+        const offerUpdate = w => {
+          if (!navigator.serviceWorker.controller) return;   // first install: nothing to replace
+          w.addEventListener('statechange', () => { if (w.state === 'installed') this.updateReady(w); });
+          if (w.state === 'installed') this.updateReady(w);
+        };
+        if (reg.waiting) this.updateReady(reg.waiting);
+        reg.addEventListener('updatefound', () => reg.installing && offerUpdate(reg.installing));
+      }).catch(() => { /* no offline copy: the app still works online */ });
+      let reloading = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => { if (this._reloadOnUpdate && !reloading) { reloading = true; location.reload(); } });
+    }
+    // files opened with the installed app ("Open with", double-click)
+    if ('launchQueue' in window) {
+      window.launchQueue.setConsumer(async params => {
+        if (!params.files?.length) return;
+        try {
+          const r = await openLaunchFiles(params.files);
+          await this.closeTool(); this.selection = []; await this.apply(r); this.viewer.setView('iso'); this.viewer.fit();
+        } catch (e) { this.toast(e.message, 'err'); }
+      });
+    }
+  }
+
+  updateReady(worker) {
+    if (this._updateShown) return;
+    this._updateShown = true;
+    const bar = document.createElement('div');
+    bar.id = 'web-bar';
+    bar.innerHTML = `<span><b>A new version of STL Editor is ready.</b> It starts next time you open it, or now if you reload.</span>
+      <a href="#" data-reload>Reload now</a><button title="Later" data-x>×</button>`;
+    bar.querySelector('[data-x]').onclick = () => bar.remove();
+    bar.querySelector('[data-reload]').onclick = async e => {
+      e.preventDefault();
+      if (this.state.doc?.dirty && !(await this.confirm('Reload now? Save first if you want to keep your changes (an autosave copy is kept either way).'))) return;
+      await flushAutosave();
+      this._reloadOnUpdate = true;
+      worker.postMessage('skip-waiting');
+    };
+    document.getElementById('web-bar')?.remove();
+    document.getElementById('viewport').appendChild(bar);
   }
 
   desktopOnly(what = 'This tool') {
@@ -1479,7 +1547,7 @@ class App {
   // =================================================================== menus & dialogs
   topMenu(btn) {
     const m = btn.dataset.menu;
-    const rec = (this.state.recent || []).map(p => ({ label: p.split(/[\\/]/).pop(), title: p, fn: () => this.cmd('open', { path: p }) }));
+    const rec = (this.state.recent || []).map(p => ({ label: p.split(/[\\/]/).pop(), title: WEB ? p.split('/').pop() : p, fn: () => this.cmd('open', { path: p }) }));
     const items = {
       file: [
         { label: 'New', k: 'Ctrl+N', fn: () => this.cmd('new') },
@@ -1526,7 +1594,9 @@ class App {
         { label: 'Keyboard Shortcuts', fn: () => this.showHelp() },
         ...(WEB ? [{ label: 'User Guide', fn: () => window.open('https://github.com/natterman12/STL-Editor/blob/main/USER_GUIDE.md', '_blank', 'noopener') },
           { label: 'Get the Desktop App', fn: () => window.open(DESKTOP_URL, '_blank', 'noopener') },
-          { label: 'Report a Problem', fn: () => window.open('https://github.com/natterman12/STL-Editor/issues/new/choose', '_blank', 'noopener') }] : [
+          { label: 'Report a Problem', fn: () => window.open('https://github.com/natterman12/STL-Editor/issues/new/choose', '_blank', 'noopener') },
+          { label: 'Recover Unsaved Work…', fn: () => this.checkRecovery(true) },
+          ...(this._install ? [{ label: 'Install STL Editor…', fn: async () => { const p = this._install; this._install = null; await p.prompt(); } }] : [])] : [
           { label: 'Check for Updates…', fn: () => this.checkUpdates(true) },
           { label: 'Update Settings…', fn: () => this.updateSettings() },
           { label: 'Recover Unsaved Work…', fn: () => this.checkRecovery(true) }]),
@@ -1682,7 +1752,7 @@ class App {
     try { items = (await post('recovery/list', {}, { quiet: true })).items || []; } catch { return; }
     if (!items.length) { if (manual) this.toast('There is no unsaved work to recover.'); return; }
     const when = t => t ? new Date(t * 1000).toLocaleString() : '';
-    const html = `<h3>Recover unsaved work?</h3><p>STL Editor didn't close normally last time. This work was saved automatically:</p>` +
+    const html = `<h3>Recover unsaved work?</h3><p>${WEB ? 'This work wasn’t saved before STL Editor was last closed. A copy was kept in this browser:' : 'STL Editor didn’t close normally last time. This work was saved automatically:'}</p>` +
       items.map(it => `<div class="recov"><div><b>${esc(it.title)}</b><div class="t">${it.steps} step${it.steps === 1 ? '' : 's'} · autosaved ${esc(when(it.saved))}</div></div>
         <div style="display:flex;gap:6px"><button data-rdis="${it.id}">Discard</button><button class="primary" data-rec="${it.id}">Recover</button></div></div>`).join('');
     $('#modal-body').innerHTML = html;

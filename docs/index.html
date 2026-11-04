@@ -401,7 +401,7 @@ footer .credits { max-width: 640px; }
         <dl class="spec">
           <dt>System</dt><dd>Windows 10 or 11, 64-bit</dd>
           <dt>Disk</dt><dd>About 150 MB unzipped</dd>
-          <dt>Opens</dt><dd>STL, 3MF, OBJ, and <code>.stlx</code> projects</dd>
+          <dt>Opens</dt><dd>STL, 3MF, OBJ, PLY, OFF, GLB/glTF and <code>.stlx</code> projects</dd>
           <dt>Exports</dt><dd>STL, 3MF, OBJ</dd>
           <dt>Optional</dt><dd>Bambu Studio / OrcaSlicer for Send to Slicer, SolidCraft for To STEP</dd>
         </dl>
@@ -416,7 +416,8 @@ python main.py</pre>
       <h3>Web edition: try it without installing</h3>
       <p>The same editor running in your browser: open a model, sketch on a face, extrude, cut, drill holes, add threads, hollow, repair, sculpt, split for your bed and export. Your files stay on your computer; the geometry engine runs inside the page.</p>
       <dl class="spec">
-        <dt>Browsers</dt><dd>Recent Chrome, Edge, Firefox or Safari on a computer</dd>
+        <dt>Browsers</dt><dd>Recent Chrome, Edge, Firefox or Safari, on a computer or tablet</dd>
+        <dt>Works</dt><dd>Offline after the first visit, with autosave and recovery; installable as an app in Chrome and Edge</dd>
         <dt>Desktop only</dt><dd>Send to Slicer and To STEP (they start programs on your computer)</dd>
         <dt>Projects</dt><dd><code>.stlx</code> files open in both editions</dd>
       </dl>
@@ -438,7 +439,7 @@ python main.py</pre>
     <div class="faq">
       <details><summary>Is it really free?</summary><p>Yes. STL Editor is open source under the GNU GPL v3. You can use it for anything, including commercial prints, and you can read and change the code. If you share a modified version, it has to stay open source too.</p></details>
       <details><summary>Does it upload my models anywhere?</summary><p>No. Everything runs on your computer. The desktop app's engine only listens on your own machine (127.0.0.1); the only thing it fetches online is the "latest release" page of this project, to tell you about updates, and you can turn that off. The web edition loads the page and then works entirely inside your browser: models are opened and saved locally and are never sent to a server.</p></details>
-      <details><summary>What's the difference between the web edition and the desktop app?</summary><p>They share the same interface and project files. Every modelling tool works in the web edition, including Hollow, Remesh, Sculpt and the Rebuild repair. Send to Slicer and To STEP need the desktop app because they start programs on your computer. The desktop app is also faster on very large meshes, allows finer voxel settings and keeps autosave recovery copies.</p></details>
+      <details><summary>What's the difference between the web edition and the desktop app?</summary><p>They share the same interface and project files. Every modelling tool works in the web edition, including Hollow, Remesh, Sculpt and the Rebuild repair. Send to Slicer and To STEP need the desktop app because they start programs on your computer. Both keep autosave copies for recovery. The desktop app is faster on very large meshes and allows finer voxel settings.</p></details>
       <details><summary>Can it fillet or chamfer edges?</summary><p>Not on meshes yet. An STL is just triangles with no real edges to round. For blocky mechanical parts, <i>To STEP</i> can turn the mesh into a STEP file through SolidCraft so you can finish it in regular CAD.</p></details>
       <details><summary>My STL says "needs repair". What do I do?</summary><p>Some downloads aren't watertight: they have holes, flipped faces or overlapping shells. They display and export fine, but click <b>Repair</b> (Mesh tab) before editing. Quick fix handles most files, and <i>Rebuild</i> turns even badly broken meshes into one clean solid.</p></details>
       <details><summary>How big can models be?</summary><p>Parts with around a million triangles work; a 942k-triangle figure was cut into bed-sized pieces in testing. Booleans use the Manifold library, which is fast and always gives watertight results.</p></details>

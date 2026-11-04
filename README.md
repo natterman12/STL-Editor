@@ -75,9 +75,9 @@ Nothing gets installed and no admin rights are needed. Settings live in `%APPDAT
 
 ### Web edition
 
-**[Open STL Editor in your browser](https://natterman12.github.io/STL-Editor/app/)**: nothing to download, works on Windows, macOS, Linux and ChromeOS in a recent Chrome, Edge, Firefox or Safari. It's the same interface and the same `.stlx` project files. The geometry engine (Manifold compiled to WebAssembly) runs inside the page, so your models never leave your computer.
+**[Open STL Editor in your browser](https://natterman12.github.io/STL-Editor/app/)**: nothing to download, works on Windows, macOS, Linux, ChromeOS and tablets in a recent Chrome, Edge, Firefox or Safari. It's the same interface and the same `.stlx` project files. The geometry engine (Manifold compiled to WebAssembly) runs inside the page, so your models never leave your computer.
 
-Every modelling tool works in the browser, including Hollow, Remesh, Sculpt and *Repair › Rebuild*. Only Send to Slicer and To STEP need the desktop app, because they start programs on your computer. The desktop app is also faster on very large meshes, allows finer voxel settings and keeps autosave recovery copies.
+Every modelling tool works in the browser, including Hollow, Remesh, Sculpt and *Repair › Rebuild*. It keeps autosave copies for recovery and a recent-files list, saves straight back to the project you opened (Chrome and Edge), works offline after the first visit, and can be installed as an app that opens `.stlx` and mesh files. Only Send to Slicer and To STEP need the desktop app, because they start programs on your computer. The desktop app is also faster on very large meshes and allows finer voxel settings.
 
 ### Quick start
 

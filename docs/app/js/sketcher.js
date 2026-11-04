@@ -145,7 +145,8 @@ export class Sketcher {
       const moved = Math.hypot(ev.clientX - this._down[0], ev.clientY - this._down[1]) > 5;
       this._down = null;
       const dragged = this._drag ? this.dragEnd() : false;
-      if (!moved && !dragged) this.onClick(ev);
+      // fingers and pens don't hover, so take the point from the tap itself
+      if (!moved && !dragged) { if (ev.pointerType !== 'mouse') this.onMove(ev); this.onClick(ev); }
     });
     c.addEventListener('dblclick', ev => { if (this.active && this.tool === 'line') this.finishLine(false); });
     for (const inp of [this.inA, this.inB]) {

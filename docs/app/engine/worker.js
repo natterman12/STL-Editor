@@ -2,6 +2,7 @@
 import { init, sweep } from './wasm.js';
 import { GeometryError } from './geom.js';
 import { setFontLoader } from './meshtools.js';
+import opentype from '../vendor/opentype.module.js';
 
 let ROUTES = null, app = null;
 const supplied = new Map();   // fonts the page passed in (fonts installed on this computer)
@@ -39,6 +40,16 @@ async function handle({ id, route, data }) {
   try {
     await ready;
     if (data?.fontData) { supplied.set(`${data.font}|${(data.bold ? 'b' : '') + (data.italic ? 'i' : '')}`, data.fontData); delete data.fontData; }
+    if (route === 'font_info') {
+      // name and style of a font file the person added
+      let font;
+      try { font = opentype.parse(data.data); } catch { throw new GeometryError('That file isn\u2019t a font STL Editor can read (use .ttf, .otf or .woff).'); }
+      const nm = font.names || {}, pick = n => n && (n.en || Object.values(n)[0]);
+      const family = pick(nm.preferredFamily) || pick(nm.fontFamily) || 'Font';
+      const sub = pick(nm.preferredSubfamily) || pick(nm.fontSubfamily) || 'Regular';
+      self.postMessage({ id, ok: true, result: { ok: true, family, style: (/bold|black|heavy/i.test(sub) ? 'b' : '') + (/italic|oblique/i.test(sub) ? 'i' : '') } });
+      return;
+    }
     if (route === 'fonts') { self.postMessage({ id, ok: true, result: { ok: true, fonts: Object.keys(BUNDLED_FONTS), default: 'DejaVu Sans' } }); return; }
     const fn = ROUTES[route];
     if (!fn) throw new GeometryError(`unknown route ${route}`);

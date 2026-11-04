@@ -110,11 +110,23 @@ def weld(verts, faces, tol=1e-5):
     nf = inv[f]
     ok = (nf[:, 0] != nf[:, 1]) & (nf[:, 1] != nf[:, 2]) & (nf[:, 0] != nf[:, 2])
     nf = nf[ok]
-    # drop exact duplicate triangles (same vertex set)
+    # triangles on the same three vertices: duplicates facing the same way collapse to one, and
+    # pairs facing opposite ways (the shared wall of two touching shells) cancel out
     if len(nf):
         key = np.sort(nf, axis=1)
-        _, first = np.unique(key, axis=0, return_index=True)
-        nf = nf[np.sort(first)]
+        _, first, inv, cnt = np.unique(key, axis=0, return_index=True, return_inverse=True,
+                                       return_counts=True)
+        inv = inv.reshape(-1)
+        if (cnt > 1).any():
+            r = np.argsort(nf, axis=1)
+            odd = ((r[:, 0] > r[:, 1]).astype(int) + (r[:, 0] > r[:, 2]) + (r[:, 1] > r[:, 2])) % 2 == 1
+            sign = np.where(odd, -1, 1)
+            win = np.sign(np.bincount(inv, weights=sign)).astype(int)
+            idx = np.nonzero((sign == win[inv]) & (win[inv] != 0))[0]
+            _, firstc = np.unique(inv[idx], return_index=True)
+            nf = nf[np.sort(idx[firstc])]
+        else:
+            nf = nf[np.sort(first)]
     return nv, nf
 
 
@@ -165,6 +177,10 @@ def load_mesh_file(data: bytes, filename: str) -> list[tuple[str, np.ndarray, np
                     parts.append((nm, *weld(g.vertices, g.faces)))
         else:
             parts.append((base, *weld(loaded.vertices, loaded.faces)))
+    if ext in (".glb", ".gltf") and len(parts) > 1:
+        # scene order differs between glTF readers: sort by position so both editions agree
+        parts.sort(key=lambda p: (*np.round(p[1].min(axis=0), 3).tolist(), len(p[2])))
+        parts = [(f"{base} {i + 1}", v, f) for i, (_, v, f) in enumerate(parts)]
     if not parts:
         raise GeometryError("No triangles found in this file.")
     return parts
@@ -290,11 +306,70 @@ def merge_overlapping_shells(man: m3.Manifold) -> tuple[m3.Manifold, int]:
     return man, 0
 
 
+def _is_flat(v):
+    v = np.asarray(v, np.float64)
+    size = float(np.ptp(v, axis=0).max()) or 1.0
+    c = v - v.mean(axis=0)
+    return np.linalg.svd(c, compute_uv=False)[-1] / np.sqrt(len(v)) <= 1e-5 * size
+
+
+def _touching_shells(v, f):
+    """Shells that touch each other (sharing a wall or an edge) make edges with more than two
+    triangles. Split the mesh where that happens, close each piece and union the solid ones;
+    flat leftovers (a shared wall, a stray fin) are dropped. Returns a Manifold or None."""
+    import trimesh
+    from scipy.sparse import coo_matrix
+    from scipy.sparse.csgraph import connected_components
+    f = np.asarray(f, np.int64)
+    nt = len(f)
+    e = np.sort(np.concatenate([f[:, [0, 1]], f[:, [1, 2]], f[:, [2, 0]]]), axis=1)
+    tri = np.tile(np.arange(nt), 3)
+    _, inv, cnt = np.unique(e, axis=0, return_inverse=True, return_counts=True)
+    inv = inv.reshape(-1)
+    if not (cnt > 2).any():
+        return None
+    two = cnt[inv] == 2
+    order = np.argsort(inv[two], kind="stable")
+    pairs = tri[two][order].reshape(-1, 2)
+    g = coo_matrix((np.ones(len(pairs)), (pairs[:, 0], pairs[:, 1])), shape=(nt, nt))
+    ncomp, label = connected_components(g, directed=False)
+    size = float(np.ptp(np.asarray(v), axis=0).max()) ** 3
+    solids = []
+    for c in range(ncomp):
+        pf = f[label == c]
+        used, local = np.unique(pf, return_inverse=True)
+        pv, pf = np.asarray(v)[used], local.reshape(-1, 3)
+        tm = trimesh.Trimesh(vertices=pv, faces=pf, process=False)
+        trimesh.repair.fix_winding(tm)
+        pf = np.asarray(tm.faces)
+        m = manifold_from_arrays(pv, pf)
+        if m is None:
+            cv, cf, _ = _cap_holes(pv, pf)
+            m = manifold_from_arrays(cv, cf)
+            if m is not None and m.volume() < 0:
+                m = manifold_from_arrays(cv, cf[:, ::-1])
+        elif m.volume() < 0:
+            m = manifold_from_arrays(pv, pf[:, ::-1])
+        if m is None:
+            if _is_flat(pv):
+                continue
+            return None
+        if abs(m.volume()) <= 1e-6 * size:
+            continue
+        solids.append(m)
+    if not solids:
+        return None
+    return m3.Manifold.batch_boolean(solids, m3.OpType.Add) if len(solids) > 1 else solids[0]
+
+
 def local_repair(verts, faces):
     """Fix small defects without remeshing: drop faces on non-manifold edges, unify winding,
     cap the holes, and keep each shell's original triangles. Returns a Manifold or None."""
     import trimesh
     v, f = weld(verts, faces)
+    touching = _touching_shells(v, f)
+    if touching is not None:
+        return touching
     for _ in range(3):
         e = np.sort(np.concatenate([f[:, [0, 1]], f[:, [1, 2]], f[:, [2, 0]]]), axis=1)
         _, inv, cnt = np.unique(e, axis=0, return_inverse=True, return_counts=True)
