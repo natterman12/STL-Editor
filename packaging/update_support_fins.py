@@ -84,46 +84,96 @@ ENTRY = """// written by STL Editor's packaging/update_support_fins.py: Support 
 export * from './bridge.js';
 %s
 """
-CURVE_EXPORTS = """import { b64ToBytes, bytesToB64 } from './bridge.js';
-import { drawWallThrough } from './stle_draw_through.js';
+EXTRAS_DIR = os.path.join(ROOT, "packaging", "support_fins_extras")
+CURVE_EXPORTS = """import { drawWallThrough } from './stle_draw_through.js';
+import { soupFromB64, trianglesB64 } from './stle_seat.js';
 export { drawWallThrough };
 // a curved wall: a and b its ends, m a point it runs through (Support Fins' Curve tool)
 export function drawWallThroughB64(soupB64, aJson, bJson, mJson, optionsJson) {
   const options = optionsJson ? JSON.parse(optionsJson) : {};
-  const bytes = b64ToBytes(soupB64);
-  const soup = bytes.byteOffset % 8 ? new Float64Array(bytes.slice().buffer) : new Float64Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 8);
-  const res = drawWallThrough(soup, JSON.parse(aJson), JSON.parse(bJson), mJson ? JSON.parse(mJson) : null, options);
+  const res = drawWallThrough(soupFromB64(soupB64), JSON.parse(aJson), JSON.parse(bJson), mJson ? JSON.parse(mJson) : null, options);
   if (!res.ok) return JSON.stringify(res);
-  const t = res.triangles;
-  return JSON.stringify({ ok: true, triangles: bytesToB64(new Uint8Array(t.buffer, t.byteOffset, t.byteLength)), offset: res.offset, stats: res.stats });
+  return JSON.stringify({ ok: true, triangles: trianglesB64(res.triangles), offset: res.offset, stats: res.stats });
 }"""
+# A closed upside-down L (post 10 wide, arm out to x=30 at z 27..35, 20 deep) for the probes.
+PROBE_PART = r"""function ell(){const s=[],P=[[0,0],[10,0],[10,27],[30,27],[30,35],[0,35]],n=P.length;
+for(let i=0;i<n;i++){const a=P[i],b=P[(i+1)%n];s.push(a[0],0,a[1],b[0],0,b[1],b[0],20,b[1],a[0],0,a[1],b[0],20,b[1],a[0],20,a[1]);}
+const cap=(r,y,f)=>{const q=[[r[0],r[1]],[r[2],r[1]],[r[2],r[3]],[r[0],r[3]]];for(const t of [[0,1,2],[0,2,3]]){const o=f?[q[t[0]],q[t[2]],q[t[1]]]:t.map(i=>q[i]);for(const p of o)s.push(p[0],y,p[1]);}};
+cap([0,0,10,35],0,false);cap([10,27,30,35],0,false);cap([0,0,10,35],20,true);cap([10,27,30,35],20,true);
+let v=0;for(let i=0;i<s.length;i+=9){const[ax,ay,az,bx,by,bz,cx,cy,cz]=s.slice(i,i+9);v+=ax*(by*cz-bz*cy)-ay*(bx*cz-bz*cx)+az*(bx*cy-by*cx);}
+if(v<0)for(let i=0;i<s.length;i+=9)for(let k=0;k<3;k++){const t=s[i+3+k];s[i+3+k]=s[i+6+k];s[i+6+k]=t;}
+return new Float64Array(s)}
+function sideFace(L){for(let f=0;f<L.length/9;f++){const xs=[L[f*9],L[f*9+3],L[f*9+6]];if(xs.every(x=>Math.abs(x-10)<1e-9)&&Math.max(L[f*9+2],L[f*9+5],L[f*9+8])<=27)return f;}return -1}
+function must(c,msg){if(!c){console.error(msg);process.exit(1);}}"""
 
 
-def write_entry(src):
-    """The bundle entry: bridge.js plus the extras that apply to this release. Returns the extras."""
+def extras_for(src):
+    """The extras that can be made for this release: [(name, files {name: text}, entry code, exports, probe)]."""
     eng = os.path.join(src, "plugins", "shared", "engine")
-    extras, parts = [], []
-    try:
-        with open(os.path.join(eng, "draw_entry.js"), encoding="utf-8") as fh:
-            d = fh.read()
-        with open(os.path.join(eng, "bridge.js"), encoding="utf-8") as fh:
-            b = fh.read()
-    except OSError:
-        d = b = ""
+    out = []
+    read = lambda *p: open(os.path.join(*p), encoding="utf-8").read() if os.path.isfile(os.path.join(*p)) else ""  # noqa: E731
+    seat = read(EXTRAS_DIR, "stle_seat.js")
     # drawWallThrough: draw_entry.js's drawWall with the curve point Support Fins' own
     # drawnWall takes (opts.through, the site's Curve tool) passed on
-    if (len(CURVE_SIG.findall(d)) == 1 and d.count(CURVE_CALL) == 1
-            and "export function b64ToBytes" in b and "export function bytesToB64" in b):
+    d = read(eng, "draw_entry.js")
+    if len(CURVE_SIG.findall(d)) == 1 and d.count(CURVE_CALL) == 1:
         d = CURVE_SIG.sub("export function drawWallThrough(positions, a, b, through, options = {}) {", d)
         d = d.replace(CURVE_CALL, "drawnWall(seat(a), seat(b), tris, 0, { through: through ? seat(through) : null,")
-        with open(os.path.join(eng, "stle_draw_through.js"), "w", encoding="utf-8") as fh:
-            fh.write(d)
-        parts.append(CURVE_EXPORTS)
-        extras += ["drawWallThrough", "drawWallThroughB64"]
-    path = os.path.join(eng, "stle_entry.js")
+        out.append(("curves", {"stle_draw_through.js": d, "stle_seat.js": seat}, CURVE_EXPORTS,
+                    ["drawWallThrough", "drawWallThroughB64"],
+                    "const w = m.drawWallThrough(ell(), [22, 3, 27], [22, 17, 27], [25, 10, 27], {}); must(w.ok, 'curve: ' + w.reason);"))
+    # gussets, anchor fins, Suggest and Strength: our modules calling the site's own
+    for name, fname, exports, probe in (
+        ("gussets", "stle_gusset.js", ["gussetWall", "gussetWallB64"],
+         "const g = m.gussetWall(ell(), [10, 10, 8], [18, 10, 27], [1, 0, 0], {}); must(g.ok && g.triangles.length, 'gusset: ' + g.reason);"),
+        ("anchors", "stle_anchor.js", ["anchorFin", "anchorFinB64"],
+         "const L = ell(); const a = m.anchorFin(L, [10, 10, 15], sideFace(L), {}, m.optionsFromDialog({'sway.on': true}).sway);"
+         " must(a.ok && a.triangles.length, 'anchor: ' + a.reason);"),
+        ("orient", "stle_orient.js", ["suggestPoses", "strengthOf", "strongestPose", "suggestPosesJson", "strengthOfJson", "strongestPoseJson"],
+         "const s = m.suggestPoses(ell(), {}, 3); must(s.candidates.length && s.candidates[0].rot.length === 9, 'suggest');"
+         " must(['strong', 'mixed', 'weak'].includes(m.strengthOf(ell(), {}, [0, 0, 1]).posture), 'strength');"
+         " must(m.strengthOf(ell(), {}, [0, 0, 1]).load.quality, 'load'); must(m.strongestPose(ell(), {}, [0, 0, 1]), 'strongest');"),
+    ):
+        code = read(EXTRAS_DIR, fname)
+        if code and seat:
+            out.append((name, {fname: code, "stle_seat.js": seat}, f"export * from './{fname[:-3]}.js';", exports, probe))
+    return out
+
+
+def write_entry(eng, extras, name="stle_entry.js"):
+    for _, files, _, _, _ in extras:
+        for fn, text in files.items():
+            with open(os.path.join(eng, fn), "w", encoding="utf-8") as fh:
+                fh.write(text)
+    path = os.path.join(eng, name)
     with open(path, "w", encoding="utf-8") as fh:
-        fh.write(ENTRY.replace("%s", "\n".join(parts)))
-    return path, extras
+        fh.write(ENTRY.replace("%s", "\n".join(e[2] for e in extras)))
+    return path
+
+
+def try_extras(src, stage, common):
+    """Build and run each extra on its own; the ones that work, and why the others didn't."""
+    eng = os.path.join(src, "plugins", "shared", "engine")
+    ok, skipped = [], {}
+    for ex in extras_for(src):
+        name = ex[0]
+        entry = write_entry(eng, [ex], f"stle_try_{name}.js")
+        out = os.path.join(stage, f"try_{name}.mjs")
+        r = subprocess.run(esbuild() + [entry, "--format=esm", f"--outfile={out}"] + common, capture_output=True, text=True)
+        if r.returncode:
+            lines = (r.stderr or r.stdout).strip().splitlines()
+            skipped[name] = [ln.strip() for ln in lines if "ERROR" in ln or "error" in ln][:1] or lines[-1:] or ["build failed"]
+            continue
+        probe = os.path.join(stage, f"try_{name}_probe.mjs")
+        with open(probe, "w", encoding="utf-8") as fh:
+            fh.write(PROBE_PART + f"\nconst m = await import('./try_{name}.mjs');\n" + ex[4] + "\nconsole.log('ok');\n")
+        r = subprocess.run(["node", probe], cwd=stage, capture_output=True, text=True, timeout=300)
+        os.remove(out); os.remove(probe)
+        if r.returncode:
+            skipped[name] = (r.stderr or r.stdout).strip().splitlines()[-1:] or ["probe failed"]
+            continue
+        ok.append(ex)
+    return ok, skipped
 
 
 def build(tag):
@@ -141,8 +191,12 @@ def build(tag):
             sys.exit(f"{tag}: options.json is version {schema.get('version')}, this app reads {SCHEMA_VERSION}.")
         stage = os.path.join(tmp, "out")
         os.makedirs(stage)
-        entry, extras = write_entry(src)
         common = ["--bundle", "--target=es2022", "--minify", "--log-level=warning", "--legal-comments=eof"]
+        good, skipped = try_extras(src, stage, common)
+        for name, why in skipped.items():
+            print(f"  extra '{name}' left out for {tag}: {' '.join(why)}")
+        extras = [f for ex in good for f in ex[3]]
+        entry = write_entry(os.path.join(src, "plugins", "shared", "engine"), good)
         run(esbuild() + [entry, "--format=esm", f"--outfile={os.path.join(stage, 'engine.esm.js')}"] + common)
         run(esbuild() + [entry, "--format=iife", "--global-name=SupportFinsEngine",
                          f"--outfile={os.path.join(stage, 'engine.iife.js')}"] + common)
@@ -152,19 +206,13 @@ def build(tag):
                  " const r = m.computeFins(cube(), {});"
                  " if (!(r.triangles instanceof Float32Array)) process.exit(1);"
                  " for (const k of %s) if (typeof m[k] !== 'function') { console.error('extra missing: ' + k); process.exit(1); }"
-                 " if (m.drawWallThrough) { const w = m.drawWallThrough(ell(), [22, 3, 27], [22, 17, 27], [25, 10, 27], {});"
-                 "   if (!w.ok) { console.error('curve: ' + w.reason); process.exit(1); } }"
                  " console.log(m.reportLine(r.stats)); });"
                  % (json.dumps(NEEDED), json.dumps(extras)))
         cube = ("function cube(){const s=[],P=[[0,0,0],[20,0,0],[20,10,0],[0,10,0],[0,0,10],[20,0,10],[20,10,10],[0,10,10]],"
                 "F=[[0,2,1],[0,3,2],[4,5,6],[4,6,7],[0,1,5],[0,5,4],[1,2,6],[1,6,5],[2,3,7],[2,7,6],[3,0,4],[3,4,7]];"
                 "for(const f of F)for(const i of f)s.push(...P[i]);return new Float64Array(s)}")
-        # an upside-down L: a post and an arm out over the plate, for the curved wall
-        ell = ("function box(s,x0,y0,z0,x1,y1,z1){const P=[[x0,y0,z0],[x1,y0,z0],[x1,y1,z0],[x0,y1,z0],[x0,y0,z1],[x1,y0,z1],[x1,y1,z1],[x0,y1,z1]],"
-               "F=[[0,2,1],[0,3,2],[4,5,6],[4,6,7],[0,1,5],[0,5,4],[1,2,6],[1,6,5],[2,3,7],[2,7,6],[3,0,4],[3,4,7]];for(const f of F)for(const i of f)s.push(...P[i])}"
-               "function ell(){const s=[];box(s,0,0,0,10,20,27);box(s,0,0,27,30,20,35);return new Float64Array(s)}")
         with open(os.path.join(stage, "probe.mjs"), "w", encoding="utf-8") as fh:
-            fh.write(cube + "\n" + ell + "\n" + probe)
+            fh.write(cube + "\n" + probe)
         report = run(["node", "probe.mjs"], cwd=stage).strip()
         os.remove(os.path.join(stage, "probe.mjs"))
         shutil.copyfile(os.path.join(src, "LICENSE"), os.path.join(stage, "LICENSE.txt"))
@@ -176,6 +224,7 @@ def build(tag):
                        for f in ("engine.esm.js", "engine.iife.js")},
             "options": len(schema.get("options", [])),
             "extras": extras,
+            "features": [ex[0] for ex in good],
         }
         with open(os.path.join(stage, "VERSION.json"), "w", encoding="utf-8", newline="\n") as fh:
             json.dump(info, fh, indent=1)

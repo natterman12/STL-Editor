@@ -521,7 +521,7 @@ function f_supportfins(state, fid, p, res, ctx = {}) {
     res.paint = { body: bid, over: r.over, small: r.small };
     // fins you clicked away, and walls you drew by hand (Support Fins' "+ Add walls by hand")
     const { gone, missing } = SFX.matchRemoved(r.pieces, p.removed);
-    const hand = drawnWalls(p).filter(w => (w.points || []).length >= 2);
+    const hand = drawnWalls(p).filter(w => (w.points || []).length >= (w.shape === 'anchor' ? 1 : 2));
     const wr = hand.length ? SFX.walls(mesh, hand, p.options || {}) : null;
     if (wr) res.walls = wr.walls.map(w => ({ ok: w.ok, reason: w.reason || null }));
     const extra = [gone.size ? `${gone.size} removed` : '', wr ? `${wr.walls.filter(w => w.ok).length} drawn by hand` : ''].filter(Boolean).join(', ');
@@ -530,6 +530,8 @@ function f_supportfins(state, fid, p, res, ctx = {}) {
     if (wr) wr.walls.forEach((w, i) => { if (!w.ok || w.failed) notes.push(`Hand wall ${i + 1}${w.ok ? ' (part of it)' : ''}: ${w.reason}.`); });
     const kept = r.solids.filter((_, i) => !gone.has(i));
     const all = [...kept, ...(wr ? wr.solids : [])];
+    // the plastic the supports cost (the site's grams receipt; the panel turns it into grams)
+    res.support = { volume: Math.round(all.reduce((t, m) => t + m.volume(), 0) * 10) / 10, pieces: all.length };
     if (ctx.preview) {
       // every fin a body of its own beside the untouched part, so one can be clicked to remove
       // it; removed ones stay as see-through ghosts to click back
@@ -567,7 +569,7 @@ export function drawnWalls(p) {
 
 function f_supportwall(state, fid, p, res, ctx = {}) {
   const bid = p.body, b = state.body(bid);
-  const list = drawnWalls(p).filter(w => (w.points || []).length >= 2);
+  const list = drawnWalls(p).filter(w => (w.points || []).length >= (w.shape === 'anchor' ? 1 : 2));
   if (!list.length) throw new GeometryError('Click on the part to draw a wall under an overhang.');
   const r = SFX.walls(b.mesh(), list, p.options || {});
   res.walls = r.walls.map(w => ({ ok: w.ok, reason: w.reason || null }));
@@ -577,6 +579,7 @@ function f_supportwall(state, fid, p, res, ctx = {}) {
     throw new GeometryError(list.length === 1 ? `Support Fins couldn’t place that wall: ${r.walls[0].reason}.`
       : `Support Fins couldn’t place any of the ${list.length} walls (${r.walls[0].reason}).`);
   }
+  res.support = { volume: Math.round(r.solids.reduce((t, m) => t + m.volume(), 0) * 10) / 10, pieces: r.solids.length };
   const len = good.reduce((s, w) => s + w.length, 0), tines = good.reduce((s, w) => s + w.tines, 0);
   const tall = Math.max(...good.map(w => w.height));
   res.info = good.length === 1

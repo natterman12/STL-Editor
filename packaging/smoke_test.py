@@ -106,6 +106,10 @@ def main(exe):
         step("offset", lambda: add("offset", {"bodies": [st["b"]], "distance": 0.3}))
         step("support fins info", lambda: call("supportfins/info", {}))
         step("support fins", lambda: add("supportfins", {"body": S, "output": "separate", "options": {"mode": "full"}}))
+        if call("supportfins/info", {}).get("features", {}).get("orient"):   # an extra a release may lack
+            step("suggest orientations", lambda: call("supportfins/suggest", {"body": S, "options": {}}))
+            step("strength", lambda: call("supportfins/strength", {"body": S, "options": {}, "load": [0, 0, 1]}))
+        step("parameters", lambda: call("params/set", {"params": [{"name": "w", "expr": "12"}, {"name": "h", "expr": "w/2"}]}))
         step("draw walls", lambda: add("supportwall", {"body": S, "output": "separate", "options": {}, "walls": [
             {"shape": "curve", "points": [[9, 0, 3], [0, 9, 3], [6.4, 6.4, 3]]},
             {"shape": "path", "points": [[-9, 0, 3], [-6, -6, 3], [0, -9, 3]]}]}))

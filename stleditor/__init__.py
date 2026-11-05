@@ -1,5 +1,5 @@
 """STL Editor engine."""
-__version__ = "1.10.0"
+__version__ = "1.11.0"
 
 # GitHub repository ("owner/name") whose Releases page announces new versions.
 # Set it before building the portable zip; it can also be changed in Help > Update settings.

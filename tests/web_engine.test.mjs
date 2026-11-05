@@ -373,6 +373,63 @@ test('Support Fins: remove a fin, add one by hand, each fin its own preview piec
   assert.ok(Object.values(ph.pieces).some(p => p.kind === 'hand'));
 });
 
+test('Parameters: expressions in any number, rebuilt when a value changes', async () => {
+  const E = await load('js/expr.js');
+  assert.equal(E.evaluate('=2*(3+4)^2 - sqrt(16) + sin(30) + max(1,5,3) % 3', {}), 96.5);
+  assert.equal(E.evaluate('round(2.5) + floor(-1.5) + atan(1)', {}), 3 - 2 + 45);
+  const r = E.resolveParams([{ name: 'b', expr: 'a*2' }, { name: 'a', expr: '10' }, { name: 'c', expr: 'c+1' }, { name: '9x', expr: '1' }]);
+  assert.deepEqual(r.values, { a: 10, b: 20 });
+  assert.match(r.errors.c, /depends on itself/);
+  assert.match(r.errors['9x'], /isn't a name/);
+  assert.throws(() => E.evaluate('=w+', { w: 1 }), /ends too soon/);
+  const doc = new Document();
+  doc.setParams([{ name: 'w', expr: '40' }, { name: 'h', expr: 'w/4 + 5' }]);
+  doc.addFeature('primitive', { shape: 'box', length: '=w', width: 20, height: '=h*2', plane: 'XY', offset: [0, 0, '=h'], rotate: [0, 0, 0], anchor: 'base', operation: 'new', targets: [], body_name: 'Box' });
+  const size = () => { const [lo, hi] = [...doc.state.bodies.values()][0].bbox(); return hi.map((x, i) => +(x - lo[i]).toFixed(4)).concat(+lo[2].toFixed(4)); };
+  assert.deepEqual(size(), [40, 20, 30, 15]);
+  doc.setParams([{ name: 'w', expr: '60' }, { name: 'h', expr: 'w/4 + 5' }]);
+  assert.deepEqual(size(), [60, 20, 40, 20]);
+  doc.undo();
+  assert.deepEqual(size(), [40, 20, 30, 15]);
+  // a project keeps them
+  const back = Document.fromBytes(doc.saveBytes(), 'p.stlx');
+  assert.deepEqual(back.params.map(q => q.name), ['w', 'h']);
+  doc.setParams([{ name: 'w', expr: '40' }]);
+  assert.match(doc._results.at(-1).error, /no parameter "h"/);
+  assert.throws(() => doc.setParams([{ name: 'sin', expr: '1' }]), /built-in/);
+});
+
+test('Support Fins extras: suggested poses, strength, gussets and anchor fins', async () => {
+  const SFX = await load('engine/supportfins.js');
+  await SFX.load();
+  // a Support Fins release that broke an extra is vendored without it; what is there has to work
+  const have = JSON.parse(fs.readFileSync(path.join(web, 'vendor/support-fins/VERSION.json'), 'utf8')).features || [];
+  const feats = SFX.info().features;
+  assert.deepEqual(Object.keys(feats).filter(k => feats[k]).sort(), [...have].sort());
+  const doc = new Document();
+  const ell = W.Manifold.union([W.Manifold.cube([10, 20, 35]), W.Manifold.cube([30, 20, 8]).translate([0, 0, 27])]);
+  const [e] = doc.importFile('ell.stl', stlOf(ell), true, 'keep');
+  const mesh = doc.state.body(e.id).mesh();
+  if (feats.orient) {
+    const sg = SFX.suggest(mesh, {}, 3);
+    assert.equal(sg.candidates.length, 3);
+    assert.equal(sg.candidates[0].rot.length, 9);
+    assert.equal(Math.round(sg.candidates[0].overArea), 0, 'lying down needs nothing');
+    const st = SFX.strength(mesh, {}, [0, 0, 1]);
+    assert.equal(st.posture, 'weak');
+    assert.equal(st.load.quality, 'poor');
+    assert.equal(st.strongest.quality, 'good');
+  }
+  const walls = [...(feats.gussets ? [{ shape: 'gusset', points: [[10, 10, 8], [18, 10, 27]], normal: [1, 0, 0] }] : []),
+    ...(feats.anchors ? [{ shape: 'anchor', points: [[10, 10, 15]], normal: [1, 0, 0] }] : [])];
+  const [, pr] = doc.preview('supportfins', { body: e.id, output: 'join', options: {}, walls });
+  assert.ok((pr.walls || []).every(w => w.ok));
+  if (walls.length === 2) {
+    assert.match(pr.info, /2 drawn by hand/);
+    approx(pr.support.volume, 2014.4, 2e-3, 'support plastic');   // the desktop engine gives the same
+  }
+});
+
 test('Move: a rotated part lands on the bed', () => {
   const [doc, B] = block();
   doc.addFeature('move', { bodies: [B], translate: [0, 0, 0], rotate: [30, 0, 0], pivot: 'center', bed: true });

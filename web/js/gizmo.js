@@ -58,7 +58,7 @@ export class Gizmo {
     return t.values._gizmo === 'rotate' ? 'rotate' : 'translate';
   }
 
-  bodies(t = this.tool) {
+  bodies(t = this.tool || this.app.tool) {
     const ids = (t?.def.gizmo === 'pose' ? t.values.body : t?.values.bodies) || [];
     return ids.map(id => [id, this.app.viewer.bodies.get(id), this.app.state.bodies.find(b => b.id === id)]).filter(x => x[1] && x[2]?.bbox);
   }
@@ -127,7 +127,7 @@ export class Gizmo {
   /** The tool's numbers, with the scale tool's as three factors (_k). */
   values(t = this.tool) {
     if (t.def.gizmo === 'pose') return { translate: [0, 0, 0], rotate: [0, 0, 0], pivot: 'center', bed: true };
-    const v = { ...t.values };
+    const v = this.app.resolved({ ...t.values });
     if (t.def.gizmo === 'scale') {
       const b = this.bodies(t)[0]?.[2];
       const size = b ? b.bbox[1].map((x, i) => x - b.bbox[0][i]) : [1, 1, 1];

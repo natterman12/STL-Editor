@@ -85,10 +85,18 @@ any slicer with supports turned off.
 2. **Rotate** (the panel starts here): drag the rings on the part to turn it the way you want
    to print it. It stays on the bed, the turn is applied as soon as you let go (one *Rotate*
    step on the timeline), and the fins are rebuilt. You choose the orientation; Support Fins
-   doesn't.
-3. **Add fins**: draw walls by hand where the auto fins left a gap (line, multi-line or curve,
-   as in Draw Walls below). **Remove fins**: click a fin to take it away (it turns see-through
+   only suggests: **Suggest orientations** tries the part every way down and lists the best
+   few (how much needs support, how tall, how many fins, how much plastic), and *Use* turns
+   the part that way.
+   **Strength** says how the layers sit for this pose: prints are weakest across their
+   layers, so a long part standing up is the weak way to print it. Set *Load in use* (how
+   the part is pulled when it's used) and it says whether the load runs along the layers or
+   across them, with *Turn it to the strongest pose* when a better one exists.
+3. **Add fins**: draw walls by hand where the auto fins left a gap (line, multi-line, curve,
+   gusset or anchor, as in Draw Walls below). **Remove fins**: click a fin to take it away (it turns see-through
    red); click it again to bring it back, or *Bring all back*.
+   **Support plastic** shows what the supports add, in grams, from their exact volume (pick
+   your filament: PLA, PETG, ABS, ASA, TPU or Nylon).
 4. Adjust the settings and press OK. *Add as: Part of the body* joins the fins to the part
    so it exports as one object; *Separate body* keeps them apart so you can hide them.
 
@@ -111,6 +119,11 @@ you place breakaway walls under them by hand, as many as you like:
 - *Multi-line*: click each corner of a wall that changes direction; double-click the last
   point (or press Enter, or *Finish wall*) to end it.
 - *Curve*: click the two ends, then a point on the curve between them.
+- *Gusset*: a fin that stands off a side of the part instead of the bed, like the triangle
+  under a shelf. Click the side (low enough for the fin to climb out at 50°), then the
+  overhang it should reach.
+- *Anchor*: a rib that holds a tall side, or a back that leans up, from the bed. Click the
+  side where it should stand.
 
 A green band follows the pointer while you draw. Esc drops the wall in progress, Ctrl+Z (or
 *Undo*) takes back the last point or wall. A wall Support Fins can't build is drawn red with
@@ -157,6 +170,17 @@ Studio / OrcaSlicer / SolidCraft.
 `Del` remove selected bodies. In a sketch: `L` line, `A` arc, `R` rectangle, `C` circle,
 `P` polygon, `S` slot, `T` trim, `Ctrl+Z` undo the last shape.
 
+## Parameters
+
+Name a value once and use it anywhere: Edit › Parameters… (or Solid tab › Parameters, or the
+*Parameters* folder in the browser). Give each one a name and a value; a value can use other
+parameters (`height = width / 4 + 5`). Then type the name, or an expression like
+`=width/2 + 3`, into any number in a tool: an extrude distance, a hole diameter, a box size, a
+move. Change a parameter and every step that uses it is rebuilt. Expressions are in mm (degrees
+for angles) and can use `+ - * / ^ ( )`, `sqrt`, `min`, `max`, `round`, `sin`, `cos`, `tan`
+and `pi`. A field with an expression shows it in purple; hover it to see what it comes to.
+Parameters are saved in the project, and Ctrl+Z undoes a change.
+
 ## Units and theme
 
 View › Units switches between millimetres and inches (you can type fractions like `1 3/8`).
@@ -170,6 +194,13 @@ next start offers to recover it (also Help › Recover Unsaved Work).
 Help › Check for Updates asks the project's GitHub Releases page whether a newer version
 exists (only that public page is contacted; nothing about you or your files is sent). The
 repository is set in Help › Update Settings (default: `natterman12/STL-Editor`; leave it empty to turn checks off).
+
+When there's a new version, **Update now** installs it in one click: the app downloads the
+release, checks it against its SHA-256, swaps it in and starts again (unsaved work is kept for
+Recover Unsaved Work). This needs the STL Editor folder somewhere you can write to, like
+Documents or the Desktop. A copy run from a git checkout pulls the new version instead (only
+when it has no changes of its own). When a newer Support Fins engine has been downloaded,
+Help › About Support Fins has a *Restart now* link.
 
 ## Web edition
 

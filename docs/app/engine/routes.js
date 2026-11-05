@@ -6,7 +6,7 @@ import * as PR from './printing.js';
 import * as MT from './meshtools.js';
 import * as SFX from './supportfins.js';
 
-export const VERSION = '1.10.0';
+export const VERSION = '1.11.0';
 const PALETTE = ['#9aa7b4', '#c9a66b', '#7fa8c9', '#a3c48a', '#c98a8a', '#a993c9', '#c9b98a', '#8ac9c0'];
 
 export const app = { doc: new Document() };
@@ -27,7 +27,9 @@ export function stateJson() {
   });
   const planes = [...st.planes].map(([k, p]) => ({ id: k, name: fname(k, p.name), frame: p.frame, hidden: d.ui.hidden.includes(k) }));
   const sketches = [...st.sketches].map(([k, s]) => ({ id: k, name: fname(k, s.name), frame: s.frame, entities: s.entities, refs: s.refs || [], hidden: d.ui.hidden.includes(k) }));
-  return { features, rollback: d.rollback, bodies, planes, sketches,
+  const pv = d.paramValues();
+  const params = d.params.map(q => ({ ...q, value: pv.values[q.name] ?? null, error: pv.errors[q.name] ?? null }));
+  return { features, rollback: d.rollback, bodies, planes, sketches, params,
     doc: { path: d.path, name: d.path || d.title || 'Untitled', dirty: d.dirty, can_undo: !!d._undo.length, can_redo: !!d._redo.length, version: VERSION, autosaved: null, web: true },
     recent: [] };
 }
@@ -54,6 +56,7 @@ export const ROUTES = {
   'feature/delete': d => { app.doc.deleteFeature(d.id); return ok(); },
   'feature/move': d => { app.doc.moveFeature(d.id, +d.index); return ok(); },
   rollback: d => { app.doc.setRollback(d.index ?? null); return ok(); },
+  'params/set': d => { app.doc.setParams(d.params || []); return ok(); },
   preview: d => {
     const [state, res] = app.doc.preview(d.type, d.params || {}, d.edit_id);
     const ids = [...new Set([...(res.created || []), ...(res.modified || [])])].filter(i => state.bodies.has(i));
@@ -119,6 +122,8 @@ export const ROUTES = {
     return { ok: true, entities: out };
   },
   'supportfins/info': () => ({ ok: true, ...SFX.info() }),
+  'supportfins/suggest': d => ({ ok: true, ...SFX.suggest(app.doc.state.body(d.body).mesh(), d.options || {}, d.top || 3) }),
+  'supportfins/strength': d => ({ ok: true, ...SFX.strength(app.doc.state.body(d.body).mesh(), d.options || {}, d.load || null) }),
   printers: () => ({ ok: true, printers: Object.fromEntries(Object.entries(PR.PRINTERS).map(([k, v]) => [k, { name: v[0], bed: v[1] }])) }),
   body: d => { app.doc.setBodyProps(d.id, d.name, d.color, d.hidden); return ok(); },
   info: d => ({ ok: true, info: { ...app.doc.state.body(d.id).info(), name: app.doc.bodyName(d.id) } }),

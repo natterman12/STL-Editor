@@ -477,3 +477,104 @@ def test_support_fins_remove_and_hand_walls():
                                        "walls": [{"shape": "line", "points": [[24, 104, 27], [24, 116, 27]]}]})
     assert "1 drawn by hand" in ph["info"]
     assert any(p["kind"] == "hand" for p in ph["pieces"].values())
+
+
+def test_parameters():
+    from stleditor.params import evaluate, resolve_params, ExprError
+    assert evaluate("=2*(3+4)^2 - sqrt(16) + sin(30) + max(1,5,3) % 3") == 96.5
+    assert evaluate("round(2.5) + floor(-1.5) + atan(1)") == 3 - 2 + 45
+    r = resolve_params([{"name": "b", "expr": "a*2"}, {"name": "a", "expr": "10"}, {"name": "c", "expr": "c+1"}])
+    assert r["values"] == {"a": 10, "b": 20} and "depends on itself" in r["errors"]["c"]
+    with pytest.raises(ExprError):
+        evaluate("(-8)^0.5")
+    d = Document()
+    d.set_params([{"name": "w", "expr": "40"}, {"name": "h", "expr": "w/4 + 5"}])
+    d.add_feature("primitive", {"shape": "box", "length": "=w", "width": 20, "height": "=h*2", "plane": "XY",
+                                "offset": [0, 0, "=h"], "rotate": [0, 0, 0], "anchor": "base", "operation": "new",
+                                "targets": [], "body_name": "Box"})
+
+    def size():
+        v, _ = list(d.state.bodies.values())[0].mesh()
+        return [round(float(x), 4) for x in (v.max(0) - v.min(0))] + [round(float(v[:, 2].min()), 4)]
+    assert size() == [40, 20, 30, 15]
+    d.set_params([{"name": "w", "expr": "60"}, {"name": "h", "expr": "w/4 + 5"}])
+    assert size() == [60, 20, 40, 20]
+    d.undo()
+    assert size() == [40, 20, 30, 15]
+    d.set_params([{"name": "w", "expr": "40"}])
+    assert 'no parameter "h"' in d._results[-1]["error"]
+    with pytest.raises(GeometryError):
+        d.set_params([{"name": "sin", "expr": "1"}])
+
+
+def test_parameters_saved(tmp_path):
+    d = Document()
+    d.set_params([{"name": "w", "expr": "12"}])
+    d.add_feature("primitive", {"shape": "box", "length": "=w", "width": 5, "height": 5, "plane": "XY", "offset": [0, 0, 0],
+                                "rotate": [0, 0, 0], "anchor": "base", "operation": "new", "targets": [], "body_name": "Box"})
+    d.save(str(tmp_path / "p.stlx"))
+    d2 = Document.open(str(tmp_path / "p.stlx"))
+    assert d2.params[0]["name"] == "w"
+    assert abs(list(d2.state.bodies.values())[0].info()["volume"] - 300) < 1e-6
+
+
+def test_support_fins_extras():
+    pytest.importorskip("py_mini_racer")
+    from stleditor import supportfins as SF
+    # a Support Fins release that broke an extra is vendored without it (the daily update still
+    # goes through); what is there has to work
+    have = json.load(open(os.path.join(SF.BUNDLED, "VERSION.json"))).get("features", [])
+    feats = SF.features()
+    assert sorted(k for k, v in feats.items() if v) == sorted(have)
+    ell = m3.Manifold.cube([10, 20, 35]) + m3.Manifold.cube([30, 20, 8]).translate([0, 0, 27])
+    d, e = _doc_with(ell, "ell.stl")
+    v, f = d.state.body(e).mesh()
+    if feats["orient"]:
+        sg = SF.suggest(v, f, {})
+        assert len(sg["candidates"]) == 3 and round(sg["candidates"][0]["overArea"]) == 0
+        st = SF.strength(v, f, {}, [0, 0, 1])
+        assert st["posture"] == "weak" and st["load"]["quality"] == "poor" and st["strongest"]["quality"] == "good"
+    walls = ([{"shape": "gusset", "points": [[10, 10, 8], [18, 10, 27]], "normal": [1, 0, 0]}] if feats["gussets"] else []) + \
+        ([{"shape": "anchor", "points": [[10, 10, 15]], "normal": [1, 0, 0]}] if feats["anchors"] else [])
+    _, pr = d.preview("supportfins", {"body": e, "output": "join", "options": {}, "walls": walls})
+    assert all(w["ok"] for w in pr.get("walls", []))
+    if len(walls) == 2:
+        assert "2 drawn by hand" in pr["info"]
+        assert abs(pr["support"]["volume"] - 2014.4) < 4     # the web engine gives the same
+
+
+def test_one_click_update_download(tmp_path, monkeypatch):
+    """The portable app downloads the release zip, checks its SHA-256 and unpacks it."""
+    import functools
+    import hashlib
+    import http.server
+    import threading
+    import zipfile as zf
+    from stleditor import updates as U
+    z = tmp_path / "serve" / U.ASSET
+    z.parent.mkdir()
+    with zf.ZipFile(z, "w") as w:
+        w.writestr("STL Editor/STL Editor.exe", b"new exe")
+        w.writestr("STL Editor/_internal/x.pyd", b"lib")
+    digest = hashlib.sha256(z.read_bytes()).hexdigest()
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), functools.partial(http.server.SimpleHTTPRequestHandler,
+                                                                                directory=str(z.parent)))
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    url = f"http://127.0.0.1:{srv.server_address[1]}/{U.ASSET}"
+    app_dir = tmp_path / "app"
+    app_dir.mkdir()
+    monkeypatch.setattr(U, "install_mode", lambda: "portable")
+    monkeypatch.setattr(U, "app_dir", lambda: str(app_dir))
+    monkeypatch.setattr(U, "WORK", str(tmp_path / "work"))
+    rel = {"tag_name": "v9.9.9", "assets": [{"name": U.ASSET, "browser_download_url": url, "size": z.stat().st_size,
+                                             "digest": "sha256:" + digest}]}
+    monkeypatch.setattr(U, "_release", lambda: rel)
+    U._install()
+    try:
+        assert U.INSTALL["state"] == "ready", U.INSTALL
+        assert os.path.isfile(os.path.join(U.INSTALL["src"], "STL Editor.exe"))
+        rel["assets"][0]["digest"] = "sha256:" + "0" * 64
+        U._install()
+        assert U.INSTALL["state"] == "error" and "checksum" in U.INSTALL["error"]
+    finally:
+        srv.shutdown()

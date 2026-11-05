@@ -2,11 +2,13 @@
 // overhangs, as many as you like, each one a straight line (two clicks), a line of several
 // sections (click each corner, double-click or Enter to finish) or a curve (its two ends,
 // then a point it runs through). The walls are built by Support Fins' own engine.
-const SHAPES = [['line', 'Line'], ['path', 'Multi-line'], ['curve', 'Curve']];
+const ALL_SHAPES = [['line', 'Line'], ['path', 'Multi-line'], ['curve', 'Curve'], ['gusset', 'Gusset'], ['anchor', 'Anchor']];
 const HINTS = {
   line: 'Click two points under an overhang for each wall. Keep clicking to add more walls.',
   path: 'Click each corner of the wall; double-click (or press Enter) on the last point to finish it.',
   curve: 'Click the two ends of the wall, then a point on the curve between them.',
+  gusset: 'Gusset: a fin off a side of the part instead of the plate. Click the side (low enough for the fin to climb out at 50°), then the overhang it should reach.',
+  anchor: 'Anchor fin: a rib that holds a tall side or a back that leans up. Click the side where it should stand.',
 };
 const OK_COL = 0x2f9e5a, BAD_COL = 0xd64545, BAND_COL = 0x59d98e, PENDING_COL = 0x1f9e55;
 const SHAPE_KEY = 'stle_draw_shape';
@@ -37,6 +39,7 @@ export function arcPath(a, b, m, step = 1.5) {
 /** The line a wall follows, for drawing it on screen. */
 export function wallLine(w) {
   const p = w.points || [];
+  if (w.shape === 'anchor' && p.length) { const n = w.normal || [0, 0, 1]; return [p[0], p[0].map((x, i) => x + n[i] * 6)]; }
   if (w.shape === 'curve' && p.length === 3) return arcPath(p[0], p[1], p[2])?.points || [p[0], p[1]];
   return p;
 }
@@ -46,7 +49,13 @@ export class WallDrawer {
     this.app = app;
     this.pending = [];
     this.hoverPt = null;
-    try { this.shape = SHAPES.some(s => s[0] === localStorage.getItem(SHAPE_KEY)) ? localStorage.getItem(SHAPE_KEY) : 'line'; } catch { this.shape = 'line'; }
+    try { this.shape = ALL_SHAPES.some(s => s[0] === localStorage.getItem(SHAPE_KEY)) ? localStorage.getItem(SHAPE_KEY) : 'line'; } catch { this.shape = 'line'; }
+  }
+
+  /** The shapes this Support Fins engine can build (gussets and anchors are extras a release may lack). */
+  get shapes() {
+    const f = this.app._sfInfo?.features || {};
+    return ALL_SHAPES.filter(([k]) => (k !== 'gusset' || f.gussets) && (k !== 'anchor' || f.anchors));
   }
 
   // Draw Walls, or Support Fins' "Add fins" (walls drawn by hand next to the auto fins)
@@ -61,7 +70,8 @@ export class WallDrawer {
   fieldHTML(f) {
     const n = this.walls.length, st = this.tool?._wallStatus || [];
     const bad = st.filter(x => x && !x.ok).length;
-    const seg = `<div class="seg">${SHAPES.map(([k, l]) => `<button data-wshape="${k}" class="${this.shape === k ? 'on' : ''}">${l}</button>`).join('')}</div>`;
+    if (!this.shapes.some(([k]) => k === this.shape)) this.shape = 'line';
+    const seg = `<div class="seg seg-wrap">${this.shapes.map(([k, l]) => `<button data-wshape="${k}" class="${this.shape === k ? 'on' : ''}">${l}</button>`).join('')}</div>`;
     const count = n ? `${n} wall${n > 1 ? 's' : ''}${bad ? ` <span class="bad">(${bad} couldn’t be placed)</span>` : ''}` : '<span class="ph">None yet: click on the part</span>';
     const pend = this.pending.length ? ` · drawing (${this.pending.length} point${this.pending.length > 1 ? 's' : ''})` : '';
     const finish = this.shape === 'path' && this.pending.length >= 2 ? '<button data-wact="finish">Finish wall</button>' : '';
@@ -119,6 +129,16 @@ export class WallDrawer {
     }
     if (!body) t.values.body = [hit.id];
     const p = hit.point.map(x => +x.toFixed(4));
+    const n = (hit.normal || [0, 0, 1]).map(x => +x.toFixed(5));
+    if (this.shape === 'anchor') {
+      if (Math.abs(n[2]) > 0.98) { this.app.toolMsg('Click a side of the part (or a back that leans up), not a floor or a ceiling.', 'warn'); return true; }
+      this.add({ shape: 'anchor', points: [p], normal: n });
+      return true;
+    }
+    if (this.shape === 'gusset' && !this.pending.length) {
+      if (Math.abs(n[2]) > 0.5) { this.app.toolMsg('Start a gusset on a side of the part: an upright face below the overhang.', 'warn'); return true; }
+      this._side = n;
+    }
     const last = this.pending.at(-1);
     if (last && this.app.viewer.worldToScreen && this.near(last, p, ev)) {
       // a second click on the same spot: a double-click, which ends a multi-section wall
@@ -128,6 +148,7 @@ export class WallDrawer {
     this.pending.push(p);
     if (this.shape === 'line' && this.pending.length === 2) this.add({ shape: 'line', points: this.pending });
     else if (this.shape === 'curve' && this.pending.length === 3) this.add({ shape: 'curve', points: this.pending });
+    else if (this.shape === 'gusset' && this.pending.length === 2) this.add({ shape: 'gusset', points: this.pending, normal: this._side });
     else this.app.renderForm();
     return true;
   }

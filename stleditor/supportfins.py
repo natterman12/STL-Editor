@@ -112,7 +112,35 @@ def info():
     schema = json.loads(_call("optionsSchemaJson"))
     a = _active
     return {"schema": schema, "version": a.get("version"), "tag": a.get("tag"), "commit": a.get("commit"),
-            "source": a.get("source"), "pending": STATE.get("pending"), "curves": _has("drawWallThroughB64")}
+            "source": a.get("source"), "pending": STATE.get("pending"), "curves": _has("drawWallThroughB64"),
+            "features": features()}
+
+
+def features():
+    """The extras this engine has (see packaging/support_fins_extras): a release that broke one leaves it out."""
+    return {"curves": _has("drawWallThroughB64"), "gussets": _has("gussetWallB64"),
+            "anchors": _has("anchorFinB64"), "orient": _has("suggestPosesJson")}
+
+
+def nearest_face(verts, faces, p, n):
+    """The triangle nearest `p` whose normal is close to `n` (how a hand-placed anchor finds its face again)."""
+    v = np.asarray(verts, np.float64)
+    f = np.asarray(faces, np.int64)
+    a, b, c = v[f[:, 0]], v[f[:, 1]], v[f[:, 2]]
+    nrm = np.cross(b - a, c - a)
+    ln = np.linalg.norm(nrm, axis=1)
+    nn = np.asarray(n, np.float64)
+    nn = nn / (np.linalg.norm(nn) or 1)
+    ok = (ln > 0) & ((nrm @ nn) / np.where(ln > 0, ln, 1) >= 0.85)
+    if not ok.any():
+        return -1
+    idx = np.nonzero(ok)[0]
+    import trimesh
+    tri = np.stack([a[idx], b[idx], c[idx]], axis=1)
+    closest = trimesh.triangles.closest_point(tri, np.repeat(np.asarray(p, np.float64)[None], len(idx), axis=0))
+    d = np.linalg.norm(closest - np.asarray(p, np.float64), axis=1)
+    k = int(np.argmin(d))
+    return int(idx[k]) if d[k] < 1.0 else -1
 
 
 def version():
@@ -298,14 +326,40 @@ def walls(verts, faces, wall_list, values):
             return json.loads(r)
         return _cached("wall", (mk, json.dumps([a, b, m]), opts), build)
 
+    def hand_piece(w):
+        """A gusset (off a side, out to an overhang) or an anchor fin (against a side), by hand."""
+        pts = [list(map(float, q)) for q in (w.get("points") or [])]
+        n = [float(x) for x in (w.get("normal") or [0, 0, 0])]
+        if not soup:
+            soup.append(_soup(verts, faces))
+        if w.get("shape") == "gusset":
+            if not _has("gussetWallB64"):
+                return {"ok": False, "reason": "this Support Fins engine has no gussets"}
+            if len(pts) < 2:
+                return {"ok": False, "reason": "click the side, then the overhang"}
+            return _cached("wall", (mk, "g" + json.dumps([pts, n]), opts), lambda: json.loads(
+                _call("gussetWallB64", soup[0], json.dumps(pts[0]), json.dumps(pts[1]), json.dumps(n), opts)))
+        if not _has("anchorFinB64"):
+            return {"ok": False, "reason": "this Support Fins engine has no anchor fins"}
+        face = nearest_face(verts, faces, pts[0], n)
+        if face < 0:
+            return {"ok": False, "reason": "the face it stood on isn’t there any more"}
+        try:
+            sway = json.loads(_call("optionsFromDialogJson", json.dumps({**(values or {}), "sway.on": True}))).get("sway") or {}
+        except GeometryError:
+            sway = {}
+        return _cached("wall", (mk, "a" + json.dumps([pts[0], face]), opts), lambda: json.loads(
+            _call("anchorFinB64", soup[0], json.dumps(pts[0]), face, opts, json.dumps(sway))))
+
     solids, report, by_wall = [], [], []
     for w in wall_list:
         mine = []
         by_wall.append(mine)
         st = {"ok": True, "length": 0.0, "height": 0.0, "tines": 0, "partAttached": False, "sections": 0,
               "failed": 0, "reason": None}
-        for a, b, m in wall_sections(w, curves):
-            r = one(a, b, m)
+        hand = w.get("shape") in ("gusset", "anchor")
+        for a, b, m in ([(None, None, None)] if hand else wall_sections(w, curves)):
+            r = hand_piece(w) if hand else one(a, b, m)
             st["sections"] += 1
             if not r.get("ok"):
                 st["failed"] += 1
@@ -327,6 +381,26 @@ def walls(verts, faces, wall_list, values):
         st["ok"] = st["failed"] < st["sections"]
         report.append(st)
     return {"solids": solids, "byWall": by_wall, "walls": report, "version": _active.get("version")}
+
+
+def suggest(verts, faces, values, top=3):
+    """Support Fins' Suggest: up to `top` print orientations, best first (rot: applied to the part as it is)."""
+    if not _has("suggestPosesJson"):
+        raise GeometryError("This Support Fins engine can’t suggest orientations.")
+    opts = _options(values)
+    return _cached("fins", (_mesh_key(verts, faces), f"suggest{top}", opts),
+                   lambda: json.loads(_call("suggestPosesJson", _soup(verts, faces), opts, int(top))))
+
+
+def strength(verts, faces, values, load=None):
+    """How strong the current pose is, and for a load pointing `load` (as the part sits), if given."""
+    if not _has("strengthOfJson"):
+        raise GeometryError("This Support Fins engine has no strength check.")
+    opts, soup = _options(values), _soup(verts, faces)
+    r = json.loads(_call("strengthOfJson", soup, opts, json.dumps(load) if load else ""))
+    r["strongest"] = (json.loads(_call("strongestPoseJson", soup, opts, json.dumps(load)))
+                      if load and (r.get("load") or {}).get("quality") != "good" else None)
+    return r
 
 
 def wall(verts, faces, a, b, values):

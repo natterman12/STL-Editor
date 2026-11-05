@@ -3,6 +3,7 @@
 import { EVALUATORS, LABELS, State } from './features.js';
 import { GeometryError } from './geom.js';
 import * as IO from './io.js';
+import { resolveParams, resolveDeep, usesExpr, ExprError, NAME_RE, RESERVED } from '../js/expr.js';
 
 const FORMAT_VERSION = 1;
 
@@ -13,6 +14,7 @@ export class Document {
     this.features = [];
     this.rollback = null;
     this.ui = { names: {}, colors: {}, hidden: [] };
+    this.params = [];         // [{name, expr, note}]: the project's parameters
     this.path = null;
     this.title = null;
     this.dirty = false;
@@ -46,9 +48,37 @@ export class Document {
   }
 
   // -- undo
-  _snapshot() { return JSON.stringify({ features: this.features, rollback: this.rollback, ui: this.ui }); }
+  _snapshot() { return JSON.stringify({ features: this.features, rollback: this.rollback, ui: this.ui, params: this.params }); }
   checkpoint() { this._undo.push(this._snapshot()); if (this._undo.length > 200) this._undo.shift(); this._redo = []; this.dirty = true; }
-  _restore(snap) { const d = JSON.parse(snap); this.features = d.features; this.rollback = d.rollback; this.ui = d.ui; this.evaluate(); }
+  _restore(snap) { const d = JSON.parse(snap); this.features = d.features; this.rollback = d.rollback; this.ui = d.ui; this.params = d.params || []; this.evaluate(); }
+
+  // -- parameters
+  /** {values, errors} of the project's parameters (worked out once per change). */
+  paramValues() {
+    const key = JSON.stringify(this.params);
+    if (this._pv?.key !== key) this._pv = { key, ...resolveParams(this.params) };
+    return this._pv;
+  }
+
+  setParams(list) {
+    const clean = (list || []).map(q => ({ name: String(q.name || '').trim(), expr: String(q.expr ?? '').trim(), note: String(q.note || '') }))
+      .filter(q => q.name || q.expr);
+    for (const q of clean) {
+      if (!NAME_RE.test(q.name)) throw new GeometryError(`"${q.name}" can't be a parameter name: use letters, digits and _, starting with a letter.`);
+      if (RESERVED.has(q.name)) throw new GeometryError(`"${q.name}" is a built-in name; pick another.`);
+      if (!q.expr) throw new GeometryError(`Give "${q.name}" a value.`);
+    }
+    const seen = new Set();
+    for (const q of clean) { if (seen.has(q.name)) throw new GeometryError(`"${q.name}" is there twice.`); seen.add(q.name); }
+    this.checkpoint();
+    this.params = clean;
+    return this.evaluate();
+  }
+
+  /** A feature's hash: its parameters, plus the parameter values it uses (so a change rebuilds it). */
+  _hash(f, prev) {
+    return Document.fhash(usesExpr(f.params) ? { ...f, $params: this.paramValues().values } : f, prev);
+  }
   undo() { if (!this._undo.length) return false; this._redo.push(this._snapshot()); this._restore(this._undo.pop()); this.dirty = true; return true; }
   redo() { if (!this._redo.length) return false; this._undo.push(this._snapshot()); this._restore(this._redo.pop()); this.dirty = true; return true; }
 
@@ -62,7 +92,7 @@ export class Document {
     const results = [], cache = [];
     let h = '';
     this.activeFeatures().forEach((f, i) => {
-      h = Document.fhash(f, h);
+      h = this._hash(f, h);
       if (i < this._cache.length && this._cache[i][0] === h && i < this._results.length) {
         state = this._cache[i][1];
         results.push(this._results[i]);
@@ -84,7 +114,7 @@ export class Document {
   _remember(at, f, state, res) {
     if (at > this._cache.length) this.evaluate();
     const prev = at > 0 && at - 1 < this._cache.length ? this._cache[at - 1][0] : '';
-    this._memo.set(Document.fhash(f, prev), [state, res]);
+    this._memo.set(this._hash(f, prev), [state, res]);
     while (this._memo.size > 6) this._memo.delete(this._memo.keys().next().value);
   }
 
@@ -97,7 +127,12 @@ export class Document {
     try {
       const fn = EVALUATORS[f.type];
       if (!fn) throw new GeometryError(`Unknown feature ${f.type}.`);
-      fn(nxt, f.id, f.params || {}, res, ctx);
+      let params = f.params || {};
+      if (usesExpr(params)) {
+        try { params = resolveDeep(params, this.paramValues().values); }
+        catch (e) { if (e instanceof ExprError) throw new GeometryError(`Parameter: ${e.message}.`); throw e; }
+      }
+      fn(nxt, f.id, params, res, ctx);
       state = nxt;
     } catch (e) {
       if (e instanceof GeometryError) res.error = e.message;
@@ -225,7 +260,7 @@ export class Document {
     const used = new Set(this.features.filter(f => f.type === 'import').map(f => f.params.source));
     const files = {
       'document.json': IO.strToU8(JSON.stringify({
-        format: FORMAT_VERSION, app: 'STL Editor', features: this.features, rollback: this.rollback, ui: this.ui,
+        format: FORMAT_VERSION, app: 'STL Editor', features: this.features, rollback: this.rollback, ui: this.ui, params: this.params,
         sources: Object.fromEntries(Object.entries(this.sources).filter(([k]) => used.has(k)).map(([k, v]) => [k, { name: v.name, ext: v.ext }])),
       }, null, 1)),
     };
@@ -247,6 +282,7 @@ export class Document {
     doc.features = d.features || [];
     doc.rollback = d.rollback ?? null;
     doc.ui = d.ui || doc.ui;
+    doc.params = d.params || [];
     doc.path = name;
     const nums = [...doc.features.map(f => f.id), ...Object.keys(doc.sources)].map(x => parseInt(x.slice(1), 10)).filter(Number.isFinite);
     doc._next = Math.max(0, ...nums) + 1;

@@ -5,14 +5,30 @@
  "commit": "cd090c889eb8f4f345aaabdd20196ff9ddf95d95",
  "source": "https://github.com/gittrahan/support-fins",
  "api": 1,
- "built": "2026-11-05T15:38:36Z",
+ "built": "2026-11-05T22:03:11Z",
  "sha256": {
-  "engine.esm.js": "b3859b2bd319772b88861565bcfbd74c431cbb83c66edb4edb69b7ba7b9677b2",
-  "engine.iife.js": "b1127a011124a8945570a0d27ecc708cff9539ce84cd5c6d4f526fd2e9fdd6ed"
+  "engine.esm.js": "c8d9f16a04709c2bf4ba304fd392edb8af1a7755b010ea3ba855c021b67c149a",
+  "engine.iife.js": "6f8d3002c1acf71c8699b6cf748d8fda6132aabfaf412f66ed6869aeb1326534"
  },
  "options": 19,
  "extras": [
   "drawWallThrough",
-  "drawWallThroughB64"
+  "drawWallThroughB64",
+  "gussetWall",
+  "gussetWallB64",
+  "anchorFin",
+  "anchorFinB64",
+  "suggestPoses",
+  "strengthOf",
+  "strongestPose",
+  "suggestPosesJson",
+  "strengthOfJson",
+  "strongestPoseJson"
+ ],
+ "features": [
+  "curves",
+  "gussets",
+  "anchors",
+  "orient"
  ]
 }

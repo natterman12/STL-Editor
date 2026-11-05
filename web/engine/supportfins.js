@@ -24,7 +24,52 @@ function engine() {
 export function info() {
   const sf = engine();
   return { schema: sf.OPTIONS_SCHEMA, version: INFO.version, tag: INFO.tag, commit: INFO.commit, source: INFO.source,
-    curves: typeof sf.drawWallThrough === 'function' };
+    curves: typeof sf.drawWallThrough === 'function', features: features(sf) };
+}
+
+/** The extras this engine has (see packaging/support_fins_extras): a release that broke one leaves it out. */
+function features(sf = engine()) {
+  return { curves: typeof sf.drawWallThrough === 'function', gussets: typeof sf.gussetWall === 'function',
+    anchors: typeof sf.anchorFin === 'function', orient: typeof sf.suggestPoses === 'function' };
+}
+
+/** The triangle nearest `p` whose normal is close to `n` (how a hand-placed anchor finds its face again). */
+export function nearestFace(mesh, p, n) {
+  const { v, f } = mesh;
+  let best = -1, bd = Infinity;
+  const nl = Math.hypot(...n) || 1;
+  for (let t = 0; t < f.length / 3; t++) {
+    const a = f[t * 3] * 3, b = f[t * 3 + 1] * 3, c = f[t * 3 + 2] * 3;
+    const ux = v[b] - v[a], uy = v[b + 1] - v[a + 1], uz = v[b + 2] - v[a + 2];
+    const wx = v[c] - v[a], wy = v[c + 1] - v[a + 1], wz = v[c + 2] - v[a + 2];
+    const nx = uy * wz - uz * wy, ny = uz * wx - ux * wz, nz = ux * wy - uy * wx, len = Math.hypot(nx, ny, nz);
+    if (!(len > 0) || (nx * n[0] + ny * n[1] + nz * n[2]) / (len * nl) < 0.85) continue;
+    const d = pointTri(p, [v[a], v[a + 1], v[a + 2]], [v[b], v[b + 1], v[b + 2]], [v[c], v[c + 1], v[c + 2]]);
+    if (d < bd) { bd = d; best = t; }
+  }
+  return bd < 1.0 ? best : -1;
+}
+
+function pointTri(p, a, b, c) {
+  // squared distance from p to triangle abc (Ericson, Real-Time Collision Detection 5.1.5)
+  const sub = (x, y) => [x[0] - y[0], x[1] - y[1], x[2] - y[2]], dot = (x, y) => x[0] * y[0] + x[1] * y[1] + x[2] * y[2];
+  const ab = sub(b, a), ac = sub(c, a), ap = sub(p, a);
+  const d1 = dot(ab, ap), d2 = dot(ac, ap);
+  const at = (q) => { const d = sub(p, q); return Math.sqrt(dot(d, d)); };
+  const lerp = (x, y, t) => [x[0] + (y[0] - x[0]) * t, x[1] + (y[1] - x[1]) * t, x[2] + (y[2] - x[2]) * t];
+  if (d1 <= 0 && d2 <= 0) return at(a);
+  const bp = sub(p, b), d3 = dot(ab, bp), d4 = dot(ac, bp);
+  if (d3 >= 0 && d4 <= d3) return at(b);
+  const vc = d1 * d4 - d3 * d2;
+  if (vc <= 0 && d1 >= 0 && d3 <= 0) return at(lerp(a, b, d1 / (d1 - d3)));
+  const cp = sub(p, c), d5 = dot(ab, cp), d6 = dot(ac, cp);
+  if (d6 >= 0 && d5 <= d6) return at(c);
+  const vb = d5 * d2 - d1 * d6;
+  if (vb <= 0 && d2 >= 0 && d6 <= 0) return at(lerp(a, c, d2 / (d2 - d6)));
+  const va = d3 * d6 - d5 * d4;
+  if (va <= 0 && d4 - d3 >= 0 && d5 - d6 >= 0) return at(lerp(b, c, (d4 - d3) / ((d4 - d3) + (d5 - d6))));
+  const den = 1 / (va + vb + vc), v2 = vb * den, w2 = vc * den;
+  return at([a[0] + ab[0] * v2 + ac[0] * w2, a[1] + ab[1] * v2 + ac[1] * w2, a[2] + ab[2] * v2 + ac[2] * w2]);
 }
 
 // ------------------------------------------------------------------ result cache
@@ -148,6 +193,44 @@ function oneWall(sf, mesh, soup, a, b, m, opts) {
   });
 }
 
+/** A gusset (off a side, out to an overhang) or an anchor fin (against a side), by hand. */
+function handPiece(sf, mesh, soup, w, opts, values) {
+  const p = w.points || [], n = w.normal || [0, 0, 0];
+  if (w.shape === 'gusset') {
+    if (typeof sf.gussetWall !== 'function') return { ok: false, reason: 'this Support Fins engine has no gussets' };
+    if (p.length < 2) return { ok: false, reason: 'click the side, then the overhang' };
+    return cached(`wall|${meshKey(mesh)}|g${JSON.stringify([p, n])}|${JSON.stringify(opts)}`, () => {
+      const r = sf.gussetWall(soup(), p[0], p[1], n, opts);
+      return r.ok ? { ok: true, triangles: r.triangles, offset: r.offset, stats: r.stats } : { ok: false, reason: r.reason };
+    });
+  }
+  if (typeof sf.anchorFin !== 'function') return { ok: false, reason: 'this Support Fins engine has no anchor fins' };
+  const face = nearestFace(mesh, p[0], n);
+  if (face < 0) return { ok: false, reason: 'the face it stood on isn’t there any more' };
+  let sway;
+  try { sway = sf.optionsFromDialog({ ...(values || {}), 'sway.on': true }).sway; } catch { sway = {}; }
+  return cached(`wall|${meshKey(mesh)}|a${JSON.stringify([p[0], face])}|${JSON.stringify(opts)}`, () => {
+    const r = sf.anchorFin(soup(), p[0], face, opts, sway);
+    return r.ok ? { ok: true, triangles: r.triangles, offset: r.offset, stats: r.stats } : { ok: false, reason: r.reason };
+  });
+}
+
+/** Support Fins' Suggest: up to `top` print orientations, best first (rot: applied to the part as it is). */
+export function suggest(mesh, values, top = 3) {
+  const sf = engine();
+  if (typeof sf.suggestPoses !== 'function') throw new GeometryError('This Support Fins engine can’t suggest orientations.');
+  const opts = optionsOf(sf, values);
+  return cached(`fins|${meshKey(mesh)}|suggest${top}|${JSON.stringify(opts)}`, () => sf.suggestPoses(soupOf(mesh.v, mesh.f), opts, top));
+}
+
+/** How strong the current pose is, and for a load pointing `load` (as the part sits), if given. */
+export function strength(mesh, values, load = null) {
+  const sf = engine();
+  if (typeof sf.strengthOf !== 'function') throw new GeometryError('This Support Fins engine has no strength check.');
+  const r = sf.strengthOf(soupOf(mesh.v, mesh.f), optionsOf(sf, values), load);
+  return { ...r, strongest: load && r.load?.quality !== 'good' ? sf.strongestPose(soupOf(mesh.v, mesh.f), optionsOf(sf, values), load) : null };
+}
+
 /** The circle through a, b and m in plan, sampled as a path from a to b (null when in line). */
 export function arcPath(a, b, m, step = 4) {
   const d = 2 * (a[0] * (b[1] - m[1]) + b[0] * (m[1] - a[1]) + m[0] * (a[1] - b[1]));
@@ -203,8 +286,8 @@ export function walls(mesh, list, values) {
     const st = { ok: true, length: 0, height: 0, tines: 0, partAttached: false, sections: 0, failed: 0 };
     const mine = [];
     byWall.push(mine);
-    for (const [a, b, m] of wallSections(w, curves)) {
-      const r = oneWall(sf, mesh, soup, a, b, m, opts);
+    for (const [a, b, m] of (w.shape === 'gusset' || w.shape === 'anchor') ? [[null, null, null]] : wallSections(w, curves)) {
+      const r = w.shape === 'gusset' || w.shape === 'anchor' ? handPiece(sf, mesh, soup, w, opts, values) : oneWall(sf, mesh, soup, a, b, m, opts);
       st.sections++;
       if (!r.ok) { st.failed++; st.reason = st.reason || r.reason; continue; }
       const n = r.triangles.length / 9;

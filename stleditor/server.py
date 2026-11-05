@@ -83,8 +83,10 @@ class App:
                      "frame": [np.asarray(a).tolist() for a in s["frame"]],
                      "entities": s["entities"], "refs": s.get("refs", []),
                      "hidden": k in d.ui["hidden"]} for k, s in st.sketches.items()]
+        pv = d.param_values()
+        params = [{**q, "value": pv["values"].get(q["name"]), "error": pv["errors"].get(q["name"])} for q in d.params]
         return {"features": feats, "rollback": d.rollback, "bodies": bodies, "planes": planes,
-                "sketches": sketches,
+                "sketches": sketches, "params": params,
                 "doc": {"path": d.path, "name": os.path.basename(d.path) if d.path else (d.title or "Untitled"),
                         "dirty": d.dirty, "can_undo": bool(d._undo), "can_redo": bool(d._redo),
                 "version": __import__("stleditor").__version__,
@@ -251,6 +253,11 @@ def r_feature_delete(app, d):
 
 def r_feature_move(app, d):
     app.doc.move_feature(d["id"], int(d["index"]))
+    return {"ok": True, "state": app.state_json()}
+
+
+def r_params_set(app, d):
+    app.doc.set_params(d.get("params") or [])
     return {"ok": True, "state": app.state_json()}
 
 
@@ -424,6 +431,29 @@ def r_settings_set(app, d):
     settings.set(k, d.get("value"))
     if k == "autosave_interval" and app.autosaver:
         app.autosaver.interval = max(15.0, float(d.get("value") or 60))
+    return {"ok": True}
+
+
+def r_update_install(app, d):
+    from . import updates
+    return {"ok": True, "install": dict(updates.install_start())}
+
+
+def r_update_apply(app, d):
+    from . import updates
+    try:
+        updates.install_apply(app)
+    except RuntimeError as e:
+        raise GeometryError(str(e)) from None
+    return {"ok": True}
+
+
+def r_restart(app, d):
+    from . import updates
+    try:
+        updates.restart(app)
+    except RuntimeError as e:
+        raise GeometryError(str(e)) from None
     return {"ok": True}
 
 
@@ -656,6 +686,18 @@ def shutdown(app):
 HEARTBEAT = 0.0
 
 
+def r_supportfins_suggest(app, d):
+    from . import supportfins as SF
+    v, f = app.doc.state.body(d["body"]).mesh()
+    return {"ok": True, **SF.suggest(v, f, d.get("options") or {}, d.get("top") or 3)}
+
+
+def r_supportfins_strength(app, d):
+    from . import supportfins as SF
+    v, f = app.doc.state.body(d["body"]).mesh()
+    return {"ok": True, **SF.strength(v, f, d.get("options") or {}, d.get("load"))}
+
+
 def r_supportfins_info(app, d):
     from . import supportfins
     return {"ok": True, **supportfins.info()}
@@ -677,7 +719,9 @@ ROUTES = {
     "to_step": r_to_step, "quit": r_quit, "status": r_status, "sketch_op": r_sketch_op,
     "printers": r_printers, "recovery/list": r_recovery_list, "recovery/open": r_recovery_open,
     "recovery/discard": r_recovery_discard, "settings/get": r_settings_get, "settings/set": r_settings_set,
-    "update/status": r_update_status, "open_url": r_open_url, "supportfins/info": r_supportfins_info,
+    "update/status": r_update_status, "update/install": r_update_install, "update/apply": r_update_apply,
+    "restart": r_restart, "open_url": r_open_url, "supportfins/info": r_supportfins_info, "params/set": r_params_set,
+    "supportfins/suggest": r_supportfins_suggest, "supportfins/strength": r_supportfins_strength,
 }
 
 

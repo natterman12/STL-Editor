@@ -9,12 +9,21 @@ import { U, parseExpr } from './units.js';
 import { CTYPES, CTOOLS } from './constraints.js';
 import { WallDrawer } from './drawwalls.js';
 import { Gizmo, rotOf } from './gizmo.js';
+import { isExpr, resolveDeep, resolveParams, ExprError } from './expr.js';
 
 const $ = s => document.querySelector(s);
 // tools the web edition leaves to the desktop app (they run programs on your computer)
 const DESKTOP_TOOLS = new Set(['to_step', 'send']);
 const DESKTOP_URL = 'https://natterman12.github.io/STL-Editor/#download';
 const KOFI = 'https://ko-fi.com/natterman12';
+// filament densities (g/cm³) for the support plastic readout; PLA and PETG are Support Fins' own
+const MATERIALS = { pla: ['PLA', 1.24], petg: ['PETG', 1.27], abs: ['ABS', 1.04], asa: ['ASA', 1.07], tpu: ['TPU', 1.21], pa: ['Nylon', 1.14] };
+const LOADS = { none: null, up: [0, 0, 1], down: [0, 0, -1], left: [-1, 0, 0], right: [1, 0, 0], front: [0, -1, 0], back: [0, 1, 0] };
+const POSTURE = {
+  strong: 'Lying down: its longest side runs along the layers, the strong way to print it.',
+  mixed: 'At an angle: its longest side crosses the layers on a slant.',
+  weak: 'Standing up: its longest side runs up through the layers, where prints split first.',
+};
 const THANKS = `<br><br>STL Editor is free and made in spare time. If it saves you time, you can <a href="#" data-url="${KOFI}">buy me a coffee on Ko-fi</a> <span style="color:#ff5e5b">&hearts;</span>`;
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const num = v => (Math.round(v * 1000) / 1000).toString();
@@ -113,7 +122,7 @@ class App {
           ['mirror', 'Mirror', 'mirror'], ['pattern', 'Pattern', 'pattern'],
           { stack: [['move', 'Move', 'move'], ['rotate', 'Rotate', 'rotate'], ['scale', 'Scale', 'scale']] },
           { stack: [['hollow', 'Hollow', 'hollow'], ['offset', 'Offset Body', 'offset'], ['resizehole', 'Resize Hole', 'resizehole']] }]],
-        ['Construct', [{ drop: 'plane', label: 'Plane', items: planes }]],
+        ['Construct', [{ drop: 'plane', label: 'Plane', items: planes }, ['params', 'Parameters', 'params']]],
         inspect,
       ],
       print: [
@@ -302,6 +311,7 @@ class App {
     if (k === 'supportfins' || k === 'supportwall') return this.openSupportTool(k);
     if (k === 'rotate') return this.openTool('move', { values: { _gizmo: 'rotate' } });
     if (k === 'sf_about') return this.aboutSupportFins();
+    if (k === 'params') return this.editParams();
     if (TOOLS[k]) this.openTool(k);
   }
 
@@ -370,8 +380,10 @@ class App {
       fields: [{ key: 'body', label: 'Body', kind: 'bodies', multi: false },
         { key: '_mode', label: 'On the part', kind: 'select', options: MODES,
           help: 'Rotate: drag the rings to turn the part the way it will print (it stays on the bed, and the fins follow). Add fins: draw walls by hand where Auto left a gap. Remove fins: click a fin to take it away, click it again to bring it back.' },
+        { key: '_pose', label: 'Orientation', kind: 'sfpose', show: v => v._mode === 'rotate' },
         { key: 'walls', label: 'Hand walls', kind: 'walls', show: v => v._mode === 'add' },
         { key: 'removed', label: 'Removed', kind: 'removed', show: v => v._mode === 'remove' || (v.removed || []).length > 0 },
+        { key: '_plastic', label: 'Support plastic', kind: 'sfplastic' },
         output, ...sections(null)],
       defaults: ctx => ({ body: oneBody(ctx), _mode: 'rotate', walls: [], removed: [], output: 'join', ...defaults(null) }),
       toParams: v => {
@@ -390,7 +402,8 @@ class App {
     };
     TOOLS.supportwall = {
       label: 'Draw Walls', icon: 'finwall', type: 'supportwall', wallTool: true, paint: true,
-      fields: [{ key: 'body', label: 'Body', kind: 'bodies', multi: false, placeholder: 'The part you draw on' }, { key: 'walls', label: 'Walls', kind: 'walls' }, output,
+      fields: [{ key: 'body', label: 'Body', kind: 'bodies', multi: false, placeholder: 'The part you draw on' }, { key: 'walls', label: 'Walls', kind: 'walls' },
+        { key: '_plastic', label: 'Support plastic', kind: 'sfplastic' }, output,
         ...sections(WALL_KEYS)],
       defaults: ctx => ({ body: oneBody(ctx), walls: [], output: 'join', ...defaults(WALL_KEYS) }),
       toParams: v => ({ body: v.body[0], walls: v.walls, output: v.output, options: toOptions(v, WALL_KEYS) }),
@@ -405,7 +418,8 @@ class App {
   async aboutSupportFins() {
     let inf;
     try { inf = await this.supportTools(); } catch (e) { this.toast(e.message, 'err'); return; }
-    const pend = inf.pending ? `<br><br>Support Fins ${esc(String(inf.pending).replace(/^v/, ''))} has been downloaded and is used from the next time you start STL Editor.` : '';
+    const pend = inf.pending ? `<br><br>Support Fins ${esc(String(inf.pending).replace(/^v/, ''))} has been downloaded and is used from the next time you start STL Editor. <a href="#" data-restart="1">Restart now</a>` : '';
+    setTimeout(() => { const r = document.querySelector('#modal-body [data-restart]'); if (r) r.onclick = async ev => { ev.preventDefault(); try { await post('restart', {}, { quiet: true }); } catch (e) { this.toast(e.message, 'err'); } }; }, 0);
     this.alert('Support Fins', `Support Fins ${esc(inf.version || '')} (${esc((inf.commit || '').slice(0, 7))}) adds the breakaway support fins that let a part print tipped over, in its strong orientation. The fins come from Support Fins' own engine, unchanged.<br><br>
       By gittrahan, MIT licence: <a href="${esc(inf.source || 'https://github.com/gittrahan/support-fins')}" target="_blank" rel="noopener">github.com/gittrahan/support-fins</a> · <a href="https://printfins.com" target="_blank" rel="noopener">printfins.com</a>. The technique is Slant3D's designed-in supports.<br><br>
       ${WEB ? 'New Support Fins releases reach the web edition automatically.' : 'New Support Fins releases are downloaded automatically when update checks are on (Help › Update Settings).'}${pend}`);
@@ -485,6 +499,10 @@ class App {
       h += node(1, `<span class="nm">Planes</span>`, 'folder');
       for (const p of s.planes) h += node(2, `${eye(p.hidden, `data-eye-item="${p.id}"`)}<span class="nm">${esc(p.name)}</span>`, this.isActiveField('plane', p.id) ? 'selected' : '', `data-plane="${p.id}"`);
     }
+    if ((s.params || []).length) {
+      h += node(1, `<span class="nm">Parameters</span><span class="tag">${s.params.length}</span>`, 'folder', 'data-params="1"');
+      for (const q of s.params) h += node(2, `<span class="nm" title="${esc(q.error || q.note || '')}">${esc(q.name)} = ${q.error ? '<span class="bad">?</span>' : esc(num(q.value))}</span>`, q.error ? 'err' : '', 'data-params="1"');
+    }
     if (s.sketches.length) {
       h += node(1, `<span class="nm">Sketches</span>`, 'folder');
       for (const k of s.sketches) h += node(2, `${eye(k.hidden, `data-eye-item="${k.id}"`)}<span class="nm">${esc(k.name)}</span><span class="tag">${k.entities.length}</span>`, '', `data-sketch="${k.id}"`);
@@ -538,6 +556,7 @@ class App {
     this.hint(this.modeHint());
     this.viewer.setMouseMode(def.sculpt ? 'sculpt' : 'model');
     if (def.paint) this.quickPaint();
+    if (def.type === 'supportfins') this.sfStrength();
     this.updateRibbonState();
     this.renderTimeline();
     this.renderEmpty();
@@ -590,6 +609,7 @@ class App {
     switch (f.kind) {
       case 'number': {
         const isLen = f.unit === 'mm';
+        if (isExpr(val)) return wrap(`<input type="text" class="expr" data-num="${f.key}" value="${esc(val)}" title="${esc(this.exprTitle(val, isLen))}">${isLen ? '<span class="unit">mm</span>' : unit}`);
         const shown = isLen && typeof val === 'number' ? U.toDisp(val) : (val ?? '');
         return wrap(`<input type="text" inputmode="decimal" data-num="${f.key}" value="${esc(shown)}">${isLen ? `<span class="unit">${U.label}</span>` : unit}`);
       }
@@ -605,7 +625,8 @@ class App {
         return wrap(`<select data-sel="${f.key}">${f.options.map(([k, l]) => `<option value="${k}" ${val === k ? 'selected' : ''}>${l}</option>`).join('')}</select>`);
       case 'vec3': {
         const isLen = f.unit === 'mm';
-        return wrap([0, 1, 2].map(i => `<input type="text" data-vec="${f.key}" data-i="${i}" value="${esc(isLen ? U.toDisp(val?.[i] ?? 0) : (val?.[i] ?? 0))}">`).join('') + (isLen ? `<span class="unit">${U.label}</span>` : unit), 'vec');
+        return wrap([0, 1, 2].map(i => isExpr(val?.[i]) ? `<input type="text" class="expr" data-vec="${f.key}" data-i="${i}" value="${esc(val[i])}" title="${esc(this.exprTitle(val[i], isLen))}">`
+          : `<input type="text" data-vec="${f.key}" data-i="${i}" value="${esc(isLen ? U.toDisp(val?.[i] ?? 0) : (val?.[i] ?? 0))}">`).join('') + (isLen ? `<span class="unit">${U.label}</span>` : unit), 'vec');
       }
       case 'sketch': {
         const opts = this.state.sketches.map(s => `<option value="${s.id}" ${val === s.id ? 'selected' : ''}>${esc(s.name)}</option>`).join('');
@@ -654,6 +675,14 @@ class App {
       }
       case 'hdr': return `<div class="field-hdr">${esc(f.label)}</div>`;
       case 'walls': return this.walls.fieldHTML(f);
+      case 'sfpose': return this.sfPoseHTML(f);
+      case 'sfplastic': {
+        const sp = this.tool?._support;
+        const mat = this.sfMaterial();
+        const g = sp ? sp.volume * MATERIALS[mat][1] / 1000 : null;
+        const amount = sp && !sp.pieces ? '<span class="muted">None needed</span>' : sp ? `<b>${g < 9.95 ? g.toFixed(1) : Math.round(g)} g</b> <span class="muted">· ${(sp.volume / 1000).toFixed(1)} cm³ · ${sp.pieces} piece${sp.pieces === 1 ? '' : 's'}</span>` : '<span class="ph">—</span>';
+        return `<div class="field" data-key="${f.key}"><label title="The plastic the supports add, from their exact volume. Change the material to match your filament.">${f.label} <span class="help">?</span></label><div class="ctl sf-plastic">${amount}<select data-sfmat="1">${Object.entries(MATERIALS).map(([k, [l]]) => `<option value="${k}" ${k === mat ? 'selected' : ''}>${l}</option>`).join('')}</select></div></div>`;
+      }
       case 'removed': {
         const n = (val || []).length;
         return `<div class="field" data-key="${f.key}"><label>${f.label}</label><div class="ctl walls-ctl"><span class="walls-n">${n ? `${n} fin${n > 1 ? 's' : ''}` : '<span class="ph">None: click a fin to remove it</span>'}</span>${n ? '<button data-sfact="restore">Bring all back</button>' : ''}</div></div>`;
@@ -675,7 +704,8 @@ class App {
     t.values[key] = val;
     if (t.def.onChange) { const patch = t.def.onChange(key, t.values); if (patch) { Object.assign(t.values, patch); rerender = true; } }
     if (t.def.paint && (key === 'body' || key === 'sf:threshold')) this.quickPaint();
-    if (key === '_mode') { this.walls.reset(); this.viewer.setPreviewHover(null); this.hint(this.modeHint()); rerender = true; }
+    if (key === '_mode') { this.walls.reset(); this.viewer.setPreviewHover(null); this.hint(this.modeHint()); rerender = true; if (val === 'rotate') this.sfStrength(); }
+    if (key === '_load') { this.sfStrength(); rerender = true; }
     if (t.key === 'scale' && key === 'size' && t.values.uniform && t.values._size0) {
       // keep proportions: scale the other axes from the edited one
       const s0 = t.values._size0, prev = t._lastSize || s0;
@@ -708,7 +738,7 @@ class App {
   params() {
     const t = this.tool;
     const v = structuredClone(t.values);
-    for (const f of t.def.fields) if (f.kind === 'number') v[f.key] = parseNum(v[f.key]);
+    for (const f of t.def.fields) if (f.kind === 'number' && !isExpr(v[f.key])) v[f.key] = parseNum(v[f.key]);
     const p = t.def.toParams ? t.def.toParams(v) : v;
     for (const k of Object.keys(p)) if (k.startsWith('_') || p[k] === undefined) delete p[k];
     return p;
@@ -734,6 +764,7 @@ class App {
       const r = pack.result;
       if (t.def.wallTool || t.def.type === 'supportfins') { t._wallStatus = r.walls || []; if (t.def.wallTool || t.values._mode === 'add') this.renderForm(); }
       this._sfPieces = r.pieces || null;
+      if ('support' in r || t.def.paint) { const had = JSON.stringify(t._support || null); t._support = r.support || null; if (had !== JSON.stringify(t._support)) this.renderForm(); }
       if (r.error) { this.viewer.clearPreview(); this.toolMsg(r.error, 'err'); return; }
       this.viewer.showPreview(pack);
       this.toolMsg(r.warning ? (t.def.wallTool && r.info ? `${r.info}. ${r.warning}` : r.warning) : (r.flipped ? 'Cutting into the material (direction flipped).' : (r.info || '')), r.warning ? 'warn' : 'info');
@@ -837,17 +868,137 @@ class App {
       // walls drawn by hand turn with the part; removed fins are rebuilt, so they come back
       t.values.walls = (t.values.walls || []).map(w => ({ ...w, points: w.points.map(p => new THREE.Vector3(...p).applyMatrix4(m).toArray().map(x => +x.toFixed(4))) }));
       t.values.removed = [];
+      // a load points the same way on the part after a turn, so it turns with it
+      const lv = this.sfLoad();
+      if (lv) {
+        const w = new THREE.Vector3(...lv).transformDirection(m).toArray().map(x => Math.abs(x) < 1e-6 ? 0 : +x.toFixed(4));
+        t.values._load = Object.entries(LOADS).find(([, d]) => d && d.every((x, i) => Math.abs(x - w[i]) < 1e-3))?.[0] || w;
+      }
+      t._suggest = null;
       this.gizmo.reset();
       this.viewer.clearPreview();
       await this.apply(res);
       this.quickPaint();
       this.renderForm();
       this.schedulePreview(0);
+      this.sfStrength();
     } catch (e) { this.gizmo.reset(); this.toolMsg(e.message, 'err'); }
+  }
+
+  /** The parameter values, for showing what an expression comes to. */
+  paramValues() { return Object.fromEntries((this.state.params || []).filter(q => q.value != null).map(q => [q.name, q.value])); }
+
+  exprTitle(x, isLen) {
+    try { const v = resolveDeep(x, this.paramValues()); return `${x.trim().slice(1)} = ${num(v)}${isLen ? ' mm' : ''}`; }
+    catch (e) { return e.message; }
+  }
+
+  /** The tool's values with every expression worked out (for previews on screen, the handles). */
+  resolved(v) { try { return resolveDeep(v, this.paramValues()); } catch { return v; } }
+
+  /** Parameters: named values (they can use each other) for any number in the timeline. */
+  async editParams(rows = null) {
+    rows = rows || (this.state.params || []).map(q => ({ name: q.name, expr: q.expr, note: q.note || '' }));
+    if (!rows.length) rows = [{ name: '', expr: '', note: '' }];
+    const used = new Set();
+    for (const f of this.state.features) JSON.stringify(f.params || {}).replace(/"=([^"]*)"/g, (m, e) => { for (const n of e.match(/[A-Za-z_][A-Za-z0-9_]*/g) || []) used.add(n); return m; });
+    const rowHTML = (q, i) => `<tr data-row="${i}"><td><input type="text" data-pn value="${esc(q.name)}" placeholder="name" spellcheck="false"></td><td><input type="text" data-pe value="${esc(q.expr)}" placeholder="40 or width/2" spellcheck="false"></td><td class="pv"></td><td><input type="text" data-pc value="${esc(q.note)}" placeholder="note"></td><td><button data-pdel title="Remove">×</button></td></tr>`;
+    const html = `<h3>Parameters</h3><p class="small" style="margin:0 0 8px;color:var(--muted)">Name a value once and use it in any number: type the name (or <code>=width/2 + 3</code>) in a tool's field. Change a value here and every step that uses it is rebuilt. Lengths are in mm, angles in degrees; a parameter can use others.</p>
+      <table class="params"><thead><tr><th>Name</th><th>Value</th><th></th><th>Note</th><th></th></tr></thead><tbody>${rows.map(rowHTML).join('')}</tbody></table>
+      <button data-padd>+ Add parameter</button><div class="pmsg"></div>`;
+    const read = () => [...document.querySelectorAll('#modal-body tr[data-row]')].map(tr => ({ name: tr.querySelector('[data-pn]').value.trim(), expr: tr.querySelector('[data-pe]').value.trim(), note: tr.querySelector('[data-pc]').value }));
+    const live = () => {
+      const list = read().filter(q => q.name || q.expr);
+      const { values, errors } = resolveParams(list);
+      document.querySelectorAll('#modal-body tr[data-row]').forEach(tr => {
+        const n = tr.querySelector('[data-pn]').value.trim(), cell = tr.querySelector('.pv');
+        cell.innerHTML = !n ? '' : errors[n] ? `<span class="bad" title="${esc(errors[n])}">${esc(errors[n])}</span>` : values[n] != null ? `= ${esc(num(values[n]))}${used.has(n) ? ' <span class="muted">· used</span>' : ''}` : '';
+      });
+    };
+    const result = this.modal(html, [{ label: 'Cancel', value: () => null }, { label: 'Apply', primary: true, value: () => read() }]);
+    const body = $('#modal-body');
+    body.oninput = live;
+    body.onclick = e => {
+      if (e.target.closest('[data-padd]')) { const tb = body.querySelector('tbody'); tb.insertAdjacentHTML('beforeend', rowHTML({ name: '', expr: '', note: '' }, tb.children.length)); tb.lastElementChild.querySelector('input').focus(); }
+      const del = e.target.closest('[data-pdel]'); if (del) { del.closest('tr').remove(); live(); }
+    };
+    live();
+    const list = await result;
+    body.oninput = body.onclick = null;
+    if (!list) return;
+    const missing = [...used].filter(n => (this.state.params || []).some(q => q.name === n) && !list.some(q => q.name === n));
+    if (missing.length && !(await this.confirm(`${missing.join(', ')} ${missing.length > 1 ? 'are' : 'is'} used in the timeline. Remove ${missing.length > 1 ? 'them' : 'it'} anyway? Those steps will show an error until you fix them.`))) return this.editParams(list);
+    try { await this.apply(await post('params/set', { params: list }, { msg: 'Rebuilding…' })); }
+    catch (e) { this.toast(e.message, 'err'); return this.editParams(list); }
+    const bad = this.state.features.filter(f => f.error && /^Parameter:/.test(f.error));
+    if (bad.length) this.toast(`${bad.map(f => f.name).join(', ')}: ${bad[0].error}`, 'warn');
   }
 
   /** Open a web page in the browser (the desktop app hands it to Windows). */
   openUrl(url) { post('open_url', { url }, { quiet: true }).catch(e => this.toast(e.message, 'err')); }
+
+  sfMaterial() { try { const m = localStorage.getItem('stle_sf_material'); return MATERIALS[m] ? m : 'pla'; } catch { return 'pla'; } }
+
+  /** The load direction as a vector (the select's word, or a direction that turned with the part). */
+  sfLoad() { const l = this.tool?.values._load; return Array.isArray(l) ? l : (LOADS[l] || null); }
+
+  /** Support Fins' Rotate panel: Suggest, and how strong this pose is (for a load, if one is set). */
+  sfPoseHTML(f) {
+    const t = this.tool, feat = this._sfInfo?.features || {};
+    if (!feat.orient) return '';
+    const sg = t._suggest, st = t._strength;
+    const fmt = c => {
+      const bits = [`${Math.round(c.overArea)} mm² to support`, `${Math.round(c.height)} mm tall`];
+      if (c.walls != null) bits.push(`${c.walls} fin${c.walls === 1 ? '' : 's'}`);
+      if (c.volume) bits.push(`${(c.volume * MATERIALS[this.sfMaterial()][1] / 1000).toFixed(1)} g`);
+      return bits.join(' · ') + (c.posture ? ` · ${{ strong: 'lying down', mixed: 'on a slant', weak: 'standing up' }[c.posture]}` : '');
+    };
+    const CONF = { high: 'A clear winner.', medium: 'A good pick, though the next one is close.', low: 'Several poses are about as good: choose by how the part is loaded.', none: 'No pose sits flat on the plate: every way it balances on a point.' };
+    let list = '';
+    if (sg?.busy) list = '<div class="sf-note busy">Trying the part every way down…</div>';
+    else if (sg?.error) list = `<div class="sf-note bad">${esc(sg.error)}</div>`;
+    else if (sg?.list) list = `<div class="sf-note">${CONF[sg.confidence] || ''}</div>` + sg.list.map((c, i) => `<div class="sf-cand"><span><b>${i ? `${i + 1}.` : 'Best'}</b> ${esc(fmt(c))}</span><button data-sfact="use" data-i="${i}">Use</button></div>`).join('');
+    const loadSel = Array.isArray(t.values._load) ? 'turned' : (t.values._load || 'none');
+    const loadOpts = [['none', 'Not set'], ['up', 'Pulled up'], ['down', 'Pushed down'], ['left', 'Pulled left'], ['right', 'Pulled right'], ['front', 'Pulled to the front'], ['back', 'Pulled to the back'], ...(loadSel === 'turned' ? [['turned', 'As set (turned with the part)']] : [])];
+    const verdict = st?.load ? `<div class="sf-verdict ${st.load.quality}">${esc(st.load.text)}</div>` + (st.strongest ? `<button data-sfact="strongest">Turn it to the strongest pose</button>` : '') : '';
+    return `<div class="field wide" data-key="${f.key}"><label>Suggested</label><div class="ctl sf-pose"><button data-sfact="suggest" ${sg?.busy ? 'disabled' : ''}>Suggest orientations</button>${list}</div></div>
+      <div class="field wide"><label title="How the print's layers sit for this pose. Prints are weakest across their layers.">Strength <span class="help">?</span></label><div class="ctl sf-pose">${st?.posture ? `<div class="sf-note">${POSTURE[st.posture]}</div>` : ''}
+        <div class="sf-load"><span>Load in use</span><select data-sel="_load">${loadOpts.map(([k, l]) => `<option value="${k}" ${k === loadSel ? 'selected' : ''}>${l}</option>`).join('')}</select></div>${verdict}</div></div>`;
+  }
+
+  async sfSuggest() {
+    const t = this.tool; if (!t) return;
+    const body = t.values.body?.[0]; if (!body) { this.toolMsg('Pick the part first.', 'warn'); return; }
+    t._suggest = { busy: true }; this.renderForm();
+    try {
+      const r = await post('supportfins/suggest', { body, options: this.params().options || {}, top: 3 }, { quiet: true });
+      if (this.tool !== t) return;
+      t._suggest = { list: r.candidates, confidence: r.confidence };
+    } catch (e) { t._suggest = { error: e.message }; }
+    this.renderForm();
+  }
+
+  async sfStrength() {
+    const t = this.tool; if (!t || t.def.type !== 'supportfins' || !this._sfInfo?.features?.orient) return;
+    const body = t.values.body?.[0]; if (!body) return;
+    const seq = (this._sfStrSeq = (this._sfStrSeq || 0) + 1);
+    try {
+      const r = await post('supportfins/strength', { body, options: this.params().options || {}, load: this.sfLoad() }, { quiet: true });
+      if (this.tool !== t || seq !== this._sfStrSeq) return;
+      t._strength = r; this.renderForm();
+    } catch { /* the readout is optional */ }
+  }
+
+  /** Turn the part by a Support Fins pose (`rot`: column-major 3x3, applied to the part as it sits). */
+  sfUsePose(rot) {
+    const t = this.tool; const list = this.gizmo.bodies(t);
+    if (!list.length) return;
+    const [, o, b] = list[0];
+    const q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().setFromMatrix3(new THREE.Matrix3().fromArray(rot)));
+    const m = this.gizmo.matrixFor(o, b, { translate: [0, 0, 0], rotate: rotOf(q), pivot: 'center', bed: true });
+    if (t.values._mode !== 'rotate') t.values._mode = 'rotate';
+    this.poseDrop(m);
+  }
 
   clearPreviewTimer() { clearTimeout(this._previewTimer); this._previewSeq++; }
 
@@ -1746,6 +1897,10 @@ class App {
     const t = this.tool; if (!t) return;
     if (this.walls.active && this.walls.onFormClick(e)) return;
     if (e.target.closest('[data-sfact="restore"]')) { this.setValue('removed', []); return; }
+    const sfa = e.target.closest('[data-sfact]');
+    if (sfa?.dataset.sfact === 'suggest') { this.sfSuggest(); return; }
+    if (sfa?.dataset.sfact === 'use') { this.sfUsePose(t._suggest.list[+sfa.dataset.i].rot); return; }
+    if (sfa?.dataset.sfact === 'strongest') { this.sfUsePose(t._strength.strongest.rot); return; }
     const un = e.target.closest('[data-unpick]');
     if (un) {
       const k = un.dataset.unpick, f = t.def.fields.find(x => x.key === k);
@@ -1809,6 +1964,12 @@ class App {
     }
     if (this.mode === 'section' && el.id === 'sec-flip') { this.sectionState.flip = el.checked; this.renderSection(); return; }
     const t = this.tool; if (!t) return;
+    if (el.dataset.sfmat) { try { localStorage.setItem('stle_sf_material', el.value); } catch { /* storage off */ } this.renderForm(); return; }
+    if (el.dataset.num && exprText(el.value)) { this.setValue(el.dataset.num, exprOf(el.value), false); this.renderForm(); return; }
+    if (el.dataset.vec && exprText(el.value)) {
+      const v = [...(t.values[el.dataset.vec] || [0, 0, 0])]; v[+el.dataset.i] = exprOf(el.value);
+      this.setValue(el.dataset.vec, v, false); this.renderForm(); return;
+    }
     if (el.dataset.num) {
       const f = t.def.fields.find(x => x.key === el.dataset.num);
       if (f?.unit === 'mm') { const v = U.parse(el.value); this.setValue(el.dataset.num, Number.isFinite(v) ? v : 0, false); }
@@ -1840,6 +2001,7 @@ class App {
   }
 
   onTreeClick(e) {
+    if (e.target.closest('[data-params]')) { this.editParams(); return; }
     const eyeB = e.target.closest('[data-eye-body]');
     if (eyeB) { const b = this.state.bodies.find(x => x.id === eyeB.dataset.eyeBody); post('body', { id: b.id, hidden: !b.hidden }, { quiet: true }).then(r => this.apply(r)); return; }
     const eyeI = e.target.closest('[data-eye-item]');
@@ -1910,6 +2072,8 @@ class App {
       edit: [
         { label: 'Undo', k: 'Ctrl+Z', fn: () => this.cmd('undo'), dis: !this.state.doc.can_undo },
         { label: 'Redo', k: 'Ctrl+Y', fn: () => this.cmd('redo'), dis: !this.state.doc.can_redo },
+        { sep: true },
+        { label: 'Parameters…', fn: () => this.editParams() },
         { sep: true },
         { label: 'Select All Bodies', fn: () => { this.selection = this.state.bodies.map(b => b.id); this.viewer.setSelection(this.selection); this.renderTree(); } },
         { label: 'Remove Selected Bodies', k: 'Del', fn: () => this.openTool('delete'), dis: !this.selection.length },
@@ -2164,12 +2328,38 @@ class App {
   showUpdateBanner(st) {
     let b = $('#banner');
     if (!b) { b = document.createElement('div'); b.id = 'banner'; document.body.appendChild(b); }
-    b.innerHTML = `<b>STL Editor ${esc(st.latest)} is available</b><div class="t" style="color:var(--muted);margin-top:2px">You have ${esc(st.current)}. Download the new zip, unzip it, and use it instead of this copy.</div>
-      <div class="b-actions"><button data-u="skip">Skip this version</button><button data-u="later">Later</button><button class="primary" data-u="get">Download</button></div>`;
+    const how = st.install_mode === 'git' ? 'Update now pulls it into this copy (git pull) and restarts.' : st.install_mode === 'portable' ? 'Update now downloads it, swaps it in and restarts STL Editor. Unsaved work is kept for Recover Unsaved Work.' : 'Download the new zip, unzip it, and use it instead of this copy.';
+    b.innerHTML = `<b>STL Editor ${esc(st.latest)} is available</b><div class="t" style="color:var(--muted);margin-top:2px">You have ${esc(st.current)}. ${how}</div>
+      <div class="b-progress hidden"><div class="bar"><i></i></div><span class="pt"></span></div>
+      <div class="b-actions"><button data-u="skip">Skip this version</button><button data-u="later">Later</button>${st.install_mode ? '<button data-u="notes">What’s new</button><button class="primary" data-u="install">Update now</button>' : '<button class="primary" data-u="get">Download</button>'}</div>`;
+    const progress = (frac, text) => { b.querySelector('.b-progress').classList.remove('hidden'); b.querySelector('.bar i').style.width = `${Math.round(frac * 100)}%`; b.querySelector('.pt').textContent = text; };
     b.onclick = async e => {
       const a = e.target.closest('[data-u]')?.dataset.u; if (!a) return;
-      if (a === 'get') await post('open_url', { url: st.url }, { quiet: true }).catch(err => this.toast(err.message, 'err'));
+      if (a === 'get' || a === 'notes') { await post('open_url', { url: st.url }, { quiet: true }).catch(err => this.toast(err.message, 'err')); if (a === 'notes') return; }
       if (a === 'skip') await post('settings/set', { key: 'update_skip', value: st.latest }, { quiet: true });
+      if (a === 'install') {
+        b.querySelector('.b-actions').innerHTML = '<button data-u="later">Cancel</button>';
+        progress(0, st.install_mode === 'git' ? 'Pulling the new version…' : 'Downloading…');
+        try {
+          await post('update/install', {}, { quiet: true });
+          for (;;) {
+            await new Promise(r => setTimeout(r, 400));
+            if (!b.isConnected) return;
+            const s2 = await post('update/status', {}, { quiet: true });
+            const ins = s2.install || {};
+            if (ins.state === 'error') throw new Error(ins.error);
+            if (ins.state === 'ready') break;
+            progress(ins.progress || 0, ins.state === 'unpacking' ? 'Unpacking…' : `Downloading… ${Math.round((ins.progress || 0) / 0.95 * 100)}%`);
+          }
+          progress(1, 'Restarting STL Editor…');
+          await post('update/apply', {}, { quiet: true });
+        } catch (err) {
+          progress(0, '');
+          b.querySelector('.pt').textContent = err.message;
+          b.querySelector('.b-actions').innerHTML = '<button data-u="later">Close</button><button class="primary" data-u="get">Download instead</button>';
+        }
+        return;
+      }
       b.remove();
     };
   }
@@ -2197,6 +2387,14 @@ class App {
 // ------------------------------------------------------------------ helpers
 function isSelKind(k) { return ['bodies', 'plane', 'facepoints', 'points3', 'pface', 'cylface', 'regions'].includes(k); }
 function isEmptySel(v) { return v == null || v === '' || (Array.isArray(v) && !v.length); }
+/** Typed text that names a parameter (or starts with "="), not a plain number like "12", "1 3/8" or "25mm". */
+function exprText(text) {
+  const t = String(text ?? '').trim();
+  if (t.startsWith('=')) return t.length > 1;
+  if (/^[0-9\s.,+\-*/()]*\s*(mm|in|"|″)?$/i.test(t)) return false;
+  return /[A-Za-z_]/.test(t);
+}
+const exprOf = text => '=' + String(text).trim().replace(/^=/, '').trim();
 function parseNum(v) {
   if (typeof v === 'number') return v;
   const s = String(v ?? '').trim().replace(',', '.');

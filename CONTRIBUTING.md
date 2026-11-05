@@ -72,11 +72,12 @@ plugin engine, bundled unmodified by `python packaging/update_support_fins.py [v
 git and Node; esbuild is fetched with npx). The web edition imports `engine.esm.js`
 (`web/engine/supportfins.js`); the desktop app runs `engine.iife.js` in mini-racer
 (`stleditor/supportfins.py`). The tool panels are built from the engine's options schema, so
-don't hard-code its settings. The script also builds one extra from Support Fins' own
-`draw_entry.js`: `drawWallThrough`, the curved wall of their site's Curve tool (their
-`drawnWall` takes the curve point; the plugin entry doesn't pass it on). If a release changes
-that file so the extra can't be made, it is left out (`VERSION.json` `extras`) and curves are
-built as short straight walls instead. The **Support Fins update** workflow runs the script daily and,
+don't hard-code its settings. The script also builds extras for what their site has and the plugin entry doesn't offer
+yet (`packaging/support_fins_extras/`): curved walls (made from their `draw_entry.js`),
+gussets (`web/gusset.js`), anchor fins (`web/sway.js`) and Suggest / Strength
+(`web/orient.js`). Each extra is built and tried on a test part on its own; one that a new
+release breaks is left out (`VERSION.json` `features` / `extras`) and the app falls back (a
+curve as short straight walls) or hides that tool. The **Support Fins update** workflow runs the script daily and,
 when the tests pass, pushes the new engine; installed desktop apps then download it from the
 Pages site (checked against `VERSION.json`'s SHA-256). A release that changes the integration
 contract (`API` in the script) is refused until this app is updated for it.

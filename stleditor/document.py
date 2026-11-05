@@ -26,6 +26,8 @@ class Document:
         self.features: list[dict] = []
         self.rollback: int | None = None          # evaluate features[:rollback]
         self.ui = {"names": {}, "colors": {}, "hidden": []}
+        self.params: list[dict] = []               # [{name, expr, note}]: the project's parameters
+        self._pv = None
         self.path: str | None = None
         self.title: str | None = None              # shown when the document came from a mesh file
         self.dirty = False
@@ -60,7 +62,7 @@ class Document:
 
     # -- undo -------------------------------------------------------------------------------
     def _snapshot(self) -> str:
-        return json.dumps({"features": self.features, "rollback": self.rollback, "ui": self.ui})
+        return json.dumps({"features": self.features, "rollback": self.rollback, "ui": self.ui, "params": self.params})
 
     def checkpoint(self):
         self._undo.append(self._snapshot())
@@ -72,7 +74,42 @@ class Document:
     def _restore(self, snap: str):
         d = json.loads(snap)
         self.features, self.rollback, self.ui = d["features"], d["rollback"], d["ui"]
+        self.params = d.get("params", [])
         self.evaluate()
+
+    # -- parameters -------------------------------------------------------------------------
+    def param_values(self):
+        """{values, errors} of the project's parameters (worked out once per change)."""
+        from .params import resolve_params
+        key = json.dumps(self.params, sort_keys=True)
+        if not self._pv or self._pv[0] != key:
+            self._pv = (key, resolve_params(self.params))
+        return self._pv[1]
+
+    def set_params(self, lst):
+        from .params import NAME_RE, RESERVED
+        clean = [{"name": str(q.get("name") or "").strip(), "expr": str(q.get("expr") if q.get("expr") is not None else "").strip(),
+                  "note": str(q.get("note") or "")} for q in (lst or [])]
+        clean = [q for q in clean if q["name"] or q["expr"]]
+        seen = set()
+        for q in clean:
+            if not NAME_RE.match(q["name"]):
+                raise GeometryError(f'"{q["name"]}" can\'t be a parameter name: use letters, digits and _, starting with a letter.')
+            if q["name"] in RESERVED:
+                raise GeometryError(f'"{q["name"]}" is a built-in name; pick another.')
+            if not q["expr"]:
+                raise GeometryError(f'Give "{q["name"]}" a value.')
+            if q["name"] in seen:
+                raise GeometryError(f'"{q["name"]}" is there twice.')
+            seen.add(q["name"])
+        self.checkpoint()
+        self.params = clean
+        return self.evaluate()
+
+    def _hash(self, f, prev):
+        """A feature's hash: its parameters, plus the parameter values it uses (so a change rebuilds it)."""
+        from .params import uses_expr
+        return self._fhash({**f, "$params": self.param_values()["values"]} if uses_expr(f.get("params")) else f, prev)
 
     def undo(self):
         if not self._undo:
@@ -106,7 +143,7 @@ class Document:
         new_cache = []
         h = ""
         for i, f in enumerate(self.active_features()):
-            h = self._fhash(f, h)
+            h = self._hash(f, h)
             if i < len(self._cache) and self._cache[i][0] == h and i < len(self._results):
                 state = self._cache[i][1]
                 results.append(self._results[i])
@@ -127,7 +164,7 @@ class Document:
         """Keep a just-computed feature result so the next evaluate() can reuse it."""
         self.evaluate() if at > len(self._cache) else None
         prev = self._cache[at - 1][0] if at > 0 and at - 1 < len(self._cache) else ""
-        self._memo[self._fhash(f, prev)] = (state, res)
+        self._memo[self._hash(f, prev)] = (state, res)
         while len(self._memo) > 6:
             self._memo.pop(next(iter(self._memo)))
 
@@ -141,7 +178,14 @@ class Document:
         t0 = time.perf_counter()
         new = state.clone()
         try:
-            EVALUATORS[f["type"]](new, f["id"], f.get("params", {}), res, ctx)
+            params = f.get("params", {})
+            from .params import uses_expr, resolve_deep, ExprError
+            if uses_expr(params):
+                try:
+                    params = resolve_deep(params, self.param_values()["values"])
+                except ExprError as e:
+                    raise GeometryError(f"Parameter: {e}.") from None
+            EVALUATORS[f["type"]](new, f["id"], params, res, ctx)
             state = new
         except GeometryError as e:
             res["error"] = str(e)
@@ -299,7 +343,7 @@ class Document:
         with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
             z.writestr("document.json", json.dumps({
                 "format": FORMAT_VERSION, "app": "STL Editor", "features": self.features,
-                "rollback": self.rollback, "ui": self.ui,
+                "rollback": self.rollback, "ui": self.ui, "params": self.params,
                 "sources": {k: {"name": v["name"], "ext": v["ext"]} for k, v in self.sources.items()
                             if k in used}}, indent=1))
             for sid, src in self.sources.items():
@@ -319,6 +363,7 @@ class Document:
         doc.features = d["features"]
         doc.rollback = d.get("rollback")
         doc.ui = d.get("ui", doc.ui)
+        doc.params = d.get("params", [])
         doc.path = path
         nums = [int(x[1:]) for x in [f["id"] for f in doc.features] + list(doc.sources)
                 if x[1:].isdigit()]

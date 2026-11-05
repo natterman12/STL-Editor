@@ -993,7 +993,7 @@ def f_supportfins(state, fid, p, res, ctx):
         res["paint"] = {"body": bid, "over": r["over"], "small": r["small"]}
         # fins you clicked away, and walls you drew by hand (Support Fins' "+ Add walls by hand")
         gone, missing = SF.match_removed(r["pieces"], p.get("removed"))
-        hand = [w for w in drawn_walls(p) if len(w.get("points") or []) >= 2]
+        hand = [w for w in drawn_walls(p) if len(w.get("points") or []) >= (1 if w.get("shape") == "anchor" else 2)]
         wr = SF.walls(v, f, hand, p.get("options") or {}) if hand else None
         if wr:
             res["walls"] = [{"ok": w["ok"], "reason": w.get("reason")} for w in wr["walls"]]
@@ -1008,6 +1008,8 @@ def f_supportfins(state, fid, p, res, ctx):
                     notes.append(f"Hand wall {i + 1}{' (part of it)' if w['ok'] else ''}: {w.get('reason')}.")
         kept = [sd for i, sd in enumerate(r["solids"]) if i not in gone]
         every = kept + (wr["solids"] if wr else [])
+        # the plastic the supports cost (the site's grams receipt; the panel turns it into grams)
+        res["support"] = {"volume": round(sum(m.volume() for m in every), 1), "pieces": len(every)}
         if preview:
             # every fin a body of its own beside the untouched part, so one can be clicked to
             # remove it; removed ones stay as see-through ghosts to click back
@@ -1058,7 +1060,7 @@ def f_supportwall(state, fid, p, res, ctx):
     from . import supportfins as SF
     bid = p.get("body")
     b = state.body(bid)
-    walls = [w for w in drawn_walls(p) if len(w.get("points") or []) >= 2]
+    walls = [w for w in drawn_walls(p) if len(w.get("points") or []) >= (1 if w.get("shape") == "anchor" else 2)]
     if not walls:
         raise GeometryError("Click on the part to draw a wall under an overhang.")
     v, f = b.mesh()
@@ -1069,6 +1071,7 @@ def f_supportwall(state, fid, p, res, ctx):
     if not good:
         raise GeometryError(f"Support Fins couldn’t place that wall: {r['walls'][0].get('reason')}." if len(walls) == 1 else
                             f"Support Fins couldn’t place any of the {len(walls)} walls ({r['walls'][0].get('reason')}).")
+    res["support"] = {"volume": round(sum(m.volume() for m in r["solids"]), 1), "pieces": len(r["solids"])}
     length = sum(w["length"] for w in good)
     tines = sum(w["tines"] for w in good)
     tall = max(w["height"] for w in good)
