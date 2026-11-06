@@ -1,10 +1,24 @@
 // Sketch mode: draw 2D entities on a plane, with snapping and typed dimensions.
 import * as THREE from 'three';
-import { entityOutline, keyPoints, distToEntity, describe, ENTITY_LABEL, arcFrom3, dimensions, applyDimension } from './sketchgeom.js';
-import { solve, makeConstraint, measure, CTYPES, CTOOLS, glyphSpots, pointKeys, point as cpoint, refsExist } from './constraints.js';
+import { entityOutline, keyPoints, distToEntity, describe, ENTITY_LABEL, arcFrom3, segDist as segD } from './sketchgeom.js';
+import { solve, makeConstraint, measure, CTYPES, CTOOLS, glyphSpots, pointKeys, point as cpoint, refsExist, inferDimension, angleTo, analyze, isRedundant, unsatisfied } from './constraints.js';
+import { layout, placeAt, defaultPlacement } from './dims.js';
 import { U, parseExpr } from './units.js';
+import { exprText, exprOf, resolveDeep } from './expr.js';
 
-const COL = 0xd9480f, COL_SEL = 0x1f6fd1, COL_PREV = 0x2f9e44, COL_REF = 0x7c8794;
+// Sketch colours, as in SOLIDWORKS: black when a shape is fully defined (its size and place are
+// set by dimensions and relations), blue while it can still move, red when relations conflict.
+const COL_UNDER = 0x1c6fd6, COL_BAD = 0xe03131, COL_SEL = 0x0ca678, COL_HOVER = 0x38c99a, COL_PREV = 0xe8590c;
+const COL_EDGE = 0xf76707;   // part edges (reference geometry)
+const dark = () => document.documentElement.dataset.theme === 'dark';
+const colDef = () => (dark() ? 0xe9ecef : 0x1d2433);
+const AXIS = 1e5;
+// what every sketch can measure from: the origin and the two axes (they never move)
+export const baseRefs = () => [
+  { id: '_o', type: 'point', x: 0, y: 0, ref: 'origin' },
+  { id: '_h', type: 'line', p1: [-AXIS, 0], p2: [AXIS, 0], ref: 'axis' },
+  { id: '_v', type: 'line', p1: [0, -AXIS], p2: [0, AXIS], ref: 'axis' },
+];
 let uid = 0;
 const newId = () => `e${Date.now().toString(36)}${(uid++).toString(36)}`;
 const fmt = v => (Math.round(v * 1000) / 1000).toString();
@@ -29,15 +43,19 @@ export class Sketcher {
     this._bind();
   }
 
-  start({ frame, entities = [], refs = [], featureId = null, planeRef, name, bodyId, constraints = [] }) {
+  start({ frame, entities = [], refs = [], savedRefs = [], refKind = null, featureId = null, planeRef, name, bodyId, constraints = [] }) {
     this.active = true;
     this.constraints = JSON.parse(JSON.stringify(constraints || []));
     this.selC = null;
     this.cpicks = [];
+    this.dimPend = null;
+    this.hoverPick = null;
+    this._defKey = null;
+    this.refKind = refKind;
+    this.setRefs(refs, savedRefs);
     this.frame = frame.map(a => new THREE.Vector3(...a));
     this.frameArr = frame;
     this.entities = JSON.parse(JSON.stringify(entities));
-    this.refs = refs || [];
     this.featureId = featureId;
     this.planeRef = planeRef;
     this.bodyId = bodyId;
@@ -46,6 +64,7 @@ export class Sketcher {
     this.tool = 'select';
     this.draw = null;
     this.history = [];
+    if (this.constraints.length) { const r = solve(this.entities, this.constraints, [], this.refEnts); if (r.ok) this.entities = r.entities; }
     this.viewer.setMouseMode('sketch');
     this.viewer.lookAtPlane(frame);
     this._buildPlaneGrid();
@@ -56,6 +75,8 @@ export class Sketcher {
   stop() {
     this.active = false;
     this.draw = null;
+    this.dimPend = null;
+    this.closeModify?.();
     this.dims.innerHTML = '';
     this.group.clear();
     this.hideHud();
@@ -65,15 +86,21 @@ export class Sketcher {
 
   setTool(t) {
     this.cancelDraw();
+    this.closeModify();
     this.tool = t;
     this.cpicks = [];
+    this.dimPend = null;
+    this.hoverPick = null;
     this.dims.classList.toggle('passive', this.pickingTool());
     this.app.onSketchChanged?.();
     this.app.hint(this.toolHint());
   }
 
   // tools whose clicks pick geometry: dimension labels must let those clicks through
-  pickingTool() { return this.tool.startsWith('c_') || this.tool === 'trim' || this.tool === 'sk_mirror' || !!this.draw; }
+  pickingTool() {
+    if (this.tool === 'c_dimension') return !!this.dimPend?.picks.length;
+    return this.tool.startsWith('c_') || this.tool === 'trim' || this.tool === 'sk_mirror' || this.tool === 'sk_useedge' || !!this.draw;
+  }
 
   toolHint() {
     return {
@@ -82,6 +109,7 @@ export class Sketcher {
       arc3: 'Click the start, then the end, then a point the arc passes through · or type a radius',
       trim: 'Click the piece of a line, arc or shape to cut away (up to where it crosses something)',
       sk_mirror: 'Select shapes first, then click the straight line to mirror them across',
+      sk_useedge: 'Click an orange part edge to turn it into a sketch line or circle (it stays tied to the edge)',
       rect: 'Click two corners · or type width, Tab, height',
       rect_center: 'Click the centre, then a corner · or type width, Tab, height',
       circle: 'Click the centre, then the edge · or type a diameter',
@@ -103,12 +131,13 @@ export class Sketcher {
     const px = this.viewer.pixelSize(p.toArray());
     // snap to key points (entities, references, origin, current drawing)
     let best = null, bd = 10 * px, bestRef = null;
-    const cands = [{ p: [0, 0] }];
+    const cands = [];
     for (const e of this.entities) {
       for (const k of pointKeys(e)) cands.push({ p: cpoint(e, k), ref: { e: e.id, k } });
       for (const q of keyPoints(e)) cands.push({ p: q });
     }
-    for (const s of this.refs) cands.push({ p: s[0] }, { p: s[1] });
+    // the origin and the part's corners and circle centres (snapping there ties the point to them)
+    for (const e of this.refEnts) if (e.ref !== 'axis') for (const k of pointKeys(e)) cands.push({ p: cpoint(e, k), ref: { e: e.id, k } });
     if (this.draw?.pts) this.draw.pts.forEach((q, i) => cands.push({ p: q, draw: i }));
     for (const c of cands) { const d = Math.hypot(c.p[0] - uv[0], c.p[1] - uv[1]); if (d < bd - 1e-12) { bd = d; best = c.p; bestRef = c.ref || null; } }
     this.snapped = !!best;
@@ -166,10 +195,11 @@ export class Sketcher {
     if (this.draw && /^[0-9.\-]$/.test(k) && document.activeElement !== this.inA && document.activeElement !== this.inB) {
       this.inA.value = ''; this.inA.focus(); return false; // let the key land in the field
     }
+    if (k === 'Escape' && this.dimPend) { this.dimPend = null; this.redraw(); this.app.hint(this.toolHint()); return true; }
     if (k === 'Escape') { if (this.draw) { if (this.tool === 'line') this.finishLine(false); else this.cancelDraw(); } else if (this.tool !== 'select') this.setTool('select'); else this.setSel([]); return true; }
     if (k === 'Enter' && this.tool === 'line' && this.draw) { this.finishLine(false); return true; }
     if ((k === 'Delete' || k === 'Backspace') && this.sel.size) { this.deleteSelected(); return true; }
-    const map = { l: 'line', a: 'arc3', r: 'rect', c: 'circle', p: 'polygon', s: 'slot', t: 'trim' };
+    const map = { l: 'line', a: 'arc3', r: 'rect', c: 'circle', p: 'polygon', s: 'slot', t: 'trim', d: 'c_dimension' };
     if (!ev.ctrlKey && map[k.toLowerCase()]) { this.setTool(map[k.toLowerCase()]); return true; }
     if (ev.ctrlKey && k.toLowerCase() === 'z') { this.undoLocal(); return true; }
     return false;
@@ -184,10 +214,25 @@ export class Sketcher {
     else if (this.tool === 'select') {
       const id = this.entityAt(uv, ev);
       if (id !== this.hoverId) { this.hoverId = id; this.redraw(); }
+    } else if (this.tool.startsWith('c_') || this.tool === 'sk_useedge') {
+      const raw = this.rawUV(ev) || uv;
+      const hp = this.tool === 'sk_useedge' ? this.pickEdge(raw) : this.pickRef(raw, { refs: true, sides: this.tool === 'c_dimension' });
+      const changed = JSON.stringify(hp) !== JSON.stringify(this.hoverPick);
+      this.hoverPick = hp;
+      if (this.dimPend?.picks.length) this.updatePending(raw);
+      if (changed) this.redraw();
     }
     this.drawCursor(uv);
-    this.app.status(`Sketch  X ${U.fmt(uv[0])}  Y ${U.fmt(uv[1])} ${U.label}${this.snapped ? '  · snapped' : ''}`);
+    this.showStatus(uv);
     if (this._drag) this.dragMove(uv);
+  }
+
+  rawUV(ev) { const p = this.viewer.rayToPlane(ev, this.frameArr); return p ? this.toUV(p) : null; }
+
+  showStatus(uv = this.cursor) {
+    const at = uv ? `Sketch  X ${U.fmt(uv[0])}  Y ${U.fmt(uv[1])} ${U.label}${this.snapped ? '  · snapped' : ''}` : 'Sketch';
+    const d = this.defText();
+    this.app.status(d ? `${at}   ·   ${d}` : at);
   }
 
   entityAt(uv, ev) {
@@ -215,6 +260,7 @@ export class Sketcher {
       this.app.sketchServerOp({ op: 'mirror', ids: [...this.sel], axis: id }).catch(e => this.app.toast(e.message, 'err'));
       return;
     }
+    if (t === 'sk_useedge') return this.useEdge(this.rawUV(ev) || uv);
     if (t.startsWith('c_')) return this.constraintClick(uv, ev);
     if (t === 'text') {
       this.setTool('select');
@@ -249,6 +295,7 @@ export class Sketcher {
       return this.commit();
     }
     if (t === 'slot' && this.draw.pts.length === 1) {
+      this.draw.slotLen = this.readTyped().hasA;
       this.draw.pts.push(this.draw.preview ? [this.draw.preview.x2, this.draw.preview.y2] : uv);
       this.draw.refs.push(this.snapRef);
       this.typed = false; this.inA.value = ''; this.inB.value = '';
@@ -366,6 +413,7 @@ export class Sketcher {
       this.draw.pts.push(this.draw.preview.p2); this.typed = false; this.inA.value = ''; this.inA.focus(); this.updateDraw(); return;
     }
     if (this.tool === 'slot' && this.draw.pts.length === 1) {
+      this.draw.slotLen = this.readTyped().hasA;
       this.draw.pts.push([this.draw.preview.x2, this.draw.preview.y2]);
       this.typed = false; this.inA.value = ''; this.inB.value = '';
       this.inA.focus();
@@ -385,6 +433,7 @@ export class Sketcher {
     e.id = newId();
     this.entities.push(e);
     this.autoConstrain(e, this.draw.refs || []);
+    this.addTypedDims(e);
     this.draw = null; this.typed = false;
     this.hideHud();
     this.setSel([e.id]);
@@ -408,6 +457,8 @@ export class Sketcher {
     if (Math.abs(p[1] - last[1]) < 1e-9) auto.push({ type: 'horizontal', a: { e: e.id } });
     else if (Math.abs(p[0] - last[0]) < 1e-9) auto.push({ type: 'vertical', a: { e: e.id } });
     for (const c of auto) this.constraints.push({ ...c, id: newId(), auto: true });
+    // a typed length becomes a dimension on the line
+    if (this.readTyped().hasA) this.addDims([{ type: 'length', a: { e: e.id } }]);
     d.firstLine = d.firstLine || e.id;
     d.lastLine = e.id;
     d.pts.push([...p]);
@@ -416,6 +467,40 @@ export class Sketcher {
     if (d.pts.length >= 3 && Math.hypot(p[0] - first[0], p[1] - first[1]) < 1e-9) return this.finishLine(true);
     this.updateDraw();
     this.app.onSketchChanged?.();
+  }
+
+  /** What was typed in the drawing boxes (only counts when typed, not the live readout). */
+  readTyped() {
+    const A = parseExpr(this.inA.value), B = parseExpr(this.inB.value);
+    return { hasA: !!this.typed && this.inA.value.trim() !== '' && Number.isFinite(A), hasB: !!this.typed && this.inB.value.trim() !== '' && Number.isFinite(B) };
+  }
+
+  /** Sizes typed while drawing a shape become its driving dimensions. */
+  addTypedDims(e) {
+    const T = this.readTyped(), id = e.id, specs = [];
+    if (e.type === 'rect') {
+      if (T.hasA) specs.push({ type: 'hdistance', a: { e: id, k: 'c0' }, b: { e: id, k: 'c1' }, sign: Math.sign(e.w) || 1 });
+      if (T.hasB) specs.push({ type: 'vdistance', a: { e: id, k: 'c1' }, b: { e: id, k: 'c2' }, sign: Math.sign(e.h) || 1 });
+    } else if (e.type === 'circle' && T.hasA) specs.push({ type: 'diameter', a: { e: id } });
+    else if ((e.type === 'arc' || e.type === 'polygon') && T.hasA) specs.push({ type: 'radius', a: { e: id } });
+    else if (e.type === 'slot') {
+      if (this.draw?.slotLen) specs.push({ type: 'length', a: { e: id } });
+      if (T.hasA) specs.push({ type: 'diameter', a: { e: id } });
+    }
+    this.addDims(specs);
+  }
+
+  /** Add dimensions at the sizes the shapes have now, placed beside them (skips any already set). */
+  addDims(specs) {
+    const all = this.allEnts(), E = this.allE(), px = this.px();
+    for (const sp of specs) {
+      const c = { ...sp, id: newId() };
+      c.value = measure(c, all);
+      if (!(c.value > 1e-9)) continue;
+      Object.assign(c, defaultPlacement(c, E, px));
+      if (isRedundant(this.entities, this.constraints, c, this.refEnts)) continue;
+      this.constraints.push(c);
+    }
   }
 
   finishLine() {
@@ -427,7 +512,7 @@ export class Sketcher {
   replaceEntities(ents) {
     this.push();
     this.entities = ents;
-    const E = Object.fromEntries(ents.map(e => [e.id, e]));
+    const E = this.allE();
     this.constraints = this.constraints.filter(c => refsExist(c, E));
     const ids = new Set(ents.map(e => e.id));
     this.sel = new Set([...this.sel].filter(i => ids.has(i)));
@@ -444,45 +529,153 @@ export class Sketcher {
     this.sel.clear(); this.selC = null; this.redraw(); this.app.onSketchChanged?.();
   }
 
+  // ------------------------------------------------------------------- reference geometry
+  /** The fixed things a sketch can measure from: origin, axes, part edges (with saved ids kept). */
+  setRefs(fresh = [], saved = []) {
+    const edges = (fresh || []).filter(e => e && !Array.isArray(e) && e.type);
+    const old = (saved || []).filter(e => e && !Array.isArray(e) && e.type && e.id);
+    const { list, missing } = matchRefs(edges, old);
+    // part edges before the axes: where an edge lies on an axis, a click picks the edge
+    const [o, ...axes] = baseRefs();
+    this.refEnts = [o, ...list.map(e => ({ ...e, ref: 'edge' })), ...missing.map(e => ({ ...e, ref: 'edge', missing: true })), ...axes];
+    this.fixedIds = new Set(this.refEnts.map(e => e.id));
+    // the old snapping segments (kept for older sketches)
+    this.refs = this.refEnts.filter(e => e.ref === 'edge' && e.type === 'line').map(e => [e.p1, e.p2]);
+  }
+
+  allEnts() { return this.entities.concat(this.refEnts); }
+  allE() { return Object.fromEntries(this.allEnts().map(e => [e.id, e])); }
+  isRef(id) { return this.fixedIds?.has(id); }
+
+  /** Part edges the sketch's relations and dimensions use (saved with it to find them again). */
+  usedRefs() {
+    const used = new Set();
+    for (const c of this.constraints) for (const r of [c.a, c.b, c.c]) if (r && this.isRef(r.e)) used.add(r.e);
+    return this.refEnts.filter(e => e.ref === 'edge' && used.has(e.id)).map(({ ref, missing, ...e }) => e);
+  }
+
+  /** mm per screen pixel on the sketch plane. */
+  px() { return this.viewer.pixelSize(this.frame[0].toArray()) || 0.1; }
+
   // ------------------------------------------------------------------- constraints
-  pickRef(uv, pointsFirst = true) {
+  /** What's under the pointer: a point ({e, k}), else a shape ({e}, rectangles with the side). */
+  pickRef(uv, o = {}) {
     const px = this.viewer.pixelSize(this.to3(...uv).toArray());
+    const pool = o.refs ? this.allEnts() : this.entities;
     let best = null, bd = 9 * px;
-    for (const e of this.entities) for (const k of pointKeys(e)) {
-      if (k === 'm') continue;
-      const q = cpoint(e, k), d = Math.hypot(q[0] - uv[0], q[1] - uv[1]);
-      if (d < bd) { bd = d; best = { e: e.id, k }; }
+    if (o.points !== false) for (const e of pool) {
+      if (e.ref === 'axis') continue;
+      for (const k of pointKeys(e)) {
+        if (k === 'm') continue;
+        const q = cpoint(e, k), d = Math.hypot(q[0] - uv[0], q[1] - uv[1]);
+        if (d < bd) { bd = d; best = { e: e.id, k }; }
+      }
     }
-    if (best && pointsFirst) return best;
-    const id = this.entityAt(uv);
-    return id ? { e: id } : best;
+    if (best) return best;
+    let be = null, bed = 8 * px;
+    for (const e of pool) {
+      if (e.type === 'point') continue;
+      // the sketch's own shapes win over part edges, and those over the axes, when close
+      if (e.ref === 'axis' && o.axes === false) continue;
+      const d = distToEntity(e, uv) + (e.ref === 'axis' ? 4 * px : e.ref ? 2 * px : 0);
+      if (d < bed) { bed = d; be = e; }
+    }
+    if (!be) return null;
+    if (o.sides && be.type === 'rect' && !be.angle) {
+      const C = ['c0', 'c1', 'c2', 'c3'].map(k => cpoint(be, k));
+      let side = 0, sd = Infinity;
+      for (let i = 0; i < 4; i++) { const d = segD(uv, C[i], C[(i + 1) % 4]); if (d < sd) { sd = d; side = i; } }
+      return { e: be.id, side };
+    }
+    return { e: be.id };
+  }
+
+  /** A part edge under the pointer (for Use Edge). */
+  pickEdge(uv) {
+    const px = this.viewer.pixelSize(this.to3(...uv).toArray());
+    let be = null, bd = 8 * px;
+    for (const e of this.refEnts) { if (e.ref !== 'edge' || e.missing) continue; const d = distToEntity(e, uv); if (d < bd) { bd = d; be = e; } }
+    return be ? { e: be.id } : null;
   }
 
   async constraintClick(uv, ev) {
-    const raw = this.viewer.rayToPlane(ev, this.frameArr);
-    const pick = this.pickRef(raw ? this.toUV(raw) : uv);
+    const raw = this.rawUV(ev) || uv;
+    if (this.tool === 'c_dimension') return this.dimClick(raw);
+    const pick = this.pickRef(raw, { refs: true });
     if (!pick) return;
+    if (this.tool === 'c_fix' && this.isRef(pick.e)) { this.app.toast('Part edges and the origin are fixed already.', 'warn'); return; }
     this.cpicks.push(pick);
-    const c = makeConstraint(this.tool, this.cpicks, this.entities);
+    const all = this.allEnts();
+    const c = makeConstraint(this.tool, this.cpicks, all);
     if (c === null) { this.redraw(); this.app.hint(CTOOLS[this.tool].hint + ` · ${this.cpicks.length} picked`); return; }
     this.cpicks = [];
     if (typeof c === 'string') { this.app.toast(c, 'warn'); this.redraw(); return; }
-    if (CTYPES[c.type].dim) {
-      const cur = measure(c, this.entities) ?? 0;
-      const isAng = CTYPES[c.type].angle;
-      const txt = await this.app.prompt(`${CTYPES[c.type].label}${isAng ? ' (°)' : ` (${U.label})`}`, isAng ? String(Math.round(cur * 100) / 100) : U.fmt(cur));
-      if (txt == null) { this.redraw(); return; }
-      const v = isAng ? parseExpr(txt) : U.parse(txt);
-      if (!(v > 0) && !(isAng && v === 0)) { this.app.toast('Enter a positive number.', 'warn'); return; }
-      c.value = v;
-    }
+    if ([c.a, c.b, c.c].filter(Boolean).every(r => this.isRef(r.e))) { this.app.toast('Pick at least one shape of the sketch: part edges and the origin don\'t move.', 'warn'); this.redraw(); return; }
     this.addConstraint(c);
+  }
+
+  // ---- Smart Dimension: pick, move to place, click, type the value
+  dimClick(uv) {
+    const pend = this.dimPend || (this.dimPend = { picks: [], cand: null });
+    // once a dimension is ready to place, the axes don't catch the placing click
+    // (pick an axis first to measure from it)
+    const pick = this.pickRef(uv, { refs: true, sides: true, axes: !pend.cand });
+    const same = pick && pend.picks.some(p => p.e === pick.e && p.k === pick.k && p.side === pick.side);
+    if (pick && !same && pend.picks.length < 2) {
+      pend.picks.push(pick);
+      const r = inferDimension(pend.picks, this.allEnts(), uv, this.fixedIds);
+      if (typeof r === 'string') { this.app.toast(r, 'warn'); this.dimPend = null; this.redraw(); return; }
+      pend.cand = r ? this.prepDim(r, uv) : null;
+      this.app.hint(pend.cand ? 'Move to place the dimension and click · or click a second item (point, line, circle)' : 'Now click a second item: a point, line or circle');
+      this.redraw();
+      return;
+    }
+    if (pend.cand) { const c = pend.cand; this.dimPend = null; this.placeDimension(c); return; }
+    if (!pend.picks.length) this.dimPend = null;
+  }
+
+  /** The pending dimension follows the pointer: horizontal / vertical / aligned, and where it sits. */
+  updatePending(uv) {
+    const pend = this.dimPend; if (!pend) return;
+    const r = inferDimension(pend.picks, this.allEnts(), uv, this.fixedIds);
+    if (r && typeof r !== 'string') pend.cand = this.prepDim(r, uv);
+    this.buildDims();
+  }
+
+  prepDim(r, uv) {
+    const E = this.allE();
+    let c = { ...r };
+    if (c.type === 'angle') c = angleTo(c, E, uv);
+    placeAt(c, E, uv);
+    c.value = measure(c, this.allEnts()) ?? 0;
+    return c;
+  }
+
+  async placeDimension(c0) {
+    const c = { ...c0, id: newId() };
+    c.value = measure(c, this.allEnts()) ?? 0;
+    if (!(c.value > 1e-9)) { this.app.toast('That measures zero: use a Coincident relation instead.', 'warn'); this.redraw(); return; }
+    this.app.hint(this.toolHint());
+    if (isRedundant(this.entities, this.constraints, c, this.refEnts)) {
+      const ok = await this.app.modal(`<h3>Over defined</h3><p>The sketch's other dimensions and relations already set this size, so another dimension can't drive it.</p><p>Add it as a <b>reference</b> dimension? It shows the size in brackets and updates by itself, but doesn't change anything.</p>`,
+        [{ label: 'Cancel', value: () => false }, { label: 'Add as reference', primary: true, value: () => true }]);
+      if (!ok) { this.redraw(); return; }
+      c.ref = true;
+      this.push(); this.constraints.push(c); this.selC = c.id;
+      this.redraw(); this.app.onSketchChanged?.();
+      return;
+    }
+    this.push();
+    this.constraints.push(c);
+    this.selC = c.id;
+    this.redraw(); this.app.onSketchChanged?.();
+    this.openModify(c.id);
   }
 
   addConstraint(c) {
     this.push();
     const cc = { ...c, id: newId() };
-    const r = solve(this.entities, [...this.constraints, cc]);
+    const r = solve(this.entities, [...this.constraints, cc], [], this.refEnts);
     if (!r.ok) {
       this.history.pop();
       this.app.toast('That would conflict with the existing constraints (over-constrained).', 'warn');
@@ -495,28 +688,48 @@ export class Sketcher {
     return true;
   }
 
+  /** Use Edge: copy a part edge into the sketch as a line or circle that stays on it. */
+  useEdge(uv) {
+    const pick = this.pickEdge(uv);
+    if (!pick) { this.app.toast('Click one of the orange part edges.', 'warn'); return; }
+    const R = this.refEnts.find(e => e.id === pick.e);
+    this.push();
+    const id = newId();
+    if (R.type === 'line') {
+      this.entities.push({ id, type: 'line', p1: [...R.p1], p2: [...R.p2] });
+      this.constraints.push({ id: newId(), type: 'coincident', a: { e: id, k: 'p1' }, b: { e: R.id, k: 'p1' }, auto: true },
+        { id: newId(), type: 'coincident', a: { e: id, k: 'p2' }, b: { e: R.id, k: 'p2' }, auto: true });
+    } else if (R.type === 'circle') {
+      this.entities.push({ id, type: 'circle', cx: R.cx, cy: R.cy, r: R.r });
+      this.constraints.push({ id: newId(), type: 'concentric', a: { e: id }, b: { e: R.id }, auto: true },
+        { id: newId(), type: 'equal', a: { e: id }, b: { e: R.id }, auto: true });
+    } else { this.history.pop(); return; }
+    this.setSel([id]);
+  }
+
   autoConstrain(e, refs) {
     // constraints for the points the new shape was snapped to while drawing
     const keysFor = {
       rect: this.tool === 'rect_center' ? ['c', null] : ['c0', 'c2'], circle: ['c', null], polygon: ['c', null],
       slot: ['s', 'e', null], arc: ['s', 'e', null],
     }[e.type] || [];
+    const E = this.allE();
     refs.forEach((ref, i) => {
       let k = keysFor[i];
-      if (!ref || !k) return;
+      if (!ref || !k || !E[ref.e]) return;
       if (e.type === 'arc') { // the arc may run either way: pair each pick with its nearest end
-        const target = cpoint(this.entities.find(x => x.id === ref.e), ref.k);
+        const target = cpoint(E[ref.e], ref.k);
         const ds = ['s', 'e'].map(kk => { const q = cpoint(e, kk); return Math.hypot(q[0] - target[0], q[1] - target[1]); });
         k = ds[0] <= ds[1] ? 's' : 'e';
       }
       this.constraints.push({ id: newId(), type: 'coincident', a: { e: e.id, k }, b: ref, auto: true });
     });
-    const r = solve(this.entities, this.constraints);
+    const r = solve(this.entities, this.constraints, [], this.refEnts);
     if (r.ok) this.entities = r.entities;
   }
 
   solveAll(locks = []) {
-    const r = solve(this.entities, this.constraints, locks);
+    const r = solve(this.entities, this.constraints, locks, this.refEnts);
     this.entities = r.entities;
     return r.ok;
   }
@@ -527,18 +740,55 @@ export class Sketcher {
     this.selC = null; this.redraw(); this.app.onSketchChanged?.();
   }
 
-  setDimValue(id, v) {
-    const c = this.constraints.find(x => x.id === id); if (!c) return;
+  /** Change a dimension's value (or the parameter expression that sets it). */
+  setDimValue(id, v, expr = null) {
+    const c = this.constraints.find(x => x.id === id); if (!c) return false;
     this.push();
-    const old = c.value; c.value = v;
-    const r = solve(this.entities, this.constraints);
-    if (!r.ok) { c.value = old; this.history.pop(); this.app.toast('That value conflicts with other constraints.', 'warn'); return; }
+    const old = { value: c.value, expr: c.expr };
+    c.value = v;
+    if (expr) c.expr = expr; else delete c.expr;
+    const r = solve(this.entities, this.constraints, [], this.refEnts);
+    if (!r.ok) {
+      c.value = old.value; if (old.expr) c.expr = old.expr; else delete c.expr;
+      this.history.pop();
+      this.app.toast('The sketch can\'t take that size: it conflicts with its other dimensions and relations.', 'warn');
+      this.redraw();
+      return false;
+    }
     this.entities = r.entities; this.redraw(); this.app.onSketchChanged?.();
+    return true;
+  }
+
+  /** Reference (driven) dimensions show a size; driving ones set it. */
+  setDimRef(id, isRef) {
+    const c = this.constraints.find(x => x.id === id); if (!c || !!c.ref === !!isRef) return;
+    if (!isRef) {
+      const test = { ...c, ref: false, value: measure(c, this.allEnts()) };
+      if (isRedundant(this.entities, this.constraints.filter(x => x.id !== id), test, this.refEnts)) {
+        this.app.toast('That would over-define the sketch: other dimensions and relations already set this size.', 'warn');
+        this.redraw(); this.app.onSketchChanged?.();
+        return;
+      }
+      this.push(); c.value = test.value; delete c.ref; delete c.expr;
+    } else { this.push(); c.ref = true; delete c.expr; }
+    this.redraw(); this.app.onSketchChanged?.();
+  }
+
+  /** A dimension's value as typed: a number in display units (degrees for angles) or a parameter expression. */
+  parseDim(text, isAng) {
+    const t = String(text ?? '').trim();
+    if (exprText(t)) {
+      const expr = exprOf(t);
+      try { return { v: resolveDeep(expr, this.app.paramValues()), expr }; } catch (e) { return { err: e.message }; }
+    }
+    const v = isAng ? parseExpr(t) : U.parse(t);
+    if (!Number.isFinite(v)) return { err: 'Type a number, or a parameter (like width or =width/2).' };
+    return { v };
   }
 
   // dragging points or whole shapes with the Select tool; constraints follow
   dragStart(uv) {
-    const ref = this.pickRef(uv);
+    const ref = this.pickRef(uv);   // sketch shapes only (part edges don't move)
     if (!ref) return false;
     this._drag = { ref, start: uv, base: JSON.parse(JSON.stringify(this.entities)), moved: false };
     return true;
@@ -552,7 +802,7 @@ export class Sketcher {
     let locks;
     if (d.ref.k) locks = [{ e: d.ref.e, k: d.ref.k, at: uv }];
     else locks = pointKeys(baseEnt).filter(k => k !== 'm' && !(baseEnt.type === 'rect' && k === 'c')).map(k => { const q = cpoint(baseEnt, k); return { e: d.ref.e, k, at: [q[0] + dx, q[1] + dy] }; });
-    const r = solve(d.base, this.constraints, locks);
+    const r = solve(d.base, this.constraints, locks, this.refEnts);
     this.entities = r.entities;
     this.redraw();
   }
@@ -565,7 +815,7 @@ export class Sketcher {
     if (!this.sel.size) return;
     this.push();
     this.entities = this.entities.filter(e => !this.sel.has(e.id));
-    const E = Object.fromEntries(this.entities.map(e => [e.id, e]));
+    const E = this.allE();
     this.constraints = this.constraints.filter(c => refsExist(c, E));
     this.sel.clear(); this.redraw(); this.app.onSketchChanged?.();
   }
@@ -635,19 +885,20 @@ export class Sketcher {
     this.group.clear();
     if (!this.active) return;
     this.group.add(this.gridGroup);
-    if (this.refs.length) {
-      const P = [];
-      for (const [a, b] of this.refs) P.push(this.to3(...a), this.to3(...b));
-      const ref = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(P), new THREE.LineBasicMaterial({ color: COL_REF, depthTest: false, transparent: true, opacity: 0.85 }));
-      ref.renderOrder = 9; this.group.add(ref);
-    }
-    const picked = new Set((this.cpicks || []).map(p => p.e));
+    this.updateDefinition();
+    const hp = this.hoverPick, hov = hp && !hp.k ? hp.e : null;
+    const picked = new Set([...(this.cpicks || []), ...(this.dimPend?.picks || [])].map(p => p.e));
     const inSelC = new Set();
     if (this.selC) { const c = this.constraints.find(x => x.id === this.selC); for (const r of [c?.a, c?.b, c?.c]) if (r) inSelC.add(r.e); }
+    // part edges and the origin
+    this.group.add(this._refs(hov, picked, inSelC));
     for (const e of this.entities) {
       const hl = this.sel.has(e.id) || picked.has(e.id) || inSelC.has(e.id);
-      this.group.add(this._line(e, hl ? COL_SEL : (this.hoverId === e.id ? 0xf08c4a : COL), hl ? 1 : 0.95));
+      const col = hl ? COL_SEL : (this.hoverId === e.id || hov === e.id) ? COL_HOVER : this.bad.has(e.id) ? COL_BAD : this.colorOf(e);
+      this.group.add(this._line(e, col, 1));
     }
+    if (hp?.k) this.group.add(this._dot(cpoint(this.allE()[hp.e], hp.k), COL_HOVER, 9));
+    for (const p of [...(this.cpicks || []), ...(this.dimPend?.picks || [])]) if (p.k) { const E = this.allE(); if (E[p.e]) this.group.add(this._dot(cpoint(E[p.e], p.k), COL_SEL, 9)); }
     if (this.draw?.preview) this.group.add(this._line(this.draw.preview, COL_PREV, 1));
     // closed profile fill (helps see what will extrude)
     this.group.add(this._fill());
@@ -655,102 +906,227 @@ export class Sketcher {
     this.buildDims();
   }
 
+  colorOf(e) {
+    if (e.type === 'polyline') return colDef();
+    return this.defn?.under.has(e.id) ? COL_UNDER : colDef();
+  }
+
+  /** Which shapes are fully defined, and whether any relation can't be met. */
+  updateDefinition() {
+    if (this._drag?.moved || this._ldrag) return;
+    const key = JSON.stringify([this.entities, this.constraints.map(c => [c.type, c.a, c.b, c.c, c.value, c.ra, c.rb, c.sign, c.ref, c.inner]), this.refEnts.length]);
+    if (key === this._defKey) return;
+    this._defKey = key;
+    this.defn = analyze(this.entities, this.constraints, this.refEnts);
+    const bad = unsatisfied(this.entities, this.constraints, this.refEnts);
+    this.badC = new Set(bad.map(c => c.id));
+    this.bad = new Set();
+    for (const c of bad) for (const r of [c.a, c.b, c.c]) if (r && !this.isRef(r.e)) this.bad.add(r.e);
+    this.app.onDefinition?.();
+  }
+
+  /** "Fully defined" / "Under defined: 3 more dimensions or relations needed" / "Over defined …". */
+  defText() {
+    if (!this.active || !this.entities.some(e => e.type !== 'polyline')) return '';
+    if (this.badC?.size) return `Over defined: ${this.badC.size} relation${this.badC.size > 1 ? 's' : ''} can't be met (red)`;
+    const n = this.defn?.dof ?? 0;
+    return n ? `Under defined: ${n} more dimension${n > 1 ? 's' : ''} needed` : 'Fully defined';
+  }
+  defState() { const t = this.defText(); return !t ? '' : this.badC?.size ? 'over' : (this.defn?.dof ? 'under' : 'full'); }
+
+  _dot(p, color, size = 7) {
+    const d = new THREE.Points(new THREE.BufferGeometry().setFromPoints([this.to3(...p)]), new THREE.PointsMaterial({ color, size, sizeAttenuation: false, depthTest: false }));
+    d.renderOrder = 13; return d;
+  }
+
+  _refs(hov, picked, inSelC) {
+    const g = new THREE.Group();
+    for (const e of this.refEnts) {
+      if (e.ref === 'axis') continue;
+      const hl = picked.has(e.id) || inSelC.has(e.id) ? COL_SEL : hov === e.id ? COL_HOVER : null;
+      if (e.type === 'point') { g.add(this._dot([e.x, e.y], hl || (dark() ? 0xe9ecef : 0x495057), 7)); continue; }
+      const { pts, closed } = entityOutline(e);
+      const P = pts.map(p => this.to3(...p)); if (closed && P.length) P.push(P[0]);
+      const mat = e.missing
+        ? new THREE.LineDashedMaterial({ color: COL_BAD, dashSize: 1, gapSize: 0.7, depthTest: false })
+        : new THREE.LineBasicMaterial({ color: hl || COL_EDGE, depthTest: false, transparent: true, opacity: hl ? 1 : 0.85 });
+      const ln = new THREE.Line(new THREE.BufferGeometry().setFromPoints(P), mat);
+      if (e.missing) ln.computeLineDistances();
+      ln.renderOrder = 10; g.add(ln);
+    }
+    return g;
+  }
+
   // ------------------------------------------------------------------- dimensions
+  // Dimensions are drawn on the sketch: extension lines, a dimension line with arrows, the value
+  // on it (radius / diameter with a leader, angles with an arc). Drag one to move it, double-click
+  // to change it. Black: driving · grey in brackets: reference · purple: set by a parameter.
   buildDims() {
-    const drivenEnts = new Set(this.constraints.filter(c => CTYPES[c.type]?.dim && !c.b).map(c => c.a.e));
-    const list = this.entities.length <= 40 ? this.entities : this.entities.filter(e => this.sel.has(e.id));
+    const all = this.allEnts(), E = this.allE();
     this.dimItems = [];
-    let h = '';
-    for (const e of list) {
-      if ((e.construction && !this.sel.has(e.id)) || drivenEnts.has(e.id)) continue;
-      for (const d of dimensions(e)) {
-        const i = this.dimItems.length;
-        const label = d.label.replace(/[\d.]+/, () => U.fmt(d.value));
-        this.dimItems.push({ e, d });
-        h += `<div class="dim ${this.sel.has(e.id) ? 'sel' : ''}" data-i="${i}" title="Click to change">${label}</div>`;
-      }
-    }
-    // driving dimensions and constraint glyphs
     for (const c of this.constraints) {
-      const spots = glyphSpots(c, this.entities);
-      if (!spots.length) continue;
-      const T = CTYPES[c.type]; if (!T) continue;
-      if (T.dim) {
-        const at = spots.length > 1 ? [(spots[0][0] + spots[1][0]) / 2, (spots[0][1] + spots[1][1]) / 2] : spots[0];
-        const txt = T.angle ? `${Math.round(c.value * 100) / 100}°` : (c.type === 'diameter' ? '⌀' : c.type === 'radius' ? 'R' : '') + U.fmt(c.value);
-        const i = this.dimItems.length;
-        this.dimItems.push({ c, at });
-        h += `<div class="dim driving ${this.selC === c.id ? 'sel' : ''}" data-i="${i}" title="${T.label} (driving) · click to change">${txt}</div>`;
-      } else if (c.type !== 'coincident' || this.selC === c.id) {
-        spots.forEach((at, si) => {
-          const i = this.dimItems.length;
-          this.dimItems.push({ c, at, glyph: true, off: si });
-          h += `<div class="cg ${this.selC === c.id ? 'sel' : ''}" data-i="${i}" title="${T.label} · click to select, Delete to remove">${T.glyph}</div>`;
-        });
-      }
+      const T = CTYPES[c.type];
+      if (!T || !refsExist(c, E)) continue;
+      if (T.dim) this.dimItems.push({ c });
+      else if (c.type !== 'coincident' || this.selC === c.id) glyphSpots(c, all).forEach((at, si) => this.dimItems.push({ c, at, glyph: true, off: si }));
     }
+    if (this.dimPend?.cand) this.dimItems.push({ c: this.dimPend.cand, preview: true });
+    let h = '<svg class="dimsvg" xmlns="http://www.w3.org/2000/svg"></svg>';
+    this.dimItems.forEach((it, i) => {
+      const c = it.c;
+      if (it.glyph) { h += `<div class="cg ${this.selC === c.id ? 'sel' : ''}" data-i="${i}" title="${CTYPES[c.type].label} · click to select, Delete to remove">${CTYPES[c.type].glyph}</div>`; return; }
+      it.cls = this.dimClass(c, it.preview);
+      const tip = it.preview ? '' : c.ref ? 'Reference dimension (driven)' : c.expr ? `${c.expr.slice(1)} = ${this.dimText(c, E, true)}` : `${CTYPES[c.type].label} · double-click to change, drag to move`;
+      h += `<div class="dim ${it.cls}" data-i="${i}" title="${tip.replace(/"/g, '&quot;')}">${this.dimText(c, E)}</div>`;
+    });
     this.dims.innerHTML = h;
-    // while drawing or constraining, labels must not swallow clicks meant for the geometry
+    this.dimSvg = this.dims.firstChild;
+    if (this._modify) this.dims.appendChild(this._modify.box);
+    // while drawing or picking, labels must not swallow clicks meant for the geometry
     this.dims.classList.toggle('passive', this.pickingTool());
     this.placeDims();
-    this.dims.onclick = ev => {
-      const el = ev.target.closest('[data-i]'); if (!el) return;
-      const it = this.dimItems[+el.dataset.i];
-      if (it.glyph) { this.selC = this.selC === it.c.id ? null : it.c.id; this.sel.clear(); this.redraw(); this.app.onSketchChanged?.(); return; }
-      this.editDim(+el.dataset.i, el);
-    };
+    this._bindDims();
+  }
+
+  dimClass(c, preview) {
+    if (preview) return 'preview';
+    return [c.ref ? 'ref' : c.expr ? 'expr' : 'driving', this.selC === c.id ? 'sel' : '', this.badC?.has(c.id) ? 'bad' : ''].join(' ');
+  }
+
+  dimText(c, E = this.allE(), bare = false) {
+    const T = CTYPES[c.type];
+    const v = c.ref || !Number.isFinite(c.value) ? (measure(c, Object.values(E)) ?? 0) : c.value;
+    let t = T.angle ? `${Math.round(v * 100) / 100}°` : (c.type === 'diameter' ? '⌀' : c.type === 'radius' ? 'R' : '') + U.fmt(v);
+    if (bare) return t;
+    return c.ref ? `(${t})` : t;
   }
 
   placeDims() {
-    if (!this.dimItems) return;
-    const els = this.dims.children;
-    for (let i = 0; i < els.length; i++) {
-      const it = this.dimItems[i];
-      const d = it.d || { at: it.at };
-      const [x, y] = this.viewer.worldToScreen(this.to3(...d.at).toArray());
-      const gx = it.glyph ? 12 + it.off * 2 : 0, gy = it.glyph ? -12 : (it.c ? -14 : (it.e?.type === 'line' ? -13 : 0));
-      els[i].style.left = `${x + gx}px`;
-      els[i].style.top = `${y + gy + (d.side === 'below' ? 12 : 0)}px`;
-      els[i].style.transform = d.side === 'right' ? 'translate(8px,-50%)' : 'translate(-50%,-50%)';
+    if (!this.dimItems || !this.dimSvg) return;
+    const E = this.allE(), px = this.px();
+    const S = p => this.viewer.worldToScreen(this.to3(p[0], p[1]).toArray());
+    const f = v => v.toFixed(1);
+    let svg = '';
+    const els = this.dims.querySelectorAll('[data-i]');
+    for (const el of els) {
+      const it = this.dimItems[+el.dataset.i]; if (!it) continue;
+      if (it.glyph) {
+        const [x, y] = S(it.at);
+        el.style.left = `${x + 12 + it.off * 2}px`; el.style.top = `${y - 12}px`;
+        continue;
+      }
+      let L;
+      try { L = layout(it.c, E, px); } catch { continue; }
+      const seg = ([a, b]) => { const [x1, y1] = S(a), [x2, y2] = S(b); return `M${f(x1)} ${f(y1)}L${f(x2)} ${f(y2)}`; };
+      const arc = a => {
+        const n = Math.max(6, Math.ceil((a.a1 - a.a0) / 0.06)); let d = '';
+        for (let i = 0; i <= n; i++) { const t = a.a0 + (a.a1 - a.a0) * i / n, [x, y] = S([a.c[0] + a.r * Math.cos(t), a.c[1] + a.r * Math.sin(t)]); d += `${i ? 'L' : 'M'}${f(x)} ${f(y)}`; }
+        return d;
+      };
+      const head = ({ at, d }) => {
+        const [tx, ty] = S(at), [bx, by] = S([at[0] - d[0] * px * 10, at[1] - d[1] * px * 10]);
+        let ux = tx - bx, uy = ty - by; const l = Math.hypot(ux, uy) || 1; ux /= l; uy /= l;
+        const k = 9, w = 3.2, cx = tx - ux * k, cy = ty - uy * k;
+        return `M${f(tx)} ${f(ty)}L${f(cx - uy * w)} ${f(cy + ux * w)}L${f(cx + uy * w)} ${f(cy - ux * w)}Z`;
+      };
+      svg += `<g class="${it.cls}"><path class="dl" d="${L.lines.map(seg).join('')}${L.arcs.filter(a => !a.thin).map(arc).join('')}"/>`
+        + `<path class="el" d="${L.thin.map(seg).join('')}${L.arcs.filter(a => a.thin).map(arc).join('')}"/>`
+        + `<path class="ah" d="${L.arrows.map(head).join('')}"/></g>`;
+      const [x, y] = S(L.text);
+      el.style.left = `${x}px`; el.style.top = `${y}px`;
+      if (this._modify && !it.preview && this._modify.id === it.c.id) { this._modify.box.style.left = `${x}px`; this._modify.box.style.top = `${y}px`; }
     }
+    this.dimSvg.innerHTML = svg;
   }
 
-  editDim(i, el) {
-    const item = this.dimItems[i];
-    const inp = document.createElement('input');
-    inp.className = 'dim-edit'; inp.style.cssText = el.style.cssText; inp.type = 'text';
-    if (item.c) {
-      const isAng = CTYPES[item.c.type].angle;
-      inp.value = isAng ? String(item.c.value) : U.fmt(item.c.value);
-      el.replaceWith(inp); inp.focus(); inp.select();
-      const done = ok => {
-        if (ok) { const v = isAng ? parseExpr(inp.value) : U.parse(inp.value); if (v > 0 || (isAng && v === 0)) { this.setDimValue(item.c.id, v); return; } }
-        this.buildDims();
-      };
-      inp.addEventListener('keydown', ev => { ev.stopPropagation(); if (ev.key === 'Enter') done(true); if (ev.key === 'Escape') done(false); });
-      inp.addEventListener('blur', () => done(true), { once: true });
-      return;
-    }
-    const { e, d } = item;
-    inp.value = U.fmt(d.value);
-    el.replaceWith(inp); inp.focus(); inp.select();
-    const done = ok => {
-      if (ok) {
-        const v = U.parse(inp.value);
-        const patch = applyDimension(e, d.key, v);
-        if (patch) { this.updateEntity(e.id, patch); return; }
-        this.app.toast('Enter a positive number.', 'warn');
-      }
-      this.buildDims();
+  _bindDims() {
+    const D = this.dims;
+    D.onpointerdown = ev => {
+      const el = ev.target.closest('.dim[data-i]'); if (!el || ev.button !== 0) return;
+      const it = this.dimItems[+el.dataset.i]; if (!it || it.preview) return;
+      ev.preventDefault(); ev.stopPropagation();
+      el.setPointerCapture(ev.pointerId);
+      this._ldrag = { id: it.c.id, x: ev.clientX, y: ev.clientY, moved: false };
     };
-    inp.addEventListener('keydown', ev => { ev.stopPropagation(); if (ev.key === 'Enter') done(true); if (ev.key === 'Escape') done(false); });
-    inp.addEventListener('blur', () => done(true), { once: true });
+    D.onpointermove = ev => {
+      const d = this._ldrag; if (!d) return;
+      if (!d.moved && Math.hypot(ev.clientX - d.x, ev.clientY - d.y) < 4) return;
+      const c = this.constraints.find(x => x.id === d.id); const uv = this.rawUV(ev);
+      if (!c || !uv) return;
+      if (!d.moved) { d.moved = true; this.push(); }
+      placeAt(c, this.allE(), uv);
+      if (c.type === 'angle' && c.ref) Object.assign(c, angleTo(c, this.allE(), uv));
+      this.placeDims();
+    };
+    D.onpointerup = () => {
+      const d = this._ldrag; this._ldrag = null; if (!d) return;
+      if (d.moved) { this.buildDims(); this.app.onSketchChanged?.(); return; }
+      // a second click soon after on the same dimension: change it (the labels are rebuilt
+      // after the first click, so the browser's own double-click doesn't arrive)
+      const now = performance.now(), last = this._lastDimClick;
+      this._lastDimClick = { id: d.id, t: now };
+      if (last && last.id === d.id && now - last.t < 450) { this._lastDimClick = null; this.editDimension(d.id); return; }
+      this.selC = d.id; this.sel.clear();
+      this.redraw(); this.app.onSketchChanged?.();
+    };
+    D.ondblclick = ev => { if (ev.target.closest('.dim[data-i]')) ev.stopPropagation(); };
+    D.onclick = ev => {
+      const el = ev.target.closest('.cg[data-i]'); if (!el) return;
+      const it = this.dimItems[+el.dataset.i];
+      this.selC = this.selC === it.c.id ? null : it.c.id; this.sel.clear(); this.redraw(); this.app.onSketchChanged?.();
+    };
+  }
+
+  editDimension(id) {
+    const c = this.constraints.find(x => x.id === id); if (!c) return;
+    this.selC = id;
+    if (c.ref) { this.redraw(); this.app.onSketchChanged?.(); this.app.toast('A reference dimension follows the sketch. Untick Reference in the panel to make it set the size.', 'info'); return; }
+    this.openModify(id);
+  }
+
+  /** The Modify box (like SOLIDWORKS'): type a value or a parameter, ✓ to apply, ✗ to leave it. */
+  openModify(id) {
+    this.closeModify();
+    const c = this.constraints.find(x => x.id === id); if (!c) return;
+    const isAng = !!CTYPES[c.type].angle;
+    const box = document.createElement('div');
+    box.className = 'dim-modify';
+    box.innerHTML = `<input type="text" spellcheck="false" value="${c.expr ? c.expr.replace(/"/g, '&quot;') : isAng ? String(Math.round(c.value * 1e4) / 1e4) : U.fmt(c.value, 4)}"><span class="u">${isAng ? '°' : U.label}</span><button class="ok" title="Apply (Enter)">✓</button><button class="x" title="Leave it (Esc)">✗</button>`;
+    const inp = box.querySelector('input');
+    this._modify = { id, box };
+    this.dims.appendChild(box);
+    this.buildDims();
+    inp.focus(); inp.select();
+    const apply = () => {
+      const r = this.parseDim(inp.value, isAng);
+      if (r.err) { this.app.toast(r.err, 'warn'); inp.focus(); return; }
+      if (!(r.v > 0) || (isAng && r.v > 180)) { this.app.toast(isAng ? 'An angle between 0° and 180°.' : 'A dimension needs a size above zero.', 'warn'); inp.focus(); return; }
+      this.closeModify();
+      if (Math.abs(r.v - c.value) > 1e-9 || (r.expr || null) !== (c.expr || null)) this.setDimValue(id, r.v, r.expr);
+      else this.buildDims();
+    };
+    inp.addEventListener('keydown', ev => {
+      ev.stopPropagation();
+      if (ev.key === 'Enter') { ev.preventDefault(); apply(); }
+      if (ev.key === 'Escape') { ev.preventDefault(); this.closeModify(); this.buildDims(); }
+    });
+    box.addEventListener('pointerdown', ev => ev.stopPropagation());
+    box.querySelector('.ok').onclick = apply;
+    box.querySelector('.x').onclick = () => { this.closeModify(); this.buildDims(); };
+    // clicking elsewhere keeps what's typed, as SOLIDWORKS does
+    this._modifyAway = ev => { if (this._modify && !box.contains(ev.target)) apply(); };
+    setTimeout(() => document.addEventListener('pointerdown', this._modifyAway, true), 0);
+  }
+
+  closeModify() {
+    if (this._modifyAway) { document.removeEventListener('pointerdown', this._modifyAway, true); this._modifyAway = null; }
+    if (this._modify) { this._modify.box.remove(); this._modify = null; }
   }
 
   _line(e, color, opacity) {
     const { pts, closed } = entityOutline(e);
     const P = pts.map(p => this.to3(...p)); if (closed && P.length) P.push(P[0]);
-    const mat = e.construction ? new THREE.LineDashedMaterial({ color: 0x8a6a55, dashSize: 1.2, gapSize: 0.8, depthTest: false }) : new THREE.LineBasicMaterial({ color, depthTest: false, transparent: true, opacity });
+    const mat = e.construction ? new THREE.LineDashedMaterial({ color, dashSize: 1.2, gapSize: 0.8, depthTest: false, transparent: true, opacity: 0.75 }) : new THREE.LineBasicMaterial({ color, depthTest: false, transparent: true, opacity });
     const ln = new THREE.Line(new THREE.BufferGeometry().setFromPoints(P), mat);
     if (e.construction) ln.computeLineDistances();
     ln.renderOrder = 11;
@@ -829,4 +1205,61 @@ function inside(p, poly) {
     if (((yi > p[1]) !== (yj > p[1])) && p[0] < (xj - xi) * (p[1] - yi) / (yj - yi) + xi) c = !c;
   }
   return c;
+}
+
+// Find the part edges a sketch used again after the model changed: the same edge if it's still
+// there, otherwise the nearest one like it (a parallel line, a circle). Saved ones not found
+// come back as `missing` (drawn red; their relations hold to where the edge was).
+function matchRefs(fresh, saved) {
+  const list = fresh.map(e => ({ ...e }));
+  const pts = [...fresh, ...saved].flatMap(e => e.type === 'line' ? [e.p1, e.p2] : [[e.cx - e.r, e.cy - e.r], [e.cx + e.r, e.cy + e.r]]);
+  let size = 100;
+  if (pts.length) { const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]); size = Math.max(Math.hypot(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)), 1); }
+  const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+  const score = (s, f) => {
+    if (s.type !== f.type) return null;
+    if (s.type === 'line') {
+      const d1 = dist(s.p1, f.p1) + dist(s.p2, f.p2), d2 = dist(s.p1, f.p2) + dist(s.p2, f.p1);
+      return d1 <= d2 ? { d: d1, flip: false } : { d: d2, flip: true };
+    }
+    return { d: dist([s.cx, s.cy], [f.cx, f.cy]) + Math.abs(s.r - f.r), flip: false };
+  };
+  // a moved edge: how far it moved sideways, plus a little for sliding along / changing length
+  const near = (s, f) => {
+    if (s.type !== 'line') return score(s, f);
+    const u = [s.p2[0] - s.p1[0], s.p2[1] - s.p1[1]], L = Math.hypot(...u) || 1, n = [-u[1] / L, u[0] / L];
+    const ms = [(s.p1[0] + s.p2[0]) / 2, (s.p1[1] + s.p2[1]) / 2], mf = [(f.p1[0] + f.p2[0]) / 2, (f.p1[1] + f.p2[1]) / 2];
+    const side = Math.abs((mf[0] - ms[0]) * n[0] + (mf[1] - ms[1]) * n[1]);
+    const along = Math.abs((mf[0] - ms[0]) * u[0] / L + (mf[1] - ms[1]) * u[1] / L);
+    const fl = Math.hypot(f.p2[0] - f.p1[0], f.p2[1] - f.p1[1]);
+    const flip = (f.p2[0] - f.p1[0]) * u[0] + (f.p2[1] - f.p1[1]) * u[1] < 0;
+    return { d: side + 0.25 * along + 0.1 * Math.abs(fl - L), flip };
+  };
+  const parallel = (s, f) => {
+    if (s.type !== 'line') return true;
+    const a = [s.p2[0] - s.p1[0], s.p2[1] - s.p1[1]], b = [f.p2[0] - f.p1[0], f.p2[1] - f.p1[1]];
+    return Math.abs(a[0] * b[1] - a[1] * b[0]) / ((Math.hypot(...a) * Math.hypot(...b)) || 1) < 0.02;
+  };
+  const taken = new Set(), missing = [], left = [];
+  const assign = (s, i, flip) => {
+    const f = list[i]; f.id = s.id;
+    if (flip) [f.p1, f.p2] = [f.p2, f.p1];
+    taken.add(i);
+  };
+  for (const s of saved) {
+    let bi = -1, bs = null;
+    list.forEach((f, i) => { if (taken.has(i)) return; const r = score(s, f); if (r && (!bs || r.d < bs.d)) { bs = r; bi = i; } });
+    if (bs && bs.d < Math.max(1e-3, size * 1e-5)) assign(s, bi, bs.flip); else left.push(s);
+  }
+  // the rest: best pairs first, so each edge goes to the one most like it
+  const pairs = [];
+  for (const s of left) list.forEach((f, i) => { if (taken.has(i) || !parallel(s, f)) return; const r = near(s, f); if (r && r.d < size * 0.35) pairs.push({ s, i, ...r }); });
+  pairs.sort((a, b) => a.d - b.d);
+  const done = new Set();
+  for (const p of pairs) if (!done.has(p.s) && !taken.has(p.i)) { assign(p.s, p.i, p.flip); done.add(p.s); }
+  for (const s of left) if (!done.has(s)) missing.push(s);
+  let n = 0;
+  for (const s of saved) { const m = /^r(\d+)$/.exec(s.id); if (m) n = Math.max(n, +m[1] + 1); }
+  for (const f of list) if (!f.id) f.id = `r${n++}`;
+  return { list, missing };
 }

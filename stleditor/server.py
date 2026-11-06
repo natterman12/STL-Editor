@@ -344,6 +344,14 @@ def r_sketch_op(app, d):
                            float(d.get("tolerance", 0.02)), float(d.get("offset", 0)))
         add = MT.outline_entities(polys, new_id, bool(d.get("construction")))
         return {"ok": True, "entities": ents + add, "added": [e["id"] for e in add]}
+    elif op == "refs":
+        # part edges for a sketch to dimension from (see MT.ref_geometry)
+        from . import meshtools as MT
+        st = app.doc.state
+        solids = [st.body(k).require_solid() for k, b in st.bodies.items()
+                  if k not in app.doc.ui["hidden"] and b.is_solid]
+        res = MT.ref_geometry(solids, d["frame"]) if solids else {"kind": None, "refs": []}
+        return {"ok": True, **res}
     elif op == "text":
         from . import meshtools as MT
         import math as _m

@@ -470,3 +470,61 @@ test('Support Fins: fins, a drawn wall, separate body', async () => {
   assert.match(rw.info, /wall 14\.0 mm long/);
   assert.ok(vol(doc, e.id) > ve + 100);
 });
+
+test('Sketch: part edges to dimension from (face, cut, shadow)', () => {
+  const doc = new Document();
+  const [f] = doc.addFeature('primitive', { shape: 'box', length: 40, width: 30, height: 20 });
+  doc.addFeature('hole', { points: [[0, 0, 20]], normal: [0, 0, 1], diameter: 8, through: true });
+  const solid = doc.state.body(f.id).solid;
+  for (const [z, kind] of [[20, 'face'], [10, 'section'], [-5, 'silhouette']]) {
+    const r = MT.refGeometry([solid], G.planeFrame([0, 0, z], [0, 0, 1]));
+    assert.equal(r.kind, kind);
+    assert.deepEqual(r.refs.map(e => e.type).sort(), ['circle', 'line', 'line', 'line', 'line']);
+    approx(r.refs.find(e => e.type === 'circle').r, 4, 0.005);
+    const xs = r.refs.filter(e => e.type === 'line').flatMap(e => [e.p1[0], e.p2[0]]);
+    approx(Math.max(...xs) - Math.min(...xs), 40, 1e-4);
+  }
+});
+
+test('Sketch: Smart Dimension, how defined a sketch is, reference dimensions', async () => {
+  const C = await load('js/constraints.js');
+  const D = await load('js/dims.js');
+  const fixed = [{ id: '_o', type: 'point', x: 0, y: 0 }, { id: '_h', type: 'line', p1: [-1e5, 0], p2: [1e5, 0] }, { id: 'r0', type: 'line', p1: [-5, -50], p2: [-5, 50] }];
+  const F = new Set(fixed.map(e => e.id));
+  let ents = [{ id: 'r', type: 'rect', x: 2, y: 3, w: 20, h: 10 }];
+  const all = () => [...ents, ...fixed];
+  // a rectangle side: horizontal size; with the pointer beside it, vertical
+  const w = C.inferDimension([{ e: 'r', side: 0 }], all(), [10, 0], F);
+  assert.equal(w.type, 'hdistance');
+  assert.equal(C.inferDimension([{ e: 'r', side: 1 }], all(), [30, 8], F).type, 'vdistance');
+  // a corner and a part edge: the distance to it; two fixed things: refused
+  const d = C.inferDimension([{ e: 'r', k: 'c0' }, { e: 'r0' }], all(), [0, 0], F);
+  assert.equal(d.type, 'distance');
+  assert.equal(typeof C.inferDimension([{ e: '_o', k: 'p' }, { e: 'r0' }], all(), [0, 0], F), 'string');
+  let cons = [{ type: 'coincident', a: { e: 'r', k: 'c0' }, b: { e: '_o', k: 'p' } }];
+  assert.equal(C.analyze(ents, cons, fixed).dof, 2);
+  cons.push({ ...w, value: 30 }, { ...C.inferDimension([{ e: 'r', side: 1 }], all(), [30, 8], F), value: 12 });
+  const r = C.solve(ents, cons, [], fixed);
+  assert.ok(r.ok);
+  ents = r.entities;
+  assert.ok(Math.abs(ents[0].x) < 1e-6 && Math.abs(ents[0].y) < 1e-6);
+  approx(ents[0].w, 30, 1e-6); approx(ents[0].h, 12, 1e-6);
+  const a = C.analyze(ents, cons, fixed);
+  assert.equal(a.dof, 0); assert.equal(a.under.size, 0);
+  // the same size again adds nothing: it can only be a reference dimension
+  assert.ok(C.isRedundant(ents, cons, { ...w, value: 30 }, fixed));
+  assert.ok(C.solve(ents, [...cons, { ...w, value: 31, ref: true }], [], fixed).ok, 'reference dimensions drive nothing');
+  // two lines: the angle of the sector the pointer is in
+  const L = [{ id: 'a', type: 'line', p1: [0, 0], p2: [10, 0] }, { id: 'b', type: 'line', p1: [0, 0], p2: [10, 10] }];
+  const ang = C.inferDimension([{ e: 'a' }, { e: 'b' }], L, [5, 2]);
+  approx(C.measure(ang, L), 45, 1e-9);
+  approx(C.measure(C.angleTo(ang, Object.fromEntries(L.map(e => [e.id, e])), [-5, 2]), L), 135, 1e-9);
+  // the drawing: arrows, extension lines and the value where it was placed
+  const E = Object.fromEntries(all().map(e => [e.id, e]));
+  const c = { ...w, value: 30 };
+  D.placeAt(c, E, [15, -6]);
+  const lay = D.layout(c, E, 0.1);
+  assert.equal(lay.arrows.length, 2);
+  assert.equal(lay.thin.length, 2);
+  approx(lay.text[1], -6, 1e-9);
+});

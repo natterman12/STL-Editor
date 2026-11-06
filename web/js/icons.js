@@ -84,6 +84,7 @@ export const ICONS = {
   offset: S(`<rect x="7" y="7" width="10" height="10" rx="1" fill="${BLUE}" fill-opacity=".25"/><rect x="3.5" y="3.5" width="17" height="17" rx="4" stroke-dasharray="2.5 2"/>`),
   resizehole: S(`<path d="M4 15 12 19l8-4-8-4z" fill="${BLUE}" fill-opacity=".18"/><path d="M4 9l8 4 8-4-8-4z" fill="${BLUE}" fill-opacity=".18"/><path d="M4 9v6M20 9v6"/><ellipse cx="12" cy="9" rx="3" ry="1.5" fill="#fff"/><path d="M15.5 6.5l3-2M18.5 4.5h-2.4M18.5 4.5v2.4" stroke="${ORANGE}"/>`),
   project: S(`<path d="M12 3 5 6.5v6l7 3.5 7-3.5v-6z" fill="${BLUE}" fill-opacity=".15"/><path d="M3 20h18" stroke="${ORANGE}" stroke-width="2"/><path d="M5 12.5 3.5 19M19 12.5l1.5 6.5" stroke-dasharray="1.5 1.5"/>`),
+  useedge: S(`<path d="M4 9l8-5 8 5v8l-8 4-8-4z" fill="${BLUE}" fill-opacity=".15"/><path d="M4 17l8 4 8-4" stroke="${ORANGE}" stroke-width="2.2"/><path d="M12 4v17" stroke-dasharray="1.5 1.5" opacity=".6"/>`),
   text: S(`<path d="M5 6V4h14v2M12 4v16M9 20h6" stroke-width="2"/>`),
   more: S('<path d="m6 7 5 5-5 5M13 7l5 5-5 5"/>'),
   primitive: S(`<path d="M12 3 3 7.5v9L12 21l9-4.5v-9z" fill="${BLUE}" fill-opacity=".18"/>`),

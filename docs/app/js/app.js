@@ -6,10 +6,11 @@ import { TOOLS, repeatableFeatures, HOLE_PRESETS, selBody } from './tools.js';
 import { icon } from './icons.js';
 import { describe, ENTITY_LABEL } from './sketchgeom.js';
 import { U, parseExpr } from './units.js';
-import { CTYPES, CTOOLS } from './constraints.js';
+import { CTYPES, CTOOLS, solve } from './constraints.js';
+import { baseRefs as SKETCH_BASE_REFS } from './sketcher.js';
 import { WallDrawer } from './drawwalls.js';
 import { Gizmo, rotOf } from './gizmo.js';
-import { isExpr, resolveDeep, resolveParams, ExprError } from './expr.js';
+import { isExpr, resolveDeep, resolveParams, ExprError, exprText, exprOf } from './expr.js';
 
 const $ = s => document.querySelector(s);
 // tools the web edition leaves to the desktop app (they run programs on your computer)
@@ -103,40 +104,36 @@ class App {
         ['Draw', [['line', 'Line', 'line'], ['arc3', 'Arc', 'arc'],
           { drop: 'sk_rect', label: 'Rectangle', items: [['rect', 'Rectangle', 'rect'], ['rect_center', 'Center Rectangle', 'rect_center']] },
           ['circle', 'Circle', 'circle'], { stack: [['polygon', 'Polygon', 'polygon'], ['slot', 'Slot', 'slot'], ['text', 'Text', 'text']] },
-          ['sk_project', 'Project', 'project']]],
+          { stack: [['sk_project', 'Project', 'project'], ['sk_useedge', 'Use Edge', 'useedge']] }]],
         ['Modify', [['select', 'Select', 'select'], ['trim', 'Trim', 'trim'],
           { stack: [['sk_offset', 'Offset', 'offset'], ['sk_mirror', 'Mirror', 'sk_mirror'], ['sk_delete', 'Delete', 'delete']] },
           { stack: [['construction', 'Construction', 'construction'], ['look', 'Look At', 'look']] }]],
-        ['Constrain', [{ grid: Object.entries(CTOOLS).filter(([k]) => k !== 'c_dimension').map(([k, v]) => [k, v.label, k]), cols: 5 },
-          ['c_dimension', 'Dimension', 'c_dimension']]],
+        ['Dimension', [['c_dimension', 'Smart Dimension', 'c_dimension']]],
+        ['Relations', [{ grid: Object.entries(CTOOLS).filter(([k]) => k !== 'c_dimension').map(([k, v]) => [k, v.label, k]), cols: 5 }]],
         ['Finish', [['finish', 'Finish', 'finish'], ['finish_extrude', 'Finish & Extrude', 'extrude'], ['sk_cancel', 'Cancel', 'cancel']]],
       ] };
-    const inspect = ['Inspect', [{ stack: [['measure', 'Measure', 'measure'], ['section', 'Section', 'section'], ['info', 'Properties', 'info']] }]];
+    // Inspect is the same everywhere, so it sits once at the right end of every tab
+    const pinned = ['Inspect', [{ stack: [['measure', 'Measure', 'measure'], ['section', 'Section', 'section'], ['info', 'Properties', 'info']] }]];
     const planes = [['plane_offset', 'Offset Plane', 'plane'], ['plane_angle', 'Plane at Angle', 'plane_angle'], ['plane_3pt', '3-Point Plane', 'plane_3pt'], ['plane_mid', 'Midplane', 'plane_mid']];
+    // each tool lives on one tab only (the tool search finds any of them from anywhere)
     const groups = {
       solid: [
         ['Create', [['sketch', 'Sketch', 'sketch'], ['extrude', 'Extrude', 'extrude'], ['revolve', 'Revolve', 'revolve'],
           { drop: 'primitive', label: 'Primitive', items: [['primitive_box', 'Box', 'box'], ['primitive_cylinder', 'Cylinder', 'cylinder'],
             ['primitive_sphere', 'Sphere', 'sphere'], ['primitive_cone', 'Cone', 'cone'], ['primitive_torus', 'Torus', 'torus']] }]],
-        ['Modify', [['hole', 'Hole', 'hole'], ['pushpull', 'Push/Pull', 'pushpull'], ['combine', 'Combine', 'combine'], ['split', 'Split', 'split'],
-          ['mirror', 'Mirror', 'mirror'], ['pattern', 'Pattern', 'pattern'],
-          { stack: [['move', 'Move', 'move'], ['rotate', 'Rotate', 'rotate'], ['scale', 'Scale', 'scale']] },
-          { stack: [['hollow', 'Hollow', 'hollow'], ['offset', 'Offset Body', 'offset'], ['resizehole', 'Resize Hole', 'resizehole']] }]],
-        ['Construct', [{ drop: 'plane', label: 'Plane', items: planes }, ['params', 'Parameters', 'params']]],
-        inspect,
+        ['Modify', [['pushpull', 'Push/Pull', 'pushpull'], ['combine', 'Combine', 'combine'], ['split', 'Split', 'split'],
+          ['mirror', 'Mirror', 'mirror'], ['pattern', 'Pattern', 'pattern']]],
+        ['Holes', [['hole', 'Hole', 'hole'], ['thread', 'Thread', 'thread'], { stack: [['resizehole', 'Resize Hole', 'resizehole']] }]],
+        ['Shape', [{ stack: [['hollow', 'Hollow', 'hollow'], ['offset', 'Offset Body', 'offset']] }]],
+        ['Reference', [{ drop: 'plane', label: 'Plane', items: planes }, ['params', 'Parameters', 'params']]],
       ],
       print: [
-        ['Orient', [['layflat', 'Lay Flat', 'layflat'], { stack: [['move', 'Move', 'move'], ['rotate', 'Rotate', 'rotate'], ['scale', 'Scale', 'scale']] }]],
-        ['Fit', [['bedsplit', 'Fit to Bed', 'bedsplit'], ['split', 'Split', 'split']]],
-        ['Hardware', [['hole', 'Hole', 'hole'], ['thread', 'Thread', 'thread'], ['resizehole', 'Resize Hole', 'resizehole']]],
-        ['Prepare', [['hollow', 'Hollow', 'hollow'], ['repair', 'Repair', 'repair'], { stack: [['offset', 'Offset Body', 'offset']] }]],
+        ['Position', [['layflat', 'Lay Flat', 'layflat'], { stack: [['move', 'Move', 'move'], ['rotate', 'Rotate', 'rotate'], ['scale', 'Scale', 'scale']] }]],
+        ['Fit', [['bedsplit', 'Fit to Bed', 'bedsplit']]],
         ['Output', [['export', 'Export', 'export'], ['send', 'Send to Slicer', 'slicer']]],
-        ['Inspect', [['info', 'Properties', 'info'], { stack: [['measure', 'Measure', 'measure'], ['section', 'Section', 'section']] }]],
       ],
       supports: [
         ['Supports', [['supportfins', 'Support Fins', 'fins'], ['supportwall', 'Draw Walls', 'finwall']]],
-        ['Orient', [['layflat', 'Lay Flat', 'layflat'], { stack: [['move', 'Move', 'move'], ['rotate', 'Rotate', 'rotate'], ['scale', 'Scale', 'scale']] }]],
-        ['Output', [['export', 'Export', 'export'], ['send', 'Send to Slicer', 'slicer']]],
         ['Support Fins', [{ stack: [['sf_about', 'About Support Fins', 'info']] }]],
       ],
       mesh: [
@@ -144,10 +141,9 @@ class App {
           { stack: [['separate', 'Separate', 'separate'], ['delete', 'Remove Bodies', 'delete']] }]],
         ['Sculpt', [['sculpt', 'Brushes', 'sculpt']]],
         ['Convert', [['to_step', 'To STEP', 'step']]],
-        inspect,
       ],
     };
-    return { tabs: [['solid', 'SOLID'], ['print', 'PRINT'], ['supports', 'SUPPORTS'], ['mesh', 'MESH']], groups: groups[tab] || groups.solid };
+    return { tabs: [['solid', 'MODEL'], ['print', 'PRINT'], ['supports', 'SUPPORTS'], ['mesh', 'MESH']], groups: groups[tab] || groups.solid, pinned };
   }
 
   // every [key, label, icon] inside a list of ribbon items
@@ -165,6 +161,7 @@ class App {
     }
     for (const [tab] of this.ribbonDef().tabs)
       for (const [g, items] of this.ribbonDef(tab).groups) for (const [k, l, ic] of App.flatItems(items)) add(k, l, ic, tab, g);
+    { const [g, items] = this.ribbonDef().pinned; for (const [k, l, ic] of App.flatItems(items)) add(k, l, ic, null, g); }
     add('import', 'Insert Mesh', 'import', null, 'File');
     add('export', 'Export', 'export', null, 'File');
     add('send', 'Send to Slicer', 'slicer', null, 'File');
@@ -187,8 +184,9 @@ class App {
     };
     $('#ribbon-tabs').innerHTML = def.tabs.map(([k, l]) => `<button class="rtab ${k === 'sketch' ? 'sketch active' : (k === this.tab ? 'active' : '')}" data-tab="${k}">${l}</button>`).join('') +
       `<div id="ribbon-search"><input id="tool-search" type="search" placeholder="Search tools   Ctrl+K" autocomplete="off" spellcheck="false"></div>`;
-    $('#ribbon-body').innerHTML = def.groups.map(([label, items], gi) => `<div class="rgroup" data-g="${gi}"><div class="rgroup-items">${items.map(item).join('')}</div><div class="rgroup-label">${esc(label)}</div></div>`).join('');
-    this._ribbonGroups = def.groups;
+    const all = def.pinned ? [...def.groups, def.pinned] : def.groups;
+    $('#ribbon-body').innerHTML = all.map(([label, items], gi) => `<div class="rgroup ${def.pinned && gi === all.length - 1 ? 'pinned' : ''}" data-g="${gi}"><div class="rgroup-items">${items.map(item).join('')}</div><div class="rgroup-label">${esc(label)}</div></div>`).join('');
+    this._ribbonGroups = all;
     this.bindSearch();
     this.updateRibbonState();
     this.fitRibbon();
@@ -208,8 +206,9 @@ class App {
     const more = document.createElement('div');
     more.className = 'rgroup rmore';
     more.innerHTML = `<div class="rgroup-items"><button class="tool-btn" data-more="1" title="More tools">${icon('more')}<span>More</span></button></div><div class="rgroup-label">&nbsp;</div>`;
-    body.appendChild(more);
-    const groups = [...body.querySelectorAll('.rgroup:not(.rmore)')];
+    const pin = body.querySelector('.rgroup.pinned');
+    body.insertBefore(more, pin || null);
+    const groups = [...body.querySelectorAll('.rgroup:not(.rmore):not(.pinned)')];
     for (let i = groups.length - 1; i > 0 && over(); i--) groups[i].classList.add('folded');
   }
 
@@ -230,7 +229,7 @@ class App {
 
   bindSearch() {
     const inp = $('#tool-search'); if (!inp) return;
-    const TAB = { solid: 'Solid', print: 'Print', supports: 'Supports', mesh: 'Mesh', sketch: 'Sketch' };
+    const TAB = { solid: 'Model', print: 'Print', supports: 'Supports', mesh: 'Mesh', sketch: 'Sketch' };
     const matches = () => {
       const q = inp.value.trim().toLowerCase();
       if (!q) return [];
@@ -287,7 +286,7 @@ class App {
   onRibbon(k) {
     if (this.sketcher.active) {
       const sk = this.sketcher;
-      if (['line', 'arc3', 'rect', 'rect_center', 'circle', 'polygon', 'slot', 'select', 'trim', 'sk_mirror', 'text'].includes(k) || k.startsWith('c_')) sk.setTool(k);
+      if (['line', 'arc3', 'rect', 'rect_center', 'circle', 'polygon', 'slot', 'select', 'trim', 'sk_mirror', 'text', 'sk_useedge'].includes(k) || k.startsWith('c_')) sk.setTool(k);
       else if (k === 'sk_project') this.sketchProject();
       else if (k === 'sk_offset') this.sketchOffset();
       else if (k === 'construction') sk.toggleConstruction();
@@ -618,9 +617,10 @@ class App {
       case 'select':
         if (f.options.length <= 4) return wrap(`<div class="seg">${f.options.map(([k, l]) => `<button data-seg="${f.key}" data-val="${k}" class="${val === k ? 'on' : ''}">${l}</button>`).join('')}</div>`);
         if (f.groups) {
-          const groups = {};
-          for (const pr of HOLE_PRESETS) (groups[pr.group] ||= []).push(pr);
-          return wrap(`<select data-sel="${f.key}">${Object.entries(groups).map(([g, items]) => (g ? `<optgroup label="${g}">` : '') + items.map(pr => `<option value="${pr.id}" ${val === pr.id ? 'selected' : ''}>${pr.label}</option>`).join('') + (g ? '</optgroup>' : '')).join('')}</select>`);
+          // options [value, label, group], shown under their group's heading
+          const groups = new Map();
+          for (const [k, l, g = ''] of f.options) { if (!groups.has(g)) groups.set(g, []); groups.get(g).push([k, l]); }
+          return wrap(`<select data-sel="${f.key}">${[...groups].map(([g, items]) => (g ? `<optgroup label="${esc(g)}">` : '') + items.map(([k, l]) => `<option value="${esc(k)}" ${val === k ? 'selected' : ''}>${esc(l)}</option>`).join('') + (g ? '</optgroup>' : '')).join('')}</select>`);
         }
         return wrap(`<select data-sel="${f.key}">${f.options.map(([k, l]) => `<option value="${k}" ${val === k ? 'selected' : ''}>${l}</option>`).join('')}</select>`);
       case 'vec3': {
@@ -930,8 +930,32 @@ class App {
     if (missing.length && !(await this.confirm(`${missing.join(', ')} ${missing.length > 1 ? 'are' : 'is'} used in the timeline. Remove ${missing.length > 1 ? 'them' : 'it'} anyway? Those steps will show an error until you fix them.`))) return this.editParams(list);
     try { await this.apply(await post('params/set', { params: list }, { msg: 'Rebuilding…' })); }
     catch (e) { this.toast(e.message, 'err'); return this.editParams(list); }
+    await this.resolveSketchParams();
     const bad = this.state.features.filter(f => f.error && /^Parameter:/.test(f.error));
     if (bad.length) this.toast(`${bad.map(f => f.name).join(', ')}: ${bad[0].error}`, 'warn');
+  }
+
+  /** Sketch dimensions set by parameters: work the sketch out again with the new values. */
+  async resolveSketchParams() {
+    const vals = this.paramValues();
+    let n = 0;
+    for (const f of this.state.features) {
+      const cons = f.type === 'sketch' ? f.params?.constraints || [] : [];
+      if (!cons.some(c => c.expr)) continue;
+      let changed = false;
+      const next = cons.map(c => {
+        if (!c.expr || c.ref) return c;
+        try { const v = resolveDeep(c.expr, vals); if (Number.isFinite(v) && v > 0 && Math.abs(v - c.value) > 1e-9) { changed = true; return { ...c, value: v }; } } catch { /* the step shows the error */ }
+        return c;
+      });
+      if (!changed) continue;
+      const fixed = [...SKETCH_BASE_REFS(), ...(f.params.refs || []).filter(r => r && !Array.isArray(r))];
+      const r = solve(f.params.entities || [], next, [], fixed);
+      if (!r.ok) { this.toast(`${f.name}: the new value conflicts with the sketch's other dimensions and relations.`, 'warn'); continue; }
+      try { await post('feature/edit', { id: f.id, params: { ...f.params, entities: r.entities, constraints: next } }, { msg: `Updating ${f.name}…` }); n++; }
+      catch (e) { this.toast(e.message, 'err'); }
+    }
+    if (n) await this.refresh();
   }
 
   /** Open a web page in the browser (the desktop app hands it to Windows). */
@@ -1190,30 +1214,28 @@ class App {
   }
 
   async enterSketch({ plane, feature }) {
-    let frame, refs = [], entities = [];
+    let frame, refs = [], entities = [], savedRefs = [];
     if (feature) {
       const s = this.state.sketches.find(x => x.id === feature.id);
       const idx = this.state.features.findIndex(f => f.id === feature.id);
       this._sketchPrevRollback = this.state.rollback;
       await this.apply(await post('rollback', { index: idx }));
       frame = s ? s.frame : this.frameOf(feature.params.plane);
-      refs = feature.params.refs || [];
+      savedRefs = (feature.params.refs || []).filter(r => r && !Array.isArray(r));
       entities = feature.params.entities || [];
       plane = feature.params.plane;
     } else {
       frame = this.frameOf(plane);
-      if (plane && typeof plane === 'object' && plane.body) {
-        try {
-          // project the face outline into the sketch as reference geometry (for snapping)
-          const b = this.viewer.bodyGeometry(plane.body);
-          refs = this._faceRefs || [];
-        } catch { refs = []; }
-      }
     }
     if (!frame) { this.toast('Could not use that plane.', 'err'); return; }
+    // the part's edges on (or through, or under) the sketch plane, to dimension from
+    let refKind = null;
+    try { const r = await post('sketch_op', { op: 'refs', frame, entities: [] }, { quiet: true }); refs = r.refs || []; refKind = r.kind; } catch { refs = []; }
     this.mode = 'sketch';
     this.selection = []; this.viewer.setSelection([]); this.viewer.setHover(null);
-    this.sketcher.start({ frame, entities, refs, featureId: feature?.id || null, planeRef: plane, name: feature?.name, constraints: feature?.params?.constraints || [] });
+    this.sketcher.start({ frame, entities, refs, savedRefs, refKind, featureId: feature?.id || null, planeRef: plane, name: feature?.name, constraints: feature?.params?.constraints || [] });
+    const lost = this.sketcher.refEnts.filter(e => e.missing).length;
+    if (lost) this.toast(`${lost} part edge${lost > 1 ? 's' : ''} this sketch measured from ${lost > 1 ? 'have' : 'has'} changed (shown red). Its dimensions hold to where ${lost > 1 ? 'they were' : 'it was'}: delete them and dimension to the new edge${lost > 1 ? 's' : ''}.`, 'warn');
     this.viewer.setBasePlanesVisible(false);
     this.viewer.syncSketches(this.state.sketches, feature?.id);
     this.buildRibbon();
@@ -1231,6 +1253,14 @@ class App {
     this.viewer.resize();
   }
 
+  onDefinition() {
+    const el = $('#sk-def'); if (!el) return;
+    const sk = this.sketcher;
+    const t = sk.defText();
+    el.className = t ? `sk-def ${sk.defState()}` : ''; el.textContent = t;
+    sk.showStatus();
+  }
+
   onSketchChanged(fromPanel) {
     this.updateRibbonState();
     if (!fromPanel) this.renderSketchPanel();
@@ -1240,7 +1270,18 @@ class App {
     if (!this.sketcher.active) return;
     const sk = this.sketcher;
     const e = sk.selectedEntity();
-    let h = `<div class="section-label">Shapes</div>${sk.panelHTML()}`;
+    const dt = sk.defText();
+    let h = dt ? `<div class="sk-def ${sk.defState()}" id="sk-def">${esc(dt)}</div>` : '<div id="sk-def"></div>';
+    // the selected dimension: its value (or parameter), and whether it drives the size
+    const sc = sk.selC && sk.constraints.find(c => c.id === sk.selC);
+    if (sc && CTYPES[sc.type]?.dim) {
+      const isAng = !!CTYPES[sc.type].angle;
+      const val = sc.expr || (isAng ? String(Math.round(sc.value * 1e4) / 1e4) : U.fmt(sc.value, 4));
+      h += `<div class="section-label">${esc(CTYPES[sc.type].label)}</div>
+        <div class="field"><label>Value</label><div class="ctl"><input type="text" data-skdim="value" value="${esc(sc.ref ? sk.dimText(sc, undefined, true) : val)}" ${sc.ref ? 'disabled' : ''} title="A number, or a parameter: width, =width/2"><span class="unit">${isAng ? '°' : U.label}</span></div></div>
+        <div class="field"><label title="A reference (driven) dimension shows a size without setting it">Reference</label><div class="ctl"><input type="checkbox" data-skdim="ref" ${sc.ref ? 'checked' : ''}><button data-sk-act="del-dim">Delete</button></div></div>`;
+    }
+    h += `<div class="section-label">Shapes</div>${sk.panelHTML()}`;
     const txt = sk.selectedText();
     if (txt) {
       h += `<div class="section-label">Text</div><div class="field"><label>Text</label><div class="ctl"><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">“${esc(txt.meta.text)}”</span><button data-sk-act="edit-text">Edit…</button></div></div>
@@ -1269,12 +1310,12 @@ class App {
       h += `<div class="field"><label>Construction</label><div class="ctl"><input type="checkbox" data-ent-bool="construction" ${e.construction ? 'checked' : ''}></div></div>`;
     }
     if (sk.constraints.length) {
-      const desc = c => { const T = CTYPES[c.type] || { label: c.type }; return T.dim ? `${T.label}: ${T.angle ? c.value + '°' : U.str(c.value)}` : T.label; };
-      h += `<div class="section-label">Constraints (${sk.constraints.length})</div><div class="ent-list">${sk.constraints.map(c => `<div class="ent ${sk.selC === c.id ? 'sel' : ''}" data-cid="${c.id}"><span>${esc(desc(c))}${c.auto ? ' <span class="t">auto</span>' : ''}</span><span class="t" data-cdel="${c.id}" title="Remove" style="cursor:pointer">✕</span></div>`).join('')}</div>`;
+      const desc = c => { const T = CTYPES[c.type] || { label: c.type }; return T.dim ? `${T.label}: ${c.ref ? `(${sk.dimText(c, undefined, true)})` : (T.angle ? Math.round(c.value * 100) / 100 + '°' : U.str(c.value))}${c.expr ? ` = ${c.expr.slice(1)}` : ''}` : T.label; };
+      h += `<div class="section-label">Dimensions & relations (${sk.constraints.length})</div><div class="ent-list">${sk.constraints.map(c => `<div class="ent ${sk.selC === c.id ? 'sel' : ''}" data-cid="${c.id}"><span>${esc(desc(c))}${c.auto ? ' <span class="t">auto</span>' : ''}</span><span class="t" data-cdel="${c.id}" title="Remove" style="cursor:pointer">✕</span></div>`).join('')}</div>`;
     }
     h += `<div class="section-label">Snapping</div>
       <div class="field"><label>Grid snap</label><div class="ctl"><input type="checkbox" id="snap-on" ${sk.snapGrid ? 'checked' : ''}><select id="snap-step">${U.snapSteps().map(([l, v]) => `<option value="${v}" ${Math.abs(v - sk.snapStep) < 1e-9 ? 'selected' : ''}>${l}</option>`).join('')}</select><span class="unit">${U.label}</span></div></div>
-      <div class="msg info" style="margin-top:8px">Shapes inside other shapes become holes; lines and arcs that close a loop make a shape too. Type numbers while drawing, or click a dimension on the sketch to change it. When extruding you can pick single regions under Profiles.</div>`;
+      <div class="msg info" style="margin-top:8px">Shapes inside other shapes become holes; lines and arcs that close a loop make a shape too. Use Smart Dimension (D) to add sizes; double-click one to change it (a parameter name works too). Black shapes are fully defined, blue ones can still move; orange lines are the part's edges, there to dimension from. When extruding you can pick single regions under Profiles.</div>`;
     $('#tool-form').innerHTML = h;
     $('#tool-msg').innerHTML = '';
   }
@@ -1374,7 +1415,7 @@ class App {
 
   async finishSketch(thenExtrude) {
     const sk = this.sketcher;
-    const params = { plane: sk.planeRef, entities: sk.entities, refs: sk.refs, constraints: sk.constraints };
+    const params = { plane: sk.planeRef, entities: sk.entities, refs: sk.usedRefs(), constraints: sk.constraints };
     if (params.plane && typeof params.plane === 'object') params.plane = { ...params.plane };
     try {
       let sid = sk.featureId;
@@ -1886,6 +1927,7 @@ class App {
       const ce = e.target.closest('.ent[data-cid]');
       if (ce) { sk.selC = sk.selC === ce.dataset.cid ? null : ce.dataset.cid; sk.sel.clear(); sk.redraw(); this.renderSketchPanel(); return; }
       if (e.target.closest('[data-sk-act="edit-text"]')) { const t = sk.selectedText(); if (t) this.sketchText(t.meta, t.group); return; }
+      if (e.target.closest('[data-sk-act="del-dim"]') && sk.selC) { sk.deleteConstraint(sk.selC); return; }
       const ent = e.target.closest('.ent[data-id]');
       if (ent) sk.setSel(sk.groupOf(ent.dataset.id));
       return;
@@ -1942,6 +1984,18 @@ class App {
     if (sk.active) {
       if (el.id === 'snap-on') sk.snapGrid = el.checked;
       if (el.id === 'snap-step') { sk.snapStep = parseFloat(el.value); post('settings/set', { key: 'snap_step', value: sk.snapStep }, { quiet: true }).catch(() => {}); }
+      if (el.dataset.skdim && sk.selC) {
+        const c = sk.constraints.find(x => x.id === sk.selC);
+        if (c && el.dataset.skdim === 'ref') sk.setDimRef(c.id, el.checked);
+        if (c && el.dataset.skdim === 'value') {
+          const r = sk.parseDim(el.value, !!CTYPES[c.type].angle);
+          if (r.err) this.toast(r.err, 'warn');
+          else if (!(r.v > 0)) this.toast('A dimension needs a size above zero.', 'warn');
+          else sk.setDimValue(c.id, r.v, r.expr);
+        }
+        this.renderSketchPanel();
+        return;
+      }
       const ent = sk.selectedEntity();
       if (ent && el.dataset.ent) {
         const k = el.dataset.ent, v = ['angle', 'a0', 'a1', 'n'].includes(el.dataset.ent) ? parseNum(el.value) : U.parse(el.value);
@@ -2243,7 +2297,7 @@ class App {
   showHelp() {
     const rows = [['Left-drag', 'Orbit'], ['Right / middle-drag', 'Pan'], ['Wheel', 'Zoom'], ['Click', 'Select a body (Shift adds)'], ['Double-click a flat face', 'Sketch on it'],
       ['S', 'Sketch'], ['E', 'Extrude'], ['H', 'Hole'], ['M', 'Move'], ['F', 'Fit all'], ['0–6', 'Standard views'], ['Ctrl+K or /', 'Search tools'], ['Ctrl+Z / Ctrl+Y', 'Undo / Redo'], ['Ctrl+S', 'Save'],
-      ['Esc', 'Cancel'], ['In a sketch: L R C P S', 'Line, Rectangle, Circle, Polygon, Slot'], ['In a sketch: type a number', 'Set an exact size, Tab for the next value, Enter to place']];
+      ['Esc', 'Cancel'], ['In a sketch: L R C P S', 'Line, Rectangle, Circle, Polygon, Slot'], ['In a sketch: type a number', 'Set an exact size, Tab for the next value, Enter to place'], ['In a sketch: D', 'Smart Dimension: click, move to place, click, type the value'], ['Double-click a dimension', 'Change it (a parameter name works too)']];
     this.alert('Keyboard & mouse', `<div class="help-grid">${rows.map(([a, b]) => `<kbd>${a}</kbd><span>${b}</span>`).join('')}</div>`);
   }
 
@@ -2387,14 +2441,6 @@ class App {
 // ------------------------------------------------------------------ helpers
 function isSelKind(k) { return ['bodies', 'plane', 'facepoints', 'points3', 'pface', 'cylface', 'regions'].includes(k); }
 function isEmptySel(v) { return v == null || v === '' || (Array.isArray(v) && !v.length); }
-/** Typed text that names a parameter (or starts with "="), not a plain number like "12", "1 3/8" or "25mm". */
-function exprText(text) {
-  const t = String(text ?? '').trim();
-  if (t.startsWith('=')) return t.length > 1;
-  if (/^[0-9\s.,+\-*/()]*\s*(mm|in|"|″)?$/i.test(t)) return false;
-  return /[A-Za-z_]/.test(t);
-}
-const exprOf = text => '=' + String(text).trim().replace(/^=/, '').trim();
 function parseNum(v) {
   if (typeof v === 'number') return v;
   const s = String(v ?? '').trim().replace(',', '.');

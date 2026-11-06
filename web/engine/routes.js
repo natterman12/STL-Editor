@@ -6,7 +6,7 @@ import * as PR from './printing.js';
 import * as MT from './meshtools.js';
 import * as SFX from './supportfins.js';
 
-export const VERSION = '1.11.0';
+export const VERSION = '1.12.0';
 const PALETTE = ['#9aa7b4', '#c9a66b', '#7fa8c9', '#a3c48a', '#c98a8a', '#a993c9', '#c9b98a', '#8ac9c0'];
 
 export const app = { doc: new Document() };
@@ -102,6 +102,12 @@ export const ROUTES = {
       if (!solids.length) throw new GeometryError('There are no solid bodies to project.');
       const add = MT.outlineEntities(MT.outline(solids, d.frame, d.mode || 'section', +(d.tolerance ?? 0.02), +(d.offset || 0)), newId, !!d.construction);
       return { ok: true, entities: ents.concat(add), added: add.map(e => e.id) };
+    } else if (op === 'refs') {
+      // part edges for a sketch to dimension from (see MT.refGeometry)
+      const st = app.doc.state;
+      const ids = [...st.bodies].filter(([k, b]) => !app.doc.ui.hidden.includes(k) && b.isSolid).map(([k]) => k);
+      const solids = ids.map(i => st.body(i).requireSolid());
+      return { ok: true, ...(solids.length ? MT.refGeometry(solids, d.frame) : { kind: null, refs: [] }) };
     } else if (op === 'text') {
       const cont = await MT.textContours(d.text || '', d.font, +(d.size || 10), !!d.bold, !!d.italic, +(d.spacing || 0), d.align || 'left');
       if (!cont.length) throw new GeometryError('Type some text first.');

@@ -57,6 +57,75 @@ def outline(solids, frame, mode="section", tolerance=0.02, offset=0.0):
     return polys
 
 
+def ref_geometry(solids, frame, max_segs=3000):
+    """Part edges a sketch can measure from: the outline of the faces lying on the sketch plane;
+    otherwise where the plane cuts the parts; otherwise their shadow on it. Round loops come back
+    as circles, everything else as straight segments (sketch coordinates)."""
+    tris = []
+    total = 0
+    for s in solids:
+        mm = _to_local(s, frame).to_mesh()
+        vp = np.asarray(mm.vert_properties, np.float64)[:, :3]
+        tv = np.asarray(mm.tri_verts, np.int64)
+        total += len(tv)
+        if not len(tv):
+            continue
+        t = vp[tv]                                    # (k, 3, 3)
+        keep = np.all(np.abs(t[:, :, 2]) <= 1e-3, axis=1)
+        uv = t[keep][:, :, :2]
+        if not len(uv):
+            continue
+        a = uv[:, 1] - uv[:, 0]
+        b = uv[:, 2] - uv[:, 0]
+        ar = a[:, 0] * b[:, 1] - a[:, 1] * b[:, 0]
+        uv = uv[np.abs(ar) >= 1e-12]
+        ar = ar[np.abs(ar) >= 1e-12]
+        uv[ar < 0] = uv[ar < 0][:, ::-1]
+        tris.extend(np.ascontiguousarray(x) for x in uv)
+    kind, polys = "face", []
+    if tris:
+        polys = [np.asarray(p, float) for p in m3.CrossSection(tris, m3.FillRule.NonZero).to_polygons()]
+    if not polys:
+        kind = "section"
+        try:
+            polys = outline(solids, frame, "section", 0.02)
+        except GeometryError:
+            polys = []
+    if not polys and total <= 300000:     # a shadow of a huge scan would take too long
+        kind = "silhouette"
+        try:
+            polys = outline(solids, frame, "silhouette", 0.02)
+        except GeometryError:
+            polys = []
+
+    def ents(tol):
+        ps = polys
+        if tol:
+            cs = m3.CrossSection([np.ascontiguousarray(p) for p in polys], m3.FillRule.EvenOdd).simplify(tol)
+            ps = [np.asarray(p, float) for p in cs.to_polygons()]
+        out = []
+        for p in ps:
+            if len(p) < 3:
+                continue
+            c = _as_circle(p)
+            if c is not None:
+                out.append({"type": "circle", "cx": c[0], "cy": c[1], "r": c[2]})
+                continue
+            for i in range(len(p)):
+                q0, q1 = p[i], p[(i + 1) % len(p)]
+                if math.hypot(q1[0] - q0[0], q1[1] - q0[1]) > 1e-6:
+                    out.append({"type": "line", "p1": [round(float(q0[0]), 5), round(float(q0[1]), 5)],
+                                "p2": [round(float(q1[0]), 5), round(float(q1[1]), 5)]})
+        return out
+
+    out = ents(0.005)
+    for tol in (0.05, 0.2, 1.0):
+        if len(out) <= max_segs:
+            break
+        out = ents(tol)
+    return {"kind": kind if polys else None, "refs": out[:max_segs]}
+
+
 def outline_entities(polys, new_id, construction=False):
     """Turn contours into sketch entities: circles where a contour is round, closed polylines otherwise."""
     out = []

@@ -59,6 +59,55 @@ function asCircle(p) {
   return dev < Math.max(0.01, r * 0.01) ? [+cx.toFixed(4), +cy.toFixed(4), +r.toFixed(4)] : null;
 }
 
+// Part edges a sketch can measure from: the outline of the faces lying on the sketch plane;
+// otherwise where the plane cuts the parts; otherwise their shadow on it. Round loops come back
+// as circles, everything else as straight segments (sketch coordinates).
+export function refGeometry(solids, frame, maxSegs = 3000) {
+  const M = worldToFrame(...frame);
+  const tris = [];
+  let total = 0;
+  for (const s of solids) {
+    const m = s.transform(M).getMesh(), P = m.vertProperties, T = m.triVerts, np = m.numProp;
+    total += T.length / 3;
+    for (let t = 0; t < T.length; t += 3) {
+      const q = [0, 1, 2].map(k => T[t + k] * np);
+      if (q.some(i => Math.abs(P[i + 2]) > 1e-3)) continue;
+      const uv = q.map(i => [P[i], P[i + 1]]);
+      const ar = (uv[1][0] - uv[0][0]) * (uv[2][1] - uv[0][1]) - (uv[1][1] - uv[0][1]) * (uv[2][0] - uv[0][0]);
+      if (Math.abs(ar) < 1e-12) continue;
+      tris.push(ar < 0 ? uv.reverse() : uv);
+    }
+  }
+  let kind = 'face', polys = [];
+  if (tris.length) polys = crossSection(tris, 'NonZero').toPolygons().map(p => p.map(q => [q[0], q[1]]));
+  if (!polys.length) {
+    kind = 'section';
+    try { polys = outline(solids, frame, 'section', 0.02); } catch { polys = []; }
+  }
+  if (!polys.length && total <= 300000) {   // a shadow of a huge scan would take too long
+    kind = 'silhouette';
+    try { polys = outline(solids, frame, 'silhouette', 0.02); } catch { polys = []; }
+  }
+  const ents = tol => {
+    const ps = tol ? crossSection(polys, 'EvenOdd').simplify(tol).toPolygons().map(p => p.map(q => [q[0], q[1]])) : polys;
+    const out = [];
+    const r5 = v => +(+v).toFixed(5);
+    for (const p of ps) {
+      if (p.length < 3) continue;
+      const c = asCircle(p);
+      if (c) { out.push({ type: 'circle', cx: c[0], cy: c[1], r: c[2] }); continue; }
+      for (let i = 0; i < p.length; i++) {
+        const a = p[i], b = p[(i + 1) % p.length];
+        if (Math.hypot(b[0] - a[0], b[1] - a[1]) > 1e-6) out.push({ type: 'line', p1: [r5(a[0]), r5(a[1])], p2: [r5(b[0]), r5(b[1])] });
+      }
+    }
+    return out;
+  };
+  let out = ents(0.005);
+  for (const tol of [0.05, 0.2, 1]) { if (out.length <= maxSegs) break; out = ents(tol); }
+  return { kind: polys.length ? kind : null, refs: out.slice(0, maxSegs) };
+}
+
 export function outlineEntities(polys, newId, construction = false) {
   return polys.map(p => {
     const c = asCircle(p);

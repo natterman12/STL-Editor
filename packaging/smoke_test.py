@@ -117,6 +117,7 @@ def main(exe):
         step("fit to bed", lambda: add("bedsplit", {"body": X, "printer": "bambu_a1mini", "connector": "pins"}))
         frame = [[0, 0, 15], [1, 0, 0], [0, 1, 0], [0, 0, 1]]
         step("project", lambda: call("sketch_op", {"op": "project", "entities": [], "frame": frame}))
+        step("part edges for dimensions", lambda: call("sketch_op", {"op": "refs", "entities": [], "frame": frame})["refs"][0])
         step("fonts + text", lambda: call("sketch_op", {"op": "text", "entities": [], "text": "Hi 3D",
                                                         "font": call("fonts", {})["default"], "size": 8}))
         for fmt in ("stl", "3mf", "obj"):

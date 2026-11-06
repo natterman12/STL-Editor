@@ -42,10 +42,18 @@ Double-click any item on the timeline to change it later; the steps after it upd
 
 ## Tools
 
-The toolbar has four tabs: **Solid** (modelling, planes and inspection), **Print** (getting
-parts ready to print), **Supports** (Support Fins, with the orient and output tools you use
-alongside it) and **Mesh** (repair, remesh, sculpt). Some tools are on
-more than one tab. Buttons with a ▾ open a short list (Primitive, Plane, Rectangle). Press
+The toolbar has four tabs, and each tool is on one of them only:
+
+- **Model**: Create (Sketch, Extrude, Revolve, Primitive), Modify (Push/Pull, Combine, Split,
+  Mirror, Pattern), Holes (Hole, Thread, Resize Hole), Shape (Hollow, Offset Body) and
+  Reference (Plane, Parameters).
+- **Print**: Position (Lay Flat, Move, Rotate, Scale), Fit (Fit to Bed) and Output (Export,
+  Send to Slicer).
+- **Supports**: Support Fins and Draw Walls.
+- **Mesh**: Repair, Simplify, Remesh, Separate, Remove Bodies, Sculpt and To STEP.
+
+**Inspect** (Measure, Section, Properties) sits at the right end of every tab. Buttons with a
+▾ open a short list (Primitive, Plane, Rectangle). Press
 `Ctrl+K` or `/` and type to find any tool by name. In a narrow window the toolbar shrinks to
 icons, and anything that still doesn't fit goes under **»**.
 
@@ -54,8 +62,9 @@ two sides; through all; taper), Revolve, Box, Cylinder, Sphere, Cone, Torus (cli
 to place them on it).
 
 **Modify**: Resize Hole (click the wall of any round hole or pin, even in a downloaded STL: it's measured, then type a new diameter, pick a common size like *M3 heat-set insert* or *6 mm magnet*, or fill the hole), Offset Body (grow or shrink a whole part by a set distance, e.g. 0.2 mm for a tighter or looser fit), Hole (simple, counterbore, countersink, nut trap; click several points; presets for
-heat-set inserts M2–M5, screw clearance, socket-head counterbores, hex nut traps and magnet
-pockets, with a print tolerance), Push/Pull (drag a flat face out or in), Combine (join /
+heat-set inserts (M1.6–M5 and #2-56–1/4"-20), screw clearance (M1.6–M8 and #2–3/8"),
+socket-head counterbores, hex nut traps, holes for self-tapping screws (M1.6–M5) and magnet
+pockets, metric and inch, with a print tolerance), Push/Pull (drag a flat face out or in), Combine (join /
 cut / intersect bodies; Cut takes a *Clearance* that grows the cutting bodies first, so a part made to fit the cut-out isn't too tight), Split (by a plane or flat face),
 Move / Rotate and Scale (drag the arrows, rings or handles on the part and the change is
 applied as soon as you let go, or type the numbers and press OK; a rotated part lands on the bed instead of hanging through it, and Move Z then lifts
@@ -63,7 +72,8 @@ it off; also "drop to bed" and "centre on origin"; Scale by factor, to size, or 
 conversion), Pattern (linear or circular, of bodies or of features), Mirror (bodies or
 features), Hollow (wall thickness). Split can add connectors at the cut.
 
-**Threads**: Thread tool: tapped holes or screws/studs, ISO metric M3–M30 presets or any
+**Threads**: Thread tool: tapped holes or screws/studs, ISO metric M1.6–M30, UNC #1-64 to
+3/4"-10 and the common UNF sizes (#0-80, #10-32, 1/4"-28…) or any
 size, right or left hand, chamfered ends and a print clearance (0.2–0.4 mm works well on
 FDM; pitches of 1 mm and up print most reliably).
 
@@ -135,20 +145,48 @@ from the next start (if update checks are on). Settings a new release adds show 
 panel by themselves, and settings you haven't changed follow the new defaults. Help › About
 Support Fins shows the version in use.
 
-**Planes** (Solid tab › Plane): Offset Plane, Plane at Angle, 3-Point Plane, Midplane. Any
+**Planes** (Model tab › Plane): Offset Plane, Plane at Angle, 3-Point Plane, Midplane. Any
 flat face also works as a plane.
 
 **Sketch tools**: Line (connected segments), 3-Point Arc, Rectangle, Centre Rectangle,
-Circle, Polygon, Slot, Text, Project, Trim, Offset, Mirror (across a sketch line), Construction.
+Circle, Polygon, Slot, Text, Project, Use Edge, Trim, Offset, Mirror (across a sketch line), Construction.
 
 - **Text**: click where it should start, then type. Any font installed on your computer works, with height, bold / italic, alignment, letter spacing and rotation. Letters with holes keep them. Extrude to emboss, or cut to engrave. Select the text and press *Edit…* to change it later.
-- **Project**: adds the model's outline to the sketch as shapes, either where the sketch plane cuts through the model or the model's shadow on the plane. An offset makes a matching lid, collar or gasket, e.g. +0.3 mm to fit over the part. Round outlines come in as real circles. Click a
-dimension label on the sketch to change it. Closed loops of lines and arcs become profiles,
-and when extruding or revolving you can pick single regions under **Profiles**.
+- **Project**: adds the model's outline to the sketch as shapes, either where the sketch plane cuts through the model or the model's shadow on the plane. An offset makes a matching lid, collar or gasket, e.g. +0.3 mm to fit over the part. Round outlines come in as real circles.
+- **Use Edge**: click one of the part's orange edges to copy it into the sketch as a line or circle that stays on the edge.
 
-**Sketch constraints**: Coincident, Horizontal / Vertical, Parallel, Perpendicular, Equal,
-Tangent, Concentric, Midpoint, Fix, Symmetric, and driving Dimensions (length, diameter,
-radius, distance between points, angle between lines). Lines you draw are joined and kept
+Closed loops of lines and arcs become profiles, and when extruding or revolving you can pick
+single regions under **Profiles**.
+
+**Dimensions** work like SOLIDWORKS. Pick **Smart Dimension** (`D`), click what to measure,
+move the pointer to where the dimension should sit, click, and type the value in the box
+(✓ or Enter applies it, ✗ or Esc leaves it). What you pick decides the dimension: a line gives
+its length, a circle its diameter, an arc its radius; two points or a point and a line give the
+distance between them, two lines their angle (or the distance between them when they're
+parallel). Where you move the pointer decides horizontal, vertical or along the line, and for
+an angle which side is measured. Each dimension is drawn on the sketch with extension lines and
+arrows showing exactly what it measures; drag it to move it, double-click it to change it.
+Sizes typed while drawing (a rectangle's width and height, a circle's diameter, a line's
+length) become dimensions too.
+
+- **Measure from the part**: the edges of the part are shown in orange: the outline of the
+  face you sketch on, or where the sketch plane cuts the part, or the part's shadow on the
+  plane. Click them (and the origin) like any sketch line or point to dimension from them or
+  to snap and join to them; they don't move. When you edit the sketch after the part has
+  changed, the edges are found again; one that's gone is shown red.
+- **Colours**: black shapes are fully defined (dimensions and relations set their size and
+  place), blue ones can still move, and red means relations that can't all be met. The panel
+  and the status bar say *Fully defined* or how many more dimensions are needed. Tie a sketch
+  to the origin or a part edge to fully define it.
+- **Reference dimensions**: adding a dimension the sketch already sets would over-define it,
+  so it's offered as a reference dimension instead: grey, in brackets, showing the size
+  without driving it. Tick or untick *Reference* in the panel to switch.
+- **Parameters**: type a parameter name or an expression (`width`, `=width/2 + 3`) as the
+  value. The dimension turns purple, and changing the parameter in Edit › Parameters…
+  updates the sketch and everything built from it.
+
+**Sketch relations**: Coincident, Horizontal / Vertical, Parallel, Perpendicular, Equal,
+Tangent, Concentric, Midpoint, Fix, Symmetric. Lines you draw are joined and kept
 level / plumb automatically. Change a dimension and the shape follows; drag points or shapes
 with the Select tool and the constraints hold. Small glyphs (H, V, ∥, ⊥, =, T, ◎…) show
 each constraint: click one and press Delete to remove it, or use the list in the panel.
@@ -172,7 +210,7 @@ Studio / OrcaSlicer / SolidCraft.
 
 ## Parameters
 
-Name a value once and use it anywhere: Edit › Parameters… (or Solid tab › Parameters, or the
+Name a value once and use it anywhere: Edit › Parameters… (or Model tab › Parameters, or the
 *Parameters* folder in the browser). Give each one a name and a value; a value can use other
 parameters (`height = width / 4 + 5`). Then type the name, or an expression like
 `=width/2 + 3`, into any number in a tool: an extrude distance, a hole diameter, a box size, a

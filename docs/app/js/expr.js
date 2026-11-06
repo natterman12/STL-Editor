@@ -143,3 +143,13 @@ export function usesExpr(obj) {
   if (obj && typeof obj === 'object') return Object.values(obj).some(usesExpr);
   return false;
 }
+
+/** Typed text that names a parameter (or starts with "="), not a plain number like "12", "1 3/8" or "25mm". */
+export function exprText(text) {
+  const t = String(text ?? '').trim();
+  if (t.startsWith('=')) return t.length > 1;
+  if (/^[0-9\s.,+\-*/()]*\s*(mm|in|"|″)?$/i.test(t)) return false;
+  return /[A-Za-z_]/.test(t);
+}
+/** The stored form of a typed expression: "=width/2". */
+export const exprOf = text => '=' + String(text).trim().replace(/^=/, '').trim();

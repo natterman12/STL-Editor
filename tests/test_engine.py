@@ -317,6 +317,24 @@ def test_project_outline_on_a_face():
     assert pts[:, 0].max() - pts[:, 0].min() == pytest.approx(40, abs=0.01)
 
 
+def test_sketch_reference_edges():
+    """Part edges a sketch can dimension from: the face on the plane, else the cut, else the shadow."""
+    from stleditor import meshtools as MT
+    doc = Document()
+    f, _ = doc.add_feature("primitive", {"shape": "box", "length": 40, "width": 30, "height": 20})
+    doc.add_feature("hole", {"points": [[0, 0, 20]], "normal": [0, 0, 1], "diameter": 8, "through": True})
+    solid = doc.state.body(f["id"]).solid
+    for z, kind in ((20, "face"), (10, "section"), (-5, "silhouette")):
+        r = MT.ref_geometry([solid], G.plane_frame([0, 0, z], [0, 0, 1]))
+        assert r["kind"] == kind
+        types = sorted(e["type"] for e in r["refs"])
+        assert types == ["circle", "line", "line", "line", "line"], types
+        circle = next(e for e in r["refs"] if e["type"] == "circle")
+        assert circle["r"] == pytest.approx(4, abs=0.02)
+        xs = [p[0] for e in r["refs"] if e["type"] == "line" for p in (e["p1"], e["p2"])]
+        assert max(xs) - min(xs) == pytest.approx(40, abs=1e-3)
+
+
 def _arrays(man):
     mm = man.to_mesh()
     return np.asarray(mm.vert_properties)[:, :3], np.asarray(mm.tri_verts)

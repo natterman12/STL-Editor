@@ -6,27 +6,55 @@ const vecAxis = v => { if (!v) return 'z'; const i = v.map(Math.abs).indexOf(Mat
 // Hole presets. Insert sizes follow common CNC Kitchen / Ruthex style M-inserts; check your
 // insert's datasheet. Tolerance (mm) is added to diameters (and depths for pockets).
 const r2 = x => Math.round(x * 100) / 100;
-const insert = (m, d, len) => ({ id: `ins_${m}`, label: `Heat-set insert ${m}`, group: 'Heat-set inserts',
+const IN = 25.4;
+const insert = (m, d, len, group = 'Heat-set inserts (metric)') => ({ id: `ins_${m}`, label: `Heat-set insert ${m}`, group,
   apply: t => ({ kind: 'simple', diameter: d, through: false, depth: r2(len + 1), tip: false }) });
-const clear = (m, d) => ({ id: `clr_${m}`, label: `Screw clearance ${m}`, group: 'Screws',
+const clear = (m, d, group = 'Screws (metric)') => ({ id: `clr_${m}`, label: `Screw clearance ${m}`, group,
   apply: t => ({ kind: 'simple', diameter: r2(d + t), through: true }) });
-const cbore = (m, d, hd, hh) => ({ id: `cb_${m}`, label: `Socket head ${m} (counterbore)`, group: 'Screws',
+const tap = (m, d) => ({ id: `tap_${m}`, label: `Self-tapping ${m} (into plastic)`, group: 'Self-tapping into plastic',
+  apply: t => ({ kind: 'simple', diameter: r2(d), through: false, depth: 10, tip: false }) });
+const cbore = (m, d, hd, hh, group = 'Screws (metric)') => ({ id: `cb_${m}`, label: `Socket head ${m} (counterbore)`, group,
   apply: t => ({ kind: 'counterbore', diameter: r2(d + t), through: true, cb_diameter: r2(hd + 0.5 + t), cb_depth: r2(hh + 0.3) }) });
-const nut = (m, d, af, h) => ({ id: `nut_${m}`, label: `Hex nut trap ${m}`, group: 'Screws',
+const nut = (m, d, af, h, group = 'Screws (metric)') => ({ id: `nut_${m}`, label: `Hex nut trap ${m}`, group,
   apply: t => ({ kind: 'hex', diameter: r2(d + t), through: true, hex_af: r2(af + t), hex_depth: r2(h + 0.2) }) });
-const magnet = (dia, h) => ({ id: `mag_${dia}x${h}`, label: `Magnet ${dia} × ${h} mm`, group: 'Magnet pockets',
+const magnet = (dia, h, label = `${dia} × ${h} mm`) => ({ id: `mag_${label.replace(/\W+/g, '_')}`, label: `Magnet ${label}`, group: 'Magnet pockets',
   apply: t => ({ kind: 'simple', diameter: r2(dia + t), through: false, depth: r2(h + t), tip: false }) });
+// imperial (inch) screws: sizes in inches, turned into mm
+const II = 'Heat-set inserts (inch)', SI = 'Screws (inch)';
 export const HOLE_PRESETS = [
   { id: 'custom', label: 'Custom', group: '' },
-  insert('M2', 3.2, 3), insert('M2.5', 3.6, 4), insert('M3', 4.0, 5.7), insert('M4', 5.6, 8.1), insert('M5', 6.4, 9.5),
-  clear('M2', 2.4), clear('M2.5', 2.9), clear('M3', 3.4), clear('M4', 4.5), clear('M5', 5.5),
-  cbore('M3', 3.4, 5.5, 3), cbore('M4', 4.5, 7, 4), cbore('M5', 5.5, 8.5, 5),
-  nut('M3', 3.4, 5.5, 2.4), nut('M4', 4.5, 7, 3.2), nut('M5', 5.5, 8, 4),
+  insert('M1.6', 2.4, 2.5), insert('M2', 3.2, 3), insert('M2.5', 3.6, 4), insert('M3', 4.0, 5.7), insert('M4', 5.6, 8.1), insert('M5', 6.4, 9.5),
+  clear('M1.6', 1.8), clear('M2', 2.4), clear('M2.5', 2.9), clear('M3', 3.4), clear('M4', 4.5), clear('M5', 5.5), clear('M6', 6.6), clear('M8', 9.0),
+  cbore('M2', 2.4, 3.8, 2), cbore('M2.5', 2.9, 4.5, 2.5), cbore('M3', 3.4, 5.5, 3), cbore('M4', 4.5, 7, 4), cbore('M5', 5.5, 8.5, 5), cbore('M6', 6.6, 10, 6),
+  nut('M2', 2.4, 4.0, 1.6), nut('M2.5', 2.9, 5.0, 2.0), nut('M3', 3.4, 5.5, 2.4), nut('M4', 4.5, 7, 3.2), nut('M5', 5.5, 8, 4), nut('M6', 6.6, 10, 5),
+  tap('M1.6', 1.3), tap('M2', 1.7), tap('M2.5', 2.1), tap('M3', 2.6), tap('M4', 3.5), tap('M5', 4.3),
+  insert('#2-56', r2(0.125 * IN), r2(0.115 * IN), II), insert('#4-40', r2(0.161 * IN), r2(0.135 * IN), II), insert('#6-32', r2(0.201 * IN), r2(0.150 * IN), II),
+  insert('#8-32', r2(0.228 * IN), r2(0.188 * IN), II), insert('#10-32', r2(0.250 * IN), r2(0.250 * IN), II), insert('1/4"-20', r2(0.348 * IN), r2(0.300 * IN), II),
+  clear('#2', r2(0.102 * IN), SI), clear('#4', r2(0.1285 * IN), SI), clear('#6', r2(0.1495 * IN), SI), clear('#8', r2(0.177 * IN), SI), clear('#10', r2(0.201 * IN), SI),
+  clear('1/4"', r2(0.266 * IN), SI), clear('5/16"', r2(0.332 * IN), SI), clear('3/8"', r2(0.397 * IN), SI),
+  cbore('#4', r2(0.1285 * IN), r2(0.183 * IN), r2(0.112 * IN), SI), cbore('#6', r2(0.1495 * IN), r2(0.226 * IN), r2(0.138 * IN), SI),
+  cbore('#8', r2(0.177 * IN), r2(0.270 * IN), r2(0.164 * IN), SI), cbore('#10', r2(0.201 * IN), r2(0.312 * IN), r2(0.190 * IN), SI),
+  cbore('1/4"', r2(0.266 * IN), r2(0.375 * IN), r2(0.250 * IN), SI),
+  nut('#4', r2(0.1285 * IN), r2(0.250 * IN), r2(0.094 * IN), SI), nut('#6', r2(0.1495 * IN), r2(0.3125 * IN), r2(0.109 * IN), SI),
+  nut('#8', r2(0.177 * IN), r2(0.344 * IN), r2(0.125 * IN), SI), nut('#10', r2(0.201 * IN), r2(0.375 * IN), r2(0.125 * IN), SI),
+  nut('1/4"', r2(0.266 * IN), r2(0.4375 * IN), r2(0.219 * IN), SI),
   magnet(5, 2), magnet(6, 2), magnet(6, 3), magnet(8, 2), magnet(8, 3), magnet(10, 2), magnet(10, 3), magnet(12, 3), magnet(15, 3),
+  magnet(r2(0.125 * IN), r2(0.0625 * IN), '1/8" × 1/16"'), magnet(r2(0.25 * IN), r2(0.125 * IN), '1/4" × 1/8"'),
+  magnet(r2(0.375 * IN), r2(0.125 * IN), '3/8" × 1/8"'), magnet(r2(0.5 * IN), r2(0.125 * IN), '1/2" × 1/8"'),
 ];
-// ISO metric coarse threads: [name, major diameter, pitch]
-export const THREAD_SIZES = [['M3', 3, 0.5], ['M4', 4, 0.7], ['M5', 5, 0.8], ['M6', 6, 1.0], ['M8', 8, 1.25], ['M10', 10, 1.5], ['M12', 12, 1.75],
-  ['M14', 14, 2.0], ['M16', 16, 2.0], ['M20', 20, 2.5], ['M24', 24, 3.0], ['M30', 30, 3.5], ['custom', 0, 0]];
+// threads: [id, major diameter (mm), pitch (mm), label, group]. ISO metric coarse, then
+// Unified (UNC coarse, UNF fine): the same 60° profile, pitch = 25.4 / threads per inch
+const unc = (name, d, tpi, kind) => [name, r2(d * IN * 1000) / 1000, Math.round(IN / tpi * 10000) / 10000, `${name} ${kind}`, kind === 'UNC' ? 'Inch, coarse (UNC)' : 'Inch, fine (UNF)'];
+export const THREAD_SIZES = [
+  ...[['M1.6', 1.6, 0.35], ['M2', 2, 0.4], ['M2.5', 2.5, 0.45], ['M3', 3, 0.5], ['M4', 4, 0.7], ['M5', 5, 0.8], ['M6', 6, 1.0], ['M8', 8, 1.25],
+    ['M10', 10, 1.5], ['M12', 12, 1.75], ['M14', 14, 2.0], ['M16', 16, 2.0], ['M20', 20, 2.5], ['M24', 24, 3.0], ['M30', 30, 3.5]]
+    .map(([n, d, pt]) => [n, d, pt, `${n} × ${pt}`, 'Metric (ISO coarse)']),
+  unc('#0-80', 0.060, 80, 'UNF'), unc('#1-64', 0.073, 64, 'UNC'), unc('#2-56', 0.086, 56, 'UNC'), unc('#4-40', 0.112, 40, 'UNC'), unc('#6-32', 0.138, 32, 'UNC'),
+  unc('#8-32', 0.164, 32, 'UNC'), unc('#10-24', 0.190, 24, 'UNC'), unc('1/4"-20', 0.25, 20, 'UNC'), unc('5/16"-18', 0.3125, 18, 'UNC'),
+  unc('3/8"-16', 0.375, 16, 'UNC'), unc('7/16"-14', 0.4375, 14, 'UNC'), unc('1/2"-13', 0.5, 13, 'UNC'), unc('5/8"-11', 0.625, 11, 'UNC'), unc('3/4"-10', 0.75, 10, 'UNC'),
+  unc('#10-32', 0.190, 32, 'UNF'), unc('1/4"-28', 0.25, 28, 'UNF'), unc('5/16"-24', 0.3125, 24, 'UNF'), unc('3/8"-24', 0.375, 24, 'UNF'), unc('1/2"-20', 0.5, 20, 'UNF'),
+  ['custom', 0, 0, 'Custom', ''],
+];
 const PRINTER_OPTS = [['bambu_x1', 'Bambu X1C / P1S / P1P / A1 (256)'], ['bambu_a1mini', 'Bambu A1 mini (180)'], ['bambu_h2d', 'Bambu H2D (325×320)'],
   ['prusa_mk4', 'Prusa MK4 (250×210)'], ['prusa_xl', 'Prusa XL (360)'], ['voron_350', 'Voron 2.4 350'], ['voron_300', 'Voron 2.4 300'], ['ender3', 'Ender 3 (220)'], ['custom', 'Custom size']];
 const CONNECTOR_OPTS = [['pins', 'Printed pins'], ['dowels', 'Holes + loose pins'], ['filament', 'Filament pins (1.75)'], ['magnets', 'Magnets 6×3'], ['none', 'None']];
@@ -48,9 +76,12 @@ const lastRepeatable = ctx => repeatableFeatures(ctx.state).at(-1)?.id;
 // common sizes for Resize Hole: [key, label, diameter]
 export const RESIZE_SIZES = [
   ['custom', 'Custom'],
-  ['m2', 'M2 screw clearance (2.4)', 2.4], ['m25', 'M2.5 screw clearance (2.9)', 2.9], ['m3', 'M3 screw clearance (3.4)', 3.4],
-  ['m4', 'M4 screw clearance (4.5)', 4.5], ['m5', 'M5 screw clearance (5.5)', 5.5],
-  ['m3tap', 'M3 self-tapping into plastic (2.8)', 2.8], ['m3ins', 'M3 heat-set insert (4.0)', 4.0], ['m4ins', 'M4 heat-set insert (5.6)', 5.6],
+  ['m16', 'M1.6 screw clearance (1.8)', 1.8], ['m2', 'M2 screw clearance (2.4)', 2.4], ['m25', 'M2.5 screw clearance (2.9)', 2.9], ['m3', 'M3 screw clearance (3.4)', 3.4],
+  ['m4', 'M4 screw clearance (4.5)', 4.5], ['m5', 'M5 screw clearance (5.5)', 5.5], ['m6', 'M6 screw clearance (6.6)', 6.6],
+  ['m2tap', 'M2 self-tapping into plastic (1.7)', 1.7], ['m25tap', 'M2.5 self-tapping into plastic (2.1)', 2.1], ['m3tap', 'M3 self-tapping into plastic (2.6)', 2.6],
+  ['m2ins', 'M2 heat-set insert (3.2)', 3.2], ['m3ins', 'M3 heat-set insert (4.0)', 4.0], ['m4ins', 'M4 heat-set insert (5.6)', 5.6],
+  ['i4', '#4 screw clearance (3.26)', 3.26], ['i6', '#6 screw clearance (3.8)', 3.8], ['i8', '#8 screw clearance (4.5)', 4.5], ['i10', '#10 screw clearance (5.11)', 5.11],
+  ['i14', '1/4" screw clearance (6.76)', 6.76], ['i4ins', '#4-40 heat-set insert (4.09)', 4.09], ['i6ins', '#6-32 heat-set insert (5.11)', 5.11],
   ['mag6', '6 mm magnet (6.2)', 6.2], ['mag8', '8 mm magnet (8.2)', 8.2], ['mag10', '10 mm magnet (10.2)', 10.2],
   ['fil', '1.75 mm filament pin (1.9)', 1.9], ['b608', '608 bearing seat (22.1)', 22.1],
 ];
@@ -104,7 +135,7 @@ export const TOOLS = {
     label: 'Hole', icon: 'hole', type: 'hole',
     fields: [
       { key: 'points', label: 'Positions', kind: 'facepoints' },
-      { key: 'preset', label: 'Preset', kind: 'select', options: HOLE_PRESETS.map(p => [p.id, p.label]), groups: true },
+      { key: 'preset', label: 'Preset', kind: 'select', options: HOLE_PRESETS.map(p => [p.id, p.label, p.group]), groups: true },
       { key: 'tol', label: 'Print tolerance', kind: 'number', unit: 'mm', show: v => v.preset !== 'custom' },
       { key: 'kind', label: 'Type', kind: 'select', options: [['simple', 'Simple'], ['counterbore', 'C-bore'], ['countersink', 'C-sink'], ['hex', 'Nut trap']] },
       { key: 'diameter', label: 'Diameter', kind: 'number', unit: 'mm' },
@@ -188,7 +219,7 @@ export const TOOLS = {
     label: 'Thread', icon: 'thread', type: 'thread',
     fields: [
       { key: 'kind', label: 'Type', kind: 'select', options: [['internal', 'Tapped hole'], ['external', 'Screw / stud']] },
-      { key: 'size', label: 'Size', kind: 'select', options: THREAD_SIZES.map(t => [t[0], t[0] === 'custom' ? 'Custom' : `${t[0]} × ${t[2]}`]) },
+      { key: 'size', label: 'Size', kind: 'select', options: THREAD_SIZES.map(t => [t[0], t[3], t[4]]), groups: true },
       { key: 'diameter', label: 'Major Ø', kind: 'number', unit: 'mm' },
       { key: 'pitch', label: 'Pitch', kind: 'number', unit: 'mm' },
       { key: 'length', label: 'Length', kind: 'number', unit: 'mm' },
@@ -201,7 +232,12 @@ export const TOOLS = {
       { key: 'targets', label: 'Bodies', kind: 'bodies', multi: true, placeholder: 'Auto', show: v => v.operation !== 'new' },
     ],
     defaults: () => ({ kind: 'internal', size: 'M8', diameter: 8, pitch: 1.25, length: 10, tolerance: 0.3, hand: 'right', chamfer: true, plane: 'XY', offset: [0, 0, 0], operation: 'cut', targets: [] }),
-    toParams: v => { const p = { ...v }; delete p.size; return p; },
+    toParams: v => {
+      const p = { ...v }, t = THREAD_SIZES.find(x => x[0] === v.size && x[0] !== 'custom');
+      if (t && v.kind === 'external') p.body_name = `${t[0]} screw`;
+      if (!t) delete p.size;
+      return p;
+    },
     fromParams: p => ({ size: 'custom', ...p }),
     onChange: (key, v) => {
       if (key === 'size') { const t = THREAD_SIZES.find(x => x[0] === v.size); return t && t[0] !== 'custom' ? { diameter: t[1], pitch: t[2] } : null; }
