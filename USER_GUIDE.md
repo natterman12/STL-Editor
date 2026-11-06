@@ -145,6 +145,14 @@ from the next start (if update checks are on). Settings a new release adds show 
 panel by themselves, and settings you haven't changed follow the new defaults. Help › About
 Support Fins shows the version in use.
 
+- **Held**: once the fins are built, the overhangs they hold turn pale and any left bare stay
+  bright red. A bare spot is overhang further than *Bare beyond* (5 mm to start with) from
+  the top of a fin or from a wall of the part it grows out of. The panel says how much of the
+  overhang is held, how many bare spots there are and how far the worst is from a support.
+  To fix them, switch Placement mode to Full coverage, raise Wide-face coverage, or draw fins
+  there in *Add fins*; the check runs again each time. Bridging a few millimetres usually
+  prints; much more than 5 mm sags, so lower *Bare beyond* for a stricter check.
+
 **Planes** (Model tab › Plane): Offset Plane, Plane at Angle, 3-Point Plane, Midplane. Any
 flat face also works as a plane.
 

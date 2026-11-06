@@ -403,6 +403,12 @@ html[data-theme=dark] .sf-verdict { background: #232a32; }
 .sf-plastic { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .sf-plastic .muted { color: var(--muted, #7b8794); font-size: 12px; }
 .sf-plastic select { width: auto; }
+.sf-cover { display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; line-height: 1.4; }
+.sf-cover .muted { color: var(--muted, #7b8794); }
+.sf-cover .sf-ok { color: #2b8a3e; }
+.sf-cover .sf-bad { color: #e03131; }
+.sf-reach { display: flex; align-items: center; gap: 6px; }
+.sf-reach input { width: 56px !important; }
 
 /* parameters */
 #tool-form input.expr { color: #6a3fb5; font-family: ui-monospace, Consolas, monospace; font-size: 12px; }

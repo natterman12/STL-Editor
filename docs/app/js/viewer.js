@@ -339,7 +339,7 @@ export class Viewer {
 
   // ---------------------------------------------------------------- overlay helpers
   clearOverlay(tag) {
-    for (const c of [...this.overlay.children]) if (!tag || c.userData.tag === tag) { this.overlay.remove(c); c.traverse(x => { x.geometry?.dispose(); }); }
+    for (const c of [...this.overlay.children]) if (!tag || c.userData.tag === tag) { this.overlay.remove(c); c.traverse(x => { x.geometry?.dispose(); x.material?.map?.dispose(); }); }
     this.requestRender();
   }
 
@@ -351,6 +351,27 @@ export class Viewer {
     for (const t of tris) for (let j = 0; j < 3; j++) { const vi = idx[t * 3 + j] * 3; out[k++] = pos[vi]; out[k++] = pos[vi + 1]; out[k++] = pos[vi + 2]; }
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(out, 3));
     const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.45, side: THREE.DoubleSide, depthWrite: false,
+      polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+    m.userData.tag = tag; m.renderOrder = 3;
+    this.overlay.add(m);
+    this.requestRender();
+  }
+
+  /** Triangles (flat positions) painted over the part by distance (one per corner): `near`
+   *  colour up to `limit`, `far` colour beyond, with a clean edge between (Support Fins
+   *  coverage: pale where held, bright red where bare). */
+  addDistTris(arr, dist, limit, tag, [c0, a0], [c1, a1]) {
+    if (!arr?.length) return;
+    const n = arr.length / 3, uv = new Float32Array(n * 2);
+    for (let i = 0; i < n; i++) { uv[i * 2] = Math.min(dist[i] / (2 * limit), 1); uv[i * 2 + 1] = 0.5; }
+    const A = new THREE.Color(c0), B = new THREE.Color(c1);
+    const px = new Uint8Array([A.r * 255, A.g * 255, A.b * 255, a0 * 255, B.r * 255, B.g * 255, B.b * 255, a1 * 255]);
+    const tex = new THREE.DataTexture(px, 2, 1, THREE.RGBAFormat);
+    tex.magFilter = tex.minFilter = THREE.NearestFilter; tex.colorSpace = THREE.SRGBColorSpace; tex.needsUpdate = true;
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(arr, 3));
+    g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide, depthWrite: false,
       polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
     m.userData.tag = tag; m.renderOrder = 3;
     this.overlay.add(m);

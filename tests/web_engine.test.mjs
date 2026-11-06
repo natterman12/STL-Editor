@@ -528,3 +528,31 @@ test('Sketch: Smart Dimension, how defined a sketch is, reference dimensions', a
   assert.equal(lay.thin.length, 2);
   approx(lay.text[1], -6, 1e-9);
 });
+
+test('Support Fins coverage: held near a fin or a wall going down, bare beyond reach', async () => {
+  const C = await load('js/sfcoverage.js');
+  // a 30 x 20 mm shelf underside at z = 10 (two triangles, facing down), with a wall going
+  // down from its x = 0 edge
+  const pos = new Float32Array([0, 0, 10, 30, 0, 10, 30, 20, 10, 0, 20, 10, 0, 0, 0, 0, 20, 0]);
+  const idx = new Uint32Array([0, 2, 1, 0, 3, 2, 0, 4, 5, 0, 5, 3]);
+  const soup = (lo, hi) => {   // a box as triangle soup (only its points matter)
+    const P = [];
+    for (const x of [lo[0], hi[0]]) for (const y of [lo[1], hi[1]]) for (const z of [lo[2], hi[2]]) P.push([x, y, z]);
+    const out = [];
+    for (let i = 0; i + 2 < 8; i++) out.push(...P[i], ...P[i + 1], ...P[i + 2]);
+    return new Float32Array(out);
+  };
+  const alone = C.coverage({ pos, idx, over: [0, 1], fins: [], reach: 5 });
+  approx(alone.total, 600, 1e-3);
+  approx(alone.held / alone.total, 5 / 30, 0.15, 'the wall holds a 5 mm strip');
+  assert.ok(alone.spots.length >= 1 && (alone.spots[0].far ?? Infinity) > 5);
+  // a fin along y under x = 20, its top 0.2 mm below the shelf
+  const fin = soup([19.6, 0, 0], [20.4, 20, 9.8]);
+  const withFin = C.coverage({ pos, idx, over: [0, 1], fins: [fin], reach: 5 });
+  assert.ok(withFin.held > alone.held * 2.5, `${withFin.held} vs ${alone.held}`);
+  // held: x 0..5 (the wall) and 15..25 (the fin); bare: 5..15 and 25..30
+  approx(withFin.held / withFin.total, 0.5, 0.1, 'half held');
+  assert.equal(withFin.spots.length, 2);
+  assert.ok(withFin.spots.every(s => s.far > 8.5 && s.far < 10.5), JSON.stringify(withFin.spots.map(s => s.far)));
+  assert.equal(withFin.dist.length * 3, withFin.tris.length);
+});

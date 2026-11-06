@@ -383,6 +383,7 @@ class App {
         { key: 'walls', label: 'Hand walls', kind: 'walls', show: v => v._mode === 'add' },
         { key: 'removed', label: 'Removed', kind: 'removed', show: v => v._mode === 'remove' || (v.removed || []).length > 0 },
         { key: '_plastic', label: 'Support plastic', kind: 'sfplastic' },
+        { key: '_cover', label: 'Held', kind: 'sfcover' },
         output, ...sections(null)],
       defaults: ctx => ({ body: oneBody(ctx), _mode: 'rotate', walls: [], removed: [], output: 'join', ...defaults(null) }),
       toParams: v => {
@@ -683,6 +684,22 @@ class App {
         const amount = sp && !sp.pieces ? '<span class="muted">None needed</span>' : sp ? `<b>${g < 9.95 ? g.toFixed(1) : Math.round(g)} g</b> <span class="muted">· ${(sp.volume / 1000).toFixed(1)} cm³ · ${sp.pieces} piece${sp.pieces === 1 ? '' : 's'}</span>` : '<span class="ph">—</span>';
         return `<div class="field" data-key="${f.key}"><label title="The plastic the supports add, from their exact volume. Change the material to match your filament.">${f.label} <span class="help">?</span></label><div class="ctl sf-plastic">${amount}<select data-sfmat="1">${Object.entries(MATERIALS).map(([k, [l]]) => `<option value="${k}" ${k === mat ? 'selected' : ''}>${l}</option>`).join('')}</select></div></div>`;
       }
+      case 'sfcover': {
+        const c = this.tool?._cover, reach = this.sfReach();
+        let txt;
+        if (!c || c.busy) txt = '<span class="ph">Checking the overhangs…</span>';
+        else if (c.error) txt = `<span class="muted">${esc(c.error)}</span>`;
+        else if (!(c.total > 0)) txt = '<span class="muted">Nothing to hold up</span>';
+        else if (!c.spots.length) txt = `<b class="sf-ok">All held</b> <span class="muted">· every overhang is within ${num(reach)} mm of a support</span>`;
+        else {
+          const w = c.spots[0], pct = Math.min(99, Math.floor(100 * c.held / c.total));
+          const worst = w.far == null ? 'nothing holds it up' : `the worst ${w.far < 9.95 ? w.far.toFixed(1) : Math.round(w.far)} mm from a support`;
+          const fix = this.tool.values['sf:mode'] === 'full' ? 'Try more Wide-face coverage, or Add fins there' : 'Try Placement › Full coverage, more Wide-face coverage, or Add fins there';
+          txt = `<b class="sf-bad">${pct}% held</b> <span class="muted">· ${c.spots.length} bare spot${c.spots.length > 1 ? 's' : ''} (bright red), ${worst}. ${fix}.</span>`;
+        }
+        return `<div class="field wide" data-key="${f.key}"><label title="Overhangs further than this from a fin, or from the part itself, are shown bright red: they'd sag or fail. Bridging over a few mm works; over 5 mm usually droops.">${f.label} <span class="help">?</span></label><div class="ctl sf-cover"><div>${txt}</div>
+          <div class="sf-reach"><span class="muted">Bare beyond</span><input type="text" data-sfreach="1" value="${num(reach)}"><span class="unit">mm</span></div></div></div>`;
+      }
       case 'removed': {
         const n = (val || []).length;
         return `<div class="field" data-key="${f.key}"><label>${f.label}</label><div class="ctl walls-ctl"><span class="walls-n">${n ? `${n} fin${n > 1 ? 's' : ''}` : '<span class="ph">None: click a fin to remove it</span>'}</span>${n ? '<button data-sfact="restore">Bring all back</button>' : ''}</div></div>`;
@@ -773,6 +790,7 @@ class App {
         this.viewer.clearOverlay('sf-over'); this.viewer.clearOverlay('sf-small');
         this.viewer.highlightFace(r.paint.body, r.paint.over, 'sf-over', 0xd64545);
         this.viewer.highlightFace(r.paint.body, r.paint.small, 'sf-small', 0xe0a030);
+        if (t.def.type === 'supportfins') this.sfCoverage(r);
       }
     } catch (e) { if (seq === this._previewSeq) { clearTimeout(this._busyTimer); this.toolMsg(e.message, 'err'); } }
   }
@@ -795,11 +813,55 @@ class App {
     const t = this.tool; if (!t?.def.paint) return;
     const body = Array.isArray(t.values.body) ? t.values.body[0] : t.values.body;
     this.viewer.clearOverlay('sf-over'); this.viewer.clearOverlay('sf-small');
+    this.viewer.clearOverlay('sf-bare'); this.viewer.clearOverlay('sf-held');
+    if (t._cover) { t._cover = null; this._covSeq = (this._covSeq || 0) + 1; this.renderForm(); }
     if (!body) return;
     const thr = parseNum(t.values['sf:threshold']);
     const faces = this.viewer.overhangFaces(body, Number.isFinite(thr) && thr > 0 ? thr : 45);
     this.viewer.highlightFace(body, faces, 'sf-over', 0xd64545);
     if (!faces.length && !t.def.wallTool) this.toolMsg('No overhangs in this position: nothing needs support. Rotate the part the way you want to print it.', 'info');
+  }
+
+  /** How far an overhang may be from a support before it counts as bare (mm; kept per computer). */
+  sfReach() { try { const v = parseFloat(localStorage.getItem('stle_sf_reach')); return v > 0 ? v : 5; } catch { return 5; } }
+
+  /** After the fins are built: which overhangs they hold (pale) and which are left bare
+   *  (bright red), worked out off the page's thread (sfcoverage.js). */
+  sfCoverage(r = this._covLast) {
+    const t = this.tool; if (!t || !r?.paint) return;
+    this._covLast = r;
+    const o = this.viewer.bodies.get(r.paint.body); if (!o) return;
+    const ghosts = new Set(r.ghosts || []);
+    const fins = [];
+    for (const c of this.viewer.previewGroup.children) {
+      if (!c.isMesh || c.userData.kind !== 'preview' || c.userData.id === r.paint.body || ghosts.has(c.userData.id)) continue;
+      const g = c.geometry.index ? c.geometry.toNonIndexed() : c.geometry;
+      fins.push(Float32Array.from(g.attributes.position.array));
+      if (g !== c.geometry) g.dispose();
+    }
+    const gap = parseNum(t.values['sf:gap']);
+    const args = { pos: Float32Array.from(o.geo.attributes.position.array), idx: Uint32Array.from(o.geo.index.array), over: r.paint.over,
+      fins, gap: gap > 0 ? gap : 0.2, reach: this.sfReach() };
+    const seq = this._covSeq = (this._covSeq || 0) + 1;
+    t._cover = { busy: true }; this.renderForm();
+    if (!this._covWorker) {
+      this._covWorker = new Worker(new URL('./sfcoverage.worker.js', import.meta.url), { type: 'module' });
+      this._covWorker.onmessage = e => this.sfCoverageDone(e.data);
+    }
+    this._covTool = t;
+    this._covWorker.postMessage({ seq, args });
+  }
+
+  sfCoverageDone({ seq, out, error }) {
+    const t = this.tool;
+    if (seq !== this._covSeq || !t || t !== this._covTool) return;
+    this.viewer.clearOverlay('sf-bare'); this.viewer.clearOverlay('sf-held');
+    if (error) { t._cover = { error }; this.renderForm(); return; }
+    // the overhangs: pale where a fin (or the part) holds them, bright red where nothing does
+    this.viewer.clearOverlay('sf-over');
+    this.viewer.addDistTris(out.tris, out.dist, this.sfReach(), 'sf-bare', [0xe6a3a3, 0.3], [0xe8171d, 0.85]);
+    t._cover = { total: out.total, held: out.held, spots: out.spots, reach: this.sfReach() };
+    this.renderForm();
   }
 
   /** Remove mode: a click on a fin takes it away; a click on a removed (red) one brings it back. */
@@ -2018,6 +2080,12 @@ class App {
     }
     if (this.mode === 'section' && el.id === 'sec-flip') { this.sectionState.flip = el.checked; this.renderSection(); return; }
     const t = this.tool; if (!t) return;
+    if (el.dataset.sfreach) {
+      const v = parseNum(el.value);
+      if (v > 0) { try { localStorage.setItem('stle_sf_reach', String(v)); } catch { /* storage off */ } this.sfCoverage(); }
+      else this.renderForm();
+      return;
+    }
     if (el.dataset.sfmat) { try { localStorage.setItem('stle_sf_material', el.value); } catch { /* storage off */ } this.renderForm(); return; }
     if (el.dataset.num && exprText(el.value)) { this.setValue(el.dataset.num, exprOf(el.value), false); this.renderForm(); return; }
     if (el.dataset.vec && exprText(el.value)) {
