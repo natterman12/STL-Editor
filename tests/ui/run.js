@@ -99,7 +99,8 @@ function runOne([name, file, , , env]) {
   try {
     if (groups.has('web')) await ensureStatic('http://127.0.0.1:8790/index.html', path.join(ROOT, 'web'), 8790);
     if (groups.has('docs')) await ensureStatic('http://127.0.0.1:8791/app/index.html', path.join(ROOT, 'docs'), 8791);
-    if (groups.has('desktop')) await ensure(DESKTOP + 'api/state', PY, [path.join(ROOT, 'main.py'), '--server', '--no-autosave'], { cwd: ROOT, env: { ...process.env, STLEDITOR_PORT: '8765' } });
+    // a throwaway settings folder, so the test files stay out of the user's File › Recent
+    if (groups.has('desktop')) await ensure(DESKTOP + 'api/state', PY, [path.join(ROOT, 'main.py'), '--server', '--no-autosave'], { cwd: ROOT, env: { ...process.env, STLEDITOR_PORT: new URL(DESKTOP).port || '8765', STLEDITOR_CONFIG_DIR: fs.mkdtempSync(path.join(require('os').tmpdir(), 'stleditor-ui-config-')) } });
   } catch (e) { console.error(e.message); started.forEach(p => p.kill()); servers.forEach(x => x.close()); process.exit(2); }
   const results = [];
   for (const t of list) {
