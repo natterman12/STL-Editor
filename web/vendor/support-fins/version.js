@@ -1,15 +1,15 @@
 // written by packaging/update_support_fins.py
 export default {
  "name": "Support Fins",
- "tag": "v1.0.3",
- "version": "1.0.3",
- "commit": "cd090c889eb8f4f345aaabdd20196ff9ddf95d95",
+ "tag": "v1.0.5",
+ "version": "1.0.5",
+ "commit": "514549694e816999a5e4c6674829eba7ea852019",
  "source": "https://github.com/gittrahan/support-fins",
  "api": 1,
- "built": "2026-11-05T22:03:11Z",
+ "built": "2026-11-06T15:12:40Z",
  "sha256": {
-  "engine.esm.js": "c8d9f16a04709c2bf4ba304fd392edb8af1a7755b010ea3ba855c021b67c149a",
-  "engine.iife.js": "6f8d3002c1acf71c8699b6cf748d8fda6132aabfaf412f66ed6869aeb1326534"
+  "engine.esm.js": "4444ac49cbc2c073f62eb8fefdc589687e3e7f2472c1491159130b457da3624a",
+  "engine.iife.js": "a92d900747531d9a4c3b86d14bbee971ab2de261c99b27623f7914e51602232d"
  },
  "options": 19,
  "extras": [
