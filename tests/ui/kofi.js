@@ -1,0 +1,22 @@
+const { FIX, OUT, WEB, DESKTOP } = require('./common');
+const { chromium } = require('playwright');
+(async () => {
+  const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+  const ctx = await browser.newContext({ viewport: { width: 1400, height: 860 } });
+  await ctx.addInitScript(() => { try { localStorage.setItem('stle.webWelcome', '1'); } catch {} });
+  const page = await ctx.newPage();
+  const opened = [];
+  await page.exposeFunction('noteOpen', u => opened.push(u));
+  await page.addInitScript(() => { window.open = (u) => { window.noteOpen(u); return null; }; });
+  await page.goto(WEB); await page.waitForTimeout(1500);
+  await page.screenshot({ path: require('path').join(OUT, 'kofi_start.png') });
+  await page.click('.empty-foot a'); await page.waitForTimeout(300);
+  await page.click('[data-menu="help"]'); await page.waitForTimeout(200);
+  await page.screenshot({ path: require('path').join(OUT, 'kofi_menu.png') });
+  await page.click('text=About STL Editor'); await page.waitForTimeout(300);
+  await page.screenshot({ path: require('path').join(OUT, 'kofi_about.png') });
+  await page.click('.modal a[data-url], #modal a[data-url], a[data-url]:visible').catch(e => console.log('no about link', e.message));
+  await page.waitForTimeout(300);
+  console.log('opened', JSON.stringify(opened));
+  await browser.close();
+})();

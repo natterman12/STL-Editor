@@ -24,8 +24,13 @@ The web edition's engine tests need [Node.js](https://nodejs.org) 20 or newer
 To try the web edition locally, serve the `web` folder and open it with `?web`:
 
 ```powershell
-python -m http.server 8000 -d web   # then open http://127.0.0.1:8000/?web
+node tests/ui/serve.js web 8000   # then open http://127.0.0.1:8000/?web
 ```
+
+(Python's `http.server` works too where it sends `.js` files as JavaScript; on many Windows
+machines it doesn't, and the page then stays blank.)
+
+The UI tests (Playwright) are in `tests/ui`; see its README.
 
 ## Where things live
 

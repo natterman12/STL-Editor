@@ -1,0 +1,13 @@
+{
+  "name": "stl-editor-ui-tests",
+  "private": true,
+  "description": "Playwright tests for STL Editor's UI (see README.md)",
+  "scripts": {
+    "test": "node run.js",
+    "web": "node run.js web",
+    "desktop": "node run.js desktop"
+  },
+  "devDependencies": {
+    "playwright": "1.63.0"
+  }
+}

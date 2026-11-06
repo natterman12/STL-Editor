@@ -9,6 +9,10 @@ dist/
 *.spec
 
 # Local files that don't belong in the repo
+CLAUDE.local.md
+.claude/settings.local.json
+tests/ui/node_modules/
+tests/ui/out/
 Claude outputs/
 *.log
 *.stlx
