@@ -569,6 +569,7 @@ class App {
     const t = this.tool;
     this.tool = null;
     clearTimeout(this._busyTimer);
+    this.sfCoverageStop();
     this.walls.reset();
     this.gizmo.hide();
     this.viewer.clearPreview();
@@ -814,7 +815,7 @@ class App {
     const body = Array.isArray(t.values.body) ? t.values.body[0] : t.values.body;
     this.viewer.clearOverlay('sf-over'); this.viewer.clearOverlay('sf-small');
     this.viewer.clearOverlay('sf-bare'); this.viewer.clearOverlay('sf-held');
-    if (t._cover) { t._cover = null; this._covSeq = (this._covSeq || 0) + 1; this.renderForm(); }
+    if (t._cover) { t._cover = null; this.sfCoverageStop(); this.renderForm(); }
     if (!body) return;
     const thr = parseNum(t.values['sf:threshold']);
     const faces = this.viewer.overhangFaces(body, Number.isFinite(thr) && thr > 0 ? thr : 45);
@@ -842,17 +843,27 @@ class App {
     const gap = parseNum(t.values['sf:gap']);
     const args = { pos: Float32Array.from(o.geo.attributes.position.array), idx: Uint32Array.from(o.geo.index.array), over: r.paint.over,
       fins, gap: gap > 0 ? gap : 0.2, reach: this.sfReach() };
-    const seq = this._covSeq = (this._covSeq || 0) + 1;
+    this.sfCoverageStop();
+    const seq = this._covSeq;
     t._cover = { busy: true }; this.renderForm();
     if (!this._covWorker) {
       this._covWorker = new Worker(new URL('./sfcoverage.worker.js', import.meta.url), { type: 'module' });
       this._covWorker.onmessage = e => this.sfCoverageDone(e.data);
     }
-    this._covTool = t;
-    this._covWorker.postMessage({ seq, args });
+    this._covTool = t; this._covBusy = true;
+    this._covWorker.postMessage({ seq, args }, [args.pos.buffer, args.idx.buffer, ...fins.map(f => f.buffer)]);
+  }
+
+  /** Drop the check that's still running: its answer is out of date. Without this, quick
+   *  changes queue up full checks one after another and the colours lag seconds behind. */
+  sfCoverageStop() {
+    this._covSeq = (this._covSeq || 0) + 1;
+    if (this._covBusy && this._covWorker) { this._covWorker.terminate(); this._covWorker = null; }
+    this._covBusy = false;
   }
 
   sfCoverageDone({ seq, out, error }) {
+    if (seq === this._covSeq) this._covBusy = false;
     const t = this.tool;
     if (seq !== this._covSeq || !t || t !== this._covTool) return;
     this.viewer.clearOverlay('sf-bare'); this.viewer.clearOverlay('sf-held');
