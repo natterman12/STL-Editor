@@ -50,11 +50,12 @@ def sphere_stl(r=15.0, n=24, drop=0):
 
 def main(exe):
     port = free_port()
-    env = dict(os.environ, STLEDITOR_PORT=str(port))
+    tmp = tempfile.mkdtemp()
+    # A throwaway settings folder, so the files saved here stay out of the user's Recent list.
+    env = dict(os.environ, STLEDITOR_PORT=str(port), STLEDITOR_CONFIG_DIR=os.path.join(tmp, "config"))
     cmd = [sys.executable, exe] if exe.endswith(".py") else [exe]
     proc = subprocess.Popen(cmd + ["--server", "--no-autosave"], env=env)
     base = f"http://127.0.0.1:{port}/api/"
-    tmp = tempfile.mkdtemp()
 
     def call(route, data=None, raw=None, query=""):
         body = raw if raw is not None else (None if data is None else json.dumps(data).encode())

@@ -1,10 +1,15 @@
-"""Tiny persistent settings store (recent files, last folder, UI prefs)."""
+"""Tiny persistent settings store (recent files, last folder, UI prefs).
+
+Kept in %APPDATA%\\STL Editor\\settings.json. STLEDITOR_CONFIG_DIR points it at another folder:
+the tests set it to a throwaway one so their files don't show up in the user's Recent list.
+"""
 import json
 import os
 import threading
 
 _lock = threading.Lock()
-_dir = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~/.config"), "STL Editor")
+_dir = os.environ.get("STLEDITOR_CONFIG_DIR") or os.path.join(
+    os.environ.get("APPDATA") or os.path.expanduser("~/.config"), "STL Editor")
 _path = os.path.join(_dir, "settings.json")
 _data = None
 
