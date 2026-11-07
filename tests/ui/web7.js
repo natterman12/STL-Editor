@@ -46,7 +46,7 @@ const log = m => console.log(m);
   await page.evaluate(id => window.app.editFeature(id), f.id);
   await page.waitForTimeout(2000);
   log('edit panel open: ' + await page.isVisible('#tool-panel') + ' grip shows ' + await page.inputValue('[data-num="sf:tineDensity"]').catch(() => '?'));
-  await openSection(page, '_hdr_output'); await choose(page, 'output', 'separate');
+  await choose(page, 'output', 'separate');
   await page.waitForTimeout(1500); await page.click('#tool-ok'); await page.waitForTimeout(2500);
   st = await getState();
   log('after edit bodies: ' + st.bodies.map(b => b.name).join(', '));

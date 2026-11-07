@@ -394,8 +394,11 @@ class App {
     }));
     const output = { key: 'output', label: 'Add as', kind: 'select', options: [['join', 'Part of the body'], ['separate', 'Separate body']],
       help: 'Part of the body: the fins are joined to it, so it exports and slices as one object (what Support Fins itself does). Separate body: a body of its own you can hide or remove; export both together.' };
-    // the last folding section: how the supports are added, and this computer's readout settings
-    const outputSection = cover => [{ key: '_hdr_output', kind: 'hdr', label: 'Output', open: false }, output,
+    // the last folding section, open to start with: how well the supports hold and what they
+    // cost (the cards), the orientation and strength (Support Fins, Rotate), and the readout settings
+    const checkSection = cover => [{ key: '_hdr_check', kind: 'hdr', label: 'Print check', open: true },
+      { key: '_status', kind: 'sfstatus', cover },
+      ...(cover ? [{ key: '_pose', label: 'Orientation', kind: 'sfpose', show: v => (v._mode || 'rotate') === 'rotate' }] : []),
       { key: '_mat', label: 'Material', kind: 'sfmat', help: 'The filament you print the supports in, for the weight under Support plastic.', changed: () => this.sfMaterial() !== 'pla' },
       ...(cover ? [{ key: '_reach', label: 'Bare beyond', kind: 'sfreach', changed: () => this.sfReach() !== 5,
         help: "Overhangs further than this from a fin, or from the part itself, are shown bright red: they'd sag or fail. Bridging over a few mm works; over 5 mm usually droops." }] : [])];
@@ -410,14 +413,12 @@ class App {
     const MODES = [['rotate', 'Rotate'], ['add', 'Add fins'], ['remove', 'Remove fins']];
     TOOLS.supportfins = {
       label: 'Support Fins', icon: 'fins', type: 'supportfins', paint: true, gizmo: 'pose',
-      fields: [{ key: 'body', label: 'Body', kind: 'bodies', multi: false },
+      fields: [{ key: 'body', label: 'Body', kind: 'bodies', multi: false }, output,
         { key: '_mode', label: 'On the part', kind: 'select', options: MODES, nolabel: true,
           help: 'Rotate: drag the rings to turn the part the way it will print (it stays on the bed, and the fins follow). Add fins: draw walls by hand where Auto left a gap. Remove fins: click a fin to take it away, click it again to bring it back.' },
-        { key: '_status', kind: 'sfstatus', cover: true },
-        { key: '_pose', label: 'Orientation', kind: 'sfpose', show: v => v._mode === 'rotate' },
         { key: 'walls', label: 'Hand walls', kind: 'walls', show: v => v._mode === 'add' },
         { key: 'removed', label: 'Removed', kind: 'removed', show: v => v._mode === 'remove' || (v.removed || []).length > 0 },
-        ...sections(null, 2), ...outputSection(true)],
+        ...sections(null, 2), ...checkSection(true)],
       defaults: ctx => ({ body: oneBody(ctx), _mode: 'rotate', walls: [], removed: [], output: 'join', ...defaults(null) }),
       toParams: v => {
         const p = { body: v.body[0], output: v.output, options: toOptions(v, null) };
@@ -435,9 +436,8 @@ class App {
     };
     TOOLS.supportwall = {
       label: 'Draw Walls', icon: 'finwall', type: 'supportwall', wallTool: true, paint: true,
-      fields: [{ key: 'body', label: 'Body', kind: 'bodies', multi: false, placeholder: 'The part you draw on' }, { key: 'walls', label: 'Walls', kind: 'walls' },
-        { key: '_status', kind: 'sfstatus', cover: false },
-        ...sections(WALL_KEYS, 1), ...outputSection(false)],
+      fields: [{ key: 'body', label: 'Body', kind: 'bodies', multi: false, placeholder: 'The part you draw on' }, output, { key: 'walls', label: 'Walls', kind: 'walls' },
+        ...sections(WALL_KEYS, 1), ...checkSection(false)],
       defaults: ctx => ({ body: oneBody(ctx), walls: [], output: 'join', ...defaults(WALL_KEYS) }),
       toParams: v => ({ body: v.body[0], walls: v.walls, output: v.output, options: toOptions(v, WALL_KEYS) }),
       fromParams: p => ({ body: p.body ? [p.body] : [], walls: Array.isArray(p.walls) ? p.walls : ((p.points || []).length === 2 ? [{ shape: 'line', points: p.points }] : []),
@@ -1221,7 +1221,7 @@ class App {
       pv = `<b>${g < 9.95 ? g.toFixed(1) : Math.round(g)} g</b>`;
       ps = `${MATERIALS[mat][0]} · ${(sp.volume / 1000).toFixed(1)} cm³ · ${sp.pieces} piece${sp.pieces === 1 ? '' : 's'}`;
     }
-    const plastic = card('_plastic', 'Support plastic', pv, ps, 'The plastic the supports add, from their exact volume. Set your filament under Output › Material.');
+    const plastic = card('_plastic', 'Support plastic', pv, ps, 'The plastic the supports add, from their exact volume. Set your filament under Print check › Material.');
     if (!f.cover) return `<div class="sf-status" data-key="${f.key}"><div class="sf-cards">${plastic}</div></div>`;
     // which overhangs the fins (or the part itself) hold up
     const c = t._cover, reach = this.sfReach();
@@ -1239,7 +1239,7 @@ class App {
       const fix = t.values['sf:mode'] === 'full' ? 'Try more Wide-face coverage, or Add fins there.' : 'Try Placement › Full coverage, more Wide-face coverage, or Add fins there.';
       note = `<div class="sf-note sf-cover-note">${worst} ${fix}</div>`;
     }
-    const held = card('_cover', 'Held', cv, cs, `An overhang within ${num(reach)} mm of a fin, or of the part itself, is held. Further than that it would sag or fail: it shows bright red. Change the distance under Output › Bare beyond.`);
+    const held = card('_cover', 'Held', cv, cs, `An overhang within ${num(reach)} mm of a fin, or of the part itself, is held. Further than that it would sag or fail: it shows bright red. Change the distance under Print check › Bare beyond.`);
     return `<div class="sf-status" data-key="${f.key}"><div class="sf-cards">${held}${plastic}</div>${note}</div>`;
   }
 

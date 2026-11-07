@@ -29,7 +29,7 @@ const log = m => console.log(m);
   await waitInfo(); await page.waitForTimeout(600);
   log('strength now: ' + await text('.sf-pose .sf-note'));
   log('support plastic: ' + await text('[data-key="_plastic"]'));
-  await openSection(page, '_hdr_output');
+  await openSection(page, '_hdr_check');
   await page.selectOption('[data-sfmat]', 'petg'); await page.waitForTimeout(200);
   log('as PETG: ' + await text('[data-key="_plastic"] .val b'));
   // suggest

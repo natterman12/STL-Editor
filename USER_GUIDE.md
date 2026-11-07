@@ -105,7 +105,8 @@ any slicer with supports turned off.
 2. **Rotate** (the panel starts here): drag the rings on the part to turn it the way you want
    to print it. It stays on the bed, the turn is applied as soon as you let go (one *Rotate*
    step on the timeline), and the fins are rebuilt. You choose the orientation; Support Fins
-   only suggests: **Suggest orientations** tries the part every way down and lists the best
+   only suggests: **Suggest orientations** (in the Print check section at the bottom of the
+   panel) tries the part every way down and lists the best
    few (how much needs support, how tall, how many fins, how much plastic), and *Use* turns
    the part that way.
    **Strength** says how the layers sit for this pose: prints are weakest across their
@@ -115,14 +116,16 @@ any slicer with supports turned off.
 3. **Add fins**: draw walls by hand where the auto fins left a gap (line, multi-line, curve,
    gusset or anchor, as in Draw Walls below). **Remove fins**: click a fin to take it away (it turns see-through
    red); click it again to bring it back, or *Bring all back*.
-   Two cards at the top of the panel sum it up: **Held** (how much of the overhang the fins
-   hold, see below) and **Support plastic** (what the supports add, in grams, from their
-   exact volume).
-4. Adjust the settings and press OK. The panel opens with Placement and Setup showing; the
-   rest (Tines, Clearances, Sway braces, Walls) fold away until you need them. **Output**
-   holds *Add as* (*Part of the body* joins the fins to the part so it exports as one object;
-   *Separate body* keeps them apart so you can hide them), *Material* (your filament for the
-   plastic estimate: PLA, PETG, ABS, ASA, TPU or Nylon) and *Bare beyond*.
+4. Adjust the settings and press OK. **Add as**, right under the part's name, decides how the
+   fins are added: *Part of the body* joins them to the part so it exports as one object;
+   *Separate body* keeps them apart so you can hide them. The panel opens with Placement and
+   Setup showing; the rest (Tines, Clearances, Sway braces, Walls) fold away until you need
+   them.
+   **Print check**, at the bottom, sums it up in two cards: **Held** (how much of the
+   overhang the fins hold, see below) and **Support plastic** (what the supports add, in
+   grams, from their exact volume). Under them are Suggest orientations and Strength (in
+   Rotate), *Material* (your filament for the plastic estimate: PLA, PETG, ABS, ASA, TPU or
+   Nylon) and *Bare beyond*.
 
 The settings are Support Fins' own: Auto or Full coverage placement, overhang angle, nozzle,
 tines (grip, horizontal for FDM or vertical pins for resin, layer height), support gap, bed
@@ -163,7 +166,7 @@ Support Fins shows the version in use.
   bright red. A bare spot is overhang further than *Bare beyond* (5 mm to start with) from
   the top of a fin or from a wall of the part it grows out of. The Held card says how much of
   the overhang is held and how many bare spots there are; the line under it says how far the
-  worst is from a support. *Bare beyond* is in the Output section.
+  worst is from a support. *Bare beyond* is in the Print check section.
   To fix them, switch Placement mode to Full coverage, raise Wide-face coverage, or draw fins
   there in *Add fins*; the check runs again each time. Bridging a few millimetres usually
   prints; much more than 5 mm sags, so lower *Bare beyond* for a stricter check.

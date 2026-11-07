@@ -43,12 +43,15 @@ const check = (ok, what) => { log(`${ok ? 'ok  ' : 'FAIL'} ${what}`); if (!ok) f
   const credit = (await page.textContent('#tool-credit')).trim(), hint = (await page.textContent('#hint')).trim();
   check(/^Support Fins \S+ · gittrahan \(MIT\)$/.test(credit), `credit in the footer: "${credit}"`);
   check(!/gittrahan/.test(hint), 'the hint has no credit');
-  // folding sections: the first two of Support Fins' sections are open, the rest and Output closed
+  // Add as comes first, right under the body
+  const order = await page.$$eval('#tool-form > [data-key]', els => els.map(e => e.dataset.key));
+  check(order[0] === 'body' && order[1] === 'output', `Add as right under Body: ${order.slice(0, 3).join(', ')}`);
+  // folding sections: the first two of Support Fins' sections open, the others closed, Print check last and open
   const hdrs = () => page.$$eval('#tool-form .field-hdr', els => els.map(e => ({ key: e.dataset.fold, open: e.classList.contains('open'), text: e.textContent })));
   let H = await hdrs();
   log('sections: ' + H.map(h => `${h.text}${h.open ? ' (open)' : ''}`).join(' · '));
-  check(H.length >= 3 && H[0].open && H[1].open && H.slice(2).every(h => !h.open), 'first two sections open, the rest closed');
-  check(H.at(-1).key === '_hdr_output' && /Output/.test(H.at(-1).text), 'Output is the last section');
+  check(H.length >= 4 && H[0].open && H[1].open && H.slice(2, -1).every(h => !h.open), 'first two sections open, the rest closed');
+  check(H.at(-1).key === '_hdr_check' && /Print check/.test(H.at(-1).text) && H.at(-1).open, 'Print check is the last section, open');
   const fold = H[2].key, nFields = await page.locator('#tool-form .field').count();
   await page.click(`[data-fold="${fold}"]`); await page.waitForTimeout(150);
   const nOpen = await page.locator('#tool-form .field').count();
@@ -70,10 +73,12 @@ const check = (ok, what) => { log(`${ok ? 'ok  ' : 'FAIL'} ${what}`); if (!ok) f
   await closeTool(); await openSF();
   check(await page.getAttribute(`[data-fold="${fold}"]`, 'aria-expanded') === 'false', 'still closed after closing and opening the tool');
   check(/"supportfins:_hdr_\w+":/.test(await page.evaluate(() => localStorage.getItem('stle_sections') || '')), 'kept in localStorage (stle_sections)');
-  // Output: Add as, Material and Bare beyond
-  await page.click('[data-fold="_hdr_output"]'); await page.waitForTimeout(150);
-  check(!!(await page.$('#tool-form [data-key="output"]')) && !!(await page.$('#tool-form [data-sfmat]')) && !!(await page.$('#tool-form [data-sfreach]')), 'Output has Add as, Material and Bare beyond');
-  await page.click('[data-fold="_hdr_output"]'); await page.waitForTimeout(150);
+  // Print check: the cards, Suggest orientations, Material and Bare beyond, all after its header
+  const after = await page.evaluate(() => { const h = document.querySelector('[data-fold="_hdr_check"]'); const ks = []; let e = h.nextElementSibling; while (e) { if (e.dataset.key) ks.push(e.dataset.key); e = e.nextElementSibling; } return ks; });
+  check(['_status', '_pose', '_mat', '_reach'].every(k => after.includes(k)), `Print check holds ${after.join(', ')}`);
+  await page.click('[data-fold="_hdr_check"]'); await page.waitForTimeout(150);
+  check(!(await page.isVisible('#tool-form [data-key="_cover"]').catch(() => false)), 'folding Print check hides the cards');
+  await page.click('[data-fold="_hdr_check"]'); await page.waitForTimeout(150);
   // no choice wraps or overflows in the panel
   const segBad = () => page.$$eval('#tool-form .seg', segs => segs.filter(s => { const b = [...s.querySelectorAll('button')]; return b.some(x => x.offsetTop !== b[0].offsetTop || x.scrollWidth > x.clientWidth + 1); }).map(s => s.closest('[data-key]')?.dataset.key));
   let bad = await segBad();

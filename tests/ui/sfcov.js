@@ -30,7 +30,7 @@ const log = m => console.log(m);
   log('full: ' + await held());
   await page.screenshot({ path: require('path').join(OUT, 'sfcov_full.png') });
   // a stricter allowed gap
-  await openSection(page, '_hdr_output');
+  await openSection(page, '_hdr_check');
   await page.fill('[data-sfreach]', '3'); await page.press('[data-sfreach]', 'Tab');
   await page.waitForTimeout(300);
   await page.waitForFunction(() => /held/.test(document.querySelector('#tool-form [data-key="_cover"] .val')?.textContent || ''), null, { timeout: 30000 });
