@@ -5,6 +5,6 @@ self.onmessage = e => {
   const { seq, args } = e.data;
   try {
     const out = coverage(args);
-    self.postMessage({ seq, out }, [out.tris.buffer, out.dist.buffer]);
+    self.postMessage({ seq, out }, [out.tris, out.dist].filter(Boolean).map(a => a.buffer));
   } catch (err) { self.postMessage({ seq, error: String(err?.message || err) }); }
 };

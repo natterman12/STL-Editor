@@ -358,7 +358,8 @@ export function quickRepair(v0, f0) {
       vol += V[a] * (V[b + 1] * V[c + 2] - V[b + 2] * V[c + 1]) - V[a + 1] * (V[b] * V[c + 2] - V[b + 2] * V[c]) + V[a + 2] * (V[b] * V[c + 1] - V[b + 1] * V[c]);
     }
     const off = vs.length / 3, ff = vol < 0 ? flip(sh.f) : sh.f;
-    vs.push(...sh.v); for (const i of ff) fs.push(i + off);
+    for (const x of sh.v) vs.push(x);   // no push(...big): spreading a big mesh throws RangeError
+    for (const i of ff) fs.push(i + off);
   }
   v = new Float32Array(vs); f = new Uint32Array(fs);
   // fill holes made of 3 or 4 edges
@@ -506,6 +507,32 @@ export function triAdjacency(f) {
   return adj;
 }
 
+/** Edge neighbours among the triangles `tris` (every triangle when null): `(t, visit)` calls
+ *  visit(u) for each triangle u of the set sharing an edge with t (possibly more than once).
+ *  Built from a vertex -> triangle table in typed arrays, so a click on a big mesh doesn't
+ *  build an adjacency list of every triangle. */
+export function triNeighbours(f, tris = null) {
+  const nt = tris ? tris.length : f.length / 3;
+  const tri = tris ? i => tris[i] : i => i;
+  let nv = 0;
+  for (let i = 0; i < nt; i++) { const t = tri(i) * 3; for (let k = 0; k < 3; k++) if (f[t + k] >= nv) nv = f[t + k] + 1; }
+  const start = new Uint32Array(nv + 1);
+  for (let i = 0; i < nt; i++) { const t = tri(i) * 3; for (let k = 0; k < 3; k++) start[f[t + k] + 1]++; }
+  for (let i = 0; i < nv; i++) start[i + 1] += start[i];
+  const fill = start.slice(0, nv), list = new Uint32Array(start[nv]);
+  for (let i = 0; i < nt; i++) { const t = tri(i); for (let k = 0; k < 3; k++) list[fill[f[t * 3 + k]]++] = t; }
+  return (t, visit) => {
+    for (let k = 0; k < 3; k++) {
+      const a = f[t * 3 + k], b = f[t * 3 + (k + 1) % 3];
+      if (a === b || a >= nv) continue;
+      for (let j = start[a]; j < start[a + 1]; j++) {
+        const u = list[j];
+        if (u !== t && (f[u * 3] === b || f[u * 3 + 1] === b || f[u * 3 + 2] === b)) visit(u);
+      }
+    }
+  };
+}
+
 /** Grow the coplanar region around triangle `tri`. Returns {region, normal, centroid}. */
 export function faceRegion(v, f, tri, angleTolDeg = 1.0) {
   const nt = f.length / 3;
@@ -525,16 +552,21 @@ export function faceRegion(v, f, tri, angleTolDeg = 1.0) {
     }
     return true;
   };
-  const adj = triAdjacency(f);
+  // only triangles in the clicked plane can be in the region (as the desktop engine does)
+  const cand = [];
+  for (let t = 0; t < nt; t++) if (t === tri || ok(t)) cand.push(t);
+  const near = triNeighbours(f, cand);
   const seen = new Uint8Array(nt);
   const region = [];
   const stack = [tri];
   seen[tri] = 1;
+  const visit = u => { if (!seen[u]) { seen[u] = 1; stack.push(u); } };
   while (stack.length) {
     const t = stack.pop();
     region.push(t);
-    for (const u of adj[t]) if (!seen[u]) { seen[u] = 1; if (ok(u)) stack.push(u); }
+    near(t, visit);
   }
+  region.sort((a, b) => a - b);   // in triangle order, like the desktop engine
   let nx = 0, ny = 0, nz = 0, cx = 0, cy = 0, cz = 0, W = 0;
   for (const t of region) {
     const w = area[t];

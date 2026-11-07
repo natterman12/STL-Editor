@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import io
 import itertools
 import json
@@ -134,7 +135,9 @@ class Document:
 
     @staticmethod
     def _fhash(f, prev):
-        return prev + "|" + json.dumps(f, sort_keys=True)
+        """A step's cache key: a fixed-size digest of the previous step's key and this feature
+        (with the parameter values it uses), so keys don't grow with the length of the timeline."""
+        return hashlib.sha256((prev + "|" + json.dumps(f, sort_keys=True)).encode()).hexdigest()
 
     def evaluate(self):
         ctx = {"load_source": self.load_source}

@@ -24,24 +24,26 @@
       <button class="menu-btn" data-menu="help">Help</button>
     </div>
     <div class="quick">
+      <button class="icon-btn" id="btn-save" title="Save (Ctrl+S)"></button>
       <button class="icon-btn" id="btn-undo" title="Undo (Ctrl+Z)"></button>
       <button class="icon-btn" id="btn-redo" title="Redo (Ctrl+Y)"></button>
-      <button class="icon-btn" id="btn-save" title="Save (Ctrl+S)"></button>
       <span class="qsep"></span>
       <button class="icon-btn" id="btn-insert" title="Insert Mesh (Ctrl+I)"></button>
       <button class="icon-btn" id="btn-export" title="Export"></button>
     </div>
     <div id="doc-title">Untitled</div>
+    <div id="title-search"><input id="tool-search" type="search" placeholder="Search tools  Ctrl+K" autocomplete="off" spellcheck="false"></div>
   </header>
 
   <nav id="ribbon">
+    <div id="ribbon-badge"></div>
     <div id="ribbon-tabs"></div>
     <div id="ribbon-body"></div>
   </nav>
 
   <main id="workspace">
     <aside id="browser" class="panel">
-      <div class="panel-title">Browser</div>
+      <div class="panel-title"><span>Browser</span><span id="browser-count" class="count"></span></div>
       <div id="tree"></div>
     </aside>
 
@@ -79,26 +81,28 @@
     </section>
 
     <aside id="tool-panel" class="panel hidden">
-      <div class="panel-title"><span id="tool-title">Tool</span><button class="x" id="tool-close" title="Cancel (Esc)">&times;</button></div>
+      <div class="panel-title"><span id="tool-icon"></span><span id="tool-title">Tool</span><button class="x" id="tool-close" title="Cancel (Esc)">&times;</button></div>
       <div id="tool-form"></div>
       <div id="tool-msg"></div>
       <div class="tool-actions">
+        <span id="tool-credit"></span>
         <button id="tool-cancel">Cancel</button>
         <button id="tool-ok" class="primary">OK</button>
       </div>
     </aside>
-  </main>
 
-  <footer id="timeline-bar">
-    <div class="tl-controls">
-      <button class="icon-btn" id="tl-start" title="Roll back to start"></button>
-      <button class="icon-btn" id="tl-prev" title="Step back"></button>
-      <button class="icon-btn" id="tl-next" title="Step forward"></button>
-      <button class="icon-btn" id="tl-end" title="Roll forward to end"></button>
-    </div>
-    <div id="timeline"></div>
-    <div id="status"></div>
-  </footer>
+    <footer id="timeline-bar">
+      <span class="tl-label">History</span>
+      <div class="tl-controls">
+        <button class="icon-btn" id="tl-start" title="Roll back to start"></button>
+        <button class="icon-btn" id="tl-prev" title="Step back"></button>
+        <button class="icon-btn" id="tl-next" title="Step forward"></button>
+        <button class="icon-btn" id="tl-end" title="Roll forward to end"></button>
+      </div>
+      <div id="timeline"></div>
+      <div id="status"></div>
+    </footer>
+  </main>
 </div>
 
 <div id="menu" class="hidden"></div>

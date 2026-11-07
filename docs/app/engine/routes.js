@@ -142,16 +142,20 @@ export const ROUTES = {
   },
   // file routes: the page reads and writes the files; the engine works on their bytes
   open_bytes: d => {
+    // build the new document on the side: a file that fails to open leaves the open one as it was
+    let doc;
     if (d.recovered) {
-      app.doc = Document.fromBytes(d.data, d.name);
-      app.doc.path = d.path || null; app.doc.title = d.title || null; app.doc.dirty = true;
-    } else if (/\.stlx$/i.test(d.name)) app.doc = Document.fromBytes(d.data, d.name);
+      doc = Document.fromBytes(d.data, d.name);
+      doc.path = d.path || null; doc.title = d.title || null; doc.dirty = true;
+    } else if (/\.stlx$/i.test(d.name)) doc = Document.fromBytes(d.data, d.name);
     else {
-      app.doc = new Document();
-      app.doc.importFile(d.name, new Uint8Array(d.data));
-      app.doc.title = d.name.replace(/\.[^.]+$/, '');
-      app.doc.dirty = false;
+      doc = new Document();
+      doc.importFile(d.name, new Uint8Array(d.data));
+      doc.title = d.name.replace(/\.[^.]+$/, '');
+      doc.dirty = false;
+      doc._undo = []; doc._redo = [];   // as on the desktop: Undo doesn't take the opened file away
     }
+    app.doc = doc;
     return ok();
   },
   upload: d => { app.doc.importFile(d.name, new Uint8Array(d.data), true, d.place || 'center'); return ok(); },
@@ -170,14 +174,15 @@ export const ROUTES = {
   },
   status: () => ({ ok: true, dirty: app.doc.dirty, desktop: false, web: true }),
   // autosave copy: the project as .stlx bytes without marking it saved; `key` changes when
-  // the timeline does, so unchanged work isn't written again
-  snapshot: () => {
-    const d = app.doc;
-    if (!d.features.length) return { ok: true, empty: true, dirty: d.dirty };
-    const s = d._snapshot();
-    let h = 2166136261;
-    for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
-    const bytes = d.saveBytes(false);
-    return { result: { ok: true, bytes, key: `${s.length}-${(h >>> 0).toString(36)}`, title: d.path || d.title || 'Untitled', path: d.path, steps: d.features.length, dirty: d.dirty }, transfer: [bytes.buffer] };
+  // the timeline (or a parameter) does. Nothing is zipped when the project is saved or `last`
+  // (the key of the copy already written) still matches.
+  snapshot: (d = {}) => {
+    const doc = app.doc;
+    if (!doc.features.length) return { ok: true, empty: true, dirty: doc.dirty };
+    if (!doc.dirty) return { ok: true, dirty: false };
+    const key = Document.digest(doc._snapshot());
+    if (d.last && d.last === key) return { ok: true, same: true, key, dirty: true };
+    const bytes = doc.saveBytes(false);
+    return { result: { ok: true, bytes, key, title: doc.path || doc.title || 'Untitled', path: doc.path, steps: doc.features.length, dirty: doc.dirty }, transfer: [bytes.buffer] };
   },
 };

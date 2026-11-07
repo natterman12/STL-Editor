@@ -60,7 +60,8 @@ class Autosaver:
             doc = self.app.doc
             if not doc.features or (not doc.dirty and not force):
                 return False
-            snap = json.dumps({"features": doc.features, "rollback": doc.rollback, "ui": doc.ui})
+            snap = json.dumps({"features": doc.features, "rollback": doc.rollback, "ui": doc.ui,
+                               "params": doc.params})
             if snap == self._last and not force:
                 return False
             used = {f["params"].get("source") for f in doc.features if f["type"] == "import"}
@@ -77,7 +78,7 @@ class Autosaver:
                     os.replace(fn + ".tmp", fn)
                 meta[sid] = {"name": src["name"], "ext": src["ext"]}
             data = {"format": 1, "app": "STL Editor", "features": doc.features, "rollback": doc.rollback,
-                    "ui": doc.ui, "sources": meta, "path": doc.path, "title": doc.title or (
+                    "ui": doc.ui, "params": doc.params, "sources": meta, "path": doc.path, "title": doc.title or (
                         os.path.basename(doc.path) if doc.path else None),
                     "saved": time.time(), "count": len(doc.features)}
             tmp = os.path.join(self.dir, "document.json.tmp")
@@ -156,6 +157,7 @@ def load(session_id: str):
     doc.features = data["features"]
     doc.rollback = data.get("rollback")
     doc.ui = data.get("ui", doc.ui)
+    doc.params = data.get("params", [])
     doc.path = data.get("path")
     doc.title = data.get("title")
     nums = [int(x[1:]) for x in [f["id"] for f in doc.features] + list(doc.sources) if x[1:].isdigit()]

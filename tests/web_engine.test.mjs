@@ -378,7 +378,7 @@ test('Parameters: expressions in any number, rebuilt when a value changes', asyn
   assert.equal(E.evaluate('=2*(3+4)^2 - sqrt(16) + sin(30) + max(1,5,3) % 3', {}), 96.5);
   assert.equal(E.evaluate('round(2.5) + floor(-1.5) + atan(1)', {}), 3 - 2 + 45);
   const r = E.resolveParams([{ name: 'b', expr: 'a*2' }, { name: 'a', expr: '10' }, { name: 'c', expr: 'c+1' }, { name: '9x', expr: '1' }]);
-  assert.deepEqual(r.values, { a: 10, b: 20 });
+  assert.deepEqual({ ...r.values }, { a: 10, b: 20 });
   assert.match(r.errors.c, /depends on itself/);
   assert.match(r.errors['9x'], /isn't a name/);
   assert.throws(() => E.evaluate('=w+', { w: 1 }), /ends too soon/);
@@ -555,4 +555,108 @@ test('Support Fins coverage: held near a fin or a wall going down, bare beyond r
   assert.equal(withFin.spots.length, 2);
   assert.ok(withFin.spots.every(s => s.far > 8.5 && s.far < 10.5), JSON.stringify(withFin.spots.map(s => s.far)));
   assert.equal(withFin.dist.length * 3, withFin.tris.length);
+});
+
+test('Opening a file: a failed open keeps the open project; an opened mesh has nothing to undo', async () => {
+  const R = await load('engine/routes.js');
+  const good = stlOf(W.Manifold.cube([10, 10, 10]));
+  R.ROUTES.open_bytes({ name: 'a.stl', data: good.buffer.slice(0) });
+  assert.equal(R.app.doc.features.length, 1);
+  assert.equal(R.app.doc._undo.length, 0, 'Undo right after opening would empty the project');
+  R.ROUTES.undo();
+  assert.equal(R.app.doc.features.length, 1);
+  R.app.doc.addFeature('primitive', { shape: 'box', length: 5, width: 5, height: 5, plane: 'XY', offset: [30, 0, 0], rotate: [0, 0, 0], anchor: 'base', operation: 'new', targets: [], body_name: 'Box' });
+  const before = R.app.doc;
+  assert.throws(() => R.ROUTES.open_bytes({ name: 'broken.stl', data: new Uint8Array([1, 2, 3]).buffer }));
+  assert.throws(() => R.ROUTES.open_bytes({ name: 'broken.stlx', data: new Uint8Array([1, 2, 3]).buffer }), /isn't an STL Editor project/);
+  assert.equal(R.app.doc, before, 'still the same project');
+  assert.equal(R.app.doc.features.length, 2);
+});
+
+test('Autosave snapshot: nothing is zipped when the project is saved or unchanged; parameters count', async () => {
+  const R = await load('engine/routes.js');
+  R.ROUTES.open_bytes({ name: 'a.stl', data: stlOf(W.Manifold.cube([10, 10, 10])).buffer.slice(0) });
+  assert.deepEqual(R.ROUTES.snapshot({}), { ok: true, dirty: false }, 'opened and not changed: nothing to keep');
+  R.app.doc.setParams([{ name: 'w', expr: '4' }]);
+  const s1 = R.ROUTES.snapshot({}).result;
+  assert.ok(s1.bytes.length > 100 && s1.dirty);
+  assert.equal(s1.key.length, 32);
+  const same = R.ROUTES.snapshot({ last: s1.key });
+  assert.ok(same.same && !same.result && !same.bytes, 'unchanged: no zip work');
+  R.app.doc.setParams([{ name: 'w', expr: '5' }]);   // a parameter-only change is a change
+  const s2 = R.ROUTES.snapshot({ last: s1.key }).result;
+  assert.ok(s2.bytes && s2.key !== s1.key);
+});
+
+test('Parameters: functions take the right number of numbers; built-in object names are ordinary names', async () => {
+  const E = await load('js/expr.js');
+  assert.throws(() => E.evaluate('=round(2.5, 1)', {}), /^Error: round\(\) takes 1 number$|round\(\) takes 1 number/);
+  assert.throws(() => E.evaluate('=sqrt(4, 2)', {}), /sqrt\(\) takes 1 number/);
+  assert.throws(() => E.evaluate('=sin()', {}), /sin\(\) needs a number/);
+  assert.equal(E.evaluate('=max(1, 7, 3) + min(4)', {}), 11);
+  assert.throws(() => E.evaluate('=constructor(1)', {}), /no function "constructor"/);
+  assert.throws(() => E.evaluate('=toString + 1', {}), /no parameter "toString"/);
+  const r = E.resolveParams([{ name: 'constructor', expr: '3' }, { name: 'b', expr: 'constructor * 2' }, { name: 'toString', expr: 'nope' }]);
+  assert.equal(r.values.constructor, 3);
+  assert.equal(r.values.b, 6);
+  assert.equal(r.values.toString, undefined);
+  assert.match(r.errors.toString, /no parameter "nope"/);
+  assert.equal(E.resolveDeep('=constructor + 1', r.values), 4);
+  assert.throws(() => E.resolveDeep('=hasOwnProperty', r.values), /no parameter "hasOwnProperty"/);
+});
+
+test('Cache keys stay the same size however long the timeline is', () => {
+  const [doc, B] = block();
+  for (let i = 0; i < 6; i++) doc.addFeature('hole', { points: [[5 + 5 * i, 15, 20]], normal: [0, 0, 1], diameter: 2, through: true });
+  assert.equal(doc._cache.length, 7);
+  for (const [h] of doc._cache) assert.equal(h.length, 32);
+  assert.equal(new Set(doc._cache.map(c => c[0])).size, 7);
+  assert.equal(Document.digest('abc'), Document.digest('abc'));
+  assert.notEqual(Document.digest('abc'), Document.digest('abd'));
+  approx(vol(doc, B), 40 * 30 * 20 - 6 * Math.PI * 20, 0.02);
+});
+
+test('Pattern of features: no tool records of the copies are left behind', () => {
+  const [doc] = block();
+  const [h] = doc.addFeature('hole', { points: [[5, 15, 20]], normal: [0, 0, 1], diameter: 4, through: true });
+  const [p] = doc.addFeature('pattern', { source: 'features', features: [h.id], kind: 'linear', direction: [0, 1, 0], count: 3, spacing: 5 });
+  assert.deepEqual([...doc.state.tools.keys()].filter(k => k.startsWith(p.id + '.')), []);
+});
+
+test('Big meshes: repair and hole measuring work without spreading huge arrays', () => {
+  // a finely divided cube: over 400k vertex coordinates in one shell
+  const cube = W.Manifold.cube([10, 10, 10]).refine(150).getMesh();
+  assert.ok(cube.vertProperties.length > 400000);
+  const r = G.quickRepair(cube.vertProperties, cube.triVerts);
+  approx(r.volume(), 1000, 1e-6);
+  // a finely divided round pin: well over 100k points on its wall
+  const pin = W.Manifold.cylinder(10, 5, 5, 720).refine(12);
+  const m = pin.getMesh();
+  const pv = m.vertProperties, tv = m.triVerts;
+  let wall = -1;
+  for (let t = 0; t < tv.length / 3 && wall < 0; t++) {
+    const zs = [0, 1, 2].map(k => pv[tv[t * 3 + k] * 3 + 2]);
+    if (Math.max(...zs) - Math.min(...zs) > 0.5) wall = t;
+  }
+  const c = MT.fitCylinder(pv, tv, wall);
+  assert.equal(c.kind, 'pin');
+  approx(c.radius, 5, 1e-3);
+  approx(c.z1 - c.z0, 10, 1e-6);
+});
+
+test('Face click: only the connected flat face is picked, in triangle order', () => {
+  // two separate blocks of the same height: clicking one top must not pick the other's
+  const two = W.Manifold.union([W.Manifold.cube([10, 10, 5]), W.Manifold.cube([10, 10, 5]).translate([20, 0, 0])]).refine(3);
+  const m = two.getMesh();
+  const v = m.vertProperties, f = m.triVerts;
+  let top = -1;
+  for (let t = 0; t < f.length / 3 && top < 0; t++) if ([0, 1, 2].every(k => v[f[t * 3 + k] * 3 + 2] > 4.999) && v[f[t * 3] * 3] < 10.001) top = t;
+  const { region, normal } = G.faceRegion(v, f, top);
+  approx(normal[2], 1);
+  const area = region.reduce((s, t) => {
+    const p = [0, 1, 2].map(k => [v[f[t * 3 + k] * 3], v[f[t * 3 + k] * 3 + 1]]);
+    return s + Math.abs((p[1][0] - p[0][0]) * (p[2][1] - p[0][1]) - (p[2][0] - p[0][0]) * (p[1][1] - p[0][1])) / 2;
+  }, 0);
+  approx(area, 100, 1e-6, 'one top face');
+  assert.deepEqual(region, [...region].sort((a, b) => a - b));
 });

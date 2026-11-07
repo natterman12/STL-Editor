@@ -168,7 +168,41 @@ def make_handler(app: App):
             n = int(self.headers.get("Content-Length", 0) or 0)
             return self.rfile.read(n) if n else b""
 
+        def _allowed(self) -> bool:
+            """Only this computer's own pages may use the API: the Host header must name this
+            server (no DNS rebinding) and a browser request must come from its own origin (no
+            other web page posting to it)."""
+            port = self.server.server_address[1]
+            hosts = {f"127.0.0.1:{port}", f"localhost:{port}"}
+            if (self.headers.get("Host") or "").lower() not in hosts:
+                self._send(403, b"forbidden", "text/plain")
+                return False
+            origin = self.headers.get("Origin")
+            site = (self.headers.get("Sec-Fetch-Site") or "").lower()
+            if (origin is not None and origin.lower() not in {f"http://{h}" for h in hosts}) or \
+                    site in ("cross-site", "same-site"):
+                self._send(403, b"forbidden", "text/plain")
+                return False
+            return True
+
+        def _static(self, path):
+            path = path.lstrip("/") or "index.html"
+            full = os.path.normpath(os.path.join(WEB, urllib.parse.unquote(path)))
+            try:
+                inside = os.path.commonpath([os.path.normcase(WEB), os.path.normcase(full)]) == os.path.normcase(WEB)
+            except ValueError:   # another drive
+                inside = False
+            if not inside or not os.path.isfile(full):
+                return self._send(404, b"not found", "text/plain")
+            ctype = mimetypes.guess_type(full)[0] or "application/octet-stream"
+            if full.endswith(".js"):
+                ctype = "text/javascript"
+            with open(full, "rb") as fh:
+                self._send(200, fh.read(), ctype)
+
         def do_GET(self):
+            if not self._allowed():
+                return
             u = urllib.parse.urlparse(self.path)
             q = urllib.parse.parse_qs(u.query)
             try:
@@ -180,15 +214,7 @@ def make_handler(app: App):
                         bid = q["id"][0]
                         b = app.doc.state.body(bid)
                         return self._send(200, pack_meshes([(bid, b)], {}), "application/octet-stream")
-                path = u.path.lstrip("/") or "index.html"
-                full = os.path.normpath(os.path.join(WEB, path))
-                if not full.startswith(WEB) or not os.path.isfile(full):
-                    return self._send(404, b"not found", "text/plain")
-                ctype = mimetypes.guess_type(full)[0] or "application/octet-stream"
-                if full.endswith(".js"):
-                    ctype = "text/javascript"
-                with open(full, "rb") as fh:
-                    self._send(200, fh.read(), ctype)
+                return self._static(u.path)
             except GeometryError as e:
                 self._json({"error": str(e)}, 400)
             except Exception as e:
@@ -201,6 +227,12 @@ def make_handler(app: App):
             route = u.path[len("/api/"):] if u.path.startswith("/api/") else None
             try:
                 raw = self._body()
+                if not self._allowed():
+                    return
+                if route == "status":
+                    # the browser window's heartbeat: answered without waiting for a long
+                    # operation to finish (it holds app.lock), or the watchdog would quit
+                    return self._json(r_status(app, {}))
                 if route == "upload":
                     name = q.get("name", ["upload.stl"])[0]
                     with app.lock:
@@ -531,15 +563,19 @@ def r_open(app, d):
     if not paths:
         return {"ok": False, "cancelled": True}
     p = paths[0]
-    _clear_autosave(app)
+    # build the new document on the side: a file that fails to open leaves the open one (and
+    # its autosave copy) as it was
     if p.lower().endswith(".stlx"):
-        app.doc = Document.open(p)
+        doc = Document.open(p)
     else:
-        app.doc = Document()
-        app.doc.import_file(p)
-        app.doc.title = os.path.splitext(os.path.basename(p))[0]
-        app.doc.dirty = False
-        app.doc._undo.clear()
+        doc = Document()
+        doc.import_file(p)
+        doc.title = os.path.splitext(os.path.basename(p))[0]
+        doc.dirty = False
+        doc._undo.clear()
+        doc._redo.clear()
+    app.doc = doc
+    _clear_autosave(app)
     _remember(p)
     return {"ok": True, "state": app.state_json()}
 

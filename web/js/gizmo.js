@@ -113,7 +113,8 @@ export class Gizmo {
     tc.setMode(this.mode(t));
     tc.showX = tc.showY = tc.showZ = true;
     if (tc.object !== this.obj) tc.attach(this.obj);
-    tc.enabled = true; this.helper.visible = true;
+    // no new drag while Support Fins is still putting the last turn on the part
+    tc.enabled = !t._posing; this.helper.visible = true;
     this.app.viewer.requestRender();
   }
 
@@ -189,6 +190,8 @@ export class Gizmo {
       const [, o, b] = this.bodies(t)[0];
       const m = this.matrixFor(o, b, v);
       if (v.rotate.every(a => Math.abs(a) < 1e-9)) { this.reset(); this.sync(); return; }
+      // the last turn is still on its way: this drag is let go of, the part stays as it was
+      if (t._posing) { this.obj.quaternion.copy(this._startQ); this.obj.updateMatrixWorld(); this.drag(); return; }
       this.app.poseDrop(m);
       return;
     }

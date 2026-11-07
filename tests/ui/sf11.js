@@ -1,5 +1,5 @@
 // v1.11: Suggest orientations, strength, support plastic, gussets and anchors
-const { FIX, OUT, WEB, DESKTOP } = require('./common');
+const { FIX, OUT, WEB, DESKTOP, drawShape, drawShapes, openSection } = require('./common');
 const { chromium } = require('playwright');
 const BASE = process.env.BASE || WEB;
 const JS = process.env.JS || '/js/api.js';
@@ -28,9 +28,10 @@ const log = m => console.log(m);
   await page.click('[data-tab="supports"]'); await page.click('[data-tool="supportfins"]'); await page.waitForSelector('#tool-panel:not(.hidden)');
   await waitInfo(); await page.waitForTimeout(600);
   log('strength now: ' + await text('.sf-pose .sf-note'));
-  log('support plastic: ' + await text('[data-key="_plastic"] .ctl'));
+  log('support plastic: ' + await text('[data-key="_plastic"]'));
+  await openSection(page, '_hdr_output');
   await page.selectOption('[data-sfmat]', 'petg'); await page.waitForTimeout(200);
-  log('as PETG: ' + await text('[data-key="_plastic"] .ctl b'));
+  log('as PETG: ' + await text('[data-key="_plastic"] .val b'));
   // suggest
   await page.click('[data-sfact="suggest"]');
   await page.waitForSelector('.sf-cand', { timeout: 60000 });
@@ -56,19 +57,19 @@ const log = m => console.log(m);
   // gusset and anchor in Add fins
   await page.click('[data-tool="supportfins"]'); await page.waitForSelector('#tool-panel:not(.hidden)'); await waitInfo();
   await page.click('[data-seg="_mode"][data-val="add"]'); await page.waitForTimeout(200);
-  log('shapes: ' + (await page.$$eval('[data-wshape]', els => els.map(e => e.textContent))).join(', '));
+  log('shapes: ' + (await drawShapes(page)).join(', '));
   const x0 = L2.bbox[0][0], y0 = L2.bbox[0][1];
   await page.evaluate(([x0, y0]) => { const v = window.app.viewer; v.camera.position.set(x0 + 90, y0 - 70, -25); v.controls.target.set(x0 + 12, y0 + 10, 18); v.controls.update(); v.requestRender(); }, [x0, y0]);
   await page.waitForTimeout(400);
   const click = async (p, wait = 200) => { const q = await scr(p); await page.mouse.move(q[0], q[1]); await page.waitForTimeout(60); await page.mouse.click(q[0], q[1]); await page.waitForTimeout(wait); };
-  await page.click('[data-wshape="gusset"]');
+  await drawShape(page, 'gusset');
   await click([x0 + 10, y0 + 10, 8]); await click([x0 + 18, y0 + 10, 27]);
   await page.waitForTimeout(800); await waitInfo().catch(() => {});
   log('after gusset: ' + await msg() + ' · walls ' + await page.evaluate(() => JSON.stringify(window.app.tool.values.walls.map(w => w.shape + ':' + (w.normal || []).map(x => x.toFixed(2)).join(',')))));
-  await page.click('[data-wshape="anchor"]');
+  await drawShape(page, 'anchor');
   await click([x0 + 10, y0 + 16, 15]);
   await page.waitForTimeout(800); await waitInfo().catch(() => {});
-  log('after anchor: ' + await msg() + ' · plastic ' + await text('[data-key="_plastic"] .ctl b'));
+  log('after anchor: ' + await msg() + ' · plastic ' + await text('[data-key="_plastic"] .val b'));
   await page.screenshot({ path: require('path').join(OUT, 'sf11_gusset.png') });
   await page.click('#tool-ok'); await page.waitForFunction(() => !window.app.tool, null, { timeout: 30000 });
   st = await getState(); const f = st.features.at(-1);

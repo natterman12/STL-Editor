@@ -1,5 +1,5 @@
 // Support Fins v1.8 UI: instant overhangs, fins-only preview, Draw Walls (lines, multi-line, curve)
-const { FIX, OUT, WEB, DESKTOP } = require('./common');
+const { FIX, OUT, WEB, DESKTOP, drawShape } = require('./common');
 const { chromium } = require('playwright');
 const BASE = process.env.BASE || WEB;
 const JS = process.env.JS || '/js/api.js';
@@ -56,9 +56,9 @@ const log = m => console.log(m);
   log('band visible while drawing: ' + await page.evaluate(() => window.app.viewer._band.visible));
   await page.keyboard.press('Escape'); await page.waitForTimeout(100);
   log('after Esc: tool still open ' + await page.evaluate(() => !!window.app.tool) + ', pending ' + await page.evaluate(() => window.app.walls.pending.length));
-  await page.click('[data-wshape="path"]');
+  await drawShape(page, 'path');
   await click(P(21, 2)); await click(P(26, 6)); await click(P(26, 14)); await click(P(26, 14));   // double-click ends it
-  await page.click('[data-wshape="curve"]');
+  await drawShape(page, 'curve');
   await click(P(28.5, 2)); await click(P(28.5, 18)); await click(P(24, 10));
   await page.waitForFunction(() => /walls/.test(document.querySelector('#tool-msg').textContent), null, { timeout: 30000 }).catch(() => {});
   await page.waitForTimeout(500);

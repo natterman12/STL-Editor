@@ -29,6 +29,7 @@ const THANKS = `<br><br>STL Editor is free and made in spare time. If it saves y
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const num = v => (Math.round(v * 1000) / 1000).toString();
 
+const TAB_ICON = { solid: 'box', print: 'bedsplit', supports: 'fins', mesh: 'remesh', sketch: 'sketch' };
 const FEATURE_ICON = { import: 'import', primitive: 'primitive', plane: 'plane', sketch: 'sketch', extrude: 'extrude', revolve: 'revolve', hole: 'hole',
   combine: 'combine', split: 'split', mirror: 'mirror', move: 'move', scale: 'scale', hollow: 'hollow', repair: 'repair', simplify: 'simplify',
   pattern: 'pattern', delete: 'delete', separate: 'separate', bedsplit: 'bedsplit', pushpull: 'pushpull', sculpt: 'sculpt', remesh: 'remesh',
@@ -99,7 +100,7 @@ class App {
   // {drop: id, label, items: [...]} is a dropdown; {grid: [...], cols} is a block of icon-only buttons.
   ribbonDef(tab = this.tab) {
     if (this.sketcher.active) return {
-      tabs: [['sketch', 'SKETCH']],
+      tabs: [['sketch', 'Sketch']],
       groups: [
         ['Draw', [['line', 'Line', 'line'], ['arc3', 'Arc', 'arc'],
           { drop: 'sk_rect', label: 'Rectangle', items: [['rect', 'Rectangle', 'rect'], ['rect_center', 'Center Rectangle', 'rect_center']] },
@@ -143,7 +144,7 @@ class App {
         ['Convert', [['to_step', 'To STEP', 'step']]],
       ],
     };
-    return { tabs: [['solid', 'MODEL'], ['print', 'PRINT'], ['supports', 'SUPPORTS'], ['mesh', 'MESH']], groups: groups[tab] || groups.solid, pinned };
+    return { tabs: [['solid', 'Model'], ['print', 'Print'], ['supports', 'Supports'], ['mesh', 'Mesh']], groups: groups[tab] || groups.solid, pinned };
   }
 
   // every [key, label, icon] inside a list of ribbon items
@@ -182,10 +183,15 @@ class App {
       const last = it.items.find(x => x[0] === this.dropLast[it.drop]) || it.items[0];
       return `<button class="tool-btn drop" data-drop="${it.drop}" title="${esc(it.label)}: ${it.items.map(x => esc(x[1])).join(', ')}">${icon(last[2])}<span>${esc(it.label)}<i class="caret">▾</i></span></button>`;
     };
-    $('#ribbon-tabs').innerHTML = def.tabs.map(([k, l]) => `<button class="rtab ${k === 'sketch' ? 'sketch active' : (k === this.tab ? 'active' : '')}" data-tab="${k}">${l}</button>`).join('') +
-      `<div id="ribbon-search"><input id="tool-search" type="search" placeholder="Search tools   Ctrl+K" autocomplete="off" spellcheck="false"></div>`;
+    $('#ribbon-tabs').innerHTML = def.tabs.map(([k, l]) => `<button class="rtab ${k === 'sketch' ? 'sketch active' : (k === this.tab ? 'active' : '')}" data-tab="${k}">${l}</button>`).join('');
+    // the workspace badge at the left: the tab you're on
+    const cur = def.tabs.find(([k]) => k === 'sketch' || k === this.tab) || def.tabs[0];
+    const badge = $('#ribbon-badge');
+    badge.className = cur[0] === 'sketch' ? 'sketch' : '';
+    badge.innerHTML = `${icon(TAB_ICON[cur[0]] || 'box')}<span>${esc(cur[1])}</span>`;
     const all = def.pinned ? [...def.groups, def.pinned] : def.groups;
-    $('#ribbon-body').innerHTML = all.map(([label, items], gi) => `<div class="rgroup ${def.pinned && gi === all.length - 1 ? 'pinned' : ''}" data-g="${gi}"><div class="rgroup-items">${items.map(item).join('')}</div><div class="rgroup-label">${esc(label)}</div></div>`).join('');
+    // a group with a dropdown gets a ⌄ by its name; the name then lists all of the group's tools
+    $('#ribbon-body').innerHTML = all.map(([label, items], gi) => `<div class="rgroup ${def.pinned && gi === all.length - 1 ? 'pinned' : ''} ${items.some(it => it.drop) ? 'has-drop' : ''}" data-g="${gi}"><div class="rgroup-items">${items.map(item).join('')}</div><div class="rgroup-label"${items.some(it => it.drop) ? ` data-glabel="${gi}" title="All ${esc(label)} tools"` : ''}>${esc(label)}</div></div>`).join('');
     this._ribbonGroups = all;
     this.bindSearch();
     this.updateRibbonState();
@@ -210,6 +216,28 @@ class App {
     body.insertBefore(more, pin || null);
     const groups = [...body.querySelectorAll('.rgroup:not(.rmore):not(.pinned)')];
     for (let i = groups.length - 1; i > 0 && over(); i--) groups[i].classList.add('folded');
+  }
+
+  /** The tools of one ribbon group, from its name (groups with a dropdown). */
+  groupMenu(gi, anchor) {
+    const g = this._ribbonGroups?.[gi]; if (!g) return;
+    this.showMenu(anchor, App.flatItems(g[1]).map(([k, l, ic]) => ({ label: l, ic, tool: k, fn: () => this.onRibbon(k) })));
+  }
+
+  /** The icon of a tool as the toolbar shows it (for the tool panel's title). */
+  toolIcon() {
+    const key = this.tool?.key;
+    if (!key) return this.sketcher.active ? 'sketch' : ['measure', 'section', 'info'].includes(this.mode) ? this.mode : null;
+    const c = this.allCommands().find(x => x.k === key);
+    return c?.ic || FEATURE_ICON[TOOLS[key]?.type] || null;
+  }
+
+  /** The Support Fins credit, at the left of the tool panel's buttons (Support Fins and Draw Walls only). */
+  toolCredit() {
+    const el = $('#tool-credit'); if (!el) return;
+    const sf = ['supportfins', 'supportwall'].includes(this.tool?.def.type) && this._sfInfo;
+    el.textContent = sf ? `Support Fins ${this._sfInfo.version || ''} · gittrahan (MIT)` : '';
+    el.title = sf ? 'Support Fins by gittrahan, MIT licence (Help › About Support Fins)' : '';
   }
 
   moreMenu(anchor) {
@@ -334,12 +362,14 @@ class App {
       if (o.type === 'choice') return { ...base, kind: 'select', options: o.choices.map(c => [c.value, c.label]) };
       return { ...base, kind: 'number', unit: o.percent ? '%' : (/^mm\b/.test(o.hint || '') ? 'mm' : (/^[°%]/.test(o.hint || '') ? o.hint : '')) };
     };
-    const sections = (keys) => {
+    // Support Fins' sections, in its own order, as folding sections: the first `nOpen` start open
+    const sections = (keys, nOpen) => {
       const out = [];
       for (const sec of schema.sections) {
         const items = opts.filter(o => o.section === sec.id && (!keys || keys.includes(o.key)));
         if (!items.length) continue;
-        out.push({ key: '_hdr_' + sec.id, kind: 'hdr', label: sec.label, show: v => items.some(o => vis(o, v)) }, ...items.map(fieldOf));
+        out.push({ key: '_hdr_' + sec.id, kind: 'hdr', label: sec.label, open: out.filter(f => f.kind === 'hdr').length < nOpen,
+          show: v => items.some(o => vis(o, v)) }, ...items.map(fieldOf));
       }
       return out;
     };
@@ -364,7 +394,11 @@ class App {
     }));
     const output = { key: 'output', label: 'Add as', kind: 'select', options: [['join', 'Part of the body'], ['separate', 'Separate body']],
       help: 'Part of the body: the fins are joined to it, so it exports and slices as one object (what Support Fins itself does). Separate body: a body of its own you can hide or remove; export both together.' };
-    const credit = `Support Fins ${inf.version} by gittrahan (MIT)`;
+    // the last folding section: how the supports are added, and this computer's readout settings
+    const outputSection = cover => [{ key: '_hdr_output', kind: 'hdr', label: 'Output', open: false }, output,
+      { key: '_mat', label: 'Material', kind: 'sfmat', help: 'The filament you print the supports in, for the weight under Support plastic.', changed: () => this.sfMaterial() !== 'pla' },
+      ...(cover ? [{ key: '_reach', label: 'Bare beyond', kind: 'sfreach', changed: () => this.sfReach() !== 5,
+        help: "Overhangs further than this from a fin, or from the part itself, are shown bright red: they'd sag or fail. Bridging over a few mm works; over 5 mm usually droops." }] : [])];
     // the settings a drawn wall uses (Support Fins' drawWall)
     const WALL_KEYS = ['threshold', 'nozzle', 'gap', 'tines', 'tineDensity', 'layerHeight', 'plateOnly'];
     const oneBody = ctx => {
@@ -377,14 +411,13 @@ class App {
     TOOLS.supportfins = {
       label: 'Support Fins', icon: 'fins', type: 'supportfins', paint: true, gizmo: 'pose',
       fields: [{ key: 'body', label: 'Body', kind: 'bodies', multi: false },
-        { key: '_mode', label: 'On the part', kind: 'select', options: MODES,
+        { key: '_mode', label: 'On the part', kind: 'select', options: MODES, nolabel: true,
           help: 'Rotate: drag the rings to turn the part the way it will print (it stays on the bed, and the fins follow). Add fins: draw walls by hand where Auto left a gap. Remove fins: click a fin to take it away, click it again to bring it back.' },
+        { key: '_status', kind: 'sfstatus', cover: true },
         { key: '_pose', label: 'Orientation', kind: 'sfpose', show: v => v._mode === 'rotate' },
         { key: 'walls', label: 'Hand walls', kind: 'walls', show: v => v._mode === 'add' },
         { key: 'removed', label: 'Removed', kind: 'removed', show: v => v._mode === 'remove' || (v.removed || []).length > 0 },
-        { key: '_plastic', label: 'Support plastic', kind: 'sfplastic' },
-        { key: '_cover', label: 'Held', kind: 'sfcover' },
-        output, ...sections(null)],
+        ...sections(null, 2), ...outputSection(true)],
       defaults: ctx => ({ body: oneBody(ctx), _mode: 'rotate', walls: [], removed: [], output: 'join', ...defaults(null) }),
       toParams: v => {
         const p = { body: v.body[0], output: v.output, options: toOptions(v, null) };
@@ -393,9 +426,9 @@ class App {
         return p;
       },
       fromParams: p => ({ body: p.body ? [p.body] : [], _mode: 'rotate', walls: p.walls || [], removed: p.removed || [], output: p.output || 'join', ...defaults(null), ...fromOptions(p.options) }),
-      hint: `Red faces need support. Turn the part with the rings (it stays on the bed); Support Fins puts breakaway fins and a bed pad under the red. ${credit}`,
+      hint: 'Red faces need support. Turn the part with the rings (it stays on the bed); Support Fins puts breakaway fins and a bed pad under the red.',
       modeHints: {
-        rotate: `Drag the rings to turn the part the way you want to print it (5° steps, Shift for any angle). It stays on the bed, and the fins are rebuilt. ${credit}`,
+        rotate: 'Drag the rings to turn the part the way you want to print it (5° steps, Shift for any angle). It stays on the bed, and the fins are rebuilt.',
         add: null,
         remove: 'Click a fin to remove it; click a red one to bring it back. Walls you drew by hand are removed for good (Ctrl+Z in Add fins brings them back).',
       },
@@ -403,13 +436,13 @@ class App {
     TOOLS.supportwall = {
       label: 'Draw Walls', icon: 'finwall', type: 'supportwall', wallTool: true, paint: true,
       fields: [{ key: 'body', label: 'Body', kind: 'bodies', multi: false, placeholder: 'The part you draw on' }, { key: 'walls', label: 'Walls', kind: 'walls' },
-        { key: '_plastic', label: 'Support plastic', kind: 'sfplastic' }, output,
-        ...sections(WALL_KEYS)],
+        { key: '_status', kind: 'sfstatus', cover: false },
+        ...sections(WALL_KEYS, 1), ...outputSection(false)],
       defaults: ctx => ({ body: oneBody(ctx), walls: [], output: 'join', ...defaults(WALL_KEYS) }),
       toParams: v => ({ body: v.body[0], walls: v.walls, output: v.output, options: toOptions(v, WALL_KEYS) }),
       fromParams: p => ({ body: p.body ? [p.body] : [], walls: Array.isArray(p.walls) ? p.walls : ((p.points || []).length === 2 ? [{ shape: 'line', points: p.points }] : []),
         output: p.output || 'join', ...defaults(WALL_KEYS), ...fromOptions(p.options) }),
-      hint: `${this.walls.hint()} ${credit}`,
+      hint: this.walls.hint(),
     };
     this._sfInfo = inf;
     return inf;
@@ -472,7 +505,13 @@ class App {
     if (at === null) return { res: await post('feature/add', { type, params, ...extra }, extra.quiet ? { quiet: true } : { msg: extra.msg }), moved: false };
     const before = this.state.rollback ?? null;
     await post('rollback', { index: at }, { quiet: true });
-    const res = await post('feature/add', { type, params, ...extra }, extra.quiet ? { quiet: true } : { msg: extra.msg });
+    let res;
+    try { res = await post('feature/add', { type, params, ...extra }, extra.quiet ? { quiet: true } : { msg: extra.msg }); }
+    catch (e) {
+      // not added: put the timeline back where it was, then report the error
+      try { await this.apply(await post('rollback', { index: before }, { quiet: true })); } catch { /* the error below says enough */ }
+      throw e;
+    }
     // back to where the timeline was, one step further along
     const back = await post('rollback', { index: before === null ? null : before + 1 }, { quiet: true });
     const sf = this.state.features[at];
@@ -508,6 +547,8 @@ class App {
       for (const k of s.sketches) h += node(2, `${eye(k.hidden, `data-eye-item="${k.id}"`)}<span class="nm">${esc(k.name)}</span><span class="tag">${k.entities.length}</span>`, '', `data-sketch="${k.id}"`);
     }
     $('#tree').innerHTML = h;
+    const n = s.bodies.length;
+    $('#browser-count').textContent = n ? `${n} bod${n > 1 ? 'ies' : 'y'}` : '';
   }
 
   isActiveField() { return false; }
@@ -578,6 +619,7 @@ class App {
     this.viewer.setMouseMode('model'); this.viewer.setBrush(null); this.viewer.clearOverlay('strokes');
     $('#tool-panel').classList.add('hidden');
     $('#tool-msg').innerHTML = '';
+    this.toolCredit();
     this.hint('');
     if (t.editId && !committed) await this.apply(await post('rollback', { index: t.prevRollback ?? null }));
     this.updateRibbonState();
@@ -590,8 +632,21 @@ class App {
     const t = this.tool; if (!t) return;
     const v = t.values;
     let h = '';
-    for (const f of t.def.fields) {
-      if (f.show && !f.show(v)) continue;
+    // a header ('hdr') folds the fields after it, up to the next header
+    const fields = t.def.fields, shown = f => !f.show || f.show(v);
+    for (let i = 0; i < fields.length; i++) {
+      const f = fields[i];
+      if (f.kind === 'hdr') {
+        if (!shown(f)) continue;
+        let end = i + 1;
+        while (end < fields.length && fields[end].kind !== 'hdr') end++;
+        const open = this.sectionOpen(t.key, f);
+        const changed = open ? 0 : fields.slice(i + 1, end).filter(x => shown(x) && this.fieldChanged(x)).length;
+        h += this.foldHTML(f, open, changed);
+        if (!open) i = end - 1;
+        continue;
+      }
+      if (!shown(f)) continue;
       h += this.fieldHTML(f, v[f.key], t.activeField === f.key);
     }
     if (t.def.extra === 'dropToBed') h += `<div class="field"><label></label><div class="ctl"><button id="drop-bed">Drop to bed</button><button id="center-origin">Centre on origin</button></div></div>`;
@@ -603,10 +658,66 @@ class App {
     this.renderTimeline();
   }
 
+  /** Folding sections: open or closed per tool and header, remembered on this computer. */
+  sectionStore() {
+    if (!this._sections) {
+      try { const s = JSON.parse(localStorage.getItem('stle_sections') || '{}'); this._sections = s && typeof s === 'object' && !Array.isArray(s) ? s : {}; }
+      catch { this._sections = {}; }
+    }
+    return this._sections;
+  }
+
+  sectionOpen(tool, f) {
+    const st = this.sectionStore(), k = `${tool}:${f.key}`;
+    return typeof st[k] === 'boolean' ? st[k] : f.open !== false;
+  }
+
+  toggleSection(key) {
+    const t = this.tool; if (!t) return;
+    const f = t.def.fields.find(x => x.key === key && x.kind === 'hdr'); if (!f) return;
+    const st = this.sectionStore();
+    st[`${t.key}:${key}`] = !this.sectionOpen(t.key, f);
+    try { localStorage.setItem('stle_sections', JSON.stringify(st)); } catch { /* storage off: kept for this session */ }
+    this.renderForm();
+  }
+
+  /** Whether a field holds something other than the tool's default (shown on a closed section). */
+  fieldChanged(f) {
+    const t = this.tool; if (!t) return false;
+    if (f.changed) { try { return !!f.changed(t.values); } catch { return false; } }
+    if (!t._defs) { try { t._defs = t.def.defaults(this.ctx()) || {}; } catch { t._defs = {}; } }
+    if (!(f.key in t._defs)) return false;
+    const a = t.values[f.key], b = t._defs[f.key];
+    const na = typeof a === 'string' && a.trim() !== '' && !isExpr(a) ? Number(a) : a, nb = typeof b === 'string' && b.trim() !== '' && !isExpr(b) ? Number(b) : b;
+    if (typeof na === 'number' && typeof nb === 'number' && Number.isFinite(na) && Number.isFinite(nb)) return Math.abs(na - nb) > 1e-9;
+    return JSON.stringify(a ?? null) !== JSON.stringify(b ?? null);
+  }
+
+  foldHTML(f, open, changed) {
+    return `<button type="button" class="field-hdr fold${open ? ' open' : ''}" data-fold="${esc(f.key)}" aria-expanded="${open}"><span class="chev" aria-hidden="true">›</span>`
+      + `<span class="lbl">${esc(f.label)}</span>${changed ? `<span class="chg">${changed} changed</span>` : ''}</button>`;
+  }
+
+  /** A segmented control only when every option fits on one line; otherwise a list. */
+  segFits(options, wide) {
+    if (options.some(([, l]) => String(l).length > 16)) return false;
+    const form = $('#tool-form');
+    const inner = (form?.clientWidth || 288) - 20;      // the form's 10px padding each side
+    const avail = wide ? inner : inner - 92 - 6;       // the label column and the gap
+    try {
+      const c = this._segCtx || (this._segCtx = document.createElement('canvas').getContext('2d'));
+      c.font = `11px ${getComputedStyle(document.body).fontFamily}`;
+      const need = options.reduce((s, [, l]) => s + c.measureText(String(l)).width + 7, 2);   // 3px padding a side + divider; the border
+      return need <= avail;
+    } catch { return options.reduce((s, [, l]) => s + String(l).length * 5.6 + 7, 2) <= avail; }
+  }
+
   fieldHTML(f, val, active) {
     const unit = f.unit ? `<span class="unit">${f.unit}</span>` : '';
     const lab = f.help ? `<label title="${esc(f.help)}">${f.label} <span class="help">?</span></label>` : `<label>${f.label}</label>`;
-    const wrap = (ctl, cls = '') => `<div class="field ${cls}" data-key="${f.key}">${lab}<div class="ctl">${ctl}</div></div>`;
+    const wrap = (ctl, cls = '') => f.nolabel
+      ? `<div class="field wide nolabel ${cls}" data-key="${f.key}"><div class="ctl"${f.help ? ` title="${esc(f.help)}"` : ''}>${ctl}</div></div>`
+      : `<div class="field ${cls}" data-key="${f.key}">${lab}<div class="ctl">${ctl}</div></div>`;
     switch (f.kind) {
       case 'number': {
         const isLen = f.unit === 'mm';
@@ -617,7 +728,7 @@ class App {
       case 'text': return wrap(`<input type="text" data-text="${f.key}" value="${esc(val ?? '')}" placeholder="optional">`);
       case 'bool': return wrap(`<label class="check"><input type="checkbox" data-bool="${f.key}" ${val ? 'checked' : ''}></label>`);
       case 'select':
-        if (f.options.length <= 4) return wrap(`<div class="seg">${f.options.map(([k, l]) => `<button data-seg="${f.key}" data-val="${k}" class="${val === k ? 'on' : ''}">${l}</button>`).join('')}</div>`);
+        if (f.options.length <= 4 && this.segFits(f.options, f.nolabel)) return wrap(`<div class="seg">${f.options.map(([k, l]) => `<button data-seg="${f.key}" data-val="${k}" class="${val === k ? 'on' : ''}">${l}</button>`).join('')}</div>`);
         if (f.groups) {
           // options [value, label, group], shown under their group's heading
           const groups = new Map();
@@ -675,32 +786,15 @@ class App {
         const n = (val || []).length, c = f.count || 3;
         return wrap(`<div class="sel-box ${active ? 'active' : ''}" data-pick="${f.key}">${n ? `<span class="chip">${n} of ${c}<b data-unpick="${f.key}">×</b></span>` : `<span class="ph">Click ${c} points</span>`}</div>`);
       }
-      case 'hdr': return `<div class="field-hdr">${esc(f.label)}</div>`;
+      case 'hdr': return this.foldHTML(f, true, 0);
       case 'walls': return this.walls.fieldHTML(f);
       case 'sfpose': return this.sfPoseHTML(f);
-      case 'sfplastic': {
-        const sp = this.tool?._support;
+      case 'sfstatus': return this.sfStatusHTML(f);
+      case 'sfmat': {
         const mat = this.sfMaterial();
-        const g = sp ? sp.volume * MATERIALS[mat][1] / 1000 : null;
-        const amount = sp && !sp.pieces ? '<span class="muted">None needed</span>' : sp ? `<b>${g < 9.95 ? g.toFixed(1) : Math.round(g)} g</b> <span class="muted">· ${(sp.volume / 1000).toFixed(1)} cm³ · ${sp.pieces} piece${sp.pieces === 1 ? '' : 's'}</span>` : '<span class="ph">—</span>';
-        return `<div class="field" data-key="${f.key}"><label title="The plastic the supports add, from their exact volume. Change the material to match your filament.">${f.label} <span class="help">?</span></label><div class="ctl sf-plastic">${amount}<select data-sfmat="1">${Object.entries(MATERIALS).map(([k, [l]]) => `<option value="${k}" ${k === mat ? 'selected' : ''}>${l}</option>`).join('')}</select></div></div>`;
+        return wrap(`<select data-sfmat="1">${Object.entries(MATERIALS).map(([k, [l]]) => `<option value="${k}" ${k === mat ? 'selected' : ''}>${l}</option>`).join('')}</select>`);
       }
-      case 'sfcover': {
-        const c = this.tool?._cover, reach = this.sfReach();
-        let txt;
-        if (!c || c.busy) txt = '<span class="ph">Checking the overhangs…</span>';
-        else if (c.error) txt = `<span class="muted">${esc(c.error)}</span>`;
-        else if (!(c.total > 0)) txt = '<span class="muted">Nothing to hold up</span>';
-        else if (!c.spots.length) txt = `<b class="sf-ok">All held</b> <span class="muted">· every overhang is within ${num(reach)} mm of a support</span>`;
-        else {
-          const w = c.spots[0], pct = Math.min(99, Math.floor(100 * c.held / c.total));
-          const worst = w.far == null ? 'nothing holds it up' : `the worst ${w.far < 9.95 ? w.far.toFixed(1) : Math.round(w.far)} mm from a support`;
-          const fix = this.tool.values['sf:mode'] === 'full' ? 'Try more Wide-face coverage, or Add fins there' : 'Try Placement › Full coverage, more Wide-face coverage, or Add fins there';
-          txt = `<b class="sf-bad">${pct}% held</b> <span class="muted">· ${c.spots.length} bare spot${c.spots.length > 1 ? 's' : ''} (bright red), ${worst}. ${fix}.</span>`;
-        }
-        return `<div class="field wide" data-key="${f.key}"><label title="Overhangs further than this from a fin, or from the part itself, are shown bright red: they'd sag or fail. Bridging over a few mm works; over 5 mm usually droops.">${f.label} <span class="help">?</span></label><div class="ctl sf-cover"><div>${txt}</div>
-          <div class="sf-reach"><span class="muted">Bare beyond</span><input type="text" data-sfreach="1" value="${num(reach)}"><span class="unit">mm</span></div></div></div>`;
-      }
+      case 'sfreach': return wrap(`<input type="text" inputmode="decimal" data-sfreach="1" value="${num(this.sfReach())}"><span class="unit">mm</span>`);
       case 'removed': {
         const n = (val || []).length;
         return `<div class="field" data-key="${f.key}"><label>${f.label}</label><div class="ctl walls-ctl"><span class="walls-n">${n ? `${n} fin${n > 1 ? 's' : ''}` : '<span class="ph">None: click a fin to remove it</span>'}</span>${n ? '<button data-sfact="restore">Bring all back</button>' : ''}</div></div>`;
@@ -770,7 +864,15 @@ class App {
 
   async runPreview() {
     const t = this.tool; if (!t) return;
-    if (!this.validTool() || (t.def.sculpt && !(t.values.strokes || []).length)) { this.viewer.clearPreview(); this.toolMsg(''); if (t.def.wallTool) { t._wallStatus = []; } return; }
+    if (!this.validTool() || (t.def.sculpt && !(t.values.strokes || []).length)) {
+      // a preview still on its way is out of date now: it mustn't land after this
+      this._previewSeq++; clearTimeout(this._busyTimer);
+      this.viewer.clearPreview(); this.toolMsg(''); this._sfPieces = null;
+      if (t.def.wallTool) { t._wallStatus = []; }
+      // no part picked: its red overhangs and the coverage go too (with a part, they stay)
+      if (t.def.paint && !(Array.isArray(t.values.body) ? t.values.body[0] : t.values.body)) this.quickPaint();
+      return;
+    }
     const seq = ++this._previewSeq;
     clearTimeout(this._busyTimer);
     if (t.def.paint) this._busyTimer = setTimeout(() => { if (seq === this._previewSeq && this.tool === t) this.toolMsg(t.def.wallTool ? 'Building the walls…' : 'Building supports…', 'busy'); }, 150);
@@ -783,9 +885,18 @@ class App {
       if (t.def.wallTool || t.def.type === 'supportfins') { t._wallStatus = r.walls || []; if (t.def.wallTool || t.values._mode === 'add') this.renderForm(); }
       this._sfPieces = r.pieces || null;
       if ('support' in r || t.def.paint) { const had = JSON.stringify(t._support || null); t._support = r.support || null; if (had !== JSON.stringify(t._support)) this.renderForm(); }
-      if (r.error) { this.viewer.clearPreview(); this.toolMsg(r.error, 'err'); return; }
+      if (r.error) {
+        this.viewer.clearPreview(); this.toolMsg(r.error, 'err');
+        if (t.def.type === 'supportfins' && !t._cover?.none) { this.sfCoverageStop(); t._cover = { none: true }; this.renderForm(); }
+        return;
+      }
       this.viewer.showPreview(pack);
-      this.toolMsg(r.warning ? (t.def.wallTool && r.info ? `${r.info}. ${r.warning}` : r.warning) : (r.flipped ? 'Cutting into the material (direction flipped).' : (r.info || '')), r.warning ? 'warn' : 'info');
+      let warn = r.warning;
+      // Support Fins' Rotate mode: "no overhangs in this position" is said by the Held card
+      // ("Nothing to hold up", "Turn it to the way you'll print it"), not again up here
+      if (warn && t.def.type === 'supportfins' && (t.values._mode || 'rotate') === 'rotate')
+        warn = warn.replace(/"[^"]*" has no overhangs in this position\. [^.]*\.\s*/g, '').trim() || null;
+      this.toolMsg(warn ? (t.def.wallTool && r.info ? `${r.info}. ${warn}` : warn) : (r.flipped ? 'Cutting into the material (direction flipped).' : (r.info || '')), warn ? 'warn' : 'info');
       if (r.paint && t.def.paint) {
         // the faces Support Fins holds up (red), and the small ones it leaves to bridge (amber)
         this.viewer.clearOverlay('sf-over'); this.viewer.clearOverlay('sf-small');
@@ -799,8 +910,7 @@ class App {
   /** The hint for the tool, or for the mode Support Fins is in. */
   modeHint() {
     const t = this.tool; if (!t) return '';
-    const credit = `Support Fins ${this._sfInfo?.version || ''} by gittrahan (MIT)`;
-    if (t.def.wallTool) return `${this.walls.hint()} ${credit}`;
+    if (t.def.wallTool) return this.walls.hint();
     if (t.def.modeHints) {
       const m = t.values._mode || 'rotate';
       return t.def.modeHints[m] || `Draw walls by hand where the auto fins left a gap. ${this.walls.hint()}`;
@@ -832,6 +942,13 @@ class App {
     const t = this.tool; if (!t || !r?.paint) return;
     this._covLast = r;
     const o = this.viewer.bodies.get(r.paint.body); if (!o) return;
+    if (!(r.paint.over || []).length) {
+      // no overhangs in this pose: nothing to check
+      this.sfCoverageStop();
+      this.viewer.clearOverlay('sf-bare'); this.viewer.clearOverlay('sf-held');
+      t._cover = { total: 0, held: 0, spots: [] }; this.renderForm();
+      return;
+    }
     const ghosts = new Set(r.ghosts || []);
     const fins = [];
     for (const c of this.viewer.previewGroup.children) {
@@ -841,7 +958,9 @@ class App {
       if (g !== c.geometry) g.dispose();
     }
     const gap = parseNum(t.values['sf:gap']);
-    const args = { pos: Float32Array.from(o.geo.attributes.position.array), idx: Uint32Array.from(o.geo.index.array), over: r.paint.over,
+    const pos = o.geo.attributes.position.array;
+    const idx = o.geo.index ? Uint32Array.from(o.geo.index.array) : Uint32Array.from({ length: pos.length / 3 }, (_, i) => i);
+    const args = { pos: Float32Array.from(pos), idx, over: r.paint.over,
       fins, gap: gap > 0 ? gap : 0.2, reach: this.sfReach() };
     this.sfCoverageStop();
     const seq = this._covSeq;
@@ -898,7 +1017,18 @@ class App {
   /** A handle was let go in Move / Rotate or Scale: put the part there at once. The first time
    *  the step is added to the timeline, then the tool goes on editing that same step. */
   async autoAccept() {
-    const t = this.tool; if (!t || !this.validTool()) return;
+    const t = this.tool; if (!t) return;
+    // one at a time: a drop while the last one is still on its way is sent after it, as an
+    // edit of the same step (the tool's numbers are the whole move, so the latest ones win)
+    if (t._accepting) { t._acceptAgain = true; return; }
+    t._accepting = true;
+    try {
+      do { t._acceptAgain = false; await this._autoAccept(t); } while (t._acceptAgain && this.tool === t);
+    } finally { t._accepting = false; }
+  }
+
+  async _autoAccept(t) {
+    if (this.tool !== t || !this.validTool()) return;
     const params = this.params();
     try {
       if (t.editId) await this.apply(await post('feature/edit', { id: t.editId, params }, { quiet: true }));
@@ -924,19 +1054,27 @@ class App {
    *  as one matrix), and walls drawn by hand turn with it. */
   async poseDrop(m) {
     const t = this.tool; if (!t) return;
+    // one turn at a time: while one is on its way the handles take no new drag (Gizmo.sync),
+    // so the next turn starts from the pose this one gives
+    if (t._posing) return;
     const bid = t.values.body?.[0], b = this.state.bodies.find(x => x.id === bid);
     if (!b?.bbox) return;
     const ps = t._pose || (t._pose = { fid: null, M: new THREE.Matrix4(),
       c0: new THREE.Vector3(...[0, 1, 2].map(i => (b.bbox[0][i] + b.bbox[1][i]) / 2)) });
-    ps.M.premultiply(m);
-    const c0 = ps.c0, img = c0.clone().applyMatrix4(ps.M);
+    // the whole turn so far; kept only once the engine has it (a failed turn isn't counted)
+    const M = ps.M.clone().premultiply(m);
+    const c0 = ps.c0, img = c0.clone().applyMatrix4(M);
     const params = { bodies: [bid], translate: [img.x - c0.x, img.y - c0.y, img.z - c0.z].map(x => Math.round(x * 1e5) / 1e5),
-      rotate: rotOf(new THREE.Quaternion().setFromRotationMatrix(ps.M)), pivot: 'center', bed: false, copy: false };
+      rotate: rotOf(new THREE.Quaternion().setFromRotationMatrix(M)), pivot: 'center', bed: false, copy: false };
+    t._posing = true;
+    t._poseGen = (t._poseGen || 0) + 1;   // suggestions worked out for the old pose are dropped
+    this.gizmo.tc.enabled = false;
     this.toolMsg('Turning the part…', 'busy');
     try {
       let res;
       if (ps.fid) res = await post('feature/edit', { id: ps.fid, params }, { quiet: true });
       else { res = await post('feature/add', { type: 'move', params, name: 'Rotate' }, { quiet: true }); ps.fid = res.feature.id; }
+      ps.M = M;
       if (this.tool !== t) { await this.apply(res); return; }
       // walls drawn by hand turn with the part; removed fins are rebuilt, so they come back
       t.values.walls = (t.values.walls || []).map(w => ({ ...w, points: w.points.map(p => new THREE.Vector3(...p).applyMatrix4(m).toArray().map(x => +x.toFixed(4))) }));
@@ -956,6 +1094,10 @@ class App {
       this.schedulePreview(0);
       this.sfStrength();
     } catch (e) { this.gizmo.reset(); this.toolMsg(e.message, 'err'); }
+    finally {
+      t._posing = false; t._poseGen++;
+      if (this.tool === t) this.gizmo.sync();
+    }
   }
 
   /** The parameter values, for showing what an expression comes to. */
@@ -1054,24 +1196,66 @@ class App {
     let list = '';
     if (sg?.busy) list = '<div class="sf-note busy">Trying the part every way down…</div>';
     else if (sg?.error) list = `<div class="sf-note bad">${esc(sg.error)}</div>`;
-    else if (sg?.list) list = `<div class="sf-note">${CONF[sg.confidence] || ''}</div>` + sg.list.map((c, i) => `<div class="sf-cand"><span><b>${i ? `${i + 1}.` : 'Best'}</b> ${esc(fmt(c))}</span><button data-sfact="use" data-i="${i}">Use</button></div>`).join('');
+    else if (sg?.list) list = (CONF[sg.confidence] ? `<div class="sf-note">${CONF[sg.confidence]}</div>` : '')
+      + sg.list.map((c, i) => `<div class="sf-cand"><span><b>${i ? i + 1 : 'Best'}</b> · ${esc(fmt(c))}</span><button data-sfact="use" data-i="${i}">Use</button></div>`).join('');
+    const posture = st?.posture ? `<div class="sf-note" title="How the print's layers sit for this pose. Prints are weakest across their layers.">${POSTURE[st.posture]}</div>` : '';
     const loadSel = Array.isArray(t.values._load) ? 'turned' : (t.values._load || 'none');
     const loadOpts = [['none', 'Not set'], ['up', 'Pulled up'], ['down', 'Pushed down'], ['left', 'Pulled left'], ['right', 'Pulled right'], ['front', 'Pulled to the front'], ['back', 'Pulled to the back'], ...(loadSel === 'turned' ? [['turned', 'As set (turned with the part)']] : [])];
-    const verdict = st?.load ? `<div class="sf-verdict ${st.load.quality}">${esc(st.load.text)}</div>` + (st.strongest ? `<button data-sfact="strongest">Turn it to the strongest pose</button>` : '') : '';
-    return `<div class="field wide" data-key="${f.key}"><label>Suggested</label><div class="ctl sf-pose"><button data-sfact="suggest" ${sg?.busy ? 'disabled' : ''}>Suggest orientations</button>${list}</div></div>
-      <div class="field wide"><label title="How the print's layers sit for this pose. Prints are weakest across their layers.">Strength <span class="help">?</span></label><div class="ctl sf-pose">${st?.posture ? `<div class="sf-note">${POSTURE[st.posture]}</div>` : ''}
-        <div class="sf-load"><span>Load in use</span><select data-sel="_load">${loadOpts.map(([k, l]) => `<option value="${k}" ${k === loadSel ? 'selected' : ''}>${l}</option>`).join('')}</select></div>${verdict}</div></div>`;
+    const verdict = st?.load ? `<div class="sf-pose"><div class="sf-verdict ${st.load.quality}">${esc(st.load.text)}</div></div>` : '';
+    return `<div class="sf-pose" data-key="${f.key}"><div class="sf-btns"><button data-sfact="suggest" ${sg?.busy ? 'disabled' : ''}>Suggest orientations</button>`
+      + `${st?.strongest ? '<button data-sfact="strongest">Turn to strongest pose</button>' : ''}</div>${list}${posture}</div>
+      <div class="field" data-key="_load"><label title="Which way the part is pulled or pushed when it's in use. The strength line then says how well this pose takes it.">Load in use <span class="help">?</span></label><div class="ctl"><select data-sel="_load">${loadOpts.map(([k, l]) => `<option value="${k}" ${k === loadSel ? 'selected' : ''}>${l}</option>`).join('')}</select></div></div>${verdict}`;
+  }
+
+  /** Support Fins' two readouts side by side: how much of the overhangs is held, and the plastic. */
+  sfStatusHTML(f) {
+    const t = this.tool; if (!t) return '';
+    const hasBody = (t.values.body || []).length > 0;
+    const card = (key, cap, val, sub, tip) => `<div class="sf-card" data-key="${key}"${tip ? ` title="${esc(tip)}"` : ''}><div class="cap">${cap}</div><div class="val">${val}</div>${sub ? `<div class="sub">${sub}</div>` : ''}</div>`;
+    // the plastic the supports add
+    const sp = t._support, mat = this.sfMaterial();
+    let pv = '<span class="muted">—</span>', ps = '';
+    if (hasBody && sp && !sp.pieces) pv = '<span class="muted">None needed</span>';
+    else if (hasBody && sp) {
+      const g = sp.volume * MATERIALS[mat][1] / 1000;
+      pv = `<b>${g < 9.95 ? g.toFixed(1) : Math.round(g)} g</b>`;
+      ps = `${MATERIALS[mat][0]} · ${(sp.volume / 1000).toFixed(1)} cm³ · ${sp.pieces} piece${sp.pieces === 1 ? '' : 's'}`;
+    }
+    const plastic = card('_plastic', 'Support plastic', pv, ps, 'The plastic the supports add, from their exact volume. Set your filament under Output › Material.');
+    if (!f.cover) return `<div class="sf-status" data-key="${f.key}"><div class="sf-cards">${plastic}</div></div>`;
+    // which overhangs the fins (or the part itself) hold up
+    const c = t._cover, reach = this.sfReach();
+    let cv, cs = '', note = '';
+    if (!hasBody || c?.none) cv = '<span class="muted">—</span>';
+    else if (!c || c.busy) cv = '<span class="muted busy">Checking…</span>';
+    else if (c.error) cv = `<span class="bad">${esc(c.error)}</span>`;
+    else if (!(c.total > 0)) { cv = '<span class="muted">Nothing to hold up</span>'; if ((t.values._mode || 'rotate') === 'rotate') cs = 'Turn it to the way you’ll print it'; }
+    else if (!c.spots.length) cv = '<b class="sf-ok">All held</b>';
+    else {
+      const w = c.spots[0], n = c.spots.length, pct = Math.min(99, Math.floor(100 * c.held / c.total));
+      cv = `<b class="sf-bad">${pct}% held</b>`;
+      cs = `${n} bare spot${n > 1 ? 's' : ''}`;
+      const worst = w.far == null ? `Nothing holds the worst bare spot (bright red) up.` : `The worst bare spot (bright red) is ${w.far < 9.95 ? w.far.toFixed(1) : Math.round(w.far)} mm from a support.`;
+      const fix = t.values['sf:mode'] === 'full' ? 'Try more Wide-face coverage, or Add fins there.' : 'Try Placement › Full coverage, more Wide-face coverage, or Add fins there.';
+      note = `<div class="sf-note sf-cover-note">${worst} ${fix}</div>`;
+    }
+    const held = card('_cover', 'Held', cv, cs, `An overhang within ${num(reach)} mm of a fin, or of the part itself, is held. Further than that it would sag or fail: it shows bright red. Change the distance under Output › Bare beyond.`);
+    return `<div class="sf-status" data-key="${f.key}"><div class="sf-cards">${held}${plastic}</div>${note}</div>`;
   }
 
   async sfSuggest() {
     const t = this.tool; if (!t) return;
     const body = t.values.body?.[0]; if (!body) { this.toolMsg('Pick the part first.', 'warn'); return; }
-    t._suggest = { busy: true }; this.renderForm();
+    // the poses are worked out for the part as it sits now: once it's turned (or still being
+    // turned) they don't apply, and are dropped
+    const gen = t._poseGen || 0, posing = !!t._posing;
+    const stale = () => this.tool !== t || posing || t._posing || (t._poseGen || 0) !== gen || t.values.body?.[0] !== body;
+    const sg = t._suggest = { busy: true }; this.renderForm();
     try {
       const r = await post('supportfins/suggest', { body, options: this.params().options || {}, top: 3 }, { quiet: true });
-      if (this.tool !== t) return;
-      t._suggest = { list: r.candidates, confidence: r.confidence };
-    } catch (e) { t._suggest = { error: e.message }; }
+      if (this.tool !== t || t._suggest !== sg) return;
+      t._suggest = stale() ? null : { list: r.candidates, confidence: r.confidence };
+    } catch (e) { if (this.tool !== t || t._suggest !== sg) return; t._suggest = stale() ? null : { error: e.message }; }
     this.renderForm();
   }
 
@@ -1686,7 +1870,7 @@ class App {
     const head = document.head;
     if (!head.querySelector('link[rel="manifest"]')) {
       const l = document.createElement('link'); l.rel = 'manifest'; l.href = 'manifest.webmanifest'; head.appendChild(l);
-      const m = document.createElement('meta'); m.name = 'theme-color'; m.content = '#1f6fd1'; head.appendChild(m);
+      const m = document.createElement('meta'); m.name = 'theme-color'; m.content = '#17191e'; head.appendChild(m);
     }
     window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); this._install = e; });
     window.addEventListener('appinstalled', () => { this._install = null; this.toast('STL Editor is installed. Open it from your apps like any other program.'); });
@@ -1795,6 +1979,7 @@ class App {
     $('#ribbon-body').onclick = e => {
       const d = e.target.closest('[data-drop]'); if (d) { e.stopPropagation(); return this.dropMenu(d.dataset.drop, d); }
       const m = e.target.closest('[data-more]'); if (m) { e.stopPropagation(); return this.moreMenu(m); }
+      const gl = e.target.closest('[data-glabel]'); if (gl) { e.stopPropagation(); return this.groupMenu(+gl.dataset.glabel, gl); }
       const b = e.target.closest('[data-tool]');
       if (b && !b.disabled) { if (['export', 'send'].includes(b.dataset.tool)) e.stopPropagation(); this.onRibbon(b.dataset.tool); }
     };
@@ -1803,6 +1988,9 @@ class App {
     $('#btn-insert').onclick = () => this.cmd('import');
     $('#btn-export').onclick = () => this.exportMenu($('#btn-export'));
     for (const b of document.querySelectorAll('.menu-btn')) b.onclick = () => this.topMenu(b);
+    // the tool panel's title shows the tool's toolbar icon (the title is set wherever a panel opens)
+    new MutationObserver(() => { const ic = this.toolIcon(); $('#tool-icon').innerHTML = ic ? icon(ic) : ''; this.toolCredit(); })
+      .observe($('#tool-title'), { childList: true, characterData: true, subtree: true });
     for (const b of document.querySelectorAll('#viewcube button')) b.onclick = () => this.viewer.setView(b.dataset.view);
     $('#empty-open').onclick = () => this.cmd('import');
     $('#empty-box').onclick = () => this.openTool('primitive_box');
@@ -1816,7 +2004,11 @@ class App {
     form.addEventListener('click', e => this.onFormClick(e));
     form.addEventListener('change', e => this.onFormChange(e));
     form.addEventListener('input', e => this.onFormInput(e));
-    form.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); e.stopPropagation(); this.onFormChange(e); e.target.select?.(); } });
+    form.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); e.stopPropagation(); this.onFormChange(e); e.target.select?.(); }
+      // Enter or Space on a section header folds it (and doesn't also press OK)
+      else if ((e.key === 'Enter' || e.key === ' ') && e.target.closest?.('[data-fold]')) e.stopPropagation();
+    });
 
     // tree
     $('#tree').addEventListener('click', e => this.onTreeClick(e));
@@ -1966,13 +2158,7 @@ class App {
     if (this.mode === 'info') { if (hit?.kind === 'body') { this.selection = [hit.id]; this.viewer.setSelection(this.selection); this.renderTree(); this.showInfo(hit.id); } return; }
     if (this.tool) {
       const used = await this.feedPick(hit, e);
-      if (this.tool?.onPlane && this.tool.values.plane) {
-        if (hit?.kind === 'body') {
-          const face = await post('face', { body: hit.id, tri: hit.tri }, { quiet: true });
-          this._faceRefs = face.boundary2d;
-        } else this._faceRefs = [];
-        return this.tool.onPlane();
-      }
+      if (this.tool?.onPlane && this.tool.values.plane) return this.tool.onPlane();
       if (used) return;
     }
     // plain selection
@@ -1988,7 +2174,6 @@ class App {
   async quickSketchOnFace(hit) {
     const face = await post('face', { body: hit.id, tri: hit.tri }, { quiet: true });
     if (!face.planar) { this.toast('That face isn\'t flat. Pick a flat face or a plane to sketch on.', 'warn'); return; }
-    this._faceRefs = face.boundary2d;
     this.enterSketch({ plane: { origin: face.origin, normal: face.normal, xdir: face.xdir, label: `Face of ${this.bodyName(hit.id)}`, body: hit.id } });
   }
 
@@ -2010,6 +2195,8 @@ class App {
       return;
     }
     const t = this.tool; if (!t) return;
+    const fold = e.target.closest('[data-fold]');
+    if (fold) { this.toggleSection(fold.dataset.fold); return; }
     if (this.walls.active && this.walls.onFormClick(e)) return;
     if (e.target.closest('[data-sfact="restore"]')) { this.setValue('removed', []); return; }
     const sfa = e.target.closest('[data-sfact]');
@@ -2091,6 +2278,7 @@ class App {
     }
     if (this.mode === 'section' && el.id === 'sec-flip') { this.sectionState.flip = el.checked; this.renderSection(); return; }
     const t = this.tool; if (!t) return;
+    if (el.dataset.wshapesel && this.walls.active) { this.walls.finish(); this.walls.setShape(el.value); return; }
     if (el.dataset.sfreach) {
       const v = parseNum(el.value);
       if (v > 0) { try { localStorage.setItem('stle_sf_reach', String(v)); } catch { /* storage off */ } this.sfCoverage(); }
@@ -2143,7 +2331,12 @@ class App {
     const bn = e.target.closest('[data-body]');
     if (bn) {
       const id = bn.dataset.body;
-      if (this.tool) { this.feedPick({ kind: 'body', id, point: [0, 0, 0] }); return; }
+      if (this.tool) {
+        // a body in the tree picks that body; it has no point or face, so only a body field takes it
+        const f = this.tool.def.fields.find(x => x.key === this.tool.activeField);
+        if (f?.kind === 'bodies') this.feedPick({ kind: 'body', id, point: [0, 0, 0] });
+        return;
+      }
       if (this.mode === 'info') { this.selection = [id]; this.showInfo(id); }
       else if (e.shiftKey || e.ctrlKey) this.selection = this.selection.includes(id) ? this.selection.filter(x => x !== id) : [...this.selection, id];
       else this.selection = [id];
@@ -2385,10 +2578,10 @@ class App {
     try {
       const { settings: st } = await post('settings/get', {}, { quiet: true });
       U.mode = st.units === 'in' ? 'in' : 'mm';
-      this.themePref = st.theme || 'light';
+      this.themePref = st.theme || 'dark';
       if (st.snap_step) this.sketcher.snapStep = +st.snap_step;
       this.settings = st;
-    } catch { this.themePref = 'light'; }
+    } catch { this.themePref = 'dark'; }
     this.applyTheme();
   }
 

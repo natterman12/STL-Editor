@@ -94,12 +94,13 @@ export class Viewer {
     this.originGroup.clear();
     const s = Math.pow(10, Math.ceil(Math.log10(Math.max(size, 10))));
     const dk = this.dark;
-    const major = new THREE.GridHelper(s * 2, 20, dk ? 0x58626d : 0x9aa5b1, dk ? 0x3d454e : 0xc3cad2);
+    // subtle lines on the flat slate (dark) or light grey (light) viewport behind the canvas
+    const major = new THREE.GridHelper(s * 2, 20, dk ? 0x515866 : 0x9aa5b1, dk ? 0x454b56 : 0xbcc3cc);
     major.rotation.x = Math.PI / 2;
-    major.material.transparent = true; major.material.opacity = 0.55; major.material.depthWrite = false;
-    const minor = new THREE.GridHelper(s * 2, 200, dk ? 0x2b3138 : 0xd5dae0, dk ? 0x2b3138 : 0xd5dae0);
+    major.material.transparent = true; major.material.opacity = dk ? 0.9 : 0.6; major.material.depthWrite = false;
+    const minor = new THREE.GridHelper(s * 2, 200, dk ? 0x3a3f49 : 0xd2d7de, dk ? 0x3a3f49 : 0xd2d7de);
     minor.rotation.x = Math.PI / 2;
-    minor.material.transparent = true; minor.material.opacity = 0.35; minor.material.depthWrite = false;
+    minor.material.transparent = true; minor.material.opacity = dk ? 0.6 : 0.5; minor.material.depthWrite = false;
     this.grid = new THREE.Group(); this.grid.add(minor, major); this.grid.renderOrder = -1;
     this.originGroup.add(this.grid);
     const L = s * 0.35;
@@ -154,18 +155,32 @@ export class Viewer {
   async syncBodies(bodies, fetchMesh) {
     const keep = new Set(bodies.map(b => b.id));
     for (const [id, o] of this.bodies) if (!keep.has(id)) { this._disposeBody(o); this.bodies.delete(id); }
+    // refreshes can overlap (fast undo/redo): only the newest wanted mesh of a body is shown,
+    // and a fetch already on its way for that mesh is shared instead of sent again
+    this._want = new Map(bodies.map(b => [b.id, b]));
+    this._fetching ??= new Map();
     const jobs = [];
     for (const b of bodies) {
       let o = this.bodies.get(b.id);
       if (!o || o.serial !== b.serial) {
-        jobs.push(fetchMesh(b.id).then(m => {
-          const old = this.bodies.get(b.id);
-          if (old) this._disposeBody(old);
-          const obj = this._makeBody(b.id, m.positions, m.index, b);
-          obj.serial = b.serial;
-          this.bodies.set(b.id, obj);
-          this._styleBody(b.id);
-        }));
+        const key = `${b.id}\n${b.serial}`;
+        let job = this._fetching.get(key);
+        if (!job) {
+          job = fetchMesh(b.id).then(m => {
+            const want = this._want.get(b.id);
+            if (!want || want.serial !== b.serial) return;   // a newer refresh wants another mesh
+            const old = this.bodies.get(b.id);
+            if (old?.serial === b.serial) return;
+            if (old) this._disposeBody(old);
+            const obj = this._makeBody(b.id, m.positions, m.index, want);
+            obj.serial = b.serial;
+            this.bodies.set(b.id, obj);
+            this._styleBody(b.id);
+          }, e => { const want = this._want.get(b.id); if (want && want.serial === b.serial) throw e; })
+            .finally(() => this._fetching.delete(key));
+          this._fetching.set(key, job);
+        }
+        jobs.push(job);
       } else {
         o.info = b;
         o.mesh.visible = !b.hidden;
@@ -211,8 +226,8 @@ export class Viewer {
 
   _disposeBody(o) {
     this.bodiesGroup.remove(o.mesh); o.mesh.geometry.disposeBoundsTree?.(); o.mesh.geometry.dispose(); o.mesh.material.dispose();
-    if (o.edges) { this.bodiesGroup.remove(o.edges); o.edges.geometry.dispose(); }
-    if (o.back) { this.bodiesGroup.remove(o.back); }
+    if (o.edges) { this.bodiesGroup.remove(o.edges); o.edges.geometry.dispose(); o.edges.material.dispose(); }
+    if (o.back) { this.bodiesGroup.remove(o.back); o.back.material.dispose(); }   // its geometry is the mesh's
     o.geo.dispose();
   }
 
@@ -296,8 +311,19 @@ export class Viewer {
   }
 
   // ---------------------------------------------------------------- planes & sketches
+  /** Empty a group and free what its children hold on the GPU. */
+  _clearGroup(g) {
+    for (const c of [...g.children]) { g.remove(c); this._free(c); }
+  }
+  _free(obj) {
+    obj.traverse(x => {
+      x.geometry?.dispose();
+      for (const m of Array.isArray(x.material) ? x.material : x.material ? [x.material] : []) { m.map?.dispose(); m.dispose(); }
+    });
+  }
+
   syncPlanes(planes) {
-    this.planesGroup.clear();
+    this._clearGroup(this.planesGroup);
     const size = Math.max(this.extent * 0.35, 20);
     for (const p of planes) {
       if (p.hidden) continue;
@@ -309,7 +335,7 @@ export class Viewer {
   }
 
   syncSketches(sketches, activeId) {
-    this.sketchGroup.clear();
+    this._clearGroup(this.sketchGroup);
     for (const s of sketches) {
       if (s.hidden || s.id === activeId) continue;
       this.sketchGroup.add(this.sketchLines(s.frame, s.entities, SKETCH_COL, 0.9));
@@ -339,7 +365,7 @@ export class Viewer {
 
   // ---------------------------------------------------------------- overlay helpers
   clearOverlay(tag) {
-    for (const c of [...this.overlay.children]) if (!tag || c.userData.tag === tag) { this.overlay.remove(c); c.traverse(x => { x.geometry?.dispose(); x.material?.map?.dispose(); }); }
+    for (const c of [...this.overlay.children]) if (!tag || c.userData.tag === tag) { this.overlay.remove(c); this._free(c); }
     this.requestRender();
   }
 
@@ -525,7 +551,10 @@ export class Viewer {
       for (const c of this.planesGroup.children) objs.push(c);
       if (this.basePlanes.visible) for (const c of this.basePlanes.children) objs.push(c);
     }
+    // with a section on, the nearest hit is often on the cut-away half: look at every hit then
+    this.raycaster.firstHitOnly = !this.section;
     const hits = this.raycaster.intersectObjects(objs, false).filter(h => !this.section || this.section.distanceToPoint(h.point) >= -1e-6);
+    this.raycaster.firstHitOnly = true;
     if (!hits.length) return null;
     // prefer bodies over transparent planes when both are hit at nearly the same depth
     const bodyHit = hits.find(h => h.object.userData.kind === 'body');

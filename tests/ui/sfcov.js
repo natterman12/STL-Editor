@@ -1,4 +1,4 @@
-const { FIX, OUT, WEB, DESKTOP } = require('./common');
+const { FIX, OUT, WEB, DESKTOP, choose, openSection } = require('./common');
 const { chromium } = require('playwright');
 const BASE = process.env.BASE || WEB;
 const SP = FIX;
@@ -18,21 +18,22 @@ const log = m => console.log(m);
   await page.waitForTimeout(500);
   await page.evaluate(() => window.app.viewer.setView('bottom')); await page.waitForTimeout(300);
   await page.click('[data-tab="supports"]'); await page.click('[data-tool="supportfins"]'); await page.waitForSelector('#tool-panel:not(.hidden)');
-  const held = () => page.$eval('#tool-form [data-key="_cover"] .ctl', e => e.textContent.replace(/\s+/g, ' ').trim()).catch(() => 'none');
-  await page.waitForFunction(() => /held|Nothing/.test(document.querySelector('#tool-form [data-key="_cover"]')?.textContent || ''), null, { timeout: 30000 });
+  const held = () => page.$eval('#tool-form .sf-status', e => [...e.querySelectorAll('[data-key="_cover"] .val, [data-key="_cover"] .sub, .sf-cover-note')].map(x => x.textContent).join(' · ').replace(/\s+/g, ' ').trim()).catch(() => 'none');
+  await page.waitForFunction(() => /held|Nothing/.test(document.querySelector('#tool-form [data-key="_cover"] .val')?.textContent || ''), null, { timeout: 30000 });
   log('auto: ' + await held());
   log('overlays: ' + await page.evaluate(() => JSON.stringify(window.app.viewer.overlay.children.map(o => o.userData.tag + ':' + (o.geometry?.attributes?.position?.count || 0)))));
   await page.screenshot({ path: require('path').join(OUT, 'sfcov_auto.png') });
   // Full coverage
-  await page.click('[data-seg="sf:mode"][data-val="full"]').catch(e => log('no mode select ' + e.message));
+  await choose(page, 'sf:mode', 'full').catch(e => log('no mode select ' + e.message));
   const before = await held();
-  await page.waitForFunction(b => { const t = (document.querySelector('#tool-form [data-key="_cover"] .ctl')?.textContent || '').replace(/\s+/g, ' ').trim(); return /held/.test(t) && t !== b; }, before, { timeout: 30000 }).catch(() => {});
+  await page.waitForFunction(b => { const t = (document.querySelector('#tool-form [data-key="_cover"] .val')?.textContent || '').replace(/\s+/g, ' ').trim(); return /held/.test(t) && t !== b; }, before, { timeout: 30000 }).catch(() => {});
   log('full: ' + await held());
   await page.screenshot({ path: require('path').join(OUT, 'sfcov_full.png') });
   // a stricter allowed gap
+  await openSection(page, '_hdr_output');
   await page.fill('[data-sfreach]', '3'); await page.press('[data-sfreach]', 'Tab');
   await page.waitForTimeout(300);
-  await page.waitForFunction(() => /held/.test(document.querySelector('#tool-form [data-key="_cover"]')?.textContent || ''), null, { timeout: 30000 });
+  await page.waitForFunction(() => /held/.test(document.querySelector('#tool-form [data-key="_cover"] .val')?.textContent || ''), null, { timeout: 30000 });
   log('reach 3: ' + await held());
   await page.screenshot({ path: require('path').join(OUT, 'sfcov_full3.png') });
   log(errs.length ? 'ERRORS\n' + errs.join('\n') : 'no page errors');

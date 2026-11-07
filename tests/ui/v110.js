@@ -1,5 +1,5 @@
 // v1.10: SUPPORTS tab, no CONSTRUCT, Output buttons, Send to Slicer submenu, supports edited not stacked
-const { FIX, OUT, WEB, DESKTOP } = require('./common');
+const { FIX, OUT, WEB, DESKTOP, openSection } = require('./common');
 const { chromium } = require('playwright');
 const BASE = process.env.BASE || WEB;
 const JS = process.env.JS || '/js/api.js';
@@ -50,6 +50,7 @@ const log = m => console.log(m);
   await page.evaluate(b => { window.app.selection = [b]; }, T);
   await page.click('[data-tab="supports"]'); await page.waitForTimeout(200);
   await page.click('[data-tool="supportfins"]'); await page.waitForSelector('#tool-panel:not(.hidden)'); await waitInfo();
+  await openSection(page, '_hdr_tines');
   await page.fill('[data-num="sf:tineDensity"]', '100'); await page.press('[data-num="sf:tineDensity"]', 'Enter'); await page.waitForTimeout(400); await waitInfo();
   await page.click('#tool-ok'); await page.waitForFunction(() => !window.app.tool, null, { timeout: 30000 });
   st = await getState(); const v1 = await vol(T);

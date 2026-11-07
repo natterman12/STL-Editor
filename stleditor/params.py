@@ -24,11 +24,13 @@ def _ang(f):
 
 
 FUNCS = {
-    "sqrt": math.sqrt, "abs": abs, "min": min, "max": max,
+    "sqrt": math.sqrt, "abs": abs, "min": lambda *a: min(a), "max": lambda *a: max(a),
     "round": lambda x: math.floor(x + 0.5), "floor": math.floor, "ceil": math.ceil,
     "sin": _deg(math.sin), "cos": _deg(math.cos), "tan": _deg(math.tan),
     "asin": _ang(math.asin), "acos": _ang(math.acos), "atan": _ang(math.atan),
 }
+# how many numbers each function takes (None: one or more)
+ARITY = {"min": None, "max": None, **{k: 1 for k in FUNCS if k not in ("min", "max")}}
 CONSTS = {"pi": math.pi}
 NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 RESERVED = set(FUNCS) | set(CONSTS)
@@ -158,6 +160,9 @@ def evaluate(text, vars=None):
                         raise ExprError(f'a ")" is missing in {src}')
                 if not args:
                     raise ExprError(f"{v}() needs a number")
+                n = ARITY[v]
+                if n is not None and len(args) != n:
+                    raise ExprError(f"{v}() takes {n} number{'' if n == 1 else 's'}")
                 return float(fn(*args))
             if v in CONSTS:
                 return CONSTS[v]

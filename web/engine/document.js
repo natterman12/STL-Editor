@@ -84,7 +84,29 @@ export class Document {
 
   // -- evaluation
   activeFeatures() { return this.features.slice(0, this.rollback === null ? this.features.length : this.rollback); }
-  static fhash(f, prev) { return prev + '|' + stableStringify(f); }
+  /** A step's cache key: a fixed-size digest of the previous step's key and this feature (with
+   *  the parameter values it uses), so keys don't grow with the length of the timeline. */
+  static fhash(f, prev) { return Document.digest(prev + '|' + stableStringify(f)); }
+
+  /** A deterministic 128-bit digest of a string, as 32 hex digits (four 32-bit lanes,
+   *  MurmurHash3-style mixing; not for security, only for telling states apart). */
+  static digest(s) {
+    let h1 = 0x6a09e667, h2 = 0xbb67ae85, h3 = 0x3c6ef372, h4 = 0xa54ff53a;
+    for (let i = 0; i < s.length; i++) {
+      const k = s.charCodeAt(i);
+      h1 = h2 ^ Math.imul(h1 ^ k, 597399067);
+      h2 = h3 ^ Math.imul(h2 ^ k, 2869860233);
+      h3 = h4 ^ Math.imul(h3 ^ k, 951274213);
+      h4 = h1 ^ Math.imul(h4 ^ k, 2716044179);
+    }
+    h1 = Math.imul(h3 ^ (h1 >>> 18), 597399067);
+    h2 = Math.imul(h4 ^ (h2 >>> 22), 2869860233);
+    h3 = Math.imul(h1 ^ (h3 >>> 17), 951274213);
+    h4 = Math.imul(h2 ^ (h4 >>> 19), 2716044179);
+    h1 ^= h2 ^ h3 ^ h4; h2 ^= h1; h3 ^= h1; h4 ^= h1;
+    h1 ^= s.length;
+    return [h1, h2, h3, h4].map(x => (x >>> 0).toString(16).padStart(8, '0')).join('');
+  }
 
   evaluate() {
     const ctx = { loadSource: sid => this.loadSource(sid) };

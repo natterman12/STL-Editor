@@ -60,7 +60,8 @@ class Grid {
 export function coverage({ pos, idx, over, fins = [], gap = 0.2, reach = 5, maxSub = 250000 }) {
   const P = i => [pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]];
   const tri = f => [P(idx[f * 3]), P(idx[f * 3 + 1]), P(idx[f * 3 + 2])];
-  const out = { total: 0, held: 0, tris: new Float32Array(0), bare: new Uint8Array(0), spots: [] };
+  // the same shape whether or not there's anything to check (the worker hands tris and dist back)
+  const out = { total: 0, held: 0, tris: new Float32Array(0), dist: new Float32Array(0), spots: [] };
   if (!over.length) return out;
 
   // --- what holds the overhangs up: fin tips touching them ...

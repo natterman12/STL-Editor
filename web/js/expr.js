@@ -13,7 +13,10 @@ export const FUNCS = {
   sin: d => Math.sin(d * DEG), cos: d => Math.cos(d * DEG), tan: d => Math.tan(d * DEG),
   asin: x => Math.asin(x) / DEG, acos: x => Math.acos(x) / DEG, atan: x => Math.atan(x) / DEG,
 };
+// how many numbers each function takes (null: one or more)
+const ARITY = Object.fromEntries(Object.keys(FUNCS).map(k => [k, k === 'min' || k === 'max' ? null : 1]));
 export const CONSTS = { pi: Math.PI };
+const has = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 export const NAME_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 export const RESERVED = new Set([...Object.keys(FUNCS), ...Object.keys(CONSTS)]);
 
@@ -72,14 +75,16 @@ export function evaluate(text, vars = {}) {
     if (k.t === '(') { const v = expr(); if (!take(')')) throw new ExprError(`a ")" is missing in ${src}`); return v; }
     if (k.t === 'id') {
       if (take('(')) {
-        const fn = FUNCS[k.v]; if (!fn) throw new ExprError(`there's no function "${k.v}"`);
+        const fn = has(FUNCS, k.v) ? FUNCS[k.v] : null; if (!fn) throw new ExprError(`there's no function "${k.v}"`);
         const args = [];
         if (!take(')')) { do args.push(expr()); while (take(',')); if (!take(')')) throw new ExprError(`a ")" is missing in ${src}`); }
         if (!args.length) throw new ExprError(`${k.v}() needs a number`);
+        const n = ARITY[k.v];
+        if (n !== null && args.length !== n) throw new ExprError(`${k.v}() takes ${n} number${n === 1 ? '' : 's'}`);
         return fn(...args);
       }
-      if (k.v in CONSTS) return CONSTS[k.v];
-      if (Object.prototype.hasOwnProperty.call(vars, k.v)) return vars[k.v];
+      if (has(CONSTS, k.v)) return CONSTS[k.v];
+      if (has(vars, k.v)) return vars[k.v];
       throw new ExprError(`there's no parameter "${k.v}"`);
     }
     throw new ExprError(`unexpected "${k.t}" in ${src}`);
@@ -96,7 +101,8 @@ export function evaluate(text, vars = {}) {
  * (in any order). Returns { values: {name: number}, errors: {name: message} }.
  */
 export function resolveParams(list) {
-  const byName = new Map(), values = {}, errors = {};
+  // no prototype: a parameter may be called "constructor" or "toString"
+  const byName = new Map(), values = Object.create(null), errors = Object.create(null);
   for (const q of list || []) {
     if (!NAME_RE.test(q.name || '')) { errors[q.name || '?'] = `"${q.name}" isn't a name (letters, digits and _; not starting with a digit)`; continue; }
     if (RESERVED.has(q.name)) { errors[q.name] = `"${q.name}" is a built-in name`; continue; }
@@ -112,7 +118,7 @@ export function resolveParams(list) {
     if (busy.has(name)) throw new ExprError(`"${name}" depends on itself`);
     busy.add(name);
     try {
-      const vars = {};
+      const vars = Object.create(null);
       for (const n of namesIn(String(q.expr))) vars[n] = get(n);
       return (values[name] = evaluate(String(q.expr), vars));
     } catch (e) {
@@ -127,8 +133,8 @@ export function resolveParams(list) {
 /** A copy of a feature's parameters with every expression worked out (throws ExprError). */
 export function resolveDeep(obj, values) {
   if (isExpr(obj)) {
-    const vars = {};
-    for (const n of namesIn(obj)) { if (!(n in values)) throw new ExprError(`there's no parameter "${n}" (in ${obj.trim()})`); vars[n] = values[n]; }
+    const vars = Object.create(null);
+    for (const n of namesIn(obj)) { if (!has(values, n)) throw new ExprError(`there's no parameter "${n}" (in ${obj.trim()})`); vars[n] = values[n]; }
     return evaluate(obj, vars);
   }
   if (Array.isArray(obj)) return obj.map(x => resolveDeep(x, values));

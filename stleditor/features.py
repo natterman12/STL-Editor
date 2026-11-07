@@ -587,7 +587,7 @@ def _repeat_features(state, fid, feature_ids, transforms, res, verb):
                 done += 1
             except GeometryError as e:
                 failed.append(str(e))
-        state.tools.pop(f"{fid}.{k}", None)
+            state.tools.pop(f"{fid}.{k}", None)   # a copy's tool isn't a feature to repeat again
     if not done:
         raise GeometryError(failed[0] if failed else "Nothing changed.")
     if failed:

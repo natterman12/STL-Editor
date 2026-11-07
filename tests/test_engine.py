@@ -4,6 +4,7 @@ Run with:  python -m pytest -q tests
 """
 import json
 import math
+import re
 import os
 import sys
 import urllib.request
@@ -596,3 +597,143 @@ def test_one_click_update_download(tmp_path, monkeypatch):
         assert U.INSTALL["state"] == "error" and "checksum" in U.INSTALL["error"]
     finally:
         srv.shutdown()
+
+
+# ------------------------------------------------------------------ robustness
+class _FakeAutosaver:
+    last_time = None
+
+    def __init__(self):
+        self.cleared = 0
+
+    def clear(self):
+        self.cleared += 1
+
+
+def test_failed_open_keeps_the_open_document(block, tmp_path):
+    from stleditor import server
+    doc, B = block
+    app = server.App()
+    app.doc, app.autosaver = doc, _FakeAutosaver()
+    bad = tmp_path / "broken.stl"
+    bad.write_bytes(b"\x01\x02\x03")
+    for p in (str(bad), str(tmp_path / "notes.txt")):
+        with pytest.raises(Exception):
+            server.r_open(app, {"path": p, "force": True})
+        assert app.doc is doc and len(doc.features) == 1
+    assert app.autosaver.cleared == 0, "the autosave copy of the open work is kept"
+    # a mesh that opens: nothing to undo or redo
+    good = stl_file(tmp_path, m3.Manifold.cube((5, 5, 5)), "good.stl")
+    server.r_open(app, {"path": good, "force": True})
+    assert app.doc is not doc and not app.doc._undo and not app.doc._redo and not app.doc.dirty
+    assert app.autosaver.cleared == 1
+
+
+def test_autosave_keeps_parameters(tmp_path, monkeypatch):
+    from stleditor import autosave, server
+    monkeypatch.setattr(autosave, "ROOT", str(tmp_path / "autosave"))
+    app = server.App()
+    app.doc.set_params([{"name": "w", "expr": "12"}])
+    app.doc.add_feature("primitive", {"shape": "box", "length": "=w", "width": 5, "height": 5, "plane": "XY",
+                                      "offset": [0, 0, 0], "rotate": [0, 0, 0], "anchor": "base", "operation": "new",
+                                      "targets": [], "body_name": "Box"})
+    a = autosave.Autosaver(app, interval=3600)
+    try:
+        assert a.save_now()
+        assert not a.save_now(), "nothing changed"
+        app.doc.set_params([{"name": "w", "expr": "20"}])
+        assert a.save_now(), "a parameter change is a change"
+        back = autosave.load(a.session)
+        assert back.params == [{"name": "w", "expr": "20", "note": ""}]
+        assert abs(list(back.state.bodies.values())[0].info()["volume"] - 500) < 1e-6
+    finally:
+        a.shutdown()
+
+
+def test_parameter_functions_take_the_right_number_of_numbers():
+    from stleditor.params import evaluate, resolve_params, ExprError
+    for text, msg in (("=round(2.5, 1)", "round() takes 1 number"), ("=sqrt(4, 2)", "sqrt() takes 1 number"),
+                      ("=sin()", "sin() needs a number"), ("=constructor(1)", 'there\'s no function "constructor"')):
+        with pytest.raises(ExprError, match=re.escape(msg)):
+            evaluate(text)
+    assert evaluate("=max(1, 7, 3) + min(4)") == 11
+    r = resolve_params([{"name": "constructor", "expr": "3"}, {"name": "b", "expr": "constructor * 2"},
+                        {"name": "r", "expr": "round(1, 2)"}])
+    assert r["values"] == {"constructor": 3, "b": 6} and r["errors"]["r"] == "round() takes 1 number"
+    d = Document()
+    d.set_params([{"name": "r", "expr": "round(1, 2)"}])
+    assert d.param_values()["errors"]["r"] == "round() takes 1 number"
+
+
+def test_cache_keys_stay_the_same_size(block):
+    doc, B = block
+    for i in range(6):
+        doc.add_feature("hole", {"points": [[5 + 5 * i, 15, 20]], "normal": [0, 0, 1], "diameter": 2, "through": True})
+    keys = [h for h, _ in doc._cache]
+    assert len(keys) == 7 and all(len(h) == 64 for h in keys) and len(set(keys)) == 7
+    assert vol(doc, B) == pytest.approx(40 * 30 * 20 - 6 * math.pi * 20, rel=0.02)
+
+
+def test_pattern_leaves_no_copy_tools(block):
+    doc, B = block
+    h, _ = doc.add_feature("hole", {"points": [[5, 15, 20]], "normal": [0, 0, 1], "diameter": 4, "through": True})
+    p, _ = doc.add_feature("pattern", {"source": "features", "features": [h["id"]], "kind": "linear",
+                                       "direction": [0, 1, 0], "count": 3, "spacing": 5})
+    assert [k for k in doc.state.tools if k.startswith(p["id"] + ".")] == []
+
+
+def _raw(port, method, path, headers=None, body=None):
+    import http.client
+    c = http.client.HTTPConnection("127.0.0.1", port, timeout=10)
+    try:
+        c.request(method, path, body=body, headers=headers or {})
+        r = c.getresponse()
+        return r.status, r.read()
+    finally:
+        c.close()
+
+
+def test_http_api_only_answers_its_own_pages():
+    from stleditor import server
+    app = server.App()
+    httpd, port = server.serve(app, 0)
+    try:
+        js = {"Content-Type": "application/json"}
+        assert _raw(port, "GET", "/api/state")[0] == 200
+        assert _raw(port, "GET", "/api/state", {"Host": f"localhost:{port}"})[0] == 200
+        assert _raw(port, "GET", "/api/state", {"Host": f"evil.example:{port}"})[0] == 403, "DNS rebinding"
+        assert _raw(port, "POST", "/api/new", {**js, "Host": "evil.example"}, b'{"force": true}')[0] == 403
+        assert _raw(port, "POST", "/api/new", {**js, "Origin": "https://evil.example"}, b'{"force": true}')[0] == 403
+        assert _raw(port, "POST", "/api/new", {"Content-Type": "text/plain", "Sec-Fetch-Site": "cross-site"},
+                    b'{"force": true}')[0] == 403
+        assert _raw(port, "POST", "/api/new", {**js, "Origin": f"http://127.0.0.1:{port}", "Sec-Fetch-Site": "same-origin"},
+                    b'{"force": true}')[0] == 200
+        # the UI's own files, and nothing outside them
+        assert _raw(port, "GET", "/js/api.js")[0] == 200
+        for p in ("/../main.py", "/..%2fmain.py", "/%2e%2e/main.py", "/../web-other/x.js"):
+            assert _raw(port, "GET", p)[0] == 404, p
+    finally:
+        httpd.shutdown()
+
+
+def test_status_answers_during_a_long_operation():
+    import threading
+    from stleditor import server
+    app = server.App()
+    httpd, port = server.serve(app, 0)
+    held, release = threading.Event(), threading.Event()
+
+    def busy():
+        with app.lock:
+            held.set()
+            release.wait(30)
+    t = threading.Thread(target=busy, daemon=True)
+    t.start()
+    try:
+        held.wait(5)
+        code, body = _raw(port, "POST", "/api/status", {"Content-Type": "application/json"}, b"{}")
+        assert code == 200 and json.loads(body)["ok"]
+    finally:
+        release.set()
+        t.join(5)
+        httpd.shutdown()

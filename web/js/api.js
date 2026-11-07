@@ -217,9 +217,10 @@ async function clearAutosave() {
 
 async function autosaveNow(force = false) {
   try {
-    const r = await engine('snapshot');
+    // the engine zips the project only when it changed since the copy written last time
+    const r = await engine('snapshot', { last: force ? null : lastKey });
     if (r.empty || !r.dirty) { if (lastKey !== null) await clearAutosave(); return; }
-    if (r.key === lastKey && !force) return;
+    if (r.same || (r.key === lastKey && !force)) return;
     const id = store.SESSION;
     await store.put('blobs', { id: 'autosave:' + id, bytes: r.bytes });
     if (current.handle) await store.put('handles', { id: 'autosave:' + id, handle: current.handle });

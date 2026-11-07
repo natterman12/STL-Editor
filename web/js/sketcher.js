@@ -78,7 +78,7 @@ export class Sketcher {
     this.dimPend = null;
     this.closeModify?.();
     this.dims.innerHTML = '';
-    this.group.clear();
+    this._clearGroup(true); this.gridGroup = null;
     this.hideHud();
     this.viewer.setMouseMode('model');
     this.viewer.requestRender();
@@ -881,8 +881,17 @@ export class Sketcher {
     this.gridGroup.add(sheet);
   }
 
+  /** Empty the sketch's group, freeing what was drawn; the plane grid is kept unless `grid`. */
+  _clearGroup(grid = false) {
+    for (const c of [...this.group.children]) {
+      this.group.remove(c);
+      if (c === this.gridGroup && !grid) continue;
+      c.traverse(x => { x.geometry?.dispose(); x.material?.dispose?.(); });
+    }
+  }
+
   redraw() {
-    this.group.clear();
+    this._clearGroup();
     if (!this.active) return;
     this.group.add(this.gridGroup);
     this.updateDefinition();

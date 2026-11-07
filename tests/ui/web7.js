@@ -1,5 +1,5 @@
 // Support Fins in the UI (either edition: BASE/JS pick the page and its API module)
-const { FIX, OUT, WEB, DESKTOP } = require('./common');
+const { FIX, OUT, WEB, DESKTOP, choose, openSection } = require('./common');
 const { chromium } = require('playwright');
 const BASE = process.env.BASE || WEB;
 const JS = process.env.JS || '/js/api.js';
@@ -35,6 +35,7 @@ const log = m => console.log(m);
   log('preview: ' + (await page.textContent('#tool-msg')).trim() + ' · red overlay ' + await page.evaluate(() => window.app.viewer.overlay.children.filter(c => c.userData.tag === 'sf-over').length));
   await page.screenshot({ path: require('path').join(OUT, 'sf_preview.png') });
   // a setting from Support Fins' list: firmer tine grip
+  await openSection(page, '_hdr_tines');
   await page.fill('[data-num="sf:tineDensity"]', '100'); await page.press('[data-num="sf:tineDensity"]', 'Enter'); await page.waitForTimeout(2500);
   log('firm grip preview: ' + (await page.textContent('#tool-msg')).trim());
   await page.click('#tool-ok'); await page.waitForTimeout(2500);
@@ -45,7 +46,7 @@ const log = m => console.log(m);
   await page.evaluate(id => window.app.editFeature(id), f.id);
   await page.waitForTimeout(2000);
   log('edit panel open: ' + await page.isVisible('#tool-panel') + ' grip shows ' + await page.inputValue('[data-num="sf:tineDensity"]').catch(() => '?'));
-  await page.click('[data-seg="output"][data-val="separate"]').catch(() => page.selectOption('[data-sel="output"]', 'separate'));
+  await openSection(page, '_hdr_output'); await choose(page, 'output', 'separate');
   await page.waitForTimeout(1500); await page.click('#tool-ok'); await page.waitForTimeout(2500);
   st = await getState();
   log('after edit bodies: ' + st.bodies.map(b => b.name).join(', '));

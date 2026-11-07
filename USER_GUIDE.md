@@ -53,9 +53,19 @@ The toolbar has four tabs, and each tool is on one of them only:
 - **Mesh**: Repair, Simplify, Remesh, Separate, Remove Bodies, Sculpt and To STEP.
 
 **Inspect** (Measure, Section, Properties) sits at the right end of every tab. Buttons with a
-▾ open a short list (Primitive, Plane, Rectangle). Press
-`Ctrl+K` or `/` and type to find any tool by name. In a narrow window the toolbar shrinks to
-icons, and anything that still doesn't fit goes under **»**.
+▾ open a short list (Primitive, Plane, Rectangle), and a group name with a ⌄ under it lists
+that group's tools. Press `Ctrl+K` or `/` (or click the search box at the top right) and type
+to find any tool by name. In a narrow window the toolbar shrinks to icons, and anything that
+still doesn't fit goes under **»**.
+
+The model fills the whole window. The **Browser** (your bodies, sketches and parameters)
+floats at the top left, a tool's settings open in a panel at the top right, and the
+**History** bar along the bottom holds the timeline. The view buttons (Top, Front, Iso, Fit…)
+sit at the top of the model.
+
+Tool panels keep the everyday settings at the top. Sections with a › fold away the rest:
+click the heading to open or close it, and the panel remembers that next time. A closed
+section shows "2 changed" when you've changed something inside it.
 
 **Create**: Sketch, Extrude (new / join / cut / intersect; one side, flipped, symmetric or
 two sides; through all; taper), Revolve, Box, Cylinder, Sphere, Cone, Torus (click a face
@@ -105,10 +115,14 @@ any slicer with supports turned off.
 3. **Add fins**: draw walls by hand where the auto fins left a gap (line, multi-line, curve,
    gusset or anchor, as in Draw Walls below). **Remove fins**: click a fin to take it away (it turns see-through
    red); click it again to bring it back, or *Bring all back*.
-   **Support plastic** shows what the supports add, in grams, from their exact volume (pick
-   your filament: PLA, PETG, ABS, ASA, TPU or Nylon).
-4. Adjust the settings and press OK. *Add as: Part of the body* joins the fins to the part
-   so it exports as one object; *Separate body* keeps them apart so you can hide them.
+   Two cards at the top of the panel sum it up: **Held** (how much of the overhang the fins
+   hold, see below) and **Support plastic** (what the supports add, in grams, from their
+   exact volume).
+4. Adjust the settings and press OK. The panel opens with Placement and Setup showing; the
+   rest (Tines, Clearances, Sway braces, Walls) fold away until you need them. **Output**
+   holds *Add as* (*Part of the body* joins the fins to the part so it exports as one object;
+   *Separate body* keeps them apart so you can hide them), *Material* (your filament for the
+   plastic estimate: PLA, PETG, ABS, ASA, TPU or Nylon) and *Bare beyond*.
 
 The settings are Support Fins' own: Auto or Full coverage placement, overhang angle, nozzle,
 tines (grip, horizontal for FDM or vertical pins for resin, layer height), support gap, bed
@@ -147,8 +161,9 @@ Support Fins shows the version in use.
 
 - **Held**: once the fins are built, the overhangs they hold turn pale and any left bare stay
   bright red. A bare spot is overhang further than *Bare beyond* (5 mm to start with) from
-  the top of a fin or from a wall of the part it grows out of. The panel says how much of the
-  overhang is held, how many bare spots there are and how far the worst is from a support.
+  the top of a fin or from a wall of the part it grows out of. The Held card says how much of
+  the overhang is held and how many bare spots there are; the line under it says how far the
+  worst is from a support. *Bare beyond* is in the Output section.
   To fix them, switch Placement mode to Full coverage, raise Wide-face coverage, or draw fins
   there in *Add fins*; the check runs again each time. Bridging a few millimetres usually
   prints; much more than 5 mm sags, so lower *Bare beyond* for a stricter check.
@@ -230,7 +245,8 @@ Parameters are saved in the project, and Ctrl+Z undoes a change.
 ## Units and theme
 
 View › Units switches between millimetres and inches (you can type fractions like `1 3/8`).
-Models are always stored in millimetres. View › Theme: Light, Dark or Match Windows.
+Models are always stored in millimetres. View › Theme: Dark (the start), Light or Match
+Windows.
 
 ## Autosave, recovery and updates
 

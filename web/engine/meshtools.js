@@ -1,7 +1,7 @@
 // v1.3 tools (port of stleditor/meshtools.py): project outlines, fit/resize round holes and pins,
 // offset bodies, text outlines (opentype.js).
 import { Manifold, crossSection } from './wasm.js';
-import { GeometryError, unit, cross, dot, add, mul, sub, norm, worldToFrame, frameMatrix, triNormals, triAdjacency } from './geom.js';
+import { GeometryError, unit, cross, dot, add, mul, sub, norm, worldToFrame, frameMatrix, triNormals, triNeighbours } from './geom.js';
 import opentype from '../vendor/opentype.module.js';
 
 // ---------------------------------------------------------------- project outline
@@ -55,7 +55,8 @@ function asCircle(p) {
   if (p.length < 12) return null;
   const [cx, cy, r] = fitCircle(p);
   if (r <= 0) return null;
-  const dev = Math.max(...p.map(q => Math.abs(Math.hypot(q[0] - cx, q[1] - cy) - r)));
+  let dev = 0;
+  for (const q of p) dev = Math.max(dev, Math.abs(Math.hypot(q[0] - cx, q[1] - cy) - r));
   return dev < Math.max(0.01, r * 0.01) ? [+cx.toFixed(4), +cy.toFixed(4), +r.toFixed(4)] : null;
 }
 
@@ -161,7 +162,7 @@ const frameAround = axis => {
 
 export function fitCylinder(v, f, tri, maxAngle = 35) {
   const { n, area } = triNormals(v, f);
-  const adj = triAdjacency(f);
+  const near = triNeighbours(f);
   const cosT = Math.cos(maxAngle * Math.PI / 180);
   const seen = new Uint8Array(f.length / 3);
   const region = [];
@@ -170,10 +171,9 @@ export function fitCylinder(v, f, tri, maxAngle = 35) {
   while (stack.length) {
     const t = stack.pop();
     region.push(t);
-    for (const u of adj[t]) {
-      if (seen[u]) continue;
-      if (n[t * 3] * n[u * 3] + n[t * 3 + 1] * n[u * 3 + 1] + n[t * 3 + 2] * n[u * 3 + 2] >= cosT) { seen[u] = 1; stack.push(u); }
-    }
+    near(t, u => {
+      if (!seen[u] && n[t * 3] * n[u * 3] + n[t * 3 + 1] * n[u * 3 + 1] + n[t * 3 + 2] * n[u * 3 + 2] >= cosT) { seen[u] = 1; stack.push(u); }
+    });
   }
   if (region.length < 6) throw new GeometryError('Click the curved wall of a round hole or pin.');
   const M = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
@@ -193,7 +193,8 @@ export function fitCylinder(v, f, tri, maxAngle = 35) {
   const bins = new Set(p2.map(q => Math.floor((Math.atan2(q[1] - cy, q[0] - cx) + Math.PI) / (2 * Math.PI) * 36)));
   const cover = bins.size / 36;
   if (cover < 0.5) throw new GeometryError('Only part of a round surface was found. Click the wall of a full hole or pin.');
-  const zs = pts.map(p => dot(p, axis));
+  let z0 = Infinity, z1 = -Infinity;   // a loop, not Math.min(...): a big mesh would overflow the stack
+  for (const p of pts) { const z = dot(p, axis); if (z < z0) z0 = z; if (z > z1) z1 = z; }
   const center = add(mul(ex, cx), mul(ey, cy));
   let s = 0;
   for (const t of region) {
@@ -201,7 +202,7 @@ export function fitCylinder(v, f, tri, maxAngle = 35) {
     const radial = sub(sub(c, mul(axis, dot(c, axis))), center);
     s += dot(radial, [n[t * 3], n[t * 3 + 1], n[t * 3 + 2]]);
   }
-  return { center, axis, radius: r, z0: Math.min(...zs), z1: Math.max(...zs), kind: s / region.length < 0 ? 'hole' : 'pin', tris: region, cover };
+  return { center, axis, radius: r, z0, z1, kind: s / region.length < 0 ? 'hole' : 'pin', tris: region, cover };
 }
 
 function inside(solid, p, eps = 0.05) {

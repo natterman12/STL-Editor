@@ -71,7 +71,10 @@ export class WallDrawer {
     const n = this.walls.length, st = this.tool?._wallStatus || [];
     const bad = st.filter(x => x && !x.ok).length;
     if (!this.shapes.some(([k]) => k === this.shape)) this.shape = 'line';
-    const seg = `<div class="seg seg-wrap">${this.shapes.map(([k, l]) => `<button data-wshape="${k}" class="${this.shape === k ? 'on' : ''}">${l}</button>`).join('')}</div>`;
+    // buttons when they fit on one line, a list otherwise (the panel's rule for every choice)
+    const seg = this.app.segFits(this.shapes, false)
+      ? `<div class="seg">${this.shapes.map(([k, l]) => `<button data-wshape="${k}" class="${this.shape === k ? 'on' : ''}">${l}</button>`).join('')}</div>`
+      : `<select data-wshapesel="1">${this.shapes.map(([k, l]) => `<option value="${k}" ${this.shape === k ? 'selected' : ''}>${l}</option>`).join('')}</select>`;
     const count = n ? `${n} wall${n > 1 ? 's' : ''}${bad ? ` <span class="bad">(${bad} couldn’t be placed)</span>` : ''}` : '<span class="ph">None yet: click on the part</span>';
     const pend = this.pending.length ? ` · drawing (${this.pending.length} point${this.pending.length > 1 ? 's' : ''})` : '';
     const finish = this.shape === 'path' && this.pending.length >= 2 ? '<button data-wact="finish">Finish wall</button>' : '';
