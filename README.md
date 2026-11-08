@@ -8,7 +8,7 @@
 Sketch on any face, extrude, cut, drill holes, add printable threads and split big parts to fit your printer. The meshes you download from Printables, Thingiverse or MakerWorld become editable solids.
 
 [**Download for Windows**](https://github.com/natterman12/STL-Editor/releases/latest/download/STL-Editor-Windows-portable.zip) ·
-[**Try it in your browser**](https://natterman12.github.io/STL-Editor/app/) ·
+[**Open the web app**](https://natterman12.github.io/STL-Editor/app/) ·
 [Project website](https://natterman12.github.io/STL-Editor/) ·
 [User guide](USER_GUIDE.md) ·
 [Releases](https://github.com/natterman12/STL-Editor/releases)
@@ -21,7 +21,7 @@ Sketch on any face, extrude, cut, drill holes, add printable threads and split b
 [![Support on Ko-fi](https://img.shields.io/badge/Ko--fi-support%20the%20project-ff5e5b?logo=kofi&logoColor=white)](https://ko-fi.com/natterman12)
 [![Tests](https://github.com/natterman12/STL-Editor/actions/workflows/tests.yml/badge.svg)](https://github.com/natterman12/STL-Editor/actions/workflows/tests.yml)
 
-<img src="docs/img/fit-to-bed.webp" alt="A tall vase cut into colour-coded pieces that fit a Bambu A1 mini, with the Fit to Bed panel open" width="100%">
+<img src="docs/img/hero.png" alt="STL Editor workspace: a bracket with the Model tab, Browser panel and History bar" width="100%">
 
 </div>
 
@@ -41,46 +41,48 @@ STL Editor sits in between. It loads a mesh, makes sure it's a clean watertight 
 
 Every step goes into a **timeline**. Double-click an earlier step to change it and everything after it updates. Nothing is baked in until you export.
 
+The interface keeps your focus on the model: the part fills the window, with a floating Browser panel, a History bar along the bottom, and tool search at the top right.
+
 ## What it does
 
 | | |
 |---|---|
-| <img src="docs/img/planter-edit.webp" alt="A twisted vase STL turned into a planter"> | **Edit downloaded models.** This vase came in as a 200k-triangle STL. A sketched circle cut the planter pocket, then a drain hole and three magnet pockets went into the base, giving four timeline steps that all stay editable. |
-| <img src="docs/img/project-outline.webp" alt="A ring traced from the vase's outline, with embossed text"> | **New in 1.3: trace, resize, fit.** *Project* drops a model's outline into a sketch: here, a holder ring that follows the twisted vase with 0.4 mm of clearance, plus a text label. *Resize Hole* measures any round hole or pin you click and changes its diameter (or fills it). *Combine › Cut* takes a clearance so printed parts fit, and *Offset Body* grows or shrinks a whole part. |
-| <img src="docs/img/sketch-constraints.webp" alt="Sketch with dimensions and constraints"> | **Real sketches.** Lines, arcs, rectangles, circles, polygons and slots. Constraints include coincident, horizontal/vertical, parallel, perpendicular, equal, tangent, concentric, midpoint, symmetric and fix, plus Smart Dimension: dimensions drawn on the sketch with arrows, measured from the sketch or from the part's own edges, black when fully defined and blue while shapes can still move. Change a number (or a parameter) and the shape follows. Trim, offset and mirror are included. |
-| <img src="docs/img/hole-presets.webp" alt="Hole tool with the heat-set insert preset"> | **Holes for real hardware.** Presets for heat-set inserts M2–M5, screw clearance, socket-head counterbores, hex nut traps and magnet pockets, all with a print tolerance. Click as many points as you like. |
-| <img src="docs/img/threads.webp" alt="Printed M8 bolt and nut"> | **Printable threads.** Tapped holes or bolts/studs, ISO metric M1.6–M30, UNC and UNF inch sizes, or any size, right or left hand, chamfered ends and a print clearance. An M8 bolt and nut made with the defaults screw together. |
-| <img src="docs/img/section-view.webp" alt="Section view through the planter"> | **See inside.** Section view on X, Y or Z, plus measure and properties: size, volume, triangle count and print weight. |
-| <img src="docs/img/tool-search.webp" alt="Toolbar tabs and the tool search"> | **A toolbar that stays out of the way.** Four tabs: Model, Print, Supports and Mesh, each tool in one place, with Inspect on every tab. Press `Ctrl+K` to find any tool by name. The toolbar shrinks to fit narrow windows instead of scrolling. |
+| <img src="docs/img/sketch.png" alt="Sketching on a 3D model face with dimensions, constraints, and extrude options in STL Editor"> | **Real sketches.** Double-click any flat face to sketch lines, arcs, rectangles, circles, polygons and slots. Constraints include coincident, horizontal/vertical, parallel, perpendicular, equal, tangent, concentric, midpoint, symmetric and fix, plus Smart Dimension: dimensions drawn on the sketch with arrows, measured from the sketch or from the part's own edges, black when fully defined and blue while shapes can still move. Change a number (or a parameter) and the shape follows. Trim, offset, use edge and mirror are included. |
+| <img src="docs/img/holes-threads.png" alt="Hole tool with the heat-set insert M3 preset on a bracket"> | **Holes and printable threads.** Presets for heat-set inserts M2–M5, screw clearance, socket-head counterbores, hex nut traps and magnet pockets, all with a print tolerance. Make tapped holes or bolts/studs in ISO metric M1.6–M30, UNC and UNF inch sizes, or custom sizes, right or left hand, with chamfered ends and print clearance so printed threads screw together. Resize Hole measures any round hole or pin and changes its diameter (or fills it). |
+| <img src="docs/img/fit-to-bed.png" alt="A long part cut by Fit to Bed into two colour-coded pieces"> | **Too big for your bed? Split it.** Pick your printer or bed size and large models are cut into pieces that fit. Alignment pins, pin holes, filament dowels or magnet pockets are added automatically at every seam so the pieces line up when you glue them. Smart cut positions put seams where the part is thinnest. |
+| <img src="docs/img/support-fins.png" alt="Support Fins interface adding rigid breakaway support walls to steep overhangs on a 3D model"> | **Supports that snap off.** Built-in Support Fins adds breakaway support walls and a bed pad to the mesh; they snap off by hand. Overhang coverage checks highlight unreached areas in bright red, orientation advice ranks print angles for strength and minimal support, the support plastic is shown in grams, and Draw Walls lets you place custom support walls right where needed. |
+| <img src="docs/img/tool-search.png" alt="Ctrl+K tool search command palette open over the STL Editor workspace"> | **Find any tool fast.** Tools sit on four tabs: Model, Print, Supports and Mesh, with Inspect on every tab. Press `Ctrl+K` (or `/`) to find any tool by name. The compact toolbar shrinks to fit narrow windows instead of scrolling. |
 
 ### All tools
 
-- **Create:** Sketch · Extrude (new / join / cut / intersect, one side / two sides / symmetric, through all, taper) · Revolve · Box · Cylinder · Sphere · Cone · Torus
-- **Modify:** Hole · Resize Hole (measure and change, or fill, any round hole or pin) · Thread · Push/Pull · Combine (cut with clearance) · Offset Body · Split (with connectors) · Mirror (bodies *or* features) · Pattern (linear / circular, bodies or features) · Move/Rotate and Scale with on-part handles (rotated parts land on the bed) · Hollow
-- **Print:**
-  - Lay Flat: click a face, or let it pick the most stable side.
-  - **Support Fins** ([Support Fins](https://github.com/gittrahan/support-fins) by gittrahan, built in): tip a part to its strong print orientation and add the breakaway fins and bed pad that hold up its overhangs, baked into the mesh. Every Support Fins setting is there (placement, tines, nozzle, sway braces for tall parts, cutouts...), plus *Draw Walls* to place walls by hand (straight, multi-section, curved, gussets off a side and anchor fins). *Suggest orientations* ranks the best ways to print the part, a strength check says whether the layers run along or across the load, and the support plastic is shown in grams. A coverage check paints any overhang the fins don't reach bright red, so you know before printing. New Support Fins releases reach both editions automatically.
-  - Fit to Bed: pick your printer and big parts are cut into pieces that fit, with pins, pin holes, filament-pin holes or magnet pockets at every seam. *Smart cut positions* put the seams where the part is thinnest.
-  - Export STL / 3MF / OBJ and Send to Bambu Studio / OrcaSlicer.
-- **Construct:** Offset Plane · Plane at Angle · 3-Point Plane · Midplane. Any flat face works as a plane too.
-- **Parameters:** name values (`width = 40`, `height = width/4 + 5`) and use them in any number; change one and the whole timeline is rebuilt.
-- **Mesh:** Repair (quick fix, or rebuild as one watertight solid) · Simplify · Remesh · Sculpt brushes (smooth / flatten / inflate / deflate) · Separate · To STEP (through SolidCraft)
-- **Sketcher:** Line · Arc · Rectangle · Circle · Polygon · Slot · Text (any installed font) · Project (section or silhouette of the model, with offset) · Use Edge · Trim · Offset · Mirror · 11 relations · Smart Dimension (length, diameter, radius, distance, angle; to part edges; reference dimensions; parameters)
-- **Everything else:** undo/redo · `.stlx` projects that keep the whole timeline · inch mode with fractions (`1 3/8`) · light and dark themes · autosave with crash recovery · update notice
+- **MODEL:**
+  - **Create:** Sketch · Extrude (new / join / cut / intersect, one side / two sides / symmetric, through all, taper) · Revolve · Primitive (Box, Cylinder, Sphere, Cone, Torus)
+  - **Modify:** Push/Pull · Combine (cut with clearance) · Split (with connectors) · Mirror (bodies *or* features) · Pattern (linear / circular, bodies or features)
+  - **Holes:** Hole (presets for heat-set inserts, counterbores, hex nuts, magnet pockets) · Thread (metric and inch (UNC/UNF) tapped holes or bolts/studs, right or left hand, with print clearance) · Resize Hole (measure and change, or fill, any round hole or pin)
+  - **Shape:** Hollow · Offset Body (grow or shrink a whole part)
+  - **Reference:** Plane (Offset Plane, Plane at Angle, 3-Point Plane, Midplane; any flat face works as a plane too) · Parameters (name values like `width = 40`, `height = width/4 + 5` and use them in any number; change one and the whole timeline rebuilds)
+- **PRINT:** Lay Flat (click a face, or let it pick the most stable side) · Move · Rotate · Scale (with on-part handles; rotated parts land on the bed) · Fit to Bed (pick your printer and big parts are cut into pieces that fit, with pins, pin holes, filament dowels or magnet pockets at every seam; smart cut positions put seams where the part is thinnest) · Export (STL / 3MF / OBJ) · Send to Slicer *(desktop only)* (Bambu Studio / OrcaSlicer)
+- **SUPPORTS:**
+  - **Support Fins** ([Support Fins](https://github.com/gittrahan/support-fins) by gittrahan, built in): tip a part to its strong print orientation and add the breakaway fins and bed pad that hold up its overhangs, baked into the mesh. Every Support Fins setting is there (placement, tines, nozzle, sway braces for tall parts, cutouts...), plus orientation ranking, strength checks, support plastic shown in grams, and bright red overhang coverage checks. New Support Fins releases reach both editions automatically.
+  - **Draw Walls:** place custom support walls by hand (straight, multi-section, curved, gussets off a side and anchor fins).
+- **MESH:** Repair (quick fix, or rebuild as one watertight solid) · Simplify · Remesh · Separate · Remove Bodies · Brushes (smooth / flatten / inflate / deflate) · To STEP *(desktop only)* (through SolidCraft)
+- **INSPECT** *(on every tab)*: Measure · Section (view on X, Y or Z) · Properties (size, volume, triangle count and print weight)
+- **SKETCH:** Line · Arc · Rectangle · Center Rectangle · Circle · Polygon · Slot · Text (any installed font) · Project (section or silhouette of the model, with offset) · Use Edge · Trim · Offset · Mirror · Smart Dimension (length, diameter, radius, distance, angle; to part edges; reference dimensions; parameters) · Construction · Look At · 11 relations (coincident, horizontal/vertical, parallel, perpendicular, equal, tangent, concentric, midpoint, symmetric, fix)
+- **Everything else:** undo/redo · `.stlx` projects that keep the whole timeline · inch mode with fractions (`1 3/8`) · light and dark themes · autosave with crash recovery · one-click updates
 
 ## Install
 
-1. Download **[STL-Editor-Windows-portable.zip](https://github.com/natterman12/STL-Editor/releases/latest/download/STL-Editor-Windows-portable.zip)** (about 65 MB).
+1. Download **[STL-Editor-Windows-portable.zip](https://github.com/natterman12/STL-Editor/releases/latest/download/STL-Editor-Windows-portable.zip)** (about 79 MB).
 2. Unzip it anywhere (Desktop, Documents, a USB stick) and run **STL Editor.exe**.
 3. The app isn't code-signed yet, so Windows SmartScreen may say *"Windows protected your PC"*. Click **More info › Run anyway**.
 
-Nothing gets installed and no admin rights are needed. Settings live in `%APPDATA%\STL Editor`. When a new release is posted here, the app shows a small notice with a download button.
+Nothing gets installed and no admin rights are needed. Settings live in `%APPDATA%\STL Editor`. When a new release is posted, the app shows a notice; click **Update now** and it downloads the release, checks its SHA-256, swaps in the new version and restarts (or use Help › Check for Updates).
 
 ### Web edition
 
-**[Open STL Editor in your browser](https://natterman12.github.io/STL-Editor/app/)**: nothing to download, works on Windows, macOS, Linux, ChromeOS and tablets in a recent Chrome, Edge, Firefox or Safari. It's the same interface and the same `.stlx` project files. The geometry engine (Manifold compiled to WebAssembly) runs inside the page, so your models never leave your computer.
+**[Open the web app](https://natterman12.github.io/STL-Editor/app/)**: nothing to download, works on Windows, macOS, Linux, ChromeOS and tablets in a recent Chrome, Edge, Firefox or Safari. It's the same interface and the same `.stlx` project files. The geometry engine (Manifold compiled to WebAssembly) runs inside the page, so your models never leave your computer.
 
-Every modelling tool works in the browser, including Hollow, Remesh, Sculpt and *Repair › Rebuild*. It keeps autosave copies for recovery and a recent-files list, saves straight back to the project you opened (Chrome and Edge), works offline after the first visit, and can be installed as an app that opens `.stlx` and mesh files. Only Send to Slicer and To STEP need the desktop app, because they start programs on your computer. The desktop app is also faster on very large meshes and allows finer voxel settings.
+Every modelling tool works in the browser, including Hollow, Remesh, Brushes and *Repair › Rebuild*. It keeps autosave copies for recovery and a recent-files list, saves straight back to the project you opened (Chrome and Edge), works offline after the first visit, and can be installed as an app that opens `.stlx` and mesh files. Only Send to Slicer and To STEP need the desktop app, because they start programs on your computer. The desktop app is also faster on very large meshes and allows finer voxel settings.
 
 ### Quick start
 
