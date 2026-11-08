@@ -7,456 +7,1493 @@
 <meta name="description" content="Free, open-source Windows app that lets you sketch, extrude, cut, drill, thread and split STL meshes like a CAD model, then send them to your slicer.">
 <meta property="og:title" content="STL Editor: CAD tools for STL files">
 <meta property="og:description" content="Sketch, extrude, cut, drill holes, add printable threads and split big parts to fit your printer, right on the STL.">
-<meta property="og:image" content="https://natterman12.github.io/STL-Editor/img/fit-to-bed.webp">
+<meta property="og:image" content="https://natterman12.github.io/STL-Editor/img/hero.png">
 <meta name="theme-color" content="#101a26">
 <link rel="icon" href="img/icon.png">
 <style>
 :root {
-  --bg: #f6f7f9; --surface: #ffffff; --surface-2: #eef1f5; --line: #dde2e8;
-  --text: #17212b; --muted: #5b6875; --accent: #1f6fd1; --accent-2: #e8763a; --ok: #2f855a;
-  --hero: #0f1823; --hero-2: #17273a; --hero-text: #e9eef4; --hero-muted: #9fb0c2;
-  --radius: 12px; --shadow: 0 12px 40px rgba(16, 28, 44, .14);
-  --font: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
-  --mono: ui-monospace, "Cascadia Code", Consolas, monospace;
+  --bg: #0c1017;
+  --bg-card: #141a24;
+  --bg-card-hover: #192230;
+  --bg-subtle: #1c2636;
+  --border: #222d3e;
+  --border-light: #2c3a50;
+  --text: #f0f4f8;
+  --text-muted: #95a3b8;
+  --text-dim: #64748b;
+  --orange: #e8763a;
+  --orange-hover: #f0854d;
+  --orange-glow: rgba(232, 118, 58, 0.22);
+  --orange-subtle: rgba(232, 118, 58, 0.12);
+  --blue-badge: #1f6fd1;
+  --green-badge: #2f855a;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, monospace;
 }
-@media (prefers-color-scheme: dark) {
-  :root { --bg: #0e141b; --surface: #151d27; --surface-2: #1b2531; --line: #263241; --text: #e6ecf2; --muted: #93a3b4;
-    --accent: #5a9cf0; --shadow: 0 12px 40px rgba(0, 0, 0, .45); }
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
-* { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
-body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 var(--font); -webkit-font-smoothing: antialiased; }
-a { color: var(--accent); text-decoration: none; }
-a:hover { text-decoration: underline; }
-img { max-width: 100%; height: auto; display: block; }
-.wrap { max-width: 1160px; margin: 0 auto; padding: 0 24px; }
-@media (max-width: 600px) { .wrap { padding: 0 16px; } }
 
-/* nav */
-nav { position: sticky; top: 0; z-index: 10; background: rgba(15, 24, 35, .88); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255,255,255,.06); }
-nav .wrap { display: flex; align-items: center; gap: 24px; height: 58px; }
-.brand { display: flex; align-items: center; gap: 10px; color: var(--hero-text); font-weight: 650; letter-spacing: .2px; }
-.brand img { width: 26px; height: 26px; border-radius: 6px; }
-.brand:hover { text-decoration: none; }
-nav .links { margin-left: auto; display: flex; gap: 22px; align-items: center; }
-nav .links a { color: var(--hero-muted); font-size: 14.5px; }
-nav .links a:hover { color: #fff; text-decoration: none; }
-nav .links .btn { padding: 7px 14px; font-size: 14px; }
-@media (max-width: 720px) { nav .links a:not(.btn) { display: none; } }
+html {
+  scroll-behavior: smooth;
+}
 
-/* buttons */
-.btn { display: inline-flex; align-items: center; gap: 9px; padding: 12px 20px; border-radius: 9px; font-weight: 600; font-size: 15.5px;
-  border: 1px solid transparent; transition: transform .12s ease, background .12s ease; white-space: nowrap; }
-.btn:hover { text-decoration: none; transform: translateY(-1px); }
-.btn svg { width: 18px; height: 18px; flex: none; }
-.btn.primary { background: var(--accent-2); color: #fff; box-shadow: 0 6px 20px rgba(232,118,58,.35); }
-.btn.primary:hover { background: #f0834a; }
-.btn.ghost { color: var(--hero-text); border-color: rgba(255,255,255,.22); }
-.btn.ghost:hover { background: rgba(255,255,255,.08); }
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
 
-/* hero */
-.hero { background: radial-gradient(1200px 600px at 75% -10%, #1f3a5c 0%, transparent 60%), linear-gradient(180deg, var(--hero) 0%, var(--hero-2) 100%);
-  color: var(--hero-text); padding: 72px 0 0; overflow: hidden; }
-.hero-grid { display: grid; grid-template-columns: 1fr; gap: 28px; text-align: center; }
-.eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; letter-spacing: .6px; text-transform: uppercase; color: #ffb48a;
-  background: rgba(232,118,58,.12); border: 1px solid rgba(232,118,58,.3); padding: 5px 12px; border-radius: 999px; }
-.hero h1 { font-size: clamp(36px, 6vw, 64px); line-height: 1.05; margin: 18px 0 0; letter-spacing: -1.2px; font-weight: 750; }
-.hero h1 .hl { background: linear-gradient(90deg, #6fb2ff, #9fd0ff); -webkit-background-clip: text; background-clip: text; color: transparent; }
-.hero p.lede { font-size: clamp(17px, 2.1vw, 20px); color: var(--hero-muted); max-width: 740px; margin: 18px auto 0; }
-.cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 30px; }
-.meta { display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; margin-top: 18px; font-size: 13.5px; color: var(--hero-muted); }
-.meta span { display: inline-flex; align-items: center; gap: 6px; }
-.meta span::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #4fbf85; }
-.shot-frame { margin: 48px auto -2px; max-width: 1080px; border-radius: 12px 12px 0 0; overflow: hidden; border: 1px solid rgba(255,255,255,.12);
-  border-bottom: 0; box-shadow: 0 -10px 60px rgba(0,0,0,.45); background: #0b1118; }
-.shot-frame .bar { display: flex; gap: 7px; padding: 10px 14px; background: #1c2633; }
-.shot-frame .bar i { width: 11px; height: 11px; border-radius: 50%; background: #3a4757; }
+a {
+  color: var(--orange);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
 
-/* sections */
-section { padding: 88px 0; }
-.section-head { max-width: 760px; margin: 0 auto 48px; text-align: center; }
-.kicker { color: var(--accent-2); font-weight: 650; font-size: 13.5px; letter-spacing: .8px; text-transform: uppercase; }
-h2 { font-size: clamp(28px, 3.6vw, 40px); line-height: 1.15; margin: 10px 0 14px; letter-spacing: -.6px; }
-.section-head p { color: var(--muted); font-size: 18px; margin: 0; }
+a:hover {
+  color: var(--orange-hover);
+  text-decoration: underline;
+}
 
-/* problem cards */
-.trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-@media (max-width: 860px) { .trio { grid-template-columns: 1fr; } }
-.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 26px; }
-.card h3 { margin: 12px 0 6px; font-size: 19px; }
-.card p { margin: 0; color: var(--muted); font-size: 15.5px; }
-.card .ic { width: 42px; height: 42px; border-radius: 10px; display: grid; place-items: center; background: var(--surface-2); }
-.card .ic svg { width: 22px; height: 22px; }
-.card.win { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 10%, transparent); }
+.wrap {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
 
-/* feature rows */
-.features { background: var(--surface); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-.feat { display: grid; grid-template-columns: 1.25fr 1fr; gap: 56px; align-items: center; padding: 36px 0; }
-.feat + .feat { border-top: 1px dashed var(--line); }
-.feat:nth-child(even) .media { order: 2; }
-@media (max-width: 900px) { .feat { grid-template-columns: 1fr; gap: 22px; } .feat:nth-child(even) .media { order: 0; } }
-.media { border-radius: 10px; overflow: hidden; border: 1px solid var(--line); box-shadow: var(--shadow); background: var(--surface-2); }
-.media.wide img { width: 100%; }
-.feat h3 { font-size: 26px; margin: 6px 0 10px; letter-spacing: -.3px; }
-.feat p { color: var(--muted); margin: 0 0 14px; }
-.feat ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 7px; }
-.feat li { padding-left: 26px; position: relative; font-size: 15.5px; }
-.feat li::before { content: ""; position: absolute; left: 4px; top: 8px; width: 11px; height: 6px; border-left: 2px solid var(--ok); border-bottom: 2px solid var(--ok); transform: rotate(-45deg); }
-.tag { display: inline-block; font-size: 12.5px; font-weight: 650; letter-spacing: .5px; text-transform: uppercase; color: var(--accent); }
+/* Navigation Bar */
+.nav-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(12, 16, 23, 0.9);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+}
 
-/* timeline steps */
-.steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; counter-reset: s; }
-@media (max-width: 900px) { .steps { grid-template-columns: 1fr 1fr; } }
-@media (max-width: 520px) { .steps { grid-template-columns: 1fr; } }
-.step { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; position: relative; }
-.step::before { counter-increment: s; content: counter(s); position: absolute; top: -13px; left: 18px; width: 26px; height: 26px; border-radius: 50%;
-  background: var(--accent); color: #fff; font-weight: 700; font-size: 13px; display: grid; place-items: center; }
-.step b { display: block; margin: 6px 0 4px; }
-.step span { color: var(--muted); font-size: 14.5px; }
-.note { text-align: center; color: var(--muted); margin-top: 26px; font-size: 15.5px; }
+.nav-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+}
 
-/* tools grid */
-.tools { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; }
-.tools .card h3 { display: flex; align-items: center; gap: 10px; margin-top: 0; }
-.tools .card h3 i { width: 10px; height: 10px; border-radius: 3px; background: var(--c, var(--accent)); }
-.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-.chips span { font-size: 13.5px; padding: 4px 10px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); }
+.brand-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 19px;
+  color: var(--text);
+  letter-spacing: -0.2px;
+}
 
-/* download */
-.download { background: linear-gradient(180deg, var(--hero-2), var(--hero)); color: var(--hero-text); }
-.download h2 { color: #fff; }
-.download .section-head p { color: var(--hero-muted); }
-.dl-grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 28px; align-items: start; }
-@media (max-width: 860px) { .dl-grid { grid-template-columns: 1fr; } }
-.dl-grid > *, .feat > *, .trio > * { min-width: 0; }
-.dl-card { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1); border-radius: var(--radius); padding: 28px; }
-.dl-card h3 { margin: 0 0 14px; font-size: 19px; color: #fff; }
-.dl-card ol { margin: 0; padding-left: 20px; display: grid; gap: 10px; color: var(--hero-text); }
-.dl-card ol li::marker { color: var(--accent-2); font-weight: 700; }
-.dl-card > p { color: var(--hero-text); margin: 0 0 16px; }
-.dl-card .small { font-size: 14px; color: var(--hero-muted); margin-top: 16px; }
-.spec { display: grid; grid-template-columns: auto 1fr; gap: 8px 18px; font-size: 15px; margin: 0; }
-.spec dt { color: var(--hero-muted); }
-.spec dd { margin: 0; }
-pre { background: #0a1017; border: 1px solid rgba(255,255,255,.08); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font: 13.5px/1.6 var(--mono); color: #cfe3ff; margin: 12px 0 0; }
+.brand-link:hover {
+  text-decoration: none;
+}
 
-/* faq */
-.faq { max-width: 820px; margin: 0 auto; display: grid; gap: 10px; }
-details { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 4px 20px; }
-summary { cursor: pointer; font-weight: 600; padding: 14px 0; list-style: none; display: flex; justify-content: space-between; gap: 16px; }
-summary::-webkit-details-marker { display: none; }
-summary::after { content: "+"; color: var(--muted); font-weight: 400; font-size: 22px; line-height: 1; }
-details[open] summary::after { content: "–"; }
-details p { margin: 0 0 16px; color: var(--muted); }
+.brand-icon {
+  width: 30px;
+  height: 30px;
+  background: linear-gradient(135deg, #f0854d, #e8763a);
+  border-radius: var(--radius-sm);
+  display: grid;
+  place-items: center;
+  color: #fff;
+  box-shadow: 0 2px 10px var(--orange-glow);
+}
 
-footer { padding: 40px 0 56px; color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); }
-footer .wrap { display: flex; flex-wrap: wrap; gap: 14px 28px; justify-content: space-between; }
-footer .credits { max-width: 640px; }
-.support-note { margin: 26px auto 0; text-align: center; color: var(--muted); font-size: 15px; }
-.support-note a { color: inherit; text-decoration: underline; text-decoration-color: #ff5e5b; text-underline-offset: 3px; }
-.support-note span { color: #ff5e5b; }
+.brand-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.nav-links a {
+  color: var(--text-muted);
+  font-size: 14.5px;
+  font-weight: 500;
+}
+
+.nav-links a:hover {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.nav-cta {
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--orange);
+  color: #fff !important;
+  font-weight: 600;
+  font-size: 14px;
+  transition: background 0.15s, transform 0.12s;
+  box-shadow: 0 2px 8px var(--orange-glow);
+}
+
+.nav-cta:hover {
+  background: var(--orange-hover);
+  transform: translateY(-1px);
+}
+
+/* Hero Section */
+.hero {
+  padding: 68px 0 60px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  background: radial-gradient(1000px 500px at 50% -10%, #1c2738 0%, transparent 70%);
+}
+
+.hero-badge-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: var(--orange-subtle);
+  border: 1px solid rgba(232, 118, 58, 0.35);
+  border-radius: 999px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #ffaa7d;
+  letter-spacing: 0.2px;
+  margin-bottom: 22px;
+}
+
+.hero-badge-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--orange);
+  box-shadow: 0 0 8px var(--orange);
+}
+
+.hero h1 {
+  font-size: clamp(34px, 5.4vw, 58px);
+  line-height: 1.1;
+  font-weight: 800;
+  letter-spacing: -1.2px;
+  color: #ffffff;
+  max-width: 900px;
+  margin: 0 auto 18px;
+}
+
+.hero h1 .gradient-text {
+  background: linear-gradient(135deg, #ffffff 40%, #e8763a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.hero-summary {
+  font-size: clamp(17px, 2vw, 20px);
+  color: var(--text-muted);
+  max-width: 720px;
+  margin: 0 auto 34px;
+  line-height: 1.5;
+}
+
+.hero-actions {
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.btn-big {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  min-width: 270px;
+  padding: 16px 22px;
+  border-radius: var(--radius-md);
+  text-decoration: none !important;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.btn-big:hover {
+  transform: translateY(-2px);
+}
+
+.btn-big .btn-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.btn-big .btn-title-row svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.btn-big .btn-note {
+  font-size: 12.5px;
+  margin-top: 5px;
+  opacity: 0.88;
+  font-weight: 400;
+}
+
+.btn-primary {
+  background: var(--orange);
+  color: #ffffff;
+  box-shadow: 0 6px 24px var(--orange-glow);
+}
+
+.btn-primary:hover {
+  background: var(--orange-hover);
+  box-shadow: 0 8px 30px rgba(232, 118, 58, 0.35);
+  color: #ffffff;
+}
+
+.btn-secondary {
+  background: var(--bg-card);
+  color: var(--text);
+  border-color: var(--border-light);
+}
+
+.btn-secondary:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--orange);
+  color: var(--text);
+}
+
+.hero-meta {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  color: var(--text-dim);
+  font-size: 13.5px;
+  margin-top: 14px;
+}
+
+.hero-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hero-meta svg {
+  width: 14px;
+  height: 14px;
+  color: var(--orange);
+}
+
+.hero-showcase {
+  margin: 48px auto 0;
+  max-width: 1100px;
+  background: #0f141d;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+}
+
+.window-chrome {
+  height: 38px;
+  background: #141b26;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  gap: 8px;
+}
+
+.window-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #2a3648;
+}
+
+.window-title {
+  margin-left: 10px;
+  color: var(--text-dim);
+  font-size: 12.5px;
+  font-weight: 500;
+  font-family: var(--font-mono);
+}
+
+.hero-img-box {
+  background: #090d14;
+  position: relative;
+  min-height: 280px;
+}
+
+.hero-img-box img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Section Common */
+.section {
+  padding: 84px 0;
+}
+
+.section-alt {
+  background: #0f141d;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.section-header {
+  text-align: center;
+  max-width: 740px;
+  margin: 0 auto 52px;
+}
+
+.section-tag {
+  display: inline-block;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--orange);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+
+.section-title {
+  font-size: clamp(26px, 3.4vw, 38px);
+  line-height: 1.2;
+  font-weight: 800;
+  letter-spacing: -0.6px;
+  color: #ffffff;
+  margin-bottom: 14px;
+}
+
+.section-desc {
+  font-size: 17px;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+/* Problem-Solution alternating rows */
+.feature-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: 56px;
+  margin-bottom: 74px;
+}
+
+.feature-row:last-child {
+  margin-bottom: 0;
+}
+
+.feature-row.reverse .feature-media {
+  order: 2;
+}
+
+.feature-row.reverse .feature-text {
+  order: 1;
+}
+
+.feature-text .kicker {
+  color: var(--orange);
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.feature-text h3 {
+  font-size: clamp(23px, 2.5vw, 32px);
+  font-weight: 750;
+  line-height: 1.25;
+  color: #ffffff;
+  margin-bottom: 16px;
+  letter-spacing: -0.4px;
+}
+
+.feature-text p {
+  color: var(--text-muted);
+  font-size: 16px;
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+.feature-list {
+  list-style: none;
+  display: grid;
+  gap: 11px;
+}
+
+.feature-list li {
+  position: relative;
+  padding-left: 26px;
+  color: var(--text);
+  font-size: 15px;
+}
+
+.feature-list li::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 7px;
+  width: 9px;
+  height: 5px;
+  border-left: 2px solid var(--orange);
+  border-bottom: 2px solid var(--orange);
+  transform: rotate(-45deg);
+}
+
+.feature-media {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.4);
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.feature-media:hover {
+  border-color: var(--border-light);
+  transform: translateY(-2px);
+}
+
+.feature-media img {
+  width: 100%;
+  height: auto;
+  display: block;
+  background: #111721;
+}
+
+.dual-media {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 10px;
+}
+
+.media-half {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: #0d121a;
+  border: 1px solid var(--border);
+}
+
+.media-half img {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  display: block;
+}
+
+.media-caption {
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-align: center;
+  background: var(--bg-subtle);
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 640px) {
+  .dual-media {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 3-Column Benefit Cards */
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.benefit-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 32px 26px;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.benefit-card:hover {
+  border-color: var(--border-light);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+}
+
+.benefit-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-sm);
+  background: var(--orange-subtle);
+  border: 1px solid rgba(232, 118, 58, 0.25);
+  display: grid;
+  place-items: center;
+  color: var(--orange);
+  margin-bottom: 20px;
+}
+
+.benefit-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.benefit-card h3 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 12px;
+}
+
+.benefit-card p {
+  color: var(--text-muted);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+/* Tools Section (Tabbed toolbar groups) */
+.tools-showcase {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 22px;
+}
+
+.tool-group-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+.tool-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 14px;
+  margin-bottom: 16px;
+}
+
+.tool-group-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 18px;
+  font-weight: 750;
+  color: #ffffff;
+}
+
+.tool-group-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--orange);
+}
+
+.tool-group-tab-badge {
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-dim);
+  background: var(--bg-subtle);
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.tool-subsections {
+  display: grid;
+  gap: 14px;
+}
+
+.tool-subgroup-label {
+  font-size: 12.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+
+.chips-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.tool-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 11px;
+  font-size: 13.5px;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.desktop-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #ffaa7d;
+  background: rgba(232, 118, 58, 0.2);
+  border: 1px solid rgba(232, 118, 58, 0.4);
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: 2px;
+}
+
+/* Download & Specs */
+.download-grid {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 28px;
+  align-items: stretch;
+}
+
+.dl-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 32px;
+}
+
+.dl-box h3 {
+  font-size: 22px;
+  font-weight: 750;
+  color: #ffffff;
+  margin-bottom: 12px;
+}
+
+.dl-box p {
+  color: var(--text-muted);
+  font-size: 15px;
+  margin-bottom: 20px;
+}
+
+.steps-list {
+  margin: 0 0 24px 20px;
+  display: grid;
+  gap: 10px;
+  color: var(--text);
+  font-size: 15px;
+}
+
+.steps-list li::marker {
+  color: var(--orange);
+  font-weight: 700;
+}
+
+.smartscreen-note {
+  background: var(--bg-subtle);
+  border-left: 3px solid var(--orange);
+  padding: 12px 14px;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: 13.5px;
+  color: var(--text-muted);
+  margin-top: 20px;
+}
+
+.smartscreen-note strong {
+  color: var(--text);
+}
+
+.specs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14.5px;
+  margin-bottom: 24px;
+}
+
+.specs-table tr {
+  border-bottom: 1px solid var(--border);
+}
+
+.specs-table tr:last-child {
+  border-bottom: none;
+}
+
+.specs-table td {
+  padding: 10px 0;
+}
+
+.specs-table td:first-child {
+  color: var(--text-dim);
+  font-weight: 600;
+  width: 120px;
+}
+
+.specs-table td:last-child {
+  color: var(--text);
+}
+
+/* FAQ */
+.faq-wrap {
+  max-width: 820px;
+  margin: 0 auto;
+  display: grid;
+  gap: 14px;
+}
+
+details.faq-item {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 6px 22px;
+  transition: border-color 0.15s ease;
+}
+
+details.faq-item[open] {
+  border-color: var(--border-light);
+}
+
+summary.faq-question {
+  cursor: pointer;
+  list-style: none;
+  font-size: 17px;
+  font-weight: 650;
+  color: #ffffff;
+  padding: 14px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+summary.faq-question::-webkit-details-marker {
+  display: none;
+}
+
+summary.faq-question::after {
+  content: "+";
+  font-size: 22px;
+  color: var(--text-dim);
+  font-weight: 400;
+  line-height: 1;
+}
+
+details.faq-item[open] summary.faq-question::after {
+  content: "–";
+  color: var(--orange);
+}
+
+.faq-answer {
+  color: var(--text-muted);
+  font-size: 15px;
+  line-height: 1.6;
+  padding-bottom: 18px;
+}
+
+/* Footer */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 48px 0 56px;
+  color: var(--text-dim);
+  font-size: 14px;
+  background: #090d14;
+}
+
+.footer-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.footer-links {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.footer-links a {
+  color: var(--text-muted);
+}
+
+.footer-links a:hover {
+  color: var(--orange);
+}
+
+.kofi-support {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.kofi-support a {
+  color: #ffaa7d;
+  font-weight: 600;
+}
+
+.kofi-support a:hover {
+  text-decoration: underline;
+}
+
+.footer-credits {
+  width: 100%;
+  margin-top: 14px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 12.5px;
+  color: var(--text-dim);
+  line-height: 1.6;
+}
+
+.footer-credits a {
+  color: var(--text-muted);
+}
+
+/* Responsive adjustments */
+@media (max-width: 920px) {
+  .feature-row,
+  .feature-row.reverse {
+    grid-template-columns: 1fr;
+    gap: 30px;
+  }
+  .feature-row.reverse .feature-media {
+    order: 0;
+  }
+  .feature-row.reverse .feature-text {
+    order: 1;
+  }
+  .cards-grid {
+    grid-template-columns: 1fr;
+  }
+  .download-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 680px) {
+  .nav-links a:not(.nav-cta) {
+    display: none;
+  }
+  .hero {
+    padding: 44px 0 40px;
+  }
+  .hero-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .btn-big {
+    width: 100%;
+  }
+}
 </style>
 </head>
 <body>
 
-<nav>
-  <div class="wrap">
-    <a class="brand" href="#"><img src="img/icon.png" alt="">STL Editor</a>
-    <div class="links">
+<!-- Header Navigation -->
+<nav class="nav-header">
+  <div class="wrap nav-container">
+    <a class="brand-link" href="#">
+      <img src="img/icon.png" alt="" class="brand-icon">
+      <span>STL Editor</span>
+    </a>
+    <div class="nav-links">
       <a href="#features">Features</a>
-      <a href="#tools">All tools</a>
-      <a href="#faq">FAQ</a>
-      <a href="app/">Try in browser</a>
-      <a href="https://github.com/natterman12/STL-Editor">GitHub</a>
-      <a class="btn primary" href="#download">Download</a>
+      <a href="#tools">Tools</a>
+      <a href="#download">Download</a>
+      <a href="https://github.com/natterman12/STL-Editor" target="_blank" rel="noopener">GitHub</a>
+      <a class="nav-cta" href="https://natterman12.github.io/STL-Editor/app/">Open the web app</a>
     </div>
   </div>
 </nav>
 
+<!-- Hero Section -->
 <header class="hero">
-  <div class="wrap hero-grid">
-    <div>
-      <span class="eyebrow">Free &amp; open source · Windows · Web</span>
-      <h1>Edit STL files<br>like a <span class="hl">CAD model</span>.</h1>
-      <p class="lede">Sketch on any face, extrude, cut, drill holes for real hardware, add threads that print and split big parts to fit your bed, right on the mesh you downloaded.</p>
-      <div class="cta">
-        <a class="btn primary" href="https://github.com/natterman12/STL-Editor/releases/latest/download/STL-Editor-Windows-portable.zip">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
-          Download for Windows
-        </a>
-        <a class="btn ghost" href="app/">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3Z"/></svg>
-          Try it in your browser
-        </a>
-        <a class="btn ghost" href="https://github.com/natterman12/STL-Editor">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
-          View on GitHub
-        </a>
-      </div>
-      <div class="meta"><span>No install, just unzip, or run it in your browser</span><span>Works offline</span><span>Exports STL · 3MF · OBJ</span><span>GPL-3.0</span></div>
+  <div class="wrap">
+    <div class="hero-badge-wrap">
+      <span class="hero-badge-dot"></span>
+      <span>Free · Open-source · Windows and browser</span>
     </div>
-    <div class="shot-frame"><div class="bar"><i></i><i></i><i></i></div>
-      <img src="img/fit-to-bed.webp" width="1600" height="960" alt="STL Editor in dark mode: a tall twisted vase cut into colour-coded pieces that fit a Bambu A1 mini, with connector settings in the side panel">
+    <h1>Edit STL files like a <span class="gradient-text">CAD model</span>.</h1>
+    <p class="hero-summary">
+      Sketch on flat faces, drill holes for hardware, add printable threads, and split parts to fit your 3D printer—directly on the mesh.
+    </p>
+
+    <div class="hero-actions">
+      <!-- Big Button 1: Download for Windows -->
+      <a class="btn-big btn-primary" href="https://github.com/natterman12/STL-Editor/releases/latest/download/STL-Editor-Windows-portable.zip">
+        <div class="btn-title-row">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3v13M6 11l6 6 6-6M4 21h16"/>
+          </svg>
+          <span>Download for Windows</span>
+        </div>
+        <span class="btn-note">v1.14.1 · about 79 MB · no install</span>
+      </a>
+
+      <!-- Big Button 2: Open the web app -->
+      <a class="btn-big btn-secondary" href="https://natterman12.github.io/STL-Editor/app/">
+        <div class="btn-title-row">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="2" y1="12" x2="22" y2="12"/>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+          </svg>
+          <span>Open the web app</span>
+        </div>
+        <span class="btn-note">Full app in your browser · No account</span>
+      </a>
+    </div>
+
+    <div class="hero-meta">
+      <span>
+        <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="4"/></svg>
+        No install needed
+      </span>
+      <span>
+        <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="4"/></svg>
+        Works 100% offline
+      </span>
+      <span>
+        <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="4"/></svg>
+        Exports STL, 3MF, OBJ
+      </span>
+      <span>
+        <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="4"/></svg>
+        GPL-3.0 License
+      </span>
+    </div>
+
+    <!-- Hero Image Mockup -->
+    <div class="hero-showcase">
+      <div class="window-chrome">
+        <span class="window-dot"></span>
+        <span class="window-dot"></span>
+        <span class="window-dot"></span>
+        <span class="window-title">STL Editor — 3D Mesh CAD Workspace</span>
+      </div>
+      <div class="hero-img-box">
+        <img src="img/hero.png" width="1600" height="960" alt="STL Editor workspace showing a loaded 3D model, toolbar tabs, sketch tools, and feature timeline">
+      </div>
     </div>
   </div>
 </header>
 
-<section>
+<!-- Problem-Solution Alternating Sections -->
+<section class="section" id="features">
   <div class="wrap">
-    <div class="section-head">
-      <div class="kicker">Why it exists</div>
-      <h2>The gap between CAD and mesh tools</h2>
-      <p>Almost everything you download for 3D printing is an STL. The tools to change one properly are split across two kinds of program, and neither does the whole job.</p>
-    </div>
-    <div class="trio">
-      <div class="card">
-        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="#d05252" stroke-width="1.8" stroke-linecap="round"><path d="M12 3 3 7.5v9L12 21l9-4.5v-9z"/><path d="m9 9 6 6M15 9l-6 6"/></svg></div>
-        <h3>CAD can't edit meshes</h3>
-        <p>Fusion, SolidWorks and Onshape treat an STL as dead triangles. You can look at it, but sketching on it and cutting it is a fight.</p>
-      </div>
-      <div class="card">
-        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="#b7791f" stroke-width="1.8" stroke-linecap="round"><path d="M4 18c3-8 13-8 16 0"/><circle cx="12" cy="8" r="3"/></svg></div>
-        <h3>Mesh tools can't do CAD</h3>
-        <p>Sculpting and patching apps are great at blobs, but you can't type "a 4 mm pocket, 20 × 12, centred" or put an M3 insert exactly where you want it.</p>
-      </div>
-      <div class="card win">
-        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="#2f855a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg></div>
-        <h3>STL Editor does both</h3>
-        <p>It cleans up the mesh into a watertight solid, then gives you sketches, exact dimensions, booleans and print-focused tools in an editable timeline.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section class="features" id="features">
-  <div class="wrap">
-    <div class="section-head">
-      <div class="kicker">Features</div>
-      <h2>Real CAD tools, aimed at 3D printing</h2>
-      <p>Every step is recorded in a timeline, so you can go back and change an earlier step and everything after it updates.</p>
+    <div class="section-header">
+      <span class="section-tag">Direct Mesh Editing</span>
+      <h2 class="section-title">Built for how makers actually work</h2>
+      <p class="section-desc">Downloaded files don't have to be dead triangles. Fix sizing issues, drop in fasteners, and prep models for printing without starting from scratch in CAD.</p>
     </div>
 
-    <div class="feat">
-      <div class="media wide"><img src="img/planter-edit.webp" loading="lazy" width="1120" height="800" alt="A twisted vase STL with a planter pocket, drain hole and magnet pockets added, and the feature timeline at the bottom"></div>
-      <div>
-        <span class="tag">Edit what you download</span>
-        <h3>Sketch on a face, then extrude or cut</h3>
-        <p>This vase came in as a 200,000-triangle STL. A sketched circle on a plane above it cut the planter pocket, then a drain hole and three magnet pockets went into the base. That's four steps, and each one can still be changed.</p>
-        <ul>
-          <li>New body, join, cut or intersect</li>
-          <li>One side, two sides, symmetric, through all, with taper</li>
-          <li>Revolve, plus box, cylinder, sphere, cone and torus primitives</li>
-          <li>Pick single regions of a sketch to extrude</li>
+    <!-- Feature 1: Fix what you download -->
+    <div class="feature-row">
+      <div class="feature-text">
+        <span class="kicker">Modify downloaded STLs</span>
+        <h3>Fix what you download</h3>
+        <p>Found a great design online but need it to fit your exact project? Double-click any flat face on your mesh to sketch, cut pockets, or extrude new geometry. Add standard screw holes, heat-set inserts, or magnet pockets with built-in printing clearance, or generate real threads that screw together smoothly.</p>
+        <ul class="feature-list">
+          <li><strong>Draw exact sketches</strong> with lines, arcs, circles, rectangles, and smart dimensions.</li>
+          <li><strong>Holes for real hardware</strong>: presets for M2–M5 inserts, counterbores, and magnets.</li>
+          <li><strong>Printable threads</strong>: metric and imperial threads with dialed-in print clearances.</li>
+          <li><strong>Resize or fill holes</strong>: click any circular hole or pin to change its diameter.</li>
         </ul>
       </div>
-    </div>
-
-    <div class="feat">
-      <div class="media wide"><img src="img/project-outline.webp" loading="lazy" width="1280" height="800" alt="A ring traced from the twisted vase's outline with 0.4 mm clearance, and an embossed BASIL label"></div>
-      <div>
-        <span class="tag">New in 1.3</span>
-        <h3>Trace it, resize it, make it fit</h3>
-        <p>Tools for the most common job: changing a model somebody else made. This ring follows the twisted vase exactly, with 0.4 mm of clearance, because its outline was <em>projected</em> into the sketch and offset.</p>
-        <ul>
-          <li><b>Project</b>: a model's cross-section or silhouette becomes sketch shapes you can offset, trim and extrude</li>
-          <li><b>Resize Hole</b>: click any round hole or pin in an STL, see its size, type the new one, or fill it</li>
-          <li><b>Cut with clearance</b> and <b>Offset Body</b>: holders, sockets and lids that fit after printing</li>
-          <li><b>Text</b> in any installed font, embossed or engraved</li>
-        </ul>
-      </div>
-    </div>
-
-    <div class="feat">
-      <div class="media wide"><img src="img/sketch-constraints.webp" loading="lazy" width="1600" height="960" alt="Sketch mode with dimensions, equal and horizontal/vertical constraints and the constraint list"></div>
-      <div>
-        <span class="tag">Sketcher</span>
-        <h3>Constraints and driving dimensions</h3>
-        <p>Draw with lines, arcs, rectangles, circles, polygons and slots, and type exact sizes while you draw. Lines join up and stay level or plumb on their own. Change a dimension and the shape follows. Drag a point and the constraints hold.</p>
-        <ul>
-          <li>Coincident, horizontal/vertical, parallel, perpendicular, equal, tangent, concentric, midpoint, symmetric, fix</li>
-          <li>Length, radius, diameter, distance and angle dimensions</li>
-          <li>Trim, offset, mirror and construction lines</li>
-          <li>Inch mode that accepts fractions like <code>1 3/8</code></li>
-        </ul>
-      </div>
-    </div>
-
-    <div class="feat">
-      <div class="media wide"><img src="img/hole-presets.webp" loading="lazy" width="1400" height="770" alt="Hole tool with the heat-set insert M3 preset selected"></div>
-      <div>
-        <span class="tag">Holes</span>
-        <h3>Presets for the hardware you actually use</h3>
-        <p>Click the face where you want holes, as many points as you like, then pick a preset. Sizes include a print tolerance, so parts fit straight off the printer.</p>
-        <ul>
-          <li>Heat-set inserts M2–M5</li>
-          <li>Screw clearance and socket-head counterbores</li>
-          <li>Hex nut traps and countersinks</li>
-          <li>Magnet pockets in common sizes</li>
-        </ul>
-      </div>
-    </div>
-
-    <div class="feat">
-      <div class="media wide"><img src="img/threads.webp" loading="lazy" width="1000" height="860" alt="A printed M8 bolt with a hex head and a matching tapped nut"></div>
-      <div>
-        <span class="tag">Threads</span>
-        <h3>Threads that print and screw together</h3>
-        <p>Make tapped holes in a face, or bolts and studs standing on it, with a true ISO 60° profile. An M8 bolt and nut made with the default 0.2 mm clearance screw together with no interference.</p>
-        <ul>
-          <li>ISO metric M1.6–M30 and UNC / UNF inch presets, or any diameter and pitch</li>
-          <li>Right or left hand, chamfered ends</li>
-          <li>Adjustable print clearance (0.2–0.4 mm suits most FDM printers)</li>
-        </ul>
-      </div>
-    </div>
-
-    <div class="feat">
-      <div class="media wide"><img src="img/section-view.webp" loading="lazy" width="1400" height="770" alt="Section view cutting the planter in half to show the pocket, drain hole and magnet pockets"></div>
-      <div>
-        <span class="tag">Print prep</span>
-        <h3>Fit to bed, lay flat, look inside</h3>
-        <p>Pick your printer and oversized parts are cut into pieces that fit, with connectors at every seam. <em>Smart cut positions</em> put the seams where the part is thinnest.</p>
-        <ul>
-          <li>Printed pins, pin holes, 1.75 mm filament pins or 6×3 magnet pockets</li>
-          <li>Lay Flat: click a face, or let it pick the most stable side</li>
-          <li>Section view, measure, and print weight in Properties</li>
-          <li>Send straight to Bambu Studio or OrcaSlicer</li>
-        </ul>
-      </div>
-    </div>
-
-    <div class="feat">
-      <div class="media wide"><img src="img/tool-search.webp" loading="lazy" width="1600" height="376" alt="The toolbar with Model, Print, Supports and Mesh tabs and the tool search showing results for 'pla'"></div>
-      <div>
-        <span class="tag">Interface</span>
-        <h3>Clean toolbar, fast search</h3>
-        <p>Tools are grouped into Model, Print, Supports and Mesh tabs, each tool in one place. Press <code>Ctrl+K</code> and type to run any tool by name. In a narrow window the toolbar shrinks to icons instead of scrolling.</p>
-        <ul>
-          <li>Light, dark or match-Windows theme</li>
-          <li>Undo / redo and an editable timeline with rollback</li>
-          <li>Autosave every minute, with crash recovery</li>
-        </ul>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section>
-  <div class="wrap">
-    <div class="section-head">
-      <div class="kicker">Workflow</div>
-      <h2>From download to slicer in five steps</h2>
-    </div>
-    <div class="steps">
-      <div class="step"><b>Drop in the STL</b><span>It's placed on the bed and checked. Leaky meshes get a one-click repair.</span></div>
-      <div class="step"><b>Double-click a face</b><span>You're now sketching on it. Draw shapes and type exact sizes.</span></div>
-      <div class="step"><b>Finish &amp; Extrude</b><span>Choose Cut, Join or New body and set the depth. Cuts always go into the material.</span></div>
-      <div class="step"><b>Add holes &amp; threads</b><span>Inserts, magnets, nut traps and screw threads, with a print tolerance built in.</span></div>
-      <div class="step"><b>Export or send</b><span>STL, 3MF or OBJ, or straight into Bambu Studio / OrcaSlicer.</span></div>
-    </div>
-    <p class="note">Changed your mind? Double-click any step on the timeline. Save as <code>.stlx</code> to keep the whole history.</p>
-  </div>
-</section>
-
-<section class="features" id="tools">
-  <div class="wrap">
-    <div class="section-head">
-      <div class="kicker">Everything included</div>
-      <h2>All tools</h2>
-    </div>
-    <div class="tools">
-      <div class="card" style="--c:#1f6fd1"><h3><i></i>Create</h3><div class="chips"><span>Sketch</span><span>Extrude</span><span>Revolve</span><span>Box</span><span>Cylinder</span><span>Sphere</span><span>Cone</span><span>Torus</span></div></div>
-      <div class="card" style="--c:#7b61d1"><h3><i></i>Modify</h3><div class="chips"><span>Hole</span><span>Resize Hole</span><span>Thread</span><span>Push/Pull</span><span>Combine</span><span>Cut with clearance</span><span>Offset Body</span><span>Split</span><span>Mirror</span><span>Pattern</span><span>Move / Rotate</span><span>Scale</span><span>Hollow</span></div></div>
-      <div class="card" style="--c:#e8763a"><h3><i></i>Print</h3><div class="chips"><span>Fit to Bed</span><span>Connectors</span><span>Lay Flat</span><span>Support Fins</span><span>Draw support walls</span><span>Export STL / 3MF / OBJ</span><span>Send to Slicer</span></div></div>
-      <div class="card" style="--c:#2f855a"><h3><i></i>Mesh</h3><div class="chips"><span>Repair</span><span>Rebuild solid</span><span>Simplify</span><span>Remesh</span><span>Sculpt brushes</span><span>Separate</span><span>To STEP</span></div></div>
-      <div class="card" style="--c:#b7791f"><h3><i></i>Construct &amp; inspect</h3><div class="chips"><span>Offset plane</span><span>Plane at angle</span><span>3-point plane</span><span>Midplane</span><span>Measure</span><span>Section</span><span>Properties</span></div></div>
-      <div class="card" style="--c:#d9480f"><h3><i></i>Sketcher</h3><div class="chips"><span>Line</span><span>Arc</span><span>Rectangle</span><span>Circle</span><span>Polygon</span><span>Slot</span><span>Text</span><span>Project outline</span><span>Trim</span><span>Offset</span><span>Mirror</span><span>11 constraints</span><span>Dimensions</span></div></div>
-    </div>
-  </div>
-</section>
-
-<section class="download" id="download">
-  <div class="wrap">
-    <div class="section-head">
-      <div class="kicker">Download</div>
-      <h2>Get STL Editor</h2>
-      <p>One zip file. Nothing to install, and it can run from a USB stick. Or open the web edition and start right away.</p>
-    </div>
-    <div class="dl-grid">
-      <div class="dl-card">
-        <h3>Install in under a minute</h3>
-        <ol>
-          <li><a href="https://github.com/natterman12/STL-Editor/releases/latest/download/STL-Editor-Windows-portable.zip" style="color:#ffb48a">Download the portable zip</a> (about 65 MB).</li>
-          <li>Unzip the whole folder anywhere: Desktop, Documents or a USB stick.</li>
-          <li>Double-click <b>STL Editor.exe</b>.</li>
-          <li>If Windows says <i>"Windows protected your PC"</i>, click <b>More info › Run anyway</b>. The app isn't code-signed yet, which is normal for small free tools.</li>
-        </ol>
-        <div class="cta" style="justify-content:flex-start">
-          <a class="btn primary" href="https://github.com/natterman12/STL-Editor/releases/latest/download/STL-Editor-Windows-portable.zip">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
-            Download for Windows</a>
-          <a class="btn ghost" href="https://github.com/natterman12/STL-Editor/releases">All releases</a>
+      <div class="feature-media dual-media">
+        <div class="media-half">
+          <img src="img/sketch.png" width="640" height="400" loading="lazy" alt="Sketching on a 3D model face with dimensions, constraints, and extrude options in STL Editor">
+          <div class="media-caption">Sketch &amp; Extrude</div>
         </div>
-        <p class="small">When a new version comes out, the app shows a small notice with a Download button. It only checks this project's public releases page and sends nothing about you or your files.</p>
-      </div>
-      <div class="dl-card">
-        <h3>Requirements</h3>
-        <dl class="spec">
-          <dt>System</dt><dd>Windows 10 or 11, 64-bit</dd>
-          <dt>Disk</dt><dd>About 150 MB unzipped</dd>
-          <dt>Opens</dt><dd>STL, 3MF, OBJ, PLY, OFF, GLB/glTF and <code>.stlx</code> projects</dd>
-          <dt>Exports</dt><dd>STL, 3MF, OBJ</dd>
-          <dt>Optional</dt><dd>Bambu Studio / OrcaSlicer for Send to Slicer, SolidCraft for To STEP</dd>
-        </dl>
-        <h3 style="margin-top:24px">Run from source</h3>
-        <pre>git clone https://github.com/natterman12/STL-Editor.git
-cd STL-Editor
-pip install -r requirements.txt
-python main.py</pre>
+        <div class="media-half">
+          <img src="img/holes-threads.png" width="640" height="400" loading="lazy" alt="Hardware holes with presets for heat-set inserts and printable threads">
+          <div class="media-caption">Holes &amp; Threads</div>
+        </div>
       </div>
     </div>
-    <div class="dl-card" style="margin-top:22px">
-      <h3>Web edition: try it without installing</h3>
-      <p>The same editor running in your browser: open a model, sketch on a face, extrude, cut, drill holes, add threads, hollow, repair, sculpt, split for your bed and export. Your files stay on your computer; the geometry engine runs inside the page.</p>
-      <dl class="spec">
-        <dt>Browsers</dt><dd>Recent Chrome, Edge, Firefox or Safari, on a computer or tablet</dd>
-        <dt>Works</dt><dd>Offline after the first visit, with autosave and recovery; installable as an app in Chrome and Edge</dd>
-        <dt>Desktop only</dt><dd>Send to Slicer and To STEP (they start programs on your computer)</dd>
-        <dt>Projects</dt><dd><code>.stlx</code> files open in both editions</dd>
-      </dl>
-      <div class="cta" style="justify-content:flex-start">
-        <a class="btn primary" href="app/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3Z"/></svg>
-          Open the web edition</a>
+
+    <!-- Feature 2: Too big for your bed? Split it -->
+    <div class="feature-row reverse">
+      <div class="feature-text">
+        <span class="kicker">Build plate fit</span>
+        <h3>Too big for your bed? Split it</h3>
+        <p>Never pass on a great model just because it exceeds your printer's build volume. Pick your printer or type your bed size, and STL Editor slices oversized models into clean pieces that fit. It automatically places alignment pins, pin holes, filament dowels, or magnet pockets at every seam so parts align effortlessly during assembly.</p>
+        <ul class="feature-list">
+          <li><strong>Printer presets</strong>: one-click sizing for popular Bambu Lab, Creality, and Prusa printers.</li>
+          <li><strong>Smart cut locations</strong>: finds natural thin seams to keep cuts subtle and joints strong.</li>
+          <li><strong>Snap-fit connectors</strong>: printed pins, matching sockets, or 1.75 mm filament dowels.</li>
+          <li><strong>Lay Flat tool</strong>: quickly lands any face or the most stable orientation flat on the build plate.</li>
+        </ul>
       </div>
-      <p class="small">Very large meshes (a million triangles and up) are faster in the desktop app.</p>
+      <div class="feature-media">
+        <img src="img/fit-to-bed.png" width="1280" height="800" loading="lazy" alt="Large 3D model split into bed-sized interlocking pieces with connector pins in STL Editor">
+      </div>
     </div>
-    <p class="support-note">STL Editor is free, with no ads and no account. If it saves you a reprint or an evening in CAD, you can <a href="https://ko-fi.com/natterman12">buy me a coffee on Ko-fi</a>&nbsp;<span aria-hidden="true">&hearts;</span></p>
+
+    <!-- Feature 3: Supports that snap off -->
+    <div class="feature-row">
+      <div class="feature-text">
+        <span class="kicker">Support Fins Integration</span>
+        <h3>Supports that snap off</h3>
+        <p>Tired of slicer tree supports fusing to delicate overhangs and requiring pliers to chisel off? STL Editor includes built-in Support Fins. Add rigid breakaway support walls and bed pads directly to the mesh. Overhang coverage checks highlight unreached areas in bright red, so you catch failures before wasting filament.</p>
+        <ul class="feature-list">
+          <li><strong>Breakaway fins</strong>: peel off cleanly by hand, leaving smooth bottom surfaces.</li>
+          <li><strong>Coverage check</strong>: bright red heatmaps pinpoint unsupported overhangs.</li>
+          <li><strong>Orientation advice</strong>: ranks print angles for strength and minimal support plastic.</li>
+          <li><strong>Draw Walls</strong>: draw custom straight or curved support walls right where you need them.</li>
+        </ul>
+      </div>
+      <div class="feature-media">
+        <img src="img/support-fins.png" width="1280" height="800" loading="lazy" alt="Support Fins interface adding rigid breakaway support walls to steep overhangs on a 3D model">
+      </div>
+    </div>
+
+    <!-- Feature 4: Find any tool fast -->
+    <div class="feature-row reverse">
+      <div class="feature-text">
+        <span class="kicker">Streamlined Interface</span>
+        <h3>Find any tool fast</h3>
+        <p>No digging through endless sub-menus or navigating confusing multi-tier ribbons. All tools are clearly organized into four main tabs: Model, Print, Supports, and Mesh. Press Ctrl+K anytime, type the tool you need, and jump straight into action.</p>
+        <ul class="feature-list">
+          <li><strong>Ctrl+K command search</strong>: find any tool, setting, or command in milliseconds.</li>
+          <li><strong>Compact responsive toolbar</strong>: collapses neatly to icons on smaller screens.</li>
+          <li><strong>Inspect always ready</strong>: Measure, Section view, and volume/weight Properties on every tab.</li>
+          <li><strong>Native dark theme</strong>: gentle on your eyes during long modeling and print-prep sessions.</li>
+        </ul>
+      </div>
+      <div class="feature-media">
+        <img src="img/tool-search.png" width="1280" height="800" loading="lazy" alt="Ctrl+K tool search command palette open over the STL Editor workspace">
+      </div>
+    </div>
+
   </div>
 </section>
 
-<section id="faq">
+<!-- 3-Column Benefit Cards -->
+<section class="section section-alt">
   <div class="wrap">
-    <div class="section-head">
-      <div class="kicker">FAQ</div>
-      <h2>Questions</h2>
+    <div class="section-header">
+      <span class="section-tag">Why You Will Love It</span>
+      <h2 class="section-title">Designed for privacy, speed, and freedom</h2>
+      <p class="section-desc">Everything runs directly on your hardware without logins, tracking, or cloud lock-in.</p>
     </div>
-    <div class="faq">
-      <details><summary>Is it really free?</summary><p>Yes. STL Editor is open source under the GNU GPL v3. You can use it for anything, including commercial prints, and you can read and change the code. If you share a modified version, it has to stay open source too.</p></details>
-      <details><summary>Does it upload my models anywhere?</summary><p>No. Everything runs on your computer. The desktop app's engine only listens on your own machine (127.0.0.1); the only thing it fetches online is the "latest release" page of this project, to tell you about updates, and you can turn that off. The web edition loads the page and then works entirely inside your browser: models are opened and saved locally and are never sent to a server.</p></details>
-      <details><summary>What's the difference between the web edition and the desktop app?</summary><p>They share the same interface and project files. Every modelling tool works in the web edition, including Hollow, Remesh, Sculpt and the Rebuild repair. Send to Slicer and To STEP need the desktop app because they start programs on your computer. Both keep autosave copies for recovery. The desktop app is faster on very large meshes and allows finer voxel settings.</p></details>
-      <details><summary>Can it fillet or chamfer edges?</summary><p>Not on meshes yet. An STL is just triangles with no real edges to round. For blocky mechanical parts, <i>To STEP</i> can turn the mesh into a STEP file through SolidCraft so you can finish it in regular CAD.</p></details>
-      <details><summary>My STL says "needs repair". What do I do?</summary><p>Some downloads aren't watertight: they have holes, flipped faces or overlapping shells. They display and export fine, but click <b>Repair</b> (Mesh tab) before editing. Quick fix handles most files, and <i>Rebuild</i> turns even badly broken meshes into one clean solid.</p></details>
-      <details><summary>How big can models be?</summary><p>Parts with around a million triangles work; a 942k-triangle figure was cut into bed-sized pieces in testing. Booleans use the Manifold library, which is fast and always gives watertight results.</p></details>
-      <details><summary>Mac or Linux?</summary><p>The <a href="app/">web edition</a> runs on any computer with a recent browser. The downloads are for Windows. The code is cross-platform Python and a web UI, so <code>python main.py --browser</code> should run on macOS and Linux, but it hasn't been tested there yet. Reports are welcome.</p></details>
-      <details><summary>I found a bug or have an idea.</summary><p><a href="https://github.com/natterman12/STL-Editor/issues">Open an issue on GitHub</a>, ideally with the STL and the steps that went wrong. Pull requests are welcome too.</p></details>
+
+    <div class="cards-grid">
+      <!-- Card 1 -->
+      <div class="benefit-card">
+        <div class="benefit-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+            <line x1="18" y1="8" x2="23" y2="13"/>
+            <line x1="23" y1="8" x2="18" y2="13"/>
+          </svg>
+        </div>
+        <h3>No account</h3>
+        <p>No logins, no sign-ups, no monthly fees, and no telemetry. Open the web version or launch the portable Windows executable and start modifying models instantly. 100% free and open-source under GPL-3.0.</p>
+      </div>
+
+      <!-- Card 2 -->
+      <div class="benefit-card">
+        <div class="benefit-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
+            <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
+            <line x1="6" y1="6" x2="6.01" y2="6"/>
+            <line x1="6" y1="18" x2="6.01" y2="18"/>
+          </svg>
+        </div>
+        <h3>Works offline</h3>
+        <p>Your 3D models and proprietary designs never leave your computer. Both the Windows desktop app and the web edition execute all geometry operations locally using fast WebAssembly and C++ Manifold kernels.</p>
+      </div>
+
+      <!-- Card 3 -->
+      <div class="benefit-card">
+        <div class="benefit-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+            <polyline points="3 3 3 8 8 8"/>
+          </svg>
+        </div>
+        <h3>Edits keep a history you can change</h3>
+        <p>Every sketch, cut, hole, thread, and split is recorded in an editable parametric timeline. Double-click any earlier step, adjust a dimension or parameter, and all downstream operations rebuild automatically without starting over.</p>
+      </div>
     </div>
   </div>
 </section>
 
+<!-- Every Tool Section Grouped Exactly by App Toolbar Tabs -->
+<section class="section" id="tools">
+  <div class="wrap">
+    <div class="section-header">
+      <span class="section-tag">Complete Toolkit</span>
+      <h2 class="section-title">Every tool, organized by toolbar tab</h2>
+      <p class="section-desc">All the modeling, print preparation, support, and mesh repair tools included out of the box.</p>
+    </div>
+
+    <div class="tools-showcase">
+      <!-- MODEL TAB -->
+      <div class="tool-group-card">
+        <div class="tool-group-head">
+          <div class="tool-group-title">
+            <span class="tool-group-dot"></span>
+            <span>MODEL</span>
+          </div>
+          <span class="tool-group-tab-badge">Tab 1</span>
+        </div>
+        <div class="tool-subsections">
+          <div>
+            <div class="tool-subgroup-label">Create</div>
+            <div class="chips-list">
+              <span class="tool-chip">Sketch</span>
+              <span class="tool-chip">Extrude</span>
+              <span class="tool-chip">Revolve</span>
+              <span class="tool-chip">Primitive</span>
+            </div>
+          </div>
+          <div>
+            <div class="tool-subgroup-label">Modify</div>
+            <div class="chips-list">
+              <span class="tool-chip">Push/Pull</span>
+              <span class="tool-chip">Combine</span>
+              <span class="tool-chip">Split</span>
+              <span class="tool-chip">Mirror</span>
+              <span class="tool-chip">Pattern</span>
+            </div>
+          </div>
+          <div>
+            <div class="tool-subgroup-label">Holes</div>
+            <div class="chips-list">
+              <span class="tool-chip">Hole</span>
+              <span class="tool-chip">Thread</span>
+              <span class="tool-chip">Resize Hole</span>
+            </div>
+          </div>
+          <div>
+            <div class="tool-subgroup-label">Shape</div>
+            <div class="chips-list">
+              <span class="tool-chip">Hollow</span>
+              <span class="tool-chip">Offset Body</span>
+            </div>
+          </div>
+          <div>
+            <div class="tool-subgroup-label">Reference</div>
+            <div class="chips-list">
+              <span class="tool-chip">Plane</span>
+              <span class="tool-chip">Parameters</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PRINT TAB -->
+      <div class="tool-group-card">
+        <div class="tool-group-head">
+          <div class="tool-group-title">
+            <span class="tool-group-dot" style="background:#3b82f6;"></span>
+            <span>PRINT</span>
+          </div>
+          <span class="tool-group-tab-badge">Tab 2</span>
+        </div>
+        <div class="tool-subsections">
+          <div>
+            <div class="tool-subgroup-label">Print Prep &amp; Slicing</div>
+            <div class="chips-list">
+              <span class="tool-chip">Lay Flat</span>
+              <span class="tool-chip">Move</span>
+              <span class="tool-chip">Rotate</span>
+              <span class="tool-chip">Scale</span>
+              <span class="tool-chip">Fit to Bed</span>
+              <span class="tool-chip">Export</span>
+              <span class="tool-chip">Send to Slicer <span class="desktop-badge">Desktop only</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SUPPORTS TAB -->
+      <div class="tool-group-card">
+        <div class="tool-group-head">
+          <div class="tool-group-title">
+            <span class="tool-group-dot" style="background:#10b981;"></span>
+            <span>SUPPORTS</span>
+          </div>
+          <span class="tool-group-tab-badge">Tab 3</span>
+        </div>
+        <div class="tool-subsections">
+          <div>
+            <div class="tool-subgroup-label">Built-in Support Fins</div>
+            <div class="chips-list">
+              <span class="tool-chip">Support Fins</span>
+              <span class="tool-chip">Draw Walls</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MESH TAB -->
+      <div class="tool-group-card">
+        <div class="tool-group-head">
+          <div class="tool-group-title">
+            <span class="tool-group-dot" style="background:#8b5cf6;"></span>
+            <span>MESH</span>
+          </div>
+          <span class="tool-group-tab-badge">Tab 4</span>
+        </div>
+        <div class="tool-subsections">
+          <div>
+            <div class="tool-subgroup-label">Mesh Repair &amp; Sculpting</div>
+            <div class="chips-list">
+              <span class="tool-chip">Repair</span>
+              <span class="tool-chip">Simplify</span>
+              <span class="tool-chip">Remesh</span>
+              <span class="tool-chip">Separate</span>
+              <span class="tool-chip">Remove Bodies</span>
+              <span class="tool-chip">Brushes</span>
+              <span class="tool-chip">To STEP <span class="desktop-badge">Desktop only</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- INSPECT (Available on every tab) -->
+      <div class="tool-group-card">
+        <div class="tool-group-head">
+          <div class="tool-group-title">
+            <span class="tool-group-dot" style="background:#eab308;"></span>
+            <span>INSPECT</span>
+          </div>
+          <span class="tool-group-tab-badge">On Every Tab</span>
+        </div>
+        <div class="tool-subsections">
+          <div>
+            <div class="tool-subgroup-label">Measurement &amp; Analysis</div>
+            <div class="chips-list">
+              <span class="tool-chip">Measure</span>
+              <span class="tool-chip">Section</span>
+              <span class="tool-chip">Properties</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SKETCH MODE -->
+      <div class="tool-group-card">
+        <div class="tool-group-head">
+          <div class="tool-group-title">
+            <span class="tool-group-dot" style="background:#ec4899;"></span>
+            <span>SKETCH</span>
+          </div>
+          <span class="tool-group-tab-badge">Sketch Editor</span>
+        </div>
+        <div class="tool-subsections">
+          <div>
+            <div class="tool-subgroup-label">2D CAD &amp; Constraints</div>
+            <div class="chips-list">
+              <span class="tool-chip">Line</span>
+              <span class="tool-chip">Arc</span>
+              <span class="tool-chip">Rectangle</span>
+              <span class="tool-chip">Center Rectangle</span>
+              <span class="tool-chip">Circle</span>
+              <span class="tool-chip">Polygon</span>
+              <span class="tool-chip">Slot</span>
+              <span class="tool-chip">Text</span>
+              <span class="tool-chip">Project</span>
+              <span class="tool-chip">Use Edge</span>
+              <span class="tool-chip">Trim</span>
+              <span class="tool-chip">Offset</span>
+              <span class="tool-chip">Mirror</span>
+              <span class="tool-chip">Smart Dimension</span>
+              <span class="tool-chip">Construction</span>
+              <span class="tool-chip">Look At</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- Download & Requirements Section -->
+<section class="section section-alt" id="download">
+  <div class="wrap">
+    <div class="section-header">
+      <span class="section-tag">Get Started</span>
+      <h2 class="section-title">Download or launch in your browser</h2>
+      <p class="section-desc">Single zip download with zero installation required, or run the full WebAssembly version directly online.</p>
+    </div>
+
+    <div class="download-grid">
+      <!-- Windows Download Box -->
+      <div class="dl-box">
+        <h3>Windows Portable Edition</h3>
+        <p>Pre-packaged portable executable. Extract anywhere (Desktop, Documents, or USB drive) and run immediately without administrator privileges.</p>
+        
+        <ol class="steps-list">
+          <li>Download <strong>STL-Editor-Windows-portable.zip</strong> (~79 MB).</li>
+          <li>Extract the zip archive to any folder on your computer.</li>
+          <li>Double-click <strong>STL Editor.exe</strong> to start.</li>
+        </ol>
+
+        <div style="display:flex; gap:14px; flex-wrap:wrap; align-items:center;">
+          <a class="btn-big btn-primary" style="min-width:auto; padding:12px 20px;" href="https://github.com/natterman12/STL-Editor/releases/latest/download/STL-Editor-Windows-portable.zip">
+            <div class="btn-title-row">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 3v13M6 11l6 6 6-6M4 21h16"/>
+              </svg>
+              <span>Download for Windows</span>
+            </div>
+            <span class="btn-note">v1.14.1 · ~79 MB · portable zip</span>
+          </a>
+
+          <a href="https://github.com/natterman12/STL-Editor/releases" target="_blank" rel="noopener" style="font-size:14.5px; font-weight:600;">
+            View all releases &rarr;
+          </a>
+        </div>
+
+        <div class="smartscreen-note">
+          <strong>Windows SmartScreen notice:</strong> Because STL Editor is an independent open-source project and not yet digitally code-signed, Windows Defender may show a <em>"Windows protected your PC"</em> prompt. Simply click <strong>More info</strong> and select <strong>Run anyway</strong>.
+        </div>
+      </div>
+
+      <!-- Specs & Web Edition Box -->
+      <div class="dl-box">
+        <h3>System Requirements</h3>
+        <table class="specs-table">
+          <tbody>
+            <tr>
+              <td>OS</td>
+              <td>Windows 10 or 11 (64-bit)</td>
+            </tr>
+            <tr>
+              <td>Disk Space</td>
+              <td>~150 MB unzipped</td>
+            </tr>
+            <tr>
+              <td>Input</td>
+              <td>STL, 3MF, OBJ, PLY, OFF, GLB/glTF, .stlx</td>
+            </tr>
+            <tr>
+              <td>Output</td>
+              <td>STL, 3MF, OBJ</td>
+            </tr>
+            <tr>
+              <td>Slicers</td>
+              <td>Bambu Studio, OrcaSlicer, PrusaSlicer</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3 style="margin-top:28px;">Web Edition</h3>
+        <p>Works in any modern browser (Chrome, Edge, Firefox, Safari) on Windows, macOS, Linux, ChromeOS, and tablets. Runs completely offline once loaded.</p>
+        <a class="btn-big btn-secondary" style="min-width:auto; padding:12px 20px; width:100%;" href="https://natterman12.github.io/STL-Editor/app/">
+          <div class="btn-title-row">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="2" y1="12" x2="22" y2="12"/>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+            </svg>
+            <span>Open Web Edition</span>
+          </div>
+          <span class="btn-note">Zero install · Runs in browser</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ Section -->
+<section class="section" id="faq">
+  <div class="wrap">
+    <div class="section-header">
+      <span class="section-tag">Questions &amp; Answers</span>
+      <h2 class="section-title">Frequently asked questions</h2>
+      <p class="section-desc">Quick answers about privacy, pricing, and how STL Editor compares to traditional tools.</p>
+    </div>
+
+    <div class="faq-wrap">
+      <details class="faq-item">
+        <summary class="faq-question">Is STL Editor really free?</summary>
+        <div class="faq-answer">
+          Yes. STL Editor is 100% free and open-source software distributed under the GNU General Public License v3.0 (GPL-3.0). You can use it freely for any project, including commercial 3D prints, without paying a dime.
+        </div>
+      </details>
+
+      <details class="faq-item">
+        <summary class="faq-question">Does it upload my 3D models to any cloud server?</summary>
+        <div class="faq-answer">
+          No. Everything stays private on your local computer. The desktop app only binds to your local loopback address (127.0.0.1) and never transmits model files. In the web edition, the geometry kernel runs locally inside your browser via WebAssembly; no files are ever sent over the internet.
+        </div>
+      </details>
+
+      <details class="faq-item">
+        <summary class="faq-question">How does it differ from traditional CAD and slicers?</summary>
+        <div class="faq-answer">
+          Standard CAD programs (like Fusion 360 or SolidWorks) treat imported STL meshes as dead, uneditable surfaces. Slicers (like Bambu Studio or PrusaSlicer) are great at slicing g-code, but lack parametric sketching, tapped thread generation, and hardware hole presets. STL Editor bridges the gap, allowing you to sketch, cut, and drill on mesh models as easily as in a solid modeler.
+        </div>
+      </details>
+
+      <details class="faq-item">
+        <summary class="faq-question">What is the difference between the desktop app and the web edition?</summary>
+        <div class="faq-answer">
+          Both editions share the exact same interface, modeling capabilities, and .stlx project format. The desktop app is recommended for very large meshes and enables direct integration to launch Bambu Studio / OrcaSlicer (Send to Slicer) and export to STEP. The web edition runs on any operating system (including macOS, Linux, and ChromeOS) with no download.
+        </div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
 <footer>
   <div class="wrap">
-    <div>© 2026 natterman12 · <a href="https://github.com/natterman12/STL-Editor/blob/main/LICENSE">GPL-3.0</a> · <a href="https://github.com/natterman12/STL-Editor">Source on GitHub</a> · <a href="https://github.com/natterman12/STL-Editor/blob/main/USER_GUIDE.md">User guide</a> · <a href="https://ko-fi.com/natterman12">Support on Ko-fi <span aria-hidden="true">&hearts;</span></a></div>
-    <div class="credits">Built on <a href="https://github.com/elalish/manifold">Manifold</a>, <a href="https://threejs.org">three.js</a>, <a href="https://github.com/gkjohnson/three-mesh-bvh">three-mesh-bvh</a>, <a href="https://trimesh.org">trimesh</a>, <a href="https://shapely.readthedocs.io">Shapely</a>, <a href="https://scikit-image.org">scikit-image</a>, SciPy, NumPy, <a href="https://pywebview.flowrl.com">pywebview</a>, <a href="https://github.com/101arrowz/fflate">fflate</a> and <a href="https://opentype.js.org">opentype.js</a>; supports by <a href="https://github.com/gittrahan/support-fins">Support Fins</a> (MIT).</div>
+    <div class="footer-content">
+      <div>
+        <strong>STL Editor</strong> &mdash; CAD-style editing for 3D printable meshes.
+      </div>
+      <div class="footer-links">
+        <a href="https://github.com/natterman12/STL-Editor" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/natterman12/STL-Editor/blob/main/LICENSE" target="_blank" rel="noopener">GPL-3.0 License</a>
+        <a href="https://github.com/natterman12/STL-Editor/blob/main/USER_GUIDE.md" target="_blank" rel="noopener">User Guide</a>
+        <span class="kofi-support">
+          Support development on <a href="https://ko-fi.com/natterman12" target="_blank" rel="noopener">Ko-fi &hearts;</a>
+        </span>
+      </div>
+    </div>
+    <div class="footer-credits">
+      Built with <a href="https://github.com/elalish/manifold" target="_blank" rel="noopener">Manifold</a>, <a href="https://threejs.org" target="_blank" rel="noopener">three.js</a>, <a href="https://trimesh.org" target="_blank" rel="noopener">trimesh</a>, and <a href="https://github.com/gittrahan/support-fins" target="_blank" rel="noopener">Support Fins</a>. All trademarks belong to their respective owners.
+    </div>
   </div>
 </footer>
 
