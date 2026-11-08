@@ -26,3 +26,6 @@ Claude outputs/
 Thumbs.db
 desktop.ini
 .DS_Store
+
+# graphify knowledge-graph output
+graphify-out/
