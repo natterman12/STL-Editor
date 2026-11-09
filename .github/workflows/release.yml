@@ -1,7 +1,9 @@
 name: Release
 
 # Push a tag like v1.2.1 (matching __version__ in stleditor/__init__.py) and this
-# builds the portable Windows zip, smoke-tests it and publishes a GitHub release.
+# builds the portable Windows zip, plus the beta Linux and Mac builds, smoke-tests each one
+# and publishes a GitHub release. The publish job needs all three builds, so nothing is
+# published if any of them fails.
 # Optional release notes: .github/release-notes/<tag>.md (otherwise GitHub writes them).
 
 on:
@@ -73,27 +75,142 @@ jobs:
           if (-not $ok) { throw "The built app didn't answer on its local API" }
           "Built app works"
 
-      - name: Publish the release
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          $hash = (Get-FileHash $env:ASSET -Algorithm SHA256).Hash.ToLower()
-          $notes = ".github/release-notes/$env:TAG.md"
-          $body = if (Test-Path $notes) { Get-Content $notes -Raw } else { "" }
-          $body += "`n`nSHA-256 of $($env:ASSET): ``$hash``"
-          Set-Content notes.md $body -Encoding utf8
-          gh release view $env:TAG *> $null
-          if ($LASTEXITCODE -eq 0) {
-            gh release upload $env:TAG $env:ASSET --clobber
-          } elseif (Test-Path $notes) {
-            gh release create $env:TAG $env:ASSET --title "STL Editor $($env:TAG.TrimStart('v'))" --notes-file notes.md --latest
-          } else {
-            gh release create $env:TAG $env:ASSET --title "STL Editor $($env:TAG.TrimStart('v'))" --generate-notes --notes-file notes.md --latest
-          }
-
       - uses: actions/upload-artifact@v7
         with:
           name: STL-Editor-Windows-portable
           path: ${{ env.ASSET }}
           retention-days: 14
+
+  linux:
+    # Beta: the Linux build is not yet tested on real machines.
+    runs-on: ubuntu-22.04
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      ASSET: STL-Editor-Linux-x86_64.tar.gz
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt "pyinstaller>=6.10,<7" PyQt6 PyQt6-WebEngine
+
+      - name: Build the Linux app
+        run: |
+          python packaging/build_native.py --target linux
+          test -f dist/$ASSET || { echo "dist/$ASSET was not built"; exit 1; }
+          mkdir -p dist/extracted
+          tar -xzf dist/$ASSET -C dist/extracted
+
+      - name: Smoke-test the built app
+        env:
+          QT_QPA_PLATFORM: offscreen
+          STLEDITOR_PORT: "8799"
+        run: |
+          exe=$(find dist/extracted -type f -name "STL Editor" | head -n 1)
+          test -n "$exe" || { echo "No STL Editor executable found in dist/extracted"; exit 1; }
+          chmod +x "$exe"
+          python packaging/smoke_test.py "$exe"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: STL-Editor-Linux-x86_64
+          path: dist/${{ env.ASSET }}
+          retention-days: 14
+
+  mac-arm64:
+    # Beta: the Mac build is not yet tested on real machines.
+    runs-on: macos-14
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      ASSET: STL-Editor-macOS-arm64.zip
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt "pyinstaller>=6.10,<7" PyQt6 PyQt6-WebEngine
+
+      - name: Build the Mac app
+        run: |
+          python packaging/build_native.py --target mac-arm64
+          test -f dist/$ASSET || { echo "dist/$ASSET was not built"; exit 1; }
+          mkdir -p dist/extracted
+          ditto -x -k dist/$ASSET dist/extracted
+
+      - name: Smoke-test the built app
+        env:
+          STLEDITOR_PORT: "8799"
+        run: |
+          exe=$(find dist/extracted -type f -path "*Contents/MacOS/*" -name "STL Editor" | head -n 1)
+          test -n "$exe" || { echo "No STL Editor executable found in dist/extracted"; exit 1; }
+          chmod +x "$exe"
+          python packaging/smoke_test.py "$exe"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: STL-Editor-macOS-arm64
+          path: dist/${{ env.ASSET }}
+          retention-days: 14
+
+  publish:
+    # Runs only when build, linux and mac-arm64 have all succeeded.
+    needs: [build, linux, mac-arm64]
+    runs-on: windows-latest
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      WIN_ASSET: STL-Editor-Windows-portable.zip
+      LINUX_ASSET: STL-Editor-Linux-x86_64.tar.gz
+      MAC_ASSET: STL-Editor-macOS-arm64.zip
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: STL-Editor-Windows-portable
+          path: assets
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: STL-Editor-Linux-x86_64
+          path: assets
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: STL-Editor-macOS-arm64
+          path: assets
+
+      - name: Publish the release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $win = Join-Path assets $env:WIN_ASSET
+          $linux = Join-Path assets $env:LINUX_ASSET
+          $mac = Join-Path assets $env:MAC_ASSET
+          foreach ($f in @($win, $linux, $mac)) { if (-not (Test-Path $f)) { throw "Missing $f; not publishing." } }
+          $notes = ".github/release-notes/$env:TAG.md"
+          $body = if (Test-Path $notes) { Get-Content $notes -Raw } else { "" }
+          $body += "`n`nSHA-256 of $($env:WIN_ASSET): ``$((Get-FileHash $win -Algorithm SHA256).Hash.ToLower())``"
+          $body += "`n`nBeta (Linux and Mac builds, not yet tested on real machines):"
+          $body += "`n`nSHA-256 of $($env:LINUX_ASSET): ``$((Get-FileHash $linux -Algorithm SHA256).Hash.ToLower())``"
+          $body += "`n`nSHA-256 of $($env:MAC_ASSET): ``$((Get-FileHash $mac -Algorithm SHA256).Hash.ToLower())``"
+          Set-Content notes.md $body -Encoding utf8
+          $files = @($win, $linux, $mac)
+          gh release view $env:TAG *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $env:TAG $files --clobber
+          } elseif (Test-Path $notes) {
+            gh release create $env:TAG $files --title "STL Editor $($env:TAG.TrimStart('v'))" --notes-file notes.md --latest
+          } else {
+            gh release create $env:TAG $files --title "STL Editor $($env:TAG.TrimStart('v'))" --generate-notes --notes-file notes.md --latest
+          }

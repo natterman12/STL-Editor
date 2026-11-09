@@ -1,0 +1,95 @@
+name: Build test (Linux and Mac, no release)
+
+# Manual test build of the beta Linux and Mac apps. Uploads the files as run artifacts only;
+# it never publishes a release. Run it from a branch with: gh workflow run build-test.yml --ref <branch>
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    # Beta: the Linux build is not yet tested on real machines.
+    runs-on: ubuntu-22.04
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      ASSET: STL-Editor-Linux-x86_64.tar.gz
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt "pyinstaller>=6.10,<7" PyQt6 PyQt6-WebEngine
+
+      - name: Build the Linux app
+        run: |
+          python packaging/build_native.py --target linux
+          test -f dist/$ASSET || { echo "dist/$ASSET was not built"; exit 1; }
+          mkdir -p dist/extracted
+          tar -xzf dist/$ASSET -C dist/extracted
+
+      - name: Smoke-test the built app
+        env:
+          QT_QPA_PLATFORM: offscreen
+          STLEDITOR_PORT: "8799"
+        run: |
+          exe=$(find dist/extracted -type f -name "STL Editor" | head -n 1)
+          test -n "$exe" || { echo "No STL Editor executable found in dist/extracted"; exit 1; }
+          chmod +x "$exe"
+          python packaging/smoke_test.py "$exe"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: STL-Editor-Linux-x86_64
+          path: dist/${{ env.ASSET }}
+          retention-days: 14
+
+  mac-arm64:
+    # Beta: the Mac build is not yet tested on real machines.
+    runs-on: macos-14
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      ASSET: STL-Editor-macOS-arm64.zip
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt "pyinstaller>=6.10,<7" PyQt6 PyQt6-WebEngine
+
+      - name: Build the Mac app
+        run: |
+          python packaging/build_native.py --target mac-arm64
+          test -f dist/$ASSET || { echo "dist/$ASSET was not built"; exit 1; }
+          mkdir -p dist/extracted
+          ditto -x -k dist/$ASSET dist/extracted
+
+      - name: Smoke-test the built app
+        env:
+          STLEDITOR_PORT: "8799"
+        run: |
+          exe=$(find dist/extracted -type f -path "*Contents/MacOS/*" -name "STL Editor" | head -n 1)
+          test -n "$exe" || { echo "No STL Editor executable found in dist/extracted"; exit 1; }
+          chmod +x "$exe"
+          python packaging/smoke_test.py "$exe"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: STL-Editor-macOS-arm64
+          path: dist/${{ env.ASSET }}
+          retention-days: 14
+

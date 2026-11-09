@@ -15,6 +15,33 @@ goes into an editable history (the timeline), so you can change an earlier step 
 - Web edition: open https://natterman12.github.io/STL-Editor/app/ in Chrome, Edge, Firefox or Safari.
   Nothing is installed. See *Web edition* below for what's different.
 
+## Mac and Linux (beta)
+
+There are beta desktop builds for Mac and Linux. They work like the Windows version, but
+they are new and less tested. If something goes wrong, the web edition is the safe choice.
+
+**Mac (Apple Silicon only, the M-series chips):**
+
+1. Download the Mac zip from the release page and unzip it.
+2. Move **STL Editor.app** to your Applications folder.
+3. The app isn't signed or notarized by Apple yet, so macOS blocks it the first time. Open
+   **System Settings › Privacy & Security**, scroll down and click **Open Anyway**.
+   Or, in Terminal, run this once after unzipping: `xattr -dr com.apple.quarantine "STL Editor.app"`
+4. Intel Macs: the Mac build doesn't run on them. Use the web edition for now.
+
+Keep the app in Applications. Updates can't replace an app that is still running from the
+download folder, so move it there first.
+
+**Linux:**
+
+1. Download the Linux `.tar.gz` from the release page and extract (unzip) it.
+2. Open the folder and run the **STL Editor** program inside it.
+
+Linux needs no install.
+
+**Send to Slicer** on Mac and Linux finds Bambu Studio, OrcaSlicer and PrusaSlicer.
+**To STEP** is Windows only.
+
 ## Mouse
 
 | Action | How |
