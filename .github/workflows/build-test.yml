@@ -56,7 +56,7 @@ jobs:
 
   mac-arm64:
     # Beta: the Mac build is not yet tested on real machines.
-    runs-on: macos-14
+    runs-on: macos-latest
     env:
       TAG: ${{ inputs.tag || github.ref_name }}
       ASSET: STL-Editor-macOS-arm64.zip
