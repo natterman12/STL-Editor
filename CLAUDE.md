@@ -80,7 +80,9 @@ ad-like.
 
 1. Bump `__version__` and routes.js `VERSION`, run `python packaging/build_web.py`, run the
    tests, and write the notes to `.github/release-notes/v<version>.md` (the Release workflow
-   uses that file; plain-English sections like the earlier releases).
+   uses that file; plain-English sections like the earlier releases). Update the version and
+   size on the two download buttons in `docs/index.html` (hero and Get started), and the Mac and
+   Linux box if those builds changed.
 2. Commit, then `git tag v<version>`, `git push`, `git push origin v<version>`.
 3. The **Release** workflow tests, builds, smoke-tests and publishes
    `STL-Editor-Windows-portable.zip` (keep that asset name: the website links to
