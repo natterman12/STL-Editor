@@ -42,6 +42,20 @@ Linux needs no install.
 **Send to Slicer** on Mac and Linux finds Bambu Studio, OrcaSlicer and PrusaSlicer.
 **To STEP** is Windows only.
 
+**Build the Mac app yourself** (if there's no Mac download yet, or you want the newest code).
+You need an Apple Silicon Mac, macOS 13 or newer, and Python 3.12 (from python.org or Homebrew).
+Open Terminal, go to the folder with the source code, then run:
+
+    python3 -m venv .venv
+    source .venv/bin/activate
+    python -m pip install -r requirements.txt "pyinstaller>=6.10,<7" PyQt6 PyQt6-WebEngine
+    python packaging/build_native.py --target mac-arm64
+
+The zip appears in the **dist** folder as **STL-Editor-macOS-arm64.zip**. Unzip it and follow the
+steps above to open the app.
+
+To run without building, from the same folder: python3 main.py (after the install step).
+
 ## Mouse
 
 | Action | How |
