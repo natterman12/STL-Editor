@@ -4,6 +4,8 @@ name: Build test (Linux and Mac, no release)
 # it never publishes a release. Run it from a branch with: gh workflow run build-test.yml --ref <branch>
 
 on:
+  push:
+    branches: [test/native-build]
   workflow_dispatch:
 
 permissions:
