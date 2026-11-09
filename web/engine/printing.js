@@ -1,7 +1,7 @@
 // Print-oriented geometry (port of stleditor/printing.py): split with connectors, fit to bed,
 // push/pull, lay flat and threads.
 import { Manifold, CrossSection, crossSection } from './wasm.js';
-import { GeometryError, planeFrame, makeCylinder, unit, dot, cross, add, sub, mul, worldToFrame, frameMatrix, mat4, triNormals } from './geom.js';
+import { GeometryError, manifoldFromArrays, planeFrame, makeCylinder, unit, dot, cross, add, sub, mul, worldToFrame, frameMatrix, mat4, triNormals } from './geom.js';
 import { pointInRing } from './sketch2d.js';
 
 export const PRINTERS = {
@@ -238,6 +238,7 @@ export function layFlatMatrix(solid, normal) {
 }
 
 // ---------------------------------------------------------------- threads
+// ISO metric 60° profile, built as a helical sweep so the flanks follow the helix.
 function threadSection(D, P, n) {
   const H = 0.8660254 * P, R = D / 2, depth = 5 * H / 8;
   const a = P / 8, b = P / 8 + 5 * P / 16, c = b + P / 8, d = b + P / 8 + 5 * P / 16;
@@ -253,20 +254,75 @@ function threadSection(D, P, n) {
   return { pts, depth };
 }
 
+// Triangles closing the flat cut between a column of profile corners and the axis
+// (both lists of [index, z], z increasing, same first and last z).
+function threadWall(outer, axis, flip, out) {
+  let i = 0, j = 0;
+  while (i < outer.length - 1 || j < axis.length - 1) {
+    let t;
+    if (j === axis.length - 1 || (i < outer.length - 1 && outer[i + 1][1] <= axis[j + 1][1])) { t = [outer[i][0], outer[i + 1][0], axis[j][0]]; i++; }
+    else { t = [outer[i][0], axis[j + 1][0], axis[j][0]]; j++; }
+    if (flip) t.reverse();
+    out.push(...t);
+  }
+}
+
+// Right-hand ISO thread as a closed mesh: the four profile corners (root end, crest start,
+// crest end, root start) of every turn are helices sampled at N angles, stitched into one
+// band, closed at both ends by a helicoid and a flat cut. Reaches past z=0 and z=L by about
+// a pitch; the caller clips it. Surface radius: f(phi*P/2pi - z). Same as printing.py.
+function helicalThread(D, P, L, N) {
+  const H = 0.8660254 * P, R = D / 2, Rm = R - 5 * H / 8;
+  const U = [14 * P / 16, 9 * P / 16, 7 * P / 16, 2 * P / 16], RR = [Rm, R, R, Rm];
+  const M = Math.ceil(L / P - 1e-9) + 3, J = 4 * M, zb = -P;
+  const nv = J * N + 2 * (N + 1), v = new Float64Array(nv * 3);
+  const idx = (j, k) => j * N + k;
+  for (let j = 0; j < J; j++) for (let k = 0; k < N; k++) {
+    const phi = 2 * Math.PI * k / N, r = RR[j % 4], p = 3 * idx(j, k);
+    v[p] = r * Math.cos(phi); v[p + 1] = r * Math.sin(phi);
+    v[p + 2] = zb + Math.floor(j / 4) * P - U[j % 4] + k * P / N;
+  }
+  const f = [], q = [];
+  for (let j = 0; j < J - 1; j++) for (let k = 0; k < N - 1; k++) q.push([idx(j, k), idx(j, k + 1), idx(j + 1, k + 1), idx(j + 1, k)]);
+  for (let j = 0; j < J - 5; j++) q.push([idx(j, N - 1), idx(j + 4, 0), idx(j + 5, 0), idx(j + 1, N - 1)]);
+  for (const [a, b, c] of q) f.push(a, b, c);
+  for (const [a, , c, d] of q) f.push(a, c, d);
+  // the two ends: the faces are listed in the same order as printing.py so the meshes match
+  const base = J * N, ab = [], at = [];
+  for (let s = 0; s <= N; s++) {
+    ab.push([base + s, zb - U[0] + s * P / N]);
+    at.push([base + N + 1 + s, zb + (M - 1) * P - U[3] + (s - 1) * P / N]);
+  }
+  for (const [i, z] of ab.concat(at)) v[3 * i + 2] = z;
+  const zOf = i => v[3 * i + 2];
+  const ob = []; for (let k = 0; k < N; k++) ob.push(idx(0, k)); ob.push(idx(4, 0));
+  for (let s = 0; s < N; s++) f.push(ab[s][0], ob[s + 1], ob[s]);
+  for (let s = 0; s < N; s++) f.push(ab[s][0], ab[s + 1][0], ob[s + 1]);
+  const cb = []; for (let q = 0; q < 5; q++) cb.push([idx(q, 0), zOf(idx(q, 0))]);
+  threadWall(cb, ab, false, f);
+  const ot = [idx(J - 5, N - 1)]; for (let k = 0; k < N; k++) ot.push(idx(J - 1, k));
+  for (let s = 0; s < N; s++) f.push(at[s][0], ot[s], ot[s + 1]);
+  for (let s = 0; s < N; s++) f.push(at[s][0], ot[s + 1], at[s + 1][0]);
+  const ct = []; for (let q = J - 5; q < J; q++) ct.push([idx(q, N - 1), zOf(idx(q, N - 1))]);
+  threadWall(ct, at, true, f);
+  const man = manifoldFromArrays(Float32Array.from(v), Uint32Array.from(f));
+  if (!man) throw new GeometryError('Could not build this thread. Try a different size or pitch.');
+  return man;
+}
+
 export function threadedRod(D, P, L, hand = 'right', chamfer = true) {
   if (D <= 0 || P <= 0 || L <= 0) throw new GeometryError('Diameter, pitch and length must be positive.');
   if (P > D / 2) throw new GeometryError('The pitch is too coarse for this diameter.');
   const n = Math.round(Math.min(240, Math.max(90, D * 10)));
-  const { pts, depth } = threadSection(D, P, n);
-  const turns = L / P;
-  const twist = 360 * turns * (hand === 'right' ? 1 : -1);
-  let rod = Manifold.extrude(crossSection([pts], 'Positive'), L, Math.floor(Math.max(8, turns * 20)), twist);
-  if (chamfer) {
-    const R = D / 2, c = Math.min(depth * 1.1, L / 3);
-    const prof = crossSection([[[0, 0], [R - c, 0], [R + 0.01, c], [R + 0.01, L - c], [R - c, L], [0, L]]], 'Positive');
-    rod = rod.intersect(Manifold.revolve(prof, n));
-  }
-  return rod;
+  const depth = 5 * 0.8660254 * P / 8;
+  let rod = helicalThread(D, P, L, n);
+  if (hand !== 'right') rod = rod.mirror([0, 1, 0]);
+  const R = D / 2, c = chamfer ? Math.min(depth * 1.1, L / 3) : 0;
+  const prof = chamfer ? [[0, 0], [R - c, 0], [R + 0.01, c], [R + 0.01, L - c], [R - c, L], [0, L]]
+    : [[0, 0], [R + 0.01, 0], [R + 0.01, L], [0, L]];
+  // turned half a step so its edges fall between the thread's columns (fewer slivers)
+  const clip = Manifold.revolve(crossSection([prof], 'Positive'), n).rotate([0, 0, 180 / n]);
+  return rod.intersect(clip);
 }
 
 export function threadTool(kind, D, P, L, tolerance = 0.2, hand = 'right', chamfer = true) {

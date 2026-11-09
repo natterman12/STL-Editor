@@ -106,6 +106,35 @@ def test_thread_bolt_and_nut():
     assert min((bolt ^ nut.rotate((0, 0, a))).volume() for a in range(0, 360, 15)) < 0.05
 
 
+def _iso_thread_radius(u, D, P):
+    """Ideal ISO metric profile radius at axial phase u (same profile and phase as printing.py)."""
+    depth = 5 * 0.8660254 * P / 8
+    R = D / 2
+    a, b, c, d = P / 8, 7 * P / 16, 9 * P / 16, 7 * P / 8
+    u = np.mod(u, P)
+    return np.select([u < a, u < b, u < c, u < d],
+                     [R - depth, R - depth + depth * (u - a) / (b - a), R, R - depth * (u - c) / (d - c)],
+                     R - depth)
+
+
+def test_thread_flanks_smooth():
+    """The thread surface follows the ISO profile along the helix (no jagged flanks)."""
+    D, P, L = 8.0, 1.25, 12.0
+    uu = np.linspace(0, P, 200001)
+    ideal_vol = L * math.pi / P * np.trapezoid(_iso_thread_radius(uu, D, P) ** 2, uu)
+    for hand, s in (("right", 1), ("left", -1)):
+        rod = PR.thread_tool("external", D, P, L, tolerance=0, hand=hand, chamfer=False)
+        mm = rod.to_mesh()
+        v = np.asarray(mm.vert_properties)[:, :3]
+        cen = v[np.asarray(mm.tri_verts)].mean(1)
+        cen = cen[(cen[:, 2] > 1.5) & (cen[:, 2] < L - 1.5)]
+        th = np.arctan2(cen[:, 1], cen[:, 0])
+        u = cen[:, 2] - s * th / (2 * math.pi) * P
+        dev = np.abs(np.hypot(cen[:, 0], cen[:, 1]) - _iso_thread_radius(u, D, P)).max()
+        assert dev < 0.01, f"{hand}-hand thread surface is jagged: {dev:.4f} mm off the ISO profile"
+        assert rod.volume() == pytest.approx(ideal_vol, rel=0.01), hand
+
+
 def test_lay_flat_auto(block):
     doc, B = block
     doc.add_feature("move", {"bodies": [B], "rotate": [30, 20, 0], "translate": [0, 0, 0]})

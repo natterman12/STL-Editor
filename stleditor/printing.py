@@ -407,7 +407,7 @@ def lay_flat_matrix(solid: m3.Manifold, normal):
 
 
 # ------------------------------------------------------------------------------------------
-# Threads (ISO metric 60° profile, made as a twisted extrusion so the helix is exact)
+# Threads (ISO metric 60° profile, built as a helical sweep so the flanks follow the helix)
 # ------------------------------------------------------------------------------------------
 METRIC_COARSE = {2: 0.4, 2.5: 0.45, 3: 0.5, 4: 0.7, 5: 0.8, 6: 1.0, 8: 1.25, 10: 1.5,
                  12: 1.75, 14: 2.0, 16: 2.0, 20: 2.5, 24: 3.0, 30: 3.5}
@@ -434,23 +434,97 @@ def _thread_section(D, P, n):
     return np.column_stack([r * np.cos(th), r * np.sin(th)]), depth
 
 
+def _wall(outer, axis, flip):
+    """Triangles closing the flat cut between a column of profile corners and the axis
+    (both lists of (index, z), z increasing, same first and last z)."""
+    tris = []
+    i = j = 0
+    while i < len(outer) - 1 or j < len(axis) - 1:
+        if j == len(axis) - 1 or (i < len(outer) - 1 and outer[i + 1][1] <= axis[j + 1][1]):
+            t = (outer[i][0], outer[i + 1][0], axis[j][0])
+            i += 1
+        else:
+            t = (outer[i][0], axis[j + 1][0], axis[j][0])
+            j += 1
+        tris.append(t[::-1] if flip else t)
+    return tris
+
+
+def _helical_thread(D, P, L, N):
+    """Right-hand ISO thread as a closed mesh: the four profile corners (root end, crest
+    start, crest end, root start) of every turn are helices sampled at N angles, stitched
+    into one band, closed at both ends by a helicoid and a flat cut. Reaches past z=0 and
+    z=L by about a pitch; the caller clips it. Surface radius: f(phi*P/2pi - z)."""
+    H = 0.8660254 * P
+    R = D / 2
+    Rm = R - 5 * H / 8
+    U = (14 * P / 16, 9 * P / 16, 7 * P / 16, 2 * P / 16)       # u of each corner, z order
+    RR = (Rm, R, R, Rm)
+    M = int(math.ceil(L / P - 1e-9)) + 3
+    J = 4 * M
+    zb = -P
+    k = np.arange(N)
+    phi = 2 * math.pi * k / N
+    j = np.arange(J)
+    r = np.array(RR)[j % 4]
+    z = zb + (j // 4)[:, None] * P - np.array(U)[j % 4][:, None] + (k * P / N)[None, :]
+    V = np.empty((J, N, 3))
+    V[:, :, 0] = r[:, None] * np.cos(phi)[None, :]
+    V[:, :, 1] = r[:, None] * np.sin(phi)[None, :]
+    V[:, :, 2] = z
+    V = V.reshape(-1, 3)
+    idx = lambda jj, kk: jj * N + kk
+    # band
+    jj, kk = np.meshgrid(np.arange(J - 1), np.arange(N - 1), indexing="ij")
+    a, b, c, d = idx(jj, kk), idx(jj, kk + 1), idx(jj + 1, kk + 1), idx(jj + 1, kk)
+    js = np.arange(J - 5)
+    sa, sb, sc, sd = idx(js, N - 1), idx(js + 4, 0), idx(js + 5, 0), idx(js + 1, N - 1)
+    A = np.concatenate([a.ravel(), sa]); B = np.concatenate([b.ravel(), sb])
+    C = np.concatenate([c.ravel(), sc]); Dd = np.concatenate([d.ravel(), sd])
+    tris = [np.column_stack([A, B, C]), np.column_stack([A, C, Dd])]
+    # bottom: helicoid under corner row 0, flat cut at phi=0
+    base = J * N
+    ab = base + np.arange(N + 1)
+    zab = zb - U[0] + np.arange(N + 1) * P / N
+    o = np.concatenate([idx(0, np.arange(N)), [idx(4, 0)]])
+    tris.append(np.column_stack([ab[:-1], o[1:], o[:-1]]))
+    tris.append(np.column_stack([ab[:-1], ab[1:], o[1:]]))
+    col = [(idx(q, 0), V[idx(q, 0), 2]) for q in range(5)]
+    tris.append(np.array(_wall(col, list(zip(ab.tolist(), zab.tolist())), False)))
+    # top: helicoid over corner row J-1, flat cut at phi of column N-1
+    at = base + N + 1 + np.arange(N + 1)
+    zat = zb + (M - 1) * P - U[3] + (np.arange(N + 1) - 1) * P / N
+    o = np.concatenate([[idx(J - 5, N - 1)], idx(J - 1, np.arange(N))])
+    tris.append(np.column_stack([at[:-1], o[:-1], o[1:]]))
+    tris.append(np.column_stack([at[:-1], o[1:], at[1:]]))
+    col = [(idx(q, N - 1), V[idx(q, N - 1), 2]) for q in range(J - 5, J)]
+    tris.append(np.array(_wall(col, list(zip(at.tolist(), zat.tolist())), True)))
+    Vaxis = np.zeros((2 * (N + 1), 3))
+    Vaxis[:N + 1, 2] = zab
+    Vaxis[N + 1:, 2] = zat
+    verts = np.vstack([V, Vaxis])
+    man = G.manifold_from_arrays(verts, np.vstack(tris))
+    if man is None:
+        raise GeometryError("Could not build this thread. Try a different size or pitch.")
+    return man
+
+
 def threaded_rod(D, P, L, hand="right", chamfer=True):
     """Threaded rod along +Z from 0 to L (major diameter D, pitch P)."""
     if D <= 0 or P <= 0 or L <= 0:
         raise GeometryError("Diameter, pitch and length must be positive.")
     if P > D / 2:
         raise GeometryError("The pitch is too coarse for this diameter.")
-    n = int(np.clip(D * 10, 90, 240))
-    sec, depth = _thread_section(D, P, n)
-    turns = L / P
-    twist = 360.0 * turns * (1 if hand == "right" else -1)
-    rod = m3.Manifold.extrude(m3.CrossSection([sec]), float(L), int(max(8, turns * 20)), twist)
-    if chamfer:
-        R = D / 2
-        c = min(depth * 1.1, L / 3)
-        prof = m3.CrossSection([np.array([[0, 0], [R - c, 0], [R + 0.01, c], [R + 0.01, L - c], [R - c, L], [0, L]], float)])
-        rod = rod ^ m3.Manifold.revolve(prof, n)
-    return rod
+    n = int(np.floor(min(240, max(90, D * 10)) + 0.5))
+    depth = 5 * 0.8660254 * P / 8
+    rod = _helical_thread(D, P, L, n)
+    if hand != "right":
+        rod = rod.mirror((0, 1, 0))
+    R = D / 2
+    c = min(depth * 1.1, L / 3) if chamfer else 0.0
+    prof = [[0, 0], [R - c, 0], [R + 0.01, c], [R + 0.01, L - c], [R - c, L], [0, L]] if chamfer else [[0, 0], [R + 0.01, 0], [R + 0.01, L], [0, L]]
+    clip = m3.Manifold.revolve(m3.CrossSection([np.array(prof, float)]), n).rotate((0, 0, 180.0 / n))
+    return rod ^ clip
 
 
 def thread_tool(kind, D, P, L, tolerance=0.2, hand="right", chamfer=True):

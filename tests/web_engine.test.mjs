@@ -84,6 +84,38 @@ test('thread bolt and nut mesh', () => {
   assert.ok(best < 0.05, `interference ${best}`);
 });
 
+// Ideal ISO metric profile radius at axial phase u (same profile and phase as printing.js).
+function isoThreadRadius(u0, D, P) {
+  const depth = 5 * 0.8660254 * P / 8, R = D / 2, a = P / 8, b = 7 * P / 16, c = 9 * P / 16, d = 7 * P / 8;
+  const u = ((u0 % P) + P) % P;
+  if (u < a || u >= d) return R - depth;
+  if (u < b) return R - depth + depth * (u - a) / (b - a);
+  if (u < c) return R;
+  return R - depth * (u - c) / (d - c);
+}
+
+test('thread flanks smooth', async () => {
+  // The thread surface follows the ISO profile along the helix (no jagged flanks).
+  const PR = await load('engine/printing.js');
+  const D = 8, P = 1.25, L = 12, n = 200000;
+  let s2 = 0;
+  for (let i = 0; i <= n; i++) s2 += (i === 0 || i === n ? 0.5 : 1) * isoThreadRadius(P * i / n, D, P) ** 2;
+  const idealVol = L * Math.PI / P * s2 * P / n;
+  for (const [hand, s] of [['right', 1], ['left', -1]]) {
+    const rod = PR.threadTool('external', D, P, L, 0, hand, false);
+    const m = rod.getMesh(), np = m.numProp, v = m.vertProperties, t = m.triVerts;
+    let dev = 0;
+    for (let i = 0; i < t.length; i += 3) {
+      const c = [0, 1, 2].map(k => (v[np * t[i] + k] + v[np * t[i + 1] + k] + v[np * t[i + 2] + k]) / 3);
+      if (c[2] <= 1.5 || c[2] >= L - 1.5) continue;
+      const u = c[2] - s * Math.atan2(c[1], c[0]) / (2 * Math.PI) * P;
+      dev = Math.max(dev, Math.abs(Math.hypot(c[0], c[1]) - isoThreadRadius(u, D, P)));
+    }
+    assert.ok(dev < 0.01, `${hand}-hand thread surface is jagged: ${dev.toFixed(4)} mm off the ISO profile`);
+    approx(rod.volume(), idealVol, 0.01, hand);
+  }
+});
+
 test('lay flat, split with pins, fit to bed', () => {
   const [doc, B] = block();
   doc.addFeature('move', { bodies: [B], rotate: [30, 20, 0], translate: [0, 0, 0] });
