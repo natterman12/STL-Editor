@@ -673,41 +673,266 @@ def test_support_fins_extras():
         assert abs(pr["support"]["volume"] - 2014.4) < 4     # the web engine gives the same
 
 
-def test_one_click_update_download(tmp_path, monkeypatch):
-    """The portable app downloads the release zip, checks its SHA-256 and unpacks it."""
+PLATFORM_CASES = [
+    # (sys.platform, machine, release asset, layout of the zip / tar.gz, the app's top-level item)
+    ("win32", "AMD64", "STL-Editor-Windows-portable.zip",
+     {"STL Editor/STL Editor.exe": b"new exe", "STL Editor/_internal/x.pyd": b"lib"}, "STL Editor"),
+    ("darwin", "arm64", "STL-Editor-macOS-arm64.zip",
+     {"STL Editor.app/Contents/MacOS/STL Editor": b"new exe", "STL Editor.app/Contents/Info.plist": b"plist"},
+     "STL Editor.app"),
+    ("linux", "x86_64", "STL-Editor-Linux-x86_64.tar.gz",
+     {"STL Editor/STL Editor": b"new exe", "STL Editor/_internal/x.so": b"lib"}, "STL Editor"),
+]
+
+
+def _make_archive(path, files):
+    import io
+    import tarfile
+    import zipfile as zf
+    if str(path).endswith(".tar.gz"):
+        with tarfile.open(path, "w:gz") as t:
+            for name, data in files.items():
+                info = tarfile.TarInfo(name)
+                info.size = len(data)
+                t.addfile(info, io.BytesIO(data))
+    else:
+        with zf.ZipFile(path, "w") as w:
+            for name, data in files.items():
+                w.writestr(name, data)
+
+
+@pytest.mark.parametrize("plat,machine,asset,files,top", PLATFORM_CASES)
+def test_one_click_update_download(tmp_path, monkeypatch, plat, machine, asset, files, top):
+    """The app downloads its system's release archive, checks its SHA-256 and unpacks it."""
     import functools
     import hashlib
     import http.server
     import threading
-    import zipfile as zf
     from stleditor import updates as U
-    z = tmp_path / "serve" / U.ASSET
+    monkeypatch.setattr(sys, "platform", plat)
+    monkeypatch.setattr(U.platform, "machine", lambda: machine)
+    z = tmp_path / "serve" / asset
     z.parent.mkdir()
-    with zf.ZipFile(z, "w") as w:
-        w.writestr("STL Editor/STL Editor.exe", b"new exe")
-        w.writestr("STL Editor/_internal/x.pyd", b"lib")
+    _make_archive(z, files)
     digest = hashlib.sha256(z.read_bytes()).hexdigest()
     srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), functools.partial(http.server.SimpleHTTPRequestHandler,
                                                                                 directory=str(z.parent)))
     threading.Thread(target=srv.serve_forever, daemon=True).start()
-    url = f"http://127.0.0.1:{srv.server_address[1]}/{U.ASSET}"
+    url = f"http://127.0.0.1:{srv.server_address[1]}/{asset}"
     app_dir = tmp_path / "app"
     app_dir.mkdir()
     monkeypatch.setattr(U, "install_mode", lambda: "portable")
     monkeypatch.setattr(U, "app_dir", lambda: str(app_dir))
     monkeypatch.setattr(U, "WORK", str(tmp_path / "work"))
-    rel = {"tag_name": "v9.9.9", "assets": [{"name": U.ASSET, "browser_download_url": url, "size": z.stat().st_size,
+    rel = {"tag_name": "v9.9.9", "assets": [{"name": asset, "browser_download_url": url, "size": z.stat().st_size,
                                              "digest": "sha256:" + digest}]}
     monkeypatch.setattr(U, "_release", lambda: rel)
     U._install()
     try:
         assert U.INSTALL["state"] == "ready", U.INSTALL
-        assert os.path.isfile(os.path.join(U.INSTALL["src"], "STL Editor.exe"))
+        assert U.INSTALL["src"] == os.path.join(str(tmp_path / "work" / "new"), top)
+        assert os.path.isdir(U.INSTALL["src"])
         rel["assets"][0]["digest"] = "sha256:" + "0" * 64
         U._install()
         assert U.INSTALL["state"] == "error" and "checksum" in U.INSTALL["error"]
     finally:
         srv.shutdown()
+
+
+# ------------------------------------------------------------------ per-system folders
+def _system(monkeypatch, plat, home, **env):
+    """Pretend to be `plat` with `home` as the user's folder and the given environment variables."""
+    from stleditor import paths as P
+    monkeypatch.setattr(sys, "platform", plat)
+    for k in ("APPDATA", "LOCALAPPDATA", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME"):
+        monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    for k, v in env.items():
+        monkeypatch.setenv(k, v)
+    return P
+
+
+def test_windows_folders_unchanged(tmp_path, monkeypatch):
+    roaming = r"C:\Users\ggnn1\AppData\Roaming"
+    local = r"C:\Users\ggnn1\AppData\Local"
+    P = _system(monkeypatch, "win32", tmp_path, APPDATA=roaming, LOCALAPPDATA=local)
+    assert P.config_dir() == os.path.join(roaming, "STL Editor")
+    assert P.data_dir() == os.path.join(local, "STL Editor")
+    assert P.log_dir() == os.path.join(local, "STL Editor")
+    if os.name == "nt":  # the exact folders the installed app has always used
+        assert P.config_dir() == r"C:\Users\ggnn1\AppData\Roaming\STL Editor"
+        assert P.data_dir() == r"C:\Users\ggnn1\AppData\Local\STL Editor"
+
+
+def test_mac_folders(tmp_path, monkeypatch):
+    P = _system(monkeypatch, "darwin", tmp_path)
+    assert P.config_dir() == os.path.join(str(tmp_path), "Library", "Application Support", "STL Editor")
+    assert P.data_dir() == os.path.join(str(tmp_path), "Library", "Application Support", "STL Editor")
+    assert P.log_dir() == os.path.join(str(tmp_path), "Library", "Logs", "STL Editor")
+
+
+def test_linux_folders_default_to_home(tmp_path, monkeypatch):
+    P = _system(monkeypatch, "linux", tmp_path)
+    assert P.config_dir() == os.path.join(str(tmp_path), ".config", "STL Editor")
+    assert P.data_dir() == os.path.join(str(tmp_path), ".local", "share", "STL Editor")
+    assert P.log_dir() == os.path.join(str(tmp_path), ".local", "state", "STL Editor")
+
+
+def test_linux_folders_follow_xdg(tmp_path, monkeypatch):
+    P = _system(monkeypatch, "linux", tmp_path, XDG_CONFIG_HOME=str(tmp_path / "c"),
+                XDG_DATA_HOME=str(tmp_path / "d"), XDG_STATE_HOME=str(tmp_path / "s"))
+    assert P.config_dir() == os.path.join(str(tmp_path / "c"), "STL Editor")
+    assert P.data_dir() == os.path.join(str(tmp_path / "d"), "STL Editor")
+    assert P.log_dir() == os.path.join(str(tmp_path / "s"), "STL Editor")
+    _system(monkeypatch, "linux", tmp_path, XDG_CONFIG_HOME="")   # an empty variable counts as unset
+    assert P.config_dir() == os.path.join(str(tmp_path), ".config", "STL Editor")
+
+
+@pytest.mark.parametrize("plat,machine,expected", [
+    ("win32", "AMD64", "STL-Editor-Windows-portable.zip"),
+    ("darwin", "arm64", "STL-Editor-macOS-arm64.zip"),
+    ("darwin", "x86_64", "STL-Editor-macOS-x86_64.zip"),
+    ("linux", "x86_64", "STL-Editor-Linux-x86_64.tar.gz"),
+    ("linux", "aarch64", None),       # no release yet: the update check points to the website
+    ("darwin", "i386", None),
+])
+def test_release_asset_per_system(monkeypatch, plat, machine, expected):
+    from stleditor import updates as U
+    monkeypatch.setattr(sys, "platform", plat)
+    monkeypatch.setattr(U.platform, "machine", lambda: machine)
+    assert U.asset_for() == expected
+
+
+def test_windows_asset_name_unchanged():
+    from stleditor import updates as U
+    assert U.ASSET == "STL-Editor-Windows-portable.zip"
+
+
+@pytest.mark.parametrize("plat,rel", [
+    ("win32", "STL Editor/STL Editor.exe"),
+    ("darwin", "STL Editor.app/Contents/MacOS/STL Editor"),
+    ("linux", "STL Editor/STL Editor"),
+])
+def test_payload_found_per_system(tmp_path, monkeypatch, plat, rel):
+    from stleditor import updates as U
+    monkeypatch.setattr(sys, "platform", plat)
+    f = tmp_path / rel
+    f.parent.mkdir(parents=True)
+    f.write_bytes(b"x")
+    assert U.find_payload(str(tmp_path)) == os.path.join(str(tmp_path), rel.split("/")[0])
+
+
+def test_app_dir_is_the_bundle_on_mac(monkeypatch):
+    from stleditor import updates as U
+    monkeypatch.setattr(sys, "platform", "darwin")
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", "/Applications/STL Editor.app/Contents/MacOS/STL Editor")
+    assert U.app_dir() == "/Applications/STL Editor.app"
+
+
+def test_app_dir_is_the_folder_on_linux(monkeypatch):
+    from stleditor import updates as U
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", "/opt/STL Editor/STL Editor")
+    assert U.app_dir() == "/opt/STL Editor"
+
+
+def test_no_release_asset_points_to_website(monkeypatch, tmp_path):
+    from stleditor import updates as U
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setattr(U.platform, "machine", lambda: "aarch64")
+    monkeypatch.setattr(U, "install_mode", lambda: "portable")
+    monkeypatch.setattr(U, "app_dir", lambda: str(tmp_path))
+    monkeypatch.setattr(U, "_release", lambda: pytest.fail("must not fetch a release with no asset"))
+    U._install()
+    assert U.INSTALL["state"] == "error"
+    assert "website" in U.INSTALL["error"]
+
+
+def test_messages_do_not_say_windows_off_windows(monkeypatch, tmp_path):
+    from stleditor import updates as U
+    monkeypatch.setattr(sys, "platform", "darwin")
+    monkeypatch.setattr(U, "install_mode", lambda: None)
+    U._install()
+    assert U.INSTALL["state"] == "error" and "Windows" not in U.INSTALL["error"]
+    monkeypatch.setattr(U, "install_mode", lambda: "portable")
+    monkeypatch.setattr(U, "app_dir", lambda: str(tmp_path))
+    monkeypatch.setattr(U, "_writable", lambda folder: False)
+    U._install()
+    assert "Windows" not in U.INSTALL["error"]
+
+
+def test_posix_restart_helper(tmp_path, monkeypatch):
+    import subprocess
+    import threading
+    from stleditor import server
+    from stleditor import updates as U
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setattr(U, "WORK", str(tmp_path / "work"))
+    monkeypatch.setattr(U, "app_dir", lambda: str(tmp_path / "app"))
+    calls = []
+    monkeypatch.setattr(subprocess, "Popen", lambda args, **kw: calls.append((args, kw)))
+    monkeypatch.setattr(server, "shutdown", lambda app: None)
+    monkeypatch.setattr(threading, "Timer", lambda *a, **k: type("T", (), {"start": lambda self: None})())
+
+    class App:
+        discard_on_exit = True
+
+    U.restart(App(), copy_from=str(tmp_path / "new" / "STL Editor"))
+    args, kw = calls[0]
+    assert kw.get("start_new_session") is True
+    assert args[0] == "sh"
+    script = open(args[1], encoding="utf-8").read()
+    assert "\r" not in script and "kill -0" in script and "rm -rf" in script
+    assert str(tmp_path / "new" / "STL Editor") in args
+    calls.clear()
+    monkeypatch.setattr(sys, "frozen", False, raising=False)
+    U.restart(App(), copy_from=None)           # a git checkout: relaunch main.py with this Python
+    args, _ = calls[0]
+    assert sys.executable in args and any(a.endswith("main.py") for a in args)
+
+
+def test_font_folders_include_linux_user_fonts(tmp_path, monkeypatch):
+    from stleditor import meshtools as MT
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    (tmp_path / "data" / "fonts").mkdir(parents=True)
+    (tmp_path / ".local" / "share" / "fonts").mkdir(parents=True)
+    dirs = MT.font_dirs()
+    assert str(tmp_path / "data" / "fonts") in dirs
+
+
+def test_font_files_are_found_in_subfolders(tmp_path):
+    from stleditor import meshtools as MT
+    (tmp_path / "truetype" / "dejavu").mkdir(parents=True)
+    (tmp_path / "truetype" / "dejavu" / "DejaVuSans.ttf").write_bytes(b"x")
+    (tmp_path / "readme.txt").write_text("x")
+    found = [os.path.basename(p) for p in MT.font_files([str(tmp_path)])]
+    assert found == ["DejaVuSans.ttf"]
+
+
+def test_webview_gui_per_system():
+    import main as M
+    assert M.gui_candidates("win32") == ["edgechromium"]
+    assert M.gui_candidates("darwin") == ["cocoa"]
+    assert M.gui_candidates("linux") == ["qt", "gtk"]
+
+
+def test_browser_per_system():
+    import main as M
+    app = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+    assert M.browser_exe("darwin", exists=lambda p: p == app, which=lambda c: None) == app
+    assert M.browser_exe("darwin", exists=lambda p: False, which=lambda c: None) is None
+    assert M.browser_exe("linux", exists=lambda p: False, which=lambda c: "/usr/bin/chromium-browser" if c == "chromium-browser" else None) == "/usr/bin/chromium-browser"
+    assert M.browser_exe("linux", exists=lambda p: False, which=lambda c: None) is None
+    msedge = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
+    assert M.browser_exe("win32", exists=lambda p: p == msedge, which=lambda c: None) == msedge
+
+
+# ------------------------------------------------------------------ robustness
 
 
 # ------------------------------------------------------------------ robustness

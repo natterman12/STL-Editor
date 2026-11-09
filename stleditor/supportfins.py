@@ -28,12 +28,14 @@ import urllib.request
 
 import numpy as np
 
+from . import paths
+
 from . import __version__, settings
 from .geometry import GeometryError, manifold_from_arrays, weld
 
 API = 1   # the integration contract (see packaging/update_support_fins.py)
 BUNDLED = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web", "vendor", "support-fins")
-USER_DIR = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~/.config"), "STL Editor", "support-fins")
+USER_DIR = os.path.join(paths.config_dir(), "support-fins")
 
 _lock = threading.RLock()
 _ctx = None

@@ -15,6 +15,8 @@ import { isExpr, resolveDeep, resolveParams, ExprError, exprText, exprOf } from 
 const $ = s => document.querySelector(s);
 // tools the web edition leaves to the desktop app (they run programs on your computer)
 const DESKTOP_TOOLS = new Set(['to_step', 'send']);
+// Ctrl on Windows / Linux, Cmd on a Mac
+const mod = e => e.ctrlKey || e.metaKey;
 const DESKTOP_URL = 'https://natterman12.github.io/STL-Editor/#download';
 const KOFI = 'https://ko-fi.com/natterman12';
 // filament densities (g/cm³) for the support plastic readout; PLA and PETG are Support Fins' own
@@ -58,7 +60,7 @@ class App {
     this.loadSettings().then(() => this.refresh()).then(() => { this.viewer.setView('iso'); this.checkRecovery(); });
     setTimeout(() => this.checkUpdates(false), 6000);
     setInterval(() => this.renderAutosave(), 15000);
-    post('apps', {}, { quiet: true }).then(r => { this.apps = r.apps || {}; this.apps.cli = r.solidcraft_cli; this.buildRibbon(); }).catch(() => {});
+    post('apps', {}, { quiet: true }).then(r => { this.apps = r.apps || {}; this.apps.cli = r.solidcraft_cli; this.apps.platform = r.platform; this.apps.step_supported = r.step_supported; this.buildRibbon(); }).catch(() => {});
     setInterval(() => post('status', {}, { quiet: true }).catch(() => {}), 3000);
     this.hint('');
   }
@@ -303,6 +305,7 @@ class App {
       const k = b.dataset.tool;
       b.classList.toggle('active', !!isOn(k));
       if (k === 'to_step') b.disabled = !this.apps.cli;
+      if (!WEB && DESKTOP_TOOLS.has(k)) b.hidden = !this.deskToolShown(k);
       if (WEB && DESKTOP_TOOLS.has(k)) { b.disabled = false; b.classList.add('desk-only'); b.title = `${b.title.replace(/ · desktop app$/, '')} · desktop app`; }
     }
     for (const b of document.querySelectorAll('.tool-btn[data-drop]')) {
@@ -1970,6 +1973,16 @@ class App {
       <a href="${DESKTOP_URL}" target="_blank" rel="noopener">Get the desktop app (Windows, free)</a>`);
   }
 
+  /** Off Windows, Send to Slicer is hidden when no slicer is installed and To STEP (SolidCraft is
+   *  Windows-only) is hidden. On Windows both always show, as they always have. */
+  deskToolShown(k) {
+    const a = this.apps;
+    if (!a.platform || a.platform === 'win32') return true;
+    if (k === 'send') return !!(a.bambu || a.orca || a.prusa || a.solidcraft);
+    if (k === 'to_step') return !!a.step_supported;
+    return true;
+  }
+
   /** The programs a model can be sent to (a menu, or the submenu of File › Send to Slicer). */
   slicerItems(bodies = null) {
     const go = app => post('send_to', { app, bodies: bodies || (this.selection.length ? this.selection : null) }, { msg: 'Sending…' }).then(() => this.toast('Opened')).catch(e => this.toast(e.message, 'err'));
@@ -1977,10 +1990,11 @@ class App {
       { hdr: bodies ? 'Send this body to' : (this.selection.length ? `Send ${this.selection.length} selected to` : 'Send all visible bodies to') },
       { label: 'Bambu Studio', ic: 'slicer', fn: () => go('bambu'), dis: !this.apps.bambu, title: this.apps.bambu ? '' : 'Bambu Studio wasn’t found on this computer' },
       { label: 'OrcaSlicer', ic: 'slicer', fn: () => go('orca'), dis: !this.apps.orca, title: this.apps.orca ? '' : 'OrcaSlicer wasn’t found on this computer' },
+      ...(this.apps.prusa ? [{ label: 'PrusaSlicer', ic: 'slicer', fn: () => go('prusa') }] : []),
       { sep: true },
       { label: 'SolidCraft', fn: () => go('solidcraft'), dis: !this.apps.solidcraft, title: this.apps.solidcraft ? '' : 'SolidCraft wasn’t found on this computer' },
     ];
-    if (!this.apps.bambu && !this.apps.orca && !this.apps.solidcraft) items.push({ sep: true }, { label: 'No slicer found: install Bambu Studio or OrcaSlicer', dis: true });
+    if (!this.apps.bambu && !this.apps.orca && !this.apps.prusa && !this.apps.solidcraft) items.push({ sep: true }, { label: 'No slicer found: install Bambu Studio or OrcaSlicer', dis: true });
     return items;
   }
 
@@ -2210,7 +2224,7 @@ class App {
     }
     // plain selection
     if (hit?.kind === 'body') {
-      if (e.shiftKey || e.ctrlKey) this.selection = this.selection.includes(hit.id) ? this.selection.filter(x => x !== hit.id) : [...this.selection, hit.id];
+      if (e.shiftKey || mod(e)) this.selection = this.selection.includes(hit.id) ? this.selection.filter(x => x !== hit.id) : [...this.selection, hit.id];
       else this.selection = [hit.id];
     } else if (!e.shiftKey) this.selection = [];
     this.viewer.setSelection(this.selection);
@@ -2392,7 +2406,7 @@ class App {
         return;
       }
       if (this.mode === 'info') { this.selection = [id]; this.showInfo(id); }
-      else if (e.shiftKey || e.ctrlKey) this.selection = this.selection.includes(id) ? this.selection.filter(x => x !== id) : [...this.selection, id];
+      else if (e.shiftKey || mod(e)) this.selection = this.selection.includes(id) ? this.selection.filter(x => x !== id) : [...this.selection, id];
       else this.selection = [id];
       this.viewer.setSelection(this.selection); this.renderTree();
       return;
@@ -2404,7 +2418,7 @@ class App {
 
   onKey(e) {
     const inField = ['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement?.tagName);
-    const k = e.key, ctrl = e.ctrlKey || e.metaKey;
+    const k = e.key, ctrl = mod(e);
     if (ctrl && k.toLowerCase() === 's') { e.preventDefault(); this.cmd(e.shiftKey ? 'save_as' : 'save'); return; }
     if (ctrl && k.toLowerCase() === 'o') { e.preventDefault(); this.cmd('open'); return; }
     if (ctrl && k.toLowerCase() === 'i') { e.preventDefault(); this.cmd('import'); return; }
@@ -2445,7 +2459,7 @@ class App {
         { label: 'Export STL…', fn: () => this.exportBodies('stl') },
         { label: 'Export 3MF…', fn: () => this.exportBodies('3mf') },
         { label: 'Export OBJ…', fn: () => this.exportBodies('obj') },
-        ...(WEB ? [] : [{ label: 'Send to Slicer', ic: 'slicer', sub: () => this.slicerItems() },
+        ...(WEB ? [] : [...(this.deskToolShown('send') ? [{ label: 'Send to Slicer', ic: 'slicer', sub: () => this.slicerItems() }] : []),
           { sep: true },
           { label: 'Quit', fn: () => this.cmd('quit') }]),
       ],
@@ -2517,8 +2531,8 @@ class App {
       { sep: true },
       { label: 'Export STL…', fn: () => this.exportBodies('stl', [id]) },
       { label: 'Export 3MF…', fn: () => this.exportBodies('3mf', [id]) },
-      ...(WEB ? [] : [{ label: 'Send to Slicer', ic: 'slicer', sub: () => this.slicerItems([id]) },
-        { label: 'Convert to STEP (SolidCraft)…', fn: () => this.toStep(), dis: !this.apps.cli }]),
+      ...(WEB ? [] : [...(this.deskToolShown('send') ? [{ label: 'Send to Slicer', ic: 'slicer', sub: () => this.slicerItems([id]) }] : []),
+        ...(this.deskToolShown('to_step') ? [{ label: 'Convert to STEP (SolidCraft)…', fn: () => this.toStep(), dis: !this.apps.cli }] : [])]),
       { sep: true },
       { label: 'Remove', fn: () => this.openTool('delete') },
     ]);

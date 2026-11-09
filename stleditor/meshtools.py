@@ -337,9 +337,27 @@ def font_dirs():
     la = os.environ.get("LOCALAPPDATA")
     if la:
         dirs.append(os.path.join(la, "Microsoft", "Windows", "Fonts"))
-    dirs += ["/usr/share/fonts", "/usr/local/share/fonts", os.path.expanduser("~/.fonts"),
-             "/System/Library/Fonts", "/Library/Fonts", os.path.expanduser("~/Library/Fonts")]
-    return [d for d in dirs if os.path.isdir(d)]
+    home = os.path.expanduser("~")
+    dirs += ["/usr/share/fonts", "/usr/local/share/fonts", os.path.join(home, ".fonts"),
+             os.path.join(os.environ.get("XDG_DATA_HOME") or os.path.join(home, ".local", "share"), "fonts"),
+             os.path.join(home, ".local", "share", "fonts"),
+             "/System/Library/Fonts", "/Library/Fonts", os.path.join(home, "Library", "Fonts")]
+    seen, out = set(), []
+    for d in dirs:
+        if os.path.isdir(d) and d not in seen:
+            seen.add(d)
+            out.append(d)
+    return out
+
+
+def font_files(dirs):
+    """Every .ttf / .otf file in these folders and all their subfolders."""
+    out = []
+    for d in dirs:
+        for path in glob.glob(os.path.join(d, "**", "*"), recursive=True):
+            if path.lower().endswith((".ttf", ".otf")):
+                out.append(path)
+    return out
 
 
 @lru_cache(maxsize=1)
@@ -347,21 +365,18 @@ def list_fonts():
     """{family name: {style: path}} for TrueType / OpenType outline fonts on this computer."""
     from fontTools.ttLib import TTFont
     fams = {}
-    for d in font_dirs():
-        for path in glob.glob(os.path.join(d, "**", "*"), recursive=True):
-            if not path.lower().endswith((".ttf", ".otf")):
+    for path in font_files(font_dirs()):
+        try:
+            f = TTFont(path, lazy=True, fontNumber=0)
+            name = f["name"]
+            fam = name.getBestFamilyName() or os.path.splitext(os.path.basename(path))[0]
+            sub = name.getBestSubFamilyName() or "Regular"
+            if "glyf" not in f and "CFF " not in f:
                 continue
-            try:
-                f = TTFont(path, lazy=True, fontNumber=0)
-                name = f["name"]
-                fam = name.getBestFamilyName() or os.path.splitext(os.path.basename(path))[0]
-                sub = name.getBestSubFamilyName() or "Regular"
-                if "glyf" not in f and "CFF " not in f:
-                    continue
-                fams.setdefault(fam, {}).setdefault(sub, path)
-                f.close()
-            except Exception:
-                continue
+            fams.setdefault(fam, {}).setdefault(sub, path)
+            f.close()
+        except Exception:
+            continue
     return dict(sorted(fams.items(), key=lambda kv: kv[0].lower()))
 
 

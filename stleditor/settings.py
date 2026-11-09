@@ -7,9 +7,10 @@ import json
 import os
 import threading
 
+from . import paths
+
 _lock = threading.Lock()
-_dir = os.environ.get("STLEDITOR_CONFIG_DIR") or os.path.join(
-    os.environ.get("APPDATA") or os.path.expanduser("~/.config"), "STL Editor")
+_dir = os.environ.get("STLEDITOR_CONFIG_DIR") or paths.config_dir()
 _path = os.path.join(_dir, "settings.json")
 _data = None
 

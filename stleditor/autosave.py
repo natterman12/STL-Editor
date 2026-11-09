@@ -13,8 +13,9 @@ import threading
 import time
 import uuid
 
-ROOT = os.path.join(os.environ.get("LOCALAPPDATA") or os.path.expanduser("~/.local/share"),
-                    "STL Editor", "autosave")
+from . import paths
+
+ROOT = os.path.join(paths.data_dir(), "autosave")
 
 
 def _lock(fh):

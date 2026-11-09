@@ -633,33 +633,82 @@ SOLIDCRAFT = r"C:\Program Files\SolidCraft"
 SLICERS = {
     "bambu": [r"C:\Program Files\Bambu Studio\bambu-studio.exe"],
     "orca": [r"C:\Program Files\OrcaSlicer\orca-slicer.exe"],
+    "prusa": [r"C:\Program Files\Prusa3D\PrusaSlicer\prusa-slicer.exe"],
     "solidcraft": [os.path.join(SOLIDCRAFT, "solidcraft.exe")],
 }
+# Windows install folders searched for any exe whose name contains the key
+WIN_FOLDERS = {"bambu": r"C:\Program Files\Bambu Studio", "orca": r"C:\Program Files\OrcaSlicer"}
+MAC_APPS = {"bambu": "BambuStudio.app", "orca": "OrcaSlicer.app", "prusa": "PrusaSlicer.app"}
+LINUX_CMDS = {"bambu": ["bambu-studio"], "orca": ["orca-slicer", "orcaslicer"], "prusa": ["prusa-slicer"]}
+LINUX_FLATPAKS = {"bambu": "com.bambulab.BambuStudio", "orca": "io.github.softfever.OrcaSlicer",
+                  "prusa": "com.prusa3d.PrusaSlicer"}
 
 
-def _find_exe(key):
-    for p in SLICERS.get(key, []):
-        if os.path.isfile(p):
-            return p
-    # search the install folder for any exe matching the key
-    folder = {"bambu": r"C:\Program Files\Bambu Studio", "orca": r"C:\Program Files\OrcaSlicer"}.get(key)
-    if folder and os.path.isdir(folder):
-        for fn in os.listdir(folder):
-            if fn.lower().endswith(".exe") and key in fn.lower():
-                return os.path.join(folder, fn)
+def find_slicer(key, platform, exists, which=None, flatpak=None, listdir=None):
+    """The command (a list, the file path goes after it) that opens a file in the app `key`, or None.
+    Pure apart from the callables: exists(path), which(cmd), flatpak(app_id) -> installed?, listdir(folder)."""
+    if platform == "win32":
+        for p in SLICERS.get(key, []):
+            if exists(p):
+                return [p]
+        folder = WIN_FOLDERS.get(key)
+        if folder and listdir:
+            for fn in listdir(folder):
+                if fn.lower().endswith(".exe") and key in fn.lower():
+                    return [os.path.join(folder, fn)]
+        return None
+    if platform == "darwin":
+        name = MAC_APPS.get(key)
+        if name:
+            for app in ("/Applications/" + name, os.path.join(os.path.expanduser("~"), "Applications", name)):
+                if exists(app):
+                    return ["open", "-a", app]
+        return None
+    for cmd in LINUX_CMDS.get(key, []):
+        found = which(cmd) if which else None
+        if found:
+            return [found]
+    fp = LINUX_FLATPAKS.get(key)
+    if fp and flatpak and flatpak(fp):
+        return ["flatpak", "run", fp]
     return None
 
 
+def _flatpak_installed(app_id):
+    if not shutil.which("flatpak"):
+        return False
+    try:
+        return subprocess.run(["flatpak", "info", app_id], capture_output=True, timeout=10).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def _listdir(folder):
+    return os.listdir(folder) if os.path.isdir(folder) else []
+
+
+def _find_exe(key):
+    # .app bundles on macOS are folders, so only Windows needs the stricter isfile test
+    exists = os.path.isfile if sys.platform == "win32" else os.path.exists
+    return find_slicer(key, sys.platform, exists, shutil.which, _flatpak_installed, _listdir)
+
+
+def step_available(platform, exists):
+    """To STEP runs SolidCraft's Windows command-line tool, so it only works on Windows."""
+    return platform == "win32" and bool(exists(os.path.join(SOLIDCRAFT, "solidcraft-cli.exe")))
+
+
 def _open_in(key, path):
-    exe = _find_exe(key)
-    if not exe:
+    cmd = _find_exe(key)
+    if not cmd:
         raise GeometryError(f"Couldn't find {key} on this computer.")
-    subprocess.Popen([exe, path], close_fds=True)
+    subprocess.Popen(cmd + [path], close_fds=True)
 
 
 def r_apps(app, d):
     return {"ok": True, "apps": {k: bool(_find_exe(k)) for k in SLICERS},
-            "solidcraft_cli": os.path.isfile(os.path.join(SOLIDCRAFT, "solidcraft-cli.exe"))}
+            "solidcraft_cli": step_available(sys.platform, os.path.isfile),
+            "step_supported": sys.platform == "win32", "platform": sys.platform}
 
 
 def r_send_to(app, d):
@@ -678,6 +727,8 @@ def r_send_to(app, d):
 def r_to_step(app, d):
     """Use SolidCraft's Convert Mesh to turn a prismatic mesh body into an editable STEP solid."""
     cli = os.path.join(SOLIDCRAFT, "solidcraft-cli.exe")
+    if sys.platform != "win32":
+        raise GeometryError("To STEP needs SolidCraft, which only runs on Windows.")
     if not os.path.isfile(cli):
         raise GeometryError("SolidCraft isn't installed.")
     bid = d["body"]

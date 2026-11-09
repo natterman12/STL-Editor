@@ -200,8 +200,9 @@ export class Sketcher {
     if (k === 'Enter' && this.tool === 'line' && this.draw) { this.finishLine(false); return true; }
     if ((k === 'Delete' || k === 'Backspace') && this.sel.size) { this.deleteSelected(); return true; }
     const map = { l: 'line', a: 'arc3', r: 'rect', c: 'circle', p: 'polygon', s: 'slot', t: 'trim', d: 'c_dimension' };
-    if (!ev.ctrlKey && map[k.toLowerCase()]) { this.setTool(map[k.toLowerCase()]); return true; }
-    if (ev.ctrlKey && k.toLowerCase() === 'z') { this.undoLocal(); return true; }
+    const mod = ev.ctrlKey || ev.metaKey;   // Ctrl, or Cmd on a Mac
+    if (!mod && map[k.toLowerCase()]) { this.setTool(map[k.toLowerCase()]); return true; }
+    if (mod && k.toLowerCase() === 'z') { this.undoLocal(); return true; }
     return false;
   }
 

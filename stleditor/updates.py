@@ -79,9 +79,11 @@ def status():
 # ------------------------------------------------------------------------------------------
 import hashlib  # noqa: E402
 import os  # noqa: E402
+import platform  # noqa: E402
 import shutil  # noqa: E402
 import subprocess  # noqa: E402
 import sys  # noqa: E402
+import tarfile  # noqa: E402
 import tempfile  # noqa: E402
 import zipfile  # noqa: E402
 
@@ -101,8 +103,64 @@ def install_mode():
     return None
 
 
+def asset_for(plat=None, machine=None):
+    """The release archive for this system, or None when no build is published for it yet."""
+    plat = sys.platform if plat is None else plat
+    m = (platform.machine() if machine is None else machine).lower()
+    if plat == "win32":
+        return ASSET
+    if plat == "darwin":
+        if m in ("arm64", "aarch64"):
+            return "STL-Editor-macOS-arm64.zip"
+        if m in ("x86_64", "amd64"):
+            return "STL-Editor-macOS-x86_64.zip"
+        return None
+    if plat.startswith("linux") and m in ("x86_64", "amd64"):
+        return "STL-Editor-Linux-x86_64.tar.gz"
+    return None
+
+
+def find_payload(dest, plat=None):
+    """The new app inside an unpacked archive: the folder holding STL Editor.exe on Windows,
+    else the 'STL Editor.app' bundle (macOS) or the 'STL Editor' folder (Linux)."""
+    plat = sys.platform if plat is None else plat
+    if plat == "win32":
+        return next((d for d, _, files in os.walk(dest) if EXE in files), None)
+    if plat == "darwin":
+        p = os.path.join(dest, "STL Editor.app")
+        return p if os.path.isfile(os.path.join(p, "Contents", "MacOS", "STL Editor")) else None
+    p = os.path.join(dest, "STL Editor")
+    return p if os.path.isfile(os.path.join(p, "STL Editor")) else None
+
+
+def _executable_in(payload):
+    """The program file inside a payload, for the Unix execute bit (zip files lose it)."""
+    if sys.platform == "darwin":
+        return os.path.join(payload, "Contents", "MacOS", "STL Editor")
+    return os.path.join(payload, "STL Editor")
+
+
+def _extract(archive, dest):
+    if archive.endswith(".tar.gz"):
+        with tarfile.open(archive) as t:
+            t.extractall(dest, filter="data")
+    else:
+        with zipfile.ZipFile(archive) as z:
+            z.extractall(dest)
+
+
 def app_dir():
-    return os.path.dirname(sys.executable) if getattr(sys, "frozen", False) else ROOT
+    """The folder the running app lives in (the .app bundle on macOS, the folder on Linux)."""
+    if not getattr(sys, "frozen", False):
+        return ROOT
+    folder = os.path.dirname(sys.executable)
+    if sys.platform == "darwin":
+        p = folder
+        while os.path.dirname(p) != p and not p.endswith(".app"):
+            p = os.path.dirname(p)
+        if p.endswith(".app"):
+            return p
+    return folder
 
 
 def _writable(folder):
@@ -147,23 +205,31 @@ def _install():
             INSTALL.update(state="ready", progress=1.0, version=STATE.get("latest"))
             return
         if mode != "portable":
-            raise RuntimeError("This copy can't update itself. Download the new zip instead.")
+            raise RuntimeError("This copy can't update itself. Download the new zip instead." if sys.platform == "win32"
+                               else "This copy can't update itself. Download the new version from the website instead.")
+        name = asset_for()
+        if not name:
+            raise RuntimeError("Updates for this computer come from the website for now. Download the new version there.")
         if not _writable(app_dir()):
-            raise RuntimeError(f"Windows won't let STL Editor change its own folder ({app_dir()}). Move the STL Editor "
-                               "folder somewhere of yours, like Documents or the Desktop, or download the new zip.")
+            where = f"({app_dir()})"
+            if sys.platform == "win32":
+                raise RuntimeError(f"Windows won't let STL Editor change its own folder {where}. Move the STL Editor "
+                                   "folder somewhere of yours, like Documents or the Desktop, or download the new zip.")
+            raise RuntimeError(f"The system won't let STL Editor change its own folder {where}. Move the app "
+                               "somewhere you own, like your home folder, or download the new version from the website.")
         rel = _release()
         latest = (rel.get("tag_name") or "").lstrip("vV")
-        asset = next((a for a in rel.get("assets", []) if a.get("name") == ASSET), None)
+        asset = next((a for a in rel.get("assets", []) if a.get("name") == name), None)
         if not asset:
-            raise RuntimeError(f"The {latest} release has no {ASSET}.")
+            raise RuntimeError(f"The {latest} release has no {name}.")
         want = (asset.get("digest") or "").removeprefix("sha256:").lower()
         if not want:
             import re as _re
-            m = _re.search(r"SHA-256 of " + _re.escape(ASSET) + r":\s*`?([0-9a-f]{64})", rel.get("body") or "")
+            m = _re.search(r"SHA-256 of " + _re.escape(name) + r":\s*`?([0-9a-f]{64})", rel.get("body") or "")
             want = m.group(1) if m else ""
         shutil.rmtree(WORK, ignore_errors=True)
         os.makedirs(WORK, exist_ok=True)
-        zpath = os.path.join(WORK, ASSET)
+        zpath = os.path.join(WORK, name)
         req = urllib.request.Request(asset["browser_download_url"], headers={"User-Agent": f"STL-Editor/{__version__}"})
         h = hashlib.sha256()
         with urllib.request.urlopen(req, timeout=60) as resp, open(zpath, "wb") as out:
@@ -182,11 +248,12 @@ def _install():
             raise RuntimeError("The download didn't match its checksum; nothing was changed. Try again later.")
         INSTALL["state"] = "unpacking"
         dest = os.path.join(WORK, "new")
-        with zipfile.ZipFile(zpath) as z:
-            z.extractall(dest)
-        src = next((d for d, _, files in os.walk(dest) if EXE in files), None)
+        _extract(zpath, dest)
+        src = find_payload(dest)
         if not src:
-            raise RuntimeError(f"{EXE} isn't in the downloaded zip.")
+            raise RuntimeError(f"{EXE if sys.platform == 'win32' else 'The app'} isn't in the downloaded {name}.")
+        if sys.platform != "win32":
+            os.chmod(_executable_in(src), 0o755)   # zip and tar bring the execute bit back only this way
         INSTALL.update(state="ready", progress=1.0, src=src, version=latest)
     except Exception as e:
         INSTALL.update(state="error", error=str(e) or type(e).__name__)
@@ -217,10 +284,57 @@ if ($ExeArgs) { Start-Process -FilePath $Exe -ArgumentList $ExeArgs -WorkingDire
 """
 
 
+POSIX_UPDATER = """#!/bin/sh
+# Args: pid, new copy (or empty), folder to replace, log file, program, then its arguments.
+pid="$1"; src="$2"; dst="$3"; log="$4"; exe="$5"
+shift 5
+say() { printf '%s %s\\n' "$(date)" "$*" >> "$log"; }
+say "waiting for STL Editor ($pid) to close"
+i=0
+while kill -0 "$pid" 2>/dev/null && [ $i -lt 450 ]; do sleep 0.2; i=$((i + 1)); done
+sleep 0.7
+if [ -n "$src" ] && [ -e "$src" ]; then
+  rm -rf "$dst.old"
+  if mv "$dst" "$dst.old" && cp -R "$src" "$dst"; then
+    rm -rf "$dst.old"; say "copied the new version"
+  else
+    say "copy failed, putting the old version back"
+    rm -rf "$dst"; mv "$dst.old" "$dst"
+  fi
+fi
+say "starting $exe"
+"$exe" "$@" >/dev/null 2>&1 &
+"""
+
+
+def _restart_posix(app, copy_from=None):
+    """macOS and Linux: a shell helper waits for this process, swaps the app, starts it again."""
+    os.makedirs(WORK, exist_ok=True)
+    script = os.path.join(WORK, "update.sh")
+    with open(script, "w", encoding="utf-8", newline="\n") as fh:
+        fh.write(POSIX_UPDATER)
+    if getattr(sys, "frozen", False):
+        exe, extra = sys.executable, []
+    else:
+        exe, extra = sys.executable, [os.path.join(ROOT, "main.py")]
+    subprocess.Popen(["sh", script, str(os.getpid()), copy_from or "", app_dir(), os.path.join(WORK, "update.log"),
+                      exe, *extra], start_new_session=True, close_fds=True,
+                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    _quit(app)
+
+
+def _quit(app):
+    # unsaved work is kept for Recover Unsaved Work, then the app closes
+    app.discard_on_exit = False
+    from . import server
+    server.shutdown(app)
+    threading.Timer(0.3, lambda: os._exit(0)).start()
+
+
 def restart(app, copy_from=None):
     """Close the app and start it again (after copying a new version over it, if `copy_from`)."""
-    if os.name != "nt":
-        raise RuntimeError("Restarting by itself is only set up for Windows.")
+    if sys.platform != "win32":
+        return _restart_posix(app, copy_from)
     os.makedirs(WORK, exist_ok=True)
     script = os.path.join(WORK, "update.ps1")
     with open(script, "w", encoding="utf-8-sig") as fh:
@@ -236,11 +350,7 @@ def restart(app, copy_from=None):
                       "-ProcId", str(os.getpid()), "-Src", copy_from or "", "-Dst", app_dir(), "-Exe", exe,
                       "-ExeArgs", args, "-Log", os.path.join(WORK, "update.log")],
                      creationflags=flags, close_fds=True)
-    # unsaved work is kept for Recover Unsaved Work, then the app closes
-    app.discard_on_exit = False
-    from . import server
-    server.shutdown(app)
-    threading.Timer(0.3, lambda: os._exit(0)).start()
+    _quit(app)
 
 
 def install_apply(app):
