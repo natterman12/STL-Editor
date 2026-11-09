@@ -589,13 +589,44 @@ function f_supportwall(state, fid, p, res, ctx = {}) {
   addSupports(state, fid, res, bid, r.solids, p.output, 'walls', ctx);
 }
 
+function hollowPitch(s, t, q) {
+  const bb = s.boundingBox(), diag = Math.hypot(bb.max[0] - bb.min[0], bb.max[1] - bb.min[1], bb.max[2] - bb.min[2]);
+  const div = { draft: 80, normal: 150, fine: 260 }[q || 'normal'] || 150;
+  return Math.max(Math.min(t / 2.5, diag / div), diag / (div * 2.5));
+}
+
 function f_hollow(state, fid, p, res) {
   const bid = p.body, b = state.body(bid), s = b.requireSolid();
   const t = num(p.thickness, 2);
-  const bb = s.boundingBox(), diag = Math.hypot(bb.max[0] - bb.min[0], bb.max[1] - bb.min[1], bb.max[2] - bb.min[2]);
-  const div = { draft: 80, normal: 150, fine: 260 }[p.resolution || 'normal'] || 150;
-  const pitch = Math.max(Math.min(t / 2.5, diag / div), diag / (div * 2.5));
-  state.bodies.set(bid, b.copy({ solid: VX.hollow(s, t, pitch) }));
+  state.bodies.set(bid, b.copy({ solid: VX.hollow(s, t, hollowPitch(s, t, p.resolution)) }));
+  res.modified.push(bid);
+}
+
+// Hollow the body, then open each picked flat face: the hollow space just under the wall (kept
+// inside the face) is pushed out through it. Two passes, so faces that meet at an edge also take
+// the wall strip along that edge. No faces: a closed hollow, like Hollow.
+function f_shell(state, fid, p, res) {
+  const bid = p.body;
+  if (!bid) throw new GeometryError('Choose a body to shell.');
+  const b = state.body(bid), s = b.requireSolid();
+  const t = num(p.thickness, 2);
+  if (!(t > 0)) throw new GeometryError('Wall thickness must be positive.');
+  const pitch = hollowPitch(s, t, p.resolution);
+  const cavity = VX.hollow(s, t, pitch, true);
+  const depth = t + 2 * pitch;
+  const picked = (p.faces || []).filter(Boolean).map((face, k) => {
+    if (!face.contours || !face.contours.length) throw new GeometryError(`Face ${k + 1} isn't flat. Shell can only open flat faces.`);
+    const fr = G.planeFrame(face.origin, face.normal, face.xdir);
+    return { i: k + 1, fr, outline: crossSection(face.contours.map(c => c.map(q => [+q[0], +q[1]])), 'EvenOdd') };
+  });
+  const openings = space => picked.map(({ i, fr, outline }) => {
+    const hole = space.transform(G.worldToFrame(...fr)).slice(-depth).intersect(outline);
+    if (hole.isEmpty() || hole.area() < 1e-6) throw new GeometryError(`There's no hollow space behind face ${i} to open. Try a thinner wall.`);
+    return Manifold.extrude(hole, depth + pitch).translate([0, 0, -depth]).transform(frameMatrix(...fr));
+  });
+  let cut = cavity;
+  if (picked.length) cut = Manifold.union([cavity, ...openings(Manifold.union([cavity, ...openings(cavity)]))]);
+  state.bodies.set(bid, b.copy({ solid: s.subtract(cut) }));
   res.modified.push(bid);
 }
 
@@ -759,7 +790,7 @@ function f_resizehole(state, fid, p, res) {
 
 export const EVALUATORS = {
   import: f_import, primitive: f_primitive, plane: f_plane, sketch: f_sketch, extrude: f_extrude, revolve: f_revolve,
-  hole: f_hole, combine: f_combine, split: f_split, mirror: f_mirror, move: f_move, scale: f_scale, hollow: f_hollow,
+  hole: f_hole, combine: f_combine, split: f_split, mirror: f_mirror, move: f_move, scale: f_scale, hollow: f_hollow, shell: f_shell,
   repair: f_repair, simplify: f_simplify, pattern: f_pattern, delete: f_delete, separate: f_separate, bedsplit: f_bedsplit,
   pushpull: f_pushpull, sculpt: f_sculpt, remesh: f_remesh, layflat: f_layflat, thread: f_thread, offset: f_offset,
   resizehole: f_resizehole, supportfins: f_supportfins, supportwall: f_supportwall,
@@ -769,7 +800,7 @@ export const DESKTOP_ONLY_TYPES = [];
 
 export const LABELS = {
   import: 'Import', primitive: 'Primitive', plane: 'Plane', sketch: 'Sketch', extrude: 'Extrude', revolve: 'Revolve', hole: 'Hole',
-  combine: 'Combine', split: 'Split', mirror: 'Mirror', move: 'Move', scale: 'Scale', hollow: 'Hollow', repair: 'Repair',
+  combine: 'Combine', split: 'Split', mirror: 'Mirror', move: 'Move', scale: 'Scale', hollow: 'Hollow', shell: 'Shell', repair: 'Repair',
   simplify: 'Simplify', pattern: 'Pattern', delete: 'Remove', separate: 'Separate', bedsplit: 'Fit to Bed', pushpull: 'Push/Pull',
   sculpt: 'Sculpt', remesh: 'Remesh', layflat: 'Lay Flat', thread: 'Thread', offset: 'Offset', resizehole: 'Resize Hole', supportfins: 'Support Fins', supportwall: 'Draw Walls',
 };

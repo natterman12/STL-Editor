@@ -104,5 +104,5 @@ the portable build, or `git pull`s a git checkout (`stleditor/updates.py`).
 - Sketches tied to part edges follow a moved edge only when the sketch is next opened, not when
   a parameter change moves it.
 - Fillet / chamfer on mesh edges; sketch fillet, spline and ellipse; SVG / DXF import; loft,
-  sweep, shell with an open face; plate layout and colour 3MF; code signing.
+  sweep; plate layout and colour 3MF; code signing.
 - Port the web edition's isotropic remesher to the desktop (too slow in pure Python).

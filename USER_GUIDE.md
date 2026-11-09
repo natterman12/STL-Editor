@@ -45,7 +45,7 @@ Double-click any item on the timeline to change it later; the steps after it upd
 The toolbar has four tabs, and each tool is on one of them only:
 
 - **Model**: Create (Sketch, Extrude, Revolve, Primitive), Modify (Push/Pull, Combine, Split,
-  Mirror, Pattern), Holes (Hole, Thread, Resize Hole), Shape (Hollow, Offset Body) and
+  Mirror, Pattern), Holes (Hole, Thread, Resize Hole), Shape (Hollow, Shell, Offset Body) and
   Reference (Plane, Parameters).
 - **Print**: Position (Lay Flat, Move, Rotate, Scale), Fit (Fit to Bed) and Output (Export,
   Send to Slicer).
@@ -80,7 +80,17 @@ Move / Rotate and Scale (drag the arrows, rings or handles on the part and the c
 applied as soon as you let go, or type the numbers and press OK; a rotated part lands on the bed instead of hanging through it, and Move Z then lifts
 it off; also "drop to bed" and "centre on origin"; Scale by factor, to size, or unit
 conversion), Pattern (linear or circular, of bodies or of features), Mirror (bodies or
-features), Hollow (wall thickness). Split can add connectors at the cut.
+features). Split can add connectors at the cut.
+
+**Shape**: Hollow, Shell and Offset Body.
+
+- **Hollow** makes the part a closed shell with walls of the thickness you set. Use it to
+  save filament or resin, then add a hole to let resin drain.
+- **Shell** does the same but leaves faces open, like turning a block into a box or a cup.
+  Set *Open faces* (up to 4) and click each flat face to remove. *Wall* is measured inward,
+  so the outside size stays the same. *Quality* works like Hollow's. With no open faces you
+  get a closed hollow, the same as Hollow. Use Shell when you want to reach inside the part.
+- **Offset Body** grows or shrinks the whole part by a set distance.
 
 **Threads**: Thread tool: tapped holes or screws/studs, ISO metric M1.6–M30, UNC #1-64 to
 3/4"-10 and the common UNF sizes (#0-80, #10-32, 1/4"-28…) or any
@@ -224,12 +234,20 @@ blocky mechanical parts).
 
 **Inspect**: Measure, Section view, Properties (size, volume, triangles, print weight).
 
+**Section view** cuts the view open so you can look inside. Pick the axis (X, Y or Z), drag
+the slider, and tick *Flip* to see the other side. Click **Done** and the cut stays on while
+you use other tools. Turn it off and on with the **Section** button at the right of the view
+bar, the `X` key, or *View › Section View (X)*. *View › Edit Section…* moves it again, and
+*View › Remove Section* (or *Remove cut* in the panel) takes it away. Cancel or `Esc` puts
+back the cut you had before. The cut only changes what you see: export, Properties and
+Measure still use the whole part, and it isn't saved in projects.
+
 **Output**: Export STL / 3MF / OBJ (selected bodies, or all visible bodies), Send to Bambu
 Studio / OrcaSlicer / SolidCraft.
 
 ## Keyboard
 
-`Ctrl+K` or `/` search tools · `S` sketch · `E` extrude · `H` hole · `M` move · `F` fit · `0`–`6` views · `Ctrl+Z` /
+`Ctrl+K` or `/` search tools · `S` sketch · `E` extrude · `H` hole · `M` move · `F` fit · `X` section view on / off · `0`–`6` views · `Ctrl+Z` /
 `Ctrl+Y` undo / redo · `Ctrl+S` save · `Ctrl+O` open · `Ctrl+I` insert mesh · `Esc` cancel ·
 `Del` remove selected bodies. In a sketch: `L` line, `A` arc, `R` rectangle, `C` circle,
 `P` polygon, `S` slot, `T` trim, `Ctrl+Z` undo the last shape.
@@ -316,7 +334,7 @@ step stays editable. **Export** writes plain mesh files for slicers.
   but must be repaired before editing.
 - Fillet and chamfer on mesh edges aren't available: STL files have no real edges. For blocky
   parts, use To STEP and finish them in SolidCraft.
-- Hollow and Repair › Rebuild work on a voxel grid. Use Quality › Fine for small details.
+- Hollow, Shell and Repair › Rebuild work on a voxel grid. Use Quality › Fine for small details.
 
 ## How it works
 

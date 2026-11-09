@@ -185,6 +185,7 @@ export class Viewer {
         o.info = b;
         o.mesh.visible = !b.hidden;
         if (o.edges) o.edges.visible = !b.hidden && this.showEdges;
+        if (o.back) o.back.visible = !b.hidden;   // the section's cut face goes with its body
         o.mesh.material.color.set(b.color);
         if (!b.solid) o.mesh.material.color.set('#d9a0a0');
       }
@@ -663,15 +664,24 @@ export class Viewer {
   }
 
   // ---------------------------------------------------------------- section view
+  // The cut plane is worked out once, when it's set (which half is kept depends on where the
+  // camera is then); switching it off and on again reuses the same plane. Display only.
   setSection(axis, offset, flip) {
-    if (!axis) { this.section = null; }
+    if (!axis) { this.sectionPlane = null; }
     else {
       // keep the half away from the camera, so the cut face looks at you
       const n = new THREE.Vector3(...{ x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] }[axis]);
       const camSide = this.camera.position.clone().sub(this.controls.target).dot(n) > 0;
       const keepPositive = camSide ? !!flip : !flip;
-      this.section = keepPositive ? new THREE.Plane(n, -offset) : new THREE.Plane(n.negate(), offset);
+      this.sectionPlane = keepPositive ? new THREE.Plane(n, -offset) : new THREE.Plane(n.negate(), offset);
     }
+    this._syncSection();
+  }
+
+  setSectionEnabled(on) { this.sectionOn = !!on; this._syncSection(); }
+
+  _syncSection() {
+    this.section = this.sectionOn !== false && this.sectionPlane ? this.sectionPlane : null;
     for (const o of this.bodies.values()) this._applySection(o);
     this.requestRender();
   }

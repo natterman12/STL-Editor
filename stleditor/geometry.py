@@ -558,9 +558,11 @@ def auto_pitch(verts, target=180):
     return max(diag / target, 0.05)
 
 
-def hollow(solid: m3.Manifold, thickness: float, pitch: float | None = None) -> m3.Manifold:
+def hollow(solid: m3.Manifold, thickness: float, pitch: float | None = None,
+           cavity_only: bool = False) -> m3.Manifold:
     """Shell a solid inward with the given wall thickness. The outer surface is kept exactly;
-    the inner cavity is built on a voxel grid from an exact-ish distance field."""
+    the inner cavity is built on a voxel grid from an exact-ish distance field.
+    cavity_only: return the cavity itself (Shell opens faces into it)."""
     from scipy import ndimage
     if thickness <= 0:
         raise GeometryError("Wall thickness must be positive.")
@@ -591,7 +593,7 @@ def hollow(solid: m3.Manifold, thickness: float, pitch: float | None = None) -> 
         raise GeometryError("Wall thickness is too large for this body; nothing would be left hollow.")
     cavity = _field_to_manifold(field.astype(np.float32), origin, pitch, level=0.0)
     cavity = cavity.simplify(pitch * 0.1)   # more and the cavity drifts by up to 0.1 mm
-    return solid - cavity
+    return cavity if cavity_only else solid - cavity
 
 
 def simplify(body: Body, target_ratio: float | None = None, tolerance: float | None = None):

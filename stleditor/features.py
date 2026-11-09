@@ -687,18 +687,64 @@ def f_scale(state, fid, p, res, ctx):
         res["modified"].append(bid)
 
 
+def _hollow_pitch(b, t, q):
+    v, _ = b.mesh()
+    diag = float(np.linalg.norm(v.max(0) - v.min(0)))
+    div = {"draft": 80, "normal": 150, "fine": 260}.get(q or "normal", 150)
+    return max(min(t / 2.5, diag / div), diag / (div * 2.5))
+
+
 def f_hollow(state, fid, p, res, ctx):
     bid = p.get("body")
     b = state.body(bid)
     s = b.require_solid()
     t = _float(p, "thickness", 2)
-    v, _ = b.mesh()
-    diag = float(np.linalg.norm(v.max(0) - v.min(0)))
-    q = p.get("resolution", "normal")
-    div = {"draft": 80, "normal": 150, "fine": 260}.get(q, 150)
-    pitch = max(min(t / 2.5, diag / div), diag / (div * 2.5))
-    out = G.hollow(s, t, pitch)
+    out = G.hollow(s, t, _hollow_pitch(b, t, p.get("resolution")))
     state.bodies[bid] = b.copy(solid=out)
+    res["modified"].append(bid)
+
+
+def f_shell(state, fid, p, res, ctx):
+    """Hollow the body, then open each picked flat face: the hollow space just under the wall
+    (kept inside the face) is pushed out through it. Two passes, so faces that meet at an edge
+    also take the wall strip along that edge. No faces: a closed hollow, like Hollow."""
+    bid = p.get("body")
+    if not bid:
+        raise GeometryError("Choose a body to shell.")
+    b = state.body(bid)
+    s = b.require_solid()
+    t = _float(p, "thickness", 2)
+    if t <= 0:
+        raise GeometryError("Wall thickness must be positive.")
+    pitch = _hollow_pitch(b, t, p.get("resolution"))
+    cavity = G.hollow(s, t, pitch, cavity_only=True)
+    depth = t + 2 * pitch
+    picked = []
+    for i, face in enumerate([f for f in (p.get("faces") or []) if f], 1):
+        if not face.get("contours"):
+            raise GeometryError(f"Face {i} isn't flat. Shell can only open flat faces.")
+        o, x, y, n = G.plane_frame(face["origin"], face["normal"], face.get("xdir"))
+        R = np.vstack([x, y, n])
+        outline = m3.CrossSection([np.ascontiguousarray(np.asarray(c, np.float64)) for c in face["contours"]],
+                                  m3.FillRule.EvenOdd)
+        picked.append((i, (o, x, y, n), np.column_stack([R, -R @ o]), outline))
+
+    def openings(space):
+        tools = []
+        for i, fr, to_local, outline in picked:
+            hole = space.transform(to_local).slice(-depth) ^ outline
+            if hole.is_empty() or hole.area() < 1e-6:
+                raise GeometryError(f"There's no hollow space behind face {i} to open. Try a thinner wall.")
+            tool = m3.Manifold.extrude(hole, depth + pitch).translate((0, 0, -depth))
+            tools.append(tool.transform(G.frame_matrix(*fr)))
+        return tools
+
+    cut = cavity
+    if picked:
+        first = openings(cavity)
+        cut = m3.Manifold.batch_boolean([cavity] + openings(m3.Manifold.batch_boolean([cavity] + first, m3.OpType.Add)),
+                                        m3.OpType.Add)
+    state.bodies[bid] = b.copy(solid=s - cut)
     res["modified"].append(bid)
 
 
@@ -1088,7 +1134,7 @@ def f_supportwall(state, fid, p, res, ctx):
 EVALUATORS = {
     "import": f_import, "primitive": f_primitive, "plane": f_plane, "sketch": f_sketch,
     "extrude": f_extrude, "revolve": f_revolve, "hole": f_hole, "combine": f_combine,
-    "split": f_split, "mirror": f_mirror, "move": f_move, "scale": f_scale, "hollow": f_hollow,
+    "split": f_split, "mirror": f_mirror, "move": f_move, "scale": f_scale, "hollow": f_hollow, "shell": f_shell,
     "repair": f_repair, "simplify": f_simplify, "pattern": f_pattern, "delete": f_delete,
     "separate": f_separate, "bedsplit": f_bedsplit, "pushpull": f_pushpull, "sculpt": f_sculpt,
     "remesh": f_remesh, "layflat": f_layflat, "thread": f_thread, "offset": f_offset,
@@ -1098,7 +1144,7 @@ EVALUATORS = {
 LABELS = {
     "import": "Import", "primitive": "Primitive", "plane": "Plane", "sketch": "Sketch",
     "extrude": "Extrude", "revolve": "Revolve", "hole": "Hole", "combine": "Combine",
-    "split": "Split", "mirror": "Mirror", "move": "Move", "scale": "Scale", "hollow": "Hollow",
+    "split": "Split", "mirror": "Mirror", "move": "Move", "scale": "Scale", "hollow": "Hollow", "shell": "Shell",
     "repair": "Repair", "simplify": "Simplify", "pattern": "Pattern", "delete": "Remove",
     "separate": "Separate", "bedsplit": "Fit to Bed", "pushpull": "Push/Pull", "sculpt": "Sculpt",
     "remesh": "Remesh", "layflat": "Lay Flat", "thread": "Thread", "offset": "Offset",

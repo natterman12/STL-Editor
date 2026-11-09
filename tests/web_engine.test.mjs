@@ -228,6 +228,28 @@ test('hollow keeps the outside and leaves an even wall', () => {
   assert.throws(() => doc.addFeature('hollow', { body: f.id, thickness: 25 }), /too large/);
 });
 
+test('shell opens the picked faces of a hollow', () => {
+  // 20 mm cube, 2 mm wall: closed = 20^3 - 16^3; top open = 20^3 - 16*16*18; top+bottom = 20^3 - 16*16*20;
+  // top + a side (no bar left along their shared edge) = 20^3 - 18*16*18
+  const sq = [[[-10, -10], [10, -10], [10, 10], [-10, 10]]];
+  const top = { origin: [10, 10, 20], normal: [0, 0, 1], xdir: [1, 0, 0], contours: sq };
+  const bottom = { origin: [10, 10, 0], normal: [0, 0, -1], xdir: [1, 0, 0], contours: sq };
+  const side = { origin: [20, 10, 10], normal: [1, 0, 0], contours: sq };   // +x side, shares an edge with the top
+  const stl = stlOf(W.Manifold.cube([20, 20, 20]));
+  for (const [faces, expected, genus] of [[[], 8000 - 16 ** 3, -1], [[top], 8000 - 16 * 16 * 18, 0], [[top, bottom], 8000 - 16 * 16 * 20, 1], [[top, side], 8000 - 18 * 16 * 18, 0]]) {
+    const doc = new Document();
+    const [f] = doc.importFile('cube.stl', stl, true, 'keep');
+    doc.addFeature('shell', { body: f.id, faces, thickness: 2 });
+    const info = doc.state.body(f.id).info();
+    approx(info.volume, expected, 3e-3, `shell ${faces.length} faces`);
+    assert.equal(info.genus, genus);
+  }
+  const doc = new Document();
+  const [f] = doc.importFile('cube.stl', stl, true, 'keep');
+  assert.throws(() => doc.addFeature('shell', { body: f.id, faces: [top], thickness: 12 }), /too large/);
+  assert.throws(() => doc.addFeature('shell', { body: f.id, faces: [{ origin: [10, 10, 20], normal: [0, 0, 1], contours: [] }], thickness: 2 }), /flat/);
+});
+
 test('repair rebuild closes a mesh with holes', () => {
   const sphere = W.Manifold.sphere(20, 64), m = sphere.getMesh();
   const f = Array.from(m.triVerts).filter((_, i) => Math.floor(i / 3) % 400 !== 7);   // punch small holes

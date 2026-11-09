@@ -30,7 +30,7 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '
 const num = v => (Math.round(v * 1000) / 1000).toString();
 
 const TAB_ICON = { solid: 'box', print: 'bedsplit', supports: 'fins', mesh: 'remesh', sketch: 'sketch' };
-const FEATURE_ICON = { import: 'import', primitive: 'primitive', plane: 'plane', sketch: 'sketch', extrude: 'extrude', revolve: 'revolve', hole: 'hole',
+const FEATURE_ICON = { shell: 'hollow', import: 'import', primitive: 'primitive', plane: 'plane', sketch: 'sketch', extrude: 'extrude', revolve: 'revolve', hole: 'hole',
   combine: 'combine', split: 'split', mirror: 'mirror', move: 'move', scale: 'scale', hollow: 'hollow', repair: 'repair', simplify: 'simplify',
   pattern: 'pattern', delete: 'delete', separate: 'separate', bedsplit: 'bedsplit', pushpull: 'pushpull', sculpt: 'sculpt', remesh: 'remesh',
   layflat: 'layflat', thread: 'thread', offset: 'offset', resizehole: 'resizehole', supportfins: 'fins', supportwall: 'finwall' };
@@ -125,7 +125,7 @@ class App {
         ['Modify', [['pushpull', 'Push/Pull', 'pushpull'], ['combine', 'Combine', 'combine'], ['split', 'Split', 'split'],
           ['mirror', 'Mirror', 'mirror'], ['pattern', 'Pattern', 'pattern']]],
         ['Holes', [['hole', 'Hole', 'hole'], ['thread', 'Thread', 'thread'], { stack: [['resizehole', 'Resize Hole', 'resizehole']] }]],
-        ['Shape', [{ stack: [['hollow', 'Hollow', 'hollow'], ['offset', 'Offset Body', 'offset']] }]],
+        ['Shape', [{ stack: [['hollow', 'Hollow', 'hollow'], ['shell', 'Shell', 'hollow'], ['offset', 'Offset Body', 'offset']] }]],
         ['Reference', [{ drop: 'plane', label: 'Plane', items: planes }, ['params', 'Parameters', 'params']]],
       ],
       print: [
@@ -1413,7 +1413,7 @@ class App {
     } else if (f.kind === 'pface') {
       if (hit?.kind !== 'body') return true;
       const face = await post('face', { body: hit.id, tri: hit.tri, outline: true }, { quiet: true });
-      if (!face.planar && !f.anyFace) { this.toolMsg('That face isn\'t flat. Push/Pull works on flat faces.', 'err'); return true; }
+      if (!face.planar && !f.anyFace) { this.toolMsg('That face isn\'t flat. Pick a flat face.', 'err'); return true; }
       v[key] = face.planar ? { origin: face.origin, normal: face.normal, xdir: face.xdir, contours: face.contours, label: `Face of ${this.bodyName(hit.id)}` }
         : { origin: hit.point, normal: hit.normal, contours: [], label: `Point on ${this.bodyName(hit.id)}` };
       v.body = hit.id;
@@ -1710,7 +1710,7 @@ class App {
   // =================================================================== inspect modes
   exitModes() {
     if (this.mode === 'measure' || this.mode === 'info' || this.mode === 'section') {
-      if (this.mode === 'section') this.viewer.setSection(null);
+      // leaving Section keeps the cut: it stays on (X or the view bar turns it off) until removed
       this.viewer.clearOverlay();
       $('#tool-panel').classList.add('hidden');
     }
@@ -1746,24 +1746,68 @@ class App {
   async startSection() {
     await this.closeTool(); this.exitModes();
     this.mode = 'section';
+    // Cancel puts back the cut as it was (the same plane object: no re-working-out of the kept half)
+    this._sectionUndo = { state: this.sectionState && { ...this.sectionState }, on: this.sectionOn, plane: this.viewer.sectionPlane };
+    // an existing cut is edited where it is (the slider's range follows the parts now in the scene);
+    // a new one starts halfway up the parts
     const box = this.viewer.sceneBox();
     const lo = box.isEmpty() ? [-50, -50, -50] : box.min.toArray(), hi = box.isEmpty() ? [50, 50, 50] : box.max.toArray();
-    this.sectionState = { axis: 'z', flip: false, lo, hi, t: 0.5 };
-    $('#tool-title').textContent = 'Section View'; $('#tool-ok').textContent = 'Close';
+    if (!this.sectionState) this.sectionState = { axis: 'z', flip: false, lo, hi, t: 0.5 };
+    else {
+      const s = this.sectionState, i = 'xyz'.indexOf(s.axis), v = this.sectionValue();
+      if (hi[i] > lo[i]) this.sectionState = { ...s, lo, hi, t: Math.min(1, Math.max(0, (v - lo[i]) / (hi[i] - lo[i]))) };
+    }
+    $('#tool-title').textContent = 'Section View'; $('#tool-ok').textContent = 'Done';
     $('#tool-panel').classList.remove('hidden');
     this.renderSection();
-    this.hint('Drag the slider to look inside · this only changes the view');
+    this.hint('Drag the slider to look inside · only the view changes · the cut stays when you close this; X turns it off and on');
     this.updateRibbonState(); this.viewer.resize();
   }
 
+  sectionValue() { const s = this.sectionState, i = 'xyz'.indexOf(s.axis); return s.lo[i] + (s.hi[i] - s.lo[i]) * s.t; }
+
   renderSection() {
-    const s = this.sectionState, i = 'xyz'.indexOf(s.axis);
-    const val = s.lo[i] + (s.hi[i] - s.lo[i]) * s.t;
+    const s = this.sectionState;
     $('#tool-form').innerHTML = `<div class="field"><label>Axis</label><div class="ctl"><div class="seg">${['x', 'y', 'z'].map(a => `<button data-sec-axis="${a}" class="${a === s.axis ? 'on' : ''}">${a.toUpperCase()}</button>`).join('')}</div></div></div>
       <div class="field"><label>Position</label><div class="ctl"><input type="range" id="sec-pos" min="0" max="1000" value="${s.t * 1000}" style="width:100%"></div></div>
-      <div class="field"><label></label><div class="ctl">${U.str(val)}</div></div>
-      <div class="field"><label>Flip</label><div class="ctl"><input type="checkbox" id="sec-flip" ${s.flip ? 'checked' : ''}></div></div>`;
-    this.viewer.setSection(s.axis, val, s.flip);
+      <div class="field"><label></label><div class="ctl">${U.str(this.sectionValue())}</div></div>
+      <div class="field"><label>Flip</label><div class="ctl"><input type="checkbox" id="sec-flip" ${s.flip ? 'checked' : ''}></div></div>
+      <div class="msg info">The cut only changes what you see: export, Properties and Measure use the whole part. It stays on after you click Done; turn it off and on with <b>Section</b> in the view bar or the <b>X</b> key.</div>
+      <div class="field"><label></label><div class="ctl"><button data-sec-clear>Remove cut</button></div></div>`;
+    this.applyCut();
+  }
+
+  /** Shows the current cut (moving it turns it on) and updates the view bar's Section button. */
+  applyCut() {
+    const s = this.sectionState;
+    if (s) { this.sectionOn = true; this.viewer.setSection(s.axis, this.sectionValue(), s.flip); }
+    this.viewer.setSectionEnabled(!!s && this.sectionOn);
+    this.updateSectionButton();
+  }
+
+  /** The view bar's Section button / X: no cut yet opens Section; otherwise turns the cut off and on. */
+  toggleCut() {
+    if (!this.sectionState) return this.startSection();
+    this.sectionOn = !this.sectionOn;
+    this.viewer.setSectionEnabled(this.sectionOn);
+    this.updateSectionButton();
+    this.hint(this.sectionOn ? 'Section view on (X turns it off)' : 'Section view off (X turns it back on)');
+  }
+
+  /** Removes the cut altogether (Remove cut, or a new / opened project). */
+  clearCut() {
+    this.sectionState = null; this.sectionOn = false;
+    this.viewer.setSection(null);
+    this.updateSectionButton();
+    if (this.mode === 'section') { this.exitModes(); this.updateRibbonState(); this.viewer.resize(); }
+  }
+
+  updateSectionButton() {
+    const b = $('#btn-section'); if (!b) return;
+    const on = !!this.sectionState && this.sectionOn;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    b.title = !this.sectionState ? 'Section view: cut the view open to look inside (X)' : on ? 'Section view is on: click to turn it off (X)' : 'Section view is off: click to turn it back on (X)';
   }
 
   async startInfo(bid) {
@@ -1801,7 +1845,7 @@ class App {
         if (r.confirm) { if (!(await this.confirm(r.confirm))) return; r = await post(name, { ...data, force: true }); }
         if (r.cancelled) return;
         await this.closeTool(); if (this.sketcher.active) this.sketcher.stop();
-        this.selection = []; this.mode = 'model'; this.buildRibbon();
+        this.clearCut(); this.selection = []; this.mode = 'model'; this.buildRibbon();
         await this.apply(r);
         this.viewer.setView('iso');
         return;
@@ -1895,7 +1939,7 @@ class App {
         if (!params.files?.length) return;
         try {
           const r = await openLaunchFiles(params.files);
-          await this.closeTool(); this.selection = []; await this.apply(r); this.viewer.setView('iso'); this.viewer.fit();
+          await this.closeTool(); this.selection = []; this.clearCut(); await this.apply(r); this.viewer.setView('iso'); this.viewer.fit();
         } catch (e) { this.toast(e.message, 'err'); }
       });
     }
@@ -1986,12 +2030,15 @@ class App {
     let fitRaf = 0;
     window.addEventListener('resize', () => { cancelAnimationFrame(fitRaf); fitRaf = requestAnimationFrame(() => this.fitRibbon()); });
     $('#btn-insert').onclick = () => this.cmd('import');
-    $('#btn-export').onclick = () => this.exportMenu($('#btn-export'));
+    // stopPropagation: otherwise the document's "click outside closes the menu" handler hides it at once
+    $('#btn-export').onclick = e => { e.stopPropagation(); this.exportMenu($('#btn-export')); };
     for (const b of document.querySelectorAll('.menu-btn')) b.onclick = () => this.topMenu(b);
     // the tool panel's title shows the tool's toolbar icon (the title is set wherever a panel opens)
     new MutationObserver(() => { const ic = this.toolIcon(); $('#tool-icon').innerHTML = ic ? icon(ic) : ''; this.toolCredit(); })
       .observe($('#tool-title'), { childList: true, characterData: true, subtree: true });
-    for (const b of document.querySelectorAll('#viewcube button')) b.onclick = () => this.viewer.setView(b.dataset.view);
+    for (const b of document.querySelectorAll('#viewcube button[data-view]')) b.onclick = () => this.viewer.setView(b.dataset.view);
+    $('#btn-section').onclick = () => this.toggleCut();
+    this.updateSectionButton();
     $('#empty-open').onclick = () => this.cmd('import');
     $('#empty-box').onclick = () => this.openTool('primitive_box');
     $('#empty-recent').onclick = e => { const r = e.target.closest('[data-path]'); if (r) this.cmd('open', { path: r.dataset.path }); };
@@ -2192,6 +2239,7 @@ class App {
     }
     if (this.mode === 'section') {
       const a = e.target.closest('[data-sec-axis]'); if (a) { this.sectionState.axis = a.dataset.secAxis; this.renderSection(); }
+      if (e.target.closest('[data-sec-clear]')) this.clearCut();
       return;
     }
     const t = this.tool; if (!t) return;
@@ -2235,7 +2283,7 @@ class App {
   }
 
   onFormInput(e) {
-    if (this.mode === 'section' && e.target.id === 'sec-pos') { this.sectionState.t = e.target.value / 1000; const s = this.sectionState, i = 'xyz'.indexOf(s.axis); this.viewer.setSection(s.axis, s.lo[i] + (s.hi[i] - s.lo[i]) * s.t, s.flip); e.target.closest('.field').nextElementSibling.querySelector('.ctl').textContent = U.str(s.lo[i] + (s.hi[i] - s.lo[i]) * s.t); }
+    if (this.mode === 'section' && e.target.id === 'sec-pos') { this.sectionState.t = e.target.value / 1000; this.applyCut(); e.target.closest('.field').nextElementSibling.querySelector('.ctl').textContent = U.str(this.sectionValue()); }
   }
 
   onFormChange(e) {
@@ -2317,6 +2365,12 @@ class App {
 
   async panelCancel() {
     if (this.sketcher.active) return this.cancelSketch();
+    if (this.mode === 'section' && this._sectionUndo) {
+      const u = this._sectionUndo; this._sectionUndo = null;
+      this.sectionState = u.state; this.sectionOn = !!u.on;
+      this.viewer.sectionPlane = u.plane || null; this.viewer.setSectionEnabled(!!u.state && this.sectionOn);
+      this.updateSectionButton();
+    }
     if (['measure', 'section', 'info'].includes(this.mode)) { this.exitModes(); this.updateRibbonState(); this.viewer.resize(); return; }
     await this.closeTool();
   }
@@ -2369,7 +2423,7 @@ class App {
     if (k === 'Escape') { if (this.tool || this.mode !== 'model') this.panelCancel(); else { this.selection = []; this.viewer.setSelection([]); this.renderTree(); } return; }
     if (k === 'Enter' && this.tool) { this.panelOk(); return; }
     if (k === 'Delete' && this.selection.length && !this.tool) { this.openTool('delete'); return; }
-    const map = { s: () => this.beginSketch(), e: () => this.openTool('extrude'), h: () => this.openTool('hole'), m: () => this.openTool('move'), f: () => this.viewer.fit() };
+    const map = { s: () => this.beginSketch(), e: () => this.openTool('extrude'), h: () => this.openTool('hole'), m: () => this.openTool('move'), f: () => this.viewer.fit(), x: () => this.toggleCut() };
     if (!ctrl && map[k.toLowerCase()]) { map[k.toLowerCase()](); return; }
     const views = { 1: 'front', 2: 'back', 3: 'left', 4: 'right', 5: 'top', 6: 'bottom', 0: 'iso' };
     if (!ctrl && views[k]) this.viewer.setView(views[k]);
@@ -2410,6 +2464,8 @@ class App {
         { label: 'Top', k: '5', fn: () => this.viewer.setView('top') },
         { label: 'Front', k: '1', fn: () => this.viewer.setView('front') },
         { label: 'Right', k: '4', fn: () => this.viewer.setView('right') },
+        { label: `${this.sectionState && this.sectionOn ? '✓ ' : ''}Section View`, k: 'X', fn: () => this.toggleCut() },
+        ...(this.sectionState ? [{ label: 'Edit Section…', fn: () => this.startSection() }, { label: 'Remove Section', fn: () => this.clearCut() }] : []),
         { sep: true },
         { hdr: 'Units' },
         { label: `${U.mode === 'mm' ? '✓ ' : ''}Millimetres`, fn: () => this.setUnits('mm') },

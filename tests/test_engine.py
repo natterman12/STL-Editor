@@ -186,6 +186,30 @@ def test_hollow_sphere(tmp_path):
     assert vol(doc, f["id"]) == pytest.approx(expected, rel=0.08)
 
 
+def test_shell_opens_picked_faces(tmp_path):
+    # 20 mm cube, 2 mm wall: closed = 20^3 - 16^3; top open = 20^3 - 16*16*18; top+bottom = 20^3 - 16*16*20;
+    # top + a side (no bar left along their shared edge) = 20^3 - 18*16*18
+    sq = [[[-10, -10], [10, -10], [10, 10], [-10, 10]]]
+    top = {"origin": [10, 10, 20], "normal": [0, 0, 1], "xdir": [1, 0, 0], "contours": sq}
+    bottom = {"origin": [10, 10, 0], "normal": [0, 0, -1], "xdir": [1, 0, 0], "contours": sq}
+    side = {"origin": [20, 10, 10], "normal": [1, 0, 0], "contours": sq}   # +x side, shares an edge with the top
+    path = stl_file(tmp_path, m3.Manifold.cube((20, 20, 20)), "cube.stl")
+    for faces, expected, genus in (([], 8000 - 16 ** 3, -1), ([top], 8000 - 16 * 16 * 18, 0),
+                                   ([top, bottom], 8000 - 16 * 16 * 20, 1), ([top, side], 8000 - 18 * 16 * 18, 0)):
+        doc = Document()
+        f, _ = doc.import_file(path, place="keep")
+        doc.add_feature("shell", {"body": f["id"], "faces": faces, "thickness": 2})
+        assert vol(doc, f["id"]) == pytest.approx(expected, rel=3e-3)
+        assert doc.state.body(f["id"]).solid.genus() == genus
+    doc = Document()
+    f, _ = doc.import_file(path, place="keep")
+    with pytest.raises(GeometryError, match="too large"):
+        doc.add_feature("shell", {"body": f["id"], "faces": [top], "thickness": 12})
+    with pytest.raises(GeometryError, match="flat"):
+        doc.add_feature("shell", {"body": f["id"], "faces": [{"origin": [10, 10, 20], "normal": [0, 0, 1],
+                                                             "contours": []}], "thickness": 2})
+
+
 def test_repair_broken_mesh(tmp_path):
     mm = m3.Manifold.sphere(10, 48).to_mesh()
     v, t = np.asarray(mm.vert_properties)[:, :3], np.asarray(mm.tri_verts)

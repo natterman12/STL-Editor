@@ -89,6 +89,10 @@ def main(exe):
         step("import", lambda: st.update(s=call("upload", raw=sphere_stl(), query="?name=ball.stl")["state"]["bodies"][0]["id"]))
         S = st["s"]
         step("hollow", lambda: add("hollow", {"body": S, "thickness": 2}))
+        step("import 2", lambda: st.update(s2=call("upload", raw=sphere_stl(), query="?name=ball2.stl")["state"]["bodies"][-1]["id"]))
+        step("shell", lambda: add("shell", {"body": st["s2"], "thickness": 1.5, "faces": [{
+            "origin": [0, 0, 30], "normal": [0, 0, 1], "xdir": [1, 0, 0],
+            "contours": [[[-200, -200], [200, -200], [200, 200], [-200, 200]]]}]}))
         step("simplify", lambda: add("simplify", {"body": S, "ratio": 0.5}))
         step("remesh", lambda: add("remesh", {"body": S, "edge": 2}))
         step("sculpt", lambda: add("sculpt", {"body": S, "strokes": [{"mode": "inflate", "radius": 5, "strength": 0.5,

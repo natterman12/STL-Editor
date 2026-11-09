@@ -309,7 +309,7 @@ export function voxelRebuild(v, f, pitch, smooth = 0.6) {
 
 /** Shell a solid inward with the given wall thickness. The outer surface is kept exactly;
  *  the cavity comes from a voxel distance field refined to exact distances near its wall. */
-export function hollow(solid, thickness, pitch = null) {
+export function hollow(solid, thickness, pitch = null, cavityOnly = false) {   // cavityOnly: the cavity itself (Shell)
   if (!(thickness > 0)) throw new GeometryError('Wall thickness must be positive.');
   const m = solid.getMesh(), np = m.numProp;
   const nvx = m.vertProperties.length / np;
@@ -370,5 +370,5 @@ export function hollow(solid, thickness, pitch = null) {
   for (let p = 0; p < N; p++) if (field[p] > 0) { any = true; break; }
   if (!any) throw new GeometryError('Wall thickness is too large for this body; nothing would be left hollow.');
   const cavity = fieldToManifold(field, n, origin, pitch, 0).simplify(pitch * 0.1);   // more and the cavity drifts (0.25 grows it by 0.2 %)
-  return solid.subtract(cavity);
+  return cavityOnly ? cavity : solid.subtract(cavity);
 }

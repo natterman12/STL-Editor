@@ -390,6 +390,29 @@ export const TOOLS = {
     hint: 'Shells the body inward. Add a hole afterwards to drain resin or save filament',
   },
 
+  shell: {
+    label: 'Shell', icon: 'hollow', type: 'shell',
+    fields: [
+      { key: 'body', label: 'Body', kind: 'bodies', multi: false },
+      { key: 'openings', label: 'Open faces', kind: 'select', options: [['0', 'None (closed)'], ['1', '1'], ['2', '2'], ['3', '3'], ['4', '4']] },
+      ...[1, 2, 3, 4].map(i => ({ key: `face${i}`, label: `Face ${i}`, kind: 'pface', show: v => +v.openings >= i })),
+      { key: 'thickness', label: 'Wall', kind: 'number', unit: 'mm' },
+      { key: 'resolution', label: 'Quality', kind: 'select', options: [['draft', 'Draft'], ['normal', 'Normal'], ['fine', 'Fine']] },
+    ],
+    defaults: ctx => ({ body: selBody(ctx).slice(0, 1), openings: '1', face1: null, face2: null, face3: null, face4: null, thickness: 2, resolution: 'normal' }),
+    toParams: v => ({
+      body: Array.isArray(v.body) ? v.body[0] : v.body,
+      faces: [1, 2, 3, 4].filter(i => i <= +v.openings).map(i => v[`face${i}`]).filter(Boolean),
+      thickness: v.thickness, resolution: v.resolution,
+    }),
+    fromParams: p => {
+      const faces = p.faces || [];
+      return { ...p, body: p.body ? [p.body] : [], openings: String(faces.length), face1: faces[0] || null, face2: faces[1] || null, face3: faces[2] || null, face4: faces[3] || null };
+    },
+    noLivePreview: true,
+    hint: 'Click the flat faces to leave open; the rest of the part becomes a wall of this thickness, measured inward',
+  },
+
   // ----------------------------------------------------------------- construct
   plane_offset: {
     label: 'Offset Plane', icon: 'plane', type: 'plane',
