@@ -131,6 +131,10 @@ jobs:
       WIN_ASSET: STL-Editor-Windows-portable.zip
       LINUX_ASSET: STL-Editor-Linux-x86_64.tar.gz
     steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
       - uses: actions/download-artifact@v7
         with:
           name: STL-Editor-Windows-portable
