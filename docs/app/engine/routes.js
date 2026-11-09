@@ -6,7 +6,7 @@ import * as PR from './printing.js';
 import * as MT from './meshtools.js';
 import * as SFX from './supportfins.js';
 
-export const VERSION = '1.15.0';
+export const VERSION = '1.16.0';
 const PALETTE = ['#9aa7b4', '#c9a66b', '#7fa8c9', '#a3c48a', '#c98a8a', '#a993c9', '#c9b98a', '#8ac9c0'];
 
 export const app = { doc: new Document() };

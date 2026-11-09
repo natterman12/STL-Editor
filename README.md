@@ -76,6 +76,8 @@ The interface keeps your focus on the model: the part fills the window, with a f
 2. Unzip it anywhere (Desktop, Documents, a USB stick) and run **STL Editor.exe**.
 3. The app isn't code-signed yet, so Windows SmartScreen may say *"Windows protected your PC"*. Click **More info › Run anyway**.
 
+**Linux (beta):** get the Linux `.tar.gz` from the [Releases page](https://github.com/natterman12/STL-Editor/releases). **Mac:** there is no download yet; build it yourself (see the [user guide](USER_GUIDE.md#linux-and-mac-beta)) or use the web edition.
+
 Nothing gets installed and no admin rights are needed. Settings live in `%APPDATA%\STL Editor`. When a new release is posted, the app shows a notice; click **Update now** and it downloads the release, checks its SHA-256, swaps in the new version and restarts (or use Help › Check for Updates).
 
 ### Web edition
