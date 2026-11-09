@@ -210,6 +210,64 @@ def test_shell_opens_picked_faces(tmp_path):
                                                              "contours": []}], "thickness": 2})
 
 
+def _shoelace(contours):
+    return abs(sum(0.5 * sum(p[0] * q[1] - q[0] * p[1] for p, q in zip(c, c[1:] + c[:1])) for c in contours))
+
+
+def test_face_pick_rejects_curved_faces():
+    # a facet of a cylinder's side is two coplanar triangles: it isn't a flat face
+    from stleditor import server
+    app = server.App()
+    for p in ({"shape": "cylinder", "radius": 10, "height": 20}, {"shape": "box", "length": 20, "width": 20, "height": 20,
+                                                                   "offset": [40, 0, 0]}):
+        app.doc.add_feature("primitive", {**p, "plane": "XY"})
+    cyl, box = list(app.doc.state.bodies)
+
+    def pick(bid, want):
+        v, f = app.doc.state.body(bid).mesh()
+        t = v[f]
+        n = np.cross(t[:, 1] - t[:, 0], t[:, 2] - t[:, 0])
+        n /= np.linalg.norm(n, axis=1)[:, None]
+        tri = int(np.nonzero(want(n))[0][0])
+        return server.r_face(app, {"body": bid, "tri": tri, "outline": True})
+
+    side = pick(cyl, lambda n: np.abs(n[:, 2]) < 0.1)
+    assert not side["planar"]
+    top = pick(cyl, lambda n: n[:, 2] > 0.99)
+    assert top["planar"]
+    assert _shoelace(top["contours"]) == pytest.approx(0.5 * 96 * 100 * math.sin(2 * math.pi / 96), rel=1e-6)
+    assert _shoelace(top["contours"]) == pytest.approx(math.pi * 100, rel=5e-3)
+    btop = pick(box, lambda n: n[:, 2] > 0.99)
+    assert btop["planar"] and _shoelace(btop["contours"]) == pytest.approx(400, rel=1e-9)
+    assert pick(box, lambda n: n[:, 0] > 0.99)["planar"]
+
+
+def test_face_planar_keeps_flat_faces_of_meshes():
+    def top_of(man):
+        mm = man.to_mesh()
+        v, f = np.asarray(mm.vert_properties)[:, :3], np.asarray(mm.tri_verts)
+        t = v[f]
+        n = np.cross(t[:, 1] - t[:, 0], t[:, 2] - t[:, 0])
+        n /= np.maximum(np.linalg.norm(n, axis=1), 1e-30)[:, None]
+        region, nrm, _ = G.face_region(v, f, int(np.nonzero(n[:, 2] > 0.9999)[0][0]))
+        return v, f, region, nrm
+    # finely tessellated flat face (as in a downloaded STL), a face with a hole,
+    # and a flat top that blends into rounded edges at a shallow angle
+    fine = m3.Manifold.cube((20, 20, 20)).refine(8)
+    holed = m3.Manifold.cube((20, 20, 20)) - m3.Manifold.cylinder(30, 4, 4, 64).translate((10, 10, -5))
+    rounded = m3.Manifold.batch_hull([m3.Manifold.sphere(3, 48).translate((x, y, z))
+                                      for x in (0, 20) for y in (0, 20) for z in (0, 10)])
+    for man in (fine, holed, rounded):
+        v, f, region, nrm = top_of(man)
+        assert G.face_is_planar(v, f, region, nrm)
+    # a facet of a sphere isn't flat
+    mm = m3.Manifold.sphere(10, 48).to_mesh()
+    v, f = np.asarray(mm.vert_properties)[:, :3], np.asarray(mm.tri_verts)
+    for tri in (0, len(f) // 2):
+        region, nrm, _ = G.face_region(v, f, tri)
+        assert not G.face_is_planar(v, f, region, nrm)
+
+
 def test_repair_broken_mesh(tmp_path):
     mm = m3.Manifold.sphere(10, 48).to_mesh()
     v, t = np.asarray(mm.vert_properties)[:, :3], np.asarray(mm.tri_verts)

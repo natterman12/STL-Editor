@@ -714,3 +714,51 @@ test('Face click: only the connected flat face is picked, in triangle order', ()
   approx(area, 100, 1e-6, 'one top face');
   assert.deepEqual(region, [...region].sort((a, b) => a - b));
 });
+
+const shoelace = cs => Math.abs(cs.reduce((s, c) => s + c.reduce((a, p, i) => { const q = c[(i + 1) % c.length]; return a + (p[0] * q[1] - q[0] * p[1]) / 2; }, 0), 0));
+const unitNormals = (v, f) => G.triNormals(v, f).n;
+
+test('Face pick: a cylinder side is not flat; its top and a box top are', async () => {
+  const R = await load('engine/routes.js');
+  R.ROUTES.new({ force: true });
+  R.app.doc.addFeature('primitive', { shape: 'cylinder', radius: 10, height: 20, plane: 'XY' });
+  R.app.doc.addFeature('primitive', { shape: 'box', length: 20, width: 20, height: 20, plane: 'XY', offset: [40, 0, 0] });
+  const [cyl, box] = [...R.app.doc.state.bodies.keys()];
+  const pick = (bid, want) => {
+    const { v, f } = R.app.doc.state.body(bid).mesh();
+    const n = unitNormals(v, f);
+    let tri = -1;
+    for (let t = 0; t < f.length / 3 && tri < 0; t++) if (want(n[t * 3], n[t * 3 + 1], n[t * 3 + 2])) tri = t;
+    return R.ROUTES.face({ body: bid, tri, outline: true });
+  };
+  assert.equal(pick(cyl, (x, y, z) => Math.abs(z) < 0.1).planar, false, 'cylinder side');
+  const top = pick(cyl, (x, y, z) => z > 0.99);
+  assert.equal(top.planar, true);
+  approx(shoelace(top.contours), 0.5 * 96 * 100 * Math.sin(2 * Math.PI / 96), 1e-6);
+  assert.ok(Math.abs(shoelace(top.contours) / (Math.PI * 100) - 1) < 5e-3);
+  const btop = pick(box, (x, y, z) => z > 0.99);
+  assert.equal(btop.planar, true);
+  approx(shoelace(btop.contours), 400, 1e-6);
+  assert.equal(pick(box, x => x > 0.99).planar, true);
+});
+
+test('Face pick: flat faces of fine, holed and rounded meshes stay flat; sphere facets are not', () => {
+  const topOf = man => {
+    const m = man.getMesh(), v = m.vertProperties, f = m.triVerts, n = unitNormals(v, f);
+    let tri = -1;
+    for (let t = 0; t < f.length / 3 && tri < 0; t++) if (n[t * 3 + 2] > 0.9999) tri = t;
+    const { region, normal } = G.faceRegion(v, f, tri);
+    return G.facePlanar(v, f, region, normal);
+  };
+  const M = W.Manifold;
+  const corners = [];
+  for (const x of [0, 20]) for (const y of [0, 20]) for (const z of [0, 10]) corners.push(M.sphere(3, 48).translate([x, y, z]));
+  assert.equal(topOf(M.cube([20, 20, 20]).refine(8)), true, 'finely tessellated');
+  assert.equal(topOf(M.cube([20, 20, 20]).subtract(M.cylinder(30, 4, 4, 64).translate([10, 10, -5]))), true, 'with a hole');
+  assert.equal(topOf(M.hull(corners)), true, 'blends into rounded edges');
+  const m = M.sphere(10, 48).getMesh(), v = m.vertProperties, f = m.triVerts;
+  for (const tri of [0, Math.floor(f.length / 6)]) {
+    const { region, normal } = G.faceRegion(v, f, tri);
+    assert.equal(G.facePlanar(v, f, region, normal), false, `sphere facet ${tri}`);
+  }
+});

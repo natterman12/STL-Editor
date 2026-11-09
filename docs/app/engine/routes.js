@@ -1,6 +1,6 @@
 // The engine's API (mirrors the desktop app's stleditor/server.py routes).
 import { Document } from './document.js';
-import { GeometryError, faceRegion, planeFrame, regionBoundary, dot, sub } from './geom.js';
+import { GeometryError, faceRegion, facePlanar, planeFrame, regionBoundary, dot, sub } from './geom.js';
 import * as S from './sketch2d.js';
 import * as PR from './printing.js';
 import * as MT from './meshtools.js';
@@ -76,7 +76,7 @@ export const ROUTES = {
     const seg2 = seg3.map(s => s.map(p => { const q = sub(p, o); return [+dot(q, x).toFixed(5), +dot(q, y).toFixed(5)]; }));
     const contours = d.outline && region.length <= 400000 ? PR.faceOutline(v, f, region, [o, x, y, nn]) : [];
     return { contours, body: d.body, origin: o, normal: nn, xdir: x, ydir: y, centroid, hit: d.point || centroid,
-      tris: region.slice(0, 200000), boundary3d: seg3, boundary2d: seg2, planar: region.length > 1 };
+      tris: region.slice(0, 200000), boundary3d: seg3, boundary2d: seg2, planar: facePlanar(v, f, region, normal, +(d.angle_tol || 1)) };
   },
   cylinder: d => {
     const b = app.doc.state.body(d.body), { v, f } = b.mesh();

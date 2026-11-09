@@ -594,6 +594,64 @@ export function regionBoundary(f, region) {
   return out;
 }
 
+/** Facets meeting at less than this angle are one smooth surface (a faceted cylinder or sphere). */
+export const FACE_SHALLOW_DEG = 20;
+
+/** Is the coplanar region grown by faceRegion a real flat face, or one facet of a curved
+ *  surface? A facet of a cylinder or sphere is bounded mostly by shallow edges (its neighbours
+ *  carry on at a small angle) and the facet next to it is about as big as it is. A flat face is
+ *  bounded mostly by creases, or (a flat top blending into fillets) its shallow neighbours are
+ *  much smaller than it. Same rule as geometry.face_is_planar. */
+export function facePlanar(v, f, region, normal, angleTolDeg = 1.0) {
+  if (region.length <= 1) return false;
+  const bd = regionBoundary(f, region);
+  if (!bd.length) return true;
+  const nt = f.length / 3;
+  const inR = new Uint8Array(nt);
+  for (const t of region) inR[t] = 1;
+  const nrm = t => {
+    const p = f[t * 3] * 3, q = f[t * 3 + 1] * 3, r = f[t * 3 + 2] * 3;
+    const ux = v[q] - v[p], uy = v[q + 1] - v[p + 1], uz = v[q + 2] - v[p + 2];
+    const wx = v[r] - v[p], wy = v[r + 1] - v[p + 1], wz = v[r + 2] - v[p + 2];
+    return [uy * wz - uz * wy, uz * wx - ux * wz, ux * wy - uy * wx];
+  };
+  const area = t => Math.hypot(...nrm(t)) / 2;
+  // per boundary edge: the outside triangle across it with the largest bend (lowest index on a tie)
+  const across = new Map();
+  const onBd = new Uint8Array(v.length / 3);
+  for (const [a, b] of bd) { across.set(edgeKey(a, b), { d: Infinity, t: -1 }); onBd[a] = onBd[b] = 1; }
+  for (let t = 0; t < nt; t++) {
+    if (inR[t] || !(onBd[f[t * 3]] + onBd[f[t * 3 + 1]] + onBd[f[t * 3 + 2]] >= 2)) continue;
+    let c = null, d = 0;
+    for (let k = 0; k < 3; k++) {
+      const s = across.get(edgeKey(f[t * 3 + k], f[t * 3 + (k + 1) % 3]));
+      if (!s) continue;
+      if (!c) { c = nrm(t); const L = Math.hypot(c[0], c[1], c[2]); d = L > 0 ? (c[0] * normal[0] + c[1] * normal[1] + c[2] * normal[2]) / L : 0; }
+      if (d < s.d) { s.d = d; s.t = t; }
+    }
+  }
+  const cosS = Math.cos(FACE_SHALLOW_DEG * Math.PI / 180);
+  let total = 0, shallow = 0;
+  const soft = [];
+  for (const [a, b] of bd) {
+    const L = Math.hypot(v[a * 3] - v[b * 3], v[a * 3 + 1] - v[b * 3 + 1], v[a * 3 + 2] - v[b * 3 + 2]);
+    total += L;
+    const s = across.get(edgeKey(a, b));
+    if (s.t >= 0 && s.d >= cosS) { shallow += L; soft.push([L, s.t]); }
+  }
+  if (shallow <= 0.5 * total) return true;
+  // the neighbour across the longest shallow edge (lowest triangle index on a tie)
+  let maxL = 0;
+  for (const [L] of soft) if (L > maxL) maxL = L;
+  let next = -1;
+  for (const [L, t] of soft) if (L >= maxL - 1e-9 && (next < 0 || t < next)) next = t;
+  const other = faceRegion(v, f, next, angleTolDeg).region;
+  let A = 0, B = 0;
+  for (const t of region) A += area(t);
+  for (const t of other) B += area(t);
+  return B < 0.5 * A;
+}
+
 /** Cylinder or cone from point p0 along direction for `length`. */
 export function makeCylinder(p0, direction, length, r0, r1 = null, segments = 96) {
   const c = Manifold.cylinder(+length, +r0, r1 === null ? +r0 : +r1, segments);

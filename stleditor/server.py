@@ -309,6 +309,7 @@ def r_face(app, d):
     b = app.doc.state.body(d["body"])
     v, f = b.mesh()
     region, n, c = G.face_region(v, f, int(d["tri"]), float(d.get("angle_tol", 1.0)))
+    planar = G.face_is_planar(v, f, region, n, float(d.get("angle_tol", 1.0)))
     hit = np.asarray(d.get("point", c), float)
     axis_aligned = np.max(np.abs(n)) > 0.99999
     if axis_aligned:
@@ -337,7 +338,7 @@ def r_face(app, d):
     return {"contours": contours,"body": d["body"], "origin": o.tolist(), "normal": nn.tolist(), "xdir": x.tolist(),
             "ydir": y.tolist(), "centroid": c.tolist(), "hit": hit.tolist(),
             "tris": tris.tolist(), "boundary3d": seg3.round(5).tolist(),
-            "boundary2d": seg2.round(5).tolist(), "planar": len(region) > 1}
+            "boundary2d": seg2.round(5).tolist(), "planar": bool(planar)}
 
 
 def r_sketch_op(app, d):

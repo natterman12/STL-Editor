@@ -710,6 +710,63 @@ def region_boundary(faces, region):
     return e[cnt[inv.reshape(-1)] == 1]
 
 
+# facets meeting at less than this angle are one smooth surface (a faceted cylinder or sphere)
+FACE_SHALLOW_DEG = 20.0
+
+
+def face_is_planar(verts, faces, region, normal, angle_tol_deg=1.0):
+    """Is the coplanar region grown by face_region a real flat face, or one facet of a curved
+    surface? A facet of a cylinder or sphere is bounded mostly by shallow edges (its neighbours
+    carry on at a small angle) and the facet next to it is about as big as it is. A flat face is
+    bounded mostly by creases, or (a flat top blending into fillets) its shallow neighbours are
+    much smaller than it. Same rule as geom.js facePlanar."""
+    region = np.asarray(region, np.int64)
+    if len(region) <= 1:
+        return False
+    v = np.asarray(verts, np.float64)
+    f = np.asarray(faces, np.int64)
+    bd = region_boundary(f, region)
+    if not len(bd):
+        return True
+    nv = len(v)
+    bkey = np.minimum(bd[:, 0], bd[:, 1]) * nv + np.maximum(bd[:, 0], bd[:, 1])
+    ukey = np.unique(bkey)
+    inr = np.zeros(len(f), bool)
+    inr[region] = True
+    out = np.nonzero(~inr)[0]
+    fo = f[out]
+    e = np.concatenate([fo[:, [0, 1]], fo[:, [1, 2]], fo[:, [2, 0]]])
+    ek = np.minimum(e[:, 0], e[:, 1]) * nv + np.maximum(e[:, 0], e[:, 1])
+    et = np.tile(out, 3)
+    pos = np.minimum(np.searchsorted(ukey, ek), len(ukey) - 1)
+    hit = ukey[pos] == ek
+    pos, et = pos[hit], et[hit]
+    t = v[f]
+    nrm = np.cross(t[:, 1] - t[:, 0], t[:, 2] - t[:, 0])
+    area2 = np.linalg.norm(nrm, axis=1)
+    unit_n = np.divide(nrm, area2[:, None], out=np.zeros_like(nrm), where=area2[:, None] > 0)
+    # per boundary edge: the outside triangle across it with the largest bend (lowest index on a tie)
+    mind = np.full(len(ukey), np.inf)
+    acr = np.full(len(ukey), -1, np.int64)
+    if len(et):
+        d = unit_n[et] @ np.asarray(normal, np.float64)
+        order = np.lexsort((et, d, pos))
+        ps = pos[order]
+        first = order[np.r_[True, ps[1:] != ps[:-1]]]
+        mind[pos[first]] = d[first]
+        acr[pos[first]] = et[first]
+    k = np.searchsorted(ukey, bkey)
+    lens = np.linalg.norm(v[bd[:, 0]] - v[bd[:, 1]], axis=1)
+    soft = (acr[k] >= 0) & (mind[k] >= math.cos(math.radians(FACE_SHALLOW_DEG)))
+    if lens[soft].sum() <= 0.5 * lens.sum():
+        return True
+    # the neighbour across the longest shallow edge (lowest triangle index on a tie)
+    sl, st = lens[soft], acr[k][soft]
+    nxt = int(st[sl >= sl.max() - 1e-9].min())
+    other, _, _ = face_region(v, f, nxt, angle_tol_deg)
+    return area2[other].sum() < 0.5 * area2[region].sum()
+
+
 def make_cylinder(p0, direction, length, r0, r1=None, segments=96):
     """Cylinder/cone from point p0 along direction for `length`."""
     r1 = r0 if r1 is None else r1
