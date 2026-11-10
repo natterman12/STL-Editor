@@ -1,0 +1,379 @@
+// manifold_shape.rs — shape-producing constructors on Manifold: primitives
+// (tetrahedron, cube, cylinder, sphere, extrude, revolve), convex hulls,
+// SDF level sets, Minkowski sums and 2D cross-section helpers.
+//
+// Extracted from manifold.rs for file size management; a child module of
+// `manifold` so these methods keep access to the private `imp` field and
+// callers keep the same `Manifold::cube(...)` paths. Ports the corresponding
+// static constructors of C++ Manifold (constructors.cpp, sdf.cpp,
+// quickhull.cpp, minkowski.cpp).
+
+use super::Manifold;
+use crate::constructors;
+use crate::cross_section::CrossSection;
+use crate::impl_mesh::ManifoldImpl;
+use crate::linalg::{
+    mat4_to_mat3x4, normalize, scaling_matrix, translation_matrix, Mat3x4, Vec2, Vec3,
+};
+use crate::math;
+use crate::minkowski;
+use crate::quickhull;
+use crate::sdf;
+use crate::types::{Error, Polygons};
+
+impl Manifold {
+    pub fn tetrahedron() -> Self {
+        Self::from_impl(ManifoldImpl::tetrahedron(&Mat3x4::identity()))
+    }
+
+    pub fn cube(size: Vec3, center: bool) -> Self {
+        if size.x < 0.0 || size.y < 0.0 || size.z < 0.0 || crate::linalg::length(size) == 0.0 {
+            return Self::make_empty(crate::types::Error::InvalidConstruction);
+        }
+        let translation = if center {
+            translation_matrix(-size * 0.5)
+        } else {
+            translation_matrix(Vec3::new(0.0, 0.0, 0.0))
+        };
+        let transform = mat4_to_mat3x4(translation * scaling_matrix(size));
+        Self::from_impl(ManifoldImpl::cube(&transform))
+    }
+
+    pub fn cylinder(
+        height: f64,
+        radius_low: f64,
+        radius_high: f64,
+        circular_segments: i32,
+    ) -> Self {
+        Self::cylinder_centered(height, radius_low, radius_high, circular_segments, false)
+    }
+
+    pub fn cylinder_centered(
+        height: f64,
+        radius_low: f64,
+        radius_high: f64,
+        circular_segments: i32,
+        center: bool,
+    ) -> Self {
+        if height <= 0.0 || radius_low < 0.0 {
+            return Self::make_empty(crate::types::Error::InvalidConstruction);
+        }
+        if radius_low == 0.0 && radius_high <= 0.0 {
+            return Self::make_empty(crate::types::Error::InvalidConstruction);
+        }
+        Self::from_impl(constructors::cylinder(
+            height,
+            radius_low,
+            radius_high,
+            circular_segments,
+            center,
+        ))
+    }
+
+    pub fn sphere(radius: f64, circular_segments: i32) -> Self {
+        if radius <= 0.0 {
+            return Self::make_empty(crate::types::Error::InvalidConstruction);
+        }
+        const K_HALF_PI: f64 = std::f64::consts::FRAC_PI_2;
+
+        // Build unit octahedron and subdivide each edge into exactly n parts in
+        // one pass (n^2 tris per original face), matching C++:
+        //   n = (circularSegments + 3) / 4   (or Quality-based when unspecified)
+        //   Subdivide([n](...) { return n - 1; })
+        // n-1 is the number of *added* verts per edge. Using the n-way Subdivide
+        // (not binary midpoint splits) gives exact non-power-of-2 counts, e.g.
+        // Sphere(_, 25) -> 8 * 25^2 = 5000 tris rather than 8 * 32^2 = 8192.
+        let identity = mat4_to_mat3x4(scaling_matrix(Vec3::splat(1.0)));
+        let mut mesh = ManifoldImpl::octahedron(&identity);
+        let n = if circular_segments > 0 {
+            (circular_segments + 3) / 4
+        } else {
+            crate::types::Quality::get_circular_segments(radius) / 4
+        };
+        if n > 1 {
+            mesh.subdivide(&|_, _, _| n - 1, false);
+        }
+
+        // Map subdivided octahedron vertices onto the sphere surface
+        // (matches C++: v = cos(π/2 * (1 - v)); v = radius * normalize(v))
+        for v in mesh.vert_pos.iter_mut() {
+            let mapped = Vec3::new(
+                math::cos(K_HALF_PI * (1.0 - v.x)),
+                math::cos(K_HALF_PI * (1.0 - v.y)),
+                math::cos(K_HALF_PI * (1.0 - v.z)),
+            );
+            let n = normalize(mapped);
+            *v = if n.x.is_nan() {
+                Vec3::splat(0.0)
+            } else {
+                Vec3::new(n.x * radius, n.y * radius, n.z * radius)
+            };
+        }
+
+        // Rebuild mesh metadata after vertex positions changed
+        mesh.calculate_bbox();
+        mesh.set_epsilon(-1.0, false);
+        mesh.sort_geometry();
+        mesh.set_normals_and_coplanar();
+
+        Self::from_impl(mesh)
+    }
+
+    pub fn extrude(
+        cross_section: &Polygons,
+        height: f64,
+        n_divisions: i32,
+        twist_degrees: f64,
+        scale_top: Vec2,
+    ) -> Self {
+        if cross_section.is_empty() || height <= 0.0 {
+            return Self::make_empty(crate::types::Error::InvalidConstruction);
+        }
+        Self::from_impl(constructors::extrude(
+            cross_section,
+            height,
+            n_divisions,
+            twist_degrees,
+            scale_top,
+        ))
+    }
+
+    pub fn revolve(cross_section: &Polygons, circular_segments: i32, revolve_degrees: f64) -> Self {
+        if cross_section.is_empty() {
+            return Self::make_empty(crate::types::Error::InvalidConstruction);
+        }
+        Self::from_impl(constructors::revolve(
+            cross_section,
+            circular_segments,
+            revolve_degrees,
+        ))
+    }
+
+    pub fn level_set<F: Fn(Vec3) -> f64 + Sync>(
+        sdf_fn: F,
+        bounds: crate::types::Box,
+        edge_length: f64,
+    ) -> Self {
+        Self::from_impl(sdf::level_set(sdf_fn, bounds, edge_length, 0.0, -1.0))
+    }
+
+    pub fn level_set_with_level<F: Fn(Vec3) -> f64 + Sync>(
+        sdf_fn: F,
+        bounds: crate::types::Box,
+        edge_length: f64,
+        level: f64,
+    ) -> Self {
+        Self::from_impl(sdf::level_set(sdf_fn, bounds, edge_length, level, -1.0))
+    }
+
+    /// Full-parameter LevelSet matching C++ `Manifold::LevelSet(sdf, bounds,
+    /// edgeLength, level, tolerance)`. Positive `tolerance` refines each
+    /// crossing vertex to within that distance of the true surface.
+    pub fn level_set_with_tolerance<F: Fn(Vec3) -> f64 + Sync>(
+        sdf_fn: F,
+        bounds: crate::types::Box,
+        edge_length: f64,
+        level: f64,
+        tolerance: f64,
+    ) -> Self {
+        Self::from_impl(sdf::level_set(
+            sdf_fn,
+            bounds,
+            edge_length,
+            level,
+            tolerance,
+        ))
+    }
+
+    pub fn hull(points: &[Vec3]) -> Self {
+        Self::from_impl(quickhull::convex_hull(points))
+    }
+
+    /// Compute the convex hull of this manifold's vertices.
+    pub fn convex_hull(&self) -> Self {
+        if self.is_empty() {
+            return self.clone();
+        }
+        Self::from_impl(quickhull::convex_hull(&self.imp.vert_pos))
+    }
+
+    /// Compute the convex hull of multiple manifolds' combined vertices.
+    /// If any manifold is errored, propagates its error status.
+    pub fn hull_manifolds(manifolds: &[Self]) -> Self {
+        // Propagate any error from inputs
+        for m in manifolds {
+            if m.imp.status != Error::NoError {
+                return m.clone();
+            }
+        }
+        let all_verts: Vec<Vec3> = manifolds
+            .iter()
+            .flat_map(|m| m.imp.vert_pos.iter().copied())
+            .collect();
+        Self::from_impl(quickhull::convex_hull(&all_verts))
+    }
+
+    pub fn minkowski_sum(&self, other: &Self) -> Self {
+        if let Some(e) = self.require_paired() {
+            return e;
+        }
+        if let Some(e) = other.require_paired() {
+            return e;
+        }
+        // Per C++ #1659: propagate errored input status before computing.
+        if self.imp.status != Error::NoError {
+            return self.clone();
+        }
+        if other.imp.status != Error::NoError {
+            return other.clone();
+        }
+        Self::from_impl(minkowski::minkowski_sum(&self.imp, &other.imp))
+    }
+
+    /// [`Manifold::minkowski_sum`] with cooperative cancellation and progress
+    /// reporting ([`crate::progress::Phase::Minkowski`]). `None` for either
+    /// is independent of the other, and both `None` is byte-for-byte
+    /// `minkowski_sum`. A cancelled run comes back empty with
+    /// [`Error::Cancelled`].
+    pub fn minkowski_sum_with_progress(
+        &self,
+        other: &Self,
+        token: Option<&crate::cancel::CancelToken>,
+        progress: Option<&crate::progress::ProgressReporter>,
+    ) -> Self {
+        if let Some(e) = self.require_paired() {
+            return e;
+        }
+        if let Some(e) = other.require_paired() {
+            return e;
+        }
+        if self.imp.status != Error::NoError {
+            return self.clone();
+        }
+        if other.imp.status != Error::NoError {
+            return other.clone();
+        }
+        Self::from_impl(minkowski::minkowski_sum_with_progress(
+            &self.imp, &other.imp, token, progress,
+        ))
+    }
+
+    pub fn minkowski_difference(&self, other: &Self) -> Self {
+        if let Some(e) = self.require_paired() {
+            return e;
+        }
+        if let Some(e) = other.require_paired() {
+            return e;
+        }
+        if self.imp.status != Error::NoError {
+            return self.clone();
+        }
+        if other.imp.status != Error::NoError {
+            return other.clone();
+        }
+        Self::from_impl(minkowski::minkowski_difference(&self.imp, &other.imp))
+    }
+
+    /// [`Manifold::minkowski_difference`] with cooperative cancellation and
+    /// progress reporting; see [`Manifold::minkowski_sum_with_progress`].
+    pub fn minkowski_difference_with_progress(
+        &self,
+        other: &Self,
+        token: Option<&crate::cancel::CancelToken>,
+        progress: Option<&crate::progress::ProgressReporter>,
+    ) -> Self {
+        if let Some(e) = self.require_paired() {
+            return e;
+        }
+        if let Some(e) = other.require_paired() {
+            return e;
+        }
+        if self.imp.status != Error::NoError {
+            return self.clone();
+        }
+        if other.imp.status != Error::NoError {
+            return other.clone();
+        }
+        Self::from_impl(minkowski::minkowski_difference_with_progress(
+            &self.imp, &other.imp, token, progress,
+        ))
+    }
+
+    /// [`Manifold::minkowski_difference`] in closed form, for the convex solids
+    /// that have one — the halfspace intersection of
+    /// [`crate::convex_erosion`]. A Rust extension with no C++ counterpart,
+    /// mirroring manifold-sharp's `Manifold.TryConvexErosion` bit for bit.
+    ///
+    /// A fast path a caller opts into, not a reroute: `minkowski_difference`
+    /// still runs the ported sweep for every input. Returns `None` for
+    /// anything it cannot prove itself on, and the answer to `None` is to call
+    /// `minkowski_difference`. A cancelled run returns `Some` of an empty
+    /// result with [`Error::Cancelled`], so a cancelled caller does not go on
+    /// to run the sweep.
+    pub fn try_convex_erosion(
+        &self,
+        other: &Self,
+        token: Option<&crate::cancel::CancelToken>,
+        progress: Option<&crate::progress::ProgressReporter>,
+    ) -> Option<Self> {
+        // Unpaired halfedges make is_convex read a neighbour that is not
+        // there; hand those back to the sweep, which propagates the error.
+        if self.require_paired().is_some() || other.require_paired().is_some() {
+            return None;
+        }
+        crate::convex_erosion::try_compute(&self.imp, &other.imp, token, progress)
+            .map(Self::from_impl)
+    }
+
+    /// [`Manifold::minkowski_sum`] of a non-convex manifold and a convex tool,
+    /// reduced through [`crate::convex_dilation`]'s balanced (parallel under
+    /// the `parallel` feature) union tree. A Rust extension with no C++
+    /// counterpart, mirroring manifold-sharp's `Manifold.TryDilateByConvex`.
+    ///
+    /// Opt-in, not a reroute: `None` for anything but non-convex ⊕ convex, and
+    /// the answer to `None` is `minkowski_sum`. The same solid (volume and
+    /// genus) but not the same triangles. A cancelled run is `Some` of an
+    /// empty [`Error::Cancelled`] result.
+    pub fn try_dilate_by_convex(
+        &self,
+        tool: &Self,
+        token: Option<&crate::cancel::CancelToken>,
+        progress: Option<&crate::progress::ProgressReporter>,
+    ) -> Option<Self> {
+        if self.require_paired().is_some() || tool.require_paired().is_some() {
+            return None;
+        }
+        crate::convex_dilation::try_compute(&self.imp, &tool.imp, token, progress)
+            .map(Self::from_impl)
+    }
+
+    /// [`Manifold::minkowski_difference`] by a convex tool, the swept hulls
+    /// reduced through [`crate::convex_dilation`]'s union tree and subtracted
+    /// from the solid once. A Rust extension with no C++ counterpart,
+    /// mirroring manifold-sharp's `Manifold.TryErodeByConvex`.
+    ///
+    /// `None` for a non-convex tool, any empty, soup or errored operand, or
+    /// overlapping shells whose union does not rebuild cleanly; the answer to
+    /// `None` is `minkowski_difference`. Takes a convex solid, but try
+    /// [`Manifold::try_convex_erosion`] first for those (exact and faster).
+    pub fn try_erode_by_convex(
+        &self,
+        tool: &Self,
+        token: Option<&crate::cancel::CancelToken>,
+        progress: Option<&crate::progress::ProgressReporter>,
+    ) -> Option<Self> {
+        if self.require_paired().is_some() || tool.require_paired().is_some() {
+            return None;
+        }
+        crate::convex_dilation::try_compute_erosion(&self.imp, &tool.imp, token, progress)
+            .map(Self::from_impl)
+    }
+
+    pub fn cross_section_square(size: f64) -> CrossSection {
+        CrossSection::square(size)
+    }
+
+    pub fn cross_section_circle(radius: f64, segments: i32) -> CrossSection {
+        CrossSection::circle(radius, segments)
+    }
+}

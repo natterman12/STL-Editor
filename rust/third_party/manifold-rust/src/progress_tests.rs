@@ -1,0 +1,492 @@
+// Copyright 2026 Lars Brubaker
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Tests for progress.rs: the throttle's own arithmetic, and the two
+// contracts a consumer relies on — phases arrive in pipeline order with
+// fractions in [0, 1], and instrumenting a boolean cannot change its result.
+
+use std::sync::{Arc, Mutex};
+
+use super::*;
+use crate::linalg::Vec3;
+use crate::manifold::Manifold;
+use crate::types::{BooleanEngine, MeshGL, OpType};
+
+/// One reported update, reduced to what the assertions look at.
+type Event = (&'static str, Option<f64>);
+
+/// Collects every callback a run emits.
+#[derive(Default)]
+struct Sink {
+    events: Arc<Mutex<Vec<Event>>>,
+}
+
+impl Sink {
+    fn reporter(&self) -> ProgressReporter {
+        let events = Arc::clone(&self.events);
+        ProgressReporter::new(move |phase: Phase, fraction| {
+            events
+                .lock()
+                .expect("sink poisoned")
+                .push((phase.name(), fraction));
+        })
+    }
+
+    fn events(&self) -> Vec<Event> {
+        self.events.lock().expect("sink poisoned").clone()
+    }
+}
+
+/// The phase a reported name belongs to, for the monotonicity check.
+fn phase_named(name: &str) -> Phase {
+    *Phase::ALL
+        .iter()
+        .find(|p| p.name() == name)
+        .unwrap_or_else(|| panic!("unknown phase name {name:?}"))
+}
+
+/// The monotonicity check: phases never go backwards and every fraction is in
+/// [0, 1]. "Backwards" is by [`Phase::pipeline_position`], which on phases
+/// 0-7 is the id and on appended phases is where they actually run. Returns
+/// the distinct phases seen, in order.
+fn assert_phases_in_pipeline_order_with_valid_fractions(events: &[Event]) -> Vec<&'static str> {
+    let mut last = 0usize;
+    let mut seen = Vec::new();
+    for (name, fraction) in events {
+        let position = phase_named(name).pipeline_position();
+        assert!(
+            position >= last,
+            "phase {name:?} (position {position}) went backwards from {last}"
+        );
+        if position != last || seen.is_empty() {
+            seen.push(*name);
+        }
+        last = position;
+        if let Some(f) = fraction {
+            assert!((0.0..=1.0).contains(f), "fraction {f} out of range");
+        }
+    }
+    seen
+}
+
+fn cube(offset: f64) -> Manifold {
+    Manifold::cube(Vec3::splat(1.0), true).translate(Vec3::new(offset, 0.0, 0.0))
+}
+
+/// A sphere with a doubled shell: self-intersecting, so it exercises every
+/// robust phase rather than the trivial disjoint fast paths.
+fn spheres() -> (Manifold, Manifold) {
+    (
+        Manifold::sphere(1.0, 24),
+        Manifold::sphere(0.8, 24).translate(Vec3::new(0.4, 0.1, 0.2)),
+    )
+}
+
+#[test]
+fn begin_phase_always_reports_and_names_the_phase() {
+    let sink = Sink::default();
+    let r = sink.reporter();
+    r.begin_phase(Phase::NarrowPhase, 10);
+    r.begin_phase(Phase::Winding, 0);
+    assert_eq!(
+        sink.events(),
+        vec![("narrow phase", Some(0.0)), ("winding", None)]
+    );
+}
+
+#[test]
+fn advance_is_throttled_and_fractions_stay_in_range() {
+    let sink = Sink::default();
+    let r = sink.reporter();
+    // 1000 items / 100 reports = one callback per 10 items.
+    r.begin_phase(Phase::Arrangements, 1000);
+    for _ in 0..1000 {
+        r.advance(1);
+    }
+    let events = sink.events();
+    // The begin plus one per step; nothing like 1000 callbacks.
+    assert_eq!(events.len(), 101, "expected begin + 100 throttled reports");
+    for (name, fraction) in &events {
+        assert_eq!(*name, "arrangements");
+        let f = fraction.expect("a phase with a total reports a fraction");
+        assert!((0.0..=1.0).contains(&f), "fraction {f} out of range");
+    }
+    assert_eq!(events.last().unwrap().1, Some(1.0));
+}
+
+#[test]
+fn an_indeterminate_phase_never_reports_a_fraction() {
+    let sink = Sink::default();
+    let r = sink.reporter();
+    r.begin_phase(Phase::Winding, 0);
+    for _ in 0..10_000 {
+        r.advance(1);
+    }
+    assert_eq!(sink.events(), vec![("winding", None)]);
+}
+
+#[test]
+fn phase_ids_round_trip() {
+    for p in Phase::ALL {
+        assert_eq!(Phase::from_id(p.id()), Some(p));
+    }
+    assert_eq!(Phase::from_id(Phase::ALL.len() as u32), None);
+}
+
+#[test]
+fn robust_boolean_reports_monotonic_phases_with_valid_fractions() {
+    let (a, b) = spheres();
+    let sink = Sink::default();
+    let reporter = sink.reporter();
+    let out = a.boolean_with_engine_and_progress(
+        &b,
+        OpType::Add,
+        BooleanEngine::Robust,
+        None,
+        Some(&reporter),
+    );
+    assert!(out.volume() > 0.0);
+
+    let events = sink.events();
+    assert!(!events.is_empty(), "a robust boolean must report something");
+    let seen = assert_phases_in_pipeline_order_with_valid_fractions(&events);
+    // Every robust phase should appear for an input that actually intersects.
+    for expected in [
+        "narrow phase",
+        "self intersections",
+        "candidate points",
+        "registries",
+        "arrangements",
+        "cells",
+        "winding",
+        "assemble",
+    ] {
+        assert!(
+            seen.contains(&expected),
+            "phase {expected:?} never reported (saw {seen:?})"
+        );
+    }
+}
+
+/// The whole point of the "reporting cannot perturb the computation" rule.
+#[test]
+fn a_reporter_does_not_change_the_result() {
+    let mesh = |m: &Manifold| -> MeshGL { m.get_mesh_gl(-1) };
+    let (a, b) = spheres();
+    for op in [OpType::Add, OpType::Subtract, OpType::Intersect] {
+        for engine in [
+            BooleanEngine::Exact,
+            BooleanEngine::Robust,
+            BooleanEngine::Auto,
+        ] {
+            let plain = a.boolean_with_engine(&b, op, engine);
+            let sink = Sink::default();
+            let reporter = sink.reporter();
+            let watched = a.boolean_with_engine_and_progress(&b, op, engine, None, Some(&reporter));
+            let (p, w) = (mesh(&plain), mesh(&watched));
+            assert_eq!(
+                p.tri_verts, w.tri_verts,
+                "{op:?}/{engine:?} topology changed"
+            );
+            assert_eq!(
+                p.vert_properties, w.vert_properties,
+                "{op:?}/{engine:?} positions changed"
+            );
+            assert_eq!(plain.status(), watched.status());
+            assert!(!sink.events().is_empty(), "{engine:?} reported nothing");
+        }
+    }
+}
+
+/// Overhead fixture, not an assertion: wall time of the same robust boolean
+/// with no reporter, with a no-op reporter, and with a counting one.
+///
+/// Ignored because it is a measurement, not a pass/fail property — a loaded
+/// CI box would make any threshold flaky. Run it deliberately:
+///
+/// ```text
+/// cargo test --release --lib progress::tests::reporter_overhead -- --ignored --nocapture
+/// cargo test --release --lib --features parallel \
+///     progress::tests::reporter_overhead -- --ignored --nocapture
+/// ```
+#[test]
+#[ignore = "measurement fixture; run explicitly with --ignored --nocapture"]
+fn reporter_overhead() {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::time::Instant;
+
+    let a = Manifold::sphere(1.0, 96);
+    let b = Manifold::sphere(0.8, 96).translate(Vec3::new(0.4, 0.1, 0.2));
+    const RUNS: u32 = 9;
+
+    let once = |reporter: Option<&ProgressReporter>| {
+        let start = Instant::now();
+        let out = a.boolean_with_engine_and_progress(
+            &b,
+            OpType::Add,
+            BooleanEngine::Robust,
+            None,
+            reporter,
+        );
+        assert!(out.num_tri() > 0);
+        start.elapsed().as_secs_f64()
+    };
+
+    let noop = ProgressReporter::new(|_, _| {});
+    let calls = Arc::new(AtomicU64::new(0));
+    let counter = Arc::clone(&calls);
+    let counting = ProgressReporter::new(move |_, _| {
+        counter.fetch_add(1, Ordering::Relaxed);
+    });
+
+    // Warm up, then interleave the three variants round-robin: machine drift
+    // (turbo, other load) then hits all three equally instead of whichever
+    // block ran during it, which is what made a blocked layout unusable here.
+    once(None);
+    let (mut none, mut with_noop, mut with_counting) = (0.0, 0.0, 0.0);
+    for _ in 0..RUNS {
+        none += once(None);
+        with_noop += once(Some(&noop));
+        with_counting += once(Some(&counting));
+    }
+    let (none, with_noop, with_counting) = (
+        none / f64::from(RUNS),
+        with_noop / f64::from(RUNS),
+        with_counting / f64::from(RUNS),
+    );
+
+    println!(
+        "reporter overhead: none {none:.4}s, no-op reporter {with_noop:.4}s \
+         ({:+.2}%), counting reporter {with_counting:.4}s ({:+.2}%), \
+         {} callbacks per run",
+        100.0 * (with_noop - none) / none,
+        100.0 * (with_counting - none) / none,
+        calls.load(Ordering::Relaxed) / u64::from(RUNS),
+    );
+}
+
+/// Coarse cubes take the same instrumented path, and the exact engine's single
+/// phase is enough to drive an indeterminate UI.
+#[test]
+fn the_exact_engine_reports_one_indeterminate_phase() {
+    let sink = Sink::default();
+    let reporter = sink.reporter();
+    let out = cube(0.0).boolean_with_engine_and_progress(
+        &cube(0.5),
+        OpType::Add,
+        BooleanEngine::Exact,
+        None,
+        Some(&reporter),
+    );
+    assert!(out.volume() > 0.0);
+    assert_eq!(sink.events(), vec![("exact boolean", None)]);
+}
+
+/// Splits a run's events into one list per contiguous stretch of the same
+/// phase — which is one phase's whole lifetime, since the pipeline never
+/// revisits a phase.
+fn phase_runs(events: &[Event]) -> Vec<Vec<Event>> {
+    let mut runs: Vec<Vec<Event>> = Vec::new();
+    for e in events {
+        match runs.last_mut() {
+            Some(run) if run[0].0 == e.0 => run.push(*e),
+            _ => runs.push(vec![*e]),
+        }
+    }
+    runs
+}
+
+/// Every determinate phase the robust pipeline reports ends on exactly 1.0,
+/// on a fixture large enough that the throttle alone could not.
+///
+/// `advance` emits only when `done` crosses a multiple of `total / 100`, so
+/// every unit after the last boundary is swallowed and a phase ends *near*
+/// 1.0 rather than *at* it; `complete_phase` closes it. The fixture is
+/// 96-segment spheres because that puts all six phases in the regime where
+/// the bug shows: each needs a total past 100 (so `step` exceeds 1) that
+/// `step` does not divide. The sequential build asserts exactly that — every
+/// phase's *second to last* report is below 1.0 — so a fixture that drifted
+/// onto a boundary fails instead of proving nothing. (At 24 segments the
+/// narrow phase's 288 units are an exact multiple of its step of 2.)
+///
+/// Only the closing 1.0 is asserted under `--features parallel`: there two
+/// workers can cross the throttle together and both report, so intermediate
+/// order and count are a UI hint, not a ledger. The phase-end emit is not —
+/// `complete_phase` runs on the calling thread after the map has joined, and
+/// parks the throttle so no straggler can report behind it.
+///
+/// Shared 1:1 with manifold-sharp's
+/// `ProgressTests.EveryDeterminateRobustPhaseEndsAtExactlyOneInBothParallelModes`,
+/// which runs both modes in one process (its parallelism is a runtime switch).
+#[test]
+fn every_determinate_robust_phase_ends_at_exactly_one_in_both_parallel_modes() {
+    let a = Manifold::sphere(1.0, 96);
+    let b = Manifold::sphere(0.8, 96).translate(Vec3::new(0.4, 0.1, 0.2));
+    assert_eq!(
+        a.num_tri(),
+        4608,
+        "the phase totals this test needs are computed from this count"
+    );
+    let parallel = cfg!(feature = "parallel");
+
+    let sink = Sink::default();
+    let reporter = sink.reporter();
+    let out = a.boolean_with_engine_and_progress(
+        &b,
+        OpType::Add,
+        BooleanEngine::Robust,
+        None,
+        Some(&reporter),
+    );
+    assert!(out.volume() > 0.0);
+
+    let mut seen = Vec::new();
+    for run in phase_runs(&sink.events()) {
+        let name = run[0].0;
+        if run[0].1.is_none() {
+            // "winding" and "assemble" have no work total, so they have no
+            // bar to leave short and deliberately never call complete_phase;
+            // a null fraction is all they ever report.
+            for (_, fraction) in &run {
+                assert_eq!(
+                    *fraction, None,
+                    "parallel={parallel}: {name:?} is an indeterminate phase"
+                );
+            }
+            continue;
+        }
+        seen.push(name);
+        assert_eq!(
+            run[run.len() - 1].1,
+            Some(1.0),
+            "parallel={parallel}: phase {name:?} ended with its bar short"
+        );
+        if !parallel {
+            let f = run[run.len() - 2].1.expect("a determinate phase");
+            assert!(
+                f < 1.0,
+                "phase {name:?} already reached 1.0 through advance, so its closing \
+                 1.0 proves nothing — the fixture no longer lands off a step boundary"
+            );
+        }
+    }
+    assert_eq!(
+        seen,
+        vec![
+            "narrow phase",
+            "self intersections",
+            "candidate points",
+            "registries",
+            "arrangements",
+            "cells",
+        ],
+        "parallel={parallel}: the determinate phases, in pipeline order, once each"
+    );
+}
+
+/// Many workers advancing one phase of 100 units (a report per unit) see a
+/// never-decreasing stream, round after round: two workers whose increments
+/// land at 50 and 51 can reach the callback lock in the other order, and the
+/// stale 50 must be dropped rather than sent backwards. Shared 1:1 with
+/// manifold-sharp's `ProgressOrderTests.RacingWorkersNeverSendTheBarBackwards`.
+#[test]
+fn racing_workers_never_send_the_bar_backwards() {
+    const ROUNDS: usize = 2000;
+    const WORKERS: usize = 4;
+    let fractions = Arc::new(Mutex::new(Vec::<f64>::new()));
+    let sink = Arc::clone(&fractions);
+    let reporter = ProgressReporter::new(move |_, fraction| {
+        sink.lock()
+            .expect("sink poisoned")
+            .push(fraction.expect("a determinate phase"));
+    });
+
+    for round in 0..ROUNDS {
+        fractions.lock().expect("sink poisoned").clear();
+        reporter.begin_phase(Phase::Minkowski, 100);
+        std::thread::scope(|s| {
+            for _ in 0..WORKERS {
+                s.spawn(|| {
+                    for _ in 0..100 / WORKERS {
+                        reporter.advance(1);
+                    }
+                });
+            }
+        });
+        let seen = fractions.lock().expect("sink poisoned").clone();
+        for i in 1..seen.len() {
+            assert!(
+                seen[i] >= seen[i - 1],
+                "round {round}: the bar went backwards at report {i} ({} after {})",
+                seen[i],
+                seen[i - 1]
+            );
+        }
+    }
+}
+
+/// A robust boolean whose operands have coplanar overlap regions reports the
+/// appended coplanar overlaps phase (id 10) between self intersections (1)
+/// and candidate points (2), and the order check accepts it because it
+/// compares pipeline positions; an ascending-id check fails here. Shared 1:1
+/// with manifold-sharp's
+/// `ProgressTests.RobustBooleanOverCoplanarFacesReportsPhasesInPipelineOrder`.
+#[test]
+fn robust_boolean_over_coplanar_faces_reports_phases_in_pipeline_order() {
+    let (body, slab) = crate::robust::coplanar_cross_copy_tests::fixture();
+    let sink = Sink::default();
+    let reporter = sink.reporter();
+    body.boolean_with_engine_and_progress(
+        &slab,
+        OpType::Add,
+        BooleanEngine::Robust,
+        None,
+        Some(&reporter),
+    );
+    let seen = assert_phases_in_pipeline_order_with_valid_fractions(&sink.events());
+    assert!(
+        seen.contains(&Phase::CoplanarOverlaps.name()),
+        "the fixture must exercise the appended phase (saw {seen:?})"
+    );
+}
+
+/// `phase_total` reads back the current phase's total and `report_units`
+/// emits fractional units against it (manifold-sharp `PhaseTotal` /
+/// `ReportUnits`), clamped, monotone, and silent for an indeterminate phase.
+#[test]
+fn phase_total_and_report_units_mirror_manifold_sharp() {
+    use std::sync::{Arc, Mutex};
+    let seen: Arc<Mutex<Vec<Option<f64>>>> = Arc::new(Mutex::new(Vec::new()));
+    let sink = Arc::clone(&seen);
+    let reporter = ProgressReporter::new(move |_, f| sink.lock().unwrap().push(f));
+
+    assert_eq!(reporter.phase_total(), 0);
+    reporter.begin_phase(Phase::Minkowski, 8);
+    assert_eq!(reporter.phase_total(), 8);
+    reporter.report_units(2.0);
+    reporter.report_units(1.0); // below the last emit: dropped
+    reporter.report_units(80.0); // clamped to 1.0
+    assert_eq!(
+        *seen.lock().unwrap(),
+        vec![Some(0.0), Some(0.25), Some(1.0)]
+    );
+
+    reporter.begin_phase(Phase::Winding, 0);
+    reporter.report_units(3.0);
+    assert_eq!(
+        seen.lock().unwrap().len(),
+        4,
+        "an indeterminate phase reports nothing"
+    );
+}
