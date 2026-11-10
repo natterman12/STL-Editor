@@ -194,3 +194,132 @@ fn clone_is_cheap_and_shared() {
     assert_eq!(b.volume(), vol);
     assert!(!a.shares_with(&a.translate([1.0, 0.0, 0.0])));
 }
+
+#[test]
+fn shape2d_offset_decompose_bounds() {
+    use stl_kernel::Shape2d;
+    let sq = |x0: f64, x1: f64| vec![[x0, 0.0], [x1, 0.0], [x1, 10.0], [x0, 10.0]];
+    let s = Shape2d { contours: vec![sq(0.0, 10.0), sq(30.0, 40.0)] };
+    assert!((s.area() - 200.0).abs() < 1e-9);
+    assert_eq!(s.bounds(), Some(([0.0, 0.0], [40.0, 10.0])));
+    let parts = s.decompose();
+    assert_eq!(parts.len(), 2);
+    assert!((parts[0].area() - 100.0).abs() < 1e-9);
+    // shrinking by 2 leaves 6 x 6 squares; shrinking by 6 leaves nothing
+    let inner = Shape2d { contours: vec![sq(0.0, 10.0)] }.offset_round(-2.0);
+    assert!((inner.area() - 36.0).abs() < 1e-6);
+    assert!(Shape2d { contours: vec![sq(0.0, 10.0)] }.offset_round(-6.0).is_empty());
+    assert_eq!(Shape2d::default().bounds(), None);
+}
+
+/// Five cubes in one mesh. The expected order was printed by 1.x:
+/// `[p.volume() for p in manifold3d.Manifold(mesh).decompose()]` (manifold3d 3.5.4).
+#[test]
+fn decompose_in_kernel_order_matches_1x() {
+    let cube = cube_mesh();
+    let specs: [(f32, [f32; 3]); 5] = [
+        (0.5, [30.0, 0.0, 0.0]),
+        (2.0, [50.0, -5.0, 3.0]),
+        (1.0, [0.0, 0.0, 0.0]),
+        (0.3, [-20.0, 40.0, -7.0]),
+        (1.5, [12.0, 30.0, 25.0]),
+    ];
+    let mut m = MeshArrays::default();
+    for (k, (scale, offset)) in specs.iter().enumerate() {
+        for p in cube.positions.chunks_exact(3) {
+            m.positions.extend((0..3).map(|i| p[i] * scale + offset[i]));
+        }
+        m.triangles.extend(cube.triangles.iter().map(|i| i + 8 * k as u32));
+    }
+    let s = Solid::from_mesh(&m).unwrap();
+    let volumes: Vec<f64> = s.decompose_in_kernel_order().iter().map(|p| p.volume().round()).collect();
+    assert_eq!(volumes, vec![1000.0, 27.0, 3375.0, 125.0, 8000.0]);
+    // the sorted one is unchanged: largest first
+    let sorted: Vec<f64> = s.decompose().iter().map(|p| p.volume().round()).collect();
+    assert_eq!(sorted, vec![8000.0, 3375.0, 1000.0, 125.0, 27.0]);
+}
+
+#[test]
+fn signed_volume_is_negative_for_an_inside_out_solid() {
+    let mut m = cube_mesh();
+    assert!((Solid::from_mesh(&m).unwrap().signed_volume() - 1000.0).abs() < 1e-9);
+    for t in m.triangles.chunks_exact_mut(3) {
+        t.swap(0, 2);
+    }
+    let inside_out = Solid::from_mesh(&m).unwrap();
+    assert!((inside_out.signed_volume() + 1000.0).abs() < 1e-9);
+    assert!((inside_out.volume() - 1000.0).abs() < 1e-9);
+}
+
+/// Two cubes that share one edge, as one mesh: four triangles use that edge. Turning it into a
+/// solid has to separate the edge without moving a corner (Manifold 3.5.4 can move corners
+/// here: `tests/EXCEPTIONS.md`), so every vertex of the solid is a vertex of the mesh.
+#[test]
+fn from_mesh_separates_a_shared_edge_without_moving_corners() {
+    let cube = cube_mesh();
+    let mut m = cube.clone();
+    // the second cube stands 10 mm further along x and y; its vertices 0 and 4 are the first
+    // cube's vertices 2 and 6
+    for p in cube.positions.chunks_exact(3) {
+        m.positions.extend_from_slice(&[p[0] + 10.0, p[1] + 10.0, p[2]]);
+    }
+    m.triangles.extend(cube.triangles.iter().map(|&i| match i {
+        0 => 2,
+        4 => 6,
+        i => i + 8,
+    }));
+    let s = Solid::from_mesh(&m).expect("two cubes on one edge are closed");
+    assert!((s.volume() - 2000.0).abs() < 1e-6, "volume {}", s.volume());
+    assert!((s.surface_area() - 1200.0).abs() < 1e-6, "area {}", s.surface_area());
+    assert_eq!(s.num_tri(), 24);
+    let b = s.bounding_box();
+    assert_eq!((b.min, b.max), ([0.0; 3], [20.0, 20.0, 10.0]));
+    let out = s.to_mesh();
+    for p in out.positions.chunks_exact(3) {
+        assert!(m.positions.chunks_exact(3).any(|q| q == p), "{p:?} is not a vertex of the mesh");
+    }
+    assert_eq!(s.decompose().len(), 2);
+}
+
+/// A plane cut gives the vertices that 1.x (Manifold 3.5.4) gives, to the last bit: 3.5.4
+/// applies the moves of its cutting block as one matrix. A pin that starts on the cut face
+/// only unites as in 1.x when they are the same.
+#[test]
+fn tilted_plane_cut_has_the_vertices_of_1x() {
+    let len = (1.0f64 + 0.09 + 0.04).sqrt();
+    let n = [1.0 / len, 0.3 / len, 0.2 / len];
+    let offset = n[0] * 20.0 + n[1] * 30.0 + n[2] * 15.0;
+    let (above, below) = Solid::cube([40.0, 60.0, 30.0], false).split_by_plane(n, offset);
+    // 1.x: Manifold.cube((40, 60, 30)).split_by_plane(n, offset), surface_area() of each half
+    assert_eq!(above.surface_area(), 7313.426246292236);
+    assert_eq!(below.surface_area(), 7313.426246292237);
+    assert_eq!((above.num_tri(), below.num_tri()), (12, 12));
+    assert!((above.volume() + below.volume() - 72000.0).abs() < 1e-6);
+    // the trimmed half is the same solid
+    let trimmed = Solid::cube([40.0, 60.0, 30.0], false).trim_by_plane(n, offset);
+    assert_eq!(trimmed.to_mesh().positions, above.to_mesh().positions);
+}
+
+/// A solid with its matrix still to apply is the same solid; only a union treats it as 1.x
+/// would. Three posts that do not touch: the union is the three together.
+#[test]
+fn pending_transform_is_the_same_solid() {
+    let post = Solid::cylinder(10.0, 2.0, 2.0, 32, false);
+    // a quarter turn about X (the post then lies along -Y), moved to x = 10 * k
+    let m = |k: f64| [[1.0, 0.0, 0.0, 10.0 * k], [0.0, 0.0, 1.0, 0.0], [0.0, -1.0, 0.0, 0.0]];
+    let applied = post.transform(m(1.0));
+    let pending = post.transform_pending(m(1.0));
+    assert_eq!(pending.to_mesh().positions, applied.to_mesh().positions);
+    assert_eq!(pending.to_mesh().triangles, applied.to_mesh().triangles);
+
+    let parts: Vec<Solid> = (0..3).map(|k| post.transform_pending(m(k as f64))).collect();
+    let all = Solid::union_all(&parts);
+    // a 32-sided post: area of the polygon times the height
+    let one = 0.5 * 32.0 * 4.0 * (std::f64::consts::TAU / 32.0).sin() * 10.0;
+    assert!((all.volume() - 3.0 * one).abs() < 1e-9, "{}", all.volume());
+    assert_eq!(all.decompose().len(), 3);
+    assert_eq!(all.num_tri(), 3 * post.num_tri());
+    // a second matrix on a pending solid is applied together with the first
+    let twice = post.transform_pending(m(0.0)).transform_pending([[1.0, 0.0, 0.0, 10.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0]]);
+    assert_eq!(twice.to_mesh().positions, applied.to_mesh().positions);
+}

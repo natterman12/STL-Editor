@@ -49,3 +49,103 @@ Every place where 2.0 does not match 1.x on purpose, with the reason.
   drops them; a project from a newer or other version keeps its data this way.
 - **`"Couldn't open the file: ..."` / `"Couldn't save the project: ..."`** for file system
   errors. Reason: 1.x lets `OSError` escape; Rust needs a message in its `FileError`.
+
+## Messages in features (agreed with Nathan on 2026-11-10)
+
+- **`"Plane size must be a number."`** when a plane's size is text that isn't a number. 1.x
+  shows Python's own wording, `could not convert string to float: 'abc'`. Reason: the 1.x text
+  is a programming error message that means nothing to someone who prints things.
+- **`"Choose a body first."`** when Split, Repair or Separate has no body chosen. 1.x shows
+  `"Body None no longer exists."`. A body that was chosen but has since been deleted still shows
+  `"Body '<id>' no longer exists."`, as in 1.x. Reason: nothing was deleted here, so "no longer
+  exists" is misleading. Combine already says `"Choose a target body and at least one tool body."`
+  in both versions, and Import has no body (a missing source file keeps its 1.x message), so
+  neither changes.
+- **`"Cutting with a clearance needs the offset tools, which aren't ported yet."`** when a
+  Combine cut has a clearance above 0. 1.x makes the tool bodies bigger first and cuts. Reason:
+  temporary. The offset tools arrive in a later batch, and this message goes away with them.
+
+## Reading files (`stl-io`)
+
+- **A glTF (`.gltf`) file that points to other files** gives `"This glTF file points to other
+  files. Save it as a .glb, or embed the data, and try again."` 1.x fails with
+  `TypeError: 'NoneType' object is not subscriptable`, because no folder is given to find the
+  other files in. Reason: say what to do instead of crashing.
+- **glTF files with Draco or meshopt compressed meshes** give `"This glTF file uses compressed
+  meshes, which can't be read."` 1.x doesn't have the decoder installed, prints a warning and
+  loads placeholder zeros as if they were the model. Reason: a made-up shape that looks like a
+  real one is worse than an error.
+- **A malformed STL file** gives `"Could not read this STL file."` 1.x can crash on some
+  broken files. Reason: always show a message, never a crash.
+- **A triangle that points at a vertex that doesn't exist** (OBJ and PLY files) gives no solid
+  or `"Could not read this OBJ file."` / `"Could not read this PLY file."` 1.x raises
+  `IndexError`. Reason: same as above, a message instead of a crash.
+
+## Connectors and repair
+
+- **`"Unknown connector X."`** when Split gets a connector type it doesn't know. 1.x raises
+  `KeyError: 'X'`. Reason: a message instead of a crash. The editor never sends one; this only
+  matters for hand-edited projects.
+- **One path of the local repair returns no result.** When a shell needs reversing and the
+  reversed shell isn't a solid, 1.x fails with `TypeError`; 2.0 gives up on the local repair, so
+  the Repair feature then tries its next step (or says `"Quick repair wasn't enough. Use
+  Rebuild."`). Reason: 1.x's crash is a bug, not a behaviour anyone depends on.
+- **The kernel gives up after 100 passes of `dedupe_edges`.** Manifold 3.5.4 repeats until a
+  pass finds nothing, which can in theory loop forever. 2.0 stops after 100 passes and then
+  reports the mesh as not closed. Reason: an import must never hang. Meshes that import need a
+  handful of passes, so the limit isn't reached in practice.
+
+## Turning a mesh into a solid, and the repair steps it changes
+
+Nathan agreed to all of these on 2026-11-10. Each case below is listed in `EXCEPTIONS` in
+`crates/stl-mesh/tests/repair.rs` with 2.0's numbers (closed or not, triangle count, area and
+volume). That test fails if 2.0's result changes, and also if the case starts to match 1.x
+again. No feature parity case changes because of this, so `tests/parity/exceptions.json` has no
+entry for it.
+
+- **Edges shared by more than two pairs of triangles are separated without moving any corner.**
+  1.x uses Manifold 3.5.4, whose `DedupeEdges` step has a bug: it lists the doubled edges once,
+  then repairs every one on the list, even those that an earlier repair has already fixed.
+  Repairing an edge that is no longer doubled moves triangle corners onto a copy of another
+  vertex, so the solid changes shape (often a thin spike or a dented face). 2.0 checks each
+  edge again just before it repairs it and skips the ones that are already fixed, so the shape
+  stays as it was. Reason: a repair should not change the shape of the model. The other steps
+  of the 3.5.4 import are kept as they are. This only matters for meshes that have such edges,
+  which in the tests are meshes with many triangles left out, after their holes were closed.
+- **Nine results of the local repair change because of it.** In each, the mesh had every 4th or
+  7th triangle left out, the holes were closed, and the closed mesh was turned into a solid.
+  Every result is a closed solid in both versions.
+
+  | Case | 1.x triangles | 1.x area | 1.x volume | 2.0 triangles | 2.0 area | 2.0 volume |
+  |---|---|---|---|---|---|---|
+  | `holed_block.stl@drop4` | 352 | 3860.626 | 5115.261 | 362 | 3555.988 | 5119.270 |
+  | `holed_block.stl@nan_drop4` | 392 | 3746.201 | 5111.969 | 398 | 3684.319 | 5120.083 |
+  | `holed_block.stl@nan_drop7` | 368 | 3045.069 | 4770.766 | 370 | 3039.111 | 4772.938 |
+  | `holed_block.stl@nan_flip3_drop7` | 358 | 3040.301 | 4740.257 | 356 | 3076.217 | 4754.637 |
+  | `touching_cubes.stl@drop4` | 26 | 1178.042 | 1448.718 | 28 | 1194.640 | 1397.436 |
+  | `touching_cubes.stl@nan_drop4` | 32 | 1181.763 | 1421.267 | 28 | 1194.640 | 1397.436 |
+  | `two_blobs.stl@drop4` | 1406 | 507.236 | 611.353 | 1436 | 529.756 | 610.978 |
+  | `two_blobs.stl@flip3_drop7` | 1288 | 436.509 | 399.845 | 1294 | 438.308 | 399.989 |
+  | `two_blobs.stl@x5_drop7` | 6460 | 2147.994 | 3108.606 | 6464 | 2148.897 | 3108.545 |
+
+- **Three more results of the local repair differ, on two spheres with a stray triangle of
+  not-a-number coordinates.** These did not match 1.x even while 2.0 still copied the 3.5.4
+  bug, and the exact step where they part was not found. Closing the holes of these meshes
+  leaves edges that four, six or eight triangles use, and the two kernels separate those edges
+  in a different way. Every result is a closed solid in both versions, and the volumes agree to
+  within 0.02%. Reason: the results are as good as those of 1.x (for `nan_drop4` 2.0's surface
+  is much smoother: area 534.7 against 607.2 for the same volume), and such meshes are far from
+  anything a real file contains.
+
+  | Case | 1.x triangles | 1.x area | 1.x volume | 2.0 triangles | 2.0 area | 2.0 volume |
+  |---|---|---|---|---|---|---|
+  | `two_blobs.stl@nan_drop4` | 1548 | 607.240 | 611.125 | 1540 | 534.716 | 611.026 |
+  | `two_blobs.stl@nan_drop7` | 1314 | 428.826 | 621.731 | 1318 | 429.003 | 621.758 |
+  | `two_blobs.stl@nan_flip3_drop7` | 1332 | 447.923 | 620.858 | 1336 | 448.100 | 620.884 |
+
+## Differences found by the parity tests
+
+Each of these is also an entry in `tests/parity/exceptions.json` (the case, the reason and
+2.0's values), so the parity run passes by exception instead of hiding the difference.
+Add new ones below, with the 1.x behaviour, the 2.0 behaviour and the reason.
+

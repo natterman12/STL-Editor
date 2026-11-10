@@ -75,6 +75,44 @@
    }
   ]
  },
+ "scale_fit_size": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 11200.0,
+     "bbox_max": [
+      20.0,
+      40.0,
+      20.0
+     ],
+     "bbox_min": [
+      -20.0,
+      -40.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 64000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
  "scale_negative_factor": {
   "bodies": [
    {
@@ -108,6 +146,92 @@
    },
    {
     "error": "Scale factors must be positive.",
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "scale_no_bodies": {
+  "bodies": [],
+  "results": [
+   {
+    "error": "Choose a body to scale.",
+    "id": "f1",
+    "warning": null
+   }
+  ]
+ },
+ "scale_units_in_to_mm": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 3870.959883728028,
+     "bbox_max": [
+      12.699999809265137,
+      12.699999809265137,
+      25.399999618530273
+     ],
+     "bbox_min": [
+      -12.699999809265137,
+      -12.699999809265137,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 16387.063261672985,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "scale_units_mm_to_in": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 6.0,
+     "bbox_max": [
+      0.5,
+      0.5,
+      1.0
+     ],
+     "bbox_min": [
+      -0.5,
+      -0.5,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 1.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
     "id": "f2",
     "warning": null
    }

@@ -73,6 +73,9 @@ pub struct FeatureResult {
     pub warning: Option<String>,
     pub created: Vec<String>,
     pub modified: Vec<String>,
+    pub removed: Vec<String>,
+    /// Feature id of a plane this step created (1.x `created_plane`).
+    pub created_plane: Option<String>,
     pub ms: f64,
     pub suppressed: bool,
     /// The result is a preview-only picture (not what committing would give), so it isn't reused.

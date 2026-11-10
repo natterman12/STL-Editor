@@ -53,5 +53,100 @@
     }
    }
   ]
+ },
+ {
+  "name": "plane_angle",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "plane",
+    "params": {
+     "mode": "angle",
+     "base": "XY",
+     "angle": 30,
+     "axis": "x",
+     "name": "Angled"
+    }
+   }
+  ]
+ },
+ {
+  "name": "plane_three_points_ok",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "plane",
+    "params": {
+     "mode": "three_points",
+     "points": [[0, 0, 0], [10, 0, 0], [0, 10, 5]],
+     "name": "ThreePts"
+    }
+   }
+  ]
+ },
+ {
+  "name": "plane_midplane",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "plane",
+    "params": {
+     "mode": "offset",
+     "base": "XY",
+     "distance": 10,
+     "name": "A"
+    }
+   },
+   {
+    "type": "plane",
+    "params": {
+     "mode": "offset",
+     "base": "XY",
+     "distance": 30,
+     "name": "B"
+    }
+   },
+   {
+    "type": "plane",
+    "params": {
+     "mode": "midplane",
+     "base": "f1",
+     "base2": "f2",
+     "name": "Mid"
+    }
+   }
+  ]
+ },
+ {
+  "name": "plane_face",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "plane",
+    "params": {
+     "mode": "offset",
+     "base": "YZ",
+     "distance": 5,
+     "name": "Side"
+    }
+   },
+   {
+    "type": "plane",
+    "params": {
+     "mode": "face",
+     "base": "f1",
+     "distance": 2,
+     "name": "FaceOff"
+    }
+   }
+  ]
  }
 ]

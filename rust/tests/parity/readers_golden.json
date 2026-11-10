@@ -1,0 +1,325 @@
+{
+ "ascii_cube.stl": {
+  "parts": [
+   {
+    "name": "ascii_cube",
+    "stats": {
+     "area": 600.0,
+     "bbox_max": [
+      10.0,
+      10.0,
+      10.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 1000.0,
+     "watertight": true
+    }
+   }
+  ]
+ },
+ "binary_cube.stl": {
+  "parts": [
+   {
+    "name": "binary_cube",
+    "stats": {
+     "area": 384.0,
+     "bbox_max": [
+      9.0,
+      10.0,
+      11.0
+     ],
+     "bbox_min": [
+      1.0,
+      2.0,
+      3.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 512.0,
+     "watertight": true
+    }
+   }
+  ]
+ },
+ "box.off": {
+  "parts": [
+   {
+    "name": "box",
+    "stats": {
+     "area": 600.0,
+     "bbox_max": [
+      5.0,
+      5.0,
+      10.0
+     ],
+     "bbox_min": [
+      -5.0,
+      -5.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 1000.0,
+     "watertight": true
+    }
+   }
+  ]
+ },
+ "empty.obj": {
+  "error": "No triangles found in this file."
+ },
+ "extra_props_ascii.ply": {
+  "parts": [
+   {
+    "name": "extra_props_ascii",
+    "stats": {
+     "area": 100.0,
+     "bbox_max": [
+      10.0,
+      10.0,
+      0.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 2,
+     "vertices": 4,
+     "volume": 0.0,
+     "watertight": false
+    }
+   }
+  ]
+ },
+ "extra_props_binary.ply": {
+  "parts": [
+   {
+    "name": "extra_props_binary",
+    "stats": {
+     "area": 100.0,
+     "bbox_max": [
+      10.0,
+      10.0,
+      0.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 2,
+     "vertices": 4,
+     "volume": 0.0,
+     "watertight": false
+    }
+   }
+  ]
+ },
+ "materials.obj": {
+  "parts": [
+   {
+    "name": "materials 1",
+    "stats": {
+     "area": 0.5,
+     "bbox_max": [
+      1.0,
+      1.0,
+      0.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 1,
+     "vertices": 3,
+     "volume": 0.0,
+     "watertight": false
+    }
+   },
+   {
+    "name": "materials 2",
+    "stats": {
+     "area": 1.2071067811865475,
+     "bbox_max": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 2,
+     "vertices": 5,
+     "volume": 0.0,
+     "watertight": false
+    }
+   },
+   {
+    "name": "materials 3",
+    "stats": {
+     "area": 0.5,
+     "bbox_max": [
+      1.0,
+      1.0,
+      0.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 1,
+     "vertices": 3,
+     "volume": 0.0,
+     "watertight": false
+    }
+   }
+  ]
+ },
+ "multi.obj": {
+  "parts": [
+   {
+    "name": "multi",
+    "stats": {
+     "area": 732.0,
+     "bbox_max": [
+      50.0,
+      12.0,
+      10.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 16,
+     "vertices": 13,
+     "volume": -1000.0,
+     "watertight": false
+    }
+   }
+  ]
+ },
+ "nested_nodes.glb": {
+  "parts": [
+   {
+    "name": "nested_nodes 1",
+    "stats": {
+     "area": 96.0,
+     "bbox_max": [
+      12.0,
+      2.0,
+      4.0
+     ],
+     "bbox_min": [
+      8.0,
+      -2.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 64.0,
+     "watertight": true
+    }
+   },
+   {
+    "name": "nested_nodes 2",
+    "stats": {
+     "area": 54.0,
+     "bbox_max": [
+      11.5,
+      16.5,
+      3.0
+     ],
+     "bbox_min": [
+      8.5,
+      13.5,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 27.0,
+     "watertight": true
+    }
+   }
+  ]
+ },
+ "threemf_empty_object.3mf": {
+  "parts": [
+   {
+    "name": "threemf_empty_object 3",
+    "stats": {
+     "area": 384.0,
+     "bbox_max": [
+      8.0,
+      8.0,
+      8.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 512.0,
+     "watertight": true
+    }
+   }
+  ]
+ },
+ "two_objects.3mf": {
+  "parts": [
+   {
+    "name": "two_objects 1",
+    "stats": {
+     "area": 600.0,
+     "bbox_max": [
+      12.0,
+      13.0,
+      14.0
+     ],
+     "bbox_min": [
+      2.0,
+      3.0,
+      4.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 1000.0,
+     "watertight": true
+    }
+   },
+   {
+    "name": "two_objects 2",
+    "stats": {
+     "area": 216.0,
+     "bbox_max": [
+      26.0,
+      6.0,
+      6.0
+     ],
+     "bbox_min": [
+      20.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 216.0,
+     "watertight": true
+    }
+   }
+  ]
+ }
+}

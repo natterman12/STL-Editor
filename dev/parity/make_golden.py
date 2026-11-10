@@ -113,7 +113,11 @@ def build_type(type_name: str) -> dict:
     cases = json.loads(path.read_text(encoding="utf-8"))
     out: dict[str, dict] = {}
     for case in cases:
-        out[case["name"]] = _run_case(case)
+        rec = _run_case(case)
+        # Optional capability gates for the Rust parity runner (e.g. voxel, offset).
+        if case.get("requires"):
+            rec["requires"] = list(case["requires"])
+        out[case["name"]] = rec
     return {k: out[k] for k in sorted(out)}
 
 

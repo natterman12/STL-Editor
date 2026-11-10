@@ -90,5 +90,66 @@
     }
    }
   ]
+ },
+ {
+  "name": "delete_two_bodies",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 10,
+     "width": 10,
+     "height": 10,
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 8,
+     "width": 8,
+     "height": 8,
+     "plane": "XY",
+     "offset": [20, 0, 0],
+     "operation": "new"
+    }
+   },
+   {
+    "type": "delete",
+    "params": {
+     "bodies": ["f1", "f2"]
+    }
+   }
+  ]
+ },
+ {
+  "name": "delete_after_import",
+  "exactness": "exact",
+  "sources": {
+   "s1": "holed_block.stl"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": true,
+     "place": "keep"
+    }
+   },
+   {
+    "type": "delete",
+    "params": {
+     "bodies": ["f1"]
+    }
+   }
+  ]
  }
 ]

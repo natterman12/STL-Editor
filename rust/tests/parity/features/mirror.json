@@ -80,5 +80,90 @@
     }
    }
   ]
+ },
+ {
+  "name": "mirror_join_box",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 10,
+     "width": 10,
+     "height": 10,
+     "anchor": "corner",
+     "plane": "XY",
+     "offset": [5, 0, 0],
+     "operation": "new"
+    }
+   },
+   {
+    "type": "mirror",
+    "params": {
+     "bodies": ["f1"],
+     "plane": "YZ",
+     "mode": "join"
+    }
+   }
+  ]
+ },
+ {
+  "name": "mirror_replace_box",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 10,
+     "width": 10,
+     "height": 10,
+     "anchor": "corner",
+     "plane": "XY",
+     "offset": [5, 0, 0],
+     "operation": "new"
+    }
+   },
+   {
+    "type": "mirror",
+    "params": {
+     "bodies": ["f1"],
+     "plane": "YZ",
+     "mode": "replace"
+    }
+   }
+  ]
+ },
+ {
+  "name": "mirror_features_missing",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 10,
+     "width": 10,
+     "height": 10,
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "mirror",
+    "params": {
+     "kind": "features",
+     "features": ["gone"],
+     "plane": "YZ"
+    }
+   }
+  ]
  }
 ]

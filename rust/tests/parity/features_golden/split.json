@@ -59,6 +59,267 @@
    }
   ]
  },
+ "split_connector_skipped_warning": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box (1)",
+    "solid": true,
+    "stats": {
+     "area": 960.0,
+     "bbox_max": [
+      40.0,
+      2.0,
+      20.0
+     ],
+     "bbox_min": [
+      20.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 800.0,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f2.2",
+    "name": "Box (2)",
+    "solid": true,
+    "stats": {
+     "area": 960.0,
+     "bbox_max": [
+      20.0,
+      2.0,
+      20.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 800.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": "The cut face is too thin for connectors here; split without them."
+   }
+  ]
+ },
+ "split_dowels": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box (1)",
+    "solid": true,
+    "stats": {
+     "area": 3306.3203590769112,
+     "bbox_max": [
+      40.0,
+      30.0,
+      20.0
+     ],
+     "bbox_min": [
+      20.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 204,
+     "vertices": 104,
+     "volume": 11859.42715270302,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f2.pin1",
+    "name": "Pin 1",
+    "solid": true,
+    "stats": {
+     "area": 216.04786150533033,
+     "bbox_max": [
+      25.799999237060547,
+      12.5625,
+      12.5625
+     ],
+     "bbox_min": [
+      14.199999809265137,
+      7.662499904632568,
+      7.662499904632568
+     ],
+     "triangles": 188,
+     "vertices": 96,
+     "volume": 218.12178396855384,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f2.2",
+    "name": "Box (2)",
+    "solid": true,
+    "stats": {
+     "area": 3306.3203749446748,
+     "bbox_max": [
+      20.0,
+      30.0,
+      20.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 204,
+     "vertices": 104,
+     "volume": 11859.42713172325,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "split_dowels_two_equal_pieces": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box (1)",
+    "solid": true,
+    "stats": {
+     "area": 2612.640734353846,
+     "bbox_max": [
+      40.0,
+      10.0,
+      40.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      15.0
+     ],
+     "triangles": 408,
+     "vertices": 208,
+     "volume": 4718.854262568033,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f5.pin1",
+    "name": "Pin 1",
+    "solid": true,
+    "stats": {
+     "area": 216.04784461047876,
+     "bbox_max": [
+      37.26250076293945,
+      7.262499809265137,
+      20.799999237060547
+     ],
+     "bbox_min": [
+      32.36249923706055,
+      2.362499952316284,
+      9.199999809265137
+     ],
+     "triangles": 188,
+     "vertices": 96,
+     "volume": 218.12175490976028,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f5.pin2",
+    "name": "Pin 2",
+    "solid": true,
+    "stats": {
+     "area": 216.04786255474363,
+     "bbox_max": [
+      7.262499809265137,
+      7.262499809265137,
+      20.799999237060547
+     ],
+     "bbox_min": [
+      2.362499952316284,
+      2.362499952316284,
+      9.199999809265137
+     ],
+     "triangles": 188,
+     "vertices": 96,
+     "volume": 218.12178577351122,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f5.2",
+    "name": "Box (2)",
+    "solid": true,
+    "stats": {
+     "area": 2412.640766089374,
+     "bbox_max": [
+      40.0,
+      10.0,
+      15.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 420,
+     "vertices": 212,
+     "volume": 4718.8542206084885,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f3",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f4",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f5",
+    "warning": null
+   }
+  ]
+ },
  "split_expr_origin": {
   "bodies": [
    {
@@ -119,6 +380,490 @@
    }
   ]
  },
+ "split_filament": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box (1)",
+    "solid": true,
+    "stats": {
+     "area": 3304.064740307343,
+     "bbox_max": [
+      40.0,
+      30.0,
+      20.0
+     ],
+     "bbox_min": [
+      20.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 588,
+     "vertices": 296,
+     "volume": 11946.781010060682,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f2.2",
+    "name": "Box (2)",
+    "solid": true,
+    "stats": {
+     "area": 3304.064758719937,
+     "bbox_max": [
+      20.0,
+      30.0,
+      20.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 588,
+     "vertices": 296,
+     "volume": 11946.781000644434,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "split_keep_above": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 1600.0,
+     "bbox_max": [
+      20.0,
+      20.0,
+      20.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      10.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 4000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "split_keep_below": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 1600.0,
+     "bbox_max": [
+      20.0,
+      20.0,
+      10.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 4000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "split_keep_null": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 600.0,
+     "bbox_max": [
+      10.0,
+      10.0,
+      10.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 1000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "split_magnets": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box (1)",
+    "solid": true,
+    "stats": {
+     "area": 3264.0804106307028,
+     "bbox_max": [
+      40.0,
+      30.0,
+      20.0
+     ],
+     "bbox_min": [
+      20.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 204,
+     "vertices": 104,
+     "volume": 11899.28944682031,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f2.2",
+    "name": "Box (2)",
+    "solid": true,
+    "stats": {
+     "area": 3264.0804106307023,
+     "bbox_max": [
+      20.0,
+      30.0,
+      20.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 204,
+     "vertices": 104,
+     "volume": 11899.289446820314,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "split_pins_defaults": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box (1)",
+    "solid": true,
+    "stats": {
+     "area": 3278.274655310313,
+     "bbox_max": [
+      40.0,
+      30.0,
+      20.0
+     ],
+     "bbox_min": [
+      14.699999809265137,
+      0.0,
+      0.0
+     ],
+     "triangles": 300,
+     "vertices": 152,
+     "volume": 12101.940956840119,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f2.2",
+    "name": "Box (2)",
+    "solid": true,
+    "stats": {
+     "area": 3289.6818195092624,
+     "bbox_max": [
+      20.0,
+      30.0,
+      20.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 204,
+     "vertices": 104,
+     "volume": 11881.426014465666,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "split_pins_face_with_hole": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box (1)",
+    "solid": true,
+    "stats": {
+     "area": 3298.780411719684,
+     "bbox_max": [
+      40.0,
+      30.0,
+      20.0
+     ],
+     "bbox_min": [
+      15.699999809265137,
+      0.0,
+      0.0
+     ],
+     "triangles": 688,
+     "vertices": 346,
+     "volume": 10930.781577840307,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f4.2",
+    "name": "Box (2)",
+    "solid": true,
+    "stats": {
+     "area": 3317.6632874253432,
+     "bbox_max": [
+      20.0,
+      30.0,
+      20.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 496,
+     "vertices": 250,
+     "volume": 10792.76570436844,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f3",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f4",
+    "warning": null
+   }
+  ]
+ },
+ "split_pins_long_face": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box (1)",
+    "solid": true,
+    "stats": {
+     "area": 9349.66603560928,
+     "bbox_max": [
+      40.0,
+      80.0,
+      30.0
+     ],
+     "bbox_min": [
+      15.699999809265137,
+      0.0,
+      0.0
+     ],
+     "triangles": 1164,
+     "vertices": 584,
+     "volume": 48117.05590317542,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f2.2",
+    "name": "Box (2)",
+    "solid": true,
+    "stats": {
+     "area": 9387.431785645329,
+     "bbox_max": [
+      20.0,
+      80.0,
+      30.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 780,
+     "vertices": 392,
+     "volume": 47841.02408668903,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "split_pins_thin_rod": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Cylinder (1)",
+    "solid": true,
+    "stats": {
+     "area": 470.52584000302096,
+     "bbox_max": [
+      3.0,
+      3.0,
+      40.0
+     ],
+     "bbox_min": [
+      -3.0,
+      -3.0,
+      15.699999809265137
+     ],
+     "triangles": 476,
+     "vertices": 240,
+     "volume": 593.137109087788,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f2.2",
+    "name": "Cylinder (2)",
+    "solid": true,
+    "stats": {
+     "area": 479.967278939323,
+     "bbox_max": [
+      3.0,
+      3.0,
+      20.0
+     ],
+     "bbox_min": [
+      -3.0,
+      -3.0,
+      0.0
+     ],
+     "triangles": 380,
+     "vertices": 192,
+     "volume": 524.1291617734339,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
  "split_plane_misses": {
   "bodies": [
    {
@@ -152,6 +897,294 @@
    },
    {
     "error": "The plane doesn't cut through this body.",
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "split_tangent_plane": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 600.0,
+     "bbox_max": [
+      10.0,
+      10.0,
+      10.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 1000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": "The plane doesn't cut through this body.",
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "split_tilted_2pins": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box (1)",
+    "solid": true,
+    "stats": {
+     "area": 3929.4835496323158,
+     "bbox_max": [
+      40.0,
+      40.0,
+      20.0
+     ],
+     "bbox_min": [
+      11.656196594238281,
+      0.0,
+      0.0
+     ],
+     "triangles": 724,
+     "vertices": 356,
+     "volume": 14175.125146357275,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f4.2",
+    "name": "Box (2)",
+    "solid": true,
+    "stats": {
+     "area": 3380.3349152957194,
+     "bbox_max": [
+      26.5,
+      38.33333206176758,
+      20.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 442,
+     "vertices": 221,
+     "volume": 11993.537654749509,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f3",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f4",
+    "warning": null
+   }
+  ]
+ },
+ "split_tilted_3pins": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box (1)",
+    "solid": true,
+    "stats": {
+     "area": 7489.808084669324,
+     "bbox_max": [
+      40.0,
+      60.0,
+      30.0
+     ],
+     "bbox_min": [
+      5.386181831359863,
+      0.0,
+      0.0
+     ],
+     "triangles": 1256,
+     "vertices": 606,
+     "volume": 36087.79200809716,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f2.2",
+    "name": "Box (2)",
+    "solid": true,
+    "stats": {
+     "area": 7454.000069666077,
+     "bbox_max": [
+      32.0,
+      60.0,
+      30.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 588,
+     "vertices": 296,
+     "volume": 35880.76809737075,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "split_tilted_plane": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box (1)",
+    "solid": true,
+    "stats": {
+     "area": 3319.9335943781334,
+     "bbox_max": [
+      40.0,
+      30.0,
+      20.0
+     ],
+     "bbox_min": [
+      10.66077709197998,
+      0.0,
+      0.0
+     ],
+     "triangles": 774,
+     "vertices": 379,
+     "volume": 12058.52797599181,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f2.2",
+    "name": "Box (2)",
+    "solid": true,
+    "stats": {
+     "area": 3331.5246293049136,
+     "bbox_max": [
+      26.5,
+      30.0,
+      20.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 396,
+     "vertices": 200,
+     "volume": 11920.5120320262,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "split_with_pins": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box (1)",
+    "solid": true,
+    "stats": {
+     "area": 3237.416507218254,
+     "bbox_max": [
+      40.0,
+      30.0,
+      20.0
+     ],
+     "bbox_min": [
+      15.699999809265137,
+      0.0,
+      0.0
+     ],
+     "triangles": 300,
+     "vertices": 152,
+     "volume": 12029.263973392166,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f2.2",
+    "name": "Box (2)",
+    "solid": true,
+    "stats": {
+     "area": 3246.85794161754,
+     "bbox_max": [
+      20.0,
+      30.0,
+      20.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 204,
+     "vertices": 104,
+     "volume": 11960.256029802918,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
     "id": "f2",
     "warning": null
    }

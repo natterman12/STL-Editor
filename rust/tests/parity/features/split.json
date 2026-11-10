@@ -98,5 +98,652 @@
     }
    }
   ]
+ },
+ {
+  "name": "split_keep_above",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 20,
+     "width": 20,
+     "height": 20,
+     "anchor": "corner",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "split",
+    "params": {
+     "body": "f1",
+     "plane": {
+      "origin": [0, 0, 10],
+      "normal": [0, 0, 1]
+     },
+     "keep": "above",
+     "connector": "none"
+    }
+   }
+  ]
+ },
+ {
+  "name": "split_keep_below",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 20,
+     "width": 20,
+     "height": 20,
+     "anchor": "corner",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "split",
+    "params": {
+     "body": "f1",
+     "plane": {
+      "origin": [0, 0, 10],
+      "normal": [0, 0, 1]
+     },
+     "keep": "below",
+     "connector": "none"
+    }
+   }
+  ]
+ },
+ {
+  "name": "split_tangent_plane",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 10,
+     "width": 10,
+     "height": 10,
+     "anchor": "corner",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "split",
+    "params": {
+     "body": "f1",
+     "plane": {
+      "origin": [0, 0, 0],
+      "normal": [0, 0, 1]
+     },
+     "keep": "both",
+     "connector": "none"
+    }
+   }
+  ]
+ },
+ {
+  "name": "split_with_pins",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 40,
+     "width": 30,
+     "height": 20,
+     "anchor": "corner",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "split",
+    "params": {
+     "body": "f1",
+     "plane": {
+      "origin": [20, 0, 0],
+      "normal": [1, 0, 0]
+     },
+     "keep": "both",
+     "connector": "pins",
+     "pin_d": 3,
+     "pin_len": 8,
+     "clearance": 0.2
+    }
+   }
+  ]
+ },
+ {
+  "name": "split_dowels",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 40,
+     "width": 30,
+     "height": 20,
+     "anchor": "corner",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "split",
+    "params": {
+     "body": "f1",
+     "plane": {
+      "origin": [20, 0, 0],
+      "normal": [1, 0, 0]
+     },
+     "keep": "both",
+     "connector": "dowels",
+     "pin_d": 5,
+     "pin_len": 12,
+     "clearance": 0.15
+    }
+   }
+  ]
+ },
+ {
+  "name": "split_filament",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 40,
+     "width": 30,
+     "height": 20,
+     "anchor": "corner",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "split",
+    "params": {
+     "body": "f1",
+     "plane": {
+      "origin": [20, 0, 0],
+      "normal": [1, 0, 0]
+     },
+     "keep": "both",
+     "connector": "filament"
+    }
+   }
+  ]
+ },
+ {
+  "name": "split_magnets",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 40,
+     "width": 30,
+     "height": 20,
+     "anchor": "corner",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "split",
+    "params": {
+     "body": "f1",
+     "plane": {
+      "origin": [20, 0, 0],
+      "normal": [1, 0, 0]
+     },
+     "keep": "both",
+     "connector": "magnets"
+    }
+   }
+  ]
+ },
+ {
+  "name": "split_pins_defaults",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 40,
+     "width": 30,
+     "height": 20,
+     "anchor": "corner",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "split",
+    "params": {
+     "body": "f1",
+     "plane": {
+      "origin": [20, 0, 0],
+      "normal": [1, 0, 0]
+     },
+     "keep": "both",
+     "connector": "pins"
+    }
+   }
+  ]
+ },
+ {
+  "name": "split_connector_skipped_warning",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 40,
+     "width": 2,
+     "height": 20,
+     "anchor": "corner",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "split",
+    "params": {
+     "body": "f1",
+     "plane": {
+      "origin": [20, 0, 0],
+      "normal": [1, 0, 0]
+     },
+     "keep": "both",
+     "connector": "pins",
+     "pin_d": 5,
+     "pin_len": 10,
+     "clearance": 0.15
+    }
+   }
+  ]
+ },
+ {
+  "name": "split_pins_long_face",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 40,
+     "width": 80,
+     "height": 30,
+     "anchor": "corner",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "split",
+    "params": {
+     "body": "f1",
+     "plane": {
+      "origin": [20, 0, 0],
+      "normal": [1, 0, 0]
+     },
+     "keep": "both",
+     "connector": "pins",
+     "pin_d": 3,
+     "pin_len": 8,
+     "clearance": 0.2
+    }
+   }
+  ]
+ },
+ {
+  "name": "split_pins_face_with_hole",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 40,
+     "width": 30,
+     "height": 20,
+     "anchor": "corner",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "cylinder",
+     "radius": 6,
+     "height": 20,
+     "segments": 48,
+     "plane": "XY",
+     "offset": [20, 15, 0],
+     "operation": "new"
+    }
+   },
+   {
+    "type": "combine",
+    "params": {
+     "target": "f1",
+     "tools": ["f2"],
+     "operation": "cut",
+     "keep_tools": false
+    }
+   },
+   {
+    "type": "split",
+    "params": {
+     "body": "f1",
+     "plane": {
+      "origin": [20, 0, 0],
+      "normal": [1, 0, 0]
+     },
+     "keep": "both",
+     "connector": "pins",
+     "pin_d": 3,
+     "pin_len": 8,
+     "clearance": 0.2
+    }
+   }
+  ]
+ },
+ {
+  "name": "split_dowels_two_equal_pieces",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 10,
+     "width": 10,
+     "height": 40,
+     "anchor": "corner",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 10,
+     "width": 10,
+     "height": 40,
+     "anchor": "corner",
+     "plane": "XY",
+     "offset": [30, 0, 0],
+     "operation": "new"
+    }
+   },
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 40,
+     "width": 10,
+     "height": 10,
+     "anchor": "corner",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "combine",
+    "params": {
+     "target": "f1",
+     "tools": ["f2", "f3"],
+     "operation": "join",
+     "keep_tools": false
+    }
+   },
+   {
+    "type": "split",
+    "params": {
+     "body": "f1",
+     "plane": {
+      "origin": [0, 0, 15],
+      "normal": [0, 0, 1]
+     },
+     "keep": "both",
+     "connector": "dowels"
+    }
+   }
+  ]
+ },
+ {
+  "name": "split_pins_thin_rod",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "cylinder",
+     "radius": 3,
+     "height": 40,
+     "segments": 48,
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "split",
+    "params": {
+     "body": "f1",
+     "plane": {
+      "origin": [0, 0, 20],
+      "normal": [0, 0, 1]
+     },
+     "keep": "both",
+     "connector": "pins",
+     "pin_d": 3,
+     "pin_len": 8,
+     "clearance": 0.2
+    }
+   }
+  ]
+ },
+ {
+  "name": "split_tilted_plane",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 40,
+     "width": 30,
+     "height": 20,
+     "anchor": "corner",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "split",
+    "params": {
+     "body": "f1",
+     "plane": {
+      "origin": [20, 15, 10],
+      "normal": [1, 0.3, 0.2]
+     },
+     "keep": "both",
+     "connector": "pins",
+     "pin_d": 3,
+     "pin_len": 8,
+     "clearance": 0.2
+    }
+   }
+  ]
+ },
+ {
+  "name": "split_tilted_2pins",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 40,
+     "width": 30,
+     "height": 20,
+     "anchor": "corner",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 12,
+     "width": 15,
+     "height": 18,
+     "anchor": "corner",
+     "plane": "XY",
+     "offset": [15, 25, 0],
+     "operation": "new"
+    }
+   },
+   {
+    "type": "combine",
+    "params": {
+     "target": "f1",
+     "tools": ["f2"],
+     "operation": "join",
+     "keep_tools": false
+    }
+   },
+   {
+    "type": "split",
+    "params": {
+     "body": "f1",
+     "plane": {
+      "origin": [20, 15, 10],
+      "normal": [1, 0.3, 0.2]
+     },
+     "keep": "both",
+     "connector": "pins",
+     "pin_d": 3,
+     "pin_len": 8,
+     "clearance": 0.2
+    }
+   }
+  ]
+ },
+ {
+  "name": "split_tilted_3pins",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 40,
+     "width": 60,
+     "height": 30,
+     "anchor": "corner",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "split",
+    "params": {
+     "body": "f1",
+     "plane": {
+      "origin": [20, 30, 15],
+      "normal": [1, 0.3, 0.2]
+     },
+     "keep": "both",
+     "connector": "pins",
+     "pin_d": 3,
+     "pin_len": 8,
+     "clearance": 0.2
+    }
+   }
+  ]
+ },
+ {
+  "name": "split_keep_null",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 10,
+     "width": 10,
+     "height": 10,
+     "anchor": "corner",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "split",
+    "params": {
+     "body": "f1",
+     "plane": {
+      "origin": [100, 0, 0],
+      "normal": [1, 0, 0]
+     },
+     "keep": null,
+     "connector": "none"
+    }
+   }
+  ]
  }
 ]

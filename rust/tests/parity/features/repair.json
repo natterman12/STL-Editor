@@ -27,6 +27,7 @@
  {
   "name": "repair_expr_voxel",
   "exactness": "approx",
+  "requires": ["voxel"],
   "sources": {
    "s1": "open_box.stl"
   },
@@ -77,6 +78,233 @@
     "params": {
      "body": "gone",
      "mode": "auto"
+    }
+   }
+  ]
+ },
+ {
+  "name": "repair_open_box_quick",
+  "exactness": "approx",
+  "sources": {
+   "s1": "open_box.stl"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": false,
+     "place": "keep"
+    }
+   },
+   {
+    "type": "repair",
+    "params": {
+     "body": "f1",
+     "mode": "quick"
+    }
+   }
+  ]
+ },
+ {
+  "name": "repair_doubled_faces_auto",
+  "exactness": "approx",
+  "sources": {
+   "s1": "doubled_faces.stl"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": false,
+     "place": "keep"
+    }
+   },
+   {
+    "type": "repair",
+    "params": {
+     "body": "f1",
+     "mode": "auto"
+    }
+   }
+  ]
+ },
+ {
+  "name": "repair_touching_cubes_auto",
+  "exactness": "approx",
+  "sources": {
+   "s1": "touching_cubes.stl"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": false,
+     "place": "keep"
+    }
+   },
+   {
+    "type": "repair",
+    "params": {
+     "body": "f1",
+     "mode": "auto"
+    }
+   }
+  ]
+ },
+ {
+  "name": "repair_inside_out_auto",
+  "exactness": "approx",
+  "sources": {
+   "s1": "inside_out.stl"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": false,
+     "place": "keep"
+    }
+   },
+   {
+    "type": "repair",
+    "params": {
+     "body": "f1",
+     "mode": "auto"
+    }
+   }
+  ]
+ },
+ {
+  "name": "repair_nonmanifold_edge_auto",
+  "exactness": "approx",
+  "requires": ["voxel"],
+  "sources": {
+   "s1": "nonmanifold_edge.stl"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": false,
+     "place": "keep"
+    }
+   },
+   {
+    "type": "repair",
+    "params": {
+     "body": "f1",
+     "mode": "auto"
+    }
+   }
+  ]
+ },
+ {
+  "name": "repair_overlapping_shells_auto",
+  "exactness": "approx",
+  "sources": {
+   "s1": "overlapping_shells.stl"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": false,
+     "place": "keep"
+    }
+   },
+   {
+    "type": "repair",
+    "params": {
+     "body": "f1",
+     "mode": "auto"
+    }
+   }
+  ]
+ },
+ {
+  "name": "repair_stray_triangle_auto",
+  "exactness": "approx",
+  "requires": ["voxel"],
+  "sources": {
+   "s1": "stray_triangle.stl"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": false,
+     "place": "keep"
+    }
+   },
+   {
+    "type": "repair",
+    "params": {
+     "body": "f1",
+     "mode": "auto"
+    }
+   }
+  ]
+ },
+ {
+  "name": "repair_stray_triangle_quick",
+  "exactness": "exact",
+  "sources": {
+   "s1": "stray_triangle.stl"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": false,
+     "place": "keep"
+    }
+   },
+   {
+    "type": "repair",
+    "params": {
+     "body": "f1",
+     "mode": "quick"
+    }
+   }
+  ]
+ },
+ {
+  "name": "repair_nonmanifold_edge_quick",
+  "exactness": "exact",
+  "sources": {
+   "s1": "nonmanifold_edge.stl"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": false,
+     "place": "keep"
+    }
+   },
+   {
+    "type": "repair",
+    "params": {
+     "body": "f1",
+     "mode": "quick"
     }
    }
   ]

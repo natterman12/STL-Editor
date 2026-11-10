@@ -43,10 +43,28 @@ fn body_stats(b: &Body) -> MeshStats {
     mesh_stats(&m.positions, &m.triangles)
 }
 
+fn requires_pending(registry: &Registry, case: &Value, golden: &Value) -> bool {
+    let caps = registry.capabilities();
+    for src in [case, golden] {
+        if let Some(reqs) = src.get("requires").and_then(Value::as_array) {
+            for r in reqs {
+                let name = r.as_str().unwrap_or("");
+                if !caps.contains(name) {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
 /// Run one case against `registry` and compare it with its golden.
 fn run_case(registry: &Registry, case: &Value, golden: &Value) -> Outcome {
     let features = case["features"].as_array().cloned().unwrap_or_default();
     if features.iter().any(|f| !registry.has(f["type"].as_str().unwrap_or(""))) {
+        return Outcome::Pending;
+    }
+    if requires_pending(registry, case, golden) {
         return Outcome::Pending;
     }
     let exactness = match case["exactness"].as_str() {
@@ -149,26 +167,89 @@ fn run_case(registry: &Registry, case: &Value, golden: &Value) -> Outcome {
     if bad.is_empty() { Outcome::Passed } else { Outcome::Failed(bad) }
 }
 
-/// Run every case of `types`: (passed, pending, failed case names with their mismatches).
-fn run_all(registry: &Registry, types: &[&str]) -> (usize, usize, Vec<String>) {
-    let (mut passed, mut pending, mut failures) = (0, 0, Vec::new());
+/// The cases where 2.0 differs from 1.x on purpose: `"<type>/<case>"` -> reason and 2.0's values.
+/// The `expect` record has the same shape as a golden record. See `tests/EXCEPTIONS.md`.
+fn read_exceptions() -> Map<String, Value> {
+    let v = read_json(&parity_dir().join("exceptions.json"));
+    v.as_object().cloned().expect("exceptions.json is an object")
+}
+
+/// Count of cases that passed because their exception matched.
+struct Tally {
+    passed: usize,
+    by_exception: usize,
+    pending: usize,
+    failures: Vec<String>,
+}
+
+/// Run one case, honouring an exception for it. A case with an exception must NOT match the
+/// 1.x golden (that would make the exception stale) and must match the exception's `expect`.
+fn run_with_exception(registry: &Registry, case: &Value, golden: &Value, exc: Option<&Value>) -> (Outcome, bool) {
+    let Some(exc) = exc else {
+        return (run_case(registry, case, golden), false);
+    };
+    match run_case(registry, case, golden) {
+        Outcome::Pending => return (Outcome::Pending, false),
+        Outcome::Passed => {
+            return (
+                Outcome::Failed(vec!["stale exception: the case now matches the 1.x golden; remove it from exceptions.json".into()]),
+                false,
+            );
+        }
+        Outcome::Failed(_) => {}
+    }
+    if exc.get("reason").and_then(Value::as_str).is_none_or(str::is_empty) {
+        return (Outcome::Failed(vec!["exception has no reason".into()]), false);
+    }
+    let Some(expect) = exc.get("expect") else {
+        return (Outcome::Failed(vec!["exception has no expect".into()]), false);
+    };
+    match run_case(registry, case, expect) {
+        Outcome::Passed => (Outcome::Passed, true),
+        Outcome::Pending => (Outcome::Pending, false),
+        Outcome::Failed(why) => (
+            Outcome::Failed(why.into_iter().map(|m| format!("(vs exception expect) {m}")).collect()),
+            false,
+        ),
+    }
+}
+
+/// Run every case of `types` against `exceptions`.
+fn run_all_with(registry: &Registry, types: &[&str], exceptions: &Map<String, Value>) -> Tally {
+    let mut tally = Tally { passed: 0, by_exception: 0, pending: 0, failures: Vec::new() };
+    let mut seen: Vec<String> = Vec::new();
     for t in types {
         let cases = read_json(&parity_dir().join("features").join(format!("{t}.json")));
         let golden = read_json(&parity_dir().join("features_golden").join(format!("{t}.json")));
         for case in cases.as_array().expect("case file is a list") {
             let name = case["name"].as_str().unwrap_or("?");
+            let key = format!("{t}/{name}");
             let Some(g) = golden.get(name) else {
-                failures.push(format!("{t}/{name}: no golden"));
+                tally.failures.push(format!("{key}: no golden"));
                 continue;
             };
-            match run_case(registry, case, g) {
-                Outcome::Passed => passed += 1,
-                Outcome::Pending => pending += 1,
-                Outcome::Failed(why) => failures.extend(why.into_iter().map(|m| format!("{t}/{name}: {m}"))),
+            let exc = exceptions.get(&key);
+            if exc.is_some() {
+                seen.push(key.clone());
+            }
+            match run_with_exception(registry, case, g, exc) {
+                (Outcome::Passed, by_exc) => {
+                    tally.passed += 1;
+                    tally.by_exception += usize::from(by_exc);
+                }
+                (Outcome::Pending, _) => tally.pending += 1,
+                (Outcome::Failed(why), _) => {
+                    tally.failures.extend(why.into_iter().map(|m| format!("{key}: {m}")));
+                }
             }
         }
     }
-    (passed, pending, failures)
+    for key in exceptions.keys() {
+        if !seen.contains(key) {
+            tally.failures.push(format!("{key}: exceptions.json names a case or golden that no longer exists"));
+        }
+    }
+    tally
 }
 
 fn failed_cases(failures: &[String]) -> usize {
@@ -179,12 +260,18 @@ fn failed_cases(failures: &[String]) -> usize {
 
 #[test]
 fn feature_parity() {
-    let (passed, pending, failures) = run_all(&Registry::builtin(), &BATCH1);
-    for f in &failures {
+    let tally = run_all_with(&Registry::builtin(), &BATCH1, &read_exceptions());
+    for f in &tally.failures {
         println!("{f}");
     }
-    println!("parity: {passed} passed, {pending} pending, {} failed", failed_cases(&failures));
-    assert!(failures.is_empty(), "{} parity mismatches", failures.len());
+    println!(
+        "parity: {} passed ({} by exception), {} pending, {} failed",
+        tally.passed,
+        tally.by_exception,
+        tally.pending,
+        failed_cases(&tally.failures)
+    );
+    assert!(tally.failures.is_empty(), "{} parity mismatches", tally.failures.len());
 }
 
 // -- the non-pending path, proved with a test-only `primitive` (boxes only) --------------------
@@ -238,4 +325,50 @@ fn runner_reports_a_mismatch() {
     let (case, _) = primitive_case("primitive_box");
     let (_, other) = primitive_case("primitive_box_expr_size");
     assert!(matches!(run_case(&reg, &case, &other), Outcome::Failed(_)));
+}
+
+// -- the exception mechanism -------------------------------------------------------------------
+
+fn exception_for(name: &str, expect: Value) -> Map<String, Value> {
+    let mut m = Map::new();
+    m.insert(format!("primitive/{name}"), serde_json::json!({ "reason": "test", "expect": expect }));
+    m
+}
+
+fn only_primitive(reg: &Registry, exc: &Map<String, Value>) -> Tally {
+    run_all_with(reg, &["primitive"], exc)
+}
+
+#[test]
+fn exception_is_used_instead_of_the_golden() {
+    // The test-only primitive refuses a cylinder, so the 1.x golden does not match; the
+    // exception records what this build gives instead.
+    let reg = Registry::new().with("primitive", ev_box);
+    let (_, mut expect) = primitive_case("primitive_cylinder");
+    expect["results"][0]["error"] = Value::String("test-only primitive: boxes only".into());
+    expect["bodies"] = Value::Array(Vec::new());
+    let mut exc = Map::new();
+    exc.insert(
+        "primitive/primitive_cylinder".into(),
+        serde_json::json!({ "reason": "test", "expect": expect }),
+    );
+    let t = only_primitive(&reg, &exc);
+    assert_eq!(t.by_exception, 1);
+    assert!(t.failures.iter().all(|f| !f.starts_with("primitive/primitive_cylinder:")), "{:?}", t.failures);
+}
+
+#[test]
+fn stale_exception_fails() {
+    let reg = Registry::new().with("primitive", ev_box);
+    let (_, same) = primitive_case("primitive_box");
+    let t = only_primitive(&reg, &exception_for("primitive_box", same));
+    assert!(t.failures.iter().any(|f| f.contains("stale exception")), "{:?}", t.failures);
+}
+
+#[test]
+fn exception_for_a_missing_case_fails() {
+    let reg = Registry::new().with("primitive", ev_box);
+    let (_, same) = primitive_case("primitive_box");
+    let t = only_primitive(&reg, &exception_for("no_such_case", same));
+    assert!(t.failures.iter().any(|f| f.contains("no longer exists")), "{:?}", t.failures);
 }

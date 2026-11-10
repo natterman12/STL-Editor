@@ -119,12 +119,126 @@
    }
   ]
  },
+ "mirror_features_missing": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 600.0,
+     "bbox_max": [
+      5.0,
+      5.0,
+      10.0
+     ],
+     "bbox_min": [
+      -5.0,
+      -5.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 1000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": "A chosen feature can't be mirrored (it isn't an extrude, revolve, hole or shape that comes earlier in the timeline, or it failed).",
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "mirror_join_box": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 1200.0,
+     "bbox_max": [
+      15.0,
+      10.0,
+      10.0
+     ],
+     "bbox_min": [
+      -15.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 24,
+     "vertices": 16,
+     "volume": 2000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
  "mirror_no_bodies": {
   "bodies": [],
   "results": [
    {
     "error": "Choose a body to mirror.",
     "id": "f1",
+    "warning": null
+   }
+  ]
+ },
+ "mirror_replace_box": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 600.0,
+     "bbox_max": [
+      -5.0,
+      10.0,
+      10.0
+     ],
+     "bbox_min": [
+      -15.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 1000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
     "warning": null
    }
   ]

@@ -1,4 +1,180 @@
 {
+ "import_3mf_two_objects": {
+  "bodies": [
+   {
+    "id": "f1.1",
+    "name": "two_objects 1",
+    "solid": true,
+    "stats": {
+     "area": 600.0,
+     "bbox_max": [
+      12.0,
+      13.0,
+      14.0
+     ],
+     "bbox_min": [
+      2.0,
+      3.0,
+      4.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 1000.0,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f1.2",
+    "name": "two_objects 2",
+    "solid": true,
+    "stats": {
+     "area": 216.0,
+     "bbox_max": [
+      26.0,
+      6.0,
+      6.0
+     ],
+     "bbox_min": [
+      20.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 216.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   }
+  ]
+ },
+ "import_ascii_stl": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "ascii_cube",
+    "solid": true,
+    "stats": {
+     "area": 600.0,
+     "bbox_max": [
+      10.0,
+      10.0,
+      10.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 1000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   }
+  ]
+ },
+ "import_glb_nested": {
+  "bodies": [
+   {
+    "id": "f1.1",
+    "name": "nested_nodes 1",
+    "solid": true,
+    "stats": {
+     "area": 96.0,
+     "bbox_max": [
+      12.0,
+      2.0,
+      4.0
+     ],
+     "bbox_min": [
+      8.0,
+      -2.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 64.0,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f1.2",
+    "name": "nested_nodes 2",
+    "solid": true,
+    "stats": {
+     "area": 54.0,
+     "bbox_max": [
+      11.5,
+      16.5,
+      3.0
+     ],
+     "bbox_min": [
+      8.5,
+      13.5,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 27.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   }
+  ]
+ },
+ "import_holed_block_center": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "holed_block",
+    "solid": true,
+    "stats": {
+     "area": 2464.013797335947,
+     "bbox_max": [
+      15.0,
+      10.0,
+      10.0
+     ],
+     "bbox_min": [
+      -15.0,
+      -10.0,
+      0.0
+     ],
+     "triangles": 276,
+     "vertices": 136,
+     "volume": 5438.1398433105005,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   }
+  ]
+ },
  "import_holed_block_keep": {
   "bodies": [
    {
@@ -42,6 +218,132 @@
    }
   ]
  },
+ "import_next_to_raw": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "open_box",
+    "solid": false,
+    "stats": {
+     "area": 2000.0,
+     "bbox_max": [
+      20.0,
+      20.0,
+      20.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 10,
+     "vertices": 8,
+     "volume": 5333.333333333333,
+     "watertight": false
+    }
+   },
+   {
+    "id": "f2",
+    "name": "holed_block",
+    "solid": true,
+    "stats": {
+     "area": 2464.0137792175774,
+     "bbox_max": [
+      60.0,
+      10.0,
+      10.0
+     ],
+     "bbox_min": [
+      30.0,
+      -10.0,
+      0.0
+     ],
+     "triangles": 276,
+     "vertices": 136,
+     "volume": 5438.1399775806685,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": "1 mesh(es) are not watertight. They display and export, but editing needs Repair (Rebuild) first."
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "import_obj_multi": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "multi",
+    "solid": false,
+    "stats": {
+     "area": 732.0,
+     "bbox_max": [
+      50.0,
+      12.0,
+      10.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 16,
+     "vertices": 13,
+     "volume": -1000.0,
+     "watertight": false
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": "1 mesh(es) are not watertight. They display and export, but editing needs Repair (Rebuild) first."
+   }
+  ]
+ },
+ "import_off_box": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "box",
+    "solid": true,
+    "stats": {
+     "area": 600.0,
+     "bbox_max": [
+      5.0,
+      5.0,
+      10.0
+     ],
+     "bbox_min": [
+      -5.0,
+      -5.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 1000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   }
+  ]
+ },
  "import_open_box_expr_repair": {
   "bodies": [
    {
@@ -63,6 +365,39 @@
      "triangles": 10,
      "vertices": 8,
      "volume": 5333.333333333333,
+     "watertight": false
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": "1 mesh(es) are not watertight. They display and export, but editing needs Repair (Rebuild) first."
+   }
+  ]
+ },
+ "import_ply_ascii": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "extra_props_ascii",
+    "solid": false,
+    "stats": {
+     "area": 100.0,
+     "bbox_max": [
+      10.0,
+      10.0,
+      0.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 2,
+     "vertices": 4,
+     "volume": 0.0,
      "watertight": false
     }
    }

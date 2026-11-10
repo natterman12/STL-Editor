@@ -32,6 +32,44 @@
    }
   ]
  },
+ "primitive_box_cut": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 4671.237455364558,
+     "bbox_max": [
+      30.0,
+      30.0,
+      20.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 144,
+     "vertices": 72,
+     "volume": 16439.277276613884,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
  "primitive_box_expr_size": {
   "bodies": [
    {
@@ -53,6 +91,214 @@
      "triangles": 12,
      "vertices": 8,
      "volume": 4000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   }
+  ]
+ },
+ "primitive_box_intersect": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 1600.0,
+     "bbox_max": [
+      20.0,
+      20.0,
+      20.0
+     ],
+     "bbox_min": [
+      10.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 4000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "primitive_box_join": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 1600.0,
+     "bbox_max": [
+      20.0,
+      20.0,
+      10.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 4000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "primitive_cone": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Cone",
+    "solid": true,
+    "stats": {
+     "area": 718.6473130671017,
+     "bbox_max": [
+      8.0,
+      8.0,
+      15.0
+     ],
+     "bbox_min": [
+      -8.0,
+      -8.0,
+      0.0
+     ],
+     "triangles": 124,
+     "vertices": 64,
+     "volume": 1311.0069158200838,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   }
+  ]
+ },
+ "primitive_cylinder": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Cylinder",
+    "solid": true,
+    "stats": {
+     "area": 783.3819563299564,
+     "bbox_max": [
+      5.0,
+      5.0,
+      20.0
+     ],
+     "bbox_min": [
+      -5.0,
+      -5.0,
+      0.0
+     ],
+     "triangles": 124,
+     "vertices": 64,
+     "volume": 1560.7225781487293,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   }
+  ]
+ },
+ "primitive_sphere": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Sphere",
+    "solid": true,
+    "stats": {
+     "area": 608.250386368623,
+     "bbox_max": [
+      7.0,
+      7.0,
+      14.0
+     ],
+     "bbox_min": [
+      -7.0,
+      -7.0,
+      0.0
+     ],
+     "triangles": 512,
+     "vertices": 258,
+     "volume": 1404.6605473448642,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   }
+  ]
+ },
+ "primitive_torus": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Torus",
+    "solid": true,
+    "stats": {
+     "area": 785.9114401785702,
+     "bbox_max": [
+      12.0,
+      12.0,
+      4.0
+     ],
+     "bbox_min": [
+      -12.0,
+      -12.0,
+      0.0
+     ],
+     "triangles": 2304,
+     "vertices": 1152,
+     "volume": 778.3525930199254,
      "watertight": true
     }
    }

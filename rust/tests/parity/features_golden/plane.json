@@ -1,4 +1,49 @@
 {
+ "plane_angle": {
+  "bodies": [],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   }
+  ]
+ },
+ "plane_face": {
+  "bodies": [],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "plane_midplane": {
+  "bodies": [],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f3",
+    "warning": null
+   }
+  ]
+ },
  "plane_offset_expr_distance": {
   "bodies": [],
   "results": [
@@ -24,6 +69,16 @@
   "results": [
    {
     "error": "The three points are in a line.",
+    "id": "f1",
+    "warning": null
+   }
+  ]
+ },
+ "plane_three_points_ok": {
+  "bodies": [],
+  "results": [
+   {
+    "error": null,
     "id": "f1",
     "warning": null
    }

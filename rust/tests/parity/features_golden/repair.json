@@ -1,4 +1,42 @@
 {
+ "repair_doubled_faces_auto": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "doubled_faces",
+    "solid": true,
+    "stats": {
+     "area": 600.0,
+     "bbox_max": [
+      10.0,
+      10.0,
+      10.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 1000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
  "repair_expr_voxel": {
   "bodies": [
    {
@@ -24,6 +62,9 @@
     }
    }
   ],
+  "requires": [
+   "voxel"
+  ],
   "results": [
    {
     "error": null,
@@ -34,6 +75,44 @@
     "error": null,
     "id": "f2",
     "warning": "Rebuilt as a watertight solid on a 1 mm grid."
+   }
+  ]
+ },
+ "repair_inside_out_auto": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "inside_out",
+    "solid": true,
+    "stats": {
+     "area": 600.0,
+     "bbox_max": [
+      10.0,
+      10.0,
+      10.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 1000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
    }
   ]
  },
@@ -75,6 +154,85 @@
    }
   ]
  },
+ "repair_nonmanifold_edge_auto": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "nonmanifold_edge",
+    "solid": true,
+    "stats": {
+     "area": 265.7893328859146,
+     "bbox_max": [
+      10.001303672790527,
+      7.946263790130615,
+      7.964807033538818
+     ],
+     "bbox_min": [
+      -0.026909412816166878,
+      -0.04621601104736328,
+      -7.980274200439453
+     ],
+     "triangles": 75408,
+     "vertices": 37710,
+     "volume": 12.538189002919813,
+     "watertight": true
+    }
+   }
+  ],
+  "requires": [
+   "voxel"
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": "1 mesh(es) are not watertight. They display and export, but editing needs Repair (Rebuild) first."
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": "Rebuilt as a watertight solid on a 0.0932 mm grid."
+   }
+  ]
+ },
+ "repair_nonmanifold_edge_quick": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "nonmanifold_edge",
+    "solid": false,
+    "stats": {
+     "area": 129.4427190999916,
+     "bbox_max": [
+      10.0,
+      8.0,
+      8.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      -8.0
+     ],
+     "triangles": 3,
+     "vertices": 5,
+     "volume": 0.0,
+     "watertight": false
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": "1 mesh(es) are not watertight. They display and export, but editing needs Repair (Rebuild) first."
+   },
+   {
+    "error": "Quick repair wasn't enough. Use Rebuild.",
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
  "repair_open_box_auto": {
   "bodies": [
    {
@@ -105,6 +263,199 @@
     "error": null,
     "id": "f1",
     "warning": "1 mesh(es) are not watertight. They display and export, but editing needs Repair (Rebuild) first."
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "repair_open_box_quick": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "open_box",
+    "solid": true,
+    "stats": {
+     "area": 2400.0,
+     "bbox_max": [
+      20.0,
+      20.0,
+      20.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 14,
+     "vertices": 9,
+     "volume": 8000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": "1 mesh(es) are not watertight. They display and export, but editing needs Repair (Rebuild) first."
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "repair_overlapping_shells_auto": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "overlapping_shells",
+    "solid": true,
+    "stats": {
+     "area": 800.0,
+     "bbox_max": [
+      15.0,
+      10.0,
+      10.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 28,
+     "vertices": 16,
+     "volume": 1500.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": "2 overlapping shells were merged into one solid."
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "repair_stray_triangle_auto": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "stray_triangle",
+    "solid": true,
+    "stats": {
+     "area": 101.12486327085568,
+     "bbox_max": [
+      9.977507591247559,
+      9.977507591247559,
+      0.021133380010724068
+     ],
+     "bbox_min": [
+      -0.007620211690664291,
+      -0.007620211690664291,
+      -0.021133380010724068
+     ],
+     "triangles": 50224,
+     "vertices": 25114,
+     "volume": 2.0925908561295974,
+     "watertight": true
+    }
+   }
+  ],
+  "requires": [
+   "voxel"
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": "1 mesh(es) are not watertight. They display and export, but editing needs Repair (Rebuild) first."
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": "Rebuilt as a watertight solid on a 0.0643 mm grid."
+   }
+  ]
+ },
+ "repair_stray_triangle_quick": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "stray_triangle",
+    "solid": false,
+    "stats": {
+     "area": 50.0,
+     "bbox_max": [
+      10.0,
+      10.0,
+      0.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 1,
+     "vertices": 3,
+     "volume": 0.0,
+     "watertight": false
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": "1 mesh(es) are not watertight. They display and export, but editing needs Repair (Rebuild) first."
+   },
+   {
+    "error": "Quick repair wasn't enough. Use Rebuild.",
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "repair_touching_cubes_auto": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "touching_cubes",
+    "solid": true,
+    "stats": {
+     "area": 1000.0,
+     "bbox_max": [
+      20.0,
+      10.0,
+      10.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 20,
+     "vertices": 12,
+     "volume": 2000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
    },
    {
     "error": null,

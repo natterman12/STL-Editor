@@ -1,4 +1,19 @@
 {
+ "delete_after_import": {
+  "bodies": [],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
  "delete_bad_expression": {
   "bodies": [
    {
@@ -77,6 +92,26 @@
     }
    }
   ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f3",
+    "warning": null
+   }
+  ]
+ },
+ "delete_two_bodies": {
+  "bodies": [],
   "results": [
    {
     "error": null,

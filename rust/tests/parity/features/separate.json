@@ -85,5 +85,53 @@
     }
    }
   ]
+ },
+ {
+  "name": "separate_missing_body",
+  "exactness": "exact",
+  "sources": {
+   "s1": "two_blobs.stl"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": true,
+     "place": "keep"
+    }
+   },
+   {
+    "type": "separate",
+    "params": {
+     "body": "gone"
+    }
+   }
+  ]
+ },
+ {
+  "name": "separate_touching_cubes",
+  "exactness": "exact",
+  "sources": {
+   "s1": "touching_cubes.stl"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": true,
+     "place": "keep"
+    }
+   },
+   {
+    "type": "separate",
+    "params": {
+     "body": "f1"
+    }
+   }
+  ]
  }
 ]

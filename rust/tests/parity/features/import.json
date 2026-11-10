@@ -56,5 +56,158 @@
     }
    }
   ]
+ },
+ {
+  "name": "import_holed_block_center",
+  "exactness": "exact",
+  "sources": {
+   "s1": "holed_block.stl"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": true,
+     "place": "center"
+    }
+   }
+  ]
+ },
+ {
+  "name": "import_obj_multi",
+  "exactness": "exact",
+  "sources": {
+   "s1": "readers/multi.obj"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": false,
+     "place": "keep"
+    }
+   }
+  ]
+ },
+ {
+  "name": "import_ply_ascii",
+  "exactness": "exact",
+  "sources": {
+   "s1": "readers/extra_props_ascii.ply"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": false,
+     "place": "keep"
+    }
+   }
+  ]
+ },
+ {
+  "name": "import_off_box",
+  "exactness": "exact",
+  "sources": {
+   "s1": "readers/box.off"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": true,
+     "place": "keep"
+    }
+   }
+  ]
+ },
+ {
+  "name": "import_3mf_two_objects",
+  "exactness": "exact",
+  "sources": {
+   "s1": "readers/two_objects.3mf"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": true,
+     "place": "keep"
+    }
+   }
+  ]
+ },
+ {
+  "name": "import_glb_nested",
+  "exactness": "exact",
+  "sources": {
+   "s1": "readers/nested_nodes.glb"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": true,
+     "place": "keep"
+    }
+   }
+  ]
+ },
+ {
+  "name": "import_ascii_stl",
+  "exactness": "exact",
+  "sources": {
+   "s1": "readers/ascii_cube.stl"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": true,
+     "place": "keep"
+    }
+   }
+  ]
+ },
+ {
+  "name": "import_next_to_raw",
+  "exactness": "exact",
+  "sources": {
+   "s1": "open_box.stl",
+   "s2": "holed_block.stl"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": false,
+     "place": "keep"
+    }
+   },
+   {
+    "type": "import",
+    "params": {
+     "source": "s2",
+     "repair": true,
+     "place": "center"
+    }
+   }
+  ]
  }
 ]

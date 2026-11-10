@@ -1,5 +1,5 @@
 use serde_json::{Map, Value};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::{Ctx, FeatureError, FeatureResult, State};
 
@@ -22,7 +22,7 @@ impl Registry {
 
     /// The feature types of the app. Empty in milestone 1; milestone 2 fills it.
     pub fn builtin() -> Registry {
-        Registry::new()
+        crate::features::register_all(Registry::new())
     }
 
     pub fn with(mut self, kind: &'static str, f: Evaluator) -> Registry {
@@ -36,5 +36,11 @@ impl Registry {
 
     pub fn get(&self, kind: &str) -> Option<Evaluator> {
         self.map.get(kind).copied()
+    }
+
+    /// Named capabilities the port still lacks (e.g. `"voxel"`, `"offset"`). Empty until
+    /// later batches register them; golden cases with matching `requires` stay pending.
+    pub fn capabilities(&self) -> BTreeSet<&'static str> {
+        BTreeSet::new()
     }
 }

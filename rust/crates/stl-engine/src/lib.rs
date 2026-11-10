@@ -3,6 +3,7 @@
 pub mod document;
 pub mod error;
 pub mod feature;
+pub mod features;
 pub mod labels;
 pub mod params;
 pub mod registry;
@@ -11,6 +12,10 @@ pub mod stlx;
 
 pub use document::Document;
 pub use error::FeatureError;
+pub use features::common::{
+    affine, apply_tool, base_planes, float, mirror_matrix, pivot, place, plane_frame, repeat_features, rotation,
+    transform_body, Frame, PlaneDef, ToolRecord, Vec3,
+};
 pub use feature::{Ctx, Feature, FeatureResult, RollbackAfter, Source};
 pub use labels::LABELS;
 pub use registry::{Evaluator, Registry};

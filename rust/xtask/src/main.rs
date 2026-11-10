@@ -1,3 +1,4 @@
+mod bench;
 mod pure;
 
 use std::process::{Command, ExitCode};
@@ -42,8 +43,16 @@ fn main() -> ExitCode {
                 ExitCode::FAILURE
             }
         },
+        Some("bench") => match bench::run() {
+            Ok(true) => ExitCode::SUCCESS,
+            Ok(false) => ExitCode::FAILURE,
+            Err(e) => {
+                eprintln!("bench: {e}");
+                ExitCode::FAILURE
+            }
+        },
         _ => {
-            eprintln!("usage: cargo run -p xtask -- pure-rust");
+            eprintln!("usage: cargo run -p xtask -- pure-rust | cargo run --release -p xtask -- bench");
             ExitCode::FAILURE
         }
     }

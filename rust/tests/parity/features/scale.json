@@ -91,5 +91,110 @@
     }
    }
   ]
+ },
+ {
+  "name": "scale_fit_size",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 10,
+     "width": 20,
+     "height": 5,
+     "plane": "XY",
+     "anchor": "base",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "scale",
+    "params": {
+     "bodies": ["f1"],
+     "mode": "fit",
+     "size": [40, 40, 10],
+     "uniform": true,
+     "pivot": "base"
+    }
+   }
+  ]
+ },
+ {
+  "name": "scale_no_bodies",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "scale",
+    "params": {
+     "bodies": [],
+     "mode": "factor",
+     "factor": 2,
+     "pivot": "base"
+    }
+   }
+  ]
+ },
+ {
+  "name": "scale_units_in_to_mm",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 1,
+     "width": 1,
+     "height": 1,
+     "plane": "XY",
+     "anchor": "base",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "scale",
+    "params": {
+     "bodies": ["f1"],
+     "mode": "units",
+     "units": "in_to_mm",
+     "pivot": "base"
+    }
+   }
+  ]
+ },
+ {
+  "name": "scale_units_mm_to_in",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 25.4,
+     "width": 25.4,
+     "height": 25.4,
+     "plane": "XY",
+     "anchor": "base",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "scale",
+    "params": {
+     "bodies": ["f1"],
+     "mode": "units",
+     "units": "mm_to_in",
+     "pivot": "base"
+    }
+   }
+  ]
  }
 ]

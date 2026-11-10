@@ -1,6 +1,7 @@
-"""Write rust/tests/models/{holed_block,open_box,two_blobs}.stl for the kernel corpus.
+"""Write rust/tests/models/{holed_block,open_box,two_blobs,...}.stl for the kernel corpus.
 
-Deterministic binary STLs built with manifold3d (fixed circular_segments).
+Deterministic binary STLs built with manifold3d (fixed circular_segments), plus
+broken meshes for Repair parity.
 """
 from __future__ import annotations
 
@@ -73,10 +74,89 @@ def make_two_blobs() -> Path:
     return _write("two_blobs.stl", *_mesh_from_manifold(a + b))
 
 
+def make_doubled_faces() -> Path:
+    # Closed cube with every triangle listed twice.
+    v, f = _mesh_from_manifold(m3.Manifold.cube((10.0, 10.0, 10.0), False))
+    return _write("doubled_faces.stl", v, np.vstack([f, f]))
+
+
+def make_touching_cubes() -> Path:
+    # Two closed cubes that share a wall (touch but do not overlap).
+    a = m3.Manifold.cube((10.0, 10.0, 10.0), False)
+    b = m3.Manifold.cube((10.0, 10.0, 10.0), False).translate((10.0, 0.0, 0.0))
+    va, fa = _mesh_from_manifold(a)
+    vb, fb = _mesh_from_manifold(b)
+    return _write("touching_cubes.stl", np.vstack([va, vb]), np.vstack([fa, fb + len(va)]))
+
+
+def make_inside_out() -> Path:
+    # Closed cube with reversed winding (negative volume / inverted shell).
+    v, f = _mesh_from_manifold(m3.Manifold.cube((10.0, 10.0, 10.0), False))
+    return _write("inside_out.stl", v, f[:, [0, 2, 1]])
+
+
+def make_nonmanifold_edge() -> Path:
+    # Three triangles share one edge (non-manifold).
+    v = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [10.0, 0.0, 0.0],
+            [5.0, 8.0, 0.0],
+            [5.0, 4.0, 8.0],
+            [5.0, 4.0, -8.0],
+        ],
+        dtype=np.float32,
+    )
+    f = np.array([[0, 1, 2], [0, 1, 3], [0, 1, 4]], dtype=np.uint32)
+    return _write("nonmanifold_edge.stl", v, f)
+
+
+def make_overlapping_shells() -> Path:
+    # Two closed cubes pushed into each other; 1.x merge_overlapping_shells unions them.
+    a = m3.Manifold.cube((10.0, 10.0, 10.0), False)
+    b = m3.Manifold.cube((10.0, 10.0, 10.0), False).translate((5.0, 0.0, 0.0))
+    va, fa = _mesh_from_manifold(a)
+    vb, fb = _mesh_from_manifold(b)
+    return _write("overlapping_shells.stl", np.vstack([va, vb]), np.vstack([fa, fb + len(va)]))
+
+
+def make_stray_triangle() -> Path:
+    # One triangle; every repair step fails until Rebuild.
+    v = np.array([[0.0, 0.0, 0.0], [10.0, 0.0, 0.0], [0.0, 10.0, 0.0]], dtype=np.float32)
+    f = np.array([[0, 1, 2]], dtype=np.uint32)
+    return _write("stray_triangle.stl", v, f)
+
+
 def main() -> int:
-    paths = [make_holed_block(), make_open_box(), make_two_blobs()]
+    paths = [
+        make_holed_block(),
+        make_open_box(),
+        make_two_blobs(),
+        make_doubled_faces(),
+        make_touching_cubes(),
+        make_inside_out(),
+        make_nonmanifold_edge(),
+        make_overlapping_shells(),
+        make_stray_triangle(),
+    ]
     for p in paths:
         print(f"wrote {p.relative_to(ROOT)} ({p.stat().st_size} bytes)")
+
+    # overlapping must trigger merge_overlapping_shells in 1.x.
+    sys.path.insert(0, str(ROOT))
+    from stleditor import geometry as G  # noqa: E402
+
+    data = (OUT / "overlapping_shells.stl").read_bytes()
+    verts, faces = G.read_stl_bytes(data)
+    man = G.manifold_from_arrays(*G.weld(verts, faces))
+    if man is None:
+        print("make_models: overlapping_shells is not a solid", file=sys.stderr)
+        return 1
+    _, merged = G.merge_overlapping_shells(man)
+    if merged < 2:
+        print(f"make_models: overlapping_shells did not merge (n={merged})", file=sys.stderr)
+        return 1
+    print(f"overlapping_shells: merge_overlapping_shells merged {merged} shells")
     return 0
 
 

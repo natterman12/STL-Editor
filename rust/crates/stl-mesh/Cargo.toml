@@ -6,3 +6,8 @@ publish.workspace = true
 
 [dependencies]
 stl-kernel = { path = "../stl-kernel" }
+
+# Test-only: the 1.x comparison rules and the golden file, used by tests/repair.rs.
+[dev-dependencies]
+stl-parity = { path = "../stl-parity" }
+serde_json = "1"

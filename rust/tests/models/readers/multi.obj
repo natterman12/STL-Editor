@@ -1,0 +1,31 @@
+# multi-object OBJ for reader parity
+o BoxA
+v 0 0 0
+v 10 0 0
+v 10 10 0
+v 0 10 0
+v 0 0 10
+v 10 0 10
+v 10 10 10
+v 0 10 10
+g Bottom
+f 1 2 3 4
+g Top
+f 5 8 7 6
+g Sides
+f 1 5 6 2
+f 2 6 7 3
+f 3 7 8 4
+f 4 8 5 1
+o TriNeg
+v 20 0 0
+v 30 0 0
+v 25 8 0
+f -3 -2 -1
+o Pentagon
+v 40 0 0
+v 48 0 0
+v 50 6 0
+v 45 12 0
+v 38 8 0
+f 12 13 14 15 16
