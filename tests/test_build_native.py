@@ -16,7 +16,7 @@ def test_asset_names_per_target():
 
 
 def test_version_is_read_from_package():
-    assert B.read_version() == "1.16.0"
+    assert B.read_version() == "1.17.0"
 
 
 def test_linux_command_line():
