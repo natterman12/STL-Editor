@@ -29,3 +29,9 @@ desktop.ini
 
 # graphify knowledge-graph output
 graphify-out/
+
+# Rust remesh trial (dev/bench)
+rust/remesh/target/
+rust/remesh/pkg/
+dev/bench/*.stl
+dev/bench/node_modules/
