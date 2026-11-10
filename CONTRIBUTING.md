@@ -37,6 +37,7 @@ The UI tests (Playwright) are in `tests/ui`; see its README.
 | Path | What it is |
 |---|---|
 | `stleditor/features.py` | Every tool, as a function `f_<name>(state, fid, params, result, ctx)`, plus the `EVALUATORS` table |
+| `stleditor/feature_modules/` | Features in their own file (one per feature, registered on import through `registry.py`); the web side is `web/engine/feature_modules/` with the same file names |
 | `stleditor/document.py` | The timeline: adding / editing / reordering features, cached re-evaluation, undo, `.stlx` files |
 | `stleditor/geometry.py` | Mesh I/O, repair, voxel rebuild, hollow, plane frames |
 | `stleditor/printing.py` | Fit to bed, connectors, threads, lay flat, sculpt, remesh |
@@ -61,6 +62,17 @@ The UI tests (Playwright) are in `tests/ui`; see its README.
 4. Add a test in `tests/test_engine.py` that checks a volume or a bounding box you can work out by hand.
 5. Port the evaluator to `web/engine/features.js` (or add its type to `DESKTOP_ONLY_TYPES` and to `DESKTOP_TOOLS` in `app.js`), with a matching test in `tests/web_engine.test.mjs`.
 6. Run `python packaging/build_web.py` so the website's copy is current.
+
+## How to add a feature
+
+A new feature gets its own file pair, so nothing in the shared files changes except one import line:
+
+1. Create `stleditor/feature_modules/<name>.py` with `f_<name>` and end it with `register('<name>', f_<name>, '<Label>')`.
+2. Create `web/engine/feature_modules/<name>.js` with the same name, `f_<name>`, and `register('<name>', f_<name>, '<Label>')`.
+3. Add `from .feature_modules import <name>` at the bottom of `stleditor/features.py`, and `import './feature_modules/<name>.js';` at the top of `web/engine/features.js`.
+4. Continue with steps 2–6 of **Adding a tool** above (panel, ribbon button, tests, `build_web.py`).
+
+Helpers that a feature file shares with others (`apply_tool`, `_float`, `applyTool`, `place`) are imported by name from `features`; the feature module must not import `features` as a whole.
 
 ## Guidelines
 

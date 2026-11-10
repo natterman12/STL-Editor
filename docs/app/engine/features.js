@@ -9,6 +9,12 @@ import * as VX from './voxel.js';
 import * as ME from './meshedit.js';
 import { decimate } from './decimate.js';
 import * as SFX from './supportfins.js';
+import { EVALUATORS, LABELS } from './feature_modules/registry.js';
+import './feature_modules/thin_wall.js';
+import './feature_modules/fit_test.js';
+import './feature_modules/lattice.js';
+import './feature_modules/snap_fit.js';
+import './feature_modules/living_hinge.js';
 
 const OPS = ['new', 'join', 'cut', 'intersect'];
 
@@ -87,7 +93,7 @@ export function applyTool(state, fid, tool, operation, targets, name, result, ne
   if (!changed) throw new GeometryError(`Nothing to ${op}: the tool doesn't touch the target body.`);
 }
 
-function place(man, frame, offset = [0, 0, 0]) {
+export function place(man, frame, offset = [0, 0, 0]) {
   const [o, x, y, n] = frame;
   const o2 = add(add(add(o, mul(x, +offset[0])), mul(y, +offset[1])), mul(n, +offset[2]));
   return man.transform(frameMatrix(o2, x, y, n));
@@ -822,7 +828,7 @@ function f_supportwall(state, fid, p, res, ctx = {}) {
   addSupports(state, fid, res, bid, r.solids, p.output, 'walls', ctx);
 }
 
-function hollowPitch(s, t, q) {
+export function hollowPitch(s, t, q) {
   const bb = s.boundingBox(), diag = Math.hypot(bb.max[0] - bb.min[0], bb.max[1] - bb.min[1], bb.max[2] - bb.min[2]);
   const div = { draft: 80, normal: 150, fine: 260 }[q || 'normal'] || 150;
   return Math.max(Math.min(t / 2.5, diag / div), diag / (div * 2.5));
@@ -864,35 +870,7 @@ function f_shell(state, fid, p, res) {
 }
 
 // Hollow the body (solid wall kept outside) and fill the hollow with a cubic grid of round
-// struts. Keep in step with f_lattice in stleditor/features.py.
-function f_lattice(state, fid, p, res) {
-  const bid = p.body;
-  if (!bid) throw new GeometryError('Choose a body to fill with a lattice.');
-  const b = state.body(bid), s = b.requireSolid();
-  const cell = num(p.cell, 6), d = num(p.strut, 1), t = num(p.thickness, 2);
-  if (!(cell > 0) || !(d > 0) || !(t > 0)) throw new GeometryError('Cell size, strut diameter and wall thickness must all be above zero.');
-  if (d >= cell) throw new GeometryError("The struts are as wide as the cells, so there'd be no gaps. Use a thinner strut or a bigger cell.");
-  const cavity = VX.hollow(s, t, hollowPitch(s, t, p.resolution), true);
-  const bb = cavity.boundingBox(), lo = bb.min, size = [0, 1, 2].map(a => bb.max[a] - bb.min[a]);
-  const n = size.map(x => Math.max(1, Math.round(x / cell)));
-  if (n[1] * n[2] + n[0] * n[2] + n[0] * n[1] > 2500) throw new GeometryError("That's too many struts. Use a bigger cell size.");
-  const pos = [0, 1, 2].map(a => Array.from({ length: n[a] }, (_, k) => lo[a] + (k + 0.5) * size[a] / n[a]));
-  const r = d / 2, struts = [];
-  for (let a = 0; a < 3; a++) {
-    const [o1, o2] = [0, 1, 2].filter(k => k !== a);
-    let cyl = Manifold.cylinder(size[a] + 2, r, r, 16);
-    if (a === 0) cyl = cyl.rotate([0, 90, 0]);
-    else if (a === 1) cyl = cyl.rotate([-90, 0, 0]);
-    for (const u of pos[o1]) for (const w of pos[o2]) {
-      const off = [0, 0, 0];
-      off[a] = lo[a] - 1; off[o1] = u; off[o2] = w;
-      struts.push(cyl.translate(off));
-    }
-  }
-  const grid = Manifold.union(struts);
-  state.bodies.set(bid, b.copy({ solid: s.subtract(cavity.subtract(grid)) }));
-  res.modified.push(bid);
-}
+// struts. Keep in step with f_lattice in stleditor/feature_modules/lattice.py.
 
 function f_sculpt(state, fid, p, res) {
   const bid = p.body, b = state.body(bid);
@@ -1082,41 +1060,7 @@ function f_thread(state, fid, p, res) {
   applyTool(state, fid, tool, op, p.targets, p.body_name || (kind === 'external' ? `M${+D} screw` : 'Thread'), res);
 }
 
-// Cantilever clip: an arm standing on the plate, with a hook at its tip pointing inwards.
-function f_snapfit(state, fid, p, res) {
-  const L = num(p.length, 12), W = num(p.width, 6), t = num(p.thickness, 1.5), h = num(p.hook_height, 1.5);
-  if (Math.min(L, W, t, h) <= 0) throw new GeometryError('Arm length, width, thickness and hook height must all be more than zero.');
-  if (h >= L) throw new GeometryError('The hook must be shorter than the arm.');
-  const sink = 0.5;   // the foot sinks into the plate so the join is solid
-  const arm = Manifold.cube([t, W, L + sink], false).translate([0, 0, -sink]);
-  const hook = Manifold.cube([t, W, h], false).translate([t, 0, L - h]);
-  const tool = place(Manifold.union([arm, hook]), state.frame(p.plane), [num(p.x, 0), num(p.y, 0), 0]);
-  applyTool(state, fid, tool, p.operation || 'join', p.targets, p.body_name || 'Snap-fit', res);
-}
 
-// Living hinge: a slot across the whole block, leaving a thin web of `thickness` at the bottom.
-function f_hinge(state, fid, p, res) {
-  const slot = num(p.slot, 1), web = num(p.thickness, 0.5);
-  if (slot <= 0 || web <= 0) throw new GeometryError('The slot width and the hinge thickness must be more than zero.');
-  const targets = p.targets;
-  const bodies = targets && targets.length ? targets.filter(t => state.bodies.has(t)).map(t => state.bodies.get(t)) : [...state.bodies.values()].filter(b => b.isSolid);
-  if (!bodies.length) throw new GeometryError('Choose the block to put the living hinge in.');
-  const fr = state.frame(p.plane), [o, xa, ya, n] = fr;
-  let lo = Infinity, hi = -Infinity, reach = 0;
-  for (const b of bodies) {
-    const { v } = b.mesh();
-    for (let i = 0; i < v.length; i += 3) {
-      const rel = [v[i] - o[0], v[i + 1] - o[1], v[i + 2] - o[2]];
-      const d = dot(rel, n);
-      lo = Math.min(lo, d); hi = Math.max(hi, d);
-      reach = Math.max(reach, Math.abs(dot(rel, xa)), Math.abs(dot(rel, ya)));
-    }
-  }
-  if (web >= hi - lo) throw new GeometryError('The hinge is as thick as the block, so there is nothing to cut.');
-  const B = reach + 10;
-  const strip = Manifold.cube([slot, 2 * B, hi - lo - web + 1], false).translate([num(p.x, 0), -B, lo + web]);
-  applyTool(state, fid, place(strip, fr), 'cut', targets, 'Living hinge', res);
-}
 
 function f_offset(state, fid, p, res) {
   const bids = p.bodies || [];
@@ -1140,133 +1084,28 @@ function f_resizehole(state, fid, p, res) {
   state.bodies.set(bid, b.copy({ solid: out }));
   res.modified.push(bid);
 }
-// Thin-wall check: the same slicing as stleditor/features.py thin_scan (keep the two in step).
 // Slice the solid across each axis; in a slice, what an opening of width w removes is
 // narrower than w.
-function thinResidual(cs, w) {
-  const r = w / 2 - 0.005 * w;
-  const inner = cs.offset(-r, 'Miter', 2, 0);
-  if (inner.isEmpty()) return cs;
-  return cs.subtract(inner.offset(r, 'Miter', 2, 0));
-}
-
-function thinParts(cs, w, minArea) {
-  const res = thinResidual(cs, w);
-  return res.isEmpty() ? [] : res.decompose().filter(c => c.area() >= minArea);
-}
-
-export function thinScan(solid, t) {
-  const minArea = 0.05 * t * t;
-  const bb = solid.boundingBox(), lo = bb.min, hi = bb.max;
-  const found = [], widths = [];
-  let link = 3 * t;
-  for (let a = 0; a < 3; a++) {
-    const u = (a + 1) % 3, v = (a + 2) % 3;
-    const R = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
-    R[0][u] = R[1][v] = R[2][a] = 1;
-    const m = solid.transform(mat4(R));
-    const ext = hi[a] - lo[a];
-    const step = Math.max(t / 2, ext / 60);
-    const n = Math.max(1, Math.ceil(ext / step - 1e-9));
-    link = Math.max(link, 1.5 * ext / n);
-    const flagged = [];
-    for (let i = 0; i < n; i++) {
-      const h = lo[a] + (i + 0.5) * ext / n;
-      const cs = m.slice(h);
-      if (cs.isEmpty()) continue;
-      const parts = thinParts(cs, t, minArea);
-      if (!parts.length) continue;
-      flagged.push(cs);
-      for (const c of parts) {
-        const b = c.bounds(), p = [0, 0, 0];
-        p[a] = h; p[u] = (b.min[0] + b.max[0]) / 2; p[v] = (b.min[1] + b.max[1]) / 2;
-        found.push(p);
-      }
-    }
-    if (flagged.length) {
-      let aLo = 0, aHi = t;
-      for (let k = 0; k < 8; k++) {
-        const mid = (aLo + aHi) / 2;
-        if (flagged.some(cs => thinParts(cs, mid, minArea).length)) aHi = mid; else aLo = mid;
-      }
-      widths.push(aHi * 0.99);
-    }
-  }
-  if (!found.length) return { min: null, count: 0, spots: [] };
-  // group pieces that sit close together into one spot
-  const cell = new Map();
-  found.forEach((p, i) => {
-    const key = p.map(c => Math.floor(c / link)).join(',');
-    if (!cell.has(key)) cell.set(key, []);
-    cell.get(key).push(i);
-  });
-  const parent = found.map((_, i) => i);
-  const root = i => { while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; } return i; };
-  for (const [key, ids] of cell) {
-    const k = key.split(',').map(Number);
-    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) {
-      const other = cell.get(`${k[0] + dx},${k[1] + dy},${k[2] + dz}`);
-      if (!other) continue;
-      for (const i of ids) for (const j of other) if (i < j && Math.hypot(found[i][0] - found[j][0], found[i][1] - found[j][1], found[i][2] - found[j][2]) <= link) parent[root(j)] = root(i);
-    }
-  }
-  const groups = new Map();
-  found.forEach((p, i) => { const r = root(i); if (!groups.has(r)) groups.set(r, []); groups.get(r).push(p); });
-  const r2 = x => Math.round(x * 100) / 100;
-  const spots = [...groups.values()].map(pts => [pts.length, [0, 1, 2].map(k => r2((Math.min(...pts.map(q => q[k])) + Math.max(...pts.map(q => q[k]))) / 2))]);
-  spots.sort((a, b) => (b[0] - a[0]) || (a[1][0] - b[1][0]) || (a[1][1] - b[1][1]) || (a[1][2] - b[1][2]));
-  return { min: Math.round(Math.max(...widths) * 1000) / 1000, count: spots.length, spots: spots.slice(0, 10).map(s => s[1]) };
-}
-
-function f_thincheck(state, fid, p, res) {
-  const bid = p.body;
-  if (!bid) throw new GeometryError('Choose a body to check.');
-  const t = num(p.min, 0.8);
-  if (t <= 0) throw new GeometryError('The minimum thickness must be more than zero.');
-  const r = thinScan(state.body(bid).requireSolid(), t);
-  res.thin = r;
-  if (!r.count) { res.info = `Nothing thinner than ${t} mm found.`; return; }
-  const where = r.spots.slice(0, 3).map(s => `X ${s[0]}, Y ${s[1]}, Z ${s[2]}`).join('; ');
-  res.warning = `${r.count} thin spot${r.count !== 1 ? 's' : ''} under ${t} mm. Thinnest: about ${r.min} mm. Near ${where} (mm).`;
-}
 
 
-function f_fittest(state, fid, p, res) {
-  const D = num(p.diameter, 8), start = num(p.start, 0.05), step = num(p.step, 0.05);
-  const count = Math.floor(+(p.count ?? 6)), T = num(p.thickness, 3), gap = num(p.gap, 4);
-  if (!(D > 0)) throw new GeometryError('Peg diameter must be more than zero.');
-  if (start < 0) throw new GeometryError("Clearance start can't be negative.");
-  if (!(step > 0)) throw new GeometryError('Clearance step must be more than zero.');
-  if (!(count >= 1)) throw new GeometryError('Count must be at least 1.');
-  if (!(T > 0)) throw new GeometryError('Plate thickness must be more than zero.');
-  if (!(gap > 0)) throw new GeometryError('Gap must be more than zero.');
-  const clearances = Array.from({ length: count }, (_, i) => start + i * step);
-  const maxHole = D + clearances[clearances.length - 1];
-  const L = count * maxHole + (count + 1) * gap, W = maxHole + D + 3 * gap, seg = 64;
-  let man = Manifold.cube([L, W, T], false).translate([-L / 2, -W / 2, 0]);
-  for (let i = 0; i < count; i++) {
-    const c = clearances[i], x = -L / 2 + gap + maxHole / 2 + i * (maxHole + gap);
-    const yHole = -W / 2 + gap + maxHole / 2, yPeg = -W / 2 + gap + maxHole + gap + D / 2, hr = (D + c) / 2;
-    man = man.subtract(Manifold.cylinder(T + 2, hr, hr, seg).translate([x, yHole, -1]));
-    man = man.add(Manifold.cylinder(T, D / 2, D / 2, seg).translate([x, yPeg, T]));
-  }
-  applyTool(state, fid, man, 'new', null, p.body_name || 'Fit Test', res);
-  res.info = `${count} pair${count !== 1 ? 's' : ''}, peg Ø${D} mm, clearances ${clearances.map(c => +c).join(', ')} mm.`;
-}
 
-export const EVALUATORS = {
+
+
+
+Object.assign(EVALUATORS, {
   import: f_import, primitive: f_primitive, plane: f_plane, sketch: f_sketch, extrude: f_extrude, revolve: f_revolve, loft: f_loft, sweep: f_sweep,
-  hole: f_hole, combine: f_combine, split: f_split, mirror: f_mirror, move: f_move, scale: f_scale, hollow: f_hollow, shell: f_shell, lattice: f_lattice,
+  hole: f_hole, combine: f_combine, split: f_split, mirror: f_mirror, move: f_move, scale: f_scale, hollow: f_hollow, shell: f_shell, 
   repair: f_repair, simplify: f_simplify, pattern: f_pattern, delete: f_delete, separate: f_separate, bedsplit: f_bedsplit,
   pushpull: f_pushpull, sculpt: f_sculpt, remesh: f_remesh, layflat: f_layflat, plate: f_plate, thread: f_thread, offset: f_offset,
-  resizehole: f_resizehole, snapfit: f_snapfit, hinge: f_hinge, supportfins: f_supportfins, supportwall: f_supportwall, thincheck: f_thincheck, fittest: f_fittest,
-};
+  resizehole: f_resizehole, supportfins: f_supportfins, supportwall: f_supportwall, 
+});
 
+export { EVALUATORS, LABELS };
 export const DESKTOP_ONLY_TYPES = [];
 
-export const LABELS = {
+Object.assign(LABELS, {
   import: 'Import', primitive: 'Primitive', plane: 'Plane', sketch: 'Sketch', extrude: 'Extrude', revolve: 'Revolve', loft: 'Loft', sweep: 'Sweep', hole: 'Hole',
-  combine: 'Combine', split: 'Split', mirror: 'Mirror', move: 'Move', scale: 'Scale', hollow: 'Hollow', shell: 'Shell', lattice: 'Lattice', repair: 'Repair',
+  combine: 'Combine', split: 'Split', mirror: 'Mirror', move: 'Move', scale: 'Scale', hollow: 'Hollow', shell: 'Shell', repair: 'Repair',
   simplify: 'Simplify', pattern: 'Pattern', delete: 'Remove', separate: 'Separate', bedsplit: 'Fit to Bed', pushpull: 'Push/Pull',
-  sculpt: 'Sculpt', remesh: 'Remesh', layflat: 'Lay Flat', plate: 'Plate Layout', thread: 'Thread', offset: 'Offset', resizehole: 'Resize Hole', snapfit: 'Snap-fit', hinge: 'Living hinge', supportfins: 'Support Fins', supportwall: 'Draw Walls', thincheck: 'Thin-wall Check', fittest: 'Fit Test',
-};
+  sculpt: 'Sculpt', remesh: 'Remesh', layflat: 'Lay Flat', plate: 'Plate Layout', thread: 'Thread', offset: 'Offset', resizehole: 'Resize Hole', supportfins: 'Support Fins', supportwall: 'Draw Walls', 
+});
