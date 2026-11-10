@@ -5,6 +5,7 @@ import * as S from './sketch2d.js';
 import * as PR from './printing.js';
 import * as MT from './meshtools.js';
 import * as SFX from './supportfins.js';
+import * as STEP from './step.js';
 
 export const VERSION = '1.16.0';
 const PALETTE = ['#9aa7b4', '#c9a66b', '#7fa8c9', '#a3c48a', '#c98a8a', '#a993c9', '#c9b98a', '#8ac9c0'];
@@ -47,6 +48,18 @@ export function packMeshes(list, header = {}) {
 }
 
 const ok = extra => ({ ok: true, state: stateJson(), ...extra });
+
+/** Faceted STEP of the given bodies (default: the visible ones), as the export routes return it. */
+function stepResult(bodies) {
+  const doc = app.doc, st = doc.state;
+  let ids = bodies && bodies.length ? bodies : [...st.bodies.keys()].filter(b => !doc.ui.hidden.includes(b));
+  if (!ids.length) ids = [...st.bodies.keys()];
+  if (!ids.length) throw new GeometryError('There is nothing to export.');
+  const meshes = ids.map(id => ({ ...st.body(id).mesh(), name: doc.bodyName(id) }));
+  const base = ids.length === 1 ? doc.bodyName(ids[0]) : (doc.path || doc.title || 'model').replace(/\.stlx$/i, '');
+  const bytes = STEP.stepBytes(meshes, { title: base });
+  return { result: { ok: true, name: `${base}.step`, count: ids.length, bytes }, transfer: [bytes.buffer] };
+}
 
 export const ROUTES = {
   state: () => stateJson(),
@@ -167,11 +180,14 @@ export const ROUTES = {
   },
   saved: d => { app.doc.path = d.name; app.doc.dirty = false; return ok(); },
   export_bytes: d => {
+    if (d.format === 'step') return stepResult(d.bodies);
     const { bytes, count } = app.doc.exportBytes(d.format || 'stl', d.bodies);
     const ids = d.bodies;
     const base = ids && ids.length === 1 ? app.doc.bodyName(ids[0]) : (app.doc.path || app.doc.title || 'model').replace(/\.stlx$/i, '');
     return { result: { ok: true, name: `${base}.${d.format || 'stl'}`, count, bytes }, transfer: [bytes.buffer] };
   },
+  // desktop name and params (body); the web page saves the bytes. Faceted: curves become flat faces.
+  to_step: d => stepResult(d.body ? [d.body] : null, d.body),
   status: () => ({ ok: true, dirty: app.doc.dirty, desktop: false, web: true }),
   // autosave copy: the project as .stlx bytes without marking it saved; `key` changes when
   // the timeline (or a parameter) does. Nothing is zipped when the project is saved or `last`

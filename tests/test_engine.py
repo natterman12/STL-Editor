@@ -210,6 +210,24 @@ def test_shell_opens_picked_faces(tmp_path):
                                                              "contours": []}], "thickness": 2})
 
 
+def test_lattice_fills_hollow_with_struts(tmp_path):
+    # 20 mm cube, 2 mm wall: cavity 16^3, cell 8 -> struts at 4 and 12 in each direction (12 struts
+    # 16 mm long). Skin 8000-4096 = 3904, plus about 12*16*0.7654 (16-sided 1 mm strut) minus the
+    # crossings = ~4038. The cavity is voxel-made, so this is a range check, not exact.
+    path = stl_file(tmp_path, m3.Manifold.cube((20, 20, 20)), "cube.stl")
+    doc = Document()
+    f, _ = doc.import_file(path, place="keep")
+    doc.add_feature("lattice", {"body": f["id"], "cell": 8, "strut": 1, "thickness": 2})
+    assert 3904 < vol(doc, f["id"]) < 8000
+    assert vol(doc, f["id"]) == pytest.approx(4038, abs=45)
+    for bad, msg in (({"cell": 1, "strut": 2}, "thinner"), ({"cell": 8, "strut": 1, "thickness": 12}, "too large"),
+                     ({"cell": 0}, "above zero")):
+        doc = Document()
+        f, _ = doc.import_file(path, place="keep")
+        with pytest.raises(GeometryError, match=msg):
+            doc.add_feature("lattice", {"body": f["id"], "cell": 8, "strut": 1, "thickness": 2, **bad})
+
+
 def _shoelace(contours):
     return abs(sum(0.5 * sum(p[0] * q[1] - q[0] * p[1] for p, q in zip(c, c[1:] + c[:1])) for c in contours))
 
@@ -576,6 +594,42 @@ def test_draw_walls_lines_paths_curves():
     d.edit_feature(f["id"], {"body": e, "walls": [walls[2]], "output": "separate", "options": {}})
     curved = list(d.state.bodies.values())[-1].info()["volume"]
     assert abs(curved - 576.5) < 1, curved
+
+
+def _box(doc, length, width, height):
+    f, _ = doc.add_feature("primitive", {"shape": "box", "length": length, "width": width, "height": height, "plane": "XY"})
+    return f["id"]
+
+
+def test_plate_layout_hand_checked():
+    doc = Document()
+    A, B, C = _box(doc, 40, 30, 10), _box(doc, 40, 30, 20), _box(doc, 50, 20, 5)
+    doc.add_feature("move", {"bodies": [A], "translate": [0, 0, 7]})    # A starts 7 mm up in the air
+    doc.add_feature("plate", {"bodies": [A, B, C], "bed": [100, 100, 50], "gap": 5})
+    # A and B (40 x 30) share the first row with a 5 mm gap; C (50 x 20) starts a second row 5 mm
+    # above the first. The 85 x 55 block is centred on the origin and every body sits on the bed.
+    expect = {A: ((-42.5, -27.5, 0), (-2.5, 2.5, 10)),
+              B: ((2.5, -27.5, 0), (42.5, 2.5, 20)),
+              C: ((-42.5, 7.5, 0), (7.5, 27.5, 5))}
+    for bid, (lo, hi) in expect.items():
+        l, h = bbox(doc, bid)
+        assert np.allclose(l, lo, atol=1e-3) and np.allclose(h, hi, atol=1e-3), bid
+
+
+def test_plate_rotate_and_refusals():
+    doc = Document()
+    L = _box(doc, 80, 20, 5)
+    with pytest.raises(GeometryError, match="Rotate"):      # 80 mm wide won't fit a 50 mm bed as it lies
+        doc.add_feature("plate", {"bodies": [L], "bed": [50, 100, 50]})
+    doc.add_feature("plate", {"bodies": [L], "bed": [50, 100, 50], "rotate": True})
+    lo, hi = bbox(doc, L)                                     # turned to 20 x 80, centred
+    assert np.allclose(lo[:2], (-10, -40), atol=1e-3) and np.allclose(hi[:2], (10, 40), atol=1e-3)
+    tall = _box(doc, 10, 10, 60)
+    with pytest.raises(GeometryError, match="taller"):
+        doc.add_feature("plate", {"bodies": [tall], "bed": [100, 100, 50]})
+    crowd = [_box(doc, 60, 60, 5), _box(doc, 60, 60, 5)]     # 65 + 60 > 100 and 65 + 60 > 100 again
+    with pytest.raises(GeometryError, match="Not everything fits"):
+        doc.add_feature("plate", {"bodies": crowd, "bed": [100, 100, 50]})
 
 
 def test_move_lands_on_bed():
@@ -1073,3 +1127,155 @@ def test_status_answers_during_a_long_operation():
         release.set()
         t.join(5)
         httpd.shutdown()
+
+
+def _lsk(doc, origin, entities, normal=(0, 0, 1)):
+    return doc.add_feature("sketch", {"plane": {"origin": list(origin), "normal": list(normal)},
+                                      "entities": entities})[0]["id"]
+
+
+def _lrect(i, x, y, w, h):
+    return {"id": i, "type": "rect", "x": x, "y": y, "w": w, "h": h}
+
+
+def test_loft_frustum_offset_and_middle_profile():
+    """Square frustum 10 -> 4 over 20 mm: (100 + 4*49 + 16) * 20 / 6 = 1040 mm³. An offset top gives the
+    same volume; a 10 -> 4 -> 10 loft over two 10 mm steps is two frustums of 520 mm³ each."""
+    doc = Document()
+    a = _lsk(doc, (0, 0, 0), [_lrect("a", -5, -5, 10, 10)])
+    b = _lsk(doc, (0, 0, 20), [_lrect("b", -2, -2, 4, 4)])
+    f, _ = doc.add_feature("loft", {"profiles": [a, b]})
+    assert doc.state.body(f["id"]).info()["volume"] == pytest.approx(1040, rel=1e-3)
+    doc = Document()
+    a = _lsk(doc, (0, 0, 0), [_lrect("a", -5, -5, 10, 10)])
+    b = _lsk(doc, (0, 0, 20), [_lrect("b", 1, 1, 4, 4)])
+    f, _ = doc.add_feature("loft", {"profiles": [a, b]})
+    assert doc.state.body(f["id"]).info()["volume"] == pytest.approx(1040, rel=1e-3)
+    doc = Document()
+    a = _lsk(doc, (0, 0, 0), [_lrect("a", -5, -5, 10, 10)])
+    m = _lsk(doc, (0, 0, 10), [_lrect("m", -2, -2, 4, 4)])
+    c = _lsk(doc, (0, 0, 20), [_lrect("c", -5, -5, 10, 10)])
+    f, _ = doc.add_feature("loft", {"profiles": [a, m, c]})
+    assert doc.state.body(f["id"]).info()["volume"] == pytest.approx(1040, rel=1e-3)
+
+
+def test_loft_and_sweep_refuse_bad_input():
+    doc = Document()
+    a = _lsk(doc, (0, 0, 0), [_lrect("a", -5, -5, 10, 10)])
+    with pytest.raises(GeometryError, match="at least two"):
+        doc.add_feature("loft", {"profiles": [a]})
+    open_sk = _lsk(doc, (0, 0, 20), [{"id": "l", "type": "line", "p1": [0, 0], "p2": [5, 0]}])
+    with pytest.raises(GeometryError, match="closed shape"):
+        doc.add_feature("loft", {"profiles": [a, open_sk]})
+    crossing = _lsk(doc, (0, 0, 0), [{"id": "pl", "type": "polyline", "pts": [[0, 0], [10, 10], [10, 0], [0, 10]],
+                                      "closed": False}])
+    prof = _lsk(doc, (0, 0, 0), [_lrect("p", -1, -1, 2, 2)])
+    with pytest.raises(GeometryError, match="crosses itself"):
+        doc.add_feature("sweep", {"profile": prof, "path": crossing})
+
+
+def test_sweep_straight_and_bent_paths():
+    """A 2 x 2 mm square swept 10 mm along X is 40 mm³; two collinear 10 mm legs make 80 mm³; an L of two
+    10 mm legs is 80 mm³ too (the bend is mitred, so the outer corner is filled)."""
+    doc = Document()
+    prof = _lsk(doc, (0, 0, 0), [_lrect("p", -1, -1, 2, 2)])
+    line = {"id": "l", "type": "line", "p1": [0, 0], "p2": [10, 0]}
+    path = _lsk(doc, (0, 0, 0), [line])
+    f, _ = doc.add_feature("sweep", {"profile": prof, "path": path})
+    assert doc.state.body(f["id"]).info()["volume"] == pytest.approx(40, rel=1e-3)
+    path = _lsk(doc, (0, 0, 0), [{"id": "l1", "type": "line", "p1": [0, 0], "p2": [10, 0]},
+                                 {"id": "l2", "type": "line", "p1": [10, 0], "p2": [20, 0]}])
+    f, _ = doc.add_feature("sweep", {"profile": prof, "path": path})
+    assert doc.state.body(f["id"]).info()["volume"] == pytest.approx(80, rel=1e-3)
+    path = _lsk(doc, (0, 0, 0), [{"id": "l1", "type": "line", "p1": [0, 0], "p2": [10, 0]},
+                                 {"id": "l2", "type": "line", "p1": [10, 0], "p2": [10, 10]}])
+    f, _ = doc.add_feature("sweep", {"profile": prof, "path": path})
+    assert doc.state.body(f["id"]).info()["volume"] == pytest.approx(80, rel=1e-3)
+
+
+def test_sweep_collinear_legs_and_profile_stays_put():
+    """Three collinear 10 mm legs of a 2 x 2 mm square: 120 mm³. A profile drawn 20 mm out from its
+    sketch origin, around the path start (20, 0), still sits centred on that path start."""
+    doc = Document()
+    prof = _lsk(doc, (0, 0, 0), [_lrect("p", -1, -1, 2, 2)])
+    path = _lsk(doc, (0, 0, 0), [{"id": "a", "type": "line", "p1": [0, 0], "p2": [10, 0]},
+                                 {"id": "b", "type": "line", "p1": [10, 0], "p2": [20, 0]},
+                                 {"id": "c", "type": "line", "p1": [20, 0], "p2": [30, 0]}])
+    f, _ = doc.add_feature("sweep", {"profile": prof, "path": path})
+    assert doc.state.body(f["id"]).info()["volume"] == pytest.approx(120, rel=1e-3)
+    prof = _lsk(doc, (0, 0, 0), [_lrect("q", 19, -1, 2, 2)])
+    path = _lsk(doc, (0, 0, 0), [{"id": "d", "type": "line", "p1": [20, 0], "p2": [20, 10]}])
+    f, _ = doc.add_feature("sweep", {"profile": prof, "path": path})
+    lo, hi = bbox(doc, f["id"])
+    assert (lo[0] + hi[0]) / 2 == pytest.approx(20, abs=1e-3)
+    assert doc.state.body(f["id"]).info()["volume"] == pytest.approx(40, rel=1e-3)
+
+
+def test_thin_wall_check(tmp_path):
+    """Hand-checked: a 20 x 20 x 0.5 slab is thinner than 0.8 mm; a 2 mm slab and a 10 mm cube aren't."""
+    def check(man, name, mn=None):
+        doc = Document()
+        f, _ = doc.import_file(stl_file(tmp_path, man, name), place="keep")
+        p = {"body": f["id"]}
+        if mn is not None:
+            p["min"] = mn
+        _, res = doc.add_feature("thincheck", p)
+        assert vol(doc, f["id"]) == pytest.approx(man.volume(), rel=1e-6), "reports only, changes nothing"
+        return res
+    ok = check(m3.Manifold.cube((10, 10, 10)), "cube.stl")
+    assert ok["thin"]["count"] == 0 and ok["thin"]["min"] is None and not ok["warning"]
+    assert check(m3.Manifold.cube((20, 20, 2)), "wall2.stl")["thin"]["count"] == 0
+    r = check(m3.Manifold.cube((20, 20, 0.5)), "slab.stl")
+    assert r["thin"]["count"] == 1 and r["warning"]
+    assert r["thin"]["min"] == pytest.approx(0.5, abs=0.02)
+    assert r["thin"]["spots"][0][2] == pytest.approx(0.25, abs=0.05)
+    # the same 2 mm wall is thin when the minimum is 2.5 mm
+    assert check(m3.Manifold.cube((20, 20, 2)), "wall2b.stl", 2.5)["thin"]["min"] == pytest.approx(2.0, abs=0.02)
+    # a 0.5 mm pin standing on a cube is found, up on the pin
+    pin = m3.Manifold.cube((10, 10, 10)) + m3.Manifold.cylinder(5, 0.25, 0.25, 32).translate((5, 5, 10))
+    r = check(pin, "pin.stl")["thin"]
+    assert r["count"] == 1 and r["min"] == pytest.approx(0.5, abs=0.02)
+    x, y, z = r["spots"][0]
+    assert x == pytest.approx(5, abs=0.3) and y == pytest.approx(5, abs=0.3) and 10 < z < 15
+    with pytest.raises(GeometryError):
+        check(m3.Manifold.cube((10, 10, 10)), "bad.stl", 0)
+
+
+def test_fit_test_plate_volume():
+    """Hand-checked: plate − hole cylinders + peg cylinders on top (same height as thickness)."""
+    D, start, step, count, T, gap = 8.0, 0.05, 0.05, 3, 3.0, 4.0
+    clearances = [start + i * step for i in range(count)]
+    max_hole = D + clearances[-1]
+    L = count * max_hole + (count + 1) * gap
+    W = max_hole + D + 3 * gap
+    expected = L * W * T
+    expected -= sum(math.pi * ((D + c) / 2) ** 2 * T for c in clearances)
+    expected += count * math.pi * (D / 2) ** 2 * T
+    doc = Document()
+    f, res = doc.add_feature("fittest", {"diameter": D, "start": start, "step": step,
+                                         "count": count, "thickness": T, "gap": gap})
+    assert vol(doc, f["id"]) == pytest.approx(expected, rel=0.01)
+    assert "0.05" in res["info"] and "0.15" in res["info"]
+    with pytest.raises(GeometryError):
+        doc.add_feature("fittest", {"diameter": 0, "start": start, "step": step,
+                                    "count": count, "thickness": T, "gap": gap})
+
+
+def test_snap_fit_and_living_hinge(block):
+    doc, B = block  # 40 x 30 x 20 block, corner at the origin
+    top = {"origin": [0, 0, 20], "normal": [0, 0, 1], "xdir": [1, 0, 0]}
+    clip = {"plane": top, "x": 5, "y": 5, "length": 12, "width": 6, "thickness": 1.5, "hook_height": 1.5}
+    # new body: arm 1.5 x 6 x (12 + 0.5 sunk) plus hook 1.5 x 6 x 1.5 = 112.5 + 13.5
+    f, _ = doc.add_feature("snapfit", {**clip, "operation": "new"})
+    assert vol(doc, f["id"]) == pytest.approx(126, rel=1e-6)
+    # joined to the block: 0.5 mm of the foot is already inside it (1.5 x 6 x 0.5 = 4.5)
+    v0 = vol(doc, B)
+    doc.add_feature("snapfit", {**clip, "targets": [B]})
+    assert vol(doc, B) - v0 == pytest.approx(126 - 4.5, rel=1e-6)
+    with pytest.raises(GeometryError):
+        doc.add_feature("snapfit", {**clip, "hook_height": 12})
+    # living hinge: 1 mm slot across the 30 mm width, 19.5 mm deep (leaves a 0.5 mm web)
+    v0 = vol(doc, B)
+    doc.add_feature("hinge", {"x": 10, "slot": 1, "thickness": 0.5})
+    assert v0 - vol(doc, B) == pytest.approx(1 * 30 * 19.5, rel=1e-6)
+    assert len(doc.state.bodies) == 2  # the block stays one piece (joined by the web)

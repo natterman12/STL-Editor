@@ -75,10 +75,10 @@ Double-click any item on the timeline to change it later; the steps after it upd
 
 The toolbar has four tabs, and each tool is on one of them only:
 
-- **Model**: Create (Sketch, Extrude, Revolve, Primitive), Modify (Push/Pull, Combine, Split,
+- **Model**: Create (Sketch, Extrude, Revolve, Loft, Sweep, Primitive), Modify (Push/Pull, Combine, Split,
   Mirror, Pattern), Holes (Hole, Thread, Resize Hole), Shape (Hollow, Shell, Offset Body) and
   Reference (Plane, Parameters).
-- **Print**: Position (Lay Flat, Move, Rotate, Scale), Fit (Fit to Bed) and Output (Export,
+- **Print**: Position (Lay Flat, Move, Rotate, Scale), Fit (Fit to Bed, Plate Layout, Fit Test), Check (Thin-wall Check) and Output (Export,
   Send to Slicer).
 - **Supports**: Support Fins and Draw Walls.
 - **Mesh**: Repair, Simplify, Remesh, Separate, Remove Bodies, Sculpt and To STEP.
@@ -99,8 +99,17 @@ click the heading to open or close it, and the panel remembers that next time. A
 section shows "2 changed" when you've changed something inside it.
 
 **Create**: Sketch, Extrude (new / join / cut / intersect; one side, flipped, symmetric or
-two sides; through all; taper), Revolve, Box, Cylinder, Sphere, Cone, Torus (click a face
+two sides; through all; taper), Revolve, Loft, Sweep, Box, Cylinder, Sphere, Cone, Torus (click a face
 to place them on it).
+
+**Loft**: joins two or more sketches into one solid, like a bottle or a transition piece.
+Draw each shape as one closed outline (no holes), each on a plane parallel to the others, and
+pick them in order from one end to the other, each one at a new height. The shapes don't have
+to match: the outline is blended from one to the next. **Sweep**: drags one closed sketch along
+one sketch path, like a tube or a rail. The path is one open chain of lines and arcs that
+doesn't cross itself. The profile starts at the path's first point and turns to face along the
+path, so draw it around the path's start. Sharp bends are mitred, so the corners stay square.
+Version 1 limits: no holes in the profiles, no guide curves, no closed paths (a ring or a loop).
 
 **Modify**: Resize Hole (click the wall of any round hole or pin, even in a downloaded STL: it's measured, then type a new diameter, pick a common size like *M3 heat-set insert* or *6 mm magnet*, or fill the hole), Offset Body (grow or shrink a whole part by a set distance, e.g. 0.2 mm for a tighter or looser fit), Hole (simple, counterbore, countersink, nut trap; click several points; presets for
 heat-set inserts (M1.6–M5 and #2-56–1/4"-20), screw clearance (M1.6–M8 and #2–3/8"),
@@ -113,7 +122,7 @@ it off; also "drop to bed" and "centre on origin"; Scale by factor, to size, or 
 conversion), Pattern (linear or circular, of bodies or of features), Mirror (bodies or
 features). Split can add connectors at the cut.
 
-**Shape**: Hollow, Shell and Offset Body.
+**Shape**: Hollow, Shell, Lattice and Offset Body.
 
 - **Hollow** makes the part a closed shell with walls of the thickness you set. Use it to
   save filament or resin, then add a hole to let resin drain.
@@ -121,6 +130,13 @@ features). Split can add connectors at the cut.
   Set *Open faces* (up to 4) and click each flat face to remove. *Wall* is measured inward,
   so the outside size stays the same. *Quality* works like Hollow's. With no open faces you
   get a closed hollow, the same as Hollow. Use Shell when you want to reach inside the part.
+- **Lattice** hollows the part like Hollow, then fills the inside with a grid of thin round
+  struts, so it saves plastic but stays stiffer than an empty shell. *Wall* is the solid skin
+  kept around the outside. *Cell size* is the gap between struts (the grid is spread evenly,
+  so the real gap can differ a little). *Strut width* is how thick each strut is; it must be
+  smaller than the cell. Bigger cells and thinner struts use less plastic. Small cells make
+  many struts and take longer. *Quality* works like Hollow's. The grid is a plain square
+  grid; other patterns are not available yet.
 - **Offset Body** grows or shrinks the whole part by a set distance.
 
 **Threads**: Thread tool: tapped holes or screws/studs, ISO metric M1.6–M30, UNC #1-64 to
@@ -133,6 +149,30 @@ Fit to Bed: pick your printer and big parts are cut into pieces that fit, with
 connectors at every seam. Connector types: printed pins, holes plus loose printed pins,
 holes for 1.75 mm filament (good for thin shells like helmets), 6×3 magnet pockets, or none.
 "Smart cut positions" moves each seam to where the part is thinnest.
+
+**Fit Test** (Print tab): builds one plate with a row of pegs and matching holes so you can see
+which clearance your printer needs. Set the peg diameter, the first clearance, the step and how
+many pairs (for example start 0.05 mm, step 0.05 mm, count 6 → 0.05 to 0.30 mm), plus plate
+thickness and the gap between pairs. Each hole is wider than the peg by that pair’s clearance.
+Print the plate, try each peg in its hole, and use the loosest snug fit when you design press-fits.
+
+**Thin-wall Check** (Print tab): finds walls, pins and ribs that are thinner than a minimum you
+set, because they may not print. Pick the body and type the "Minimum thickness" in mm (0.8 mm is
+a good start for a 0.4 mm nozzle; use two nozzle widths if you want it strong). The result shows
+below the panel: how many thin spots there are, the thinnest width, and roughly where they are
+(X, Y, Z of the part). It only reports; it never changes the part. The size is a close estimate,
+and a very small thin bit on a very large part can be missed. To fix a spot, thicken it with
+Push/Pull or Offset Body.
+
+**Plate Layout**: tick the bodies you want on the bed and it sets them side by side, each one
+sitting on the bed, with the whole group centred. Pick your printer (or a custom bed size) and
+the gap between parts in mm (5 mm is a good start; use more if the parts are big and you want
+room to pull them off the plate). Turn on "Allow turning 90°" to let a long, thin part lie
+the other way when that makes it fit. The layout is the same every time for the same parts. It
+only lays out the bodies you tick: it doesn't check them against other parts on the bed. Nudge
+anything afterwards with Move. If a part is too big for the bed or the rest won't fit, you get
+a message saying which part, and nothing is moved. Try a smaller gap, turning, a bigger printer,
+or Fit to Bed for parts that are too big.
 
 **Support Fins** (Supports tab, built from [Support Fins](https://github.com/gittrahan/support-fins)
 by gittrahan): printing a part tipped on an edge is often much stronger than printing it flat,
@@ -155,7 +195,9 @@ any slicer with supports turned off.
    the part is pulled when it's used) and it says whether the load runs along the layers or
    across them, with *Turn it to the strongest pose* when a better one exists.
 3. **Add fins**: draw walls by hand where the auto fins left a gap (line, multi-line, curve,
-   gusset or anchor, as in Draw Walls below). **Remove fins**: click a fin to take it away (it turns see-through
+   gusset, anchor or drop fin, as in Draw Walls below). **Fill gaps** (under the red spots
+   readout) puts a wall across every bare spot at once; **Drop fin** lets you click one red spot
+   to fill just that one. **Remove fins**: click a fin to take it away (it turns see-through
    red); click it again to bring it back, or *Bring all back*.
 4. Adjust the settings and press OK. **Add as**, right under the part's name, decides how the
    fins are added: *Part of the body* joins them to the part so it exports as one object;
@@ -216,7 +258,7 @@ Support Fins shows the version in use.
 flat face also works as a plane.
 
 **Sketch tools**: Line (connected segments), 3-Point Arc, Rectangle, Centre Rectangle,
-Circle, Polygon, Slot, Text, Project, Use Edge, Trim, Offset, Mirror (across a sketch line), Construction.
+Circle, Polygon, Slot, Text, Project, Use Edge, Import SVG / DXF, Trim, Offset, Mirror (across a sketch line), Round corner (rounds a polyline corner with a 2 mm arc), Construction.
 
 - **Text**: click where it should start, then type. Any font installed on your computer works, with height, bold / italic, alignment, letter spacing and rotation. Letters with holes keep them. Extrude to emboss, or cut to engrave. Select the text and press *Edit…* to change it later.
 - **Project**: adds the model's outline to the sketch as shapes, either where the sketch plane cuts through the model or the model's shadow on the plane. An offset makes a matching lid, collar or gasket, e.g. +0.3 mm to fit over the part. Round outlines come in as real circles.
@@ -258,6 +300,18 @@ level / plumb automatically. Change a dimension and the shape follows; drag poin
 with the Select tool and the constraints hold. Small glyphs (H, V, ∥, ⊥, =, T, ◎…) show
 each constraint: click one and press Delete to remove it, or use the list in the panel.
 
+**Snap-fit** (Create): a thin arm that stands up from a face, with a hook at its tip, so a
+part can click into another. Pick the face with *On*, then set the arm length, width and
+thickness and the hook height. *Position X / Y* is where the arm's foot sits on that face.
+The hook sticks out by one arm thickness. The arm is joined to the body you choose
+(*Bodies*), or made as its own part with *Operation: New*. Make the arm a bit thicker if
+it snaps off when printed.
+
+**Living hinge** (Shape): a thin slot cut across a block, leaving a thin strip of plastic
+under it that bends like a hinge. *Position* sets where the slot is along the face, *Slot
+width* is how wide the gap is, and *Hinge thickness* is the strip left under it (0.5 mm is
+a common choice). The strip must be thinner than the block, or the tool refuses.
+
 **Mesh**: Repair (quick fix, or rebuild as one watertight solid), Simplify, Remesh (even
 triangles of a chosen size), Sculpt brushes (Smooth, Flatten, Inflate, Deflate), Separate
 (one body per loose piece), Remove Bodies, To STEP (uses SolidCraft's Convert Mesh, for
@@ -274,7 +328,11 @@ back the cut you had before. The cut only changes what you see: export, Properti
 Measure still use the whole part, and it isn't saved in projects.
 
 **Output**: Export STL / 3MF / OBJ (selected bodies, or all visible bodies), Send to Bambu
-Studio / OrcaSlicer / SolidCraft.
+Studio / OrcaSlicer / SolidCraft. In the web edition, Export also writes **STEP (.step)** for
+CAD programs. Curves come out as flat faces, so a round hole is a ring of small flat strips:
+it looks the same and opens as a solid, but it isn't a smooth curve you can edit in CAD. Use
+it to bring a part into a CAD program, not to model curves there. The part must be closed
+(no holes); Repair it first if the export says so.
 
 ## Keyboard
 
@@ -347,8 +405,9 @@ saved to your computer; nothing is uploaded.
   sculpting, one finger draws and two fingers move the view. Double-tap a face to sketch on
   it. On narrow screens the Browser panel opens with the *Bodies* button and tool settings
   slide up from the bottom.
-- **Desktop only:** Send to Slicer and To STEP, which start programs on your computer. Their
-  buttons are dimmed and point you to the download.
+- **Desktop only:** Send to Slicer and To STEP (the SolidCraft conversion, which makes
+  smooth solids). Their buttons are dimmed and point you to the download. Export › STEP is
+  in the web edition only, as flat faces.
 - **Hollow, Repair › Rebuild and Remesh** take a few seconds on big models. The browser has
   less memory than the desktop app, so *Fine* quality on a very large model may ask you to
   pick a coarser setting.

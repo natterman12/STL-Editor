@@ -109,6 +109,7 @@ export class Sketcher {
       arc3: 'Click the start, then the end, then a point the arc passes through · or type a radius',
       trim: 'Click the piece of a line, arc or shape to cut away (up to where it crosses something)',
       sk_mirror: 'Select shapes first, then click the straight line to mirror them across',
+      sk_corner: 'Click a corner of a polyline to round it (2 mm radius)',
       sk_useedge: 'Click an orange part edge to turn it into a sketch line or circle (it stays tied to the edge)',
       rect: 'Click two corners · or type width, Tab, height',
       rect_center: 'Click the centre, then a corner · or type width, Tab, height',
@@ -251,6 +252,11 @@ export class Sketcher {
       const id = this.entityAt(uv, ev);
       if (!id) return;
       this.app.sketchServerOp({ op: 'trim', id, point: uv }).catch(e => this.app.toast(e.message, 'err'));
+      return;
+    }
+    if (t === 'sk_corner') {
+      const e = this.entities.find(x => x.id === this.entityAt(uv, ev));
+      if (e?.type === 'polyline') this.roundCorner(e, uv); else this.app.toast('Click a corner of a polyline (a shape drawn as connected lines).', 'warn');
       return;
     }
     if (t === 'sk_mirror') {
@@ -508,6 +514,13 @@ export class Sketcher {
     const d = this.draw; if (!d) return;
     this.draw = null; this.hideHud();
     this.redraw(); this.app.onSketchChanged?.();
+  }
+
+  importEntities(list) {
+    this.push();
+    const ents = list.map(e => ({ ...e, id: newId() }));
+    this.entities.push(...ents);
+    this.setSel(ents.map(e => e.id));
   }
 
   replaceEntities(ents) {
@@ -819,6 +832,29 @@ export class Sketcher {
     const E = this.allE();
     this.constraints = this.constraints.filter(c => refsExist(c, E));
     this.sel.clear(); this.redraw(); this.app.onSketchChanged?.();
+  }
+
+  /** Rounds the polyline corner nearest uv with a 2 mm arc (drawn as short segments). */
+  roundCorner(e, uv, r = 2) {
+    const P = e.pts, n = P.length;
+    let i = 0, bd = Infinity;
+    P.forEach((p, k) => { const d = Math.hypot(p[0] - uv[0], p[1] - uv[1]); if (d < bd) { bd = d; i = k; } });
+    if (bd > 3 || (!e.closed && (i === 0 || i === n - 1))) { this.app.toast('Click on a corner in the middle of the shape.', 'warn'); return; }
+    const p = P[i], a = P[(i - 1 + n) % n], b = P[(i + 1) % n];
+    const la = Math.hypot(a[0] - p[0], a[1] - p[1]), lb = Math.hypot(b[0] - p[0], b[1] - p[1]);
+    const u = [(a[0] - p[0]) / la, (a[1] - p[1]) / la], v = [(b[0] - p[0]) / lb, (b[1] - p[1]) / lb];
+    const th = Math.acos(Math.max(-1, Math.min(1, u[0] * v[0] + u[1] * v[1])));
+    const tl = r / Math.tan(th / 2);
+    if (th < 0.02 || th > Math.PI - 0.02 || tl > Math.min(la, lb) * 0.95) { this.app.toast('That corner is too sharp or too flat, or its lines are too short, for a 2 mm round.', 'warn'); return; }
+    const s = [p[0] + u[0] * tl, p[1] + u[1] * tl], f = [p[0] + v[0] * tl, p[1] + v[1] * tl];
+    const bx = u[0] + v[0], by = u[1] + v[1], bl = Math.hypot(bx, by), dc = r / Math.sin(th / 2);
+    const c = [p[0] + bx / bl * dc, p[1] + by / bl * dc];
+    const a0 = Math.atan2(s[1] - c[1], s[0] - c[0]);
+    let sw = Math.atan2(f[1] - c[1], f[0] - c[0]) - a0;
+    if (sw > Math.PI) sw -= 2 * Math.PI; else if (sw < -Math.PI) sw += 2 * Math.PI;
+    const arc = [];
+    for (let j = 1; j < 8; j++) { const t = a0 + sw * j / 8; arc.push([c[0] + r * Math.cos(t), c[1] + r * Math.sin(t)]); }
+    this.updateEntity(e.id, { pts: [...P.slice(0, i), s, ...arc, f, ...P.slice(i + 1)] });
   }
 
   updateEntity(id, patch) {

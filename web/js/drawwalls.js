@@ -2,8 +2,9 @@
 // overhangs, as many as you like, each one a straight line (two clicks), a line of several
 // sections (click each corner, double-click or Enter to finish) or a curve (its two ends,
 // then a point it runs through). The walls are built by Support Fins' own engine.
-const ALL_SHAPES = [['line', 'Line'], ['path', 'Multi-line'], ['curve', 'Curve'], ['gusset', 'Gusset'], ['anchor', 'Anchor']];
+const ALL_SHAPES = [['line', 'Line'], ['path', 'Multi-line'], ['curve', 'Curve'], ['gusset', 'Gusset'], ['anchor', 'Anchor'], ['drop', 'Drop fin']];
 const HINTS = {
+  drop: 'Click a red (bare) spot under an overhang: a wall is dropped across it.',
   line: 'Click two points under an overhang for each wall. Keep clicking to add more walls.',
   path: 'Click each corner of the wall; double-click (or press Enter) on the last point to finish it.',
   curve: 'Click the two ends of the wall, then a point on the curve between them.',
@@ -55,7 +56,7 @@ export class WallDrawer {
   /** The shapes this Support Fins engine can build (gussets and anchors are extras a release may lack). */
   get shapes() {
     const f = this.app._sfInfo?.features || {};
-    return ALL_SHAPES.filter(([k]) => (k !== 'gusset' || f.gussets) && (k !== 'anchor' || f.anchors));
+    return ALL_SHAPES.filter(([k]) => (k !== 'gusset' || f.gussets) && (k !== 'anchor' || f.anchors) && (k !== 'drop' || this.app.tool?.def.type === 'supportfins'));
   }
 
   // Draw Walls, or Support Fins' "Add fins" (walls drawn by hand next to the auto fins)

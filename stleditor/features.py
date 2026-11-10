@@ -443,6 +443,274 @@ def f_revolve(state, fid, p, res, ctx):
                p.get("body_name") or "Revolve", res)
 
 
+# ------------------------------------------------------------------------------------------
+# Loft and sweep (version 1: one closed outline per profile, no holes; open paths only)
+# ------------------------------------------------------------------------------------------
+def _dedupe(pts, closed=False, tol=1e-9):
+    out = []
+    for p in pts:
+        if not out or np.linalg.norm(p - out[-1]) > tol:
+            out.append(p)
+    if closed:
+        while len(out) > 1 and np.linalg.norm(out[0] - out[-1]) <= tol:
+            out.pop()
+    return np.array(out, float)
+
+
+def _ccw(pts):
+    x, y = pts[:, 0], pts[:, 1]
+    if 0.5 * np.sum(x * np.roll(y, -1) - np.roll(x, -1) * y) < 0:
+        pts = pts[::-1]
+    return np.ascontiguousarray(pts, dtype=np.float64)
+
+
+def _profile_loop(sk, idx):
+    """The one closed outline of a sketch, CCW in sketch coordinates (Nx2)."""
+    try:
+        cs = S.profile(sk["entities"])
+    except GeometryError:
+        raise GeometryError(f"Profile {idx} isn't a closed shape with an area. Close its outline first.")
+    polys = cs.to_polygons()
+    if len(polys) != 1:
+        raise GeometryError(f"Profile {idx} has a hole or more than one shape. Loft and sweep profiles "
+                            "must be one closed outline in this version.")
+    return _ccw(_dedupe(np.asarray(polys[0], float), closed=True))
+
+
+def _resample(pts, n):
+    """n points spaced evenly by length around a closed loop, starting at pts[0]."""
+    closed = np.vstack([pts, pts[:1]])
+    seg = np.linalg.norm(np.diff(closed, axis=0), axis=1)
+    cum = np.concatenate([[0.0], np.cumsum(seg)])
+    out = np.empty((n, 2))
+    for k in range(n):
+        s = k * cum[-1] / n
+        i = min(int(np.searchsorted(cum, s, side="right")) - 1, len(seg) - 1)
+        f = (s - cum[i]) / seg[i]
+        out[k] = closed[i] + f * (closed[i + 1] - closed[i])
+    return out
+
+
+def _align(prev, cur):
+    """Rotate the start of loop `cur` so its points line up best with loop `prev`."""
+    n = len(cur)
+    best, bs = None, 0
+    for s in range(n):
+        d = float(np.sum((prev - np.roll(cur, -s, axis=0)) ** 2))
+        if best is None or d < best - 1e-12:
+            best, bs = d, s
+    return np.roll(cur, -bs, axis=0)
+
+
+def _mesh_solid(verts, tris, what):
+    try:
+        man = m3.Manifold(m3.Mesh(vert_properties=np.asarray(verts, np.float32),
+                                  tri_verts=np.asarray(tris, np.uint32)))
+    except Exception:
+        man = None
+    if man is None or man.is_empty() or man.volume() <= 1e-9:
+        raise GeometryError(f"The {what} couldn't be closed into a solid. Check that the profiles or path "
+                            "don't cross or fold back on themselves.")
+    return man
+
+
+def f_loft(state, fid, p, res, ctx):
+    ids = [s for s in (p.get("profiles") or []) if s]
+    if len(ids) < 2:
+        raise GeometryError("A loft needs at least two sketch profiles, at different heights.")
+    sks = [_sketch(state, sid) for sid in ids]
+    lines = [_profile_loop(sk, i + 1) for i, sk in enumerate(sks)]
+    N = max(len(l) for l in lines)
+    n_ref = np.asarray(sks[0]["frame"][3], float)
+    loops, heights = [], []
+    for i, (sk, lp) in enumerate(zip(sks, lines)):
+        o, x, y, n = (np.asarray(v, float) for v in sk["frame"])
+        if abs(float(n @ n_ref)) < 1 - 1e-6:
+            raise GeometryError("The loft profiles must lie on parallel planes (sketch them on the same "
+                                "plane or on parallel planes).")
+        pts = _resample(lp, N)
+        if float(n @ n_ref) < 0:
+            pts = pts[::-1]          # keep every loop turning the same way round the loft direction
+        P3 = o + pts[:, :1] * x + pts[:, 1:2] * y
+        if loops:
+            P3 = _align(loops[-1], P3)
+        loops.append(P3)
+        heights.append(float(o @ n_ref))
+    d = np.diff(heights)
+    if np.any(np.abs(d) < 1e-6) or not (np.all(d > 0) or np.all(d < 0)):
+        raise GeometryError("The loft profiles must be at different heights, one after another in a single "
+                            "direction (in the order you picked them).")
+    s = 1.0 if d[0] > 0 else -1.0
+    J = len(loops)
+    verts = np.vstack(loops)
+    tris = []
+    for j in range(J - 1):
+        lo, up = (j, j + 1) if s > 0 else (j + 1, j)
+        for k in range(N):
+            k2 = (k + 1) % N
+            a, b, c, e = lo * N + k, lo * N + k2, up * N + k2, up * N + k
+            tris.append((a, b, c))
+            tris.append((a, c, e))
+    e1 = np.cross(n_ref, [0.0, 0.0, 1.0])
+    if np.linalg.norm(e1) < 1e-6:
+        e1 = np.cross(n_ref, [1.0, 0.0, 0.0])
+    e1 = e1 / np.linalg.norm(e1)
+    e2 = np.cross(n_ref, e1)
+    for j, keep in ((0, s < 0), (J - 1, s > 0)):
+        # the end caps: triangles wound to face away from the solid
+        p2 = np.column_stack([loops[j] @ e1, loops[j] @ e2])
+        base = j * N
+        for a, b, c in m3.triangulate([p2]):
+            tris.append((base + a, base + b, base + c) if keep else (base + a, base + c, base + b))
+    man = _mesh_solid(verts, tris, "loft")
+    apply_tool(state, fid, man, p.get("operation", "new"), p.get("targets"), p.get("body_name") or "Loft", res)
+
+
+def _path_points(sk):
+    """The sketch's open path (lines, arcs, open polylines joined end to end) in sketch coordinates."""
+    items = []
+    for e in sk["entities"]:
+        if e.get("construction") or e.get("type") not in ("line", "arc", "polyline"):
+            continue
+        pts, closed = S.entity_path(e)
+        if not closed and len(pts) >= 2:
+            items.append(np.asarray(pts, float))
+    if not items:
+        raise GeometryError("The sweep path needs one open path of lines and arcs in its sketch.")
+    chain = items.pop(0)
+    tol = 1e-6
+    while items:
+        for idx, it in enumerate(items):
+            if np.linalg.norm(it[0] - chain[-1]) <= tol:
+                chain = np.vstack([chain, it[1:]])
+            elif np.linalg.norm(it[-1] - chain[-1]) <= tol:
+                chain = np.vstack([chain, it[::-1][1:]])
+            elif np.linalg.norm(it[-1] - chain[0]) <= tol:
+                chain = np.vstack([it, chain[1:]])
+            elif np.linalg.norm(it[0] - chain[0]) <= tol:
+                chain = np.vstack([it[::-1], chain[1:]])
+            else:
+                continue
+            items.pop(idx)
+            break
+        else:
+            raise GeometryError("The sweep path must be one connected chain of lines and arcs.")
+    chain = _dedupe(chain)
+    if len(chain) < 2:
+        raise GeometryError("The sweep path is too short.")
+    if np.linalg.norm(chain[0] - chain[-1]) <= tol:
+        raise GeometryError("The sweep path must be open in this version (its two ends can't meet).")
+    return chain
+
+
+def _cross2(u, v):
+    return u[..., 0] * v[..., 1] - u[..., 1] * v[..., 0]
+
+
+def _path_self_crosses(P):
+    A, B = P[:-1], P[1:]
+    eps = 1e-9 * max(1.0, float(np.ptp(P, axis=0).max()))
+
+    def sg(x):
+        return np.where(np.abs(x) <= eps, 0.0, np.sign(x))
+    for i in range(len(A)):
+        j = np.arange(i + 2, len(A))
+        if j.size == 0:
+            break
+        C, D = A[j], B[j]
+        d1 = sg(_cross2(B[i] - A[i], C - A[i]))
+        d2 = sg(_cross2(B[i] - A[i], D - A[i]))
+        d3 = sg(_cross2(D - C, A[i] - C))
+        d4 = sg(_cross2(D - C, B[i] - C))
+        lo1, hi1 = np.minimum(A[i], B[i]), np.maximum(A[i], B[i])
+        lo2, hi2 = np.minimum(C, D), np.maximum(C, D)
+        boxes = np.all(np.maximum(lo1, lo2) <= np.minimum(hi1, hi2) + eps, axis=1)
+        hit = np.where((d1 == 0) & (d2 == 0), boxes, (d1 * d2 <= 0) & (d3 * d4 <= 0))
+        if np.any(hit):
+            return True
+    return False
+
+
+def _rot_between(a, b):
+    """Smallest rotation taking unit vector a onto unit vector b (3x3)."""
+    c = float(a @ b)
+    if c < -1 + 1e-12:
+        w = np.cross(a, [1.0, 0.0, 0.0])
+        if np.linalg.norm(w) < 1e-6:
+            w = np.cross(a, [0.0, 1.0, 0.0])
+        w = w / np.linalg.norm(w)
+        return 2 * np.outer(w, w) - np.eye(3)
+    v = np.cross(a, b)
+    K = np.array([[0, -v[2], v[1]], [v[2], 0, -v[0]], [-v[1], v[0], 0]])
+    return np.eye(3) + K + K @ K / (1 + c)
+
+
+def f_sweep(state, fid, p, res, ctx):
+    psk = _sketch(state, p.get("profile"))
+    lp = _profile_loop(psk, 1)
+    K = len(lp)
+    po, px, py, _ = (np.asarray(v, float) for v in _sketch(state, p.get("path"))["frame"])
+    P2 = _path_points(_sketch(state, p.get("path")))
+    if _path_self_crosses(P2):
+        raise GeometryError("The sweep path crosses itself. Move the path so it doesn't cross.")
+    P3 = po + P2[:, :1] * px + P2[:, 1:2] * py
+    m = len(P3)
+    dirs = np.diff(P3, axis=0)
+    dirs = dirs / np.linalg.norm(dirs, axis=1)[:, None]
+    T = np.empty((m, 3))
+    T[0], T[-1] = dirs[0], dirs[-1]
+    for i in range(1, m - 1):
+        sm = dirs[i - 1] + dirs[i]
+        T[i] = sm / np.linalg.norm(sm) if np.linalg.norm(sm) > 1e-9 else dirs[i]
+    # the profile starts at the path's first point, turned to face along the path
+    o_s, x_s, y_s, n_s = (np.asarray(v, float) for v in psk["frame"])
+    # the path's first point lands on the profile point under it, so a profile drawn around the
+    # path start stays where it was drawn relative to the path
+    shift = np.array([float((P3[0] - o_s) @ x_s), float((P3[0] - o_s) @ y_s)])
+    lp = lp - shift
+    A = _rot_between(n_s, T[0])
+    R = np.zeros((m, 3))
+    R[0] = A @ x_s
+    # rotation-minimising frames along the path (double reflection)
+    for i in range(m - 1):
+        v1 = P3[i + 1] - P3[i]
+        c1 = float(v1 @ v1)
+        rL = R[i] - 2 / c1 * (v1 @ R[i]) * v1
+        tL = T[i] - 2 / c1 * (v1 @ T[i]) * v1
+        v2 = T[i + 1] - tL
+        c2 = float(v2 @ v2)
+        rn = rL - 2 / c2 * (v2 @ rL) * v2 if c2 > 1e-18 else rL
+        rn = rn - (rn @ T[i + 1]) * T[i + 1]
+        R[i + 1] = rn / np.linalg.norm(rn)
+    Sv = np.cross(T, R)
+    verts = np.empty((m * K, 3))
+    for i in range(m):
+        Q = lp[:, :1] * R[i] + lp[:, 1:2] * Sv[i]
+        if 0 < i < m - 1:
+            # at a bend the profile is stretched across the bend so the corner is mitred, not cut
+            c = float(dirs[i - 1] @ dirs[i])
+            if c < -0.99:
+                raise GeometryError("The sweep path turns back on itself too sharply. Open up the bend.")
+            wv = dirs[i] - dirs[i - 1]
+            if np.linalg.norm(wv) > 1e-9:
+                wv = wv / np.linalg.norm(wv)
+                Q = Q + (1 / math.sqrt((1 + c) / 2) - 1) * (Q @ wv)[:, None] * wv
+        verts[i * K:(i + 1) * K] = P3[i] + Q
+    tris = []
+    for i in range(m - 1):
+        for k in range(K):
+            k2 = (k + 1) % K
+            a, b, c, e = i * K + k, i * K + k2, (i + 1) * K + k2, (i + 1) * K + k
+            tris.append((a, b, c))
+            tris.append((a, c, e))
+    for i, keep in ((0, False), (m - 1, True)):
+        base = i * K
+        for a, b, c in m3.triangulate([lp]):
+            tris.append((base + a, base + b, base + c) if keep else (base + a, base + c, base + b))
+    man = _mesh_solid(verts, tris, "sweep")
+    apply_tool(state, fid, man, p.get("operation", "new"), p.get("targets"), p.get("body_name") or "Sweep", res)
+
+
 def f_hole(state, fid, p, res, ctx):
     pts = p.get("points") or ([p["point"]] if p.get("point") else [])
     if not pts:
@@ -748,6 +1016,48 @@ def f_shell(state, fid, p, res, ctx):
     res["modified"].append(bid)
 
 
+def f_lattice(state, fid, p, res, ctx):
+    """Hollow the body (solid wall kept outside) and fill the hollow with a cubic grid of round
+    struts. Grid lines are spread evenly across the hollow space, about one per cell size."""
+    bid = p.get("body")
+    if not bid:
+        raise GeometryError("Choose a body to fill with a lattice.")
+    b = state.body(bid)
+    s = b.require_solid()
+    cell = _float(p, "cell", 6)
+    d = _float(p, "strut", 1)
+    t = _float(p, "thickness", 2)
+    if cell <= 0 or d <= 0 or t <= 0:
+        raise GeometryError("Cell size, strut diameter and wall thickness must all be above zero.")
+    if d >= cell:
+        raise GeometryError("The struts are as wide as the cells, so there'd be no gaps. Use a thinner strut or a bigger cell.")
+    cavity = G.hollow(s, t, _hollow_pitch(b, t, p.get("resolution")), cavity_only=True)
+    bb = cavity.bounding_box()
+    lo, hi = np.asarray(bb[:3], float), np.asarray(bb[3:], float)
+    size = hi - lo
+    n = [max(1, round(float(x) / cell)) for x in size]
+    if n[1] * n[2] + n[0] * n[2] + n[0] * n[1] > 2500:
+        raise GeometryError("That's too many struts. Use a bigger cell size.")
+    pos = [lo[a] + (np.arange(n[a]) + 0.5) * size[a] / n[a] for a in range(3)]
+    r = d / 2
+    struts = []
+    for a in range(3):
+        o1, o2 = [k for k in range(3) if k != a]
+        cyl = m3.Manifold.cylinder(float(size[a]) + 2, r, r, 16)
+        if a == 0:
+            cyl = cyl.rotate((0, 90, 0))
+        elif a == 1:
+            cyl = cyl.rotate((-90, 0, 0))
+        for u in pos[o1]:
+            for w in pos[o2]:
+                off = [0.0, 0.0, 0.0]
+                off[a], off[o1], off[o2] = lo[a] - 1, u, w
+                struts.append(cyl.translate(tuple(off)))
+    grid = m3.Manifold.batch_boolean(struts, m3.OpType.Add)
+    state.bodies[bid] = b.copy(solid=s - (cavity - grid))
+    res["modified"].append(bid)
+
+
 def f_repair(state, fid, p, res, ctx):
     bid = p.get("body")
     b = state.body(bid)
@@ -936,6 +1246,72 @@ def f_layflat(state, fid, p, res, ctx):
         res["modified"].append(bid)
 
 
+def _mm(x):
+    return f"{round(float(x), 1):g}"
+
+
+def f_plate(state, fid, p, res, ctx):
+    """Pack the chosen bodies onto the print bed: rows of footprints a gap apart, the block
+    centred on the origin, every body resting on the bed. Deterministic: footprints are placed
+    tallest first (ties: wider first, then the order you chose them), each row fills left to
+    right, and a new row starts above the tallest part in the row before."""
+    bids = list(p.get("bodies") or [])
+    if not bids:
+        raise GeometryError("Choose the bodies to lay out on the bed.")
+    gap = _float(p, "gap", 5)
+    if gap < 0:
+        raise GeometryError("The gap can't be negative.")
+    bed = p.get("bed") or PR.PRINTERS.get(p.get("printer", "bambu_x1"), PR.PRINTERS["bambu_x1"])[1]
+    W, H, Hz = (float(a) for a in bed)
+    rotate = bool(p.get("rotate", False))
+    items = []
+    for i, bid in enumerate(bids):
+        b = state.body(bid)
+        v, _ = b.mesh()
+        v = np.asarray(v, float)
+        if not len(v):
+            raise GeometryError(f"\"{b.name}\" has no geometry.")
+        lo, hi = v.min(0), v.max(0)
+        size = hi - lo
+        if size[2] > Hz + 1e-9:
+            raise GeometryError(f"\"{b.name}\" is {_mm(size[2])} mm tall, taller than the bed "
+                                f"({_mm(Hz)} mm). Pick a taller printer, or cut it with Fit to Bed.")
+        options = [(False, size[0], size[1])]
+        if rotate:
+            options.append((True, size[1], size[0]))
+        fits = [o for o in options if o[1] <= W + 1e-9 and o[2] <= H + 1e-9]
+        if not fits:
+            turn = "" if rotate else "turn on Rotate, "
+            raise GeometryError(f"\"{b.name}\" is {_mm(size[0])} x {_mm(size[1])} mm, too big for the bed "
+                                f"({_mm(W)} x {_mm(H)} mm). Try: {turn}pick a bigger printer, or cut it "
+                                "with Fit to Bed.")
+        rot, dx, dy = min(fits, key=lambda o: o[2])      # the shortest footprint; ties keep the original turn
+        items.append({"i": i, "bid": bid, "name": b.name, "lo": lo, "hi": hi, "rot": rot, "dx": dx, "dy": dy})
+    order = sorted(items, key=lambda it: (-it["dy"], -it["dx"], it["i"]))
+    x = y = shelf = 0.0
+    for n, it in enumerate(order):
+        if n and x + it["dx"] > W + 1e-9:          # start a new row above the tallest part so far
+            y += shelf + gap
+            x = shelf = 0.0
+        if y + it["dy"] > H + 1e-9:
+            raise GeometryError(f"Not everything fits on the bed: \"{it['name']}\" has no room left. "
+                                "Try a smaller gap, turn on Rotate, pick a bigger printer, or choose fewer bodies.")
+        it["x"], it["y"] = x, y
+        x += it["dx"] + gap
+        shelf = max(shelf, it["dy"])
+    width = max(it["x"] + it["dx"] for it in items)
+    height = max(it["y"] + it["dy"] for it in items)
+    ox, oy = -width / 2, -height / 2
+    for it in order:
+        b = state.body(it["bid"])
+        R = _rotation(0, 0, 90) if it["rot"] else np.eye(3)
+        mx, my = (-it["hi"][1], it["lo"][0]) if it["rot"] else (it["lo"][0], it["lo"][1])
+        t = np.array([ox + it["x"] - mx, oy + it["y"] - my, -it["lo"][2]])
+        state.bodies[it["bid"]] = _transform_body(b, _affine(R, t))
+        res["modified"].append(it["bid"])
+    res["info"] = {"placed": len(items), "rotated": sum(1 for it in items if it["rot"])}
+
+
 def f_thread(state, fid, p, res, ctx):
     kind = p.get("kind", "internal")
     D = _float(p, "diameter", 8)
@@ -950,6 +1326,53 @@ def f_thread(state, fid, p, res, ctx):
     op = p.get("operation") or ("cut" if kind == "internal" else "new")
     apply_tool(state, fid, tool, op, p.get("targets"),
                p.get("body_name") or (f"M{D:g} screw" if kind == "external" else "Thread"), res)
+
+
+def f_snapfit(state, fid, p, res, ctx):
+    """Cantilever clip: an arm standing on the plate, with a hook at its tip pointing inwards."""
+    L = _float(p, "length", 12)          # arm length, from the plate face up to the tip
+    W = _float(p, "width", 6)            # arm width, across the arm
+    t = _float(p, "thickness", 1.5)      # arm thickness; the hook sticks out by this much too
+    h = _float(p, "hook_height", 1.5)    # hook height, measured down from the tip
+    if min(L, W, t, h) <= 0:
+        raise GeometryError("Arm length, width, thickness and hook height must all be more than zero.")
+    if h >= L:
+        raise GeometryError("The hook must be shorter than the arm.")
+    sink = 0.5                           # the foot sinks into the plate so the join is solid
+    arm = m3.Manifold.cube((t, W, L + sink), center=False).translate((0, 0, -sink))
+    hook = m3.Manifold.cube((t, W, h), center=False).translate((t, 0, L - h))
+    tool = m3.Manifold.batch_boolean([arm, hook], m3.OpType.Add)
+    tool = _place(tool, state.frame(p.get("plane")), (_float(p, "x", 0), _float(p, "y", 0), 0))
+    apply_tool(state, fid, tool, p.get("operation") or "join", p.get("targets"),
+               p.get("body_name") or "Snap-fit", res)
+
+
+def f_hinge(state, fid, p, res, ctx):
+    """Living hinge: a slot across the whole block, leaving a thin web of `thickness` at the bottom."""
+    slot = _float(p, "slot", 1.0)        # width of the slot along the plane's x
+    web = _float(p, "thickness", 0.5)    # the hinge: material left under the slot
+    if slot <= 0 or web <= 0:
+        raise GeometryError("The slot width and the hinge thickness must be more than zero.")
+    targets = p.get("targets")
+    bodies = [state.body(t) for t in targets if t in state.bodies] if targets else \
+        [b for b in state.bodies.values() if b.is_solid]
+    if not bodies:
+        raise GeometryError("Choose the block to put the living hinge in.")
+    o, xa, ya, n = state.frame(p.get("plane"))
+    lo, hi, reach = np.inf, -np.inf, 0.0
+    for b in bodies:
+        v, _ = b.mesh()
+        rel = np.asarray(v, float) - o
+        d = rel @ n
+        lo, hi = min(lo, d.min()), max(hi, d.max())
+        reach = max(reach, float(np.abs(rel @ xa).max()), float(np.abs(rel @ ya).max()))
+    if web >= hi - lo:
+        raise GeometryError("The hinge is as thick as the block, so there is nothing to cut.")
+    B = reach + 10
+    strip = m3.Manifold.cube((slot, 2 * B, hi - lo - web + 1), center=False) \
+        .translate((_float(p, "x", 0), -B, lo + web))
+    apply_tool(state, fid, _place(strip, state.frame(p.get("plane"))), "cut", targets,
+               "Living hinge", res)
 
 
 def f_offset(state, fid, p, res, ctx):
@@ -1131,22 +1554,179 @@ def f_supportwall(state, fid, p, res, ctx):
     _add_supports(state, fid, res, bid, r["solids"], p.get("output"), "walls", ctx)
 
 
+# -- Thin-wall check ----------------------------------------------------------------------
+# Slice the solid across each axis; in every slice, what an opening of width w removes is
+# narrower than w. Keep the web port (web/engine/features.js, f_thincheck) in step.
+def _thin_residual(cs, w):
+    """The parts of a slice narrower than w (a wall, pin or rib thinner than that)."""
+    r = w / 2 - 0.005 * w
+    inner = cs.offset(-r, m3.JoinType.Miter, 2.0, 0)
+    if inner.is_empty():
+        return cs
+    return cs - inner.offset(r, m3.JoinType.Miter, 2.0, 0)
+
+
+def _thin_parts(cs, w, min_area):
+    res = _thin_residual(cs, w)
+    if res.is_empty():
+        return []
+    return [c for c in res.decompose() if c.area() >= min_area]
+
+
+def thin_scan(solid, t):
+    """Thin spots of a solid: {"min": thinnest width found or None, "count": clusters,
+    "spots": [[x, y, z], ...] (up to 10, biggest cluster first)}."""
+    t = float(t)
+    min_area = 0.05 * t * t
+    lo, hi = _bbox(solid)
+    found = []              # (x, y, z) of every thin piece found
+    widths = []             # per axis: thinnest slice width found there
+    link = 1.5 * t * 2
+    for a in range(3):
+        u, v = (a + 1) % 3, (a + 2) % 3
+        R = np.zeros((3, 3))
+        R[0, u] = R[1, v] = R[2, a] = 1.0
+        m = solid.transform(_affine(R, np.zeros(3)))
+        ext = float(hi[a] - lo[a])
+        step = max(t / 2, ext / 60)
+        n = max(1, int(math.ceil(ext / step - 1e-9)))
+        link = max(link, 1.5 * ext / n)
+        flagged = []
+        for i in range(n):
+            h = float(lo[a] + (i + 0.5) * ext / n)
+            cs = m.slice(h)
+            if cs.is_empty():
+                continue
+            parts = _thin_parts(cs, t, min_area)
+            if not parts:
+                continue
+            flagged.append(cs)
+            for c in parts:
+                b = c.bounds()
+                p = [0.0, 0.0, 0.0]
+                p[a], p[u], p[v] = h, (b[0] + b[2]) / 2, (b[1] + b[3]) / 2
+                found.append(tuple(p))
+        if flagged:
+            a_lo, a_hi = 0.0, t
+            for _ in range(8):
+                mid = (a_lo + a_hi) / 2
+                if any(_thin_parts(cs, mid, min_area) for cs in flagged):
+                    a_hi = mid
+                else:
+                    a_lo = mid
+            widths.append(a_hi * 0.99)
+    if not found:
+        return {"min": None, "count": 0, "spots": []}
+    # group pieces that sit close together into one spot
+    cell = {}
+    for i, p in enumerate(found):
+        cell.setdefault(tuple(int(math.floor(c / link)) for c in p), []).append(i)
+    parent = list(range(len(found)))
+
+    def root(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    for key, ids in cell.items():
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                for dz in (-1, 0, 1):
+                    other = cell.get((key[0] + dx, key[1] + dy, key[2] + dz))
+                    if not other:
+                        continue
+                    for i in ids:
+                        for j in other:
+                            if i < j and math.dist(found[i], found[j]) <= link:
+                                parent[root(j)] = root(i)
+    groups = {}
+    for i in range(len(found)):
+        groups.setdefault(root(i), []).append(found[i])
+    spots = []
+    for pts in groups.values():
+        arr = np.array(pts)
+        spots.append((len(pts), [round(float((arr[:, k].min() + arr[:, k].max()) / 2), 2) for k in range(3)]))
+    spots.sort(key=lambda s: (-s[0], s[1]))
+    return {"min": round(max(widths), 3), "count": len(spots), "spots": [s[1] for s in spots[:10]]}
+
+
+def f_thincheck(state, fid, p, res, ctx):
+    """Reports walls, pins and ribs thinner than the minimum; changes nothing."""
+    bid = p.get("body")
+    if not bid:
+        raise GeometryError("Choose a body to check.")
+    t = _float(p, "min", 0.8)
+    if t <= 0:
+        raise GeometryError("The minimum thickness must be more than zero.")
+    r = thin_scan(state.body(bid).require_solid(), t)
+    res["thin"] = r
+    tt = f"{t:g}"
+    if not r["count"]:
+        res["info"] = f"Nothing thinner than {tt} mm found."
+        return
+    where = "; ".join(f"X {s[0]:g}, Y {s[1]:g}, Z {s[2]:g}" for s in r["spots"][:3])
+    res["warning"] = (f"{r['count']} thin spot{'s' if r['count'] != 1 else ''} under {tt} mm. "
+                      f"Thinnest: about {r['min']:g} mm. Near {where} (mm).")
+
+
+def f_fittest(state, fid, p, res, ctx):
+    """One plate: pegs of a fixed diameter and matching holes at stepped clearances."""
+    D = _float(p, "diameter", 8)
+    start = _float(p, "start", 0.05)
+    step = _float(p, "step", 0.05)
+    count = int(p.get("count", 6))
+    T = _float(p, "thickness", 3)
+    gap = _float(p, "gap", 4)
+    if not (D > 0):
+        raise GeometryError("Peg diameter must be more than zero.")
+    if start < 0:
+        raise GeometryError("Clearance start can't be negative.")
+    if not (step > 0):
+        raise GeometryError("Clearance step must be more than zero.")
+    if count < 1:
+        raise GeometryError("Count must be at least 1.")
+    if not (T > 0):
+        raise GeometryError("Plate thickness must be more than zero.")
+    if not (gap > 0):
+        raise GeometryError("Gap must be more than zero.")
+    clearances = [start + i * step for i in range(count)]
+    max_hole = D + clearances[-1]
+    # edge pad = gap; holes in one row, pegs in a parallel row on the same plate
+    L = count * max_hole + (count + 1) * gap
+    W = max_hole + D + 3 * gap
+    seg = 64
+    man = m3.Manifold.cube((L, W, T), center=False).translate((-L / 2, -W / 2, 0))
+    for i, c in enumerate(clearances):
+        x = -L / 2 + gap + max_hole / 2 + i * (max_hole + gap)
+        y_hole = -W / 2 + gap + max_hole / 2
+        y_peg = -W / 2 + gap + max_hole + gap + D / 2
+        hr = (D + c) / 2
+        man = man - m3.Manifold.cylinder(T + 2, hr, hr, seg).translate((x, y_hole, -1))
+        man = man + m3.Manifold.cylinder(T, D / 2, D / 2, seg).translate((x, y_peg, T))
+    apply_tool(state, fid, man, "new", None, p.get("body_name") or "Fit Test", res)
+    res["info"] = (f"{count} pair{'s' if count != 1 else ''}, peg Ø{D:g} mm, "
+                   f"clearances {', '.join(f'{c:g}' for c in clearances)} mm.")
+
+
 EVALUATORS = {
     "import": f_import, "primitive": f_primitive, "plane": f_plane, "sketch": f_sketch,
-    "extrude": f_extrude, "revolve": f_revolve, "hole": f_hole, "combine": f_combine,
+    "extrude": f_extrude, "revolve": f_revolve, "loft": f_loft, "sweep": f_sweep, "hole": f_hole, "combine": f_combine,
     "split": f_split, "mirror": f_mirror, "move": f_move, "scale": f_scale, "hollow": f_hollow, "shell": f_shell,
-    "repair": f_repair, "simplify": f_simplify, "pattern": f_pattern, "delete": f_delete,
+    "lattice": f_lattice, "repair": f_repair, "simplify": f_simplify, "pattern": f_pattern, "delete": f_delete,
     "separate": f_separate, "bedsplit": f_bedsplit, "pushpull": f_pushpull, "sculpt": f_sculpt,
-    "remesh": f_remesh, "layflat": f_layflat, "thread": f_thread, "offset": f_offset,
-    "resizehole": f_resizehole, "supportfins": f_supportfins, "supportwall": f_supportwall,
+    "remesh": f_remesh, "layflat": f_layflat, "plate": f_plate, "thread": f_thread, "offset": f_offset,
+    "resizehole": f_resizehole, "snapfit": f_snapfit, "hinge": f_hinge, "supportfins": f_supportfins, "supportwall": f_supportwall,
+    "thincheck": f_thincheck, "fittest": f_fittest,
 }
 
 LABELS = {
     "import": "Import", "primitive": "Primitive", "plane": "Plane", "sketch": "Sketch",
-    "extrude": "Extrude", "revolve": "Revolve", "hole": "Hole", "combine": "Combine",
+    "extrude": "Extrude", "revolve": "Revolve", "loft": "Loft", "sweep": "Sweep", "hole": "Hole", "combine": "Combine",
     "split": "Split", "mirror": "Mirror", "move": "Move", "scale": "Scale", "hollow": "Hollow", "shell": "Shell",
-    "repair": "Repair", "simplify": "Simplify", "pattern": "Pattern", "delete": "Remove",
+    "lattice": "Lattice", "repair": "Repair", "simplify": "Simplify", "pattern": "Pattern", "delete": "Remove",
     "separate": "Separate", "bedsplit": "Fit to Bed", "pushpull": "Push/Pull", "sculpt": "Sculpt",
-    "remesh": "Remesh", "layflat": "Lay Flat", "thread": "Thread", "offset": "Offset",
-    "resizehole": "Resize Hole", "supportfins": "Support Fins", "supportwall": "Draw Walls",
+    "remesh": "Remesh", "layflat": "Lay Flat", "plate": "Plate Layout", "thread": "Thread", "offset": "Offset",
+    "resizehole": "Resize Hole", "snapfit": "Snap-fit", "hinge": "Living hinge", "supportfins": "Support Fins", "supportwall": "Draw Walls",
+    "thincheck": "Thin-wall Check", "fittest": "Fit Test",
 }

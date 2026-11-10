@@ -36,6 +36,13 @@ const log = m => console.log(m);
   await page.waitForFunction(() => /held/.test(document.querySelector('#tool-form [data-key="_cover"] .val')?.textContent || ''), null, { timeout: 30000 });
   log('reach 3: ' + await held());
   await page.screenshot({ path: require('path').join(OUT, 'sfcov_full3.png') });
+  // Add fins: Fill gaps puts a hand wall across each bare spot
+  await page.evaluate(() => window.app.setValue('_mode', 'add')); await page.waitForTimeout(300);
+  await page.waitForFunction(() => !!document.querySelector('[data-sfact="fill"]'), null, { timeout: 30000 });
+  await page.click('[data-sfact="fill"]'); await page.waitForTimeout(300);
+  const walls = await page.evaluate(() => window.app.tool.values.walls.length);
+  await page.waitForTimeout(3000); log('fill gaps: ' + walls + ' walls, engine: ' + await page.evaluate(() => JSON.stringify((window.app.tool._wallStatus || []).map(w => w.ok ? 'ok' : w.reason))));
+  if (!walls) errs.push('Fill gaps added no walls');
   log(errs.length ? 'ERRORS\n' + errs.join('\n') : 'no page errors');
   await browser.close();
 })();

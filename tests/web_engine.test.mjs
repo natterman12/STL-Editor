@@ -129,6 +129,31 @@ test('lay flat, split with pins, fit to bed', () => {
   for (const b of d2.state.bodies.values()) { const [l, h] = b.bbox(); assert.ok(Math.max(...G.sub(h, l)) <= 180 + 1e-6); }
 });
 
+test('plate layout is hand-checkable and refuses what does not fit', () => {
+  const near = (a, b) => assert.ok(Math.abs(a - b) < 1e-3, `${a} vs ${b}`);
+  const box = (doc, l, w, h) => doc.addFeature('primitive', { shape: 'box', length: l, width: w, height: h })[0].id;
+  const doc = new Document();
+  const A = box(doc, 40, 30, 10), B = box(doc, 40, 30, 20), C = box(doc, 50, 20, 5);
+  doc.addFeature('move', { bodies: [A], translate: [0, 0, 7] });
+  doc.addFeature('plate', { bodies: [A, B, C], bed: [100, 100, 50], gap: 5 });
+  // same layout as the Python engine's test: A and B share a row, C starts a row 5 mm above
+  const expect = { [A]: [[-42.5, -27.5, 0], [-2.5, 2.5, 10]], [B]: [[2.5, -27.5, 0], [42.5, 2.5, 20]], [C]: [[-42.5, 7.5, 0], [7.5, 27.5, 5]] };
+  for (const [bid, [lo, hi]] of Object.entries(expect)) {
+    const [l, h] = doc.state.body(bid).bbox();
+    for (let k = 0; k < 3; k++) { near(l[k], lo[k]); near(h[k], hi[k]); }
+  }
+  const d2 = new Document();
+  const L = box(d2, 80, 20, 5);
+  assert.throws(() => d2.addFeature('plate', { bodies: [L], bed: [50, 100, 50] }), /too big.*Rotate/);
+  d2.addFeature('plate', { bodies: [L], bed: [50, 100, 50], rotate: true });
+  const [l, h] = d2.state.body(L).bbox();
+  near(l[0], -10); near(l[1], -40); near(h[0], 10); near(h[1], 40);
+  const T = box(d2, 10, 10, 60);
+  assert.throws(() => d2.addFeature('plate', { bodies: [T], bed: [100, 100, 50] }), /taller/);
+  const C1 = box(d2, 60, 60, 5), C2 = box(d2, 60, 60, 5);
+  assert.throws(() => d2.addFeature('plate', { bodies: [C1, C2], bed: [100, 100, 50] }), /Not everything fits/);
+});
+
 test('mirror and pattern features', () => {
   const [doc, B] = block();
   const [h] = doc.addFeature('hole', { points: [[5, 15, 20]], normal: [0, 0, 1], diameter: 4, through: true });
@@ -248,6 +273,24 @@ test('shell opens the picked faces of a hollow', () => {
   const [f] = doc.importFile('cube.stl', stl, true, 'keep');
   assert.throws(() => doc.addFeature('shell', { body: f.id, faces: [top], thickness: 12 }), /too large/);
   assert.throws(() => doc.addFeature('shell', { body: f.id, faces: [{ origin: [10, 10, 20], normal: [0, 0, 1], contours: [] }], thickness: 2 }), /flat/);
+});
+
+test('lattice fills a hollow with struts', () => {
+  // 20 mm cube, 2 mm wall: cavity 16^3, cell 8 -> 12 struts 16 mm long. Skin 3904 + struts (~143
+  // after crossings) = ~4038. The cavity is voxel-made, so this is a range check, not exact.
+  const stl = stlOf(W.Manifold.cube([20, 20, 20]));
+  const make = extra => {
+    const doc = new Document();
+    const [f] = doc.importFile('cube.stl', stl, true, 'keep');
+    doc.addFeature('lattice', { body: f.id, cell: 8, strut: 1, thickness: 2, ...extra });
+    return doc.state.body(f.id).info();
+  };
+  const v = make({}).volume;
+  assert.ok(v > 3904 && v < 8000);
+  approx(v, 4038, 0.011, 'lattice volume');
+  assert.throws(() => make({ cell: 1, strut: 2 }), /thinner/);
+  assert.throws(() => make({ thickness: 12 }), /too large/);
+  assert.throws(() => make({ cell: 0 }), /above zero/);
 });
 
 test('repair rebuild closes a mesh with holes', () => {
@@ -609,6 +652,26 @@ test('Support Fins coverage: held near a fin or a wall going down, bare beyond r
   assert.equal(withFin.spots.length, 2);
   assert.ok(withFin.spots.every(s => s.far > 8.5 && s.far < 10.5), JSON.stringify(withFin.spots.map(s => s.far)));
   assert.equal(withFin.dist.length * 3, withFin.tris.length);
+  // a bare spot gets a wall across it, its ends on the shelf (x 5..30 bare)
+  const [e0, e1] = alone.spots[0].ends;
+  assert.ok(Math.abs(e1[0] - e0[0]) > 15 && e0[2] === 10 && e1[2] === 10, JSON.stringify(alone.spots[0].ends));
+});
+
+test('DXF import: lines, circles, arcs and bulged polylines become sketch shapes', async () => {
+  const I = await load('js/import2d.js');
+  const dxf = ['0', 'SECTION', '2', 'ENTITIES',
+    '0', 'LINE', '10', '0', '20', '0', '11', '10', '21', '0',
+    '0', 'CIRCLE', '10', '5', '20', '5', '40', '2',
+    '0', 'ARC', '10', '0', '20', '0', '40', '3', '50', '0', '51', '90',
+    '0', 'LWPOLYLINE', '70', '1', '10', '0', '20', '0', '42', '1', '10', '4', '20', '0', '10', '4', '20', '4',
+    '0', 'ENDSEC', '0', 'EOF'].join('\n');
+  const [l, c, a, p] = I.parseDXF(dxf);
+  assert.deepEqual([l.type, l.p1, l.p2], ['line', [0, 0], [10, 0]]);
+  assert.deepEqual([c.type, c.cx, c.r], ['circle', 5, 2]);
+  assert.deepEqual([a.type, a.r, a.a1], ['arc', 3, 90]);
+  // the bulge 1 from (0,0) to (4,0) is a half circle of radius 2 through (2,-2)
+  assert.equal(p.type, 'polyline');
+  assert.ok(p.closed && p.pts.some(q => q[1] < -1.9 && Math.abs(Math.hypot(q[0] - 2, q[1]) - 2) < 1e-9), JSON.stringify(p));
 });
 
 test('Opening a file: a failed open keeps the open project; an opened mesh has nothing to undo', async () => {
@@ -761,4 +824,172 @@ test('Face pick: flat faces of fine, holed and rounded meshes stay flat; sphere 
     const { region, normal } = G.faceRegion(v, f, tri);
     assert.equal(G.facePlanar(v, f, region, normal), false, `sphere facet ${tri}`);
   }
+});
+
+// ---- loft and sweep (same hand-worked volumes as tests/test_engine.py)
+const lrect = (id, x, y, w, h) => ({ id, type: 'rect', x, y, w, h });
+const lsk = (doc, origin, entities, normal = [0, 0, 1]) => doc.addFeature('sketch', { plane: { origin, normal }, entities })[0].id;
+
+test('loft: frustum, offset top, and a middle profile all give 1040 mm³', () => {
+  let doc = new Document();
+  let a = lsk(doc, [0, 0, 0], [lrect('a', -5, -5, 10, 10)]);
+  let b = lsk(doc, [0, 0, 20], [lrect('b', -2, -2, 4, 4)]);
+  let [f] = doc.addFeature('loft', { profiles: [a, b] });
+  approx(vol(doc, f.id), 1040, 1e-3, 'frustum');
+
+  doc = new Document();
+  a = lsk(doc, [0, 0, 0], [lrect('a', -5, -5, 10, 10)]);
+  b = lsk(doc, [0, 0, 20], [lrect('b', 1, 1, 4, 4)]);
+  [f] = doc.addFeature('loft', { profiles: [a, b] });
+  approx(vol(doc, f.id), 1040, 1e-3, 'offset top');
+
+  doc = new Document();
+  a = lsk(doc, [0, 0, 0], [lrect('a', -5, -5, 10, 10)]);
+  const m = lsk(doc, [0, 0, 10], [lrect('m', -2, -2, 4, 4)]);
+  const c = lsk(doc, [0, 0, 20], [lrect('c', -5, -5, 10, 10)]);
+  [f] = doc.addFeature('loft', { profiles: [a, m, c] });
+  approx(vol(doc, f.id), 1040, 1e-3, 'middle profile');
+});
+
+test('loft and sweep refuse bad input in plain words', () => {
+  const doc = new Document();
+  const a = lsk(doc, [0, 0, 0], [lrect('a', -5, -5, 10, 10)]);
+  assert.throws(() => doc.addFeature('loft', { profiles: [a] }), /at least two/);
+  const open = lsk(doc, [0, 0, 20], [{ id: 'l', type: 'line', p1: [0, 0], p2: [5, 0] }]);
+  assert.throws(() => doc.addFeature('loft', { profiles: [a, open] }), /closed shape/);
+  const crossing = lsk(doc, [0, 0, 0], [{ id: 'pl', type: 'polyline', pts: [[0, 0], [10, 10], [10, 0], [0, 10]], closed: false }]);
+  const prof = lsk(doc, [0, 0, 0], [lrect('p', -1, -1, 2, 2)]);
+  assert.throws(() => doc.addFeature('sweep', { profile: prof, path: crossing }), /crosses itself/);
+});
+
+test('sweep: straight 40 mm³, two collinear legs 80, and a mitred L 80', () => {
+  const doc = new Document();
+  const prof = lsk(doc, [0, 0, 0], [lrect('p', -1, -1, 2, 2)]);
+  let path = lsk(doc, [0, 0, 0], [{ id: 'l', type: 'line', p1: [0, 0], p2: [10, 0] }]);
+  let [f] = doc.addFeature('sweep', { profile: prof, path });
+  approx(vol(doc, f.id), 40, 1e-3, 'straight');
+  path = lsk(doc, [0, 0, 0], [{ id: 'l1', type: 'line', p1: [0, 0], p2: [10, 0] }, { id: 'l2', type: 'line', p1: [10, 0], p2: [20, 0] }]);
+  [f] = doc.addFeature('sweep', { profile: prof, path });
+  approx(vol(doc, f.id), 80, 1e-3, 'collinear');
+  path = lsk(doc, [0, 0, 0], [{ id: 'l1', type: 'line', p1: [0, 0], p2: [10, 0] }, { id: 'l2', type: 'line', p1: [10, 0], p2: [10, 10] }]);
+  [f] = doc.addFeature('sweep', { profile: prof, path });
+  approx(vol(doc, f.id), 80, 1e-3, 'mitred L');
+});
+
+test('sweep: three collinear legs 120 mm³, and a profile drawn off-origin stays on the path start', () => {
+  const doc = new Document();
+  const prof = lsk(doc, [0, 0, 0], [lrect('p', -1, -1, 2, 2)]);
+  let path = lsk(doc, [0, 0, 0], [{ id: 'a', type: 'line', p1: [0, 0], p2: [10, 0] }, { id: 'b', type: 'line', p1: [10, 0], p2: [20, 0] }, { id: 'c', type: 'line', p1: [20, 0], p2: [30, 0] }]);
+  let [f] = doc.addFeature('sweep', { profile: prof, path });
+  approx(vol(doc, f.id), 120, 1e-3, 'collinear');
+  const off = lsk(doc, [0, 0, 0], [lrect('q', 19, -1, 2, 2)]);
+  path = lsk(doc, [0, 0, 0], [{ id: 'd', type: 'line', p1: [20, 0], p2: [20, 10] }]);
+  [f] = doc.addFeature('sweep', { profile: off, path });
+  const [lo, hi] = doc.state.body(f.id).bbox();
+  approx((lo[0] + hi[0]) / 2, 20, 1e-3, 'centre x');
+  approx(vol(doc, f.id), 40, 1e-3, 'offset volume');
+});
+
+test('STEP export: a unit cube is 12 flat faces in a closed solid, and parses back', async () => {
+  const ST = await load('engine/step.js');
+  const m = W.Manifold.cube([10, 10, 10]).getMesh();
+  const bytes = ST.stepBytes([{ v: m.vertProperties, f: m.triVerts, name: 'cube' }], { title: 'cube', date: '2026-11-09T00:00:00' });
+  const text = new TextDecoder().decode(bytes);
+  // header
+  assert.ok(text.startsWith('ISO-10303-21;\nHEADER;\n'), 'starts with the ISO header');
+  assert.ok(text.includes("FILE_SCHEMA(('AUTOMOTIVE_DESIGN"), 'names the AP214 schema');
+  assert.ok(/\nENDSEC;\nDATA;\n/.test(text) && text.trimEnd().endsWith('END-ISO-10303-21;'), 'DATA section and end line');
+  // one ADVANCED_FACE per triangle, one closed shell, one solid
+  const count = re => (text.match(re) || []).length;
+  assert.equal(count(/=ADVANCED_FACE\(/g), 12, 'faces');
+  assert.equal(count(/=CLOSED_SHELL\(/g), 1, 'closed shells');
+  assert.equal(count(/=MANIFOLD_SOLID_BREP\(/g), 1, 'solids');
+  assert.equal(count(/=PLANE\(/g), 12, 'planes');
+  // parse back: the 8 cube corners (in mm) plus the origin
+  const pts = [...text.matchAll(/=CARTESIAN_POINT\('',\(([^)]*)\)\);/g)].map(x => x[1].split(',').map(Number));
+  assert.equal(pts.length, 9, 'CARTESIAN_POINT count (8 corners + origin)');
+  assert.ok(pts.every(p => p.length === 3 && p.every(Number.isFinite)), 'every point has three finite numbers');
+  const corners = pts.filter(p => p.every(c => c === 0 || Math.abs(c) === 10 || Math.abs(c - 10) < 1e-6 || Math.abs(c + 10) < 1e-6)).length;
+  assert.equal(corners, 9, 'every point sits on the cube corners (origin included)');
+  // every edge is shared by exactly two faces (the ORIENTED_EDGE count is 3 per face)
+  assert.equal(count(/=ORIENTED_EDGE\(/g), 36, 'oriented edges');
+  assert.equal(count(/=EDGE_CURVE\(/g), 18, 'edges: 12 cube edges plus 6 diagonals');
+});
+
+test('STEP export: an open or inside-out mesh is refused with a plain message', async () => {
+  const ST = await load('engine/step.js');
+  const m = W.Manifold.cube([10, 10, 10]).getMesh();
+  const open = { v: m.vertProperties, f: m.triVerts.slice(0, -3), name: 'open' };
+  assert.throws(() => ST.stepBytes([open]), /isn't a closed solid/);
+});
+
+test('STEP export: the route writes the body as .step and the export menu route agrees', async () => {
+  const R = await load('engine/routes.js');
+  const doc = new Document();
+  const [f] = doc.importFile('block.stl', stlOf(W.Manifold.cube([40, 30, 20])), true, 'keep');
+  R.app.doc = doc;
+  const r = R.ROUTES.to_step({ body: f.id });
+  assert.equal(r.result.ok, true);
+  assert.ok(r.result.name.endsWith('.step'), 'file name ends in .step');
+  const text = new TextDecoder().decode(r.result.bytes);
+  assert.equal((text.match(/=ADVANCED_FACE\(/g) || []).length, 12, 'a box is 12 faces');
+  const e = R.ROUTES.export_bytes({ format: 'step' });
+  assert.equal(e.result.count, 1);
+  assert.equal(new TextDecoder().decode(e.result.bytes), text, 'export_bytes(step) matches to_step');
+});
+
+test('thin-wall check: a 0.5 mm slab and pin are flagged, a 2 mm wall and a cube are not', () => {
+  const check = (man, mn) => {
+    const doc = new Document();
+    const [f] = doc.importFile('t.stl', stlOf(man), true, 'keep');
+    const [, res] = doc.addFeature('thincheck', mn === undefined ? { body: f.id } : { body: f.id, min: mn });
+    approx(vol(doc, f.id), man.volume(), 1e-6, 'changes nothing');
+    return res;
+  };
+  const C = W.Manifold.cube;
+  const ok = check(C([10, 10, 10]));
+  assert.equal(ok.thin.count, 0); assert.equal(ok.thin.min, null); assert.ok(!ok.warning);
+  assert.equal(check(C([20, 20, 2])).thin.count, 0);
+  const r = check(C([20, 20, 0.5]));
+  assert.equal(r.thin.count, 1); assert.ok(r.warning);
+  assert.ok(Math.abs(r.thin.min - 0.5) <= 0.02, `min ${r.thin.min}`);
+  assert.ok(Math.abs(r.thin.spots[0][2] - 0.25) <= 0.05);
+  assert.ok(Math.abs(check(C([20, 20, 2]), 2.5).thin.min - 2) <= 0.02, 'a 2 mm wall is thin under a 2.5 mm minimum');
+  const pin = C([10, 10, 10]).add(W.Manifold.cylinder(5, 0.25, 0.25, 32).translate([5, 5, 10]));
+  const p = check(pin).thin;
+  assert.equal(p.count, 1); assert.ok(Math.abs(p.min - 0.5) <= 0.02);
+  const [x, y, z] = p.spots[0];
+  assert.ok(Math.abs(x - 5) <= 0.3 && Math.abs(y - 5) <= 0.3 && z > 10 && z < 15);
+  assert.throws(() => check(C([10, 10, 10]), 0), /more than zero/);
+});
+
+test('fit test plate: volume is plate minus holes plus pegs (hand-checked)', () => {
+  const D = 8, start = 0.05, step = 0.05, count = 3, T = 3, gap = 4;
+  const clearances = Array.from({ length: count }, (_, i) => start + i * step);
+  const maxHole = D + clearances[clearances.length - 1];
+  const L = count * maxHole + (count + 1) * gap, W = maxHole + D + 3 * gap;
+  let expected = L * W * T;
+  for (const c of clearances) expected -= Math.PI * ((D + c) / 2) ** 2 * T;
+  expected += count * Math.PI * (D / 2) ** 2 * T;
+  const doc = new Document();
+  const [f, res] = doc.addFeature('fittest', { diameter: D, start, step, count, thickness: T, gap });
+  approx(vol(doc, f.id), expected, 0.01, 'fit test volume');
+  assert.ok(res.info.includes('0.05') && res.info.includes('0.15'));
+  assert.throws(() => doc.addFeature('fittest', { diameter: 0, start, step, count, thickness: T, gap }), /more than zero/);
+});
+
+test('snap-fit and living hinge', () => {
+  const [doc, B] = block();
+  const top = { origin: [0, 0, 20], normal: [0, 0, 1], xdir: [1, 0, 0] };
+  const clip = { plane: top, x: 5, y: 5, length: 12, width: 6, thickness: 1.5, hook_height: 1.5 };
+  // new body: arm 1.5 x 6 x 12.5 plus hook 1.5 x 6 x 1.5
+  doc.addFeature('snapfit', { ...clip, operation: 'new' });
+  approx(vol(doc, [...doc.state.bodies.keys()].at(-1)), 126, 1e-6, 'snap-fit alone');
+  const v0 = vol(doc, B);
+  doc.addFeature('snapfit', { ...clip, targets: [B] });
+  approx(vol(doc, B) - v0, 126 - 4.5, 1e-6, 'snap-fit joined');
+  assert.throws(() => doc.addFeature('snapfit', { ...clip, hook_height: 12 }), /shorter than the arm/);
+  const v1 = vol(doc, B);
+  doc.addFeature('hinge', { x: 10, slot: 1, thickness: 0.5 });
+  approx(v1 - vol(doc, B), 1 * 30 * 19.5, 1e-6, 'living hinge');
 });

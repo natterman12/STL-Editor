@@ -9,6 +9,7 @@ import { U, parseExpr } from './units.js';
 import { CTYPES, CTOOLS, solve } from './constraints.js';
 import { baseRefs as SKETCH_BASE_REFS } from './sketcher.js';
 import { WallDrawer } from './drawwalls.js';
+import { parseDXF, parseSVG } from './import2d.js';
 import { Gizmo, rotOf } from './gizmo.js';
 import { isExpr, resolveDeep, resolveParams, ExprError, exprText, exprOf } from './expr.js';
 
@@ -32,10 +33,10 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '
 const num = v => (Math.round(v * 1000) / 1000).toString();
 
 const TAB_ICON = { solid: 'box', print: 'bedsplit', supports: 'fins', mesh: 'remesh', sketch: 'sketch' };
-const FEATURE_ICON = { shell: 'hollow', import: 'import', primitive: 'primitive', plane: 'plane', sketch: 'sketch', extrude: 'extrude', revolve: 'revolve', hole: 'hole',
+const FEATURE_ICON = { shell: 'hollow', lattice: 'hollow',import: 'import', primitive: 'primitive', plane: 'plane', sketch: 'sketch', extrude: 'extrude', revolve: 'revolve', hole: 'hole',
   combine: 'combine', split: 'split', mirror: 'mirror', move: 'move', scale: 'scale', hollow: 'hollow', repair: 'repair', simplify: 'simplify',
   pattern: 'pattern', delete: 'delete', separate: 'separate', bedsplit: 'bedsplit', pushpull: 'pushpull', sculpt: 'sculpt', remesh: 'remesh',
-  layflat: 'layflat', thread: 'thread', offset: 'offset', resizehole: 'resizehole', supportfins: 'fins', supportwall: 'finwall' };
+  layflat: 'layflat', plate: 'bedsplit', thread: 'thread', offset: 'offset', resizehole: 'resizehole', supportfins: 'fins', supportwall: 'finwall', loft: 'extrude', sweep: 'revolve', thincheck: 'measure', fittest: 'hole', snapfit: 'extrude', hinge: 'split' };
 
 class App {
   constructor() {
@@ -107,9 +108,9 @@ class App {
         ['Draw', [['line', 'Line', 'line'], ['arc3', 'Arc', 'arc'],
           { drop: 'sk_rect', label: 'Rectangle', items: [['rect', 'Rectangle', 'rect'], ['rect_center', 'Center Rectangle', 'rect_center']] },
           ['circle', 'Circle', 'circle'], { stack: [['polygon', 'Polygon', 'polygon'], ['slot', 'Slot', 'slot'], ['text', 'Text', 'text']] },
-          { stack: [['sk_project', 'Project', 'project'], ['sk_useedge', 'Use Edge', 'useedge']] }]],
+          { stack: [['sk_project', 'Project', 'project'], ['sk_useedge', 'Use Edge', 'useedge'], ['sk_import', 'Import SVG / DXF', 'import']] }]],
         ['Modify', [['select', 'Select', 'select'], ['trim', 'Trim', 'trim'],
-          { stack: [['sk_offset', 'Offset', 'offset'], ['sk_mirror', 'Mirror', 'sk_mirror'], ['sk_delete', 'Delete', 'delete']] },
+          { stack: [['sk_offset', 'Offset', 'offset'], ['sk_mirror', 'Mirror', 'sk_mirror'], ['sk_corner', 'Round corner', 'arc'], ['sk_delete', 'Delete', 'delete']] },
           { stack: [['construction', 'Construction', 'construction'], ['look', 'Look At', 'look']] }]],
         ['Dimension', [['c_dimension', 'Smart Dimension', 'c_dimension']]],
         ['Relations', [{ grid: Object.entries(CTOOLS).filter(([k]) => k !== 'c_dimension').map(([k, v]) => [k, v.label, k]), cols: 5 }]],
@@ -122,17 +123,19 @@ class App {
     const groups = {
       solid: [
         ['Create', [['sketch', 'Sketch', 'sketch'], ['extrude', 'Extrude', 'extrude'], ['revolve', 'Revolve', 'revolve'],
+          ['loft', 'Loft', 'extrude'], ['sweep', 'Sweep', 'revolve'], ['snapfit', 'Snap-fit', 'extrude'],
           { drop: 'primitive', label: 'Primitive', items: [['primitive_box', 'Box', 'box'], ['primitive_cylinder', 'Cylinder', 'cylinder'],
             ['primitive_sphere', 'Sphere', 'sphere'], ['primitive_cone', 'Cone', 'cone'], ['primitive_torus', 'Torus', 'torus']] }]],
         ['Modify', [['pushpull', 'Push/Pull', 'pushpull'], ['combine', 'Combine', 'combine'], ['split', 'Split', 'split'],
           ['mirror', 'Mirror', 'mirror'], ['pattern', 'Pattern', 'pattern']]],
         ['Holes', [['hole', 'Hole', 'hole'], ['thread', 'Thread', 'thread'], { stack: [['resizehole', 'Resize Hole', 'resizehole']] }]],
-        ['Shape', [{ stack: [['hollow', 'Hollow', 'hollow'], ['shell', 'Shell', 'hollow'], ['offset', 'Offset Body', 'offset']] }]],
+        ['Shape', [{ stack: [['hollow', 'Hollow', 'hollow'], ['shell', 'Shell', 'hollow'], ['lattice', 'Lattice', 'hollow'],['offset', 'Offset Body', 'offset']] }, ['hinge', 'Living hinge', 'split']]],
         ['Reference', [{ drop: 'plane', label: 'Plane', items: planes }, ['params', 'Parameters', 'params']]],
       ],
       print: [
         ['Position', [['layflat', 'Lay Flat', 'layflat'], { stack: [['move', 'Move', 'move'], ['rotate', 'Rotate', 'rotate'], ['scale', 'Scale', 'scale']] }]],
-        ['Fit', [['bedsplit', 'Fit to Bed', 'bedsplit']]],
+        ['Fit', [['bedsplit', 'Fit to Bed', 'bedsplit'], ['plate', 'Plate Layout', 'bedsplit'], ['fittest', 'Fit Test', 'hole']]],
+        ['Check', [['thincheck', 'Thin-wall Check', 'measure']]],
         ['Output', [['export', 'Export', 'export'], ['send', 'Send to Slicer', 'slicer']]],
       ],
       supports: [
@@ -317,8 +320,9 @@ class App {
   onRibbon(k) {
     if (this.sketcher.active) {
       const sk = this.sketcher;
-      if (['line', 'arc3', 'rect', 'rect_center', 'circle', 'polygon', 'slot', 'select', 'trim', 'sk_mirror', 'text', 'sk_useedge'].includes(k) || k.startsWith('c_')) sk.setTool(k);
+      if (['line', 'arc3', 'rect', 'rect_center', 'circle', 'polygon', 'slot', 'select', 'trim', 'sk_mirror', 'sk_corner', 'text', 'sk_useedge'].includes(k) || k.startsWith('c_')) sk.setTool(k);
       else if (k === 'sk_project') this.sketchProject();
+      else if (k === 'sk_import') this.sketchImport();
       else if (k === 'sk_offset') this.sketchOffset();
       else if (k === 'construction') sk.toggleConstruction();
       else if (k === 'sk_delete') sk.deleteSelected();
@@ -997,6 +1001,35 @@ class App {
     this.renderForm();
   }
 
+  /** Import SVG / DXF: its shapes go into the open sketch, at the drawing's own coordinates. */
+  sketchImport() {
+    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.svg,.dxf';
+    inp.onchange = async () => {
+      const f = inp.files[0]; if (!f) return;
+      try {
+        const text = await f.text(), ents = /.dxf$/i.test(f.name) ? parseDXF(text) : parseSVG(text);
+        if (!ents.length) throw new Error('No lines or curves found in that file.');
+        this.sketcher.importEntities(ents);
+      } catch (e) { this.toast(e.message, 'err'); }
+    };
+    inp.click();
+  }
+
+  /** Fill gaps: one hand wall across each bare spot (its ends sit on the overhang). */
+  sfFill(spots) {
+    const add = spots.filter(s => s.ends).map(s => ({ shape: 'line', points: s.ends.map(p => p.map(x => +x.toFixed(4))) }));
+    if (!add.length) { this.toolMsg('No bare spot to fill.', 'info'); return; }
+    this.setValue('walls', [...(this.tool.values.walls || []), ...add]);
+  }
+
+  /** Drop fin: a click on a bare spot (Add fins, Drop fin shape) fills that spot. */
+  sfDropAt(hit) {
+    const c = this.tool._cover, r = this.sfReach();
+    const near = hit && c?.spots?.filter(s => s.ends).map(s => [Math.hypot(...hit.point.map((x, k) => x - s.at[k])), s]).sort((a, b) => a[0] - b[0])[0];
+    if (!near || near[0] > Math.max(2 * r, near[1].span)) { this.toolMsg('Click on a red (bare) spot to drop a fin there.', 'info'); return; }
+    this.sfFill([near[1]]);
+  }
+
   /** Remove mode: a click on a fin takes it away; a click on a removed (red) one brings it back. */
   removeFinAt(e) {
     const t = this.tool, id = this.viewer.pickPreview(e), info = id && this._sfPieces?.[id];
@@ -1240,7 +1273,8 @@ class App {
       cs = `${n} bare spot${n > 1 ? 's' : ''}`;
       const worst = w.far == null ? `Nothing holds the worst bare spot (bright red) up.` : `The worst bare spot (bright red) is ${w.far < 9.95 ? w.far.toFixed(1) : Math.round(w.far)} mm from a support.`;
       const fix = t.values['sf:mode'] === 'full' ? 'Try more Wide-face coverage, or Add fins there.' : 'Try Placement › Full coverage, more Wide-face coverage, or Add fins there.';
-      note = `<div class="sf-note sf-cover-note">${worst} ${fix}</div>`;
+      const fill = (t.values._mode || 'rotate') === 'add' && c.spots.some(s => s.ends) ? '<button data-sfact="fill">Fill gaps</button> Or click a red spot to drop a fin there.' : '';
+      note = `<div class="sf-note sf-cover-note">${worst} ${fix} ${fill}</div>`;
     }
     const held = card('_cover', 'Held', cv, cs, `An overhang within ${num(reach)} mm of a fin, or of the part itself, is held. Further than that it would sag or fail: it shows bright red. Change the distance under Print check › Bare beyond.`);
     return `<div class="sf-status" data-key="${f.key}"><div class="sf-cards">${held}${plastic}</div>${note}</div>`;
@@ -1889,6 +1923,7 @@ class App {
       { label: 'STL (.stl)', fn: () => this.exportBodies('stl') },
       { label: '3MF (.3mf)', fn: () => this.exportBodies('3mf') },
       { label: 'OBJ (.obj)', fn: () => this.exportBodies('obj') },
+      ...(WEB ? [{ label: 'STEP (.step), flat faces', fn: () => this.exportBodies('step'), title: 'Curves become flat faces. Opens in CAD programs as a solid.' }] : []),
     ]);
   }
 
@@ -2192,6 +2227,7 @@ class App {
 
   async onViewportClick(e) {
     if (this.tool?.def.sculpt) return;
+    if (this.tool?.def.type === 'supportfins' && this.tool.values._mode === 'add' && this.walls.shape === 'drop') { this.sfDropAt(this.viewer.pick(e, { planes: false })); return; }
     if (this.walls.active) { this.walls.click(this.viewer.pick(e, { planes: false }), e); return; }
     if (this.tool?.def.type === 'supportfins' && this.tool.values._mode === 'remove') { this.removeFinAt(e); return; }
     if (this.tool && this.tool.activeField === 'regions') {
@@ -2262,6 +2298,7 @@ class App {
     if (this.walls.active && this.walls.onFormClick(e)) return;
     if (e.target.closest('[data-sfact="restore"]')) { this.setValue('removed', []); return; }
     const sfa = e.target.closest('[data-sfact]');
+    if (sfa?.dataset.sfact === 'fill') { this.sfFill(this.tool._cover.spots); return; }
     if (sfa?.dataset.sfact === 'suggest') { this.sfSuggest(); return; }
     if (sfa?.dataset.sfact === 'use') { this.sfUsePose(t._suggest.list[+sfa.dataset.i].rot); return; }
     if (sfa?.dataset.sfact === 'strongest') { this.sfUsePose(t._strength.strongest.rot); return; }

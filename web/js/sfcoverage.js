@@ -179,7 +179,7 @@ export function coverage({ pos, idx, over, fins = [], gap = 0.2, reach = 5, maxS
     out.total += ar;
     // each corner's distance is drawn, so the edge of a bare spot comes out smooth
     const dp = distAt(p), dq2 = distAt(q), dr = distAt(r), dm = distAt(m);
-    if (dm <= reach) out.held += ar; else bareC.push([m, ar, dm]);
+    if (dm <= reach) out.held += ar; else bareC.push([m, ar, dm, [p, q, r]]);
     tris.push(...p, ...q, ...r);
     dist.push(dp, dq2, dr);
   };
@@ -213,19 +213,29 @@ export function coverage({ pos, idx, over, fins = [], gap = 0.2, reach = 5, maxS
     const [ci, cj, ck] = g.cellOf(m); g.add(ci, cj, ck, i);
   });
   const groups = new Map();
-  bareC.forEach(([m, ar], i) => {
+  bareC.forEach(([m, ar, , t], i) => {
     const r = find(i);
     let s = groups.get(r);
-    if (!s) groups.set(r, s = { area: 0, lo: [...m], hi: [...m], c: [0, 0, 0] });
+    if (!s) groups.set(r, s = { area: 0, lo: [...m], hi: [...m], c: [0, 0, 0], vs: [] });
     s.area += ar;
+    s.vs.push(...t);
     for (let k = 0; k < 3; k++) { s.lo[k] = Math.min(s.lo[k], m[k]); s.hi[k] = Math.max(s.hi[k], m[k]); s.c[k] += m[k] * ar; }
   });
-  // how far the worst point of each spot is from anything holding it up
-  const far = new Map();
-  bareC.forEach(([, , d], i) => { const r = find(i); far.set(r, Math.max(far.get(r) || 0, d)); });
+  // how far the worst point of each spot is from anything holding it up, and the face it's on
+  const far = new Map(), worst = new Map();
+  bareC.forEach(([, , d, t], i) => { const r = find(i); if (d > (far.get(r) || 0)) worst.set(r, t); far.set(r, Math.max(far.get(r) || 0, d)); });
+  // a wall for the spot: the two surface points at the ends of the spot, across the face's slope
+  const ends = (vs, [a, b, c]) => {
+    const n = crs(sub(b, a), sub(c, a)), nl = len(n) || 1;
+    const tv = Math.abs(n[2] / nl) > 0.98 ? [1, 0, 0] : crs(n, [0, 0, 1]);
+    const tl = len(tv) || 1, t = tv.map(x => x / tl);
+    let lo = null, hi = null, pl = Infinity, ph = -Infinity;
+    for (const v of vs) { const d = dot(v, t); if (d < pl) { pl = d; lo = v; } if (d > ph) { ph = d; hi = v; } }
+    return ph > pl ? [lo, hi] : null;
+  };
   const minArea = Math.max(4, reach * reach / 2);   // slivers at corners don't count as spots
   out.spots = [...groups.entries()].filter(([, s]) => s.area >= minArea)
-    .map(([r, s]) => ({ area: s.area, span: len(sub(s.hi, s.lo)) + h, far: contacts.m.size && far.get(r) < FAR ? far.get(r) : null, at: s.c.map(x => x / s.area) }))
+    .map(([r, s]) => ({ area: s.area, span: len(sub(s.hi, s.lo)) + h, far: contacts.m.size && far.get(r) < FAR ? far.get(r) : null, at: s.c.map(x => x / s.area), ends: ends(s.vs, worst.get(r)) }))
     .sort((a, b) => (b.far ?? Infinity) - (a.far ?? Infinity) || b.area - a.area);
   return out;
 }

@@ -46,7 +46,7 @@ export const HOLE_PRESETS = [
 // Unified (UNC coarse, UNF fine): the same 60° profile, pitch = 25.4 / threads per inch
 const unc = (name, d, tpi, kind) => [name, r2(d * IN * 1000) / 1000, Math.round(IN / tpi * 10000) / 10000, `${name} ${kind}`, kind === 'UNC' ? 'Inch, coarse (UNC)' : 'Inch, fine (UNF)'];
 export const THREAD_SIZES = [
-  ...[['M1.6', 1.6, 0.35], ['M2', 2, 0.4], ['M2.5', 2.5, 0.45], ['M3', 3, 0.5], ['M4', 4, 0.7], ['M5', 5, 0.8], ['M6', 6, 1.0], ['M8', 8, 1.25],
+  ...[['M1.6', 1.6, 0.35], ['M2', 2, 0.4], ['M2.5', 2.5, 0.45], ['M3', 3, 0.5], ['M4', 4, 0.7], ['M5', 5, 0.8], ['M6', 6, 1.0], ['M7', 7, 1.0], ['M8', 8, 1.25],
     ['M10', 10, 1.5], ['M12', 12, 1.75], ['M14', 14, 2.0], ['M16', 16, 2.0], ['M20', 20, 2.5], ['M24', 24, 3.0], ['M30', 30, 3.5]]
     .map(([n, d, pt]) => [n, d, pt, `${n} × ${pt}`, 'Metric (ISO coarse)']),
   unc('#0-80', 0.060, 80, 'UNF'), unc('#1-64', 0.073, 64, 'UNC'), unc('#2-56', 0.086, 56, 'UNC'), unc('#4-40', 0.112, 40, 'UNC'), unc('#6-32', 0.138, 32, 'UNC'),
@@ -118,6 +118,32 @@ export const TOOLS = {
     defaults: ctx => ({ sketch: ctx.lastSketch, regions: [], axis: 'y', angle: 360, operation: 'new', targets: [] }),
     hint: 'Revolves the sketch profile about the sketch X or Y axis, or a construction line in the sketch',
   },
+  loft: {
+    label: 'Loft', icon: 'extrude', type: 'loft',
+    fields: [
+      { key: 'profile_1', label: 'Profile 1', kind: 'sketch' },
+      { key: 'profile_2', label: 'Profile 2', kind: 'sketch' },
+      { key: 'profile_3', label: 'Profile 3 (optional)', kind: 'sketch' },
+      { key: 'profile_4', label: 'Profile 4 (optional)', kind: 'sketch' },
+      { key: 'operation', label: 'Operation', kind: 'select', options: OPS },
+      { key: 'targets', label: 'Bodies', kind: 'bodies', multi: true, placeholder: 'Auto', show: v => v.operation !== 'new' },
+    ],
+    defaults: ctx => ({ profile_1: ctx.lastSketch, profile_2: '', profile_3: '', profile_4: '', operation: 'new', targets: [] }),
+    toParams: v => ({ profiles: [v.profile_1, v.profile_2, v.profile_3, v.profile_4].filter(Boolean), operation: v.operation, targets: v.targets }),
+    fromParams: p => ({ profile_1: p.profiles?.[0] || '', profile_2: p.profiles?.[1] || '', profile_3: p.profiles?.[2] || '', profile_4: p.profiles?.[3] || '', operation: p.operation || 'new', targets: p.targets || [] }),
+    hint: 'Pick two or more closed sketches on parallel planes, in order from the first end to the last. Each one is a single outline with no holes.',
+  },
+  sweep: {
+    label: 'Sweep', icon: 'revolve', type: 'sweep',
+    fields: [
+      { key: 'profile', label: 'Profile sketch', kind: 'sketch' },
+      { key: 'path', label: 'Path sketch', kind: 'sketch' },
+      { key: 'operation', label: 'Operation', kind: 'select', options: OPS },
+      { key: 'targets', label: 'Bodies', kind: 'bodies', multi: true, placeholder: 'Auto', show: v => v.operation !== 'new' },
+    ],
+    defaults: ctx => ({ profile: ctx.lastSketch, path: '', operation: 'new', targets: [] }),
+    hint: 'The profile starts at the first point of the path and turns to face along it. Draw the profile centred on its sketch origin. The path must be one open chain of lines and arcs.',
+  },
   primitive_box: primitive('box', 'Box', 'box', [
     { key: 'length', label: 'Length (X)', kind: 'number', unit: 'mm' }, { key: 'width', label: 'Width (Y)', kind: 'number', unit: 'mm' },
     { key: 'height', label: 'Height (Z)', kind: 'number', unit: 'mm' }], { length: 20, width: 20, height: 20 }),
@@ -129,6 +155,34 @@ export const TOOLS = {
     { key: 'height', label: 'Height', kind: 'number', unit: 'mm' }], { radius: 10, radius2: 0, height: 20 }),
   primitive_torus: primitive('torus', 'Torus', 'torus', [
     { key: 'radius', label: 'Ring radius', kind: 'number', unit: 'mm' }, { key: 'radius2', label: 'Tube radius', kind: 'number', unit: 'mm' }], { radius: 15, radius2: 4 }),
+  snapfit: {
+    label: 'Snap-fit', icon: 'extrude', type: 'snapfit',
+    fields: [
+      { key: 'plane', label: 'On', kind: 'plane' },
+      { key: 'x', label: 'Position X', kind: 'number', unit: 'mm' },
+      { key: 'y', label: 'Position Y', kind: 'number', unit: 'mm' },
+      { key: 'length', label: 'Arm length', kind: 'number', unit: 'mm' },
+      { key: 'width', label: 'Arm width', kind: 'number', unit: 'mm' },
+      { key: 'thickness', label: 'Arm thickness', kind: 'number', unit: 'mm' },
+      { key: 'hook_height', label: 'Hook height', kind: 'number', unit: 'mm' },
+      { key: 'operation', label: 'Operation', kind: 'select', options: OPS },
+      { key: 'targets', label: 'Bodies', kind: 'bodies', multi: true, placeholder: 'Auto', show: v => v.operation !== 'new' },
+    ],
+    defaults: () => ({ plane: 'XY', x: 10, y: 10, length: 12, width: 6, thickness: 1.5, hook_height: 1.5, operation: 'join', targets: [] }),
+    hint: 'A thin arm standing on a face, with a hook at its tip. Position is the corner of the arm’s foot on that face. Choose the face with On, then set the size. The hook sticks out one arm thickness',
+  },
+  hinge: {
+    label: 'Living hinge', icon: 'split', type: 'hinge',
+    fields: [
+      { key: 'plane', label: 'On', kind: 'plane' },
+      { key: 'x', label: 'Position', kind: 'number', unit: 'mm' },
+      { key: 'slot', label: 'Slot width', kind: 'number', unit: 'mm' },
+      { key: 'thickness', label: 'Hinge thickness', kind: 'number', unit: 'mm' },
+      { key: 'targets', label: 'Bodies', kind: 'bodies', multi: true, placeholder: 'Auto' },
+    ],
+    defaults: () => ({ plane: 'XY', x: 10, slot: 1, thickness: 0.5, targets: [] }),
+    hint: 'Cuts a thin slot across the whole block, leaving a thin strip of material under it (the hinge) so the two sides can flex. Position is measured along the plane’s X; 0.5 mm is a common hinge thickness for PLA',
+  },
 
   // ----------------------------------------------------------------- modify
   hole: {
@@ -203,6 +257,20 @@ export const TOOLS = {
     onChange: connectorChange,
     hint: 'Cuts the part into pieces that fit your printer, with pins so they line up. Smart cut positions puts seams where the part is thinnest',
   },
+  plate: {
+    label: 'Plate Layout', icon: 'bedsplit', type: 'plate',
+    fields: [
+      { key: 'bodies', label: 'Bodies', kind: 'bodies', multi: true },
+      { key: 'printer', label: 'Printer', kind: 'select', options: PRINTER_OPTS },
+      { key: 'bed', label: 'Bed X Y Z', kind: 'vec3', unit: 'mm', show: v => v.printer === 'custom' },
+      { key: 'gap', label: 'Gap', kind: 'number', unit: 'mm' },
+      { key: 'rotate', label: 'Allow turning 90°', kind: 'bool' },
+    ],
+    defaults: ctx => ({ bodies: selBody(ctx), printer: 'bambu_x1', bed: [256, 256, 256], gap: 5, rotate: false }),
+    toParams: v => { const p = { ...v }; if (v.printer !== 'custom') delete p.bed; return p; },
+    fromParams: p => ({ bed: [256, 256, 256], ...p, bodies: p.bodies || [] }),
+    hint: 'Sets the chosen bodies side by side on the print bed, a gap apart, each one sitting on the bed. Turn them with Move afterwards if you want to nudge them',
+  },
   layflat: {
     label: 'Lay Flat', icon: 'layflat', type: 'layflat',
     fields: [
@@ -259,6 +327,30 @@ export const TOOLS = {
     defaults: ctx => ({ bodies: selBody(ctx), direction: 'grow', distance: 0.2 }),
     noLivePreview: true,
     hint: 'Makes the whole body bigger or smaller by the same distance everywhere: for fit adjustments, moulds and clearance. Detailed meshes take a few seconds',
+  },
+  thincheck: {
+    label: 'Thin-wall Check', icon: 'measure', type: 'thincheck',
+    fields: [
+      { key: 'bodies', label: 'Body', kind: 'bodies', multi: false },
+      { key: 'min', label: 'Minimum thickness', kind: 'number', unit: 'mm' },
+    ],
+    defaults: ctx => ({ bodies: selBody(ctx).slice(0, 1), min: 0.8 }),
+    toParams: v => ({ body: v.bodies[0], min: v.min }),
+    fromParams: p => ({ min: 0.8, ...p, bodies: p.body ? [p.body] : [] }),
+    hint: 'Finds walls, pins and ribs thinner than the minimum, which may not print. The result shows below and nothing is changed. 0.8 mm suits a 0.4 mm nozzle. Click Apply to keep the check in the timeline',
+  },
+  fittest: {
+    label: 'Fit Test', icon: 'hole', type: 'fittest',
+    fields: [
+      { key: 'diameter', label: 'Peg diameter', kind: 'number', unit: 'mm' },
+      { key: 'start', label: 'Clearance start', kind: 'number', unit: 'mm' },
+      { key: 'step', label: 'Clearance step', kind: 'number', unit: 'mm' },
+      { key: 'count', label: 'Count', kind: 'number' },
+      { key: 'thickness', label: 'Plate thickness', kind: 'number', unit: 'mm' },
+      { key: 'gap', label: 'Gap between pairs', kind: 'number', unit: 'mm' },
+    ],
+    defaults: () => ({ diameter: 8, start: 0.05, step: 0.05, count: 6, thickness: 3, gap: 4 }),
+    hint: 'Makes one plate with pegs and matching holes at stepped clearances (e.g. 0.05 to 0.30 mm). Print it, try each peg in its hole, and use the loosest snug fit as your printer’s clearance',
   },
   resizehole: {
     label: 'Resize Hole', icon: 'resizehole', type: 'resizehole',
@@ -388,6 +480,22 @@ export const TOOLS = {
     fromParams: p => ({ ...p, body: p.body ? [p.body] : [] }),
     noLivePreview: true,
     hint: 'Shells the body inward. Add a hole afterwards to drain resin or save filament',
+  },
+
+  lattice: {
+    label: 'Lattice', icon: 'hollow', type: 'lattice',
+    fields: [
+      { key: 'body', label: 'Body', kind: 'bodies', multi: false },
+      { key: 'cell', label: 'Cell size', kind: 'number', unit: 'mm' },
+      { key: 'strut', label: 'Strut width', kind: 'number', unit: 'mm' },
+      { key: 'thickness', label: 'Wall', kind: 'number', unit: 'mm' },
+      { key: 'resolution', label: 'Quality', kind: 'select', options: [['draft', 'Draft'], ['normal', 'Normal'], ['fine', 'Fine']] },
+    ],
+    defaults: ctx => ({ body: selBody(ctx).slice(0, 1), cell: 6, strut: 1, thickness: 2, resolution: 'normal' }),
+    toParams: v => ({ ...v, body: v.body[0] }),
+    fromParams: p => ({ ...p, body: p.body ? [p.body] : [] }),
+    noLivePreview: true,
+    hint: 'Keeps a solid wall and fills the inside with a grid of thin struts, to save plastic',
   },
 
   shell: {

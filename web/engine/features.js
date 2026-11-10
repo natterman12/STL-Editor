@@ -1,5 +1,5 @@
 // Feature evaluators (port of stleditor/features.py). Each feature reads and updates a State.
-import { Manifold, CrossSection, crossSection } from './wasm.js';
+import { Manifold, CrossSection, crossSection, W } from './wasm.js';
 import * as G from './geom.js';
 import { Body, GeometryError, num, unit, add, sub, mul, dot, cross, norm, mat4, frameMatrix, eye3, det3, matVec3, transformVerts } from './geom.js';
 import * as S from './sketch2d.js';
@@ -292,6 +292,239 @@ function f_revolve(state, fid, p, res) {
   const origin = add(add(o, mul(x, p0[0])), mul(y, p0[1]));
   man = man.transform(frameMatrix(origin, F, Gd, E));
   applyTool(state, fid, man, p.operation || 'new', p.targets, p.body_name || 'Revolve', res);
+}
+
+// ------------------------------------------------------------------ loft and sweep (version 1)
+// Same algorithm as stleditor/features.py: one closed outline per profile, no holes, open paths only.
+function dedupePts(pts, closed = false, tol = 1e-9) {
+  const out = [];
+  for (const p of pts) if (!out.length || Math.hypot(p[0] - out.at(-1)[0], p[1] - out.at(-1)[1]) > tol) out.push([p[0], p[1]]);
+  if (closed) while (out.length > 1 && Math.hypot(out[0][0] - out.at(-1)[0], out[0][1] - out.at(-1)[1]) <= tol) out.pop();
+  return out;
+}
+function ccwLoop(pts) {
+  let a = 0;
+  for (let i = 0; i < pts.length; i++) { const p = pts[i], q = pts[(i + 1) % pts.length]; a += p[0] * q[1] - q[0] * p[1]; }
+  return a < 0 ? pts.slice().reverse() : pts;
+}
+function profileLoop(sk, idx) {
+  let cs;
+  try { cs = S.profile(sk.entities); } catch { throw new GeometryError(`Profile ${idx} isn't a closed shape with an area. Close its outline first.`); }
+  const polys = cs.toPolygons();
+  if (polys.length !== 1) throw new GeometryError(`Profile ${idx} has a hole or more than one shape. Loft and sweep profiles must be one closed outline in this version.`);
+  return ccwLoop(dedupePts(polys[0], true));
+}
+function resampleLoop(pts, n) {
+  const closed = [...pts, pts[0]];
+  const seg = [], cum = [0];
+  for (let i = 0; i + 1 < closed.length; i++) {
+    const l = Math.hypot(closed[i + 1][0] - closed[i][0], closed[i + 1][1] - closed[i][1]);
+    seg.push(l); cum.push(cum.at(-1) + l);
+  }
+  const L = cum.at(-1), out = [];
+  for (let k = 0; k < n; k++) {
+    const s = k * L / n;
+    let i = 0;
+    while (i + 1 < seg.length && cum[i + 1] <= s) i++;
+    const f = (s - cum[i]) / seg[i];
+    out.push([closed[i][0] + f * (closed[i + 1][0] - closed[i][0]), closed[i][1] + f * (closed[i + 1][1] - closed[i][1])]);
+  }
+  return out;
+}
+function alignLoop(prev, cur) {
+  const n = cur.length;
+  let best = null, bs = 0;
+  for (let s = 0; s < n; s++) {
+    let d = 0;
+    for (let k = 0; k < n; k++) { const a = prev[k], b = cur[(k + s) % n]; d += (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2; }
+    if (best === null || d < best - 1e-12) { best = d; bs = s; }
+  }
+  return cur.slice(bs).concat(cur.slice(0, bs));
+}
+function meshSolid(verts, tris, what) {
+  const man = G.manifoldFromArrays(new Float32Array(verts), Uint32Array.from(tris));
+  if (!man || man.isEmpty() || man.volume() <= 1e-9) {
+    throw new GeometryError(`The ${what} couldn't be closed into a solid. Check that the profiles or path don't cross or fold back on themselves.`);
+  }
+  return man;
+}
+function f_loft(state, fid, p, res) {
+  const ids = (p.profiles || []).filter(Boolean);
+  if (ids.length < 2) throw new GeometryError('A loft needs at least two sketch profiles, at different heights.');
+  const sks = ids.map(sid => sketchOf(state, sid));
+  const lines = sks.map((sk, i) => profileLoop(sk, i + 1));
+  const N = Math.max(...lines.map(l => l.length));
+  const nRef = sks[0].frame[3];
+  const loops = [], heights = [];
+  sks.forEach((sk, i) => {
+    const [o, x, y, n] = sk.frame;
+    if (Math.abs(dot(n, nRef)) < 1 - 1e-6) throw new GeometryError('The loft profiles must lie on parallel planes (sketch them on the same plane or on parallel planes).');
+    let pts = resampleLoop(lines[i], N);
+    if (dot(n, nRef) < 0) pts = pts.slice().reverse();
+    let P3 = pts.map(q => add(o, add(mul(x, q[0]), mul(y, q[1]))));
+    if (loops.length) P3 = alignLoop(loops.at(-1), P3);
+    loops.push(P3); heights.push(dot(o, nRef));
+  });
+  const d = heights.slice(1).map((h, i) => h - heights[i]);
+  if (d.some(v => Math.abs(v) < 1e-6) || !(d.every(v => v > 0) || d.every(v => v < 0))) {
+    throw new GeometryError('The loft profiles must be at different heights, one after another in a single direction (in the order you picked them).');
+  }
+  const s = d[0] > 0 ? 1 : -1;
+  const J = loops.length;
+  const verts = [];
+  for (const L of loops) for (const q of L) verts.push(q[0], q[1], q[2]);
+  const tris = [];
+  for (let j = 0; j < J - 1; j++) {
+    const [lo, up] = s > 0 ? [j, j + 1] : [j + 1, j];
+    for (let k = 0; k < N; k++) {
+      const k2 = (k + 1) % N;
+      const a = lo * N + k, b = lo * N + k2, c = up * N + k2, e = up * N + k;
+      tris.push(a, b, c, a, c, e);
+    }
+  }
+  let e1 = cross(nRef, [0, 0, 1]);
+  if (norm(e1) < 1e-6) e1 = cross(nRef, [1, 0, 0]);
+  e1 = unit(e1);
+  const e2 = cross(nRef, e1);
+  for (const [j, keep] of [[0, s < 0], [J - 1, s > 0]]) {
+    const p2 = loops[j].map(q => [dot(q, e1), dot(q, e2)]);
+    const base = j * N;
+    for (const [a, b, c] of W.triangulate([p2])) {
+      if (keep) tris.push(base + a, base + b, base + c); else tris.push(base + a, base + c, base + b);
+    }
+  }
+  const man = meshSolid(verts, tris, 'loft');
+  applyTool(state, fid, man, p.operation || 'new', p.targets, p.body_name || 'Loft', res);
+}
+function pathPoints(sk) {
+  const items = [];
+  for (const e of sk.entities) {
+    if (e.construction || !['line', 'arc', 'polyline'].includes(e.type)) continue;
+    const { pts, closed } = S.entityPath(e);
+    if (!closed && pts.length >= 2) items.push(pts.map(q => [q[0], q[1]]));
+  }
+  if (!items.length) throw new GeometryError('The sweep path needs one open path of lines and arcs in its sketch.');
+  let chain = items.shift();
+  const near = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]) <= 1e-6;
+  while (items.length) {
+    let found = false;
+    for (let idx = 0; idx < items.length; idx++) {
+      const it = items[idx];
+      let next = null;
+      if (near(it[0], chain.at(-1))) next = chain.concat(it.slice(1));
+      else if (near(it.at(-1), chain.at(-1))) next = chain.concat(it.slice().reverse().slice(1));
+      else if (near(it.at(-1), chain[0])) next = it.concat(chain.slice(1));
+      else if (near(it[0], chain[0])) next = it.slice().reverse().concat(chain.slice(1));
+      if (next) { chain = next; items.splice(idx, 1); found = true; break; }
+    }
+    if (!found) throw new GeometryError('The sweep path must be one connected chain of lines and arcs.');
+  }
+  chain = dedupePts(chain);
+  if (chain.length < 2) throw new GeometryError('The sweep path is too short.');
+  if (near(chain[0], chain.at(-1))) throw new GeometryError("The sweep path must be open in this version (its two ends can't meet).");
+  return chain;
+}
+function pathCrosses(P) {
+  const n = P.length - 1;
+  const xs = P.map(q => q[0]), ys = P.map(q => q[1]);
+  const eps = 1e-9 * Math.max(1, Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)));
+  const sg = x => (Math.abs(x) <= eps ? 0 : Math.sign(x));
+  const cr = (u, v) => u[0] * v[1] - u[1] * v[0];
+  const sb = (a, b) => [a[0] - b[0], a[1] - b[1]];
+  for (let i = 0; i < n; i++) {
+    const A = P[i], B = P[i + 1], ab = sb(B, A);
+    for (let j = i + 2; j < n; j++) {
+      const C = P[j], D = P[j + 1], cd = sb(D, C);
+      const d1 = sg(cr(ab, sb(C, A))), d2 = sg(cr(ab, sb(D, A)));
+      const d3 = sg(cr(cd, sb(A, C))), d4 = sg(cr(cd, sb(B, C)));
+      // collinear segments cross only if their extents overlap
+      const overlap = [0, 1].every(k => Math.max(Math.min(A[k], B[k]), Math.min(C[k], D[k])) <= Math.min(Math.max(A[k], B[k]), Math.max(C[k], D[k])) + eps);
+      const hit = d1 === 0 && d2 === 0 ? overlap : d1 * d2 <= 0 && d3 * d4 <= 0;
+      if (hit) return true;
+    }
+  }
+  return false;
+}
+function rotBetween(a, b) {
+  const c = dot(a, b);
+  if (c < -1 + 1e-12) {
+    let w = cross(a, [1, 0, 0]);
+    if (norm(w) < 1e-6) w = cross(a, [0, 1, 0]);
+    w = unit(w);
+    return [0, 1, 2].map(i => [0, 1, 2].map(j => 2 * w[i] * w[j] - (i === j ? 1 : 0)));
+  }
+  const v = cross(a, b);
+  const K = [[0, -v[2], v[1]], [v[2], 0, -v[0]], [-v[1], v[0], 0]];
+  const KK = [0, 1, 2].map(i => [0, 1, 2].map(j => K[i][0] * K[0][j] + K[i][1] * K[1][j] + K[i][2] * K[2][j]));
+  return [0, 1, 2].map(i => [0, 1, 2].map(j => (i === j ? 1 : 0) + K[i][j] + KK[i][j] / (1 + c)));
+}
+function f_sweep(state, fid, p, res) {
+  const psk = sketchOf(state, p.profile);
+  const lpRaw = profileLoop(psk, 1);
+  const K = lpRaw.length;
+  const pk = sketchOf(state, p.path);
+  const P2 = pathPoints(pk);
+  if (pathCrosses(P2)) throw new GeometryError("The sweep path crosses itself. Move the path so it doesn't cross.");
+  const [po, px, py] = pk.frame;
+  const P3 = P2.map(q => add(po, add(mul(px, q[0]), mul(py, q[1]))));
+  const m = P3.length;
+  const dirs = [];
+  for (let i = 0; i < m - 1; i++) dirs.push(unit(sub(P3[i + 1], P3[i])));
+  const T = new Array(m);
+  T[0] = dirs[0]; T[m - 1] = dirs.at(-1);
+  for (let i = 1; i < m - 1; i++) { const sm = add(dirs[i - 1], dirs[i]); T[i] = norm(sm) > 1e-9 ? unit(sm) : dirs[i]; }
+  const [o_s, x_s, y_s, n_s] = psk.frame;
+  // the path's first point lands on the profile point under it, so a profile drawn around the
+  // path start stays where it was drawn relative to the path
+  const sx = dot(sub(P3[0], o_s), x_s), sy = dot(sub(P3[0], o_s), y_s);
+  const lp = lpRaw.map(q => [q[0] - sx, q[1] - sy]);
+  const A = rotBetween(n_s, T[0]);
+  const R = new Array(m);
+  R[0] = matVec3(A, x_s);
+  for (let i = 0; i < m - 1; i++) {
+    const v1 = sub(P3[i + 1], P3[i]);
+    const c1 = dot(v1, v1);
+    const rL = sub(R[i], mul(v1, 2 / c1 * dot(v1, R[i])));
+    const tL = sub(T[i], mul(v1, 2 / c1 * dot(v1, T[i])));
+    const v2 = sub(T[i + 1], tL);
+    const c2 = dot(v2, v2);
+    let rn = c2 > 1e-18 ? sub(rL, mul(v2, 2 / c2 * dot(v2, rL))) : rL;
+    rn = sub(rn, mul(T[i + 1], dot(rn, T[i + 1])));
+    R[i + 1] = unit(rn);
+  }
+  const verts = [];
+  for (let i = 0; i < m; i++) {
+    const Sv = cross(T[i], R[i]);
+    const inner = i > 0 && i < m - 1;
+    const c = inner ? dot(dirs[i - 1], dirs[i]) : 1;
+    if (inner && c < -0.99) throw new GeometryError('The sweep path turns back on itself too sharply. Open up the bend.');
+    let wv = inner ? sub(dirs[i], dirs[i - 1]) : [0, 0, 0];
+    const stretch = norm(wv) > 1e-9;
+    if (stretch) wv = unit(wv);
+    const f = stretch ? 1 / Math.sqrt((1 + c) / 2) - 1 : 0;
+    for (let k = 0; k < K; k++) {
+      let Q = add(mul(R[i], lp[k][0]), mul(Sv, lp[k][1]));
+      if (stretch) Q = add(Q, mul(wv, f * dot(Q, wv)));
+      const q = add(P3[i], Q);
+      verts.push(q[0], q[1], q[2]);
+    }
+  }
+  const tris = [];
+  for (let i = 0; i < m - 1; i++) {
+    for (let k = 0; k < K; k++) {
+      const k2 = (k + 1) % K;
+      const a = i * K + k, b = i * K + k2, c = (i + 1) * K + k2, e = (i + 1) * K + k;
+      tris.push(a, b, c, a, c, e);
+    }
+  }
+  for (const [i, keep] of [[0, false], [m - 1, true]]) {
+    const base = i * K;
+    for (const [a, b, c] of W.triangulate([lp])) {
+      if (keep) tris.push(base + a, base + b, base + c); else tris.push(base + a, base + c, base + b);
+    }
+  }
+  const man = meshSolid(verts, tris, 'sweep');
+  applyTool(state, fid, man, p.operation || 'new', p.targets, p.body_name || 'Sweep', res);
 }
 
 function f_hole(state, fid, p, res) {
@@ -630,6 +863,37 @@ function f_shell(state, fid, p, res) {
   res.modified.push(bid);
 }
 
+// Hollow the body (solid wall kept outside) and fill the hollow with a cubic grid of round
+// struts. Keep in step with f_lattice in stleditor/features.py.
+function f_lattice(state, fid, p, res) {
+  const bid = p.body;
+  if (!bid) throw new GeometryError('Choose a body to fill with a lattice.');
+  const b = state.body(bid), s = b.requireSolid();
+  const cell = num(p.cell, 6), d = num(p.strut, 1), t = num(p.thickness, 2);
+  if (!(cell > 0) || !(d > 0) || !(t > 0)) throw new GeometryError('Cell size, strut diameter and wall thickness must all be above zero.');
+  if (d >= cell) throw new GeometryError("The struts are as wide as the cells, so there'd be no gaps. Use a thinner strut or a bigger cell.");
+  const cavity = VX.hollow(s, t, hollowPitch(s, t, p.resolution), true);
+  const bb = cavity.boundingBox(), lo = bb.min, size = [0, 1, 2].map(a => bb.max[a] - bb.min[a]);
+  const n = size.map(x => Math.max(1, Math.round(x / cell)));
+  if (n[1] * n[2] + n[0] * n[2] + n[0] * n[1] > 2500) throw new GeometryError("That's too many struts. Use a bigger cell size.");
+  const pos = [0, 1, 2].map(a => Array.from({ length: n[a] }, (_, k) => lo[a] + (k + 0.5) * size[a] / n[a]));
+  const r = d / 2, struts = [];
+  for (let a = 0; a < 3; a++) {
+    const [o1, o2] = [0, 1, 2].filter(k => k !== a);
+    let cyl = Manifold.cylinder(size[a] + 2, r, r, 16);
+    if (a === 0) cyl = cyl.rotate([0, 90, 0]);
+    else if (a === 1) cyl = cyl.rotate([-90, 0, 0]);
+    for (const u of pos[o1]) for (const w of pos[o2]) {
+      const off = [0, 0, 0];
+      off[a] = lo[a] - 1; off[o1] = u; off[o2] = w;
+      struts.push(cyl.translate(off));
+    }
+  }
+  const grid = Manifold.union(struts);
+  state.bodies.set(bid, b.copy({ solid: s.subtract(cavity.subtract(grid)) }));
+  res.modified.push(bid);
+}
+
 function f_sculpt(state, fid, p, res) {
   const bid = p.body, b = state.body(bid);
   const strokes = p.strokes || [];
@@ -756,6 +1020,59 @@ function f_layflat(state, fid, p, res) {
   }
 }
 
+// Plate layout: the same packing as stleditor/features.py f_plate (keep the two in step)
+const mmTxt = x => String(Math.round(x * 10) / 10);
+
+function f_plate(state, fid, p, res) {
+  const bids = p.bodies || [];
+  if (!bids.length) throw new GeometryError('Choose the bodies to lay out on the bed.');
+  const gap = num(p.gap, 5);
+  if (gap < 0) throw new GeometryError("The gap can't be negative.");
+  const bed = p.bed || (PR.PRINTERS[p.printer || 'bambu_x1'] || PR.PRINTERS.bambu_x1)[1];
+  const [W, H, Hz] = bed.map(Number);
+  const rotate = !!p.rotate;
+  const items = [];
+  bids.forEach((bid, i) => {
+    const b = state.body(bid);
+    const { v } = b.mesh();
+    if (!v.length) throw new GeometryError(`"${b.name}" has no geometry.`);
+    const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+    for (let k = 0; k < v.length; k += 3) for (let a = 0; a < 3; a++) { lo[a] = Math.min(lo[a], v[k + a]); hi[a] = Math.max(hi[a], v[k + a]); }
+    const size = [0, 1, 2].map(a => hi[a] - lo[a]);
+    if (size[2] > Hz + 1e-9) throw new GeometryError(`"${b.name}" is ${mmTxt(size[2])} mm tall, taller than the bed (${mmTxt(Hz)} mm). Pick a taller printer, or cut it with Fit to Bed.`);
+    const options = [[false, size[0], size[1]]];
+    if (rotate) options.push([true, size[1], size[0]]);
+    const fits = options.filter(o => o[1] <= W + 1e-9 && o[2] <= H + 1e-9);
+    if (!fits.length) {
+      const turn = rotate ? '' : 'turn on Rotate, ';
+      throw new GeometryError(`"${b.name}" is ${mmTxt(size[0])} x ${mmTxt(size[1])} mm, too big for the bed (${mmTxt(W)} x ${mmTxt(H)} mm). Try: ${turn}pick a bigger printer, or cut it with Fit to Bed.`);
+    }
+    const [rot, dx, dy] = fits.reduce((best, o) => (o[2] < best[2] ? o : best));   // first shortest wins
+    items.push({ i, bid, name: b.name, lo, hi, rot, dx, dy });
+  });
+  const order = [...items].sort((a, c) => (c.dy - a.dy) || (c.dx - a.dx) || (a.i - c.i));
+  let x = 0, y = 0, shelf = 0;
+  order.forEach((it, n) => {
+    if (n && x + it.dx > W + 1e-9) { y += shelf + gap; x = 0; shelf = 0; }
+    if (y + it.dy > H + 1e-9) throw new GeometryError(`Not everything fits on the bed: "${it.name}" has no room left. Try a smaller gap, turn on Rotate, pick a bigger printer, or choose fewer bodies.`);
+    it.x = x; it.y = y;
+    x += it.dx + gap;
+    shelf = Math.max(shelf, it.dy);
+  });
+  const width = Math.max(...items.map(it => it.x + it.dx));
+  const height = Math.max(...items.map(it => it.y + it.dy));
+  const ox = -width / 2, oy = -height / 2;
+  for (const it of order) {
+    const b = state.body(it.bid);
+    const R = it.rot ? rotation(0, 0, 90) : [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+    const [mx, my] = it.rot ? [-it.hi[1], it.lo[0]] : [it.lo[0], it.lo[1]];
+    const t = [ox + it.x - mx, oy + it.y - my, -it.lo[2]];
+    state.bodies.set(it.bid, transformBody(b, R, t));
+    res.modified.push(it.bid);
+  }
+  res.info = { placed: items.length, rotated: items.filter(it => it.rot).length };
+}
+
 function f_thread(state, fid, p, res) {
   const kind = p.kind || 'internal', D = num(p.diameter, 8), P = num(p.pitch, 1.25), L = num(p.length, 10);
   let tool = PR.threadTool(kind, D, P, L, +(p.tolerance ?? 0.2) || 0, p.hand || 'right', p.chamfer !== false);
@@ -763,6 +1080,42 @@ function f_thread(state, fid, p, res) {
   tool = tool.transform(frameMatrix(add(add(add(o, mul(x, off[0])), mul(y, off[1])), mul(n, off[2])), x, y, n));
   const op = p.operation || (kind === 'internal' ? 'cut' : 'new');
   applyTool(state, fid, tool, op, p.targets, p.body_name || (kind === 'external' ? `M${+D} screw` : 'Thread'), res);
+}
+
+// Cantilever clip: an arm standing on the plate, with a hook at its tip pointing inwards.
+function f_snapfit(state, fid, p, res) {
+  const L = num(p.length, 12), W = num(p.width, 6), t = num(p.thickness, 1.5), h = num(p.hook_height, 1.5);
+  if (Math.min(L, W, t, h) <= 0) throw new GeometryError('Arm length, width, thickness and hook height must all be more than zero.');
+  if (h >= L) throw new GeometryError('The hook must be shorter than the arm.');
+  const sink = 0.5;   // the foot sinks into the plate so the join is solid
+  const arm = Manifold.cube([t, W, L + sink], false).translate([0, 0, -sink]);
+  const hook = Manifold.cube([t, W, h], false).translate([t, 0, L - h]);
+  const tool = place(Manifold.union([arm, hook]), state.frame(p.plane), [num(p.x, 0), num(p.y, 0), 0]);
+  applyTool(state, fid, tool, p.operation || 'join', p.targets, p.body_name || 'Snap-fit', res);
+}
+
+// Living hinge: a slot across the whole block, leaving a thin web of `thickness` at the bottom.
+function f_hinge(state, fid, p, res) {
+  const slot = num(p.slot, 1), web = num(p.thickness, 0.5);
+  if (slot <= 0 || web <= 0) throw new GeometryError('The slot width and the hinge thickness must be more than zero.');
+  const targets = p.targets;
+  const bodies = targets && targets.length ? targets.filter(t => state.bodies.has(t)).map(t => state.bodies.get(t)) : [...state.bodies.values()].filter(b => b.isSolid);
+  if (!bodies.length) throw new GeometryError('Choose the block to put the living hinge in.');
+  const fr = state.frame(p.plane), [o, xa, ya, n] = fr;
+  let lo = Infinity, hi = -Infinity, reach = 0;
+  for (const b of bodies) {
+    const { v } = b.mesh();
+    for (let i = 0; i < v.length; i += 3) {
+      const rel = [v[i] - o[0], v[i + 1] - o[1], v[i + 2] - o[2]];
+      const d = dot(rel, n);
+      lo = Math.min(lo, d); hi = Math.max(hi, d);
+      reach = Math.max(reach, Math.abs(dot(rel, xa)), Math.abs(dot(rel, ya)));
+    }
+  }
+  if (web >= hi - lo) throw new GeometryError('The hinge is as thick as the block, so there is nothing to cut.');
+  const B = reach + 10;
+  const strip = Manifold.cube([slot, 2 * B, hi - lo - web + 1], false).translate([num(p.x, 0), -B, lo + web]);
+  applyTool(state, fid, place(strip, fr), 'cut', targets, 'Living hinge', res);
 }
 
 function f_offset(state, fid, p, res) {
@@ -787,20 +1140,133 @@ function f_resizehole(state, fid, p, res) {
   state.bodies.set(bid, b.copy({ solid: out }));
   res.modified.push(bid);
 }
+// Thin-wall check: the same slicing as stleditor/features.py thin_scan (keep the two in step).
+// Slice the solid across each axis; in a slice, what an opening of width w removes is
+// narrower than w.
+function thinResidual(cs, w) {
+  const r = w / 2 - 0.005 * w;
+  const inner = cs.offset(-r, 'Miter', 2, 0);
+  if (inner.isEmpty()) return cs;
+  return cs.subtract(inner.offset(r, 'Miter', 2, 0));
+}
+
+function thinParts(cs, w, minArea) {
+  const res = thinResidual(cs, w);
+  return res.isEmpty() ? [] : res.decompose().filter(c => c.area() >= minArea);
+}
+
+export function thinScan(solid, t) {
+  const minArea = 0.05 * t * t;
+  const bb = solid.boundingBox(), lo = bb.min, hi = bb.max;
+  const found = [], widths = [];
+  let link = 3 * t;
+  for (let a = 0; a < 3; a++) {
+    const u = (a + 1) % 3, v = (a + 2) % 3;
+    const R = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+    R[0][u] = R[1][v] = R[2][a] = 1;
+    const m = solid.transform(mat4(R));
+    const ext = hi[a] - lo[a];
+    const step = Math.max(t / 2, ext / 60);
+    const n = Math.max(1, Math.ceil(ext / step - 1e-9));
+    link = Math.max(link, 1.5 * ext / n);
+    const flagged = [];
+    for (let i = 0; i < n; i++) {
+      const h = lo[a] + (i + 0.5) * ext / n;
+      const cs = m.slice(h);
+      if (cs.isEmpty()) continue;
+      const parts = thinParts(cs, t, minArea);
+      if (!parts.length) continue;
+      flagged.push(cs);
+      for (const c of parts) {
+        const b = c.bounds(), p = [0, 0, 0];
+        p[a] = h; p[u] = (b.min[0] + b.max[0]) / 2; p[v] = (b.min[1] + b.max[1]) / 2;
+        found.push(p);
+      }
+    }
+    if (flagged.length) {
+      let aLo = 0, aHi = t;
+      for (let k = 0; k < 8; k++) {
+        const mid = (aLo + aHi) / 2;
+        if (flagged.some(cs => thinParts(cs, mid, minArea).length)) aHi = mid; else aLo = mid;
+      }
+      widths.push(aHi * 0.99);
+    }
+  }
+  if (!found.length) return { min: null, count: 0, spots: [] };
+  // group pieces that sit close together into one spot
+  const cell = new Map();
+  found.forEach((p, i) => {
+    const key = p.map(c => Math.floor(c / link)).join(',');
+    if (!cell.has(key)) cell.set(key, []);
+    cell.get(key).push(i);
+  });
+  const parent = found.map((_, i) => i);
+  const root = i => { while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; } return i; };
+  for (const [key, ids] of cell) {
+    const k = key.split(',').map(Number);
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) {
+      const other = cell.get(`${k[0] + dx},${k[1] + dy},${k[2] + dz}`);
+      if (!other) continue;
+      for (const i of ids) for (const j of other) if (i < j && Math.hypot(found[i][0] - found[j][0], found[i][1] - found[j][1], found[i][2] - found[j][2]) <= link) parent[root(j)] = root(i);
+    }
+  }
+  const groups = new Map();
+  found.forEach((p, i) => { const r = root(i); if (!groups.has(r)) groups.set(r, []); groups.get(r).push(p); });
+  const r2 = x => Math.round(x * 100) / 100;
+  const spots = [...groups.values()].map(pts => [pts.length, [0, 1, 2].map(k => r2((Math.min(...pts.map(q => q[k])) + Math.max(...pts.map(q => q[k]))) / 2))]);
+  spots.sort((a, b) => (b[0] - a[0]) || (a[1][0] - b[1][0]) || (a[1][1] - b[1][1]) || (a[1][2] - b[1][2]));
+  return { min: Math.round(Math.max(...widths) * 1000) / 1000, count: spots.length, spots: spots.slice(0, 10).map(s => s[1]) };
+}
+
+function f_thincheck(state, fid, p, res) {
+  const bid = p.body;
+  if (!bid) throw new GeometryError('Choose a body to check.');
+  const t = num(p.min, 0.8);
+  if (t <= 0) throw new GeometryError('The minimum thickness must be more than zero.');
+  const r = thinScan(state.body(bid).requireSolid(), t);
+  res.thin = r;
+  if (!r.count) { res.info = `Nothing thinner than ${t} mm found.`; return; }
+  const where = r.spots.slice(0, 3).map(s => `X ${s[0]}, Y ${s[1]}, Z ${s[2]}`).join('; ');
+  res.warning = `${r.count} thin spot${r.count !== 1 ? 's' : ''} under ${t} mm. Thinnest: about ${r.min} mm. Near ${where} (mm).`;
+}
+
+
+function f_fittest(state, fid, p, res) {
+  const D = num(p.diameter, 8), start = num(p.start, 0.05), step = num(p.step, 0.05);
+  const count = Math.floor(+(p.count ?? 6)), T = num(p.thickness, 3), gap = num(p.gap, 4);
+  if (!(D > 0)) throw new GeometryError('Peg diameter must be more than zero.');
+  if (start < 0) throw new GeometryError("Clearance start can't be negative.");
+  if (!(step > 0)) throw new GeometryError('Clearance step must be more than zero.');
+  if (!(count >= 1)) throw new GeometryError('Count must be at least 1.');
+  if (!(T > 0)) throw new GeometryError('Plate thickness must be more than zero.');
+  if (!(gap > 0)) throw new GeometryError('Gap must be more than zero.');
+  const clearances = Array.from({ length: count }, (_, i) => start + i * step);
+  const maxHole = D + clearances[clearances.length - 1];
+  const L = count * maxHole + (count + 1) * gap, W = maxHole + D + 3 * gap, seg = 64;
+  let man = Manifold.cube([L, W, T], false).translate([-L / 2, -W / 2, 0]);
+  for (let i = 0; i < count; i++) {
+    const c = clearances[i], x = -L / 2 + gap + maxHole / 2 + i * (maxHole + gap);
+    const yHole = -W / 2 + gap + maxHole / 2, yPeg = -W / 2 + gap + maxHole + gap + D / 2, hr = (D + c) / 2;
+    man = man.subtract(Manifold.cylinder(T + 2, hr, hr, seg).translate([x, yHole, -1]));
+    man = man.add(Manifold.cylinder(T, D / 2, D / 2, seg).translate([x, yPeg, T]));
+  }
+  applyTool(state, fid, man, 'new', null, p.body_name || 'Fit Test', res);
+  res.info = `${count} pair${count !== 1 ? 's' : ''}, peg Ø${D} mm, clearances ${clearances.map(c => +c).join(', ')} mm.`;
+}
 
 export const EVALUATORS = {
-  import: f_import, primitive: f_primitive, plane: f_plane, sketch: f_sketch, extrude: f_extrude, revolve: f_revolve,
-  hole: f_hole, combine: f_combine, split: f_split, mirror: f_mirror, move: f_move, scale: f_scale, hollow: f_hollow, shell: f_shell,
+  import: f_import, primitive: f_primitive, plane: f_plane, sketch: f_sketch, extrude: f_extrude, revolve: f_revolve, loft: f_loft, sweep: f_sweep,
+  hole: f_hole, combine: f_combine, split: f_split, mirror: f_mirror, move: f_move, scale: f_scale, hollow: f_hollow, shell: f_shell, lattice: f_lattice,
   repair: f_repair, simplify: f_simplify, pattern: f_pattern, delete: f_delete, separate: f_separate, bedsplit: f_bedsplit,
-  pushpull: f_pushpull, sculpt: f_sculpt, remesh: f_remesh, layflat: f_layflat, thread: f_thread, offset: f_offset,
-  resizehole: f_resizehole, supportfins: f_supportfins, supportwall: f_supportwall,
+  pushpull: f_pushpull, sculpt: f_sculpt, remesh: f_remesh, layflat: f_layflat, plate: f_plate, thread: f_thread, offset: f_offset,
+  resizehole: f_resizehole, snapfit: f_snapfit, hinge: f_hinge, supportfins: f_supportfins, supportwall: f_supportwall, thincheck: f_thincheck, fittest: f_fittest,
 };
 
 export const DESKTOP_ONLY_TYPES = [];
 
 export const LABELS = {
-  import: 'Import', primitive: 'Primitive', plane: 'Plane', sketch: 'Sketch', extrude: 'Extrude', revolve: 'Revolve', hole: 'Hole',
-  combine: 'Combine', split: 'Split', mirror: 'Mirror', move: 'Move', scale: 'Scale', hollow: 'Hollow', shell: 'Shell', repair: 'Repair',
+  import: 'Import', primitive: 'Primitive', plane: 'Plane', sketch: 'Sketch', extrude: 'Extrude', revolve: 'Revolve', loft: 'Loft', sweep: 'Sweep', hole: 'Hole',
+  combine: 'Combine', split: 'Split', mirror: 'Mirror', move: 'Move', scale: 'Scale', hollow: 'Hollow', shell: 'Shell', lattice: 'Lattice', repair: 'Repair',
   simplify: 'Simplify', pattern: 'Pattern', delete: 'Remove', separate: 'Separate', bedsplit: 'Fit to Bed', pushpull: 'Push/Pull',
-  sculpt: 'Sculpt', remesh: 'Remesh', layflat: 'Lay Flat', thread: 'Thread', offset: 'Offset', resizehole: 'Resize Hole', supportfins: 'Support Fins', supportwall: 'Draw Walls',
+  sculpt: 'Sculpt', remesh: 'Remesh', layflat: 'Lay Flat', plate: 'Plate Layout', thread: 'Thread', offset: 'Offset', resizehole: 'Resize Hole', snapfit: 'Snap-fit', hinge: 'Living hinge', supportfins: 'Support Fins', supportwall: 'Draw Walls', thincheck: 'Thin-wall Check', fittest: 'Fit Test',
 };
