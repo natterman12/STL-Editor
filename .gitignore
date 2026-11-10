@@ -37,3 +37,4 @@ dev/bench/*.stl
 dev/bench/node_modules/
 
 rust/target/
+!rust/tests/projects/*.stlx
