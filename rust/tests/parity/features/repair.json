@@ -1,0 +1,84 @@
+[
+ {
+  "name": "repair_open_box_auto",
+  "exactness": "approx",
+  "sources": {
+   "s1": "open_box.stl"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": false,
+     "place": "keep"
+    }
+   },
+   {
+    "type": "repair",
+    "params": {
+     "body": "f1",
+     "mode": "auto"
+    }
+   }
+  ]
+ },
+ {
+  "name": "repair_expr_voxel",
+  "exactness": "approx",
+  "sources": {
+   "s1": "open_box.stl"
+  },
+  "params": [
+   {
+    "name": "pitch",
+    "expr": "1",
+    "note": "rebuild grid"
+   }
+  ],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": false,
+     "place": "keep"
+    }
+   },
+   {
+    "type": "repair",
+    "params": {
+     "body": "f1",
+     "mode": "rebuild",
+     "voxel": "=pitch"
+    }
+   }
+  ]
+ },
+ {
+  "name": "repair_missing_body",
+  "exactness": "exact",
+  "sources": {
+   "s1": "holed_block.stl"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": true,
+     "place": "keep"
+    }
+   },
+   {
+    "type": "repair",
+    "params": {
+     "body": "gone",
+     "mode": "auto"
+    }
+   }
+  ]
+ }
+]

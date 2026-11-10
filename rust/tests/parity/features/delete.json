@@ -1,0 +1,94 @@
+[
+ {
+  "name": "delete_box",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 10,
+     "width": 10,
+     "height": 10,
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "delete",
+    "params": {
+     "bodies": ["f1"]
+    }
+   }
+  ]
+ },
+ {
+  "name": "delete_expr_flag",
+  "exactness": "exact",
+  "sources": {},
+  "params": [
+   {
+    "name": "w",
+    "expr": "20",
+    "note": "kept box width"
+   }
+  ],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 10,
+     "width": "=w",
+     "height": 10,
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 5,
+     "width": 5,
+     "height": 5,
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "delete",
+    "params": {
+     "bodies": ["f2"]
+    }
+   }
+  ]
+ },
+ {
+  "name": "delete_bad_expression",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 10,
+     "width": 10,
+     "height": 10,
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "delete",
+    "params": {
+     "bodies": ["=nosuch"]
+    }
+   }
+  ]
+ }
+]

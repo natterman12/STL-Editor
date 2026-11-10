@@ -1,0 +1,76 @@
+{
+ "packages": [
+  {
+   "id": "registry+https://github.com/rust-lang/crates.io-index#cc@1.11.1",
+   "name": "cc",
+   "version": "1.11.1"
+  },
+  {
+   "id": "registry+https://github.com/rust-lang/crates.io-index#find-msvc-tools@0.1.15",
+   "name": "find-msvc-tools",
+   "version": "0.1.15"
+  },
+  {
+   "id": "registry+https://github.com/rust-lang/crates.io-index#shlex@2.0.1",
+   "name": "shlex",
+   "version": "2.0.1"
+  },
+  {
+   "id": "path+file:///C:/Users/ggnn1/AppData/Local/Temp/tmp.tPhjQXXhGk/a#withcc@0.1.0",
+   "name": "withcc",
+   "version": "0.1.0"
+  }
+ ],
+ "workspace_members": [
+  "path+file:///C:/Users/ggnn1/AppData/Local/Temp/tmp.tPhjQXXhGk/a#withcc@0.1.0"
+ ],
+ "resolve": {
+  "nodes": [
+   {
+    "id": "registry+https://github.com/rust-lang/crates.io-index#cc@1.11.1",
+    "deps": [
+     {
+      "name": "find_msvc_tools",
+      "pkg": "registry+https://github.com/rust-lang/crates.io-index#find-msvc-tools@0.1.15",
+      "dep_kinds": [
+       {
+        "kind": null
+       }
+      ]
+     },
+     {
+      "name": "shlex",
+      "pkg": "registry+https://github.com/rust-lang/crates.io-index#shlex@2.0.1",
+      "dep_kinds": [
+       {
+        "kind": null
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "id": "registry+https://github.com/rust-lang/crates.io-index#find-msvc-tools@0.1.15",
+    "deps": []
+   },
+   {
+    "id": "registry+https://github.com/rust-lang/crates.io-index#shlex@2.0.1",
+    "deps": []
+   },
+   {
+    "id": "path+file:///C:/Users/ggnn1/AppData/Local/Temp/tmp.tPhjQXXhGk/a#withcc@0.1.0",
+    "deps": [
+     {
+      "name": "cc",
+      "pkg": "registry+https://github.com/rust-lang/crates.io-index#cc@1.11.1",
+      "dep_kinds": [
+       {
+        "kind": "build"
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

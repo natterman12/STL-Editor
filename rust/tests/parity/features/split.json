@@ -1,0 +1,102 @@
+[
+ {
+  "name": "split_box_midplane",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 40,
+     "width": 30,
+     "height": 20,
+     "anchor": "corner",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "split",
+    "params": {
+     "body": "f1",
+     "plane": {
+      "origin": [20, 0, 0],
+      "normal": [1, 0, 0]
+     },
+     "keep": "both",
+     "connector": "none"
+    }
+   }
+  ]
+ },
+ {
+  "name": "split_expr_origin",
+  "exactness": "exact",
+  "sources": {
+   "s1": "holed_block.stl"
+  },
+  "params": [
+   {
+    "name": "x",
+    "expr": "20",
+    "note": "cut X"
+   }
+  ],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": true,
+     "place": "keep"
+    }
+   },
+   {
+    "type": "split",
+    "params": {
+     "body": "f1",
+     "plane": {
+      "origin": ["=x", 0, 0],
+      "normal": [1, 0, 0]
+     },
+     "keep": "both",
+     "connector": "none"
+    }
+   }
+  ]
+ },
+ {
+  "name": "split_plane_misses",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 10,
+     "width": 10,
+     "height": 10,
+     "anchor": "corner",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "split",
+    "params": {
+     "body": "f1",
+     "plane": {
+      "origin": [100, 0, 0],
+      "normal": [1, 0, 0]
+     },
+     "keep": "both",
+     "connector": "none"
+    }
+   }
+  ]
+ }
+]

@@ -1,0 +1,116 @@
+{
+ "repair_expr_voxel": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "open_box",
+    "solid": true,
+    "stats": {
+     "area": 3904.8736541503004,
+     "bbox_max": [
+      20.38711929321289,
+      20.38711929321289,
+      20.1614990234375
+     ],
+     "bbox_min": [
+      -0.38712024688720703,
+      -0.38712024688720703,
+      -0.38712024688720703
+     ],
+     "triangles": 8328,
+     "vertices": 4166,
+     "volume": 1372.1806607705955,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": "1 mesh(es) are not watertight. They display and export, but editing needs Repair (Rebuild) first."
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": "Rebuilt as a watertight solid on a 1 mm grid."
+   }
+  ]
+ },
+ "repair_missing_body": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "holed_block",
+    "solid": true,
+    "stats": {
+     "area": 2464.013797335947,
+     "bbox_max": [
+      30.0,
+      20.0,
+      10.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 276,
+     "vertices": 136,
+     "volume": 5438.1398433105005,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": "Body 'gone' no longer exists.",
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "repair_open_box_auto": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "open_box",
+    "solid": true,
+    "stats": {
+     "area": 2400.0,
+     "bbox_max": [
+      20.0,
+      20.0,
+      20.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 14,
+     "vertices": 9,
+     "volume": 8000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": "1 mesh(es) are not watertight. They display and export, but editing needs Repair (Rebuild) first."
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ }
+}

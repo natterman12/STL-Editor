@@ -1,0 +1,93 @@
+[
+ {
+  "name": "move_translate_box",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 10,
+     "width": 10,
+     "height": 10,
+     "plane": "XY",
+     "anchor": "base",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "move",
+    "params": {
+     "bodies": ["f1"],
+     "translate": [5, 0, 0],
+     "rotate": [0, 0, 0],
+     "pivot": "center"
+    }
+   }
+  ]
+ },
+ {
+  "name": "move_expr_translate",
+  "exactness": "exact",
+  "sources": {},
+  "params": [
+   {
+    "name": "dx",
+    "expr": "8",
+    "note": "X shift"
+   }
+  ],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 10,
+     "width": 10,
+     "height": 10,
+     "plane": "XY",
+     "anchor": "base",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "move",
+    "params": {
+     "bodies": ["f1"],
+     "translate": ["=dx", 0, 0],
+     "rotate": [0, 0, 0],
+     "pivot": "center"
+    }
+   }
+  ]
+ },
+ {
+  "name": "move_missing_body",
+  "exactness": "exact",
+  "sources": {
+   "s1": "holed_block.stl"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": true,
+     "place": "keep"
+    }
+   },
+   {
+    "type": "move",
+    "params": {
+     "bodies": ["missing"],
+     "translate": [1, 0, 0],
+     "rotate": [0, 0, 0],
+     "pivot": "center"
+    }
+   }
+  ]
+ }
+]

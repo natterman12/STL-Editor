@@ -1,0 +1,84 @@
+[
+ {
+  "name": "mirror_copy_box",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 10,
+     "width": 10,
+     "height": 10,
+     "anchor": "corner",
+     "plane": "XY",
+     "offset": [0, 0, 0],
+     "operation": "new"
+    }
+   },
+   {
+    "type": "mirror",
+    "params": {
+     "bodies": ["f1"],
+     "plane": "YZ",
+     "mode": "copy"
+    }
+   }
+  ]
+ },
+ {
+  "name": "mirror_expr_plane_origin",
+  "exactness": "exact",
+  "sources": {},
+  "params": [
+   {
+    "name": "ox",
+    "expr": "5",
+    "note": "mirror plane X"
+   }
+  ],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 10,
+     "width": 10,
+     "height": 10,
+     "anchor": "corner",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "mirror",
+    "params": {
+     "bodies": ["f1"],
+     "plane": {
+      "origin": ["=ox", 0, 0],
+      "normal": [1, 0, 0]
+     },
+     "mode": "copy"
+    }
+   }
+  ]
+ },
+ {
+  "name": "mirror_no_bodies",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "mirror",
+    "params": {
+     "bodies": [],
+     "plane": "YZ",
+     "mode": "copy"
+    }
+   }
+  ]
+ }
+]

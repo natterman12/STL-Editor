@@ -1,0 +1,89 @@
+[
+ {
+  "name": "separate_two_blobs",
+  "exactness": "exact",
+  "sources": {
+   "s1": "two_blobs.stl"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": true,
+     "place": "keep"
+    }
+   },
+   {
+    "type": "separate",
+    "params": {
+     "body": "f1"
+    }
+   }
+  ]
+ },
+ {
+  "name": "separate_expr_flag",
+  "exactness": "exact",
+  "sources": {
+   "s1": "two_blobs.stl"
+  },
+  "params": [
+   {
+    "name": "dx",
+    "expr": "3",
+    "note": "X shift before separate"
+   }
+  ],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": true,
+     "place": "keep"
+    }
+   },
+   {
+    "type": "move",
+    "params": {
+     "bodies": ["f1"],
+     "translate": ["=dx", 0, 0],
+     "rotate": [0, 0, 0],
+     "pivot": "center"
+    }
+   },
+   {
+    "type": "separate",
+    "params": {
+     "body": "f1"
+    }
+   }
+  ]
+ },
+ {
+  "name": "separate_single_piece",
+  "exactness": "exact",
+  "sources": {
+   "s1": "holed_block.stl"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": true,
+     "place": "keep"
+    }
+   },
+   {
+    "type": "separate",
+    "params": {
+     "body": "f1"
+    }
+   }
+  ]
+ }
+]

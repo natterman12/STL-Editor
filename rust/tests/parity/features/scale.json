@@ -1,0 +1,95 @@
+[
+ {
+  "name": "scale_factor_two",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 10,
+     "width": 10,
+     "height": 10,
+     "plane": "XY",
+     "anchor": "base",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "scale",
+    "params": {
+     "bodies": ["f1"],
+     "mode": "factor",
+     "factor": 2,
+     "pivot": "base"
+    }
+   }
+  ]
+ },
+ {
+  "name": "scale_expr_factor",
+  "exactness": "exact",
+  "sources": {},
+  "params": [
+   {
+    "name": "k",
+    "expr": "1.5",
+    "note": "uniform scale"
+   }
+  ],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 10,
+     "width": 10,
+     "height": 10,
+     "plane": "XY",
+     "anchor": "base",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "scale",
+    "params": {
+     "bodies": ["f1"],
+     "mode": "factor",
+     "factor": "=k",
+     "pivot": "base"
+    }
+   }
+  ]
+ },
+ {
+  "name": "scale_negative_factor",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 10,
+     "width": 10,
+     "height": 10,
+     "plane": "XY",
+     "anchor": "base",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "scale",
+    "params": {
+     "bodies": ["f1"],
+     "mode": "factor",
+     "factor": -1,
+     "pivot": "base"
+    }
+   }
+  ]
+ }
+]

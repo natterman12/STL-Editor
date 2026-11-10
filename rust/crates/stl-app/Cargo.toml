@@ -1,0 +1,13 @@
+[package]
+name = "stl-app"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+stl-kernel = { path = "../stl-kernel" }
+stl-mesh = { path = "../stl-mesh" }
+stl-sketch = { path = "../stl-sketch" }
+stl-engine = { path = "../stl-engine" }
+stl-io = { path = "../stl-io" }
+stl-platform = { path = "../stl-platform" }

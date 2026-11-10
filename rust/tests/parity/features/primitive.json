@@ -1,0 +1,81 @@
+[
+ {
+  "name": "primitive_box",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 40,
+     "width": 30,
+     "height": 20,
+     "plane": "XY",
+     "offset": [0, 0, 0],
+     "rotate": [0, 0, 0],
+     "anchor": "base",
+     "operation": "new",
+     "targets": [],
+     "body_name": "Box"
+    }
+   }
+  ]
+ },
+ {
+  "name": "primitive_box_expr_size",
+  "exactness": "exact",
+  "sources": {},
+  "params": [
+   {
+    "name": "w",
+    "expr": "20",
+    "note": "box width"
+   },
+   {
+    "name": "h",
+    "expr": "5",
+    "note": "box height"
+   }
+  ],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": "=w",
+     "width": 20,
+     "height": "=h*2",
+     "plane": "XY",
+     "offset": [0, 0, "=h"],
+     "rotate": [0, 0, 0],
+     "anchor": "base",
+     "operation": "new",
+     "targets": [],
+     "body_name": "Box"
+    }
+   }
+  ]
+ },
+ {
+  "name": "primitive_torus_bad_radii",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "torus",
+     "radius": 5,
+     "radius2": 5,
+     "segments": 48,
+     "plane": "XY",
+     "anchor": "base",
+     "operation": "new"
+    }
+   }
+  ]
+ }
+]

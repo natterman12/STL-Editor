@@ -1,0 +1,717 @@
+{
+ "cube_centered": [
+  {
+   "triangles": 12,
+   "vertices": 8,
+   "volume": 1000.0,
+   "area": 700.0,
+   "bbox_min": [
+    -10.0,
+    -5.0,
+    -2.5
+   ],
+   "bbox_max": [
+    10.0,
+    5.0,
+    2.5
+   ],
+   "watertight": true
+  }
+ ],
+ "cube_unit": [
+  {
+   "triangles": 12,
+   "vertices": 8,
+   "volume": 1000.0,
+   "area": 600.0,
+   "bbox_min": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "bbox_max": [
+    10.0,
+    10.0,
+    10.0
+   ],
+   "watertight": true
+  }
+ ],
+ "cylinder_cone_centered": [
+  {
+   "triangles": 92,
+   "vertices": 48,
+   "volume": 385.12273913134317,
+   "area": 318.29872320730453,
+   "bbox_min": [
+    -5.0,
+    -5.0,
+    -6.0
+   ],
+   "bbox_max": [
+    5.0,
+    5.0,
+    6.0
+   ],
+   "watertight": true
+  }
+ ],
+ "cylinder_straight": [
+  {
+   "triangles": 124,
+   "vertices": 64,
+   "volume": 499.4312060266986,
+   "area": 350.8101158431902,
+   "bbox_min": [
+    -4.0,
+    -4.0,
+    0.0
+   ],
+   "bbox_max": [
+    4.0,
+    4.0,
+    10.0
+   ],
+   "watertight": true
+  }
+ ],
+ "decompose_two_blobs_load": [
+  {
+   "triangles": 512,
+   "vertices": 258,
+   "volume": 511.9025105912828,
+   "area": 310.3318211664312,
+   "bbox_min": [
+    -13.0,
+    -5.0,
+    -5.0
+   ],
+   "bbox_max": [
+    -3.0,
+    5.0,
+    5.0
+   ],
+   "watertight": true
+  },
+  {
+   "triangles": 512,
+   "vertices": 258,
+   "volume": 110.57094427454997,
+   "area": 111.71945696680929,
+   "bbox_min": [
+    5.0,
+    -3.0,
+    -3.0
+   ],
+   "bbox_max": [
+    11.0,
+    3.0,
+    3.0
+   ],
+   "watertight": true
+  }
+ ],
+ "decompose_two_spheres": [
+  {
+   "triangles": 288,
+   "vertices": 146,
+   "volume": 503.04049087229333,
+   "area": 307.41036385340664,
+   "bbox_min": [
+    -13.0,
+    -5.0,
+    -5.0
+   ],
+   "bbox_max": [
+    -3.0,
+    5.0,
+    5.0
+   ],
+   "watertight": true
+  },
+  {
+   "triangles": 288,
+   "vertices": 146,
+   "volume": 108.65674450886684,
+   "area": 110.66772997759121,
+   "bbox_min": [
+    5.0,
+    -3.0,
+    -3.0
+   ],
+   "bbox_max": [
+    11.0,
+    3.0,
+    3.0
+   ],
+   "watertight": true
+  }
+ ],
+ "difference_cube_cylinder": [
+  {
+   "triangles": 144,
+   "vertices": 72,
+   "volume": 3500.5687562763364,
+   "area": 1751.0376353629927,
+   "bbox_min": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "bbox_max": [
+    20.0,
+    20.0,
+    10.0
+   ],
+   "watertight": true
+  }
+ ],
+ "difference_cube_sphere": [
+  {
+   "triangles": 1640,
+   "vertices": 812,
+   "volume": 204.79136542080815,
+   "area": 622.76834729515,
+   "bbox_min": [
+    -5.0,
+    -5.0,
+    -5.0
+   ],
+   "bbox_max": [
+    5.0,
+    5.0,
+    5.0
+   ],
+   "watertight": true
+  }
+ ],
+ "hull_sphere_pair": [
+  {
+   "triangles": 160,
+   "vertices": 82,
+   "volume": 222.1448985703075,
+   "area": 203.61557891247398,
+   "bbox_min": [
+    -7.0,
+    -3.0,
+    -3.0
+   ],
+   "bbox_max": [
+    6.0,
+    3.0,
+    3.0
+   ],
+   "watertight": true
+  }
+ ],
+ "hull_two_cubes": [
+  {
+   "triangles": 12,
+   "vertices": 8,
+   "volume": 28.0,
+   "area": 64.0,
+   "bbox_min": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "bbox_max": [
+    7.0,
+    2.0,
+    2.0
+   ],
+   "watertight": true
+  }
+ ],
+ "intersection_cube_sphere": [
+  {
+   "triangles": 500,
+   "vertices": 252,
+   "volume": 953.481114220288,
+   "area": 534.506970444152,
+   "bbox_min": [
+    -5.0,
+    -5.0,
+    -5.0
+   ],
+   "bbox_max": [
+    5.0,
+    5.0,
+    5.0
+   ],
+   "watertight": true
+  }
+ ],
+ "intersection_two_cylinders": [
+  {
+   "triangles": 120,
+   "vertices": 62,
+   "volume": 660.2617620530874,
+   "area": 398.07389144163824,
+   "bbox_min": [
+    -5.0,
+    -5.0,
+    -5.0
+   ],
+   "bbox_max": [
+    5.0,
+    5.0,
+    5.0
+   ],
+   "watertight": true
+  }
+ ],
+ "load_holed_block": [
+  {
+   "triangles": 276,
+   "vertices": 136,
+   "volume": 5438.1398433105005,
+   "area": 2464.013797335947,
+   "bbox_min": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "bbox_max": [
+    30.0,
+    20.0,
+    10.0
+   ],
+   "watertight": true
+  }
+ ],
+ "load_open_box": [],
+ "load_two_blobs": [
+  {
+   "triangles": 1024,
+   "vertices": 516,
+   "volume": 622.4734548658327,
+   "area": 422.0512781332405,
+   "bbox_min": [
+    -13.0,
+    -5.0,
+    -5.0
+   ],
+   "bbox_max": [
+    11.0,
+    5.0,
+    5.0
+   ],
+   "watertight": true
+  }
+ ],
+ "mirror_cube_x": [
+  {
+   "triangles": 12,
+   "vertices": 8,
+   "volume": 210.0,
+   "area": 214.0,
+   "bbox_min": [
+    -7.0,
+    0.0,
+    0.0
+   ],
+   "bbox_max": [
+    -2.0,
+    6.0,
+    7.0
+   ],
+   "watertight": true
+  }
+ ],
+ "mirror_sphere_y": [
+  {
+   "triangles": 288,
+   "vertices": 146,
+   "volume": 257.5567245089239,
+   "area": 196.7426294089263,
+   "bbox_min": [
+    -4.0,
+    -9.0,
+    -4.0
+   ],
+   "bbox_max": [
+    4.0,
+    -1.0,
+    4.0
+   ],
+   "watertight": true
+  }
+ ],
+ "refine_cube": [
+  {
+   "triangles": 504,
+   "vertices": 254,
+   "volume": 1000.0,
+   "area": 600.0,
+   "bbox_min": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "bbox_max": [
+    10.0,
+    10.0,
+    10.0
+   ],
+   "watertight": true
+  }
+ ],
+ "refine_sphere": [
+  {
+   "triangles": 512,
+   "vertices": 258,
+   "volume": 478.7896916396482,
+   "area": 299.31904551820185,
+   "bbox_min": [
+    -5.0,
+    -5.0,
+    -5.0
+   ],
+   "bbox_max": [
+    5.0,
+    5.0,
+    5.0
+   ],
+   "watertight": true
+  }
+ ],
+ "rotate_cube_90": [
+  {
+   "triangles": 12,
+   "vertices": 8,
+   "volume": 80.0,
+   "area": 136.0,
+   "bbox_min": [
+    -4.0,
+    0.0,
+    0.0
+   ],
+   "bbox_max": [
+    0.0,
+    10.0,
+    2.0
+   ],
+   "watertight": true
+  }
+ ],
+ "rotate_cylinder_45": [
+  {
+   "triangles": 92,
+   "vertices": 48,
+   "volume": 223.61966264886976,
+   "area": 206.27109104964563,
+   "bbox_min": [
+    -4.198281288146973,
+    -4.949747562408447,
+    -4.809187889099121
+   ],
+   "bbox_max": [
+    4.198281288146973,
+    4.949747562408447,
+    4.809187889099121
+   ],
+   "watertight": true
+  }
+ ],
+ "scale_cube": [
+  {
+   "triangles": 12,
+   "vertices": 8,
+   "volume": 1000.0,
+   "area": 700.0,
+   "bbox_min": [
+    -10.0,
+    -2.5,
+    -5.0
+   ],
+   "bbox_max": [
+    10.0,
+    2.5,
+    5.0
+   ],
+   "watertight": true
+  }
+ ],
+ "scale_sphere": [
+  {
+   "triangles": 512,
+   "vertices": 258,
+   "volume": 1023.80498849259,
+   "area": 530.4988345225988,
+   "bbox_min": [
+    -5.0,
+    -5.0,
+    -10.0
+   ],
+   "bbox_max": [
+    5.0,
+    5.0,
+    10.0
+   ],
+   "watertight": true
+  }
+ ],
+ "slice_extrude_cube": [
+  {
+   "triangles": 28,
+   "vertices": 16,
+   "volume": 300.0,
+   "area": 320.0,
+   "bbox_min": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "bbox_max": [
+    10.0,
+    10.0,
+    3.0
+   ],
+   "watertight": true
+  }
+ ],
+ "slice_extrude_cylinder": [
+  {
+   "triangles": 252,
+   "vertices": 128,
+   "volume": 99.88624121418616,
+   "area": 150.07101614175673,
+   "bbox_min": [
+    -4.0,
+    -4.0,
+    0.0
+   ],
+   "bbox_max": [
+    4.0,
+    4.0,
+    2.0
+   ],
+   "watertight": true
+  }
+ ],
+ "sphere_r3": [
+  {
+   "triangles": 128,
+   "vertices": 66,
+   "volume": 103.41857020012026,
+   "area": 107.75485427519499,
+   "bbox_min": [
+    -3.0,
+    -3.0,
+    -3.0
+   ],
+   "bbox_max": [
+    3.0,
+    3.0,
+    3.0
+   ],
+   "watertight": true
+  }
+ ],
+ "sphere_r5": [
+  {
+   "triangles": 512,
+   "vertices": 258,
+   "volume": 511.902494246295,
+   "area": 310.33181456074374,
+   "bbox_min": [
+    -5.0,
+    -5.0,
+    -5.0
+   ],
+   "bbox_max": [
+    5.0,
+    5.0,
+    5.0
+   ],
+   "watertight": true
+  }
+ ],
+ "split_cube_z": [
+  {
+   "triangles": 12,
+   "vertices": 8,
+   "volume": 500.0,
+   "area": 400.0,
+   "bbox_min": [
+    -5.0,
+    -5.0,
+    0.0
+   ],
+   "bbox_max": [
+    5.0,
+    5.0,
+    5.0
+   ],
+   "watertight": true
+  },
+  {
+   "triangles": 12,
+   "vertices": 8,
+   "volume": 500.0,
+   "area": 400.0,
+   "bbox_min": [
+    -5.0,
+    -5.0,
+    -5.0
+   ],
+   "bbox_max": [
+    5.0,
+    5.0,
+    0.0
+   ],
+   "watertight": true
+  }
+ ],
+ "split_sphere_x": [
+  {
+   "triangles": 286,
+   "vertices": 145,
+   "volume": 255.9512471231475,
+   "area": 233.20203618780835,
+   "bbox_min": [
+    0.0,
+    -5.0,
+    -5.0
+   ],
+   "bbox_max": [
+    5.0,
+    5.0,
+    5.0
+   ],
+   "watertight": true
+  },
+  {
+   "triangles": 286,
+   "vertices": 145,
+   "volume": 255.9512471231475,
+   "area": 233.20203618780835,
+   "bbox_min": [
+    -5.0,
+    -5.0,
+    -5.0
+   ],
+   "bbox_max": [
+    0.0,
+    5.0,
+    5.0
+   ],
+   "watertight": true
+  }
+ ],
+ "translate_cube": [
+  {
+   "triangles": 12,
+   "vertices": 8,
+   "volume": 125.0,
+   "area": 150.0,
+   "bbox_min": [
+    1.5,
+    -2.0,
+    3.0
+   ],
+   "bbox_max": [
+    6.5,
+    3.0,
+    8.0
+   ],
+   "watertight": true
+  }
+ ],
+ "translate_sphere": [
+  {
+   "triangles": 288,
+   "vertices": 146,
+   "volume": 257.5567274256554,
+   "area": 196.7426308900466,
+   "bbox_min": [
+    -4.0,
+    6.0,
+    -7.0
+   ],
+   "bbox_max": [
+    4.0,
+    14.0,
+    1.0
+   ],
+   "watertight": true
+  }
+ ],
+ "trim_cube_mid": [
+  {
+   "triangles": 12,
+   "vertices": 8,
+   "volume": 500.0,
+   "area": 400.0,
+   "bbox_min": [
+    -5.0,
+    -5.0,
+    0.0
+   ],
+   "bbox_max": [
+    5.0,
+    5.0,
+    5.0
+   ],
+   "watertight": true
+  }
+ ],
+ "trim_cylinder_x": [
+  {
+   "triangles": 64,
+   "vertices": 34,
+   "volume": 390.1806445371824,
+   "area": 334.8635535362074,
+   "bbox_min": [
+    0.0,
+    -5.0,
+    -5.0
+   ],
+   "bbox_max": [
+    5.0,
+    5.0,
+    5.0
+   ],
+   "watertight": true
+  }
+ ],
+ "union_sphere_cube": [
+  {
+   "triangles": 648,
+   "vertices": 326,
+   "volume": 593.4218685409927,
+   "area": 402.06506447613003,
+   "bbox_min": [
+    -5.0,
+    -5.0,
+    -5.0
+   ],
+   "bbox_max": [
+    5.0,
+    5.0,
+    5.0
+   ],
+   "watertight": true
+  }
+ ],
+ "union_two_cubes": [
+  {
+   "triangles": 28,
+   "vertices": 16,
+   "volume": 1500.0,
+   "area": 800.0,
+   "bbox_min": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "bbox_max": [
+    15.0,
+    10.0,
+    10.0
+   ],
+   "watertight": true
+  }
+ ]
+}

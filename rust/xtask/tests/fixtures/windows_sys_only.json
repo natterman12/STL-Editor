@@ -1,0 +1,77 @@
+{
+ "packages": [
+  {
+   "id": "registry+https://github.com/rust-lang/crates.io-index#windows-sys@0.59.0",
+   "name": "windows-sys",
+   "version": "0.59.0"
+  },
+  {
+   "id": "registry+https://github.com/rust-lang/crates.io-index#windows-targets@0.52.6",
+   "name": "windows-targets",
+   "version": "0.52.6"
+  },
+  {
+   "id": "registry+https://github.com/rust-lang/crates.io-index#windows_x86_64_gnu@0.52.6",
+   "name": "windows_x86_64_gnu",
+   "version": "0.52.6"
+  },
+  {
+   "id": "path+file:///C:/Users/ggnn1/AppData/Local/Temp/tmp.tPhjQXXhGk/b#winonly@0.1.0",
+   "name": "winonly",
+   "version": "0.1.0"
+  }
+ ],
+ "workspace_members": [
+  "path+file:///C:/Users/ggnn1/AppData/Local/Temp/tmp.tPhjQXXhGk/b#winonly@0.1.0"
+ ],
+ "resolve": {
+  "nodes": [
+   {
+    "id": "registry+https://github.com/rust-lang/crates.io-index#windows-sys@0.59.0",
+    "deps": [
+     {
+      "name": "windows_targets",
+      "pkg": "registry+https://github.com/rust-lang/crates.io-index#windows-targets@0.52.6",
+      "dep_kinds": [
+       {
+        "kind": null
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "id": "registry+https://github.com/rust-lang/crates.io-index#windows-targets@0.52.6",
+    "deps": [
+     {
+      "name": "windows_x86_64_gnu",
+      "pkg": "registry+https://github.com/rust-lang/crates.io-index#windows_x86_64_gnu@0.52.6",
+      "dep_kinds": [
+       {
+        "kind": null
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "id": "registry+https://github.com/rust-lang/crates.io-index#windows_x86_64_gnu@0.52.6",
+    "deps": []
+   },
+   {
+    "id": "path+file:///C:/Users/ggnn1/AppData/Local/Temp/tmp.tPhjQXXhGk/b#winonly@0.1.0",
+    "deps": [
+     {
+      "name": "windows_sys",
+      "pkg": "registry+https://github.com/rust-lang/crates.io-index#windows-sys@0.59.0",
+      "dep_kinds": [
+       {
+        "kind": null
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

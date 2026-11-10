@@ -1,0 +1,148 @@
+{
+ "combine_cut_expr_clearance": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 3272.530694173987,
+     "bbox_max": [
+      15.0,
+      15.0,
+      10.0
+     ],
+     "bbox_min": [
+      -15.0,
+      -15.0,
+      0.0
+     ],
+     "triangles": 436,
+     "vertices": 220,
+     "volume": 8263.882826094208,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f2",
+    "name": "Cylinder",
+    "solid": true,
+    "stats": {
+     "area": 784.501469247847,
+     "bbox_max": [
+      5.0,
+      5.0,
+      22.0
+     ],
+     "bbox_min": [
+      -5.0,
+      -5.0,
+      2.0
+     ],
+     "triangles": 188,
+     "vertices": 96,
+     "volume": 1566.3142998981948,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f3",
+    "warning": null
+   }
+  ]
+ },
+ "combine_join_boxes": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 800.0,
+     "bbox_max": [
+      15.0,
+      10.0,
+      10.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 28,
+     "vertices": 16,
+     "volume": 1500.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f3",
+    "warning": null
+   }
+  ]
+ },
+ "combine_one_body": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 600.0,
+     "bbox_max": [
+      5.0,
+      5.0,
+      10.0
+     ],
+     "bbox_min": [
+      -5.0,
+      -5.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 1000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": "Choose a target body and at least one tool body.",
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ }
+}

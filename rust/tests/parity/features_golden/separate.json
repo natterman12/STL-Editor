@@ -1,0 +1,165 @@
+{
+ "separate_expr_flag": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "two_blobs",
+    "solid": true,
+    "stats": {
+     "area": 310.3318211664312,
+     "bbox_max": [
+      0.0,
+      5.0,
+      5.0
+     ],
+     "bbox_min": [
+      -10.0,
+      -5.0,
+      -5.0
+     ],
+     "triangles": 512,
+     "vertices": 258,
+     "volume": 511.9025105912827,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f3.2",
+    "name": "two_blobs (2)",
+    "solid": true,
+    "stats": {
+     "area": 111.71945914229809,
+     "bbox_max": [
+      14.0,
+      3.0,
+      3.0
+     ],
+     "bbox_min": [
+      8.0,
+      -3.0,
+      -3.0
+     ],
+     "triangles": 512,
+     "vertices": 258,
+     "volume": 110.57094755186557,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f3",
+    "warning": null
+   }
+  ]
+ },
+ "separate_single_piece": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "holed_block",
+    "solid": true,
+    "stats": {
+     "area": 2464.013797335947,
+     "bbox_max": [
+      30.0,
+      20.0,
+      10.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 276,
+     "vertices": 136,
+     "volume": 5438.1398433105005,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": "This body is already one piece.",
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "separate_two_blobs": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "two_blobs",
+    "solid": true,
+    "stats": {
+     "area": 310.3318211664312,
+     "bbox_max": [
+      -3.0,
+      5.0,
+      5.0
+     ],
+     "bbox_min": [
+      -13.0,
+      -5.0,
+      -5.0
+     ],
+     "triangles": 512,
+     "vertices": 258,
+     "volume": 511.9025105912828,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f2.2",
+    "name": "two_blobs (2)",
+    "solid": true,
+    "stats": {
+     "area": 111.71945696680929,
+     "bbox_max": [
+      11.0,
+      3.0,
+      3.0
+     ],
+     "bbox_min": [
+      5.0,
+      -3.0,
+      -3.0
+     ],
+     "triangles": 512,
+     "vertices": 258,
+     "volume": 110.57094427454997,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ }
+}

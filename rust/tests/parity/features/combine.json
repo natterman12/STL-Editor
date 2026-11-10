@@ -1,0 +1,119 @@
+[
+ {
+  "name": "combine_join_boxes",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 10,
+     "width": 10,
+     "height": 10,
+     "anchor": "corner",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 10,
+     "width": 10,
+     "height": 10,
+     "anchor": "corner",
+     "plane": "XY",
+     "offset": [5, 0, 0],
+     "operation": "new"
+    }
+   },
+   {
+    "type": "combine",
+    "params": {
+     "target": "f1",
+     "tools": ["f2"],
+     "operation": "join",
+     "keep_tools": false
+    }
+   }
+  ]
+ },
+ {
+  "name": "combine_cut_expr_clearance",
+  "exactness": "approx",
+  "sources": {},
+  "params": [
+   {
+    "name": "c",
+    "expr": "0.3",
+    "note": "cut clearance"
+   }
+  ],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 30,
+     "width": 30,
+     "height": 10,
+     "plane": "XY",
+     "anchor": "base",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "cylinder",
+     "radius": 5,
+     "height": 20,
+     "segments": 48,
+     "plane": "XY",
+     "offset": [0, 0, 2],
+     "operation": "new"
+    }
+   },
+   {
+    "type": "combine",
+    "params": {
+     "target": "f1",
+     "tools": ["f2"],
+     "operation": "cut",
+     "clearance": "=c",
+     "keep_tools": true
+    }
+   }
+  ]
+ },
+ {
+  "name": "combine_one_body",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 10,
+     "width": 10,
+     "height": 10,
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "combine",
+    "params": {
+     "target": "f1",
+     "tools": [],
+     "operation": "join"
+    }
+   }
+  ]
+ }
+]

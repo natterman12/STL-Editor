@@ -1,0 +1,365 @@
+{
+ "add_deep_nesting": {
+  "python_exception": "RecursionError"
+ },
+ "add_nan_inside_max": {
+  "error": "max(sqrt(-1), 3) doesn't give a number"
+ },
+ "add_zero_to_negative_power": {
+  "python_exception": "ZeroDivisionError"
+ },
+ "const_pi": {
+  "value": 3.141592653589793
+ },
+ "const_pi_times": {
+  "value": 6.283185307179586
+ },
+ "err_arity_one": {
+  "error": "round() takes 1 number"
+ },
+ "err_arity_sqrt": {
+  "error": "sqrt() takes 1 number"
+ },
+ "err_asin_domain": {
+  "error": "asin(2) doesn't give a number"
+ },
+ "err_cant_read": {
+  "error": "can't read \"@\" in 1+@2"
+ },
+ "err_ceil_overflow": {
+  "error": "ceil(1e308*10) doesn't give a number"
+ },
+ "err_complex_pow": {
+  "error": "(-8)^0.5 doesn't give a number"
+ },
+ "err_division_by_zero": {
+  "error": "division by zero in 1/0"
+ },
+ "err_empty": {
+  "error": "an expression is empty"
+ },
+ "err_empty_eq": {
+  "error": "an expression is empty"
+ },
+ "err_ends_too_soon": {
+  "error": "w+ ends too soon"
+ },
+ "err_floor_1e999": {
+  "error": "floor(1e999) doesn't give a number"
+ },
+ "err_fn_missing_paren": {
+  "error": "a \")\" is missing in sqrt(4"
+ },
+ "err_fn_needs_number": {
+  "error": "sin() needs a number"
+ },
+ "err_incomplete_exp": {
+  "error": "unexpected \"e\" in 2e"
+ },
+ "err_leftover": {
+  "error": "unexpected \"2.0\" in 1 2"
+ },
+ "err_missing_paren": {
+  "error": "a \")\" is missing in (1+2"
+ },
+ "err_mod_by_zero": {
+  "error": "5%0 doesn't give a number"
+ },
+ "err_no_function": {
+  "error": "there's no function \"constructor\""
+ },
+ "err_no_parameter": {
+  "error": "there's no parameter \"missing_var\""
+ },
+ "err_non_ascii_char": {
+  "error": "can't read \"ö\" in 2+ö"
+ },
+ "err_nonfinite_literal": {
+  "error": "1e309 doesn't give a number"
+ },
+ "err_overflow_pow": {
+  "error": "10^1000 doesn't give a number"
+ },
+ "err_sqrt_neg": {
+  "error": "sqrt(-1) doesn't give a number"
+ },
+ "err_unexpected_comma": {
+  "error": "unexpected \",\" in ,1"
+ },
+ "err_unexpected_op": {
+  "error": "unexpected \"*\" in *1"
+ },
+ "fn_abs": {
+  "value": 4.0
+ },
+ "fn_acos": {
+  "value": 60.00000000000001
+ },
+ "fn_asin": {
+  "value": 30.000000000000004
+ },
+ "fn_atan": {
+  "value": 45.0
+ },
+ "fn_ceil": {
+  "value": 2.0
+ },
+ "fn_ceil_neg_half": {
+  "value": 0.0
+ },
+ "fn_cos": {
+  "value": 0.5000000000000001
+ },
+ "fn_floor": {
+  "value": -2.0
+ },
+ "fn_max": {
+  "value": 7.0
+ },
+ "fn_max_min_combo": {
+  "value": 11.0
+ },
+ "fn_min": {
+  "value": 1.0
+ },
+ "fn_min_one": {
+  "value": 4.0
+ },
+ "fn_round": {
+  "value": 3.0
+ },
+ "fn_sin": {
+  "value": 0.49999999999999994
+ },
+ "fn_sqrt": {
+  "value": 3.0
+ },
+ "fn_tan": {
+  "value": 0.9999999999999999
+ },
+ "is_valid_name_digit_start": {
+  "valid": false
+ },
+ "is_valid_name_empty": {
+  "valid": false
+ },
+ "is_valid_name_hyphen": {
+  "valid": false
+ },
+ "is_valid_name_ok": {
+  "valid": true
+ },
+ "is_valid_name_reserved_ok": {
+  "valid": true
+ },
+ "is_valid_name_underscore": {
+  "valid": true
+ },
+ "kitchen_sink": {
+  "value": 96.5
+ },
+ "names_in_bad_char": {
+  "names": []
+ },
+ "names_in_basic": {
+  "names": [
+   "height",
+   "width"
+  ]
+ },
+ "names_in_empty": {
+  "names": []
+ },
+ "names_in_filters_reserved": {
+  "names": [
+   "width"
+  ]
+ },
+ "num_arabic_indic": {
+  "value": 4.0
+ },
+ "num_leading_dot": {
+  "value": 1.0
+ },
+ "num_scientific": {
+  "value": 150.0
+ },
+ "op_add": {
+  "value": 5.0
+ },
+ "op_div": {
+  "value": 4.0
+ },
+ "op_mod": {
+  "value": 1.0
+ },
+ "op_mul": {
+  "value": 12.0
+ },
+ "op_parens": {
+  "value": 20.0
+ },
+ "op_pow": {
+  "value": 8.0
+ },
+ "op_sub": {
+  "value": 3.0
+ },
+ "op_unary_chain": {
+  "value": 5.0
+ },
+ "op_unary_minus": {
+  "value": -5.0
+ },
+ "op_unary_plus": {
+  "value": 5.0
+ },
+ "prec_add_mul": {
+  "value": 14.0
+ },
+ "prec_mul_pow": {
+  "value": 18.0
+ },
+ "prec_mul_unary": {
+  "value": -6.0
+ },
+ "prec_pow_right": {
+  "value": 512.0
+ },
+ "prec_unary_pow": {
+  "value": 4.0
+ },
+ "resolve_bad_name": {
+  "errors": {
+   "1abc": "\"1abc\" isn't a name (letters, digits and _; not starting with a digit)"
+  },
+  "values": {}
+ },
+ "resolve_constructor_ok": {
+  "errors": {
+   "r": "round() takes 1 number"
+  },
+  "values": {
+   "b": 6.0,
+   "constructor": 3.0
+  }
+ },
+ "resolve_cycle": {
+  "errors": {
+   "c": "\"c\" depends on itself"
+  },
+  "values": {}
+ },
+ "resolve_cycle_pair": {
+  "errors": {
+   "x": "\"x\" depends on itself",
+   "y": "\"x\" depends on itself"
+  },
+  "values": {}
+ },
+ "resolve_cycle_reverse": {
+  "errors": {
+   "a": "\"b\" depends on itself",
+   "b": "\"b\" depends on itself"
+  },
+  "values": {}
+ },
+ "resolve_deep_nested": {
+  "value": {
+   "half": 5.0,
+   "list": [
+    1,
+    5.0,
+    {
+     "full": 10.0,
+     "plain": 3
+    }
+   ],
+   "n": 9
+  }
+ },
+ "resolve_deep_plain_string": {
+  "value": "not an expression"
+ },
+ "resolve_deep_unknown": {
+  "error": "there's no parameter \"g\" (in =g+1)"
+ },
+ "resolve_duplicate": {
+  "errors": {
+   "a": "\"a\" is there twice"
+  },
+  "values": {}
+ },
+ "resolve_empty_name": {
+  "errors": {
+   "?": "\"\" isn't a name (letters, digits and _; not starting with a digit)"
+  },
+  "values": {}
+ },
+ "resolve_error_propagates": {
+  "errors": {
+   "r": "round() takes 1 number",
+   "s": "round() takes 1 number",
+   "t": "round() takes 1 number"
+  },
+  "values": {}
+ },
+ "resolve_expr_error": {
+  "errors": {
+   "r": "round() takes 1 number"
+  },
+  "values": {}
+ },
+ "resolve_hyphen_name": {
+  "errors": {
+   "a-b": "\"a-b\" isn't a name (letters, digits and _; not starting with a digit)"
+  },
+  "values": {}
+ },
+ "resolve_ok": {
+  "errors": {},
+  "values": {
+   "a": 10.0,
+   "b": 20.0
+  }
+ },
+ "resolve_reserved": {
+  "errors": {
+   "sqrt": "\"sqrt\" is a built-in name"
+  },
+  "values": {}
+ },
+ "resolve_reserved_pi": {
+  "errors": {
+   "pi": "\"pi\" is a built-in name"
+  },
+  "values": {}
+ },
+ "resolve_unknown": {
+  "errors": {
+   "b": "there's no parameter \"missing\""
+  },
+  "values": {}
+ },
+ "round_floor_atan": {
+  "value": 46.0
+ },
+ "uses_expr_false": {
+  "uses": false
+ },
+ "uses_expr_true": {
+  "uses": true
+ },
+ "var_half_width": {
+  "value": 5.0
+ },
+ "var_multi": {
+  "value": 11.0
+ },
+ "ws_isspace_control": {
+  "value": 3.0
+ },
+ "ws_nbsp": {
+  "value": 3.0
+ }
+}

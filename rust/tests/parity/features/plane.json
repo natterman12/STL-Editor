@@ -1,0 +1,57 @@
+[
+ {
+  "name": "plane_offset_xy",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "plane",
+    "params": {
+     "mode": "offset",
+     "base": "XY",
+     "distance": 25,
+     "name": "Offset"
+    }
+   }
+  ]
+ },
+ {
+  "name": "plane_offset_expr_distance",
+  "exactness": "exact",
+  "sources": {},
+  "params": [
+   {
+    "name": "d",
+    "expr": "12.5",
+    "note": "plane distance"
+   }
+  ],
+  "features": [
+   {
+    "type": "plane",
+    "params": {
+     "mode": "offset",
+     "base": "XY",
+     "distance": "=d*2",
+     "name": "Offset"
+    }
+   }
+  ]
+ },
+ {
+  "name": "plane_three_points_colinear",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "plane",
+    "params": {
+     "mode": "three_points",
+     "points": [[0, 0, 0], [10, 0, 0], [20, 0, 0]]
+    }
+   }
+  ]
+ }
+]

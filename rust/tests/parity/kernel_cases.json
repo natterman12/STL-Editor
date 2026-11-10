@@ -1,0 +1,295 @@
+[
+  {
+    "name": "cube_unit",
+    "exactness": "exact",
+    "ops": [
+      {"op": "cube", "size": [10, 10, 10], "center": false}
+    ]
+  },
+  {
+    "name": "cube_centered",
+    "exactness": "exact",
+    "ops": [
+      {"op": "cube", "size": [20, 10, 5], "center": true}
+    ]
+  },
+  {
+    "name": "sphere_r5",
+    "exactness": "exact",
+    "ops": [
+      {"op": "sphere", "r": 5, "segments": 32}
+    ]
+  },
+  {
+    "name": "sphere_r3",
+    "exactness": "exact",
+    "ops": [
+      {"op": "sphere", "r": 3, "segments": 16}
+    ]
+  },
+  {
+    "name": "cylinder_straight",
+    "exactness": "exact",
+    "ops": [
+      {"op": "cylinder", "h": 10, "r1": 4, "r2": 4, "segments": 32, "center": false}
+    ]
+  },
+  {
+    "name": "cylinder_cone_centered",
+    "exactness": "exact",
+    "ops": [
+      {"op": "cylinder", "h": 12, "r1": 5, "r2": 1, "segments": 24, "center": true}
+    ]
+  },
+  {
+    "name": "load_holed_block",
+    "exactness": "exact",
+    "ops": [
+      {"op": "load", "model": "holed_block.stl"}
+    ]
+  },
+  {
+    "name": "load_two_blobs",
+    "exactness": "exact",
+    "ops": [
+      {"op": "load", "model": "two_blobs.stl"}
+    ]
+  },
+  {
+    "name": "load_open_box",
+    "exactness": "exact",
+    "ops": [
+      {"op": "load", "model": "open_box.stl"}
+    ]
+  },
+  {
+    "name": "union_two_cubes",
+    "exactness": "exact",
+    "ops": [
+      {"op": "cube", "size": [10, 10, 10], "center": false},
+      {"op": "cube", "size": [10, 10, 10], "center": false},
+      {"op": "translate", "v": [5, 0, 0]},
+      {"op": "union"}
+    ]
+  },
+  {
+    "name": "union_sphere_cube",
+    "exactness": "exact",
+    "ops": [
+      {"op": "cube", "size": [8, 8, 8], "center": true},
+      {"op": "sphere", "r": 5, "segments": 32},
+      {"op": "union"}
+    ]
+  },
+  {
+    "name": "difference_cube_sphere",
+    "exactness": "exact",
+    "ops": [
+      {"op": "cube", "size": [10, 10, 10], "center": true},
+      {"op": "sphere", "r": 6, "segments": 64},
+      {"op": "difference"}
+    ]
+  },
+  {
+    "name": "difference_cube_cylinder",
+    "exactness": "exact",
+    "ops": [
+      {"op": "cube", "size": [20, 20, 10], "center": false},
+      {"op": "cylinder", "h": 12, "r1": 4, "r2": 4, "segments": 32, "center": false},
+      {"op": "translate", "v": [10, 10, -1]},
+      {"op": "difference"}
+    ]
+  },
+  {
+    "name": "intersection_cube_sphere",
+    "exactness": "exact",
+    "ops": [
+      {"op": "cube", "size": [10, 10, 10], "center": true},
+      {"op": "sphere", "r": 7, "segments": 32},
+      {"op": "intersection"}
+    ]
+  },
+  {
+    "name": "intersection_two_cylinders",
+    "exactness": "exact",
+    "ops": [
+      {"op": "cylinder", "h": 20, "r1": 5, "r2": 5, "segments": 32, "center": true},
+      {"op": "cylinder", "h": 20, "r1": 5, "r2": 5, "segments": 32, "center": true},
+      {"op": "rotate", "deg": [90, 0, 0]},
+      {"op": "intersection"}
+    ]
+  },
+  {
+    "name": "translate_cube",
+    "exactness": "exact",
+    "ops": [
+      {"op": "cube", "size": [5, 5, 5], "center": false},
+      {"op": "translate", "v": [1.5, -2, 3]}
+    ]
+  },
+  {
+    "name": "translate_sphere",
+    "exactness": "exact",
+    "ops": [
+      {"op": "sphere", "r": 4, "segments": 24},
+      {"op": "translate", "v": [0, 10, -3]}
+    ]
+  },
+  {
+    "name": "rotate_cube_90",
+    "exactness": "exact",
+    "ops": [
+      {"op": "cube", "size": [10, 4, 2], "center": false},
+      {"op": "rotate", "deg": [0, 0, 90]}
+    ]
+  },
+  {
+    "name": "rotate_cylinder_45",
+    "exactness": "exact",
+    "ops": [
+      {"op": "cylinder", "h": 8, "r1": 3, "r2": 3, "segments": 24, "center": true},
+      {"op": "rotate", "deg": [45, 30, 0]}
+    ]
+  },
+  {
+    "name": "scale_cube",
+    "exactness": "exact",
+    "ops": [
+      {"op": "cube", "size": [10, 10, 10], "center": true},
+      {"op": "scale", "v": [2, 0.5, 1]}
+    ]
+  },
+  {
+    "name": "scale_sphere",
+    "exactness": "exact",
+    "ops": [
+      {"op": "sphere", "r": 5, "segments": 32},
+      {"op": "scale", "v": [1, 1, 2]}
+    ]
+  },
+  {
+    "name": "mirror_cube_x",
+    "exactness": "exact",
+    "ops": [
+      {"op": "cube", "size": [5, 6, 7], "center": false},
+      {"op": "translate", "v": [2, 0, 0]},
+      {"op": "mirror", "normal": [1, 0, 0]}
+    ]
+  },
+  {
+    "name": "mirror_sphere_y",
+    "exactness": "exact",
+    "ops": [
+      {"op": "sphere", "r": 4, "segments": 24},
+      {"op": "translate", "v": [0, 5, 0]},
+      {"op": "mirror", "normal": [0, 1, 0]}
+    ]
+  },
+  {
+    "name": "refine_cube",
+    "exactness": "approx",
+    "ops": [
+      {"op": "cube", "size": [10, 10, 10], "center": false},
+      {"op": "refine_to_length", "len": 2.0}
+    ]
+  },
+  {
+    "name": "refine_sphere",
+    "exactness": "approx",
+    "ops": [
+      {"op": "sphere", "r": 5, "segments": 16},
+      {"op": "refine_to_length", "len": 1.5}
+    ]
+  },
+  {
+    "name": "hull_two_cubes",
+    "exactness": "approx",
+    "ops": [
+      {"op": "cube", "size": [2, 2, 2], "center": false},
+      {"op": "cube", "size": [2, 2, 2], "center": false},
+      {"op": "translate", "v": [5, 0, 0]},
+      {"op": "union"},
+      {"op": "hull"}
+    ]
+  },
+  {
+    "name": "hull_sphere_pair",
+    "exactness": "approx",
+    "ops": [
+      {"op": "sphere", "r": 3, "segments": 16},
+      {"op": "translate", "v": [-4, 0, 0]},
+      {"op": "sphere", "r": 2, "segments": 16},
+      {"op": "translate", "v": [4, 0, 0]},
+      {"op": "union"},
+      {"op": "hull"}
+    ]
+  },
+  {
+    "name": "trim_cube_mid",
+    "exactness": "exact",
+    "ops": [
+      {"op": "cube", "size": [10, 10, 10], "center": true},
+      {"op": "trim_by_plane", "normal": [0, 0, 1], "offset": 0}
+    ]
+  },
+  {
+    "name": "trim_cylinder_x",
+    "exactness": "exact",
+    "ops": [
+      {"op": "cylinder", "h": 10, "r1": 5, "r2": 5, "segments": 32, "center": true},
+      {"op": "trim_by_plane", "normal": [1, 0, 0], "offset": 0}
+    ]
+  },
+  {
+    "name": "slice_extrude_cube",
+    "exactness": "exact",
+    "ops": [
+      {"op": "cube", "size": [10, 10, 10], "center": false},
+      {"op": "slice_extrude", "z": 5, "height": 3}
+    ]
+  },
+  {
+    "name": "slice_extrude_cylinder",
+    "exactness": "exact",
+    "ops": [
+      {"op": "cylinder", "h": 12, "r1": 4, "r2": 4, "segments": 32, "center": false},
+      {"op": "slice_extrude", "z": 6, "height": 2}
+    ]
+  },
+  {
+    "name": "split_cube_z",
+    "exactness": "exact",
+    "ops": [
+      {"op": "cube", "size": [10, 10, 10], "center": true},
+      {"op": "split_by_plane", "normal": [0, 0, 1], "offset": 0}
+    ]
+  },
+  {
+    "name": "split_sphere_x",
+    "exactness": "exact",
+    "ops": [
+      {"op": "sphere", "r": 5, "segments": 32},
+      {"op": "split_by_plane", "normal": [1, 0, 0], "offset": 0}
+    ]
+  },
+  {
+    "name": "decompose_two_blobs_load",
+    "exactness": "exact",
+    "ops": [
+      {"op": "load", "model": "two_blobs.stl"},
+      {"op": "decompose"}
+    ]
+  },
+  {
+    "name": "decompose_two_spheres",
+    "exactness": "exact",
+    "ops": [
+      {"op": "sphere", "r": 5, "segments": 24},
+      {"op": "translate", "v": [-8, 0, 0]},
+      {"op": "sphere", "r": 3, "segments": 24},
+      {"op": "translate", "v": [8, 0, 0]},
+      {"op": "union"},
+      {"op": "decompose"}
+    ]
+  }
+]

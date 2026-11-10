@@ -1,0 +1,78 @@
+{
+ "import_holed_block_keep": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "holed_block",
+    "solid": true,
+    "stats": {
+     "area": 2464.013797335947,
+     "bbox_max": [
+      30.0,
+      20.0,
+      10.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 276,
+     "vertices": 136,
+     "volume": 5438.1398433105005,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   }
+  ]
+ },
+ "import_missing_source": {
+  "bodies": [],
+  "results": [
+   {
+    "error": "The imported file is missing from the project.",
+    "id": "f1",
+    "warning": null
+   }
+  ]
+ },
+ "import_open_box_expr_repair": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "open_box",
+    "solid": false,
+    "stats": {
+     "area": 2000.0,
+     "bbox_max": [
+      20.0,
+      20.0,
+      20.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 10,
+     "vertices": 8,
+     "volume": 5333.333333333333,
+     "watertight": false
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": "1 mesh(es) are not watertight. They display and export, but editing needs Repair (Rebuild) first."
+   }
+  ]
+ }
+}

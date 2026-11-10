@@ -1,0 +1,60 @@
+[
+ {
+  "name": "import_holed_block_keep",
+  "exactness": "exact",
+  "sources": {
+   "s1": "holed_block.stl"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": true,
+     "place": "keep"
+    }
+   }
+  ]
+ },
+ {
+  "name": "import_open_box_expr_repair",
+  "exactness": "approx",
+  "sources": {
+   "s1": "open_box.stl"
+  },
+  "params": [
+   {
+    "name": "do_repair",
+    "expr": "0",
+    "note": "0 = leave open box unrepaired"
+   }
+  ],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": "=do_repair",
+     "place": "keep"
+    }
+   }
+  ]
+ },
+ {
+  "name": "import_missing_source",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": true,
+     "place": "keep"
+    }
+   }
+  ]
+ }
+]

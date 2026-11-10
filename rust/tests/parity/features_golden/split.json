@@ -1,0 +1,160 @@
+{
+ "split_box_midplane": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box (1)",
+    "solid": true,
+    "stats": {
+     "area": 3200.0,
+     "bbox_max": [
+      40.0,
+      30.0,
+      20.0
+     ],
+     "bbox_min": [
+      20.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 12000.0,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f2.2",
+    "name": "Box (2)",
+    "solid": true,
+    "stats": {
+     "area": 3200.0,
+     "bbox_max": [
+      20.0,
+      30.0,
+      20.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 12000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "split_expr_origin": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "holed_block (1)",
+    "solid": true,
+    "stats": {
+     "area": 1006.0034501805596,
+     "bbox_max": [
+      30.0,
+      20.0,
+      10.0
+     ],
+     "bbox_min": [
+      20.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 80,
+     "vertices": 42,
+     "volume": 1859.5349545543058,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f2.2",
+    "name": "holed_block (2)",
+    "solid": true,
+    "stats": {
+     "area": 1738.0103471553866,
+     "bbox_max": [
+      20.0,
+      20.0,
+      10.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 212,
+     "vertices": 106,
+     "volume": 3578.604888756194,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "split_plane_misses": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 600.0,
+     "bbox_max": [
+      10.0,
+      10.0,
+      10.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 1000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": "The plane doesn't cut through this body.",
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ }
+}

@@ -1,0 +1,116 @@
+{
+ "move_expr_translate": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 600.0,
+     "bbox_max": [
+      13.0,
+      5.0,
+      10.0
+     ],
+     "bbox_min": [
+      3.0,
+      -5.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 1000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "move_missing_body": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "holed_block",
+    "solid": true,
+    "stats": {
+     "area": 2464.013797335947,
+     "bbox_max": [
+      30.0,
+      20.0,
+      10.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 276,
+     "vertices": 136,
+     "volume": 5438.1398433105005,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": "Body 'missing' no longer exists.",
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "move_translate_box": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 600.0,
+     "bbox_max": [
+      10.0,
+      5.0,
+      10.0
+     ],
+     "bbox_min": [
+      0.0,
+      -5.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 1000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ }
+}
