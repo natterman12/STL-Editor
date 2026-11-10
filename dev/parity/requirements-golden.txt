@@ -1,0 +1,12 @@
+# Exact versions of the 1.x engine used to make the golden files (Nathan's PC, Python 3.14).
+# CI installs these so the --check scripts compare like with like. Update together with the golden files.
+manifold3d==3.5.4
+numpy==2.4.6
+scipy==1.18.1
+scikit-image==0.26.0
+trimesh==5.2.0
+fast_simplification==0.2.0
+shapely==2.2.0
+fonttools==4.68.0
+networkx==3.7
+lxml==6.1.1
