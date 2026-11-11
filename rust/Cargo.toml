@@ -16,3 +16,11 @@ codegen-units = 1
 # Our copy of manifold-rust, so the kernel's speed can be fixed here (third_party/manifold-rust/VENDORED.md).
 [patch.crates-io]
 manifold-rust = { path = "third_party/manifold-rust" }
+
+# Slimmer debug builds (2026-11-11): line numbers for our code, no debug info for dependencies.
+# The debug test builds were about 20 GB with full debug info; results are unchanged.
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
