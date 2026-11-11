@@ -94,6 +94,9 @@ fn build_two_d_tree(points: &mut Vec<PolyVert>) {
 }
 
 /// Query the 2D kd-tree, calling `f` for every point inside rect `r`.
+/// The ear clipper has its own copy that skips clipped verts (`query_alive`
+/// in polygon_earclip.rs); this one is the reference for it.
+#[allow(dead_code)]
 fn query_two_d_tree<F: FnMut(PolyVert)>(points: &[PolyVert], r: Rect, mut f: F) {
     if points.len() <= 8 {
         for p in points {

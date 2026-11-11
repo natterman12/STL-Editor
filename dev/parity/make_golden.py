@@ -40,6 +40,16 @@ BATCH1 = [
     "repair",
 ]
 
+BATCH2 = [
+    "sketch",
+    "extrude",
+    "revolve",
+    "loft",
+    "sweep",
+    "hole",
+    "pushpull",
+]
+
 
 def _dumps(obj) -> str:
     return json.dumps(obj, indent=1, sort_keys=True, ensure_ascii=False) + "\n"
@@ -122,7 +132,7 @@ def build_type(type_name: str) -> dict:
 
 
 def build_all() -> dict[str, dict]:
-    return {t: build_type(t) for t in BATCH1}
+    return {t: build_type(t) for t in [*BATCH1, *BATCH2]}
 
 
 def main() -> int:
@@ -148,7 +158,7 @@ def main() -> int:
     if args.check:
         if mismatch:
             return 1
-        print(f"make_golden: ok ({len(BATCH1)} types)")
+        print(f"make_golden: ok ({len(BATCH1) + len(BATCH2)} types)")
         return 0
     return 0
 

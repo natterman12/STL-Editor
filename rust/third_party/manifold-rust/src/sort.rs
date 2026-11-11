@@ -5,6 +5,7 @@
 
 use crate::impl_mesh::ManifoldImpl;
 use crate::linalg::Vec3;
+use crate::scratch::Scratch;
 use crate::types::Box as BBox;
 
 // -----------------------------------------------------------------------
@@ -50,6 +51,31 @@ fn morton_code_impl(position: Vec3, bbox: &BBox) -> u32 {
     x * 4 + y * 2 + z
 }
 
+/// The indices `0..codes.len()` in the order of a stable sort by code: equal
+/// codes keep index order. `index` gives each index the type the caller wants.
+///
+/// Each index is packed under its code into one `u64`, so the keys are all
+/// different and sorting them (unstably, in parallel) gives that one order.
+/// Sorting the packed keys moves 8 bytes per element and never follows an
+/// index back into `codes`, which a sort of the indices by key does on every
+/// comparison.
+fn stable_order<T, F>(codes: &[u32], index: F) -> Scratch<T>
+where
+    T: Send + 'static,
+    F: Fn(u32) -> T + Sync + Send,
+{
+    let n = codes.len();
+    debug_assert!(n <= u32::MAX as usize);
+    let mut keys: Scratch<u64> = Scratch::from_vec(crate::par::maybe_par_map(n, PAR_THRESHOLD, |i| {
+        ((codes[i] as u64) << 32) | i as u64
+    }));
+    crate::par::maybe_par_sort_distinct(&mut keys[..], PAR_THRESHOLD);
+    let keys = &keys;
+    Scratch::from_vec(crate::par::maybe_par_map(n, PAR_THRESHOLD, |i| {
+        index(keys[i] as u32)
+    }))
+}
+
 // -----------------------------------------------------------------------
 // SortVerts
 // -----------------------------------------------------------------------
@@ -62,14 +88,13 @@ pub fn sort_verts(mesh: &mut ManifoldImpl) {
 
     // Compute Morton code for each vertex
     let vert_pos = &mesh.vert_pos;
-    let vert_morton: Vec<u32> =
-        crate::par::maybe_par_map(num_vert, PAR_THRESHOLD, |v| morton_code(vert_pos[v], &bbox));
+    let vert_morton: Scratch<u32> =
+        Scratch::from_vec(crate::par::maybe_par_map(num_vert, PAR_THRESHOLD, |v| {
+            morton_code(vert_pos[v], &bbox)
+        }));
 
     // Build sorted index array (a stable sort, so equal codes keep index order)
-    let mut vert_new2old: Vec<i32> = (0..num_vert as i32).collect();
-    crate::par::maybe_par_sort_by_key(&mut vert_new2old, PAR_THRESHOLD, |&v| {
-        vert_morton[v as usize]
-    });
+    let vert_new2old: Scratch<i32> = stable_order(&vert_morton, |v| v as i32);
 
     // Find how many survive (NaN verts get K_NO_CODE, sort to end)
     let new_num_vert = vert_new2old.partition_point(|&v| vert_morton[v as usize] < K_NO_CODE);
@@ -78,14 +103,14 @@ pub fn sort_verts(mesh: &mut ManifoldImpl) {
     reindex_verts(mesh, vert_new2old_trimmed, num_vert);
 
     // Permute vert positions (only surviving verts)
-    let old_pos = std::mem::take(&mut mesh.vert_pos);
+    let old_pos = Scratch::from_vec(std::mem::take(&mut mesh.vert_pos));
     mesh.vert_pos = crate::par::maybe_par_map(new_num_vert, PAR_THRESHOLD, |v| {
         old_pos[vert_new2old_trimmed[v] as usize]
     });
 
     // Permute vert normals if present
     if mesh.vert_normal.len() == num_vert {
-        let old_n = std::mem::take(&mut mesh.vert_normal);
+        let old_n = Scratch::from_vec(std::mem::take(&mut mesh.vert_normal));
         mesh.vert_normal = crate::par::maybe_par_map(new_num_vert, PAR_THRESHOLD, |v| {
             old_n[vert_new2old_trimmed[v] as usize]
         });
@@ -95,7 +120,7 @@ pub fn sort_verts(mesh: &mut ManifoldImpl) {
 /// Updates halfedge start/end vert indices from old→new index mapping.
 /// `vert_new2old[new] = old` — we invert to get `vert_old2new[old] = new`.
 pub fn reindex_verts(mesh: &mut ManifoldImpl, vert_new2old: &[i32], old_num_vert: usize) {
-    let mut vert_old2new = vec![-1i32; old_num_vert];
+    let mut vert_old2new = Scratch::filled(old_num_vert, -1i32);
     for (new_idx, &old_idx) in vert_new2old.iter().enumerate() {
         vert_old2new[old_idx as usize] = new_idx as i32;
     }
@@ -121,7 +146,7 @@ pub fn reindex_verts(mesh: &mut ManifoldImpl, vert_new2old: &[i32], old_num_vert
 pub fn get_face_box_morton(mesh: &ManifoldImpl) -> (Vec<BBox>, Vec<u32>) {
     let num_tri = mesh.num_tri();
     let bbox = mesh.bbox;
-    crate::par::maybe_par_map(num_tri, PAR_THRESHOLD, |face| {
+    crate::par::maybe_par_map_unzip(num_tri, PAR_THRESHOLD, |face| {
         let mut face_box = BBox::default();
         if mesh.halfedge[3 * face].paired_halfedge < 0 {
             return (face_box, K_NO_CODE);
@@ -135,8 +160,22 @@ pub fn get_face_box_morton(mesh: &ManifoldImpl) -> (Vec<BBox>, Vec<u32>) {
         center = center / 3.0;
         (face_box, morton_code_impl(center, &bbox))
     })
-    .into_iter()
-    .unzip()
+}
+
+/// The morton code of every face, as `get_face_box_morton` gives it.
+fn face_mortons(mesh: &ManifoldImpl) -> Vec<u32> {
+    let bbox = mesh.bbox;
+    crate::par::maybe_par_map(mesh.num_tri(), PAR_THRESHOLD, |face| {
+        if mesh.halfedge[3 * face].paired_halfedge < 0 {
+            return K_NO_CODE;
+        }
+        let mut center = Vec3::new(0.0, 0.0, 0.0);
+        for i in 0..3 {
+            center = center + mesh.vert_pos[mesh.halfedge[3 * face + i].start_vert as usize];
+        }
+        center = center / 3.0;
+        morton_code_impl(center, &bbox)
+    })
 }
 
 // -----------------------------------------------------------------------
@@ -146,11 +185,8 @@ pub fn get_face_box_morton(mesh: &ManifoldImpl) -> (Vec<BBox>, Vec<u32>) {
 /// Sorts faces by Morton code, removing faces flagged for removal (K_NO_CODE).
 /// Updates `face_box` and `face_morton` in-place.
 pub fn sort_faces(mesh: &mut ManifoldImpl, face_box: &mut Vec<BBox>, face_morton: &mut Vec<u32>) {
-    let num_tri = face_box.len();
-    let mut face_new2old: Vec<usize> = (0..num_tri).collect();
-
     // Stable sort by Morton code (removed tris get K_NO_CODE → sorted last)
-    crate::par::maybe_par_sort_by_key(&mut face_new2old, PAR_THRESHOLD, |&f| face_morton[f]);
+    let mut face_new2old: Vec<usize> = stable_order(face_morton, |f| f as usize).into_vec();
 
     // Trim removed faces
     let new_num_tri = face_new2old.partition_point(|&f| face_morton[f] < K_NO_CODE);
@@ -173,27 +209,27 @@ pub fn gather_faces(mesh: &mut ManifoldImpl, face_new2old: &[usize]) {
 
     // Permute tri_ref if present
     if mesh.mesh_relation.tri_ref.len() == old_num_tri {
-        let old_tri_ref = std::mem::take(&mut mesh.mesh_relation.tri_ref);
+        let old_tri_ref = Scratch::from_vec(std::mem::take(&mut mesh.mesh_relation.tri_ref));
         mesh.mesh_relation.tri_ref =
             crate::par::maybe_par_map(num_tri, PAR_THRESHOLD, |f| old_tri_ref[face_new2old[f]]);
     }
 
     // Permute face normals if present
     if mesh.face_normal.len() == old_num_tri {
-        let old_normals = std::mem::take(&mut mesh.face_normal);
+        let old_normals = Scratch::from_vec(std::mem::take(&mut mesh.face_normal));
         mesh.face_normal =
             crate::par::maybe_par_map(num_tri, PAR_THRESHOLD, |f| old_normals[face_new2old[f]]);
     }
 
     // Build faceOld2New for pairedHalfedge remapping
-    let mut face_old2new = vec![-1i32; old_num_tri];
+    let mut face_old2new = Scratch::filled(old_num_tri, -1i32);
     for (new_f, &old_f) in face_new2old.iter().enumerate() {
         face_old2new[old_f] = new_f as i32;
     }
 
     // Gather halfedges from old layout into new
-    let old_halfedge = std::mem::take(&mut mesh.halfedge);
-    let old_tangent = std::mem::take(&mut mesh.halfedge_tangent);
+    let old_halfedge = Scratch::from_vec(std::mem::take(&mut mesh.halfedge));
+    let old_tangent = Scratch::from_vec(std::mem::take(&mut mesh.halfedge_tangent));
     let has_tangent = !old_tangent.is_empty();
 
     mesh.halfedge = crate::par::maybe_par_map(3 * num_tri, PAR_THRESHOLD, |new_edge_idx| {
@@ -277,16 +313,47 @@ pub fn sort_geometry(mesh: &mut ManifoldImpl) {
         mesh.collider = crate::collider::Collider::default();
         return;
     }
+    let t = crate::timing::start();
     sort_verts(mesh);
-    let (mut face_box, mut face_morton) = get_face_box_morton(mesh);
-    sort_faces(mesh, &mut face_box, &mut face_morton);
+    crate::timing::print("    sort_verts", t);
+
+    // Sort the faces by the morton code of their centres and drop the ones
+    // flagged for removal: `sort_faces`, without the boxes. A face's box is
+    // the same before and after the faces move, so the boxes are worked out
+    // afterwards, straight into the collider's leaves, rather than made
+    // here, moved into sorted order and then copied into the tree.
+    let t = crate::timing::start();
+    let face_morton: Scratch<u32> = Scratch::from_vec(face_mortons(mesh));
+    let mut face_new2old: Scratch<usize> = stable_order(&face_morton, |f| f as usize);
+    let new_num_tri = face_new2old.partition_point(|&f| face_morton[f] < K_NO_CODE);
+    face_new2old.truncate(new_num_tri);
+    let sorted_morton: Scratch<u32> =
+        Scratch::from_vec(crate::par::maybe_par_map(new_num_tri, PAR_THRESHOLD, |f| {
+            face_morton[face_new2old[f]]
+        }));
+    drop(face_morton);
+    gather_faces(mesh, &face_new2old);
+    drop(face_new2old);
+    crate::timing::print("    sort_faces", t);
     if mesh.halfedge.is_empty() {
         mesh.collider = crate::collider::Collider::default();
         return;
     }
     // Cache the face BVH on the mesh (C++ builds collider_ here in
     // SortGeometry); query sites reuse it instead of rebuilding per query.
-    mesh.collider = crate::collider::Collider::new(face_box, face_morton);
+    let t = crate::timing::start();
+    let collider = {
+        let mesh: &ManifoldImpl = mesh;
+        crate::collider::Collider::from_leaf_fn(&sorted_morton, |face| {
+            let mut face_box = BBox::default();
+            for i in 0..3 {
+                face_box.union_point(mesh.vert_pos[mesh.halfedge[3 * face + i].start_vert as usize]);
+            }
+            face_box
+        })
+    };
+    mesh.collider = collider;
+    crate::timing::print("    collider", t);
     compact_props(mesh);
 
     debug_assert!(

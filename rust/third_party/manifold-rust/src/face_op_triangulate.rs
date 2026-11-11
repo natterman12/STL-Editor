@@ -12,18 +12,25 @@
 use crate::impl_mesh::ManifoldImpl;
 use crate::linalg::{length2, Vec3};
 use crate::polygon::{ccw, triangulate_idx_halfedges, HalfedgeTriangulation};
+use crate::scratch::Scratch;
 use crate::types::{Halfedge, TriRef};
 
 use super::{assemble_halfedges, get_axis_aligned_projection, project_polygons};
+
+/// Element count from which the output arrays are filled in parallel.
+const FILL_PAR_THRESHOLD: usize = 100_000;
 
 /// Port of `WriteLocalTriangles` (face_op.cpp): write 1–2 triangles for a
 /// tri/quad face. `triangles` entries are face-halfedge indices. Interior
 /// edges (the quad diagonal) pair against each other by matching those
 /// indices; boundary edges record their output halfedge in
-/// `contour2tri[originalFaceHalfedgeIndex]` for the cross-face pairing pass.
+/// `contour2tri[originalFaceHalfedgeIndex]` for the cross-face pairing pass,
+/// and the other way round in `tri2contour[outputHalfedge]`, which lets that
+/// pass run over the output halfedges in parallel.
 fn write_local_triangles(
     output: &mut [Halfedge],
     contour2tri: &mut [i32],
+    tri2contour: &mut [i32],
     (tri_base, edge_base): (usize, usize),
     face_halfedge: &[Halfedge],
     first_tri: usize,
@@ -68,6 +75,7 @@ fn write_local_triangles(
             output[edge[2] as usize - 3 * tri_base].paired_halfedge = pair;
         } else {
             contour2tri[edge[0] as usize - edge_base] = edge[2];
+            tri2contour[edge[2] as usize - 3 * tri_base] = edge[0];
         }
     }
 }
@@ -79,6 +87,7 @@ fn write_local_triangles(
 fn write_general_triangulation(
     output: &mut [Halfedge],
     contour2tri: &mut [i32],
+    tri2contour: &mut [i32],
     (tri_base, edge_base): (usize, usize),
     face_halfedge: &[Halfedge],
     first_tri: usize,
@@ -117,8 +126,9 @@ fn write_general_triangulation(
             boundary >= 0 && (boundary as usize - edge_base) < contour2tri.len(),
             "contour edge index out of bounds"
         );
-        contour2tri[boundary as usize - edge_base] =
-            first_out + edge.paired_halfedge - contour_end as i32;
+        let on_boundary = first_out + edge.paired_halfedge - contour_end as i32;
+        contour2tri[boundary as usize - edge_base] = on_boundary;
+        tri2contour[on_boundary as usize - 3 * tri_base] = boundary;
     }
 }
 
@@ -154,51 +164,82 @@ pub fn face2tri_ct(
     allow_convex: bool,
     token: Option<&crate::cancel::CancelToken>,
 ) -> bool {
+    // The reference of a face is that of its first halfedge.
+    let face_ref = |face: usize| halfedge_ref[face_edge[face] as usize];
+    face2tri_face_refs(mesh, face_edge, &face_ref, allow_convex, token)
+}
+
+/// [`face2tri_ct`] with the reference of each face given by a function of the
+/// face, for a caller that has no use for a reference per halfedge. It is
+/// asked only about faces that have edges.
+pub fn face2tri_face_refs(
+    mesh: &mut ManifoldImpl,
+    face_edge: &[i32],
+    face_ref: &(dyn Fn(usize) -> TriRef + Sync),
+    allow_convex: bool,
+    token: Option<&crate::cancel::CancelToken>,
+) -> bool {
     // C++ gates the whole function on entry (face_op.cpp:192).
     if crate::cancel::is_cancelled(token) {
         return false;
     }
     // C++ passes faceHalfedge as a separate view and writes halfedge_ fresh;
     // the Rust assembly built the polygonal faces in mesh.halfedge, so take it.
-    let face_halfedge = std::mem::take(&mut mesh.halfedge);
+    let t_sub = crate::timing::start();
+    let face_halfedge = Scratch::from_vec(std::mem::take(&mut mesh.halfedge));
     let num_faces = face_edge.len() - 1;
-    let mut contour2tri = vec![-1i32; face_halfedge.len()];
+    let mut contour2tri = Scratch::from_vec(crate::par::maybe_par_filled(
+        face_halfedge.len(),
+        FILL_PAR_THRESHOLD,
+        -1i32,
+    ));
 
     // First pass: count triangles per face; run the general triangulator for
     // faces with more than four edges. Each face triangulates independently
     // (C++ spawns a TBB task per general face), so the parallel path yields
     // identical per-face results, merged in face order.
+    //
+    // Only the general faces are listed and mapped, one task each. In a
+    // boolean they are few and very uneven: a cutter's faces, each crossed by
+    // thousands of edges, sit next to one another in face order, and a map
+    // over all the faces can leave them queued behind each other on one
+    // thread. `general[k]` is the triangulation of face `general_faces[k]`.
     let face_normal_ref = &mesh.face_normal;
     let vert_pos_ref = &mesh.vert_pos;
     let epsilon = mesh.epsilon;
-    let general: Vec<Option<HalfedgeTriangulation>> =
-        match crate::par::maybe_par_map_ct(num_faces, 512, token, |face| {
-            let num_edge = (face_edge[face + 1] - face_edge[face]) as usize;
-            if num_edge <= 4 {
-                return None;
-            }
+    let general_faces: Vec<usize> = (0..num_faces)
+        .filter(|&face| face_edge[face + 1] - face_edge[face] > 4)
+        .collect();
+    let general: Vec<HalfedgeTriangulation> =
+        match crate::par::maybe_par_map_each_ct(general_faces.len(), 2, token, |k| {
+            let face = general_faces[k];
             let first_edge = face_edge[face] as usize;
             let last_edge = face_edge[face + 1] as usize;
             let projection = get_axis_aligned_projection(face_normal_ref[face]);
             let polys_loops =
                 assemble_halfedges(&face_halfedge[first_edge..last_edge], first_edge as i32);
             let polys = project_polygons(&polys_loops, &face_halfedge, vert_pos_ref, &projection);
-            Some(triangulate_idx_halfedges(&polys, epsilon, allow_convex))
+            triangulate_idx_halfedges(&polys, epsilon, allow_convex)
         }) {
             Some(general) => general,
             None => return false,
         };
 
-    let mut tri_offset = vec![0usize; face_edge.len()];
-    for (face, triangulation) in general.iter().enumerate() {
+    crate::timing::print("    general triangulation", t_sub);
+    let t_sub = crate::timing::start();
+    let mut tri_offset = Scratch::filled(face_edge.len(), 0usize);
+    let mut next_general = 0usize;
+    for face in 0..num_faces {
         let num_edge = (face_edge[face + 1] - face_edge[face]) as usize;
         if num_edge == 0 {
             continue;
         }
         debug_assert!(num_edge >= 3, "face has less than three edges");
         tri_offset[face] = num_edge - 2;
-        if let Some(t) = triangulation {
-            tri_offset[face] = t.num_tri();
+        if num_edge > 4 {
+            debug_assert_eq!(general_faces[next_general], face);
+            tri_offset[face] = general[next_general].num_tri();
+            next_general += 1;
         }
     }
 
@@ -211,17 +252,26 @@ pub fn face2tri_ct(
     }
     let num_tri = acc;
 
-    let mut new_halfedge = vec![
+    let mut new_halfedge = crate::par::maybe_par_filled(
+        3 * num_tri,
+        FILL_PAR_THRESHOLD,
         Halfedge {
             start_vert: -1,
             end_vert: -1,
             paired_halfedge: -1,
             prop_vert: -1,
-        };
-        3 * num_tri
-    ];
-    let mut tri_normal = vec![Vec3::new(0.0, 0.0, 0.0); num_tri];
-    let mut tri_ref = vec![TriRef::default(); num_tri];
+        },
+    );
+    let mut tri_normal =
+        crate::par::maybe_par_filled(num_tri, FILL_PAR_THRESHOLD, Vec3::new(0.0, 0.0, 0.0));
+    let mut tri_ref = crate::par::maybe_par_filled(num_tri, FILL_PAR_THRESHOLD, TriRef::default());
+    // The face-halfedge each output halfedge lies on, if it is on its face's
+    // boundary.
+    let mut tri2contour = Scratch::from_vec(crate::par::maybe_par_filled(
+        3 * num_tri,
+        FILL_PAR_THRESHOLD,
+        -1i32,
+    ));
 
     // Write the faces' triangles in parallel, in fixed runs of faces. A face
     // writes only its own triangles and `contour2tri` entries, from values that
@@ -230,6 +280,7 @@ pub fn face2tri_ct(
         faces: std::ops::Range<usize>,
         halfedge: &'a mut [Halfedge],
         contour2tri: &'a mut [i32],
+        tri2contour: &'a mut [i32],
         tri_normal: &'a mut [Vec3],
         tri_ref: &'a mut [TriRef],
     }
@@ -238,6 +289,7 @@ pub fn face2tri_ct(
     {
         let mut halfedge_rest: &mut [Halfedge] = &mut new_halfedge;
         let mut contour_rest: &mut [i32] = &mut contour2tri;
+        let mut tri2contour_rest: &mut [i32] = &mut tri2contour;
         let mut normal_rest: &mut [Vec3] = &mut tri_normal;
         let mut ref_rest: &mut [TriRef] = &mut tri_ref;
         let mut f0 = 0;
@@ -247,6 +299,8 @@ pub fn face2tri_ct(
             let edges = (face_edge[f1] - face_edge[f0]) as usize;
             let (h, hr) = std::mem::take(&mut halfedge_rest).split_at_mut(3 * tris);
             let (c, cr) = std::mem::take(&mut contour_rest).split_at_mut(edges);
+            let (t2c, t2cr) = std::mem::take(&mut tri2contour_rest).split_at_mut(3 * tris);
+            tri2contour_rest = t2cr;
             let (n, nr) = std::mem::take(&mut normal_rest).split_at_mut(tris);
             let (r, rr) = std::mem::take(&mut ref_rest).split_at_mut(tris);
             halfedge_rest = hr;
@@ -257,6 +311,7 @@ pub fn face2tri_ct(
                 faces: f0..f1,
                 halfedge: h,
                 contour2tri: c,
+                tri2contour: t2c,
                 tri_normal: n,
                 tri_ref: r,
             });
@@ -265,11 +320,13 @@ pub fn face2tri_ct(
     }
     let face_halfedge_ref = &face_halfedge;
     let general_ref = &general;
+    let general_faces_ref = &general_faces;
     crate::par::maybe_par_for_each(runs, 2, |run| {
         let FaceRun {
             faces,
             halfedge: new_halfedge,
             contour2tri,
+            tri2contour,
             tri_normal,
             tri_ref,
         } = run;
@@ -277,6 +334,8 @@ pub fn face2tri_ct(
         // Bases of this run's slices in the whole arrays.
         let tri_base = tri_offset[faces.start];
         let edge_base = face_edge[faces.start] as usize;
+        // The run's faces come in ascending order, and so do the general ones.
+        let mut next_general = general_faces_ref.partition_point(|&f| f < faces.start);
         for face in faces {
             let first_edge = face_edge[face] as usize;
             let last_edge = face_edge[face + 1] as usize;
@@ -317,6 +376,7 @@ pub fn face2tri_ct(
                 write_local_triangles(
                     new_halfedge,
                     contour2tri,
+                    tri2contour,
                     (tri_base, edge_base),
                     face_halfedge,
                     first_tri,
@@ -365,6 +425,7 @@ pub fn face2tri_ct(
                 write_local_triangles(
                     new_halfedge,
                     contour2tri,
+                    tri2contour,
                     (tri_base, edge_base),
                     face_halfedge,
                     first_tri,
@@ -373,12 +434,13 @@ pub fn face2tri_ct(
                 face_num_tri = 2;
             } else {
                 // General triangulation
-                let triangulation = general_ref[face]
-                    .as_ref()
-                    .expect("general face missing triangulation result");
+                debug_assert_eq!(general_faces_ref[next_general], face);
+                let triangulation = &general_ref[next_general];
+                next_general += 1;
                 write_general_triangulation(
                     new_halfedge,
                     contour2tri,
+                    tri2contour,
                     (tri_base, edge_base),
                     face_halfedge,
                     first_tri,
@@ -388,7 +450,7 @@ pub fn face2tri_ct(
             }
 
             // WriteTriRefs
-            let ref_tri = halfedge_ref[first_edge];
+            let ref_tri = face_ref(face);
             for t in 0..face_num_tri {
                 tri_normal[first_tri - tri_base + t] = normal;
                 tri_ref[first_tri - tri_base + t] = ref_tri;
@@ -396,27 +458,41 @@ pub fn face2tri_ct(
         }
     });
 
+    crate::timing::print("    write faces", t_sub);
+    let t_sub = crate::timing::start();
     // Cross-face pairing: connect each face-boundary output halfedge to its
-    // counterpart via the original assembly pairing.
-    for edge in 0..face_halfedge.len() {
-        let tri_edge = contour2tri[edge];
-        if tri_edge < 0 {
-            continue;
-        }
-        let pair = face_halfedge[edge].paired_halfedge;
-        if pair < 0 {
-            continue;
-        }
-        let pair_tri = contour2tri[pair as usize];
-        debug_assert!(
-            pair_tri >= 0,
-            "boundary edge did not triangulate with its pair"
+    // counterpart via the original assembly pairing. An output halfedge on a
+    // boundary lies on one face-halfedge, and `contour2tri` names it back, so
+    // each is paired on its own: the output halfedge of the face-halfedge
+    // paired with its own.
+    {
+        let contour2tri = &contour2tri;
+        let tri2contour = &tri2contour;
+        let face_halfedge = &face_halfedge;
+        crate::par::maybe_par_for_each_indexed_mut(
+            &mut new_halfedge,
+            FILL_PAR_THRESHOLD,
+            |tri_edge, h| {
+                let edge = tri2contour[tri_edge];
+                if edge < 0 || contour2tri[edge as usize] != tri_edge as i32 {
+                    return;
+                }
+                let pair = face_halfedge[edge as usize].paired_halfedge;
+                if pair < 0 {
+                    return;
+                }
+                let pair_tri = contour2tri[pair as usize];
+                debug_assert!(
+                    pair_tri >= 0,
+                    "boundary edge did not triangulate with its pair"
+                );
+                h.paired_halfedge = pair_tri;
+            },
         );
-        new_halfedge[tri_edge as usize].paired_halfedge = pair_tri;
     }
-
+    crate::timing::print("    cross-face pairing", t_sub);
     mesh.halfedge = new_halfedge;
-    mesh.face_normal = tri_normal;
-    mesh.mesh_relation.tri_ref = tri_ref;
+    crate::scratch::give(std::mem::replace(&mut mesh.face_normal, tri_normal));
+    crate::scratch::give(std::mem::replace(&mut mesh.mesh_relation.tri_ref, tri_ref));
     true
 }

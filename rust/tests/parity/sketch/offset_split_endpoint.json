@@ -1,0 +1,23 @@
+{
+ "name": "offset_split_endpoint",
+ "entities": [
+  {
+   "id": "h",
+   "type": "line",
+   "p1": [0, 0],
+   "p2": [20, 0]
+  },
+  {
+   "id": "v",
+   "type": "line",
+   "p1": [10, 0],
+   "p2": [10, 10]
+  }
+ ],
+ "ops": {
+  "offset": {
+   "ids": ["h", "v"],
+   "d": 1
+  }
+ }
+}

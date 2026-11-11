@@ -3,7 +3,7 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::Arc;
 
 use manifold_rust::boolean3;
-use manifold_rust::csg_tree::{CsgLeafNode, CsgNode};
+use manifold_rust::csg_tree::CsgLeafNode;
 use manifold_rust::edge_op;
 use manifold_rust::face_op;
 use manifold_rust::impl_mesh::{self, ManifoldImpl};
@@ -299,6 +299,122 @@ fn union_pending(parts: &[Solid]) -> Manifold {
     }
 }
 
+/// A part of [`union_plain`]: a mesh lent by the caller, or one made on the way.
+enum Part<'a> {
+    Lent(&'a ManifoldImpl),
+    Made(ManifoldImpl),
+}
+
+impl Part<'_> {
+    fn mesh(&self) -> &ManifoldImpl {
+        match self {
+            Part::Lent(m) => m,
+            Part::Made(m) => m,
+        }
+    }
+}
+
+/// The order of `BatchBoolean`'s heap: the most vertices first, of equals the one added last.
+struct HeapPart<'a>(Part<'a>, u64);
+
+impl PartialEq for HeapPart<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.cmp(other) == std::cmp::Ordering::Equal
+    }
+}
+impl Eq for HeapPart<'_> {}
+impl PartialOrd for HeapPart<'_> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl Ord for HeapPart<'_> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.mesh().num_vert().cmp(&other.0.mesh().num_vert()).then(self.1.cmp(&other.1))
+    }
+}
+
+/// manifold-rust's union of a list of meshes (`CsgNode` with `OpType::Add`: `batch_union`, then
+/// `batch_boolean`), step for step, but on the meshes as the caller holds them. The tree takes
+/// its leaves by value, so building it copied every part first. Here a part is copied only when
+/// it is put together with others without a union (`compose_meshes`), as before. The results are
+/// the same triangles. Needs two parts or more, none with a matrix still to apply.
+fn union_plain(parts: Vec<&ManifoldImpl>) -> ManifoldImpl {
+    const MAX_UNION: usize = 1000;
+    let engine = BooleanConfig::default_engine();
+    let add = |a: &Part, b: &Part| Part::Made(boolean3::boolean_dispatch(a.mesh(), b.mesh(), OpType::Add, engine, None));
+
+    let mut children: Vec<Part> = parts.into_iter().map(Part::Lent).collect();
+    while children.len() > 1 {
+        // the last thousand at a time, so that the overlap check stays small
+        let start = children.len().saturating_sub(MAX_UNION);
+        let mut chunk: Vec<Option<Part>> = children.drain(start..).map(Some).collect();
+        let boxes: Vec<Bounds> = chunk.iter().map(|c| c.as_ref().unwrap().mesh().bbox).collect();
+        // each part joins the first group in which it overlaps nothing
+        let mut groups: Vec<Vec<usize>> = Vec::new();
+        for i in 0..chunk.len() {
+            match groups.iter_mut().find(|g| !g.iter().any(|&j| boxes[i].does_overlap_box(&boxes[j]))) {
+                Some(g) => g.push(i),
+                None => groups.push(vec![i]),
+            }
+        }
+        let mut results: Vec<Part> = Vec::with_capacity(groups.len());
+        for g in &groups {
+            if let [one] = g.as_slice() {
+                results.push(chunk[*one].take().unwrap());
+            } else {
+                let meshes: Vec<ManifoldImpl> = g.iter().map(|&i| chunk[i].as_ref().unwrap().mesh().clone()).collect();
+                results.push(Part::Made(boolean3::compose_meshes(&meshes)));
+            }
+        }
+
+        // BatchBoolean(Add) of the results
+        let result = match results.len() {
+            1 => results.pop().unwrap(),
+            2 => {
+                let b = results.pop().unwrap();
+                let a = results.pop().unwrap();
+                add(&a, &b)
+            }
+            n => {
+                let mut next_serial = n as u64;
+                let mut heap: std::collections::BinaryHeap<HeapPart> =
+                    results.into_iter().zip(0u64..).map(|(p, i)| HeapPart(p, i)).collect();
+                // up to four pairs a round, chosen before any runs; the results go back in
+                // together, in pair order
+                while heap.len() > 1 {
+                    let mut pairs: Vec<(HeapPart, HeapPart)> = Vec::with_capacity(4);
+                    for _ in 0..4 {
+                        if heap.len() <= 1 {
+                            break;
+                        }
+                        let a = heap.pop().unwrap();
+                        let b = heap.pop().unwrap();
+                        pairs.push((a, b));
+                    }
+                    let done = manifold_rust::par::maybe_par_map(pairs.len(), 2, |i| {
+                        boolean3::boolean_dispatch(pairs[i].0 .0.mesh(), pairs[i].1 .0.mesh(), OpType::Add, engine, None)
+                    });
+                    for m in done {
+                        heap.push(HeapPart(Part::Made(m), next_serial));
+                        next_serial += 1;
+                    }
+                }
+                heap.pop().unwrap().0
+            }
+        };
+        // the new, complicated part goes to the front, and the old front to the back
+        children.push(result);
+        let last = children.len() - 1;
+        children.swap(0, last);
+    }
+    match children.pop() {
+        Some(Part::Made(m)) => m,
+        Some(Part::Lent(m)) => m.clone(),
+        None => ManifoldImpl::new(),
+    }
+}
+
 /// Manifold 3.5.4 `CsgLeafNode::GetBoundingBox`: a box round a part without applying its
 /// pending matrix (the box of the moved box, so it can be larger than the part). The sums
 /// are in the order 3.5.4 makes them: manifold-rust 0.19.2 moves the centre and the half
@@ -503,10 +619,7 @@ impl Solid {
             [] => Solid::wrap(Manifold::empty()),
             [one] => one.clone(),
             _ if parts.iter().any(|s| s.1.is_some()) => Solid::wrap(union_pending(parts)),
-            _ => {
-                let leaves = parts.iter().map(|s| CsgNode::leaf(s.0.as_impl().clone())).collect();
-                Solid::wrap(Manifold::from_impl(CsgNode::op_n(OpType::Add, leaves).evaluate()))
-            }
+            _ => Solid::wrap(Manifold::from_impl(union_plain(parts.iter().map(|s| s.0.as_impl()).collect()))),
         }
     }
 
@@ -563,7 +676,8 @@ impl Solid {
     /// to, the second is the other side.
     pub fn split_by_plane(&self, normal: [f64; 3], offset: f64) -> (Solid, Solid) {
         let (a, b) = match plane_cutter(&self.0, normal, offset) {
-            Some(cutter) => (self.0.intersection(&cutter), self.0.difference(&cutter)),
+            // one pass finds where the plane crosses the mesh and builds both halves
+            Some(cutter) => self.0.split(&cutter),
             None => self.0.split_by_plane(v3(normal), offset),
         };
         (Solid::wrap(a), Solid::wrap(b))
@@ -690,5 +804,10 @@ impl Solid {
     /// The outline of the solid where the plane z = `z` cuts it.
     pub fn slice(&self, z: f64) -> Shape2d {
         Shape2d::from_cross_section(&self.0.slice(z))
+    }
+
+    /// The silhouette of the solid seen from above (along z): 1.x `Manifold.project()`.
+    pub fn project(&self) -> Shape2d {
+        Shape2d::from_cross_section(&self.0.project())
     }
 }

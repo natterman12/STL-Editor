@@ -1,0 +1,26 @@
+{
+ "name": "offset_notch_grow",
+ "entities": [
+  {
+   "id": "n",
+   "type": "polyline",
+   "closed": true,
+   "pts": [
+    [0, 0],
+    [20, 0],
+    [20, 10],
+    [12, 10],
+    [12, 2],
+    [8, 2],
+    [8, 10],
+    [0, 10]
+   ]
+  }
+ ],
+ "ops": {
+  "offset": {
+   "ids": ["n"],
+   "d": 2
+  }
+ }
+}

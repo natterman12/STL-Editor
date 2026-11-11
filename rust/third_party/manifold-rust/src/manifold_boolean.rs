@@ -30,6 +30,13 @@ impl Manifold {
     /// Split this manifold into two using a cutter manifold.
     /// Returns (intersection, difference).
     pub fn split(&self, cutter: &Self) -> (Self, Self) {
+        // With the exact engine the two results come from one set of
+        // intersections (`boolean3::split`, as C++ `Manifold::Split`). The
+        // other engines keep two separate booleans.
+        if crate::types::BooleanConfig::default_engine() == crate::types::BooleanEngine::Exact {
+            let (intersection, difference) = boolean3::split(&self.imp, &cutter.imp);
+            return (Self::from_impl(intersection), Self::from_impl(difference));
+        }
         let intersection = self.intersection(cutter);
         let difference = self.difference(cutter);
         (intersection, difference)

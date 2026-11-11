@@ -1,0 +1,354 @@
+[
+ {
+  "name": "hole_simple_through",
+  "exactness": "approx",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 30,
+     "width": 20,
+     "height": 10,
+     "anchor": "corner",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "hole",
+    "params": {
+     "points": [
+      [
+       15,
+       10,
+       10
+      ]
+     ],
+     "normal": [
+      0,
+      0,
+      1
+     ],
+     "kind": "simple",
+     "diameter": 6,
+     "through": true,
+     "targets": [
+      "f1"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "hole_blind_tip",
+  "exactness": "approx",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 30,
+     "width": 20,
+     "height": 15,
+     "anchor": "corner",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "hole",
+    "params": {
+     "points": [
+      [
+       15,
+       10,
+       15
+      ]
+     ],
+     "normal": [
+      0,
+      0,
+      1
+     ],
+     "kind": "simple",
+     "diameter": 5,
+     "through": false,
+     "depth": 8,
+     "tip": true,
+     "targets": [
+      "f1"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "hole_counterbore",
+  "exactness": "approx",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 30,
+     "width": 20,
+     "height": 12,
+     "anchor": "corner",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "hole",
+    "params": {
+     "points": [
+      [
+       15,
+       10,
+       12
+      ]
+     ],
+     "normal": [
+      0,
+      0,
+      1
+     ],
+     "kind": "counterbore",
+     "diameter": 4,
+     "through": true,
+     "cb_diameter": 8,
+     "cb_depth": 3,
+     "targets": [
+      "f1"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "hole_countersink",
+  "exactness": "approx",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 30,
+     "width": 20,
+     "height": 12,
+     "anchor": "corner",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "hole",
+    "params": {
+     "points": [
+      [
+       15,
+       10,
+       12
+      ]
+     ],
+     "normal": [
+      0,
+      0,
+      1
+     ],
+     "kind": "countersink",
+     "diameter": 4,
+     "through": true,
+     "cs_diameter": 8,
+     "cs_angle": 90,
+     "targets": [
+      "f1"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "hole_hex",
+  "exactness": "approx",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 30,
+     "width": 20,
+     "height": 12,
+     "anchor": "corner",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "hole",
+    "params": {
+     "points": [
+      [
+       15,
+       10,
+       12
+      ]
+     ],
+     "normal": [
+      0,
+      0,
+      1
+     ],
+     "kind": "hex",
+     "diameter": 3.4,
+     "through": true,
+     "hex_af": 5.5,
+     "hex_depth": 2.4,
+     "targets": [
+      "f1"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "hole_no_points",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 20,
+     "width": 20,
+     "height": 10,
+     "anchor": "base",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "hole",
+    "params": {
+     "points": [],
+     "kind": "simple",
+     "diameter": 5,
+     "through": true,
+     "targets": [
+      "f1"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "hole_thread_flag_ignored",
+  "exactness": "approx",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 20,
+     "width": 20,
+     "height": 10,
+     "anchor": "base",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "hole",
+    "params": {
+     "points": [
+      [
+       0,
+       0,
+       10
+      ]
+     ],
+     "normal": [
+      0,
+      0,
+      1
+     ],
+     "kind": "simple",
+     "diameter": 5,
+     "through": true,
+     "targets": [
+      "f1"
+     ],
+     "thread": true
+    }
+   }
+  ]
+ },
+ {
+  "name": "hole_several_points",
+  "exactness": "approx",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 40,
+     "width": 20,
+     "height": 10,
+     "anchor": "corner",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "hole",
+    "params": {
+     "points": [
+      [
+       10,
+       10,
+       10
+      ],
+      [
+       20,
+       10,
+       10
+      ],
+      [
+       30,
+       10,
+       10
+      ]
+     ],
+     "normal": [
+      0,
+      0,
+      1
+     ],
+     "kind": "simple",
+     "diameter": 4,
+     "through": true,
+     "targets": [
+      "f1"
+     ]
+    }
+   }
+  ]
+ }
+]

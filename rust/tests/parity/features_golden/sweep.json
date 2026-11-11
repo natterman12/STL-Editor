@@ -1,0 +1,302 @@
+{
+ "sweep_arc_path": {
+  "bodies": [
+   {
+    "id": "f3",
+    "name": "Sweep",
+    "solid": true,
+    "stats": {
+     "area": 222.27977470000178,
+     "bbox_max": [
+      11.998026847839355,
+      11.998026847839355,
+      1.999013066291809
+     ],
+     "bbox_min": [
+      -0.06279052048921585,
+      -0.06279052048921585,
+      -1.999013066291809
+     ],
+     "triangles": 2492,
+     "vertices": 1248,
+     "volume": 196.79648503498547,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f3",
+    "warning": null
+   }
+  ]
+ },
+ "sweep_closed_path_error": {
+  "bodies": [],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   },
+   {
+    "error": "The sweep path must be open in this version (its two ends can't meet).",
+    "id": "f3",
+    "warning": null
+   }
+  ]
+ },
+ "sweep_cut": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 4621.470366629138,
+     "bbox_max": [
+      40.0,
+      20.0,
+      20.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 200,
+     "vertices": 104,
+     "volume": 15154.190236877455,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f3",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f4",
+    "warning": null
+   }
+  ]
+ },
+ "sweep_join": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 478.5637266824492,
+     "bbox_max": [
+      4.0,
+      20.0,
+      4.0
+     ],
+     "bbox_min": [
+      -4.0,
+      -4.0,
+      -2.0
+     ],
+     "triangles": 208,
+     "vertices": 106,
+     "volume": 481.54925586244605,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f3",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f4",
+    "warning": null
+   }
+  ]
+ },
+ "sweep_line_path": {
+  "bodies": [
+   {
+    "id": "f3",
+    "name": "Sweep",
+    "solid": true,
+    "stats": {
+     "area": 621.4703439877255,
+     "bbox_max": [
+      3.0,
+      30.0,
+      3.0
+     ],
+     "bbox_min": [
+      -3.0,
+      0.0,
+      -3.0
+     ],
+     "triangles": 188,
+     "vertices": 96,
+     "volume": 845.8097066203605,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f3",
+    "warning": null
+   }
+  ]
+ },
+ "sweep_missing_path": {
+  "bodies": [],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": "The sketch for this feature no longer exists.",
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "sweep_polyline_path": {
+  "bodies": [
+   {
+    "id": "f3",
+    "name": "Sweep",
+    "solid": true,
+    "stats": {
+     "area": 592.0,
+     "bbox_max": [
+      22.0,
+      15.0,
+      2.0
+     ],
+     "bbox_min": [
+      0.0,
+      -2.0,
+      -2.0
+     ],
+     "triangles": 20,
+     "vertices": 12,
+     "volume": 560.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f3",
+    "warning": null
+   }
+  ]
+ },
+ "sweep_self_cross": {
+  "bodies": [],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   },
+   {
+    "error": "The sweep path crosses itself. Move the path so it doesn't cross.",
+    "id": "f3",
+    "warning": null
+   }
+  ]
+ },
+ "sweep_sharp_turn": {
+  "bodies": [],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   },
+   {
+    "error": "The sweep path turns back on itself too sharply. Open up the bend.",
+    "id": "f3",
+    "warning": null
+   }
+  ]
+ }
+}

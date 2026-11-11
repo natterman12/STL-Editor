@@ -1,0 +1,1003 @@
+{
+ "api_outputs": {
+  "solved": {
+   "l1": {
+    "id": "l1",
+    "p1": [
+     0,
+     0
+    ],
+    "p2": [
+     10,
+     0
+    ],
+    "type": "line"
+   },
+   "l2": {
+    "id": "l2",
+    "p1": [
+     0,
+     5
+    ],
+    "p2": [
+     10,
+     5
+    ],
+    "type": "line"
+   },
+   "l3": {
+    "id": "l3",
+    "p1": [
+     0,
+     0
+    ],
+    "p2": [
+     0,
+     10
+    ],
+    "type": "line"
+   },
+   "c1": {
+    "cx": 20,
+    "cy": 0,
+    "id": "c1",
+    "r": 4,
+    "type": "circle"
+   },
+   "pt": {
+    "id": "pt",
+    "type": "point",
+    "x": 5,
+    "y": 2
+   }
+  },
+  "analyze": {
+   "dof": 13,
+   "rank": 4,
+   "under": [
+    "c1",
+    "l1",
+    "l2",
+    "l3",
+    "pt"
+   ]
+  },
+  "unsatisfied": [],
+  "infer": [],
+  "ok": true,
+  "error": 0,
+  "make": [
+   {
+    "a": {
+     "e": "l1"
+    },
+    "b": {
+     "e": "l2"
+    },
+    "type": "parallel"
+   },
+   {
+    "a": {
+     "e": "l1"
+    },
+    "b": {
+     "e": "l3"
+    },
+    "type": "perpendicular"
+   },
+   {
+    "a": {
+     "e": "pt",
+     "k": "p"
+    },
+    "b": {
+     "e": "l1",
+     "k": "p1"
+    },
+    "type": "coincident"
+   },
+   {
+    "result": null
+   },
+   {
+    "a": {
+     "e": "l1"
+    },
+    "type": "horizontal"
+   },
+   {
+    "a": {
+     "e": "pt",
+     "k": "p"
+    },
+    "at": [
+     5,
+     2
+    ],
+    "type": "fix"
+   },
+   {
+    "result": "Pick two lines, or two circles / arcs."
+   }
+  ],
+  "measure": [
+   {
+    "id": "d1",
+    "type": "length",
+    "value": 10
+   },
+   {
+    "id": "d2",
+    "ref": true,
+    "type": "length",
+    "value": 10
+   },
+   {
+    "id": "d3",
+    "type": "vdistance",
+    "value": 5
+   }
+  ],
+  "glyphSpots": [
+   {
+    "id": "d1",
+    "spots": [
+     [
+      5,
+      0
+     ]
+    ],
+    "type": "length"
+   },
+   {
+    "id": "d2",
+    "ref": true,
+    "spots": [
+     [
+      5,
+      0
+     ]
+    ],
+    "type": "length"
+   },
+   {
+    "id": "d3",
+    "spots": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      5
+     ]
+    ],
+    "type": "vdistance"
+   },
+   {
+    "id": "k1",
+    "spots": [
+     [
+      5,
+      0
+     ],
+     [
+      5,
+      5
+     ]
+    ],
+    "type": "parallel"
+   },
+   {
+    "id": "k2",
+    "spots": [
+     [
+      5,
+      0
+     ],
+     [
+      0,
+      5
+     ]
+    ],
+    "type": "perpendicular"
+   }
+  ],
+  "lineMeet": [
+   {
+    "a": "l1",
+    "at": [
+     0,
+     0
+    ],
+    "b": "l3"
+   },
+   {
+    "a": "l1",
+    "at": null,
+    "b": "l2"
+   },
+   {
+    "a": "l2",
+    "at": [
+     0,
+     5
+    ],
+    "b": "l3"
+   }
+  ],
+  "ref": [
+   {
+    "a": {
+     "e": "l1"
+    },
+    "id": "d2",
+    "ref": true,
+    "type": "length",
+    "value": 10
+   }
+  ]
+ },
+ "constraint_kinds": {
+  "solved": {
+   "l1": {
+    "id": "l1",
+    "p1": [
+     0,
+     0
+    ],
+    "p2": [
+     0.23699165,
+     0
+    ],
+    "type": "line"
+   },
+   "l2": {
+    "id": "l2",
+    "p1": [
+     -5.012105733,
+     4.879147324
+    ],
+    "p2": [
+     5.012105733,
+     4.879147324
+    ],
+    "type": "line"
+   },
+   "l3": {
+    "id": "l3",
+    "p1": [
+     0,
+     0
+    ],
+    "p2": [
+     0,
+     19.862845566
+    ],
+    "type": "line"
+   },
+   "c1": {
+    "cx": 20.217830377,
+    "cy": 0.739166917,
+    "id": "c1",
+    "r": 4.139980407,
+    "type": "circle"
+   },
+   "c2": {
+    "cx": 20.217830377,
+    "cy": 0.739166917,
+    "id": "c2",
+    "r": 4.139980407,
+    "type": "circle"
+   },
+   "a1": {
+    "a0": 0,
+    "a1": 90,
+    "cx": 35,
+    "cy": 0,
+    "id": "a1",
+    "r": 5,
+    "type": "arc"
+   },
+   "pt": {
+    "id": "pt",
+    "type": "point",
+    "x": 0.118495825,
+    "y": 0
+   }
+  },
+  "analyze": {
+   "dof": 11,
+   "rank": 14,
+   "under": [
+    "a1",
+    "c1",
+    "c2",
+    "l1",
+    "l2",
+    "l3",
+    "pt"
+   ]
+  },
+  "unsatisfied": [],
+  "infer": [],
+  "ok": true,
+  "error": 0
+ },
+ "dimension_kinds": {
+  "solved": {
+   "l1": {
+    "id": "l1",
+    "p1": [
+     0,
+     0
+    ],
+    "p2": [
+     12,
+     0
+    ],
+    "type": "line"
+   },
+   "l2": {
+    "id": "l2",
+    "p1": [
+     0,
+     0
+    ],
+    "p2": [
+     0,
+     8
+    ],
+    "type": "line"
+   },
+   "c1": {
+    "cx": 20,
+    "cy": 0,
+    "id": "c1",
+    "r": 5,
+    "type": "circle"
+   },
+   "a1": {
+    "a0": 10,
+    "a1": 100,
+    "cx": 35,
+    "cy": 0,
+    "id": "a1",
+    "r": 4,
+    "type": "arc"
+   },
+   "p1": {
+    "id": "p1",
+    "type": "point",
+    "x": -0.240377207,
+    "y": -0.160251478
+   },
+   "p2": {
+    "id": "p2",
+    "type": "point",
+    "x": 12.240377202,
+    "y": 8.160251473
+   }
+  },
+  "analyze": {
+   "dof": 12,
+   "rank": 8,
+   "under": [
+    "a1",
+    "c1",
+    "l1",
+    "l2",
+    "p1",
+    "p2"
+   ]
+  },
+  "unsatisfied": [],
+  "infer": [],
+  "ok": true,
+  "error": 0
+ },
+ "distance_point_line": {
+  "solved": {
+   "l1": {
+    "id": "l1",
+    "p1": [
+     0,
+     0
+    ],
+    "p2": [
+     20,
+     0
+    ],
+    "type": "line"
+   },
+   "pt": {
+    "id": "pt",
+    "type": "point",
+    "x": 10,
+    "y": 5
+   }
+  },
+  "analyze": {
+   "dof": 1,
+   "rank": 5,
+   "under": [
+    "pt"
+   ]
+  },
+  "unsatisfied": [],
+  "infer": [
+   {
+    "a": {
+     "e": "pt",
+     "k": "p"
+    },
+    "b": {
+     "e": "l1"
+    },
+    "type": "distance"
+   }
+  ],
+  "ok": true,
+  "error": 0
+ },
+ "entity_types_locks_fixed": {
+  "solved": {
+   "s1": {
+    "id": "s1",
+    "r": 3,
+    "type": "slot",
+    "x1": 0,
+    "x2": 20,
+    "y1": 0,
+    "y2": 0
+   },
+   "g1": {
+    "cx": 40,
+    "cy": 0,
+    "id": "g1",
+    "n": 6,
+    "r": 6,
+    "type": "polygon"
+   },
+   "pl1": {
+    "closed": false,
+    "id": "pl1",
+    "pts": [
+     [
+      60,
+      0
+     ],
+     [
+      70,
+      5
+     ],
+     [
+      80,
+      0
+     ]
+    ],
+    "type": "polyline"
+   },
+   "l1": {
+    "id": "l1",
+    "p1": [
+     0,
+     15
+    ],
+    "p2": [
+     10,
+     15
+    ],
+    "type": "line"
+   }
+  },
+  "analyze": {
+   "dof": 8,
+   "rank": 4,
+   "under": [
+    "g1",
+    "l1",
+    "s1"
+   ]
+  },
+  "unsatisfied": [],
+  "infer": [
+   {
+    "a": {
+     "e": "s1"
+    },
+    "type": "length"
+   },
+   {
+    "a": {
+     "e": "g1"
+    },
+    "type": "radius"
+   },
+   {
+    "result": "Pick a line, circle or arc; or two points; a point and a line; or two lines."
+   },
+   {
+    "result": "Pick at least one shape of the sketch: the origin, the axes and the part edges don't move."
+   }
+  ],
+  "ok": true,
+  "error": 0
+ },
+ "fix_whole_entity": {
+  "solved": {
+   "l1": {
+    "id": "l1",
+    "p1": [
+     0,
+     0
+    ],
+    "p2": [
+     10,
+     0
+    ],
+    "type": "line"
+   }
+  },
+  "analyze": {
+   "dof": 0,
+   "rank": 4,
+   "under": []
+  },
+  "unsatisfied": [],
+  "infer": [],
+  "ok": true,
+  "error": 0
+ },
+ "fully_defined": {
+  "solved": {
+   "l1": {
+    "id": "l1",
+    "p1": [
+     0,
+     0
+    ],
+    "p2": [
+     10,
+     0
+    ],
+    "type": "line"
+   }
+  },
+  "analyze": {
+   "dof": 0,
+   "rank": 4,
+   "under": []
+  },
+  "unsatisfied": [],
+  "infer": [],
+  "ok": true,
+  "error": 0
+ },
+ "infer_picks": {
+  "solved": {
+   "l1": {
+    "id": "l1",
+    "p1": [
+     0,
+     0
+    ],
+    "p2": [
+     10,
+     0
+    ],
+    "type": "line"
+   },
+   "l2": {
+    "id": "l2",
+    "p1": [
+     0,
+     0
+    ],
+    "p2": [
+     0,
+     8
+    ],
+    "type": "line"
+   },
+   "l3": {
+    "id": "l3",
+    "p1": [
+     0,
+     4
+    ],
+    "p2": [
+     10,
+     4
+    ],
+    "type": "line"
+   },
+   "c1": {
+    "cx": 20,
+    "cy": 0,
+    "id": "c1",
+    "r": 5,
+    "type": "circle"
+   },
+   "a1": {
+    "a0": 0,
+    "a1": 90,
+    "cx": 35,
+    "cy": 0,
+    "id": "a1",
+    "r": 4,
+    "type": "arc"
+   },
+   "r1": {
+    "h": 6,
+    "id": "r1",
+    "type": "rect",
+    "w": 10,
+    "x": 50,
+    "y": 0
+   },
+   "p1": {
+    "id": "p1",
+    "type": "point",
+    "x": 0,
+    "y": 0
+   },
+   "p2": {
+    "id": "p2",
+    "type": "point",
+    "x": 0,
+    "y": 0
+   },
+   "p3": {
+    "id": "p3",
+    "type": "point",
+    "x": 10,
+    "y": 8
+   },
+   "_h": {
+    "id": "_h",
+    "p1": [
+     -100000,
+     0
+    ],
+    "p2": [
+     100000,
+     0
+    ],
+    "ref": "axis",
+    "type": "line"
+   }
+  },
+  "analyze": {
+   "dof": 30,
+   "rank": 0,
+   "under": [
+    "a1",
+    "c1",
+    "l1",
+    "l2",
+    "l3",
+    "p1",
+    "p2",
+    "p3",
+    "r1"
+   ]
+  },
+  "unsatisfied": [],
+  "infer": [
+   {
+    "a": {
+     "e": "l1"
+    },
+    "type": "length"
+   },
+   {
+    "a": {
+     "e": "c1"
+    },
+    "type": "diameter"
+   },
+   {
+    "a": {
+     "e": "a1"
+    },
+    "type": "radius"
+   },
+   {
+    "a": {
+     "e": "l1",
+     "k": "p1"
+    },
+    "b": {
+     "e": "l1",
+     "k": "p2"
+    },
+    "sign": 1,
+    "type": "hdistance"
+   },
+   {
+    "a": {
+     "e": "l1"
+    },
+    "b": {
+     "e": "l2"
+    },
+    "ra": 1,
+    "rb": 1,
+    "sign": 1,
+    "type": "angle"
+   },
+   {
+    "a": {
+     "e": "r1",
+     "k": "c0"
+    },
+    "b": {
+     "e": "r1",
+     "k": "c1"
+    },
+    "sign": 1,
+    "type": "hdistance"
+   },
+   {
+    "a": {
+     "e": "r1",
+     "k": "c1"
+    },
+    "b": {
+     "e": "r1",
+     "k": "c2"
+    },
+    "sign": 1,
+    "type": "vdistance"
+   },
+   {
+    "a": {
+     "e": "r1",
+     "k": "c2"
+    },
+    "b": {
+     "e": "r1",
+     "k": "c3"
+    },
+    "sign": -1,
+    "type": "hdistance"
+   },
+   {
+    "a": {
+     "e": "l1",
+     "k": "m"
+    },
+    "b": {
+     "e": "l3"
+    },
+    "type": "distance"
+   },
+   {
+    "a": {
+     "e": "p1",
+     "k": "p"
+    },
+    "b": {
+     "e": "p3",
+     "k": "p"
+    },
+    "sign": 1,
+    "type": "vdistance"
+   },
+   {
+    "result": "That's the same item twice."
+   },
+   {
+    "result": "That point is on the line."
+   },
+   {
+    "result": "Those two points are in the same place."
+   },
+   {
+    "result": "Angles to a rectangle's sides can't be set: its sides are always square. Draw it with lines to angle it."
+   },
+   {
+    "a": {
+     "e": "l3",
+     "k": "m"
+    },
+    "b": {
+     "e": "_h"
+    },
+    "type": "distance"
+   }
+  ],
+  "ok": true,
+  "error": 0
+ },
+ "over_constrained_conflict": {
+  "solved": {
+   "l1": {
+    "id": "l1",
+    "p1": [
+     2e-9,
+     0
+    ],
+    "p2": [
+     14.999999993,
+     0
+    ],
+    "type": "line"
+   },
+   "l2": {
+    "id": "l2",
+    "p1": [
+     0,
+     0
+    ],
+    "p2": [
+     0,
+     10
+    ],
+    "type": "line"
+   }
+  },
+  "analyze": {
+   "dof": 4,
+   "rank": 4,
+   "under": [
+    "l2"
+   ]
+  },
+  "unsatisfied": [
+   {
+    "a": {
+     "e": "l1"
+    },
+    "id": "c1",
+    "type": "length",
+    "value": 10
+   },
+   {
+    "a": {
+     "e": "l1"
+    },
+    "id": "c2",
+    "type": "length",
+    "value": 20
+   }
+  ],
+  "infer": [],
+  "ok": false,
+  "error": 7.071067812
+ },
+ "path_locks_props": {
+  "solved": {
+   "g1": {
+    "cx": 0,
+    "cy": 0,
+    "id": "g1",
+    "n": 6,
+    "r": 8,
+    "type": "polygon"
+   },
+   "r1": {
+    "angle": 15,
+    "fillet": 1.5,
+    "h": 7,
+    "id": "r1",
+    "type": "rect",
+    "w": 12,
+    "x": 20,
+    "y": 0
+   }
+  },
+  "analyze": {
+   "dof": 7,
+   "rank": 0,
+   "under": [
+    "g1",
+    "r1"
+   ]
+  },
+  "unsatisfied": [],
+  "infer": [],
+  "ok": true,
+  "error": 0
+ },
+ "redundant_dimension": {
+  "solved": {
+   "l1": {
+    "id": "l1",
+    "p1": [
+     0,
+     0
+    ],
+    "p2": [
+     10,
+     0
+    ],
+    "type": "line"
+   }
+  },
+  "analyze": {
+   "dof": 0,
+   "rank": 4,
+   "under": []
+  },
+  "unsatisfied": [],
+  "infer": [],
+  "ok": true,
+  "error": 0,
+  "redundant": [
+   {
+    "constraint": {
+     "a": {
+      "e": "l1",
+      "k": "p1"
+     },
+     "b": {
+      "e": "l1",
+      "k": "p2"
+     },
+     "sign": 1,
+     "type": "hdistance",
+     "value": 10
+    },
+    "redundant": true
+   }
+  ]
+ },
+ "tangent_inner": {
+  "solved": {
+   "c1": {
+    "cx": 0,
+    "cy": 0,
+    "id": "c1",
+    "r": 10,
+    "type": "circle"
+   },
+   "c2": {
+    "cx": 5.953667258,
+    "cy": 0.744208429,
+    "id": "c2",
+    "r": 4,
+    "type": "circle"
+   }
+  },
+  "analyze": {
+   "dof": 1,
+   "rank": 5,
+   "under": [
+    "c2"
+   ]
+  },
+  "unsatisfied": [],
+  "infer": [],
+  "ok": true,
+  "error": 0
+ },
+ "under_defined": {
+  "solved": {
+   "l1": {
+    "id": "l1",
+    "p1": [
+     1,
+     2.5
+    ],
+    "p2": [
+     8,
+     2.5
+    ],
+    "type": "line"
+   }
+  },
+  "analyze": {
+   "dof": 3,
+   "rank": 1,
+   "under": [
+    "l1"
+   ]
+  },
+  "unsatisfied": [],
+  "infer": [],
+  "ok": true,
+  "error": 0
+ }
+}

@@ -1,0 +1,16 @@
+{
+ "name": "face_two_blobs",
+ "model": "two_blobs.stl",
+ "frame": {
+  "origin": [
+   0,
+   0,
+   0
+  ],
+  "normal": [
+   0,
+   0,
+   1
+  ]
+ }
+}

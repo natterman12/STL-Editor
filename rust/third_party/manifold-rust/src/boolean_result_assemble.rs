@@ -5,9 +5,10 @@ use crate::boolean3::Boolean3;
 use crate::boolean_stage_progress::{self as stage_marks, report as report_stage, StageSink};
 use crate::cancel::{is_cancelled, CancelToken};
 use crate::edge_op::simplify_topology;
-use crate::face_op::{face2tri_ct, get_barycentric, reorder_halfedges};
+use crate::face_op::{face2tri_face_refs, get_barycentric, reorder_halfedges};
 use crate::impl_mesh::{reserve_ids, ManifoldImpl};
 use crate::linalg::Vec3;
+use crate::scratch::Scratch;
 use crate::types::{OpType, TriRef};
 
 use super::{
@@ -24,10 +25,14 @@ pub(super) fn update_reference(
     in_p: &ManifoldImpl,
     in_q: &ManifoldImpl,
     invert_q: bool,
+    reserved_offset_q: Option<i32>,
 ) {
-    let offset_q = reserve_ids(in_q.mesh_relation.mesh_id_transform.len() as u32) as i32;
+    let offset_q = reserved_offset_q.unwrap_or_else(|| {
+        reserve_ids(in_q.mesh_relation.mesh_id_transform.len() as u32) as i32
+    });
 
-    for tri_ref in out_r.mesh_relation.tri_ref.iter_mut() {
+    // Each triangle takes the reference of the input face it came from.
+    crate::par::maybe_par_for_each_mut(&mut out_r.mesh_relation.tri_ref, 100_000, |tri_ref| {
         let tri = tri_ref.face_id;
         let pq = tri_ref.mesh_id == 0;
         if pq {
@@ -40,7 +45,7 @@ pub(super) fn update_reference(
                 tri_ref.mesh_id += offset_q;
             }
         }
-    }
+    });
 
     for (&k, v) in &in_p.mesh_relation.mesh_id_transform {
         out_r.mesh_relation.mesh_id_transform.insert(k, v.clone());
@@ -294,6 +299,33 @@ pub fn boolean_result_with_token_and_stage(
     token: Option<&CancelToken>,
     stage: StageSink<'_>,
 ) -> ManifoldImpl {
+    boolean_result_with_ids(in_p, in_q, op, bool3, token, stage, None)
+}
+
+/// Mesh IDs set aside for one result before it is assembled, so that two
+/// results assembled side by side get the IDs they would get one after the
+/// other. A result reserves, in this order, one ID per mesh ID of Q (the
+/// offset of Q's IDs) and then one per mesh ID of P and of Q (its own new
+/// IDs).
+#[derive(Clone, Copy)]
+pub(crate) struct ReservedIds {
+    pub offset_q: i32,
+    pub first_new: i32,
+    /// How many IDs were set aside from `first_new` on.
+    pub new_count: u32,
+}
+
+/// [`boolean_result_with_token_and_stage`] with mesh IDs reserved by the
+/// caller. `None` reserves them as the result is assembled.
+pub(crate) fn boolean_result_with_ids(
+    in_p: &ManifoldImpl,
+    in_q: &ManifoldImpl,
+    op: OpType,
+    bool3: &Boolean3,
+    token: Option<&CancelToken>,
+    stage: StageSink<'_>,
+    ids: Option<ReservedIds>,
+) -> ManifoldImpl {
     debug_assert!(
         bool3.expand_p == (op == OpType::Add),
         "Result op type not compatible with constructor op type."
@@ -333,15 +365,21 @@ pub fn boolean_result_with_token_and_stage(
     // Timing boundaries mirror the C++ MANIFOLD_TIMING stages (Assembly /
     // Triangulation / Simplification / Sorting) for side-by-side comparison.
     let t_assembly = crate::timing::start();
+    let t_sub = crate::timing::start();
 
     // Convert winding numbers to inclusion values
     let i12: Vec<i32> = bool3.xv12.x12.iter().map(|&v| c3 * v).collect();
     let i21: Vec<i32> = bool3.xv21.x12.iter().map(|&v| c3 * v).collect();
-    let i03: Vec<i32> = bool3.w03.iter().map(|&v| c1 + c3 * v).collect();
-    let i30: Vec<i32> = bool3.w30.iter().map(|&v| c2 + c3 * v).collect();
+    let inclusion = |winding: &[i32], c: i32| -> Scratch<i32> {
+        let mut v = Scratch::with_capacity(winding.len());
+        v.extend(winding.iter().map(|&w| c + c3 * w));
+        v
+    };
+    let i03 = inclusion(&bool3.w03, c1);
+    let i30 = inclusion(&bool3.w30, c2);
 
     // Vertex remapping via exclusive scan with abs_sum
-    let vp2r = exclusive_scan_abs(&i03, 0);
+    let vp2r = Scratch::from_vec(exclusive_scan_abs(&i03, 0));
     let num_vert_r = if let Some(&last) = i03.last() {
         abs_sum(*vp2r.last().unwrap_or(&0), last)
     } else {
@@ -349,7 +387,7 @@ pub fn boolean_result_with_token_and_stage(
     };
     let n_pv = num_vert_r;
 
-    let vq2r = exclusive_scan_abs(&i30, num_vert_r);
+    let vq2r = Scratch::from_vec(exclusive_scan_abs(&i30, num_vert_r));
     let num_vert_r = if let Some(&last) = i30.last() {
         abs_sum(*vq2r.last().unwrap_or(&num_vert_r), last)
     } else {
@@ -391,7 +429,7 @@ pub fn boolean_result_with_token_and_stage(
     out_r.tolerance = in_p.tolerance.max(in_q.tolerance);
 
     // Allocate and populate output vertices
-    out_r.vert_pos.resize(num_vert_r as usize, Vec3::splat(0.0));
+    out_r.vert_pos = crate::scratch::filled(num_vert_r as usize, Vec3::splat(0.0));
 
     // DuplicateVerts: retained vertices from P
     for vert in 0..in_p.num_vert() {
@@ -422,6 +460,8 @@ pub fn boolean_result_with_token_and_stage(
         }
     }
 
+    crate::timing::print("    verts", t_sub);
+    let t_sub = crate::timing::start();
     // Phase 2 (C++ boolean_result.cpp:847): after DuplicateVerts.
     if is_cancelled(token) {
         return crate::boolean3::cancelled_impl();
@@ -466,6 +506,8 @@ pub fn boolean_result_with_token_and_stage(
     drop(v12r);
     drop(v21r);
 
+    crate::timing::print("    add_new_edge_verts", t_sub);
+    let t_sub = crate::timing::start();
     // Phase 3 (C++ boolean_result.cpp:869): after AddNewEdgeVerts, and between
     // the edge-list sorts, which have no C++ counterpart.
     if is_cancelled(token) {
@@ -482,7 +524,7 @@ pub fn boolean_result_with_token_and_stage(
     let edges_new = EdgeGroups::new(edges_new);
 
     // Size output
-    let (face_edge, face_pq2r) = size_output(
+    let (face_edge, face_pq2r, face_r2pq) = size_output(
         &mut out_r,
         in_p,
         in_q,
@@ -499,53 +541,48 @@ pub fn boolean_result_with_token_and_stage(
     drop(i12);
     drop(i21);
 
+    crate::timing::print("    edge_groups+size_output", t_sub);
+    let t_sub = crate::timing::start();
     // Phase 4 (C++ boolean_result.cpp:880): after SizeOutput.
     if is_cancelled(token) {
         return crate::boolean3::cancelled_impl();
     }
 
     // Assemble edges
-    let mut face_ptr_r = face_edge.clone();
-    let mut whole_halfedge_p = vec![true; in_p.halfedge.len()];
-    let mut whole_halfedge_q = vec![true; in_q.halfedge.len()];
-    let mut halfedge_ref = vec![
-        TriRef {
-            mesh_id: 0,
-            original_id: -1,
-            face_id: -1,
-            coplanar_id: -1,
-        };
-        2 * out_r.num_edge()
-    ];
+    let mut face_ptr_r: Scratch<i32> = Scratch::with_capacity(face_edge.len());
+    face_ptr_r.extend_from_slice(&face_edge);
+    let fill = super::WHOLE_PAR_THRESHOLD;
+    let mut whole_halfedge_p =
+        Scratch::from_vec(crate::par::maybe_par_filled(in_p.halfedge.len(), fill, true));
+    let mut whole_halfedge_q =
+        Scratch::from_vec(crate::par::maybe_par_filled(in_q.halfedge.len(), fill, true));
 
     append_partial_edges(
         &mut out_r,
         &mut whole_halfedge_p,
         &mut face_ptr_r,
         &edges_p,
-        &mut halfedge_ref,
         in_p,
         &i03,
         &vp2r,
         &face_pq2r[..in_p.num_tri()],
-        true,
     );
     append_partial_edges(
         &mut out_r,
         &mut whole_halfedge_q,
         &mut face_ptr_r,
         &edges_q,
-        &mut halfedge_ref,
         in_q,
         &i30,
         &vq2r,
         &face_pq2r[in_p.num_tri()..],
-        false,
     );
     // C++ clears edgesP/edgesQ after AppendPartialEdges.
     drop(edges_p);
     drop(edges_q);
 
+    crate::timing::print("    append_partial_edges", t_sub);
+    let t_sub = crate::timing::start();
     // Phase 5 (C++ boolean_result.cpp:905): after AppendPartialEdges.
     if is_cancelled(token) {
         return crate::boolean3::cancelled_impl();
@@ -555,39 +592,47 @@ pub fn boolean_result_with_token_and_stage(
         &mut out_r,
         &mut face_ptr_r,
         &edges_new,
-        &mut halfedge_ref,
         &face_pq2r,
         in_p.num_tri(),
     );
     // C++ clears edgesNew after AppendNewEdges.
     drop(edges_new);
 
+    crate::timing::print("    append_new_edges", t_sub);
+    let t_sub = crate::timing::start();
     // Phase 6 (C++ boolean_result.cpp:912): after AppendNewEdges.
     if is_cancelled(token) {
         return crate::boolean3::cancelled_impl();
     }
 
+    // The output face after the last face of P, and after the last of Q.
+    let num_face_r = face_edge.len() - 1;
+    let face_r_end_p = if in_q.num_tri() > 0 {
+        face_pq2r[in_p.num_tri()] as usize
+    } else {
+        num_face_r
+    };
     append_whole_edges(
         &mut out_r,
         &mut face_ptr_r,
-        &mut halfedge_ref,
         in_p,
         &whole_halfedge_p,
         &i03,
         &vp2r,
         &face_pq2r[..in_p.num_tri()],
-        true,
+        &face_edge,
+        face_r_end_p,
     );
     append_whole_edges(
         &mut out_r,
         &mut face_ptr_r,
-        &mut halfedge_ref,
         in_q,
         &whole_halfedge_q,
         &i30,
         &vq2r,
         &face_pq2r[in_p.num_tri()..],
-        false,
+        &face_edge,
+        num_face_r,
     );
 
     // C++ clears wholeHalfedgeP/Q, vP2R/vQ2R and friends after
@@ -601,6 +646,7 @@ pub fn boolean_result_with_token_and_stage(
     drop(i03);
     drop(i30);
 
+    crate::timing::print("    append_whole_edges", t_sub);
     crate::timing::print("Assembly", t_assembly);
     report_stage(stage, stage_marks::AFTER_ASSEMBLY);
 
@@ -611,13 +657,28 @@ pub fn boolean_result_with_token_and_stage(
 
     // Triangulate polygonal faces (allowConvex=false per C++ boolean_result.cpp)
     let t = crate::timing::start();
-    if !face2tri_ct(&mut out_r, &face_edge, &halfedge_ref, false, token) {
+    // Every halfedge of an output face came from the same face of P or of Q,
+    // so the reference of a face is worked out from the face rather than
+    // kept per halfedge: which mesh, and which of its faces.
+    let num_tri_p = in_p.num_tri() as i32;
+    let face_ref = |face: usize| -> TriRef {
+        let pq = face_r2pq[face];
+        TriRef {
+            mesh_id: if pq < num_tri_p { 0 } else { 1 },
+            original_id: -1,
+            face_id: if pq < num_tri_p { pq } else { pq - num_tri_p },
+            coplanar_id: -1,
+        }
+    };
+    if !face2tri_face_refs(&mut out_r, &face_edge, &face_ref, false, token) {
         return crate::boolean3::cancelled_impl();
     }
+    let t_sub = crate::timing::start();
     reorder_halfedges(&mut out_r);
+    crate::timing::print("    reorder_halfedges", t_sub);
     // C++ clears faceEdge after Face2Tri; halfedgeRef is likewise done.
     drop(face_edge);
-    drop(halfedge_ref);
+    drop(face_r2pq);
     crate::timing::print("Triangulation", t);
     report_stage(stage, stage_marks::AFTER_TRIANGULATION);
 
@@ -628,7 +689,9 @@ pub fn boolean_result_with_token_and_stage(
 
     let t = crate::timing::start();
     // Create properties via barycentric interpolation
+    let t_sub = crate::timing::start();
     create_properties(&mut out_r, in_p, in_q, invert_q);
+    crate::timing::print("    create_properties", t_sub);
 
     // Phase 9 (C++ boolean_result.cpp:948): after CreateProperties.
     if is_cancelled(token) {
@@ -636,7 +699,9 @@ pub fn boolean_result_with_token_and_stage(
     }
 
     // Update references
-    update_reference(&mut out_r, in_p, in_q, invert_q);
+    let t_sub = crate::timing::start();
+    update_reference(&mut out_r, in_p, in_q, invert_q, ids.map(|ids| ids.offset_q));
+    crate::timing::print("    update_reference", t_sub);
     report_stage(stage, stage_marks::AFTER_REFERENCE);
 
     // Phase 10 (C++ boolean_result.cpp:951): after UpdateReference.
@@ -646,15 +711,26 @@ pub fn boolean_result_with_token_and_stage(
 
     // Simplify topology
     simplify_topology(&mut out_r, n_pv + n_qv);
+    let t_sub = crate::timing::start();
     out_r.remove_unreferenced_verts();
+    crate::timing::print("    remove_unreferenced_verts", t_sub);
     crate::timing::print("Simplification", t);
     report_stage(stage, stage_marks::AFTER_SIMPLIFY);
 
     // Finalize
     let t = crate::timing::start();
+    let t_sub = crate::timing::start();
     out_r.calculate_bbox();
+    crate::timing::print("    calculate_bbox", t_sub);
     out_r.sort_geometry();
-    out_r.increment_mesh_ids();
+    let t_sub = crate::timing::start();
+    debug_assert!(
+        ids.map_or(true, |ids| out_r.mesh_relation.mesh_id_transform.len()
+            <= ids.new_count as usize),
+        "the result has more mesh IDs than were reserved for it"
+    );
+    out_r.increment_mesh_ids_from(ids.map(|ids| ids.first_new));
+    crate::timing::print("    increment_mesh_ids", t_sub);
     crate::timing::print("Sorting", t);
 
     // Phase 11 (C++ boolean_result.cpp:963): after SortGeometry. Without this

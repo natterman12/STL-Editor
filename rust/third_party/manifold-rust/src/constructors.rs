@@ -151,6 +151,16 @@ pub fn revolve(
     circular_segments: i32,
     revolve_degrees: f64,
 ) -> ManifoldImpl {
+    crate::par::with_small_job_pool(|| {
+        revolve_impl(cross_section, circular_segments, revolve_degrees)
+    })
+}
+
+fn revolve_impl(
+    cross_section: &Polygons,
+    circular_segments: i32,
+    revolve_degrees: f64,
+) -> ManifoldImpl {
     // Filter to positive-x portion only, clipping at axis
     let mut polygons: Polygons = Vec::new();
     let mut radius: f64 = 0.0;
@@ -202,6 +212,7 @@ pub fn revolve(
     };
     let n_divisions = n_divisions.max(3);
 
+    let t_rev = crate::timing::start();
     let mut vert_pos: Vec<Vec3> = Vec::new();
     let mut tri_verts: Vec<IVec3> = Vec::new();
 
@@ -310,14 +321,23 @@ pub fn revolve(
         }
     }
 
+    crate::timing::print("  revolve: generate", t_rev);
     let mut m = ManifoldImpl::new();
     m.vert_pos = vert_pos;
+    let t = crate::timing::start();
     m.create_halfedges(&tri_verts, &[]);
+    crate::timing::print("  revolve: create_halfedges", t);
+    let t = crate::timing::start();
     m.initialize_original();
     m.calculate_bbox();
     m.set_epsilon(-1.0, false);
+    crate::timing::print("  revolve: init/bbox/eps", t);
+    let t = crate::timing::start();
     m.sort_geometry();
+    crate::timing::print("  revolve: sort_geometry", t);
+    let t = crate::timing::start();
     m.set_normals_and_coplanar();
+    crate::timing::print("  revolve: normals_coplanar", t);
     m
 }
 

@@ -1,5 +1,7 @@
 use serde_json::{Map, Value};
 
+use stl_sketch::P2;
+
 use crate::FeatureError;
 
 /// 1.x `_float`: a number from a parameter, with an optional default. Python's `float()` also
@@ -42,4 +44,41 @@ fn parse_py_float(s: &str) -> Option<f64> {
         return None;
     }
     t.parse().ok()
+}
+
+/// Python truthiness of a parameter value.
+pub fn truthy(v: Option<&Value>) -> bool {
+    match v {
+        None | Some(Value::Null) => false,
+        Some(Value::Bool(b)) => *b,
+        Some(Value::Number(n)) => n.as_f64().is_some_and(|x| x != 0.0),
+        Some(Value::String(s)) => !s.is_empty(),
+        Some(Value::Array(a)) => !a.is_empty(),
+        Some(Value::Object(m)) => !m.is_empty(),
+    }
+}
+
+/// A list of strings from a parameter (anything else gives an empty list).
+pub fn strings(v: Option<&Value>) -> Vec<String> {
+    match v {
+        Some(Value::Array(a)) => a.iter().filter_map(|x| x.as_str().map(String::from)).collect(),
+        _ => Vec::new(),
+    }
+}
+
+/// 1.x `S.profile(entities, only, regions)` arguments from the params.
+pub fn pick(p: &Map<String, Value>) -> (Option<Vec<String>>, Option<Vec<P2>>) {
+    let only = Some(strings(p.get("entities"))).filter(|v| !v.is_empty());
+    let regions = match p.get("regions") {
+        Some(Value::Array(a)) if !a.is_empty() => Some(
+            a.iter()
+                .filter_map(|x| {
+                    let u = x.as_array()?;
+                    Some([u.first()?.as_f64()?, u.get(1)?.as_f64()?])
+                })
+                .collect::<Vec<P2>>(),
+        ),
+        _ => None,
+    };
+    (only, regions)
 }

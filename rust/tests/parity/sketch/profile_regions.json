@@ -1,0 +1,27 @@
+{
+ "name": "profile_regions",
+ "entities": [
+  {
+   "id": "outer",
+   "type": "rect",
+   "x": 0,
+   "y": 0,
+   "w": 40,
+   "h": 30
+  },
+  {
+   "id": "split",
+   "type": "line",
+   "p1": [20, 0],
+   "p2": [20, 30]
+  },
+  {
+   "id": "hole",
+   "type": "circle",
+   "cx": 10,
+   "cy": 15,
+   "r": 5
+  }
+ ],
+ "regions": [[30, 15]]
+}

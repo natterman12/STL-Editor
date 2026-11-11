@@ -1,0 +1,17 @@
+{
+ "name": "empty_profile",
+ "entities": [
+  {
+   "id": "l1",
+   "type": "line",
+   "p1": [
+    0,
+    0
+   ],
+   "p2": [
+    10,
+    0
+   ]
+  }
+ ]
+}

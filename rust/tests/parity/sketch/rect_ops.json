@@ -1,0 +1,43 @@
+{
+ "name": "rect_ops",
+ "entities": [
+  {
+   "id": "r1",
+   "type": "rect",
+   "x": 0,
+   "y": 0,
+   "w": 20,
+   "h": 10
+  },
+  {
+   "id": "ax",
+   "type": "line",
+   "p1": [
+    0,
+    -5
+   ],
+   "p2": [
+    0,
+    15
+   ],
+   "construction": true
+  }
+ ],
+ "ops": {
+  "explode": "r1",
+  "offset": {
+   "ids": [
+    "r1"
+   ],
+   "d": 2
+  },
+  "mirror": {
+   "ids": [
+    "r1"
+   ],
+   "axis": "ax"
+  },
+  "find_axis": "ax",
+  "snap_points": true
+ }
+}

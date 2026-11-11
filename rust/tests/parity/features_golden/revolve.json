@@ -1,0 +1,364 @@
+{
+ "revolve_axis_sliver": {
+  "bodies": [
+   {
+    "id": "f2",
+    "name": "Revolve",
+    "solid": true,
+    "stats": {
+     "area": 452.0261193017425,
+     "bbox_max": [
+      5.0,
+      8.0,
+      5.0
+     ],
+     "bbox_min": [
+      -5.0,
+      0.0,
+      -5.0
+     ],
+     "triangles": 512,
+     "vertices": 256,
+     "volume": 602.2173127599613,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "revolve_construction_axis": {
+  "bodies": [
+   {
+    "id": "f2",
+    "name": "Revolve",
+    "solid": true,
+    "stats": {
+     "area": 785.8757973158495,
+     "bbox_max": [
+      12.0,
+      2.0,
+      12.0
+     ],
+     "bbox_min": [
+      -11.999096870422363,
+      -2.0,
+      -11.999096870422363
+     ],
+     "triangles": 1028,
+     "vertices": 516,
+     "volume": 753.8119362287867,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "revolve_cut": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 8689.830861524984,
+     "bbox_max": [
+      20.0,
+      20.0,
+      30.0
+     ],
+     "bbox_min": [
+      -20.0,
+      -20.0,
+      0.0
+     ],
+     "triangles": 536,
+     "vertices": 268,
+     "volume": 46995.09400028925,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f3",
+    "warning": null
+   }
+  ]
+ },
+ "revolve_default_segments": {
+  "bodies": [
+   {
+    "id": "f2",
+    "name": "Revolve",
+    "solid": true,
+    "stats": {
+     "area": 219.7808637362569,
+     "bbox_max": [
+      8.0,
+      6.0,
+      0.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      -8.0
+     ],
+     "triangles": 1028,
+     "vertices": 516,
+     "volume": 183.77855770441684,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "revolve_join": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 841.807845207876,
+     "bbox_max": [
+      11.0,
+      5.0,
+      5.0
+     ],
+     "bbox_min": [
+      -11.0,
+      -5.0,
+      -11.0
+     ],
+     "triangles": 1040,
+     "vertices": 524,
+     "volume": 858.1055953882327,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f3",
+    "warning": null
+   }
+  ]
+ },
+ "revolve_missing_sketch": {
+  "bodies": [],
+  "results": [
+   {
+    "error": "The sketch for this feature no longer exists.",
+    "id": "f1",
+    "warning": null
+   }
+  ]
+ },
+ "revolve_notched_axis": {
+  "bodies": [
+   {
+    "id": "f2",
+    "name": "Revolve",
+    "solid": true,
+    "stats": {
+     "area": 678.4402040276893,
+     "bbox_max": [
+      6.0,
+      10.0,
+      6.0
+     ],
+     "bbox_min": [
+      -6.0,
+      0.0,
+      -6.0
+     ],
+     "triangles": 1020,
+     "vertices": 514,
+     "volume": 1080.2739336949637,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "revolve_straddle_axis": {
+  "bodies": [
+   {
+    "id": "f2",
+    "name": "Revolve",
+    "solid": true,
+    "stats": {
+     "area": 301.5323398706507,
+     "bbox_max": [
+      4.0,
+      8.0,
+      4.0
+     ],
+     "bbox_min": [
+      -4.0,
+      0.0,
+      -4.0
+     ],
+     "triangles": 508,
+     "vertices": 256,
+     "volume": 401.96238566733246,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "revolve_x_partial": {
+  "bodies": [
+   {
+    "id": "f2",
+    "name": "Revolve",
+    "solid": true,
+    "stats": {
+     "area": 590.8389557733551,
+     "bbox_max": [
+      10.0,
+      8.0,
+      0.0
+     ],
+     "bbox_min": [
+      0.0,
+      -8.0,
+      -8.0
+     ],
+     "triangles": 516,
+     "vertices": 260,
+     "volume": 612.3645758198609,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "revolve_y_full": {
+  "bodies": [
+   {
+    "id": "f2",
+    "name": "Revolve",
+    "solid": true,
+    "stats": {
+     "area": 1231.2747023407978,
+     "bbox_max": [
+      9.0,
+      10.0,
+      9.0
+     ],
+     "bbox_min": [
+      -9.0,
+      0.0,
+      -9.0
+     ],
+     "triangles": 1024,
+     "vertices": 512,
+     "volume": 1758.585404196466,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ }
+}

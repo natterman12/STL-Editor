@@ -1,0 +1,151 @@
+{
+ "name": "dimension_kinds",
+ "entities": [
+  {
+   "id": "l1",
+   "type": "line",
+   "p1": [
+    0,
+    0
+   ],
+   "p2": [
+    12,
+    0
+   ]
+  },
+  {
+   "id": "l2",
+   "type": "line",
+   "p1": [
+    0,
+    0
+   ],
+   "p2": [
+    0,
+    8
+   ]
+  },
+  {
+   "id": "c1",
+   "type": "circle",
+   "cx": 20,
+   "cy": 0,
+   "r": 5
+  },
+  {
+   "id": "a1",
+   "type": "arc",
+   "cx": 35,
+   "cy": 0,
+   "r": 4,
+   "a0": 10,
+   "a1": 100
+  },
+  {
+   "id": "p1",
+   "type": "point",
+   "x": 0,
+   "y": 0
+  },
+  {
+   "id": "p2",
+   "type": "point",
+   "x": 12,
+   "y": 8
+  }
+ ],
+ "constraints": [
+  {
+   "id": "d1",
+   "type": "length",
+   "a": {
+    "e": "l1"
+   },
+   "value": 12
+  },
+  {
+   "id": "d2",
+   "type": "distance",
+   "a": {
+    "e": "p1",
+    "k": "p"
+   },
+   "b": {
+    "e": "p2",
+    "k": "p"
+   },
+   "value": 15
+  },
+  {
+   "id": "d3",
+   "type": "hdistance",
+   "a": {
+    "e": "l1",
+    "k": "p1"
+   },
+   "b": {
+    "e": "l1",
+    "k": "p2"
+   },
+   "value": 12,
+   "sign": 1
+  },
+  {
+   "id": "d4",
+   "type": "vdistance",
+   "a": {
+    "e": "l2",
+    "k": "p1"
+   },
+   "b": {
+    "e": "l2",
+    "k": "p2"
+   },
+   "value": 8,
+   "sign": 1
+  },
+  {
+   "id": "d5",
+   "type": "radius",
+   "a": {
+    "e": "a1"
+   },
+   "value": 4
+  },
+  {
+   "id": "d6",
+   "type": "diameter",
+   "a": {
+    "e": "c1"
+   },
+   "value": 10
+  },
+  {
+   "id": "d7",
+   "type": "angle",
+   "a": {
+    "e": "l1"
+   },
+   "b": {
+    "e": "l2"
+   },
+   "value": 90,
+   "ra": 1,
+   "rb": 1,
+   "sign": 1
+  },
+  {
+   "id": "d8",
+   "type": "fix",
+   "a": {
+    "e": "l1",
+    "k": "p1"
+   },
+   "at": [
+    0,
+    0
+   ]
+  }
+ ],
+ "infer": []
+}

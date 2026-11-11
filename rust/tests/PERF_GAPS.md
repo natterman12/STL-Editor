@@ -1,30 +1,39 @@
 # Where 2.0 is slower than 1.x
 
-**These must be fixed before 2.0 ships.** Combine join, Combine cut and Split are slower in 2.0
-than in 1.x. Import and Repair are already faster.
+**No gaps.** Every row of `cargo run --release -p xtask -- bench` is at or under 1.0 against 1.x.
 
-## Cause
+## Combine join (closed 2026-11-11)
 
-The boolean library we use (manifold-rust 0.19.2) tidies the whole mesh after every boolean
-operation: it triangulates, simplifies and sorts all of the triangles again. On the 500,000
-triangle test mesh that costs more than the operation itself, even when the second body is a
-small cube. 1.x uses the C++ original, which only touches the part that changed.
+Join was 1.01 to 1.03 (earlier 1.02 and 1.16). A profile with `MANIFOLD_TIMING=1` showed join and cut
+share the same stages (intersections 14 ms, assembly 17, triangulation 29 to 45, simplification 31,
+sorting 28), with no stage that join alone pays for: join was the cheaper of the two. The cost was
+in how the stages ran. On a 10-core, 20-thread CPU the passes of a boolean on 504,000 triangles are
+short and bound by memory, and 20 threads spent more on waking and sharing than they saved. A union
+with the 30 mm cube (best of 15, kernel only):
 
-A separate kernel-performance task will patch a fork of manifold-rust so that this clean-up is
-skipped for the parts of the mesh that did not change.
+| Threads | 6 | 8 | 10 | 12 | 16 | 20 |
+|---|---|---|---|---|---|---|
+| Join, ms | 117 | 111 | 107 | 109 | 118 | 126 |
 
-## Bench results
+A boolean (and the one-pass split) now runs in a pool of at most 10 threads (`par::with_big_job_pool`
+in `rust/third_party/manifold-rust`, listed in its `VENDORED.md`). Only the thread count changes.
+Results are the same byte for byte (every vertex and triangle of the join on the bench mesh in four
+layouts, the cut, every kernel corpus case and unions of their parts, 48 MB, `cmp` before and after),
+and the parity run is unchanged (147 passed, 4 pending, 0 failed). No allocator dependency, no
+parallel unions.
 
-Measured on 2026-11-10 with `cargo run --release -p xtask -- bench`, using
-`dev/bench/test_mesh.stl`.
+Bench (2026-11-11, three runs, ratio 2.0 / 1.x): join 0.82, 0.83, 0.85 (0.103, 0.104 and 0.105 s
+against 0.125, 0.125 and 0.124 s); cut 0.80, 0.80, 0.80; Split 0.72, 0.72, 0.76; Import 0.41, 0.41,
+0.40; Repair 0.29, 0.27, 0.28; Extrude 0.26 to 0.29; Revolve 0.67 to 0.74; Sweep 0.29 to 0.31.
 
-| Operation | 1.x s | 2.0 s | Ratio |
-|---|---|---|---|
-| Import (repair on) | 1.545 | 1.015 | 0.66 |
-| Combine join, 30 mm cube | 0.135 | 0.389 | 2.88 |
-| Combine cut, 30 mm cube | 0.160 | 0.312 | 1.95 |
-| Split at z = 0 | 0.131 | 0.290 | 2.21 |
-| Repair quick, 1% triangles missing | 4.146 | 1.628 | 0.39 |
+## What is left (not gaps)
 
-A ratio above 1 means 2.0 is slower. The bench is strict on purpose: it prints SLOWER for
-those rows and exits with an error, and it stays that way until the gap is closed.
+- The union-find that works out what is inside what (`winding03`) runs on one thread in index order,
+  about 7 ms of a 103 ms join. 1.x does it on all threads. The roots depend on the order, so doing
+  it in parallel could change results for parts that touch exactly; left alone on purpose.
+- The scratch buffer pool is emptied after about 5 seconds idle, at the end of a rebuild that
+  evaluated features, and when a project closes (so the app does not hold up to 512 MB, 64 MB on
+  web, while idle). On the web build the idle release happens at the start of the next operation,
+  and only if the page gives the kernel a clock (`set_clock`).
+- The pool cap of 10 is a number measured on one machine. If a machine with many more cores shows
+  a boolean slower than 1.x, raise `BIG_JOB_THREADS` in `par.rs` and measure again.

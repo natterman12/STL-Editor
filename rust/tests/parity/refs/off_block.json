@@ -1,0 +1,16 @@
+{
+ "name": "off_block",
+ "model": "holed_block.stl",
+ "frame": {
+  "origin": [
+   15,
+   10,
+   100
+  ],
+  "normal": [
+   0,
+   0,
+   1
+  ]
+ }
+}

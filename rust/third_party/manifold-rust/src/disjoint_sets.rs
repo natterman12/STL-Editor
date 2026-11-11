@@ -26,9 +26,18 @@ pub struct DisjointSets {
     data: Vec<Cell<u64>>,
 }
 
+impl Drop for DisjointSets {
+    fn drop(&mut self) {
+        crate::scratch::give_from(&mut self.data);
+    }
+}
+
 impl DisjointSets {
     pub fn new(size: u32) -> Self {
-        let data = (0..size).map(|i| Cell::new(i as u64)).collect();
+        // The array is recycled (see `crate::scratch`): a set over the
+        // vertices of a large mesh is megabytes.
+        let mut data = crate::scratch::take(size as usize);
+        data.extend((0..size).map(|i| Cell::new(i as u64)));
         Self { data }
     }
 

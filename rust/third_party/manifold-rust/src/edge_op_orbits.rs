@@ -3,6 +3,7 @@
 // parallel, and the per-orbit duplicate search they share.
 
 use crate::impl_mesh::ManifoldImpl;
+use crate::scratch::Scratch;
 use crate::types::{next_halfedge, Halfedge};
 
 // Both scans walk each vertex orbit (stepping `next_halfedge(paired_halfedge)`)
@@ -65,7 +66,7 @@ pub(super) fn orbit_owners<F>(
     halfedge: &[Halfedge],
     threshold: usize,
     eligible: F,
-) -> Option<Vec<usize>>
+) -> Option<Scratch<usize>>
 where
     F: Fn(&Halfedge) -> bool + Sync + Send,
 {
@@ -90,7 +91,7 @@ where
         let next = next_halfedge(p) as usize;
         (next < n).then_some(next)
     };
-    let mut role: Vec<u8> = crate::par::maybe_par_map(n, threshold, |i| {
+    let mut role: Scratch<u8> = Scratch::from_vec(crate::par::maybe_par_map(n, threshold, |i| {
         if !eligible(&halfedge[i]) {
             return NOT_OWNER;
         }
@@ -108,7 +109,7 @@ where
             }
         }
         UNRESOLVED
-    });
+    }));
     if role.contains(&OPEN) {
         return None;
     }
@@ -132,23 +133,30 @@ where
             }
         }
     }
-    Some((0..n).filter(|&i| role[i] == OWNER).collect())
+    let count = role.iter().filter(|&&r| r == OWNER).count();
+    let mut owners: Scratch<usize> = Scratch::with_capacity(count);
+    owners.extend((0..n).filter(|&i| role[i] == OWNER));
+    Some(owners)
 }
 
 /// Appends the duplicate edges of the orbit walked from `i`, in walk order:
 /// halfedges whose end vertex a smaller halfedge of the orbit also ends at.
-/// `mark` sees each halfedge the walk visits.
+/// `mark` sees each halfedge the walk visits. `end_verts` is a work list the
+/// caller keeps between orbits, so that each orbit does not allocate its own;
+/// what it holds on entry is discarded.
 pub(super) fn dedupe_orbit(
     mesh: &ManifoldImpl,
     i: usize,
     n_edges: usize,
     mut mark: impl FnMut(usize),
+    end_verts: &mut Vec<(i32, usize)>,
     duplicates: &mut Vec<usize>,
 ) {
-    // Track all endVerts seen in this vertex's orbit, keeping smallest edge idx.
+    // Track all endVerts seen in this vertex's orbit, keeping smallest edge idx
+    // as (endVert, min_edge_idx).
     // Uses ForVert traversal: current = next_halfedge(halfedge[current].paired_halfedge)
-    let mut end_verts: Vec<(i32, usize)> = Vec::new(); // (endVert, min_edge_idx)
-                                                       // Process i itself first
+    end_verts.clear();
+    // Process i itself first
     mark(i);
     let c_ev0 = mesh.halfedge[i].end_vert;
     if c_ev0 >= 0 {

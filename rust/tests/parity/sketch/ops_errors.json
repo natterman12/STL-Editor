@@ -1,0 +1,52 @@
+{
+ "name": "ops_errors",
+ "entities": [
+  {
+   "id": "c1",
+   "type": "circle",
+   "cx": 0,
+   "cy": 0,
+   "r": 3
+  },
+  {
+   "id": "r1",
+   "type": "rect",
+   "x": 20,
+   "y": 0,
+   "w": 4,
+   "h": 4
+  },
+  {
+   "id": "l1",
+   "type": "line",
+   "p1": [
+    40,
+    0
+   ],
+   "p2": [
+    50,
+    0
+   ]
+  }
+ ],
+ "ops": {
+  "offset": {
+   "ids": [
+    "c1"
+   ],
+   "d": -10
+  },
+  "mirror": {
+   "ids": [],
+   "axis": "l1"
+  },
+  "trim": {
+   "id": "missing",
+   "point": [
+    0,
+    0
+   ]
+  },
+  "find_axis": "c1"
+ }
+}

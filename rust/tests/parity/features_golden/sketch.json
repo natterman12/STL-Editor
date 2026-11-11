@@ -1,0 +1,47 @@
+{
+ "sketch_missing_plane": {
+  "bodies": [],
+  "results": [
+   {
+    "error": "Plane 'p9' no longer exists.",
+    "id": "f1",
+    "warning": null
+   }
+  ]
+ },
+ "sketch_on_offset_plane": {
+  "bodies": [],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "sketch_with_refs": {
+  "bodies": [],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   }
+  ]
+ },
+ "sketch_xy_rect": {
+  "bodies": [],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   }
+  ]
+ }
+}

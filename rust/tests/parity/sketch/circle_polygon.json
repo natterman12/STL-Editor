@@ -1,0 +1,40 @@
+{
+ "name": "circle_polygon",
+ "entities": [
+  {
+   "id": "c1",
+   "type": "circle",
+   "cx": 0,
+   "cy": 0,
+   "r": 8
+  },
+  {
+   "id": "g1",
+   "type": "polygon",
+   "cx": 25,
+   "cy": 0,
+   "r": 6,
+   "n": 6,
+   "angle": 0
+  },
+  {
+   "id": "a1",
+   "type": "arc",
+   "cx": 50,
+   "cy": 0,
+   "r": 5,
+   "a0": 0,
+   "a1": 270
+  }
+ ],
+ "ops": {
+  "offset": {
+   "ids": [
+    "c1"
+   ],
+   "d": 1
+  },
+  "explode": "g1",
+  "snap_points": true
+ }
+}

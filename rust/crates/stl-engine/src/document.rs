@@ -151,6 +151,20 @@ impl Clock {
     }
 }
 
+impl Drop for Document {
+    /// Closing a project: free its solids first so their pooled buffers return, then empty the pool.
+    fn drop(&mut self) {
+        self.cache = Vec::new();
+        self.memo = IndexMap::new();
+        self.results = Vec::new();
+        self.undo = Vec::new();
+        self.redo = Vec::new();
+        self.state = State::default();
+        self.current = Arc::new(State::default());
+        stl_kernel::release_scratch();
+    }
+}
+
 impl Document {
     pub fn new(registry: Registry) -> Document {
         let ui = match json!({"names": {}, "colors": {}, "hidden": []}) {
@@ -350,6 +364,7 @@ impl Document {
         let mut results = Vec::with_capacity(end);
         let mut cache = Vec::with_capacity(end);
         let mut h = String::new();
+        let mut ran = false;
         for (i, f) in feats[..end].iter().enumerate() {
             h = self.hash(f, &h);
             if i < old_cache.len() && old_cache[i].0 == h && i < old_results.len() {
@@ -364,6 +379,7 @@ impl Document {
                     res.clone()
                 }
                 None => {
+                    ran = true;
                     let (st, res) = self.run_feature(&state, f, false);
                     if let Some(st) = st {
                         state = Arc::new(st);
@@ -380,6 +396,17 @@ impl Document {
         if !Arc::ptr_eq(&self.current, &state) {
             self.state = (*state).clone();
             self.current = state;
+        }
+        // drop unused cached states first so their pooled buffers can return, then empty the pool (no-op if another operation is running)
+        drop(old_cache);
+        drop(old_results);
+        // A rebuild that only reused cached or just-computed results did no kernel work, so it leaves the pool
+        // to the idle timer; one that evaluated features empties it now.
+        if ran {
+            stl_kernel::release_scratch();
+        } else {
+            // the dropped cache may have returned buffers to the pool: make sure a timer is armed
+            stl_kernel::touch_scratch();
         }
     }
 
@@ -402,6 +429,8 @@ impl Document {
     /// Run one feature on `state`. Gives the new state (`None` when the feature is suppressed
     /// or failed, so the state before it stands) and the result.
     fn run_feature(&mut self, state: &State, f: &Feature, preview: bool) -> (Option<State>, FeatureResult) {
+        // the kernel keeps big buffers for reuse; this marks an operation so the idle release never runs mid-way
+        let _op = stl_kernel::ScratchGuard::begin();
         let mut res = FeatureResult { id: f.id.clone(), ..Default::default() };
         if f.suppressed {
             res.suppressed = true;

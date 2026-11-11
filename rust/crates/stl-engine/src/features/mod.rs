@@ -12,6 +12,13 @@ pub mod split;
 pub mod delete;
 pub mod separate;
 pub mod repair;
+pub mod sketch;
+pub mod extrude;
+pub mod revolve;
+pub mod loft;
+pub mod sweep;
+pub mod hole;
+pub mod pushpull;
 
 use crate::Registry;
 
@@ -27,5 +34,12 @@ pub fn register_all(r: Registry) -> Registry {
     let r = delete::register(r);
     let r = separate::register(r);
     let r = repair::register(r);
+    let r = sketch::register(r);
+    let r = extrude::register(r);
+    let r = revolve::register(r);
+    let r = loft::register(r);
+    let r = sweep::register(r);
+    let r = hole::register(r);
+    let r = pushpull::register(r);
     r
 }

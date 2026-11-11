@@ -1,0 +1,524 @@
+[
+ {
+  "name": "sweep_line_path",
+  "exactness": "approx",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "sketch",
+    "params": {
+     "plane": "XY",
+     "entities": [
+      {
+       "id": "c1",
+       "type": "circle",
+       "cx": 0,
+       "cy": 0,
+       "r": 3
+      }
+     ]
+    }
+   },
+   {
+    "type": "sketch",
+    "params": {
+     "plane": "XY",
+     "entities": [
+      {
+       "id": "p1",
+       "type": "line",
+       "p1": [
+        0,
+        0
+       ],
+       "p2": [
+        0,
+        30
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "type": "sweep",
+    "params": {
+     "profile": "f1",
+     "path": "f2",
+     "operation": "new"
+    }
+   }
+  ]
+ },
+ {
+  "name": "sweep_polyline_path",
+  "exactness": "approx",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "sketch",
+    "params": {
+     "plane": "XY",
+     "entities": [
+      {
+       "id": "r1",
+       "type": "rect",
+       "x": -2,
+       "y": -2,
+       "w": 4,
+       "h": 4
+      }
+     ]
+    }
+   },
+   {
+    "type": "sketch",
+    "params": {
+     "plane": "XY",
+     "entities": [
+      {
+       "id": "p1",
+       "type": "polyline",
+       "closed": false,
+       "pts": [
+        [
+         0,
+         0
+        ],
+        [
+         20,
+         0
+        ],
+        [
+         20,
+         15
+        ]
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "type": "sweep",
+    "params": {
+     "profile": "f1",
+     "path": "f2",
+     "operation": "new"
+    }
+   }
+  ]
+ },
+ {
+  "name": "sweep_self_cross",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "sketch",
+    "params": {
+     "plane": "XY",
+     "entities": [
+      {
+       "id": "c1",
+       "type": "circle",
+       "cx": 0,
+       "cy": 0,
+       "r": 2
+      }
+     ]
+    }
+   },
+   {
+    "type": "sketch",
+    "params": {
+     "plane": "XY",
+     "entities": [
+      {
+       "id": "p1",
+       "type": "polyline",
+       "closed": false,
+       "pts": [
+        [
+         0,
+         0
+        ],
+        [
+         20,
+         0
+        ],
+        [
+         20,
+         10
+        ],
+        [
+         5,
+         10
+        ],
+        [
+         5,
+         -5
+        ]
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "type": "sweep",
+    "params": {
+     "profile": "f1",
+     "path": "f2",
+     "operation": "new"
+    }
+   }
+  ]
+ },
+ {
+  "name": "sweep_closed_path_error",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "sketch",
+    "params": {
+     "plane": "XY",
+     "entities": [
+      {
+       "id": "c1",
+       "type": "circle",
+       "cx": 0,
+       "cy": 0,
+       "r": 2
+      }
+     ]
+    }
+   },
+   {
+    "type": "sketch",
+    "params": {
+     "plane": "XY",
+     "entities": [
+      {
+       "id": "p1",
+       "type": "polyline",
+       "closed": false,
+       "pts": [
+        [
+         0,
+         0
+        ],
+        [
+         10,
+         0
+        ],
+        [
+         10,
+         10
+        ],
+        [
+         0,
+         10
+        ],
+        [
+         0,
+         0
+        ]
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "type": "sweep",
+    "params": {
+     "profile": "f1",
+     "path": "f2",
+     "operation": "new"
+    }
+   }
+  ]
+ },
+ {
+  "name": "sweep_missing_path",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "sketch",
+    "params": {
+     "plane": "XY",
+     "entities": [
+      {
+       "id": "c1",
+       "type": "circle",
+       "cx": 0,
+       "cy": 0,
+       "r": 2
+      }
+     ]
+    }
+   },
+   {
+    "type": "sweep",
+    "params": {
+     "profile": "f1",
+     "path": "f99",
+     "operation": "new"
+    }
+   }
+  ]
+ },
+ {
+  "name": "sweep_join",
+  "exactness": "approx",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 8,
+     "width": 8,
+     "height": 4,
+     "anchor": "base",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "sketch",
+    "params": {
+     "plane": "XY",
+     "entities": [
+      {
+       "id": "c1",
+       "type": "circle",
+       "cx": 0,
+       "cy": 0,
+       "r": 2
+      }
+     ]
+    }
+   },
+   {
+    "type": "sketch",
+    "params": {
+     "plane": "XY",
+     "entities": [
+      {
+       "id": "p1",
+       "type": "line",
+       "p1": [
+        0,
+        0
+       ],
+       "p2": [
+        0,
+        20
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "type": "sweep",
+    "params": {
+     "profile": "f2",
+     "path": "f3",
+     "operation": "join",
+     "targets": [
+      "f1"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "sweep_cut",
+  "exactness": "approx",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 40,
+     "width": 20,
+     "height": 20,
+     "anchor": "corner",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "sketch",
+    "params": {
+     "plane": {
+      "origin": [
+       5,
+       10,
+       10
+      ],
+      "normal": [
+       1,
+       0,
+       0
+      ]
+     },
+     "entities": [
+      {
+       "id": "c1",
+       "type": "circle",
+       "cx": 0,
+       "cy": 0,
+       "r": 3
+      }
+     ]
+    }
+   },
+   {
+    "type": "sketch",
+    "params": {
+     "plane": "XY",
+     "entities": [
+      {
+       "id": "p1",
+       "type": "line",
+       "p1": [
+        5,
+        10
+       ],
+       "p2": [
+        35,
+        10
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "type": "sweep",
+    "params": {
+     "profile": "f2",
+     "path": "f3",
+     "operation": "cut",
+     "targets": [
+      "f1"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "sweep_arc_path",
+  "exactness": "approx",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "sketch",
+    "params": {
+     "plane": "XY",
+     "entities": [
+      {
+       "id": "c1",
+       "type": "circle",
+       "cx": 10,
+       "cy": 0,
+       "r": 2
+      }
+     ]
+    }
+   },
+   {
+    "type": "sketch",
+    "params": {
+     "plane": "XY",
+     "entities": [
+      {
+       "id": "a1",
+       "type": "arc",
+       "cx": 0,
+       "cy": 0,
+       "r": 10,
+       "a0": 0,
+       "a1": 90
+      }
+     ]
+    }
+   },
+   {
+    "type": "sweep",
+    "params": {
+     "profile": "f1",
+     "path": "f2",
+     "operation": "new"
+    }
+   }
+  ]
+ },
+ {
+  "name": "sweep_sharp_turn",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "sketch",
+    "params": {
+     "plane": "XY",
+     "entities": [
+      {
+       "id": "c1",
+       "type": "circle",
+       "cx": 0,
+       "cy": 0,
+       "r": 2
+      }
+     ]
+    }
+   },
+   {
+    "type": "sketch",
+    "params": {
+     "plane": "XY",
+     "entities": [
+      {
+       "id": "p1",
+       "type": "polyline",
+       "closed": false,
+       "pts": [
+        [
+         0,
+         0
+        ],
+        [
+         20,
+         0
+        ],
+        [
+         0.1,
+         0.05
+        ]
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "type": "sweep",
+    "params": {
+     "profile": "f1",
+     "path": "f2",
+     "operation": "new"
+    }
+   }
+  ]
+ }
+]

@@ -1,0 +1,9 @@
+{
+ "name": "spacing_align_variants",
+ "text": "AB\nCD",
+ "family": "DejaVu Sans",
+ "size": 12,
+ "spacing": 2.5,
+ "align": "right",
+ "line_gap": 1.5
+}

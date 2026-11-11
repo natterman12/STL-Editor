@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100">
+  <rect x="10" y="10" width="40" height="20"/>
+  <circle cx="80" cy="30" r="15"/>
+  <ellipse cx="140" cy="40" rx="25" ry="15"/>
+  <polygon points="10,70 40,70 25,95"/>
+</svg>

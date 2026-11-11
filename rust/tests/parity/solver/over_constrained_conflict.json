@@ -1,0 +1,69 @@
+{
+ "name": "over_constrained_conflict",
+ "entities": [
+  {
+   "id": "l1",
+   "type": "line",
+   "p1": [
+    0,
+    0
+   ],
+   "p2": [
+    10,
+    0
+   ]
+  },
+  {
+   "id": "l2",
+   "type": "line",
+   "p1": [
+    0,
+    0
+   ],
+   "p2": [
+    0,
+    10
+   ]
+  }
+ ],
+ "constraints": [
+  {
+   "id": "c1",
+   "type": "length",
+   "a": {
+    "e": "l1"
+   },
+   "value": 10
+  },
+  {
+   "id": "c2",
+   "type": "length",
+   "a": {
+    "e": "l1"
+   },
+   "value": 20
+  },
+  {
+   "id": "c3",
+   "type": "fix",
+   "a": {
+    "e": "l1",
+    "k": "p1"
+   },
+   "at": [
+    0,
+    0
+   ]
+  },
+  {
+   "id": "c4",
+   "type": "horizontal",
+   "a": {
+    "e": "l1"
+   }
+  }
+ ],
+ "fixed": [],
+ "locks": [],
+ "infer": []
+}

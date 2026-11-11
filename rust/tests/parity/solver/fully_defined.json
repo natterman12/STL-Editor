@@ -1,0 +1,47 @@
+{
+ "name": "fully_defined",
+ "entities": [
+  {
+   "id": "l1",
+   "type": "line",
+   "p1": [
+    0,
+    0
+   ],
+   "p2": [
+    10,
+    1
+   ]
+  }
+ ],
+ "constraints": [
+  {
+   "id": "c1",
+   "type": "fix",
+   "a": {
+    "e": "l1",
+    "k": "p1"
+   },
+   "at": [
+    0,
+    0
+   ]
+  },
+  {
+   "id": "c2",
+   "type": "horizontal",
+   "a": {
+    "e": "l1"
+   }
+  },
+  {
+   "id": "c3",
+   "type": "length",
+   "a": {
+    "e": "l1"
+   },
+   "value": 10
+  }
+ ],
+ "infer": []
+}

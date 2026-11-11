@@ -1,0 +1,415 @@
+[
+ {
+  "name": "revolve_y_full",
+  "exactness": "approx",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "sketch",
+    "params": {
+     "plane": "XY",
+     "entities": [
+      {
+       "id": "r1",
+       "type": "rect",
+       "x": 5,
+       "y": 0,
+       "w": 4,
+       "h": 10
+      }
+     ]
+    }
+   },
+   {
+    "type": "revolve",
+    "params": {
+     "sketch": "f1",
+     "axis": "y",
+     "angle": 360,
+     "operation": "new"
+    }
+   }
+  ]
+ },
+ {
+  "name": "revolve_x_partial",
+  "exactness": "approx",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "sketch",
+    "params": {
+     "plane": "XY",
+     "entities": [
+      {
+       "id": "r1",
+       "type": "rect",
+       "x": 0,
+       "y": 5,
+       "w": 10,
+       "h": 3
+      }
+     ]
+    }
+   },
+   {
+    "type": "revolve",
+    "params": {
+     "sketch": "f1",
+     "axis": "x",
+     "angle": 180,
+     "segments": 64,
+     "operation": "new"
+    }
+   }
+  ]
+ },
+ {
+  "name": "revolve_construction_axis",
+  "exactness": "approx",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "sketch",
+    "params": {
+     "plane": "XY",
+     "entities": [
+      {
+       "id": "r1",
+       "type": "rect",
+       "x": 8,
+       "y": -2,
+       "w": 4,
+       "h": 4
+      },
+      {
+       "id": "ax",
+       "type": "line",
+       "p1": [
+        0,
+        -10
+       ],
+       "p2": [
+        0,
+        10
+       ],
+       "construction": true
+      }
+     ]
+    }
+   },
+   {
+    "type": "revolve",
+    "params": {
+     "sketch": "f1",
+     "axis": "ax",
+     "angle": 270,
+     "operation": "new"
+    }
+   }
+  ]
+ },
+ {
+  "name": "revolve_missing_sketch",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "revolve",
+    "params": {
+     "sketch": "f99",
+     "axis": "y",
+     "angle": 360,
+     "operation": "new"
+    }
+   }
+  ]
+ },
+ {
+  "name": "revolve_cut",
+  "exactness": "approx",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 40,
+     "width": 40,
+     "height": 30,
+     "anchor": "base",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "sketch",
+    "params": {
+     "plane": "XY",
+     "entities": [
+      {
+       "id": "r1",
+       "type": "rect",
+       "x": 8,
+       "y": -4,
+       "w": 4,
+       "h": 8
+      }
+     ]
+    }
+   },
+   {
+    "type": "revolve",
+    "params": {
+     "sketch": "f2",
+     "axis": "y",
+     "angle": 360,
+     "operation": "cut",
+     "targets": [
+      "f1"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "revolve_join",
+  "exactness": "approx",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 10,
+     "width": 10,
+     "height": 5,
+     "anchor": "base",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "sketch",
+    "params": {
+     "plane": "XY",
+     "entities": [
+      {
+       "id": "r1",
+       "type": "rect",
+       "x": 8,
+       "y": -2,
+       "w": 3,
+       "h": 4
+      }
+     ]
+    }
+   },
+   {
+    "type": "revolve",
+    "params": {
+     "sketch": "f2",
+     "axis": "y",
+     "angle": 180,
+     "operation": "join",
+     "targets": [
+      "f1"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "revolve_straddle_axis",
+  "exactness": "approx",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "sketch",
+    "params": {
+     "plane": "XY",
+     "entities": [
+      {
+       "id": "r1",
+       "type": "rect",
+       "x": -2,
+       "y": 0,
+       "w": 6,
+       "h": 8
+      }
+     ]
+    }
+   },
+   {
+    "type": "revolve",
+    "params": {
+     "sketch": "f1",
+     "axis": "y",
+     "angle": 360,
+     "operation": "new"
+    }
+   }
+  ]
+ },
+ {
+  "name": "revolve_default_segments",
+  "exactness": "approx",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "sketch",
+    "params": {
+     "plane": "XY",
+     "entities": [
+      {
+       "id": "r1",
+       "type": "rect",
+       "x": 5,
+       "y": 0,
+       "w": 3,
+       "h": 6
+      }
+     ]
+    }
+   },
+   {
+    "type": "revolve",
+    "params": {
+     "sketch": "f1",
+     "axis": "y",
+     "angle": 90,
+     "operation": "new"
+    }
+   }
+  ]
+ },
+ {
+  "name": "revolve_notched_axis",
+  "exactness": "approx",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "sketch",
+    "params": {
+     "plane": "XY",
+     "entities": [
+      {
+       "id": "p1",
+       "type": "polyline",
+       "closed": true,
+       "pts": [
+        [
+         -2,
+         0
+        ],
+        [
+         6,
+         0
+        ],
+        [
+         6,
+         10
+        ],
+        [
+         -2,
+         10
+        ],
+        [
+         -2,
+         7
+        ],
+        [
+         2,
+         7
+        ],
+        [
+         2,
+         3
+        ],
+        [
+         -2,
+         3
+        ]
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "type": "revolve",
+    "params": {
+     "sketch": "f1",
+     "axis": "y",
+     "angle": 360,
+     "operation": "new"
+    }
+   }
+  ]
+ },
+ {
+  "name": "revolve_axis_sliver",
+  "exactness": "approx",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "sketch",
+    "params": {
+     "plane": "XY",
+     "entities": [
+      {
+       "id": "r1",
+       "type": "rect",
+       "x": 1,
+       "y": 0,
+       "w": 4,
+       "h": 8
+      },
+      {
+       "id": "s1",
+       "type": "polyline",
+       "closed": true,
+       "pts": [
+        [
+         -1e-07,
+         -5e-07
+        ],
+        [
+         -1e-15,
+         -5e-07
+        ],
+        [
+         -1e-15,
+         5e-07
+        ],
+        [
+         -1e-07,
+         5e-07
+        ]
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "type": "revolve",
+    "params": {
+     "sketch": "f1",
+     "axis": "y",
+     "angle": 360,
+     "segments": 64,
+     "operation": "new"
+    }
+   }
+  ]
+ }
+]

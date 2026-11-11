@@ -1,0 +1,62 @@
+{
+ "name": "redundant_dimension",
+ "entities": [
+  {
+   "id": "l1",
+   "type": "line",
+   "p1": [
+    0,
+    0
+   ],
+   "p2": [
+    10,
+    0
+   ]
+  }
+ ],
+ "constraints": [
+  {
+   "id": "c1",
+   "type": "fix",
+   "a": {
+    "e": "l1",
+    "k": "p1"
+   },
+   "at": [
+    0,
+    0
+   ]
+  },
+  {
+   "id": "c2",
+   "type": "horizontal",
+   "a": {
+    "e": "l1"
+   }
+  },
+  {
+   "id": "c3",
+   "type": "length",
+   "a": {
+    "e": "l1"
+   },
+   "value": 10
+  }
+ ],
+ "redundant": [
+  {
+   "type": "hdistance",
+   "a": {
+    "e": "l1",
+    "k": "p1"
+   },
+   "b": {
+    "e": "l1",
+    "k": "p2"
+   },
+   "value": 10,
+   "sign": 1
+  }
+ ],
+ "infer": []
+}

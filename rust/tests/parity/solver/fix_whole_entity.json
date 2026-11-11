@@ -1,0 +1,33 @@
+{
+ "name": "fix_whole_entity",
+ "entities": [
+  {
+   "id": "l1",
+   "type": "line",
+   "p1": [
+    1,
+    2
+   ],
+   "p2": [
+    11,
+    3
+   ]
+  }
+ ],
+ "constraints": [
+  {
+   "id": "f1",
+   "type": "fix",
+   "a": {
+    "e": "l1"
+   },
+   "at": [
+    0,
+    0,
+    10,
+    0
+   ]
+  }
+ ],
+ "infer": []
+}

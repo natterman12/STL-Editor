@@ -1,0 +1,78 @@
+{
+ "name": "distance_point_line",
+ "entities": [
+  {
+   "id": "l1",
+   "type": "line",
+   "p1": [
+    0,
+    0
+   ],
+   "p2": [
+    20,
+    0
+   ]
+  },
+  {
+   "id": "pt",
+   "type": "point",
+   "x": 10,
+   "y": 8
+  }
+ ],
+ "constraints": [
+  {
+   "id": "f1",
+   "type": "fix",
+   "a": {
+    "e": "l1",
+    "k": "p1"
+   },
+   "at": [
+    0,
+    0
+   ]
+  },
+  {
+   "id": "f2",
+   "type": "fix",
+   "a": {
+    "e": "l1",
+    "k": "p2"
+   },
+   "at": [
+    20,
+    0
+   ]
+  },
+  {
+   "id": "d1",
+   "type": "distance",
+   "a": {
+    "e": "pt",
+    "k": "p"
+   },
+   "b": {
+    "e": "l1"
+   },
+   "value": 5
+  }
+ ],
+ "infer": [
+  {
+   "picks": [
+    {
+     "e": "pt",
+     "k": "p"
+    },
+    {
+     "e": "l1"
+    }
+   ],
+   "cursor": [
+    10,
+    3
+   ]
+  }
+ ]
+}

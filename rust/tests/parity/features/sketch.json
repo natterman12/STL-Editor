@@ -1,0 +1,114 @@
+[
+ {
+  "name": "sketch_xy_rect",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "sketch",
+    "params": {
+     "plane": "XY",
+     "name": "S1",
+     "entities": [
+      {
+       "id": "r1",
+       "type": "rect",
+       "x": 0,
+       "y": 0,
+       "w": 20,
+       "h": 10
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "sketch_on_offset_plane",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "plane",
+    "params": {
+     "mode": "offset",
+     "base": "XY",
+     "distance": 15,
+     "name": "Up"
+    }
+   },
+   {
+    "type": "sketch",
+    "params": {
+     "plane": "f1",
+     "name": "S2",
+     "entities": [
+      {
+       "id": "c1",
+       "type": "circle",
+       "cx": 0,
+       "cy": 0,
+       "r": 5
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "sketch_with_refs",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "sketch",
+    "params": {
+     "plane": "XY",
+     "name": "S3",
+     "entities": [
+      {
+       "id": "r1",
+       "type": "rect",
+       "x": 0,
+       "y": 0,
+       "w": 10,
+       "h": 10
+      }
+     ],
+     "refs": [
+      {
+       "type": "line",
+       "p1": [
+        -5,
+        0
+       ],
+       "p2": [
+        15,
+        0
+       ]
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "sketch_missing_plane",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "sketch",
+    "params": {
+     "plane": "p9",
+     "name": "Bad",
+     "entities": []
+    }
+   }
+  ]
+ }
+]

@@ -1,0 +1,32 @@
+{
+ "name": "touching_shapes",
+ "entities": [
+  {
+   "id": "a",
+   "type": "rect",
+   "x": 0,
+   "y": 0,
+   "w": 10,
+   "h": 10
+  },
+  {
+   "id": "b",
+   "type": "rect",
+   "x": 10,
+   "y": 0,
+   "w": 10,
+   "h": 10
+  },
+  {
+   "id": "d",
+   "type": "rect",
+   "x": 20,
+   "y": 10,
+   "w": 10,
+   "h": 10
+  }
+ ],
+ "ops": {
+  "snap_points": true
+ }
+}

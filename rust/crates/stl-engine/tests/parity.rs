@@ -18,6 +18,10 @@ const BATCH1: [&str; 11] = [
     "import", "primitive", "plane", "move", "scale", "mirror", "combine", "split", "delete", "separate", "repair",
 ];
 
+const BATCH2: [&str; 7] = [
+    "sketch", "extrude", "revolve", "loft", "sweep", "hole", "pushpull",
+];
+
 #[derive(Debug, PartialEq)]
 enum Outcome {
     Passed,
@@ -260,7 +264,9 @@ fn failed_cases(failures: &[String]) -> usize {
 
 #[test]
 fn feature_parity() {
-    let tally = run_all_with(&Registry::builtin(), &BATCH1, &read_exceptions());
+    let mut types = Vec::from(BATCH1);
+    types.extend_from_slice(&BATCH2);
+    let tally = run_all_with(&Registry::builtin(), &types, &read_exceptions());
     for f in &tally.failures {
         println!("{f}");
     }

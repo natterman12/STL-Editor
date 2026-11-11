@@ -1,0 +1,16 @@
+{
+ "name": "cutting_block",
+ "model": "holed_block.stl",
+ "frame": {
+  "origin": [
+   15,
+   10,
+   5
+  ],
+  "normal": [
+   0,
+   0,
+   1
+  ]
+ }
+}

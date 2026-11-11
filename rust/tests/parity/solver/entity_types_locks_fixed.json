@@ -1,0 +1,224 @@
+{
+ "name": "entity_types_locks_fixed",
+ "entities": [
+  {
+   "id": "s1",
+   "type": "slot",
+   "x1": 0,
+   "y1": 0,
+   "x2": 20,
+   "y2": 0,
+   "r": 3
+  },
+  {
+   "id": "g1",
+   "type": "polygon",
+   "cx": 40,
+   "cy": 0,
+   "r": 6,
+   "n": 6
+  },
+  {
+   "id": "pl1",
+   "type": "polyline",
+   "closed": false,
+   "pts": [
+    [
+     60,
+     0
+    ],
+    [
+     70,
+     5
+    ],
+    [
+     80,
+     0
+    ]
+   ]
+  },
+  {
+   "id": "l1",
+   "type": "line",
+   "p1": [
+    0,
+    15
+   ],
+   "p2": [
+    10,
+    16
+   ]
+  }
+ ],
+ "constraints": [
+  {
+   "id": "c1",
+   "type": "length",
+   "a": {
+    "e": "s1"
+   },
+   "value": 20
+  },
+  {
+   "id": "c2",
+   "type": "radius",
+   "a": {
+    "e": "g1"
+   },
+   "value": 6
+  },
+  {
+   "id": "c3",
+   "type": "horizontal",
+   "a": {
+    "e": "l1"
+   }
+  },
+  {
+   "id": "c4",
+   "type": "distance",
+   "a": {
+    "e": "l1",
+    "k": "p1"
+   },
+   "b": {
+    "e": "_h"
+   },
+   "value": 15
+  }
+ ],
+ "locks": [
+  {
+   "e": "pl1",
+   "k": "v0",
+   "at": [
+    60,
+    0
+   ]
+  },
+  {
+   "e": "s1",
+   "path": "r",
+   "value": 3
+  }
+ ],
+ "fixed": [
+  {
+   "id": "_o",
+   "type": "point",
+   "x": 0,
+   "y": 0,
+   "ref": "origin"
+  },
+  {
+   "id": "_h",
+   "type": "line",
+   "p1": [
+    -100000,
+    0
+   ],
+   "p2": [
+    100000,
+    0
+   ],
+   "ref": "axis"
+  },
+  {
+   "id": "_v",
+   "type": "line",
+   "p1": [
+    0,
+    -100000
+   ],
+   "p2": [
+    0,
+    100000
+   ],
+   "ref": "axis"
+  },
+  {
+   "id": "edge1",
+   "type": "line",
+   "p1": [
+    -5,
+    -5
+   ],
+   "p2": [
+    25,
+    -5
+   ],
+   "ref": "edge"
+  }
+ ],
+ "fixed_ids": [
+  "_o",
+  "_h",
+  "_v",
+  "edge1"
+ ],
+ "infer": [
+  {
+   "picks": [
+    {
+     "e": "s1"
+    }
+   ],
+   "cursor": [
+    10,
+    5
+   ]
+  },
+  {
+   "picks": [
+    {
+     "e": "g1"
+    }
+   ],
+   "cursor": [
+    40,
+    0
+   ]
+  },
+  {
+   "picks": [
+    {
+     "e": "l1",
+     "k": "p1"
+    },
+    {
+     "e": "_h"
+    }
+   ],
+   "cursor": [
+    5,
+    8
+   ],
+   "fixed": [
+    "_o",
+    "_h",
+    "_v",
+    "edge1"
+   ]
+  },
+  {
+   "picks": [
+    {
+     "e": "_o"
+    },
+    {
+     "e": "edge1"
+    }
+   ],
+   "cursor": [
+    0,
+    -2
+   ],
+   "fixed": [
+    "_o",
+    "_h",
+    "_v",
+    "edge1"
+   ]
+  }
+ ]
+}

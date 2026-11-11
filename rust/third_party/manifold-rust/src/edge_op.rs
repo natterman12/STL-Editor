@@ -528,11 +528,19 @@ pub fn recursive_edge_swap(
 /// Finds vertices where multiple halfedge cycles meet (pinched verts) and
 /// splits them into separate vertices — one per cycle.
 pub fn split_pinched_verts(mesh: &mut ManifoldImpl) {
+    split_pinched_verts_owners(mesh);
+}
+
+/// [`split_pinched_verts`], returning the orbit owners it worked from (those
+/// of halfedges with a start vert), if it took the parallel path. Splitting a
+/// pinched vert renames verts and leaves the halfedges where they are, so the
+/// owners are still the mesh's when this returns.
+fn split_pinched_verts_owners(mesh: &mut ManifoldImpl) -> Option<crate::scratch::Scratch<usize>> {
     // With the owners known (`orbit_owners`), walk only the pinched orbits, in
     // the order the sequential scan below reaches them.
     if let Some(owners) = orbit_owners(&mesh.halfedge, ORBIT_PAR_THRESHOLD, |h| h.start_vert >= 0) {
-        let mut vert_processed = vec![false; mesh.vert_pos.len()];
-        for i in owners {
+        let mut vert_processed = crate::scratch::Scratch::filled(mesh.vert_pos.len(), false);
+        for &i in owners.iter() {
             let vert = mesh.halfedge[i].start_vert as usize;
             if vert_processed.get(vert) != Some(&true) {
                 if vert < vert_processed.len() {
@@ -555,7 +563,7 @@ pub fn split_pinched_verts(mesh: &mut ManifoldImpl) {
                 }
             }
         }
-        return;
+        return Some(owners);
     }
     let n_edges = mesh.halfedge.len();
     let mut vert_processed = vec![false; mesh.vert_pos.len()];
@@ -623,6 +631,7 @@ pub fn split_pinched_verts(mesh: &mut ManifoldImpl) {
         }
         i += 1;
     }
+    None
 }
 
 // -----------------------------------------------------------------------
@@ -812,19 +821,46 @@ pub fn dedupe_edge(mesh: &mut ManifoldImpl, edge: usize) {
 
 /// Finds and fixes all duplicate edges (4-manifold conditions).
 pub fn dedupe_edges(mesh: &mut ManifoldImpl) {
+    dedupe_edges_from(mesh, None);
+}
+
+/// [`dedupe_edges`]. `first_owners`, if given, must be what `orbit_owners`
+/// returns for the mesh as it is now and this function's notion of a valid
+/// halfedge; the first pass then uses it instead of searching again.
+fn dedupe_edges_from(
+    mesh: &mut ManifoldImpl,
+    mut first_owners: Option<crate::scratch::Scratch<usize>>,
+) {
     let max_iterations = mesh.halfedge.len(); // safety bound
     for _iteration in 0..max_iterations {
         let n_edges = mesh.halfedge.len();
         // Orbit by orbit in parallel if every orbit is a closed cycle (see
         // `orbit_owners`), else sequentially; both give the same list.
         let valid = |h: &Halfedge| h.start_vert >= 0 && h.end_vert >= 0;
-        let duplicates: Vec<usize> = match orbit_owners(&mesh.halfedge, ORBIT_PAR_THRESHOLD, valid)
-        {
+        let owners = match first_owners.take() {
+            Some(owners) => Some(owners),
+            None => orbit_owners(&mesh.halfedge, ORBIT_PAR_THRESHOLD, valid),
+        };
+        let duplicates: Vec<usize> = match owners {
             Some(owners) => {
+                // The owners are taken in runs, each run one task with one
+                // list of duplicates; joined in run order they are the list
+                // of a loop over the owners. Duplicates are rare, and a list
+                // per owner cost more than the search.
+                const RUN: usize = 1024;
                 let m: &ManifoldImpl = mesh;
-                crate::par::maybe_par_map(owners.len(), ORBIT_PAR_THRESHOLD / 8, |k| {
+                let owners = &owners;
+                let threshold = if owners.len() >= ORBIT_PAR_THRESHOLD / 8 {
+                    2
+                } else {
+                    usize::MAX
+                };
+                crate::par::maybe_par_map(owners.len().div_ceil(RUN), threshold, |run| {
                     let mut dups = Vec::new();
-                    dedupe_orbit(m, owners[k], n_edges, |_| {}, &mut dups);
+                    let mut end_verts = Vec::new();
+                    for k in run * RUN..owners.len().min((run + 1) * RUN) {
+                        dedupe_orbit(m, owners[k], n_edges, |_| {}, &mut end_verts, &mut dups);
+                    }
                     dups
                 })
                 .concat()
@@ -832,6 +868,7 @@ pub fn dedupe_edges(mesh: &mut ManifoldImpl) {
             None => {
                 let mut processed = vec![false; n_edges];
                 let mut duplicates: Vec<usize> = Vec::new();
+                let mut end_verts = Vec::new();
                 for i in 0..n_edges {
                     if processed[i] {
                         continue;
@@ -839,7 +876,14 @@ pub fn dedupe_edges(mesh: &mut ManifoldImpl) {
                     if !valid(&mesh.halfedge[i]) {
                         continue;
                     }
-                    dedupe_orbit(mesh, i, n_edges, |c| processed[c] = true, &mut duplicates);
+                    dedupe_orbit(
+                        mesh,
+                        i,
+                        n_edges,
+                        |c| processed[c] = true,
+                        &mut end_verts,
+                        &mut duplicates,
+                    );
                 }
                 duplicates
             }
@@ -899,8 +943,24 @@ pub fn cleanup_topology(mesh: &mut ManifoldImpl) {
     if mesh.halfedge.is_empty() {
         return;
     }
-    split_pinched_verts(mesh);
-    dedupe_edges(mesh);
+    let owners = split_pinched_verts_owners(mesh);
+    dedupe_edges_from(mesh, owners_for_dedupe(mesh, owners));
+}
+
+/// The orbit owners `split_pinched_verts_owners` found, if `dedupe_edges` can
+/// use them for its first pass: the two differ only in which halfedges count
+/// (a start vert there, a start and an end vert here), so the owners are the
+/// same when no halfedge has a start vert without an end vert.
+fn owners_for_dedupe(
+    mesh: &ManifoldImpl,
+    owners: Option<crate::scratch::Scratch<usize>>,
+) -> Option<crate::scratch::Scratch<usize>> {
+    let owners = owners?;
+    let halfedge = &mesh.halfedge;
+    let odd = crate::par::maybe_par_filter(halfedge.len(), ORBIT_PAR_THRESHOLD, |i| {
+        halfedge[i].start_vert >= 0 && halfedge[i].end_vert < 0
+    });
+    odd.is_empty().then_some(owners)
 }
 
 /// Collapses short edges and colinear edges, and swaps degenerate edge diagonals.
@@ -909,11 +969,25 @@ pub fn simplify_topology(mesh: &mut ManifoldImpl, first_new_vert: i32) {
     if mesh.halfedge.is_empty() {
         return;
     }
-    cleanup_topology(mesh);
+    // `cleanup_topology`, timed in its two halves.
+    let t = crate::timing::start();
+    let owners = split_pinched_verts_owners(mesh);
+    crate::timing::print("    split_pinched_verts", t);
+    let t = crate::timing::start();
+    dedupe_edges_from(mesh, owners_for_dedupe(mesh, owners));
+    crate::timing::print("    dedupe_edges", t);
+    let t = crate::timing::start();
     collapse_short_edges(mesh, first_new_vert);
+    crate::timing::print("    collapse_short_edges", t);
+    let t = crate::timing::start();
     collapse_colinear_edges(mesh, first_new_vert);
+    crate::timing::print("    collapse_colinear_edges", t);
+    let t = crate::timing::start();
     swap_degenerates(mesh, first_new_vert);
+    crate::timing::print("    swap_degenerates", t);
+    let t = crate::timing::start();
     calculate_vert_normals(mesh);
+    crate::timing::print("    calculate_vert_normals", t);
 }
 
 /// Like simplify_topology but without colinear-edge collapse.
@@ -1117,7 +1191,7 @@ pub fn swap_degenerates(mesh: &mut ManifoldImpl, first_new_vert: i32) {
         ccw(v[0], v[1], v[2], m.tolerance) > 0 || is_01_longest(v[0], v[1], v[2])
     });
 
-    let mut visited = vec![-1i32; n];
+    let mut visited = crate::scratch::Scratch::filled(n, -1i32);
     let mut edge_swap_stack: Vec<i32> = Vec::new();
     let mut scratch: Vec<usize> = Vec::new();
     let mut tag = 0i32;

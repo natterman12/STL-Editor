@@ -1,4 +1,4 @@
-//! `cargo run --release -p xtask -- bench`: the same four operations on `dev/bench/test_mesh.stl`
+//! `cargo run --release -p xtask -- bench`: the same operations on `dev/bench/test_mesh.stl`
 //! through the 1.x `Document` (`dev/parity/bench_1x.py`) and the Rust one; fails if 2.0 is slower.
 
 use std::path::{Path, PathBuf};
@@ -9,12 +9,15 @@ use serde_json::{json, Map, Value};
 use stl_engine::{Document, Registry};
 
 const RUNS: usize = 3;
-const NAMES: [(&str, &str); 5] = [
+const NAMES: [(&str, &str); 8] = [
     ("import", "Import (repair on)"),
     ("combine_join", "Combine join, 30 mm cube"),
     ("combine_cut", "Combine cut, 30 mm cube"),
     ("split", "Split at z = 0"),
     ("repair_quick", "Repair quick, 1% triangles missing"),
+    ("extrude", "Extrude 200-segment sketch, 20 mm"),
+    ("revolve", "Revolve 200-segment sketch, 360 deg"),
+    ("sweep", "Sweep 10 mm circle, 40-point path"),
 ];
 
 fn obj(v: Value) -> Map<String, Value> {
@@ -75,6 +78,25 @@ fn secs(t: Instant) -> f64 {
     t.elapsed().as_secs_f64()
 }
 
+/// Regular n-gon points (same rule as bench_1x.py).
+fn ngon(cx: f64, cy: f64, r: f64, n: usize) -> Value {
+    let pts: Vec<Value> = (0..n)
+        .map(|i| {
+            let a = 2.0 * std::f64::consts::PI * i as f64 / n as f64;
+            json!([cx + r * a.cos(), cy + r * a.sin()])
+        })
+        .collect();
+    Value::Array(pts)
+}
+
+fn with_sketch(entities: Value, plane: &str) -> Result<(Document, String), String> {
+    let mut d = Document::new(Registry::builtin());
+    let sk = d
+        .add_feature("sketch", obj(json!({"plane": plane, "entities": entities})), None)
+        .map_err(|e| e.0)?;
+    Ok((d, sk))
+}
+
 fn time_rust(data: &[u8]) -> Result<Vec<f64>, String> {
     let broken = broken_copy(data);
     let mut out = Vec::new();
@@ -115,6 +137,34 @@ fn time_rust(data: &[u8]) -> Result<Vec<f64>, String> {
         let (mut d, mesh) = doc_with_mesh(&broken, false)?;
         let t = Instant::now();
         d.add_feature("repair", obj(json!({"body": mesh, "mode": "quick"})), None).map_err(|e| e.0)?;
+        Ok(secs(t))
+    })?);
+    let ring = json!([{"id": "r", "type": "polyline", "closed": true, "pts": ngon(30.0, 0.0, 10.0, 200)}]);
+    out.push(time_op(|| {
+        let (mut d, sk) = with_sketch(ring.clone(), "XY")?;
+        let t = Instant::now();
+        d.add_feature("extrude", obj(json!({"sketch": sk, "distance": 20})), None).map_err(|e| e.0)?;
+        Ok(secs(t))
+    })?);
+    out.push(time_op(|| {
+        let (mut d, sk) = with_sketch(ring.clone(), "XY")?;
+        let t = Instant::now();
+        d.add_feature("revolve", obj(json!({"sketch": sk, "axis": "y", "angle": 360})), None)
+            .map_err(|e| e.0)?;
+        Ok(secs(t))
+    })?);
+    out.push(time_op(|| {
+        let (mut d, prof) = with_sketch(json!([{"id": "c", "type": "circle", "cx": 0, "cy": 0, "r": 5}]), "XY")?;
+        let pts: Vec<Value> = (0..40).map(|i| json!([5.0 * (i as f64 * 0.3).sin(), 2.0 * i as f64])).collect();
+        let path = d
+            .add_feature(
+                "sketch",
+                obj(json!({"plane": "XZ", "entities": [{"id": "p", "type": "polyline", "closed": false, "pts": pts}]})),
+                None,
+            )
+            .map_err(|e| e.0)?;
+        let t = Instant::now();
+        d.add_feature("sweep", obj(json!({"profile": prof, "path": path})), None).map_err(|e| e.0)?;
         Ok(secs(t))
     })?);
     Ok(out)

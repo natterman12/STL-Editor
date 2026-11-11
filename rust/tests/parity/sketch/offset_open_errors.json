@@ -1,0 +1,33 @@
+{
+ "name": "offset_open_errors",
+ "entities": [
+  {
+   "id": "l1",
+   "type": "line",
+   "p1": [0, 0],
+   "p2": [10, 0]
+  },
+  {
+   "id": "p1",
+   "type": "polyline",
+   "closed": false,
+   "pts": [
+    [0, 0],
+    [10, 0],
+    [10, 5]
+   ]
+  }
+ ],
+ "ops": {
+  "offset": [
+   {
+    "ids": ["l1"],
+    "d": 1
+   },
+   {
+    "ids": ["p1"],
+    "d": 1
+   }
+  ]
+ }
+}

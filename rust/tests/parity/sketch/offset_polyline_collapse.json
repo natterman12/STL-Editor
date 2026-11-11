@@ -1,0 +1,22 @@
+{
+ "name": "offset_polyline_collapse",
+ "entities": [
+  {
+   "id": "p",
+   "type": "polyline",
+   "closed": true,
+   "pts": [
+    [0, 0],
+    [4, 0],
+    [4, 2],
+    [0, 2]
+   ]
+  }
+ ],
+ "ops": {
+  "offset": {
+   "ids": ["p"],
+   "d": -1.5
+  }
+ }
+}

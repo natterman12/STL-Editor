@@ -1,0 +1,21 @@
+{
+ "name": "offset_sharp_corner",
+ "entities": [
+  {
+   "id": "s",
+   "type": "polyline",
+   "closed": true,
+   "pts": [
+    [0, 0],
+    [20, 1],
+    [20, -1]
+   ]
+  }
+ ],
+ "ops": {
+  "offset": {
+   "ids": ["s"],
+   "d": 1
+  }
+ }
+}

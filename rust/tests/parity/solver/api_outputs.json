@@ -1,0 +1,110 @@
+{
+ "name": "api_outputs",
+ "entities": [
+  {
+   "id": "l1",
+   "type": "line",
+   "p1": [0, 0],
+   "p2": [10, 0]
+  },
+  {
+   "id": "l2",
+   "type": "line",
+   "p1": [0, 5],
+   "p2": [10, 5]
+  },
+  {
+   "id": "l3",
+   "type": "line",
+   "p1": [0, 0],
+   "p2": [0, 10]
+  },
+  {
+   "id": "c1",
+   "type": "circle",
+   "cx": 20,
+   "cy": 0,
+   "r": 4
+  },
+  {
+   "id": "pt",
+   "type": "point",
+   "x": 5,
+   "y": 2
+  }
+ ],
+ "constraints": [
+  {
+   "id": "d1",
+   "type": "length",
+   "a": { "e": "l1" },
+   "value": 10
+  },
+  {
+   "id": "d2",
+   "type": "length",
+   "a": { "e": "l1" },
+   "value": 10,
+   "ref": true
+  },
+  {
+   "id": "d3",
+   "type": "vdistance",
+   "a": { "e": "l1", "k": "p1" },
+   "b": { "e": "l2", "k": "p1" },
+   "value": 5,
+   "sign": 1
+  },
+  {
+   "id": "k1",
+   "type": "parallel",
+   "a": { "e": "l1" },
+   "b": { "e": "l2" }
+  },
+  {
+   "id": "k2",
+   "type": "perpendicular",
+   "a": { "e": "l1" },
+   "b": { "e": "l3" }
+  }
+ ],
+ "make": [
+  {
+   "tool": "c_parallel",
+   "picks": [{ "e": "l1" }, { "e": "l2" }]
+  },
+  {
+   "tool": "c_perpendicular",
+   "picks": [{ "e": "l1" }, { "e": "l3" }]
+  },
+  {
+   "tool": "c_coincident",
+   "picks": [{ "e": "pt", "k": "p" }, { "e": "l1", "k": "p1" }]
+  },
+  {
+   "tool": "c_coincident",
+   "picks": [{ "e": "l1" }]
+  },
+  {
+   "tool": "c_hv",
+   "picks": [{ "e": "l1" }]
+  },
+  {
+   "tool": "c_fix",
+   "picks": [{ "e": "pt", "k": "p" }]
+  },
+  {
+   "tool": "c_equal",
+   "picks": [{ "e": "l1" }, { "e": "c1" }]
+  }
+ ],
+ "measure": true,
+ "glyphSpots": true,
+ "lineMeet": [
+  { "a": "l1", "b": "l3" },
+  { "a": "l1", "b": "l2" },
+  { "a": "l2", "b": "l3" }
+ ],
+ "ref": true,
+ "infer": []
+}

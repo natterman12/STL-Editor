@@ -1,0 +1,438 @@
+[
+ {
+  "name": "loft_two_circles",
+  "exactness": "approx",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "sketch",
+    "params": {
+     "plane": "XY",
+     "entities": [
+      {
+       "id": "c1",
+       "type": "circle",
+       "cx": 0,
+       "cy": 0,
+       "r": 8
+      }
+     ]
+    }
+   },
+   {
+    "type": "plane",
+    "params": {
+     "mode": "offset",
+     "base": "XY",
+     "distance": 20,
+     "name": "Up"
+    }
+   },
+   {
+    "type": "sketch",
+    "params": {
+     "plane": "f2",
+     "entities": [
+      {
+       "id": "c2",
+       "type": "circle",
+       "cx": 0,
+       "cy": 0,
+       "r": 4
+      }
+     ]
+    }
+   },
+   {
+    "type": "loft",
+    "params": {
+     "profiles": [
+      "f1",
+      "f3"
+     ],
+     "operation": "new"
+    }
+   }
+  ]
+ },
+ {
+  "name": "loft_three_rects",
+  "exactness": "approx",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "sketch",
+    "params": {
+     "plane": "XY",
+     "entities": [
+      {
+       "id": "r1",
+       "type": "rect",
+       "x": -5,
+       "y": -5,
+       "w": 10,
+       "h": 10
+      }
+     ]
+    }
+   },
+   {
+    "type": "plane",
+    "params": {
+     "mode": "offset",
+     "base": "XY",
+     "distance": 10,
+     "name": "M"
+    }
+   },
+   {
+    "type": "sketch",
+    "params": {
+     "plane": "f2",
+     "entities": [
+      {
+       "id": "r2",
+       "type": "rect",
+       "x": -4,
+       "y": -4,
+       "w": 8,
+       "h": 8
+      }
+     ]
+    }
+   },
+   {
+    "type": "plane",
+    "params": {
+     "mode": "offset",
+     "base": "XY",
+     "distance": 20,
+     "name": "T"
+    }
+   },
+   {
+    "type": "sketch",
+    "params": {
+     "plane": "f4",
+     "entities": [
+      {
+       "id": "r3",
+       "type": "rect",
+       "x": -3,
+       "y": -3,
+       "w": 6,
+       "h": 6
+      }
+     ]
+    }
+   },
+   {
+    "type": "loft",
+    "params": {
+     "profiles": [
+      "f1",
+      "f3",
+      "f5"
+     ],
+     "operation": "new"
+    }
+   }
+  ]
+ },
+ {
+  "name": "loft_one_profile",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "sketch",
+    "params": {
+     "plane": "XY",
+     "entities": [
+      {
+       "id": "c1",
+       "type": "circle",
+       "cx": 0,
+       "cy": 0,
+       "r": 5
+      }
+     ]
+    }
+   },
+   {
+    "type": "loft",
+    "params": {
+     "profiles": [
+      "f1"
+     ],
+     "operation": "new"
+    }
+   }
+  ]
+ },
+ {
+  "name": "loft_same_height",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "sketch",
+    "params": {
+     "plane": "XY",
+     "entities": [
+      {
+       "id": "c1",
+       "type": "circle",
+       "cx": 0,
+       "cy": 0,
+       "r": 5
+      }
+     ]
+    }
+   },
+   {
+    "type": "sketch",
+    "params": {
+     "plane": "XY",
+     "entities": [
+      {
+       "id": "c2",
+       "type": "circle",
+       "cx": 0,
+       "cy": 0,
+       "r": 8
+      }
+     ]
+    }
+   },
+   {
+    "type": "loft",
+    "params": {
+     "profiles": [
+      "f1",
+      "f2"
+     ],
+     "operation": "new"
+    }
+   }
+  ]
+ },
+ {
+  "name": "loft_join",
+  "exactness": "approx",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 6,
+     "width": 6,
+     "height": 4,
+     "anchor": "base",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "sketch",
+    "params": {
+     "plane": "XY",
+     "entities": [
+      {
+       "id": "c1",
+       "type": "circle",
+       "cx": 0,
+       "cy": 0,
+       "r": 5
+      }
+     ]
+    }
+   },
+   {
+    "type": "plane",
+    "params": {
+     "mode": "offset",
+     "base": "XY",
+     "distance": 15,
+     "name": "Up"
+    }
+   },
+   {
+    "type": "sketch",
+    "params": {
+     "plane": "f3",
+     "entities": [
+      {
+       "id": "c2",
+       "type": "circle",
+       "cx": 0,
+       "cy": 0,
+       "r": 3
+      }
+     ]
+    }
+   },
+   {
+    "type": "loft",
+    "params": {
+     "profiles": [
+      "f2",
+      "f4"
+     ],
+     "operation": "join",
+     "targets": [
+      "f1"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "loft_cut",
+  "exactness": "approx",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 30,
+     "width": 30,
+     "height": 25,
+     "anchor": "corner",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "sketch",
+    "params": {
+     "plane": {
+      "origin": [
+       15,
+       15,
+       0
+      ],
+      "normal": [
+       0,
+       0,
+       1
+      ]
+     },
+     "entities": [
+      {
+       "id": "c1",
+       "type": "circle",
+       "cx": 0,
+       "cy": 0,
+       "r": 6
+      }
+     ]
+    }
+   },
+   {
+    "type": "plane",
+    "params": {
+     "mode": "offset",
+     "base": "XY",
+     "distance": 25,
+     "name": "Top"
+    }
+   },
+   {
+    "type": "sketch",
+    "params": {
+     "plane": {
+      "origin": [
+       15,
+       15,
+       25
+      ],
+      "normal": [
+       0,
+       0,
+       1
+      ]
+     },
+     "entities": [
+      {
+       "id": "c2",
+       "type": "circle",
+       "cx": 0,
+       "cy": 0,
+       "r": 3
+      }
+     ]
+    }
+   },
+   {
+    "type": "loft",
+    "params": {
+     "profiles": [
+      "f2",
+      "f4"
+     ],
+     "operation": "cut",
+     "targets": [
+      "f1"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "loft_non_parallel_planes",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "sketch",
+    "params": {
+     "plane": "XY",
+     "entities": [
+      {
+       "id": "c1",
+       "type": "circle",
+       "cx": 0,
+       "cy": 0,
+       "r": 5
+      }
+     ]
+    }
+   },
+   {
+    "type": "sketch",
+    "params": {
+     "plane": "XZ",
+     "entities": [
+      {
+       "id": "c2",
+       "type": "circle",
+       "cx": 0,
+       "cy": 0,
+       "r": 4
+      }
+     ]
+    }
+   },
+   {
+    "type": "loft",
+    "params": {
+     "profiles": [
+      "f1",
+      "f2"
+     ],
+     "operation": "new"
+    }
+   }
+  ]
+ }
+]

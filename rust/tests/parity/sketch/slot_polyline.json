@@ -1,0 +1,41 @@
+{
+ "name": "slot_polyline",
+ "entities": [
+  {
+   "id": "s1",
+   "type": "slot",
+   "x1": 0,
+   "y1": 0,
+   "x2": 20,
+   "y2": 0,
+   "r": 3
+  },
+  {
+   "id": "p1",
+   "type": "polyline",
+   "closed": true,
+   "pts": [
+    [
+     30,
+     0
+    ],
+    [
+     40,
+     0
+    ],
+    [
+     40,
+     10
+    ],
+    [
+     30,
+     10
+    ]
+   ]
+  }
+ ],
+ "ops": {
+  "explode": "s1",
+  "snap_points": true
+ }
+}

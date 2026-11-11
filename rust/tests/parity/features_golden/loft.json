@@ -1,0 +1,269 @@
+{
+ "loft_cut": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 5370.25319025725,
+     "bbox_max": [
+      30.0,
+      30.0,
+      25.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 256,
+     "vertices": 128,
+     "volume": 20855.770438617357,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f3",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f4",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f5",
+    "warning": null
+   }
+  ]
+ },
+ "loft_join": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 486.32836276953503,
+     "bbox_max": [
+      5.0,
+      4.990133762359619,
+      15.0
+     ],
+     "bbox_min": [
+      -5.0,
+      -4.990133762359619,
+      0.0
+     ],
+     "triangles": 196,
+     "vertices": 100,
+     "volume": 767.3905368935806,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f3",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f4",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f5",
+    "warning": null
+   }
+  ]
+ },
+ "loft_non_parallel_planes": {
+  "bodies": [],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   },
+   {
+    "error": "The loft profiles must lie on parallel planes (sketch them on the same plane or on parallel planes).",
+    "id": "f3",
+    "warning": null
+   }
+  ]
+ },
+ "loft_one_profile": {
+  "bodies": [],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": "A loft needs at least two sketch profiles, at different heights.",
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "loft_same_height": {
+  "bodies": [],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   },
+   {
+    "error": "The loft profiles must be at different heights, one after another in a single direction (in the order you picked them).",
+    "id": "f3",
+    "warning": null
+   }
+  ]
+ },
+ "loft_three_rects": {
+  "bodies": [
+   {
+    "id": "f6",
+    "name": "Loft",
+    "solid": true,
+    "stats": {
+     "area": 779.192039751737,
+     "bbox_max": [
+      5.0,
+      5.0,
+      20.0
+     ],
+     "bbox_min": [
+      -5.0,
+      -5.0,
+      0.0
+     ],
+     "triangles": 20,
+     "vertices": 12,
+     "volume": 1306.6666666666667,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f3",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f4",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f5",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f6",
+    "warning": null
+   }
+  ]
+ },
+ "loft_two_circles": {
+  "bodies": [
+   {
+    "id": "f4",
+    "name": "Loft",
+    "solid": true,
+    "stats": {
+     "area": 1019.3521755641324,
+     "bbox_max": [
+      8.0,
+      8.0,
+      20.0
+     ],
+     "bbox_min": [
+      -8.0,
+      -8.0,
+      0.0
+     ],
+     "triangles": 316,
+     "vertices": 160,
+     "volume": 2341.936221931424,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f3",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f4",
+    "warning": null
+   }
+  ]
+ }
+}

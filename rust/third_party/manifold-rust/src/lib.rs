@@ -93,6 +93,7 @@ pub mod progress;
 pub mod properties;
 pub mod quickhull;
 pub mod robust;
+pub mod scratch;
 pub mod sdf;
 pub mod smoothing;
 pub mod sort;

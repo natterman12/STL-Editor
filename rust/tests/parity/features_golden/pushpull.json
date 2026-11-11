@@ -1,0 +1,192 @@
+{
+ "pushpull_in": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 1360.0,
+     "bbox_max": [
+      10.0,
+      10.0,
+      7.0
+     ],
+     "bbox_min": [
+      -10.0,
+      -10.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 2800.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "pushpull_no_face": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 1600.0,
+     "bbox_max": [
+      10.0,
+      10.0,
+      10.0
+     ],
+     "bbox_min": [
+      -10.0,
+      -10.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 4000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": "Click a flat face to push or pull.",
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "pushpull_out": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 2000.0,
+     "bbox_max": [
+      10.0,
+      10.0,
+      15.0
+     ],
+     "bbox_min": [
+      -10.0,
+      -10.0,
+      0.0
+     ],
+     "triangles": 20,
+     "vertices": 12,
+     "volume": 6000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "pushpull_side_face": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 1840.0,
+     "bbox_max": [
+      14.0,
+      10.0,
+      10.0
+     ],
+     "bbox_min": [
+      -10.0,
+      -10.0,
+      0.0
+     ],
+     "triangles": 20,
+     "vertices": 12,
+     "volume": 4800.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "pushpull_zero_distance": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 1600.0,
+     "bbox_max": [
+      10.0,
+      10.0,
+      10.0
+     ],
+     "bbox_min": [
+      -10.0,
+      -10.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 4000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": "Distance can't be zero.",
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ }
+}

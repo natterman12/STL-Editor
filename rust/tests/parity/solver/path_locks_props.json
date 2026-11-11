@@ -1,0 +1,47 @@
+{
+ "name": "path_locks_props",
+ "entities": [
+  {
+   "id": "g1",
+   "type": "polygon",
+   "cx": 0,
+   "cy": 0,
+   "r": 8,
+   "n": 6
+  },
+  {
+   "id": "r1",
+   "type": "rect",
+   "x": 20,
+   "y": 0,
+   "w": 12,
+   "h": 7,
+   "angle": 15,
+   "fillet": 1.5
+  }
+ ],
+ "constraints": [],
+ "locks": [
+  {
+   "e": "g1",
+   "path": "n",
+   "value": 6
+  },
+  {
+   "e": "g1",
+   "path": "r",
+   "value": 8
+  },
+  {
+   "e": "r1",
+   "path": "angle",
+   "value": 15
+  },
+  {
+   "e": "r1",
+   "path": "fillet",
+   "value": 1.5
+  }
+ ],
+ "infer": []
+}

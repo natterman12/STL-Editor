@@ -62,7 +62,10 @@ fn max_epsilon(min_epsilon: f64, bbox: &BBox) -> f64 {
 // ---------------------------------------------------------------------------
 
 /// Internal halfedge mesh representation, mirroring `Manifold::Impl` in C++.
-#[derive(Clone)]
+///
+/// Its arrays are recycled: a copy takes its buffers from [`crate::scratch`]
+/// and a dropped mesh hands its buffers back, so that a mesh made after
+/// another was dropped does not start on fresh memory.
 pub struct ManifoldImpl {
     pub bbox: BBox,
     pub epsilon: f64,
@@ -103,6 +106,47 @@ pub struct ManifoldImpl {
     /// [`ManifoldImpl::invalidate_self_intersects`]. Rebuilds that go through
     /// `create_halfedges` or `make_empty` are covered automatically.
     pub(crate) self_intersects: crate::robust::soup::SelfIntersectCache,
+}
+
+impl Clone for ManifoldImpl {
+    fn clone(&self) -> Self {
+        use crate::scratch::copy_of;
+        ManifoldImpl {
+            bbox: self.bbox,
+            epsilon: self.epsilon,
+            tolerance: self.tolerance,
+            num_prop: self.num_prop,
+            status: self.status,
+            vert_pos: copy_of(&self.vert_pos),
+            halfedge: copy_of(&self.halfedge),
+            properties: copy_of(&self.properties),
+            vert_normal: copy_of(&self.vert_normal),
+            face_normal: copy_of(&self.face_normal),
+            halfedge_tangent: copy_of(&self.halfedge_tangent),
+            mesh_relation: MeshRelationD {
+                original_id: self.mesh_relation.original_id,
+                mesh_id_transform: self.mesh_relation.mesh_id_transform.clone(),
+                tri_ref: copy_of(&self.mesh_relation.tri_ref),
+            },
+            collider: self.collider.clone(),
+            is_soup: self.is_soup,
+            self_intersects: self.self_intersects.clone(),
+        }
+    }
+}
+
+impl Drop for ManifoldImpl {
+    fn drop(&mut self) {
+        use crate::scratch::give_from;
+        give_from(&mut self.vert_pos);
+        give_from(&mut self.halfedge);
+        give_from(&mut self.properties);
+        give_from(&mut self.vert_normal);
+        give_from(&mut self.face_normal);
+        give_from(&mut self.halfedge_tangent);
+        give_from(&mut self.mesh_relation.tri_ref);
+        // The collider hands back its own buffers when it is dropped.
+    }
 }
 
 impl Default for ManifoldImpl {
@@ -339,29 +383,21 @@ impl ManifoldImpl {
         let num_halfedge = 3 * num_tri;
         let num_edge = num_halfedge / 2;
 
-        self.halfedge.clear();
-        self.halfedge.resize(
-            num_halfedge,
-            Halfedge {
-                start_vert: -1,
-                end_vert: -1,
-                paired_halfedge: -1,
-                prop_vert: -1,
-            },
-        );
-
         let use_prop = tri_vert.is_empty();
 
         // Build halfedges and compute edge sort key
         // key = [forward_bit:1][min_vert:31][max_vert:32]
         // forward: v0 < v1 → bit=1; backward: v0 > v1 → bit=0
         // After sorting: backward halfedges first, then forward, both by (min,max)
-        let mut edge_keys = vec![0u64; num_halfedge];
-
-        for tri in 0..num_tri {
-            for i in 0usize..3 {
+        //
+        // Each halfedge depends only on its own triangle, so they are made in
+        // parallel; the key is paired with the halfedge index, which makes
+        // every (key, index) pair different (see the sort below).
+        let (halfedges, mut keyed): (Vec<Halfedge>, Vec<(u64, u32)>) =
+            crate::par::maybe_par_map_unzip(num_halfedge, 50_000, |e| {
+                let tri = e / 3;
+                let i = e - 3 * tri;
                 let j = next3(i);
-                let e = 3 * tri + i;
                 let v0 = if use_prop {
                     tri_prop[tri][i]
                 } else {
@@ -372,27 +408,31 @@ impl ManifoldImpl {
                 } else {
                     tri_vert[tri][j]
                 };
-                self.halfedge[e] = Halfedge {
-                    start_vert: v0,
-                    end_vert: v1,
-                    paired_halfedge: -1,
-                    prop_vert: tri_prop[tri][i],
-                };
                 let fwd = if v0 < v1 { 1u64 } else { 0u64 };
                 let min_v = v0.min(v1) as u64;
                 let max_v = v0.max(v1) as u64;
-                edge_keys[e] = (fwd << 63) | (min_v << 32) | max_v;
-            }
-        }
+                (
+                    Halfedge {
+                        start_vert: v0,
+                        end_vert: v1,
+                        paired_halfedge: -1,
+                        prop_vert: tri_prop[tri][i],
+                    },
+                    ((fwd << 63) | (min_v << 32) | max_v, e as u32),
+                )
+            });
+        crate::scratch::give(std::mem::replace(&mut self.halfedge, halfedges));
 
         // Sort halfedge indices by edge key. C++ CreateHalfedges uses a
         // STABLE sort here (impl.cpp), and the #1687 fix ensures its parallel
         // stable_sort matches std::stable_sort. When two halfedges share an
         // edge key (duplicate directed edges in degenerate/intermediate
-        // meshes) the tie must break on original halfedge-index order, so we
-        // use a stable sort to stay bit-identical to C++.
-        let mut ids: Vec<usize> = (0..num_halfedge).collect();
-        ids.sort_by_key(|&i| edge_keys[i]);
+        // meshes) the tie must break on original halfedge-index order. Sorting
+        // (key, index) pairs gives exactly that order: no two pairs are equal,
+        // so there is one sorted order whatever the sort and the thread count.
+        crate::par::maybe_par_sort_distinct(&mut keyed, 50_000);
+        let mut ids: Vec<usize> = keyed.iter().map(|&(_, e)| e as usize).collect();
+        crate::scratch::give(keyed);
 
         // ids[0..num_edge] = backward halfedges (startVert > endVert), sorted by (min,max)
         // ids[num_edge..] = forward halfedges (startVert < endVert), sorted by (min,max)
@@ -401,7 +441,53 @@ impl ManifoldImpl {
         let segment_end = num_edge;
         let mut consecutive_start = 0usize;
 
-        for i in 0..num_edge {
+        // The loop below changes something only where it finds an opposed
+        // pair, and until it finds one its state depends on `ids` alone. So
+        // a read-only look in parallel, with the same scan per edge, says
+        // whether it would do anything at all; nearly always it would not.
+        // A run of more than 64 halfedges on one edge counts as a hit (the
+        // loop then runs as it always did).
+        let halfedge = &self.halfedge;
+        let ids_ref = &ids;
+        let same_edge = |a: usize, b: usize| {
+            halfedge[ids_ref[a]].start_vert == halfedge[ids_ref[b]].start_vert
+                && halfedge[ids_ref[a]].end_vert == halfedge[ids_ref[b]].end_vert
+        };
+        let may_have_opposed = crate::par::maybe_par_any_ct(
+            num_edge,
+            50_000,
+            None,
+            || (),
+            |i, _| {
+                let mut run_start = i;
+                while run_start > 0 && same_edge(run_start - 1, i) {
+                    if i - run_start >= 64 {
+                        return true;
+                    }
+                    run_start -= 1;
+                }
+                let pair0 = ids_ref[i];
+                let h0 = &halfedge[pair0];
+                let mut k = run_start + num_edge;
+                while k < segment_end + num_edge {
+                    let pair1 = ids_ref[k];
+                    let h1 = &halfedge[pair1];
+                    if h0.start_vert != h1.end_vert || h0.end_vert != h1.start_vert {
+                        break;
+                    }
+                    let next0 = next_halfedge(pair0 as i32) as usize;
+                    let next1 = next_halfedge(pair1 as i32) as usize;
+                    if halfedge[next0].end_vert == halfedge[next1].end_vert {
+                        return true;
+                    }
+                    k += 1;
+                }
+                false
+            },
+        )
+        .unwrap_or(true);
+
+        for i in 0..if may_have_opposed { num_edge } else { 0 } {
             let pair0 = ids[i];
             let h0_sv = self.halfedge[pair0].start_vert;
             let h0_ev = self.halfedge[pair0].end_vert;
@@ -537,6 +623,13 @@ impl ManifoldImpl {
     /// Allocates fresh unique mesh IDs and remaps all triRef.meshID values.
     /// This ensures boolean results don't collide with source mesh IDs.
     pub fn increment_mesh_ids(&mut self) {
+        self.increment_mesh_ids_from(None);
+    }
+
+    /// [`ManifoldImpl::increment_mesh_ids`] with IDs the caller reserved
+    /// earlier: `first_reserved` is the first of at least as many IDs as this
+    /// mesh has. `None` reserves them now.
+    pub(crate) fn increment_mesh_ids_from(&mut self, first_reserved: Option<i32>) {
         use std::collections::{BTreeMap, HashMap};
 
         // Build old -> new ID mapping. Iteration order determines which old
@@ -547,7 +640,7 @@ impl ManifoldImpl {
         if num_mesh_ids == 0 {
             return;
         }
-        let first_mesh_id = reserve_ids(num_mesh_ids) as i32;
+        let first_mesh_id = first_reserved.unwrap_or_else(|| reserve_ids(num_mesh_ids) as i32);
         let mut old2new: HashMap<i32, i32> = HashMap::new();
         for (next_mesh_id, (old_id, relation)) in (first_mesh_id..).zip(old_transforms) {
             old2new.insert(old_id, next_mesh_id);
@@ -556,12 +649,13 @@ impl ManifoldImpl {
                 .insert(next_mesh_id, relation);
         }
 
-        // Update all triRef.meshID
-        for tri_ref in &mut self.mesh_relation.tri_ref {
+        // Update all triRef.meshID. Each triangle is looked up on its own, so
+        // the pass runs in parallel.
+        crate::par::maybe_par_for_each_mut(&mut self.mesh_relation.tri_ref, 100_000, |tri_ref| {
             if let Some(&new_id) = old2new.get(&tri_ref.mesh_id) {
                 tri_ref.mesh_id = new_id;
             }
-        }
+        });
     }
 
     // -----------------------------------------------------------------------
@@ -648,18 +742,26 @@ impl ManifoldImpl {
 
     /// Mark unreferenced vertices as NaN (to be cleaned up by later passes).
     pub fn remove_unreferenced_verts(&mut self) {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        const PAR_THRESHOLD: usize = 100_000;
+        // A vert is kept if any halfedge starts at it, whichever sets the flag.
         let num_vert = self.num_vert();
-        let mut keep = vec![false; num_vert];
-        for h in &self.halfedge {
-            if h.start_vert >= 0 {
-                keep[h.start_vert as usize] = true;
+        let mut keep: crate::scratch::Scratch<AtomicBool> =
+            crate::scratch::Scratch::with_capacity(num_vert);
+        keep.extend((0..num_vert).map(|_| AtomicBool::new(false)));
+        let keep = &keep;
+        let halfedge = &self.halfedge;
+        crate::par::maybe_par_for_range(halfedge.len(), PAR_THRESHOLD, |i| {
+            let start = halfedge[i].start_vert;
+            if start >= 0 {
+                keep[start as usize].store(true, Ordering::Relaxed);
             }
-        }
-        for (i, k) in keep.iter().enumerate() {
-            if !k {
-                self.vert_pos[i] = Vec3::new(f64::NAN, f64::NAN, f64::NAN);
+        });
+        crate::par::maybe_par_for_each_indexed_mut(&mut self.vert_pos, PAR_THRESHOLD, |i, pos| {
+            if !keep[i].load(Ordering::Relaxed) {
+                *pos = Vec3::new(f64::NAN, f64::NAN, f64::NAN);
             }
-        }
+        });
     }
 
     // -----------------------------------------------------------------------

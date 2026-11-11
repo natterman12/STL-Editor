@@ -397,6 +397,20 @@ impl CrossSection {
         let paths = PathsD::from(vec![path]);
         Self::from_raw(from_paths(&union_subjects_d(&paths, fr, PRECISION)))
     }
+
+    /// Create CrossSection from several contours with a specified fill rule, like
+    /// [`Self::from_polygon_with_fill_rule`] (same codes) but for a whole `Polygons`. With
+    /// EvenOdd (0) overlapping contours cut holes where they overlap. Mirrors the C++
+    /// `CrossSection(const Polygons&, FillRule)` constructor, which `new` fixes at Positive.
+    pub fn from_polygons_with_fill_rule(polygons: Polygons, fill_rule: i32) -> Self {
+        let fr = match fill_rule {
+            1 => FillRule::NonZero,
+            2 => FillRule::Positive,
+            3 => FillRule::Negative,
+            _ => FillRule::EvenOdd,
+        };
+        Self::from_raw(from_paths(&union_subjects_d(&to_paths(&polygons), fr, PRECISION)))
+    }
 }
 
 #[path = "cross_section_ops.rs"]

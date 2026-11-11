@@ -1,0 +1,29 @@
+{
+ "name": "profile_only",
+ "entities": [
+  {
+   "id": "keep",
+   "type": "rect",
+   "x": 0,
+   "y": 0,
+   "w": 20,
+   "h": 10
+  },
+  {
+   "id": "skip",
+   "type": "rect",
+   "x": 30,
+   "y": 0,
+   "w": 20,
+   "h": 10
+  },
+  {
+   "id": "also_skip",
+   "type": "circle",
+   "cx": 10,
+   "cy": 25,
+   "r": 4
+  }
+ ],
+ "only": ["keep"]
+}

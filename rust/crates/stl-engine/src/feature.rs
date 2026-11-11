@@ -76,6 +76,10 @@ pub struct FeatureResult {
     pub removed: Vec<String>,
     /// Feature id of a plane this step created (1.x `created_plane`).
     pub created_plane: Option<String>,
+    /// Feature id of a sketch this step created (1.x `created_sketch`).
+    pub created_sketch: Option<String>,
+    /// A cut or join was flipped to the side that removes material (1.x `flipped`).
+    pub flipped: bool,
     pub ms: f64,
     pub suppressed: bool,
     /// The result is a preview-only picture (not what committing would give), so it isn't reused.

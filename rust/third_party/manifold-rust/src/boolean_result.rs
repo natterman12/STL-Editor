@@ -30,7 +30,8 @@
 
 use crate::impl_mesh::ManifoldImpl;
 use crate::linalg::{dot, Vec3};
-use crate::types::{Halfedge, TriRef};
+use crate::scratch::Scratch;
+use crate::types::Halfedge;
 
 // ---------------------------------------------------------------------------
 // EdgePos — position of a vertex along an edge for pairing
@@ -121,7 +122,7 @@ pub(super) fn abs_sum(a: i32, b: i32) -> i32 {
 
 /// Exclusive scan with abs_sum combiner. Output[i] = init + sum(|input[0..i]|).
 pub(super) fn exclusive_scan_abs(input: &[i32], init: i32) -> Vec<i32> {
-    let mut result = Vec::with_capacity(input.len());
+    let mut result = crate::scratch::take(input.len());
     let mut acc = init;
     for &v in input {
         result.push(acc);
@@ -135,7 +136,9 @@ pub(super) fn exclusive_scan_abs(input: &[i32], init: i32) -> Vec<i32> {
 // ---------------------------------------------------------------------------
 
 /// Counts sides per face and allocates output halfedges.
-/// Returns (face_edge, face_pq2r).
+/// Returns (face_edge, face_pq2r, face_r2pq): the start of each output face's
+/// halfedges, the output face of each input face (P's, then Q's), and the
+/// input face of each output face.
 pub(super) fn size_output(
     out_r: &mut ManifoldImpl,
     in_p: &ManifoldImpl,
@@ -147,24 +150,30 @@ pub(super) fn size_output(
     p1q2: &[[i32; 2]],
     p2q1: &[[i32; 2]],
     invert_q: bool,
-) -> (Vec<i32>, Vec<i32>) {
+) -> (Scratch<i32>, Scratch<i32>, Scratch<i32>) {
     let num_tri_p = in_p.num_tri();
     let num_tri_q = in_q.num_tri();
-    let mut sides_per_face = vec![0i32; num_tri_p + num_tri_q];
 
-    // Count retained vertex contributions
-    for face in 0..num_tri_p {
-        for j in 0..3 {
-            let v = in_p.halfedge[3 * face + j].start_vert as usize;
-            sides_per_face[face] += i03[v].abs();
-        }
-    }
-    for face in 0..num_tri_q {
-        for j in 0..3 {
-            let v = in_q.halfedge[3 * face + j].start_vert as usize;
-            sides_per_face[num_tri_p + face] += i30[v].abs();
-        }
-    }
+    // Count retained vertex contributions (each face on its own)
+    let mut sides_per_face: Scratch<i32> = Scratch::from_vec(crate::par::maybe_par_map(
+        num_tri_p + num_tri_q,
+        WHOLE_PAR_THRESHOLD,
+        |face| {
+            let mut sides = 0i32;
+            if face < num_tri_p {
+                for j in 0..3 {
+                    let v = in_p.halfedge[3 * face + j].start_vert as usize;
+                    sides += i03[v].abs();
+                }
+            } else {
+                for j in 0..3 {
+                    let v = in_q.halfedge[3 * (face - num_tri_p) + j].start_vert as usize;
+                    sides += i30[v].abs();
+                }
+            }
+            sides
+        },
+    ));
 
     // Count new intersection vertex contributions
     for (idx, pair) in p1q2.iter().enumerate() {
@@ -186,47 +195,54 @@ pub(super) fn size_output(
         sides_per_face[num_tri_p + half.paired_halfedge as usize / 3] += inclusion;
     }
 
-    // Build face_pq2r: maps input face → output face index
-    let mut face_pq2r = vec![0i32; num_tri_p + num_tri_q];
+    // Build face_pq2r: maps input face → output face index, and face_r2pq,
+    // the other way.
+    let mut face_pq2r = Scratch::filled(num_tri_p + num_tri_q, 0i32);
+    let mut face_r2pq: Scratch<i32> = Scratch::with_capacity(num_tri_p + num_tri_q);
     let mut count = 0i32;
     for i in 0..sides_per_face.len() {
         face_pq2r[i] = count;
         if sides_per_face[i] > 0 {
             count += 1;
+            face_r2pq.push(i as i32);
         }
     }
     let num_face_r = count as usize;
 
     // Build face normals for output
-    out_r.face_normal.resize(num_face_r, Vec3::splat(0.0));
-    let mut out_idx = 0;
-    for i in 0..num_tri_p {
-        if sides_per_face[i] > 0 {
-            out_r.face_normal[out_idx] = in_p.face_normal[i];
-            out_idx += 1;
-        }
-    }
-    for i in 0..num_tri_q {
-        if sides_per_face[num_tri_p + i] > 0 {
-            let normal = in_q.face_normal[i];
-            out_r.face_normal[out_idx] = if invert_q {
-                Vec3::new(-normal.x, -normal.y, -normal.z)
+    crate::scratch::give_from(&mut out_r.face_normal);
+    {
+        let face_r2pq = &face_r2pq;
+        out_r.face_normal = crate::par::maybe_par_map(num_face_r, WHOLE_PAR_THRESHOLD, |r| {
+            let pq = face_r2pq[r] as usize;
+            if pq < num_tri_p {
+                in_p.face_normal[pq]
             } else {
-                normal
-            };
-            out_idx += 1;
-        }
+                let normal = in_q.face_normal[pq - num_tri_p];
+                if invert_q {
+                    Vec3::new(-normal.x, -normal.y, -normal.z)
+                } else {
+                    normal
+                }
+            }
+        });
     }
 
     // Build face_edge: cumulative edge counts for each output face
-    let active_sides: Vec<i32> = sides_per_face.iter().filter(|&&s| s > 0).copied().collect();
-    let mut face_edge = vec![0i32; active_sides.len() + 1];
-    for (i, &s) in active_sides.iter().enumerate() {
-        face_edge[i + 1] = face_edge[i] + s;
+    let mut face_edge: Scratch<i32> = Scratch::with_capacity(num_face_r + 1);
+    let mut sides_so_far = 0i32;
+    face_edge.push(sides_so_far);
+    for &s in sides_per_face.iter() {
+        if s > 0 {
+            sides_so_far += s;
+            face_edge.push(sides_so_far);
+        }
     }
-    let num_halfedge = *face_edge.last().unwrap() as usize;
-    out_r.halfedge.resize(
+    let num_halfedge = sides_so_far as usize;
+    crate::scratch::give_from(&mut out_r.halfedge);
+    out_r.halfedge = crate::par::maybe_par_filled(
         num_halfedge,
+        WHOLE_PAR_THRESHOLD,
         Halfedge {
             start_vert: -1,
             end_vert: -1,
@@ -235,7 +251,7 @@ pub(super) fn size_output(
         },
     );
 
-    (face_edge, face_pq2r)
+    (face_edge, face_pq2r, face_r2pq)
 }
 
 // ---------------------------------------------------------------------------
@@ -399,12 +415,10 @@ pub(super) fn append_partial_edges(
     whole_halfedge_p: &mut [bool],
     face_ptr_r: &mut [i32],
     edges_p: &EdgeGroups<i32>,
-    halfedge_ref: &mut [TriRef],
     in_p: &ManifoldImpl,
     i03: &[i32],
     vp2r: &[i32],
     face_p2r: &[i32],
-    forward: bool,
 ) {
     edges_p.for_each(|edge_p, edge_pos_p| {
         edge_pos_p.sort_by_key(|e| e.sort_key());
@@ -462,18 +476,6 @@ pub(super) fn append_partial_edges(
         let face_right_p = halfedge.paired_halfedge as usize / 3;
         let face_right = face_p2r[face_right_p];
 
-        let forward_ref = TriRef {
-            mesh_id: if forward { 0 } else { 1 },
-            original_id: -1,
-            face_id: face_left_p as i32,
-            coplanar_id: -1,
-        };
-        let backward_ref = TriRef {
-            mesh_id: if forward { 0 } else { 1 },
-            original_id: -1,
-            face_id: face_right_p as i32,
-            coplanar_id: -1,
-        };
 
         pair_up(edge_pos_p, |mut e| {
             let forward_edge = face_ptr_r[face_left as usize];
@@ -483,7 +485,6 @@ pub(super) fn append_partial_edges(
 
             e.paired_halfedge = backward_edge;
             out_r.halfedge[forward_edge as usize] = e;
-            halfedge_ref[forward_edge as usize] = forward_ref;
 
             let rev = Halfedge {
                 start_vert: e.end_vert,
@@ -492,7 +493,6 @@ pub(super) fn append_partial_edges(
                 prop_vert: -1,
             };
             out_r.halfedge[backward_edge as usize] = rev;
-            halfedge_ref[backward_edge as usize] = backward_ref;
         });
     });
 }
@@ -505,7 +505,6 @@ pub(super) fn append_new_edges(
     out_r: &mut ManifoldImpl,
     face_ptr_r: &mut [i32],
     edges_new: &EdgeGroups<(i32, i32)>,
-    halfedge_ref: &mut [TriRef],
     face_pq2r: &[i32],
     num_face_p: usize,
 ) {
@@ -545,18 +544,6 @@ pub(super) fn append_new_edges(
 
         let face_left = face_pq2r[face_p as usize];
         let face_right = face_pq2r[num_face_p + face_q as usize];
-        let forward_ref = TriRef {
-            mesh_id: 0,
-            original_id: -1,
-            face_id: face_p,
-            coplanar_id: -1,
-        };
-        let backward_ref = TriRef {
-            mesh_id: 1,
-            original_id: -1,
-            face_id: face_q,
-            coplanar_id: -1,
-        };
 
         pair_up(edge_pos, |mut e| {
             let forward_edge = face_ptr_r[face_left as usize];
@@ -566,7 +553,6 @@ pub(super) fn append_new_edges(
 
             e.paired_halfedge = backward_edge;
             out_r.halfedge[forward_edge as usize] = e;
-            halfedge_ref[forward_edge as usize] = forward_ref;
 
             let rev = Halfedge {
                 start_vert: e.end_vert,
@@ -575,7 +561,6 @@ pub(super) fn append_new_edges(
                 prop_vert: -1,
             };
             out_r.halfedge[backward_edge as usize] = rev;
-            halfedge_ref[backward_edge as usize] = backward_ref;
         });
     });
 }
@@ -584,17 +569,42 @@ pub(super) fn append_new_edges(
 // AppendWholeEdges — edges with no intersections (fully retained)
 // ---------------------------------------------------------------------------
 
+/// Halfedge count of an input mesh from which its whole edges are appended
+/// face by face in parallel (`append_whole_edges_by_face`), and element count
+/// from which the output arrays are filled in parallel.
+pub(super) const WHOLE_PAR_THRESHOLD: usize = 100_000;
+
+/// `face_edge` is the start of each output face's halfedges (one more entry
+/// than there are faces), and `face_r_end` the output face that follows the
+/// last face of `in_p`.
 pub(super) fn append_whole_edges(
     out_r: &mut ManifoldImpl,
     face_ptr_r: &mut [i32],
-    halfedge_ref: &mut [TriRef],
     in_p: &ManifoldImpl,
     whole_halfedge_p: &[bool],
     i03: &[i32],
     vp2r: &[i32],
     face_p2r: &[i32],
-    forward: bool,
+    face_edge: &[i32],
+    face_r_end: usize,
 ) {
+    if in_p.halfedge.len() >= WHOLE_PAR_THRESHOLD
+        && cfg!(feature = "parallel")
+        && pairs_are_mutual(in_p)
+    {
+        append_whole_edges_by_face(
+            out_r,
+            face_ptr_r,
+            in_p,
+            whole_halfedge_p,
+            i03,
+            vp2r,
+            face_p2r,
+            face_edge,
+            face_r_end,
+        );
+        return;
+    }
     for idx in 0..in_p.halfedge.len() {
         if !whole_halfedge_p[idx] {
             continue;
@@ -620,18 +630,6 @@ pub(super) fn append_whole_edges(
         let face_right_p = halfedge.paired_halfedge as usize / 3;
         let face_right = face_p2r[face_right_p];
 
-        let forward_ref = TriRef {
-            mesh_id: if forward { 0 } else { 1 },
-            original_id: -1,
-            face_id: face_left_p as i32,
-            coplanar_id: -1,
-        };
-        let backward_ref = TriRef {
-            mesh_id: if forward { 0 } else { 1 },
-            original_id: -1,
-            face_id: face_right_p as i32,
-            coplanar_id: -1,
-        };
 
         for i in 0..inclusion.abs() {
             let forward_edge = face_ptr_r[new_face as usize];
@@ -646,7 +644,6 @@ pub(super) fn append_whole_edges(
                 prop_vert: -1,
             };
             out_r.halfedge[forward_edge as usize] = he;
-            halfedge_ref[forward_edge as usize] = forward_ref;
 
             let rev = Halfedge {
                 start_vert: halfedge.end_vert + i,
@@ -655,9 +652,226 @@ pub(super) fn append_whole_edges(
                 prop_vert: -1,
             };
             out_r.halfedge[backward_edge as usize] = rev;
-            halfedge_ref[backward_edge as usize] = backward_ref;
         }
     }
+}
+
+/// Whether every halfedge of `mesh` has a pair that names it back and runs the
+/// other way, as in any manifold mesh. `append_whole_edges_by_face` relies on
+/// it; a mesh that fails keeps the sequential loop.
+fn pairs_are_mutual(mesh: &ManifoldImpl) -> bool {
+    let halfedge = &mesh.halfedge;
+    let n = halfedge.len();
+    n % 3 == 0
+        && crate::par::maybe_par_filter(n, WHOLE_PAR_THRESHOLD, |i| {
+            let h = halfedge[i];
+            let p = h.paired_halfedge;
+            if p < 0 || p as usize >= n {
+                return true;
+            }
+            let pair = halfedge[p as usize];
+            pair.paired_halfedge != i as i32
+                || pair.start_vert != h.end_vert
+                || pair.end_vert != h.start_vert
+        })
+        .is_empty()
+}
+
+/// The whole edges of one face of `in_p` that go into the result, in the
+/// order the sequential loop of `append_whole_edges` reaches them.
+#[derive(Clone, Copy, Default)]
+struct WholeEdge {
+    /// The forward halfedge of the edge: the index at which the loop meets it.
+    key: usize,
+    /// This face is on the left of the forward halfedge (the halfedge is the
+    /// face's own); otherwise the face's halfedge is its pair.
+    left: bool,
+    /// Copies of the edge in the result, signed.
+    inclusion: i32,
+}
+
+/// `append_whole_edges` for a mesh whose pairs are mutual, face by face.
+///
+/// The sequential loop walks the forward halfedges in index order and, for
+/// each whole one, takes the next free slot of the face on its left and the
+/// next free slot of the face on its right. So a face's slots are taken in
+/// the order of the forward halfedges of its (up to three) whole edges, and
+/// where a face's whole edge lands depends on that face alone:
+/// `first free slot + copies of its whole edges with a smaller forward
+/// halfedge`. Both halves of an edge can thus be placed without the loop:
+/// each face writes its own slots, and finds its neighbour's slot (for the
+/// pair index) by the same rule. The halfedges written are the loop's.
+#[allow(clippy::too_many_arguments)]
+fn append_whole_edges_by_face(
+    out_r: &mut ManifoldImpl,
+    face_ptr_r: &[i32],
+    in_p: &ManifoldImpl,
+    whole_halfedge_p: &[bool],
+    i03: &[i32],
+    vp2r: &[i32],
+    face_p2r: &[i32],
+    face_edge: &[i32],
+    face_r_end: usize,
+) {
+    let halfedge = &in_p.halfedge;
+    let num_face = halfedge.len() / 3;
+
+    // The whole edges of face `f`, sorted as the loop meets them. If both
+    // halves of an edge are in the face, the left one comes first.
+    let whole_edges = |f: usize| -> ([WholeEdge; 3], usize) {
+        let mut edges = [WholeEdge::default(); 3];
+        let mut n = 0;
+        for j in 0..3 {
+            let h = 3 * f + j;
+            let he = halfedge[h];
+            let (key, left) = if he.is_forward() {
+                (h, true)
+            } else {
+                (he.paired_halfedge as usize, false)
+            };
+            let fwd = halfedge[key];
+            if !fwd.is_forward() || !whole_halfedge_p[key] {
+                continue;
+            }
+            let inclusion = i03[fwd.start_vert as usize];
+            if inclusion == 0 {
+                continue;
+            }
+            edges[n] = WholeEdge {
+                key,
+                left,
+                inclusion,
+            };
+            n += 1;
+        }
+        // Insertion sort of at most three.
+        for a in 1..n {
+            let mut b = a;
+            while b > 0
+                && (edges[b].key, !edges[b].left) < (edges[b - 1].key, !edges[b - 1].left)
+            {
+                edges.swap(b, b - 1);
+                b -= 1;
+            }
+        }
+        (edges, n)
+    };
+
+    // The slot of copy `i` of each whole edge of face `f`, given to `visit`
+    // as (edge, slot of copy 0, stride between copies).
+    let slots = |f: usize, visit: &mut dyn FnMut(&WholeEdge, i32, i32)| {
+        let (edges, n) = whole_edges(f);
+        let mut next = face_ptr_r[face_p2r[f] as usize];
+        let mut a = 0;
+        while a < n {
+            let copies = edges[a].inclusion.abs();
+            if a + 1 < n && edges[a + 1].key == edges[a].key {
+                // Both halves in this face: the loop takes a slot for the
+                // left one, then one for the right one, copy by copy.
+                visit(&edges[a], next, 2);
+                visit(&edges[a + 1], next + 1, 2);
+                next += 2 * copies;
+                a += 2;
+            } else {
+                visit(&edges[a], next, 1);
+                next += copies;
+                a += 1;
+            }
+        }
+    };
+
+    // The slot of copy 0, and the stride, of the half of edge `key` that lies
+    // in face `f` on the given side.
+    let slot_in = |f: usize, key: usize, left: bool| -> (i32, i32) {
+        let mut found = (-1, 1);
+        slots(f, &mut |edge, slot, stride| {
+            if edge.key == key && edge.left == left {
+                found = (slot, stride);
+            }
+        });
+        found
+    };
+
+    // Runs of faces, each with the part of the output arrays that holds its
+    // faces' halfedges.
+    struct Run<'a> {
+        faces: std::ops::Range<usize>,
+        halfedge: &'a mut [Halfedge],
+        /// Index in the whole array of the first element of the slice.
+        base: usize,
+    }
+    const FACES_PER_RUN: usize = 4096;
+    let face_r = |f: usize| -> usize {
+        if f < num_face {
+            face_p2r[f] as usize
+        } else {
+            face_r_end
+        }
+    };
+    let first = face_edge[face_r(0)] as usize;
+    let mut runs: Vec<Run> = Vec::with_capacity(num_face / FACES_PER_RUN + 1);
+    {
+        let (_, mut halfedge_rest) = out_r.halfedge.split_at_mut(first);
+        let mut f0 = 0;
+        while f0 < num_face {
+            let f1 = (f0 + FACES_PER_RUN).min(num_face);
+            let start = face_edge[face_r(f0)] as usize;
+            let len = face_edge[face_r(f1)] as usize - start;
+            let (h, hr) = std::mem::take(&mut halfedge_rest).split_at_mut(len);
+            halfedge_rest = hr;
+            runs.push(Run {
+                faces: f0..f1,
+                halfedge: h,
+                base: start,
+            });
+            f0 = f1;
+        }
+    }
+
+    crate::par::maybe_par_for_each(runs, 2, |run| {
+        let Run {
+            faces,
+            halfedge: out,
+            base,
+        } = run;
+        for f in faces {
+            slots(f, &mut |edge, slot, stride| {
+                let fwd = halfedge[edge.key];
+                // The other half of the edge, and where it is.
+                let other = fwd.paired_halfedge as usize;
+                let (other_slot, other_stride) = if edge.left {
+                    slot_in(other / 3, edge.key, false)
+                } else {
+                    slot_in(edge.key / 3, edge.key, true)
+                };
+                let (mut start, mut end) = (fwd.start_vert, fwd.end_vert);
+                if edge.inclusion < 0 {
+                    // Reverse the halfedge
+                    std::mem::swap(&mut start, &mut end);
+                }
+                let start = vp2r[start as usize];
+                let end = vp2r[end as usize];
+                for i in 0..edge.inclusion.abs() {
+                    let at = (slot + stride * i) as usize - base;
+                    out[at] = if edge.left {
+                        Halfedge {
+                            start_vert: start + i,
+                            end_vert: end + i,
+                            paired_halfedge: other_slot + other_stride * i,
+                            prop_vert: -1,
+                        }
+                    } else {
+                        Halfedge {
+                            start_vert: end + i,
+                            end_vert: start + i,
+                            paired_halfedge: other_slot + other_stride * i,
+                            prop_vert: -1,
+                        }
+                    };
+                }
+            });
+        }
+    });
 }
 
 // Sub-module: update_reference, create_properties, boolean_result entry point
@@ -666,3 +880,4 @@ mod boolean_result_assemble;
 pub use boolean_result_assemble::{
     boolean_result, boolean_result_with_token, boolean_result_with_token_and_stage,
 };
+pub(crate) use boolean_result_assemble::{boolean_result_with_ids, ReservedIds};

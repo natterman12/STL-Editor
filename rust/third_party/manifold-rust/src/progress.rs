@@ -438,7 +438,7 @@ pub fn maybe_par_map_ct_progress<T, F>(
     f: F,
 ) -> Option<Vec<T>>
 where
-    T: Send,
+    T: Send + 'static,
     F: Fn(usize) -> T + Sync + Send,
 {
     match progress {
@@ -461,6 +461,7 @@ pub fn maybe_par_map_ct_progress<T, F>(
     f: F,
 ) -> Option<Vec<T>>
 where
+    T: Send + 'static,
     F: Fn(usize) -> T,
 {
     match progress {

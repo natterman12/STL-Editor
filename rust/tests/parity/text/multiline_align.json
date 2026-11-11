@@ -1,0 +1,8 @@
+{
+ "name": "multiline_align",
+ "text": "Line1\nWider line two",
+ "family": "DejaVu Sans",
+ "size": 10,
+ "align": "center",
+ "line_gap": 1.4
+}

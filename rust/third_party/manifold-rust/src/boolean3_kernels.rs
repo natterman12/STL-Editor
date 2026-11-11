@@ -11,7 +11,6 @@
 // eliminate it at edge cases. The branch structure must exactly match the
 // C++ to produce identical results.
 
-use std::collections::HashSet;
 
 use crate::cancel::{is_cancelled, CancelToken};
 use crate::disjoint_sets::DisjointSets;
@@ -390,31 +389,59 @@ pub(super) fn intersect12(
     // and run kernel12 on each candidate. Per-edge work is independent and the
     // final stable sort below fully orders the unique (edge, face) pairs, so
     // the parallel path is bit-identical to the sequential one.
+    //
+    // The edges are taken in runs, each run one task with one list of hits,
+    // lists that are then joined in run order: the hits come out in the order
+    // of a loop over the edges. Few edges have a hit, and a list per edge cost
+    // more to allocate and walk than the queries themselves. A mesh of few
+    // edges against a large one (a cutter's edges, each crossing thousands of
+    // faces) gets a task per edge.
+    const RUN: usize = 1024;
     let n = a.halfedge.len();
-    let per_edge: Vec<Vec<([i32; 2], i32, Vec3)>> =
-        crate::par::maybe_par_map_ct(n, 10_000, token, |query_idx| {
+    let many_edges = n >= 10_000;
+    let run_len = if many_edges { RUN } else { 1 };
+    let threshold = if many_edges || b.num_tri() >= 10_000 {
+        2
+    } else {
+        usize::MAX
+    };
+    let per_run: Vec<Vec<([i32; 2], i32, Vec3)>> =
+        crate::par::maybe_par_map_each_ct(n.div_ceil(run_len), threshold, token, |run| {
             let mut local: Vec<([i32; 2], i32, Vec3)> = Vec::new();
-            if !a.halfedge[query_idx].is_forward() {
-                return local;
-            }
-            let query = BBox::from_points(
-                a.vert_pos[a.halfedge[query_idx].start_vert as usize],
-                a.vert_pos[a.halfedge[query_idx].end_vert as usize],
-            );
-            collider.collisions_one(&query, query_idx, |query_idx, face_idx| {
-                let (x, v) = kernel12(query_idx, face_idx, a, b, in_p, in_q, expand_p, forward);
-                if v.x.is_finite() {
-                    let pair = if forward {
-                        [query_idx as i32, face_idx as i32]
-                    } else {
-                        [face_idx as i32, query_idx as i32]
-                    };
-                    local.push((pair, x, v));
+            for query_idx in run * run_len..n.min((run + 1) * run_len) {
+                if !a.halfedge[query_idx].is_forward() {
+                    continue;
                 }
-            });
+                let query = BBox::from_points(
+                    a.vert_pos[a.halfedge[query_idx].start_vert as usize],
+                    a.vert_pos[a.halfedge[query_idx].end_vert as usize],
+                );
+                // Every face box lies inside the mesh's box, so an edge whose
+                // box misses that one meets no face: most edges of a large
+                // mesh cut by a small one.
+                if !query.does_overlap_box(&b.bbox) {
+                    continue;
+                }
+                collider.collisions_one(&query, query_idx, |query_idx, face_idx| {
+                    let (x, v) =
+                        kernel12(query_idx, face_idx, a, b, in_p, in_q, expand_p, forward);
+                    if v.x.is_finite() {
+                        let pair = if forward {
+                            [query_idx as i32, face_idx as i32]
+                        } else {
+                            [face_idx as i32, query_idx as i32]
+                        };
+                        local.push((pair, x, v));
+                    }
+                });
+            }
             local
         })?;
-    for local in per_edge {
+    let total: usize = per_run.iter().map(Vec::len).sum();
+    result.p1q2.reserve(total);
+    result.x12.reserve(total);
+    result.v12.reserve(total);
+    for local in per_run {
         for (pair, x, v) in local {
             result.p1q2.push(pair);
             result.x12.push(x);
@@ -476,44 +503,46 @@ pub(super) fn winding03(
     // Build union-find: unite vertices along unbroken edges. This loop is the
     // Rust counterpart of the ctx-passing `for_each` at boolean3.cpp:425, and
     // checks the token once per C++ kSeqCancelChunk (= 1024) halfedges
-    // (parallel.h:424), in the search and again in the unions.
+    // (parallel.h:424).
+    //
+    // The edges are united in index order: the union-find's roots, where
+    // windings are computed, depend on it. An edge is broken if an
+    // intersection lies on it, and those are flagged up front from `p1q2`,
+    // which is far shorter than the edge list.
     const CHUNK: usize = 1024;
     let u_a = DisjointSets::new(a.vert_pos.len() as u32);
     let n = a.halfedge.len();
-    // Find each chunk's unbroken edges in parallel, but unite them in index
-    // order: the union-find's roots, where windings are computed, depend on it.
-    let unbroken = crate::par::maybe_par_map_ct(n.div_ceil(CHUNK), 10, token, |c| {
-        (c * CHUNK..n.min((c + 1) * CHUNK))
-            .filter(|&edge| {
-                // Unbroken: no intersection on it.
-                a.halfedge[edge].is_forward()
-                    && p1q2
-                        .binary_search_by(|pair| pair[sort_idx].cmp(&(edge as i32)))
-                        .is_err()
-            })
-            .collect::<Vec<usize>>()
-    })?;
-    for chunk in unbroken {
+    let mut broken = crate::scratch::Scratch::filled(n, false);
+    for pair in p1q2 {
+        // Every intersection names a halfedge of `a`; `get_mut` only keeps a
+        // bad index from being a panic.
+        if let Some(flag) = broken.get_mut(pair[sort_idx] as usize) {
+            *flag = true;
+        }
+    }
+    for (c, chunk) in a.halfedge.chunks(CHUNK).enumerate() {
         if is_cancelled(token) {
             return None;
         }
-        for edge in chunk {
-            let he = &a.halfedge[edge];
-            u_a.unite(he.start_vert as u32, he.end_vert as u32);
+        for (i, he) in chunk.iter().enumerate() {
+            if he.is_forward() && !broken[c * CHUNK + i] {
+                u_a.unite(he.start_vert as u32, he.end_vert as u32);
+            }
         }
     }
+    
+    drop(broken);
 
     // Post-loop check, matching C++ boolean3.cpp:437.
     if is_cancelled(token) {
         return None;
     }
 
-    // Find unique component representatives
-    let mut components = HashSet::new();
-    for v in 0..a.vert_pos.len() {
-        components.insert(u_a.find(v as u32));
-    }
-    let verts: Vec<usize> = components.into_iter().map(|v| v as usize).collect();
+    // Find unique component representatives: the roots, which are the verts
+    // that are their own parent.
+    let verts: Vec<usize> = (0..a.vert_pos.len())
+        .filter(|&v| u_a.parent(v as u32) == v as u32)
+        .collect();
 
     // Post-scan check, matching C++ boolean3.cpp:456.
     if is_cancelled(token) {
@@ -525,7 +554,7 @@ pub(super) fn winding03(
     let collider = &b.collider;
 
     // For each representative vertex, compute winding number via kernel02
-    let mut w03 = vec![0i32; a.vert_pos.len()];
+    let mut w03 = crate::scratch::filled(a.vert_pos.len(), 0i32);
 
     // Use BVH for winding number queries.
     // The winding number shoots a Z-ray, so we need XY overlap with infinite Z.

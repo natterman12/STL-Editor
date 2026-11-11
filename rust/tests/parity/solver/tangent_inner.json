@@ -1,0 +1,61 @@
+{
+ "name": "tangent_inner",
+ "entities": [
+  {
+   "id": "c1",
+   "type": "circle",
+   "cx": 0,
+   "cy": 0,
+   "r": 10
+  },
+  {
+   "id": "c2",
+   "type": "circle",
+   "cx": 4,
+   "cy": 0.5,
+   "r": 4
+  }
+ ],
+ "constraints": [
+  {
+   "id": "t1",
+   "type": "tangent",
+   "a": {
+    "e": "c1"
+   },
+   "b": {
+    "e": "c2"
+   },
+   "inner": true
+  },
+  {
+   "id": "f1",
+   "type": "fix",
+   "a": {
+    "e": "c1",
+    "k": "c"
+   },
+   "at": [
+    0,
+    0
+   ]
+  },
+  {
+   "id": "r1",
+   "type": "radius",
+   "a": {
+    "e": "c1"
+   },
+   "value": 10
+  },
+  {
+   "id": "r2",
+   "type": "radius",
+   "a": {
+    "e": "c2"
+   },
+   "value": 4
+  }
+ ],
+ "infer": []
+}

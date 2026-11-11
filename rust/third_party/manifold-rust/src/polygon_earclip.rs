@@ -8,8 +8,7 @@ use crate::types::{PolyVert, PolygonsIdx, Rect, K_PRECISION};
 use std::collections::HashMap;
 
 use super::{
-    build_two_d_tree, ccw, determinant2x2, dot2d, query_two_d_tree, safe_normalize_2d, IVec3Out,
-    INVALID, K_BEST,
+    build_two_d_tree, ccw, determinant2x2, dot2d, safe_normalize_2d, IVec3Out, INVALID, K_BEST,
 };
 
 // ---------------------------------------------------------------------------
@@ -74,9 +73,87 @@ impl Ord for EarEntry {
     }
 }
 
+/// The verts of one polygon in a 2D kd-tree, for the ear cost queries.
 struct IdxCollider {
     points: Vec<PolyVert>,
-    itr: Vec<usize>, // itr[i] = polygon vert index for points[i].idx
+    /// The polygon vert at each position of `points`.
+    verts: Vec<usize>,
+    /// Per position of `points`: false once that vert has been clipped. A
+    /// query skips those positions without looking the vert up. Clipped verts
+    /// stay in the tree, and late in a large polygon they are most of what a
+    /// query finds.
+    alive: Vec<bool>,
+    /// Per position of `points`: where that vert's left and right neighbours
+    /// in the ring are now. `triangulate_poly` keeps them current as it clips,
+    /// so the ear cost of a vert that lies on an edge line (which looks at
+    /// its neighbours) is worked out without following the ring.
+    left_pos: Vec<Vec2>,
+    right_pos: Vec<Vec2>,
+}
+
+/// `query_two_d_tree` over the positions of `points` whose `alive` flag is
+/// set: calls `f` with the position of every such point inside `r`. The
+/// traversal is the same; a point that is not alive is passed over.
+fn query_alive<F: FnMut(usize)>(points: &[PolyVert], alive: &[bool], r: Rect, mut f: F) {
+    if points.len() <= 8 {
+        for (pos, p) in points.iter().enumerate() {
+            if alive[pos] && r.contains_point(p.pos) {
+                f(pos);
+            }
+        }
+        return;
+    }
+
+    // (current_rect, start, len, level). A node halves its range, so the tree
+    // of any slice is under 64 levels deep and the stack holds at most one
+    // entry more than that.
+    let inf_rect = Rect {
+        min: Vec2::new(f64::NEG_INFINITY, f64::NEG_INFINITY),
+        max: Vec2::new(f64::INFINITY, f64::INFINITY),
+    };
+    let mut stack = [(inf_rect, 0usize, 0usize, 0i32); 66];
+    let mut top = 0usize;
+    stack[top] = (inf_rect, 0, points.len(), 0);
+    top += 1;
+
+    while top > 0 {
+        top -= 1;
+        let (current, start, len, level) = stack[top];
+        if len <= 8 {
+            for pos in start..start + len {
+                if alive[pos] && r.contains_point(points[pos].pos) {
+                    f(pos);
+                }
+            }
+            continue;
+        }
+
+        let mid = len / 2;
+        let middle = points[start + mid];
+
+        let mut left = current;
+        let mut right = current;
+        if level % 2 == 0 {
+            left.max.x = middle.pos.x;
+            right.min.x = middle.pos.x;
+        } else {
+            left.max.y = middle.pos.y;
+            right.min.y = middle.pos.y;
+        }
+
+        if alive[start + mid] && r.contains_point(middle.pos) {
+            f(start + mid);
+        }
+
+        if left.does_overlap(&r) {
+            stack[top] = (left, start, mid, level + 1);
+            top += 1;
+        }
+        if right.does_overlap(&r) {
+            stack[top] = (right, start + mid + 1, len - mid - 1, level + 1);
+            top += 1;
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -95,6 +172,9 @@ pub(super) struct EarClip {
     ears_queue: std::collections::BinaryHeap<EarEntry>,
     /// Monotonic counter for EarEntry::seq (FIFO tie-break among equal costs).
     ear_seq: u64,
+    /// The position of each vert in the kd-tree of the polygon being
+    /// triangulated (`IdxCollider::points`); set by `vert_collider`.
+    kd_pos: Vec<u32>,
     pub triangles: Vec<IVec3Out>,
     bbox: Rect,
     pub epsilon: f64,
@@ -112,6 +192,7 @@ impl EarClip {
             hole2bbox: HashMap::new(),
             ears_queue: std::collections::BinaryHeap::new(),
             ear_seq: 0,
+            kd_pos: Vec::new(),
             triangles: Vec::with_capacity(num_vert + 2 * polys.len()),
             bbox: Rect::new(),
             epsilon,
@@ -434,20 +515,60 @@ impl EarClip {
         let rid = self.polygon[right].mesh_idx;
         let mid_id = self.polygon[v].mesh_idx;
 
+        // `vert_cost` of every vert in the box, and the largest wins. The
+        // cost is worked out here from the copies the tree keeps of the
+        // vert's position and of its two neighbours' positions, with the
+        // arithmetic of `vert_cost` and `vert_signed_dist`: the signed
+        // distance is the first determinant unless that is within epsilon of
+        // zero, and then the right neighbour's, or the left one's, if either
+        // is clear of zero. Whether the vert counts at all (not clipped, not
+        // a corner of this ear) is asked last, and only of a vert whose cost
+        // would raise the result. The values and the result are those of
+        // asking first and calling `vert_cost`; a large polygon just no
+        // longer follows the ring's pointers for every vert in the box.
+        let eps = self.epsilon;
+        let v_pos = self.polygon[v].pos;
+        let v_dir = self.polygon[v].right_dir;
+        let l_pos = self.polygon[left].pos;
+        let l_dir = self.polygon[left].right_dir;
+        let r_pos = self.polygon[right].pos;
         let mut tc = total_cost;
-        query_two_d_tree(&collider.points, ear_box, |point| {
-            let test = collider.itr[point.idx as usize];
-            if !self.clipped(test)
-                && self.polygon[test].mesh_idx != mid_id
-                && self.polygon[test].mesh_idx != lid
-                && self.polygon[test].mesh_idx != rid
-            {
-                let mut cost = self.vert_cost(v, test, open_side);
-                if cost < -self.epsilon {
-                    cost =
-                        Self::delaunay_cost(self.polygon[test].pos - center, scale, self.epsilon);
+        query_alive(&collider.points, &collider.alive, ear_box, |pos| {
+            let p = collider.points[pos].pos;
+            // `vert_signed_dist` once its first determinant `d` is known.
+            let signed_dist = |unit: Vec2, origin: Vec2, d: f64| -> f64 {
+                if d.abs() < eps {
+                    let d_r = determinant2x2(unit, collider.right_pos[pos] - origin);
+                    if d_r.abs() > eps {
+                        return d_r;
+                    }
+                    let d_l = determinant2x2(unit, collider.left_pos[pos] - origin);
+                    if d_l.abs() > eps {
+                        return d_l;
+                    }
                 }
-                if cost > tc {
+                d
+            };
+            let d_v = signed_dist(v_dir, v_pos, determinant2x2(v_dir, p - v_pos));
+            let d_l = signed_dist(l_dir, l_pos, determinant2x2(l_dir, p - l_pos));
+            let mut cost = d_v.min(d_l).min(determinant2x2(open_side, p - r_pos));
+            debug_assert!(
+                {
+                    let reference = self.vert_cost(v, collider.verts[pos], open_side);
+                    reference == cost || (reference.is_nan() && cost.is_nan())
+                },
+                "ear cost from the tree's copies differs from vert_cost"
+            );
+            if cost < -eps {
+                cost = Self::delaunay_cost(p - center, scale, eps);
+            }
+            if cost > tc {
+                let test = collider.verts[pos];
+                if !self.clipped(test)
+                    && self.polygon[test].mesh_idx != mid_id
+                    && self.polygon[test].mesh_idx != lid
+                    && self.polygon[test].mesh_idx != rid
+                {
                     tc = cost;
                 }
             }
@@ -634,35 +755,62 @@ impl EarClip {
     }
 
     /// Build a 2D KD-tree collider of all polygon verts for ear cost queries.
-    fn vert_collider(&self, start: usize) -> IdxCollider {
-        let verts = match self.loop_verts(start) {
+    fn vert_collider(&mut self, start: usize) -> IdxCollider {
+        let loop_verts = match self.loop_verts(start) {
             None => {
                 return IdxCollider {
                     points: Vec::new(),
-                    itr: Vec::new(),
+                    verts: Vec::new(),
+                    alive: Vec::new(),
+                    left_pos: Vec::new(),
+                    right_pos: Vec::new(),
                 }
             }
             Some(v) => v,
         };
 
-        let mut itr = Vec::with_capacity(verts.len());
-        let mut points = Vec::with_capacity(verts.len());
-        for (k, &v) in verts.iter().enumerate() {
+        // `idx` is the place in `loop_verts`.
+        let mut points = Vec::with_capacity(loop_verts.len());
+        for (k, &v) in loop_verts.iter().enumerate() {
             points.push(PolyVert {
                 pos: self.polygon[v].pos,
                 idx: k as i32,
             });
-            itr.push(v);
         }
 
         build_two_d_tree(&mut points);
-        IdxCollider { points, itr }
+
+        // Each vert of the loop is unclipped now; `triangulate_poly` clears
+        // its flag when it clips it.
+        let verts: Vec<usize> = points.iter().map(|p| loop_verts[p.idx as usize]).collect();
+        if self.kd_pos.len() < self.polygon.len() {
+            self.kd_pos.resize(self.polygon.len(), u32::MAX);
+        }
+        for (pos, &v) in verts.iter().enumerate() {
+            self.kd_pos[v] = pos as u32;
+        }
+        let alive = vec![true; verts.len()];
+        let left_pos = verts
+            .iter()
+            .map(|&v| self.polygon[self.polygon[v].left].pos)
+            .collect();
+        let right_pos = verts
+            .iter()
+            .map(|&v| self.polygon[self.polygon[v].right].pos)
+            .collect();
+        IdxCollider {
+            points,
+            verts,
+            alive,
+            left_pos,
+            right_pos,
+        }
     }
 
     /// Main ear-clipping loop for a simple polygon.
     fn triangulate_poly(&mut self, start: usize) {
-        let collider = self.vert_collider(start);
-        if collider.itr.is_empty() {
+        let mut collider = self.vert_collider(start);
+        if collider.verts.is_empty() {
             return;
         }
 
@@ -701,9 +849,17 @@ impl EarClip {
 
             self.clip_ear(ear);
             num_tri -= 1;
+            // The ear is out of the ring for good: nothing links to it again,
+            // so `clipped(ear)` holds from here on and the ear cost queries
+            // can pass it over by its flag alone.
+            debug_assert!(self.clipped(ear), "a clipped ear is still in its ring");
+            collider.alive[self.kd_pos[ear] as usize] = false;
 
             let ear_left = self.polygon[ear].left;
             let ear_right = self.polygon[ear].right;
+            // The two verts beside the ear are now each other's neighbours.
+            collider.right_pos[self.kd_pos[ear_left] as usize] = self.polygon[ear_right].pos;
+            collider.left_pos[self.kd_pos[ear_right] as usize] = self.polygon[ear_left].pos;
             self.process_ear(ear_left, &collider);
             self.process_ear(ear_right, &collider);
             last_v = ear_right;

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use indexmap::IndexMap;
 use stl_kernel::{MeshArrays, Solid};
 
-use crate::features::common::{PlaneDef, ToolRecord};
+use crate::features::common::{PlaneDef, SketchRec, ToolRecord};
 use crate::FeatureError;
 
 /// A body is either a watertight solid, or a raw, broken mesh that only displays and exports
@@ -29,6 +29,8 @@ pub struct State {
     pub bodies: IndexMap<String, Body>,
     /// Planes the user made, by feature id.
     pub planes: IndexMap<String, PlaneDef>,
+    /// Sketches the Sketch features stored, by feature id.
+    pub sketches: IndexMap<String, SketchRec>,
     /// The tool solid each feature used, so mirror and pattern can repeat the feature.
     pub tools: IndexMap<String, ToolRecord>,
 }

@@ -521,17 +521,100 @@ pub fn boolean_with_token_and_stage(
         }
     }
 
-    // Full boolean — compute intersections
-    let Some(bool3) = Boolean3::new_with_token_and_stage(mesh_a, mesh_b, op, token, stage) else {
-        return cancelled_impl();
-    };
-    if !bool3.valid {
-        return ManifoldImpl::new();
+    // Full boolean — compute intersections. On at most `BIG_JOB_THREADS`
+    // threads (a speed change only, see `par::with_big_job_pool`).
+    crate::par::with_big_job_pool(|| {
+        let Some(bool3) = Boolean3::new_with_token_and_stage(mesh_a, mesh_b, op, token, stage)
+        else {
+            return cancelled_impl();
+        };
+        if !bool3.valid {
+            return ManifoldImpl::new();
+        }
+
+        crate::boolean_result::boolean_result_with_token_and_stage(
+            mesh_a, mesh_b, op, &bool3, token, stage,
+        )
+    })
+}
+
+/// The intersection and the difference of `mesh_a` with `mesh_b`, as
+/// [`boolean`] gives each, from one set of intersections.
+///
+/// Port of C++ `Manifold::Split`, which builds one `Boolean3` and takes both
+/// results from it: the intersections and windings depend on the operation
+/// only through whether it is a union, so the two operations share them. The
+/// two results are then assembled side by side (with the `parallel` feature).
+/// Their mesh IDs are set aside first, in the order in which two calls to
+/// [`boolean`] would reserve them, so each result has the IDs it would have
+/// had and the two keep their order.
+pub fn split(mesh_a: &ManifoldImpl, mesh_b: &ManifoldImpl) -> (ManifoldImpl, ManifoldImpl) {
+    // The fast paths of `boolean_with_token_and_stage`, for both operations.
+    if mesh_a.is_soup || mesh_b.is_soup {
+        let empty = || {
+            let mut out = ManifoldImpl::new();
+            out.make_empty(Error::NotManifold);
+            out
+        };
+        return (empty(), empty());
+    }
+    if mesh_a.is_empty() {
+        return (ManifoldImpl::new(), ManifoldImpl::new());
+    }
+    if mesh_b.is_empty() {
+        return (ManifoldImpl::new(), mesh_a.clone());
+    }
+    if !mesh_a.bbox.does_overlap_box(&mesh_b.bbox) {
+        return (ManifoldImpl::new(), boolean(mesh_a, mesh_b, OpType::Subtract));
     }
 
-    crate::boolean_result::boolean_result_with_token_and_stage(
-        mesh_a, mesh_b, op, &bool3, token, stage,
-    )
+    crate::par::with_big_job_pool(|| {
+        let Some(bool3) =
+            Boolean3::new_with_token_and_stage(mesh_a, mesh_b, OpType::Intersect, None, None)
+        else {
+            return (cancelled_impl(), cancelled_impl());
+        };
+        if !bool3.valid {
+            return (ManifoldImpl::new(), ManifoldImpl::new());
+        }
+
+        use crate::boolean_result::{boolean_result_with_ids, ReservedIds};
+        let ids_p = mesh_a.mesh_relation.mesh_id_transform.len() as u32;
+        let ids_q = mesh_b.mesh_relation.mesh_id_transform.len() as u32;
+        let per_result = ids_q + (ids_p + ids_q);
+        let base = crate::impl_mesh::reserve_ids(2 * per_result);
+        let ids = |result: u32| ReservedIds {
+            offset_q: (base + result * per_result) as i32,
+            first_new: (base + result * per_result + ids_q) as i32,
+            new_count: ids_p + ids_q,
+        };
+        let (ids_intersect, ids_subtract) = (ids(0), ids(1));
+        let bool3 = &bool3;
+        crate::par::maybe_par_join(
+            || {
+                boolean_result_with_ids(
+                    mesh_a,
+                    mesh_b,
+                    OpType::Intersect,
+                    bool3,
+                    None,
+                    None,
+                    Some(ids_intersect),
+                )
+            },
+            || {
+                boolean_result_with_ids(
+                    mesh_a,
+                    mesh_b,
+                    OpType::Subtract,
+                    bool3,
+                    None,
+                    None,
+                    Some(ids_subtract),
+                )
+            },
+        )
+    })
 }
 
 /// Route a boolean to the requested engine (`types::BooleanEngine`).

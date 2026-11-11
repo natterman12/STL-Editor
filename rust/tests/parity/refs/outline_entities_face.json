@@ -1,0 +1,11 @@
+{
+ "name": "outline_entities_face",
+ "op": "outline_entities",
+ "model": "holed_block.stl",
+ "frame": {
+  "origin": [15, 10, 0],
+  "normal": [0, 0, 1]
+ },
+ "mode": "section",
+ "construction": true
+}

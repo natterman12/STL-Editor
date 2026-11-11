@@ -3,3 +3,4 @@
 web/vendor/** -text
 docs/app/vendor/** -text
 rust/tests/** -text
+rust/tests/parity/import2d/** -text

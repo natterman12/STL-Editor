@@ -11,20 +11,33 @@
 // The sites, with the size at which each goes parallel (manifold-sharp's
 // Par.cs mirrors this list; keep it current):
 //   face_op.rs            `calculate_vert_normals`, per-vertex map    10,000 verts
-//   face_op_triangulate.rs `face2tri_ct` triangulation, map_ct       512 faces
+//                         its first-halfedge search (atomic minimum)  100,000 halfedges
+//                         `reorder_halfedges`, per triangle, then a
+//                         per-halfedge map of the new pair indices    100,000 halfedges
+//   face_op_triangulate.rs `face2tri` general faces, one task each    2 faces
 //                         `face2tri` writes, runs of 4,096 faces into
 //                         disjoint `split_at_mut` slices             2 runs
-//   boolean3_kernels.rs   `intersect12` query map_ct; result stable
-//                         sort and gathers                           10,000
-//                         `winding03` unbroken-edge search, chunks of
-//                         1,024 halfedges (unions stay sequential)   10 chunks
+//                         output fills and cross-face pairing         100,000
+//   boolean3_kernels.rs   `intersect12` queries, runs of 1,024 edges  10,000 edges; a
+//                         (one edge per task against a large mesh)    mesh of 10,000 faces
+//                         result stable sort and gathers              10,000
 //                         `winding03` per-vert winding query map_ct  1,000 verts
+//                         (its unions stay sequential)
+//   boolean3.rs           `split`: the two results side by side       always
 //   boolean_result.rs     `EdgeGroups::new` stable sort of the
 //                         AddNewEdgeVerts edge lists                 10,000 entries
-//   sort.rs               `sort_geometry`: Morton codes, stable sorts,
-//                         vertex/face/halfedge/tangent gathers        100,000
+//                         `size_output` side counts and normals,
+//                         `append_whole_edges` face by face (runs of
+//                         4,096 faces), output fills                 100,000
+//                         (WHOLE_PAR_THRESHOLD)
+//   boolean_result_assemble.rs `update_reference` per triangle        100,000 triangles
+//   impl_mesh.rs          `increment_mesh_ids`, `remove_unreferenced_verts` 100,000
+//   sort.rs               `sort_geometry`: Morton codes, packed-key
+//                         sorts, vertex/face/halfedge/tangent gathers 100,000
 //                         (PAR_THRESHOLD; per-call n is verts, tris
 //                         or 3 * tris)
+//   collider.rs           `Collider::from_leaf_fn`: leaf boxes, radix
+//                         tree nodes, box refit by subtree            10,000 leaves
 //   edge_op.rs            edge-flag scans of `collapse_short_edges`,
 //                         `collapse_colinear_edges`, `swap_degenerates`
 //                         (filter; collapses/swaps stay sequential)  100,001 halfedges
@@ -33,11 +46,17 @@
 //                         `dedupe_edges` (walks capped at 64 steps,
 //                         then one sequential pass)                  100,001 halfedges
 //                                                                    (ORBIT_PAR_THRESHOLD)
-//                         `dedupe_edges` per-owner orbit map         12,500 owners
+//                         `dedupe_edges` orbit search, runs of 1,024
+//                         owners                                      12,500 owners
 //   sdf.rs                level-set voxel evaluation                 10,000 voxels
 //   minkowski.rs          per-face hull maps                         8
 //   robust/intersection_graph.rs (via progress.rs) map_ct stages     64 / 16
 //   robust/soup.rs        `compute_self_intersections` rows, any_ct 1,000 triangles
+//   with_small_job_pool / with_big_job_pool  capped thread pools for
+//                         revolve and boolean/split entry points
+//
+// The vectors the maps return come from `scratch.rs`, which recycles large
+// buffers; that changes where the memory comes from and nothing else.
 //
 // One site is an existential "any" rather than a map: `maybe_par_any_ct`, the
 // Auto engine's self-intersection pre-check
@@ -47,29 +66,121 @@
 // how many ran (see its doc). Shared with manifold-sharp's
 // `Par.MaybeParAnyCt` (its commit 1d9162c).
 
+/// How many threads a job of moderate size (tens of thousands of triangles)
+/// uses, see [`with_small_job_pool`]. Measured on one 10-core, 20-thread
+/// machine.
+pub const SMALL_JOB_THREADS: usize = 8;
+
+/// How many threads a boolean on a large mesh (hundreds of thousands of
+/// triangles) uses, see [`with_big_job_pool`]. Measured on one 10-core,
+/// 20-thread machine.
+pub const BIG_JOB_THREADS: usize = 10;
+
+/// Run `f` so that the parallel passes inside it use at most
+/// [`SMALL_JOB_THREADS`] threads.
+///
+/// A mesh of tens of thousands of triangles is built by a few dozen short
+/// passes, each over a few hundred kilobytes. Spread over every thread of a
+/// machine with hyperthreads (20 on a 10-core CPU) each pass spends more on
+/// waking the threads, and on the second thread of a core fighting the first
+/// for its cache, than it saves: a 51,000-triangle `revolve` took 16 ms on 20
+/// threads and 11 ms on 8, and 23 ms on one. Only the number of threads
+/// changes; every pass gives the result it gives on any other count.
+///
+/// When the current pool already has `SMALL_JOB_THREADS` threads or fewer
+/// (including the small pool itself), `f` runs directly.
+#[cfg(feature = "parallel")]
+pub fn with_small_job_pool<R: Send>(f: impl FnOnce() -> R + Send) -> R {
+    use std::sync::OnceLock;
+    static POOL: OnceLock<Option<rayon::ThreadPool>> = OnceLock::new();
+    with_capped_pool(&POOL, SMALL_JOB_THREADS, "manifold-small", f)
+}
+
+/// Run `f` so that the parallel passes inside it use at most
+/// [`BIG_JOB_THREADS`] threads.
+///
+/// The same reasoning as [`with_small_job_pool`] for a boolean on a mesh of
+/// half a million triangles: its passes are short and bound by memory, and on a
+/// 10-core, 20-thread CPU a union with a cube took 125 ms on 20 threads, 109 ms
+/// on 8, 107 ms on 10, 109 ms on 12 and 118 ms on 16. Only the number of
+/// threads changes; every pass gives the result it gives on any other count.
+///
+/// When the current pool already has `BIG_JOB_THREADS` threads or fewer
+/// (including the pool made here), `f` runs directly.
+#[cfg(feature = "parallel")]
+pub fn with_big_job_pool<R: Send>(f: impl FnOnce() -> R + Send) -> R {
+    use std::sync::OnceLock;
+    static POOL: OnceLock<Option<rayon::ThreadPool>> = OnceLock::new();
+    with_capped_pool(&POOL, BIG_JOB_THREADS, "manifold-big", f)
+}
+
+#[cfg(feature = "parallel")]
+fn with_capped_pool<R: Send>(
+    pool: &'static std::sync::OnceLock<Option<rayon::ThreadPool>>,
+    threads: usize,
+    name: &'static str,
+    f: impl FnOnce() -> R + Send,
+) -> R {
+    if rayon::current_num_threads() <= threads {
+        return f();
+    }
+    let pool = pool.get_or_init(|| {
+        rayon::ThreadPoolBuilder::new()
+            .num_threads(threads)
+            .thread_name(move |i| format!("{name}-{i}"))
+            .build()
+            .ok()
+    });
+    match pool {
+        Some(pool) => pool.install(f),
+        None => f(),
+    }
+}
+
+/// Sequential build: nothing to limit.
+#[cfg(not(feature = "parallel"))]
+pub fn with_small_job_pool<R>(f: impl FnOnce() -> R) -> R {
+    f()
+}
+
+/// Sequential build: nothing to limit.
+#[cfg(not(feature = "parallel"))]
+pub fn with_big_job_pool<R>(f: impl FnOnce() -> R) -> R {
+    f()
+}
+
 /// Map `f` over `0..n`, in parallel when the `parallel` feature is enabled and
 /// `n >= threshold`. Results are returned in index order either way.
+///
+/// The vector comes from [`crate::scratch`], so a large one reuses a buffer
+/// that an earlier array of the same type gave back.
 #[cfg(feature = "parallel")]
 pub fn maybe_par_map<T, F>(n: usize, threshold: usize, f: F) -> Vec<T>
 where
-    T: Send,
+    T: Send + 'static,
     F: Fn(usize) -> T + Sync + Send,
 {
     use rayon::prelude::*;
+    let mut out = crate::scratch::take(n);
     if n >= threshold {
-        (0..n).into_par_iter().map(f).collect()
+        // An indexed iterator: rayon writes each result straight into its slot.
+        out.par_extend((0..n).into_par_iter().map(f));
     } else {
-        (0..n).map(f).collect()
+        out.extend((0..n).map(f));
     }
+    out
 }
 
 /// Sequential fallback: identical output to the parallel version.
 #[cfg(not(feature = "parallel"))]
 pub fn maybe_par_map<T, F>(n: usize, _threshold: usize, f: F) -> Vec<T>
 where
+    T: Send + 'static,
     F: Fn(usize) -> T,
 {
-    (0..n).map(f).collect()
+    let mut out = crate::scratch::take(n);
+    out.extend((0..n).map(f));
+    out
 }
 
 /// The indices in `0..n` where `pred` holds, ascending, testing in parallel
@@ -124,6 +235,70 @@ where
     F: Fn(&T) -> K,
 {
     v.sort_by_key(key);
+}
+
+/// Sort a slice whose elements are all different, in parallel when
+/// `v.len() >= threshold`. With no two elements equal there is one sorted
+/// order, so an unstable sort gives it at any thread count. Callers pack an
+/// index into the low bits of each key to make that so, which also makes the
+/// result the stable sort of the keys alone.
+#[cfg(feature = "parallel")]
+pub fn maybe_par_sort_distinct<T: Ord + Send>(v: &mut [T], threshold: usize) {
+    use rayon::prelude::*;
+    if v.len() >= threshold {
+        v.par_sort_unstable();
+    } else {
+        v.sort_unstable();
+    }
+}
+
+/// Sequential fallback: identical output to the parallel version.
+#[cfg(not(feature = "parallel"))]
+pub fn maybe_par_sort_distinct<T: Ord>(v: &mut [T], _threshold: usize) {
+    v.sort_unstable();
+}
+
+/// [`maybe_par_map`] for a function that gives a pair, returning the firsts and
+/// the seconds as two vectors, each in index order.
+#[cfg(feature = "parallel")]
+pub fn maybe_par_map_unzip<A, B, F>(n: usize, threshold: usize, f: F) -> (Vec<A>, Vec<B>)
+where
+    A: Send + 'static,
+    B: Send + 'static,
+    F: Fn(usize) -> (A, B) + Sync + Send,
+{
+    use rayon::prelude::*;
+    let mut firsts = crate::scratch::take(n);
+    let mut seconds = crate::scratch::take(n);
+    if n >= threshold {
+        (0..n)
+            .into_par_iter()
+            .map(f)
+            .unzip_into_vecs(&mut firsts, &mut seconds);
+    } else {
+        for (a, b) in (0..n).map(f) {
+            firsts.push(a);
+            seconds.push(b);
+        }
+    }
+    (firsts, seconds)
+}
+
+/// Sequential fallback: identical output to the parallel version.
+#[cfg(not(feature = "parallel"))]
+pub fn maybe_par_map_unzip<A, B, F>(n: usize, _threshold: usize, f: F) -> (Vec<A>, Vec<B>)
+where
+    A: Send + 'static,
+    B: Send + 'static,
+    F: Fn(usize) -> (A, B),
+{
+    let mut firsts = crate::scratch::take(n);
+    let mut seconds = crate::scratch::take(n);
+    for (a, b) in (0..n).map(f) {
+        firsts.push(a);
+        seconds.push(b);
+    }
+    (firsts, seconds)
 }
 
 /// Run `f` on every item, in parallel when `items.len() >= threshold`. Items
@@ -201,7 +376,7 @@ pub fn maybe_par_map_ct<T, F>(
     f: F,
 ) -> Option<Vec<T>>
 where
-    T: Send,
+    T: Send + 'static,
     F: Fn(usize) -> T + Sync + Send,
 {
     use rayon::prelude::*;
@@ -244,6 +419,7 @@ pub fn maybe_par_map_ct<T, F>(
     f: F,
 ) -> Option<Vec<T>>
 where
+    T: Send + 'static,
     F: Fn(usize) -> T,
 {
     let Some(token) = token else {
@@ -258,6 +434,159 @@ where
             }
         })
         .collect()
+}
+
+/// Run two tasks, side by side with the `parallel` feature, and return both
+/// results. Each must be independent of the other.
+#[cfg(feature = "parallel")]
+pub fn maybe_par_join<A, B, RA, RB>(a: A, b: B) -> (RA, RB)
+where
+    A: FnOnce() -> RA + Send,
+    B: FnOnce() -> RB + Send,
+    RA: Send,
+    RB: Send,
+{
+    rayon::join(a, b)
+}
+
+/// Sequential fallback: identical output to the parallel version.
+#[cfg(not(feature = "parallel"))]
+pub fn maybe_par_join<A, B, RA, RB>(a: A, b: B) -> (RA, RB)
+where
+    A: FnOnce() -> RA,
+    B: FnOnce() -> RB,
+{
+    (a(), b())
+}
+
+/// A vector of `n` copies of `value`, written in parallel when
+/// `n >= threshold`.
+pub fn maybe_par_filled<T>(n: usize, threshold: usize, value: T) -> Vec<T>
+where
+    T: Copy + Send + Sync + 'static,
+{
+    maybe_par_map(n, threshold, move |_| value)
+}
+
+/// Call `f` for every index in `0..n`, in parallel when `n >= threshold`. `f`
+/// must give the same end state in any order (it writes through atomics, or
+/// not at all).
+#[cfg(feature = "parallel")]
+pub fn maybe_par_for_range<F>(n: usize, threshold: usize, f: F)
+where
+    F: Fn(usize) + Sync + Send,
+{
+    use rayon::prelude::*;
+    if n >= threshold {
+        (0..n).into_par_iter().for_each(f);
+    } else {
+        (0..n).for_each(f);
+    }
+}
+
+/// Sequential fallback: identical output to the parallel version.
+#[cfg(not(feature = "parallel"))]
+pub fn maybe_par_for_range<F>(n: usize, _threshold: usize, f: F)
+where
+    F: Fn(usize),
+{
+    (0..n).for_each(f);
+}
+
+/// Run `f` on every chunk of `size` elements (the last may be shorter), in
+/// parallel when `v.len() >= threshold`. `f` sees only its own chunk.
+#[cfg(feature = "parallel")]
+pub fn maybe_par_for_each_chunk_mut<T, F>(v: &mut [T], size: usize, threshold: usize, f: F)
+where
+    T: Send,
+    F: Fn(&mut [T]) + Sync + Send,
+{
+    use rayon::prelude::*;
+    if v.len() >= threshold {
+        v.par_chunks_mut(size).for_each(f);
+    } else {
+        v.chunks_mut(size).for_each(f);
+    }
+}
+
+/// Sequential fallback: identical output to the parallel version.
+#[cfg(not(feature = "parallel"))]
+pub fn maybe_par_for_each_chunk_mut<T, F>(v: &mut [T], size: usize, _threshold: usize, f: F)
+where
+    F: Fn(&mut [T]),
+{
+    v.chunks_mut(size).for_each(f);
+}
+
+/// [`maybe_par_for_each_mut`] for a function that is also given the index of
+/// the element.
+#[cfg(feature = "parallel")]
+pub fn maybe_par_for_each_indexed_mut<T, F>(v: &mut [T], threshold: usize, f: F)
+where
+    T: Send,
+    F: Fn(usize, &mut T) + Sync + Send,
+{
+    use rayon::prelude::*;
+    if v.len() >= threshold {
+        v.par_iter_mut().enumerate().for_each(|(i, x)| f(i, x));
+    } else {
+        v.iter_mut().enumerate().for_each(|(i, x)| f(i, x));
+    }
+}
+
+/// Sequential fallback: identical output to the parallel version.
+#[cfg(not(feature = "parallel"))]
+pub fn maybe_par_for_each_indexed_mut<T, F>(v: &mut [T], _threshold: usize, f: F)
+where
+    F: Fn(usize, &mut T),
+{
+    v.iter_mut().enumerate().for_each(|(i, x)| f(i, x));
+}
+
+/// [`maybe_par_map_ct`] for a short list of items of very uneven cost: in
+/// parallel every index is its own task, so two slow items never wait for one
+/// another on the same thread. Results are in index order either way.
+#[cfg(feature = "parallel")]
+pub fn maybe_par_map_each_ct<T, F>(
+    n: usize,
+    threshold: usize,
+    token: Option<&crate::cancel::CancelToken>,
+    f: F,
+) -> Option<Vec<T>>
+where
+    T: Send + 'static,
+    F: Fn(usize) -> T + Sync + Send,
+{
+    use rayon::prelude::*;
+    if n < threshold {
+        return maybe_par_map_ct(n, usize::MAX, token, f);
+    }
+    (0..n)
+        .into_par_iter()
+        .with_max_len(1)
+        .map(|i| {
+            if token.is_some_and(|t| t.is_cancelled()) {
+                None
+            } else {
+                Some(f(i))
+            }
+        })
+        .collect()
+}
+
+/// Sequential fallback: identical output to the parallel version.
+#[cfg(not(feature = "parallel"))]
+pub fn maybe_par_map_each_ct<T, F>(
+    n: usize,
+    threshold: usize,
+    token: Option<&crate::cancel::CancelToken>,
+    f: F,
+) -> Option<Vec<T>>
+where
+    T: Send + 'static,
+    F: Fn(usize) -> T,
+{
+    maybe_par_map_ct(n, threshold, token, f)
 }
 
 /// Does `predicate` hold for some index in `0..n`? Stops at the first hit, in

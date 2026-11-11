@@ -1,0 +1,17 @@
+{
+ "name": "max_segs_trunc",
+ "model": "holed_block.stl",
+ "frame": {
+  "origin": [
+   15,
+   10,
+   0
+  ],
+  "normal": [
+   0,
+   0,
+   1
+  ]
+ },
+ "max_segs": 2
+}

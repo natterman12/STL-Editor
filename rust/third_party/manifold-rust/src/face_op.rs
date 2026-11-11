@@ -77,55 +77,75 @@ pub fn get_axis_aligned_projection(normal: Vec3) -> Proj2x3 {
 ///
 /// Mirrors `Manifold::Impl::SetNormalsAndCoplanar()` in `src/impl.cpp`.
 pub fn set_normals_and_coplanar(mesh: &mut ManifoldImpl) {
+    let t = crate::timing::start();
     let num_tri = mesh.num_tri();
     mesh.face_normal.resize(num_tri, Vec3::new(0.0, 0.0, 1.0));
 
-    // Struct for sorting triangles by area
-    struct TriPriority {
-        area2: f64,
-        tri: usize,
+    // Face normals and areas: each triangle depends only on its own corners,
+    // so they are worked out in parallel.
+    {
+        let tri_ref = &mut mesh.mesh_relation.tri_ref;
+        // Mark coplanarID as unset
+        let n = num_tri.min(tri_ref.len());
+        crate::par::maybe_par_for_each_mut(&mut tri_ref[..n], 50_000, |r| r.coplanar_id = -1);
     }
-
-    // Compute face normals and priorities (sort largest faces first)
-    let mut tri_priority: Vec<TriPriority> = (0..num_tri)
-        .map(|tri| {
-            // Mark coplanarID as unset
-            if tri < mesh.mesh_relation.tri_ref.len() {
-                mesh.mesh_relation.tri_ref[tri].coplanar_id = -1;
+    let (tri_area2, new_normals): (Vec<f64>, Vec<Vec3>) = {
+        let halfedge = &mesh.halfedge;
+        let vert_pos = &mesh.vert_pos;
+        let old_normals = &mesh.face_normal;
+        crate::par::maybe_par_map_unzip(num_tri, 50_000, |tri| {
+            if halfedge[3 * tri].start_vert < 0 {
+                return (0.0, old_normals[tri]);
             }
-
-            if mesh.halfedge[3 * tri].start_vert < 0 {
-                return TriPriority { area2: 0.0, tri };
-            }
-            let v = mesh.vert_pos[mesh.halfedge[3 * tri].start_vert as usize];
+            let v = vert_pos[halfedge[3 * tri].start_vert as usize];
             let n = cross(
-                mesh.vert_pos[mesh.halfedge[3 * tri].end_vert as usize] - v,
-                mesh.vert_pos[mesh.halfedge[3 * tri + 1].end_vert as usize] - v,
+                vert_pos[halfedge[3 * tri].end_vert as usize] - v,
+                vert_pos[halfedge[3 * tri + 1].end_vert as usize] - v,
             );
             let normal = normalize(n);
-            mesh.face_normal[tri] = if normal.x.is_nan() {
-                Vec3::new(0.0, 0.0, 1.0)
-            } else {
-                normal
-            };
-            TriPriority {
-                area2: length2(n),
-                tri,
-            }
+            (
+                length2(n),
+                if normal.x.is_nan() {
+                    Vec3::new(0.0, 0.0, 1.0)
+                } else {
+                    normal
+                },
+            )
         })
-        .collect();
+    };
+    crate::scratch::give(std::mem::replace(&mut mesh.face_normal, new_normals));
+    crate::timing::print("    snc: priority", t);
+    let t = crate::timing::start();
 
-    // Sort by area descending (largest triangles first → better coplanar seeds)
-    tri_priority.sort_by(|a, b| {
-        b.area2
-            .partial_cmp(&a.area2)
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
+    // Sort by area descending (largest triangles first → better coplanar seeds),
+    // equal areas in index order. An area is a sum of squares, so it is never
+    // negative and the bit patterns of the areas sort the same way as the
+    // numbers: sorting (inverted bits, index) pairs gives that order, with no
+    // two pairs equal. An area that is NaN has no place in an order, so the
+    // comparison sort of the earlier code is kept for that case.
+    let order: Vec<u32> = if tri_area2.iter().any(|a| a.is_nan()) {
+        let mut idx: Vec<u32> = (0..num_tri as u32).collect();
+        idx.sort_by(|&a, &b| {
+            tri_area2[b as usize]
+                .partial_cmp(&tri_area2[a as usize])
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        idx
+    } else {
+        let mut keyed: Vec<(u64, u32)> = crate::par::maybe_par_map(num_tri, 50_000, |tri| {
+            (!tri_area2[tri].to_bits(), tri as u32)
+        });
+        crate::par::maybe_par_sort_distinct(&mut keyed, 50_000);
+        let order = keyed.iter().map(|&(_, tri)| tri).collect();
+        crate::scratch::give(keyed);
+        order
+    };
+    crate::scratch::give(tri_area2);
 
     // Flood-fill coplanar groups from each unassigned face
     let mut interior_halfedges: Vec<usize> = Vec::new();
-    for tp in &tri_priority {
-        let tri = tp.tri;
+    for &tri in &order {
+        let tri = tri as usize;
         if tri >= mesh.mesh_relation.tri_ref.len() {
             continue;
         }
@@ -177,7 +197,10 @@ pub fn set_normals_and_coplanar(mesh: &mut ManifoldImpl) {
         }
     }
 
+    crate::timing::print("    snc: flood", t);
+    let t = crate::timing::start();
     calculate_vert_normals(mesh);
+    crate::timing::print("    snc: vert_normals", t);
 }
 
 // -----------------------------------------------------------------------
@@ -189,16 +212,22 @@ pub fn set_normals_and_coplanar(mesh: &mut ManifoldImpl) {
 /// Mirrors `Manifold::Impl::CalculateVertNormals()` in `src/impl.cpp`.
 pub fn calculate_vert_normals(mesh: &mut ManifoldImpl) {
     let num_vert = mesh.vert_pos.len();
-    mesh.vert_normal.resize(num_vert, Vec3::new(0.0, 0.0, 0.0));
 
-    // For each vertex, find the first halfedge that starts there
-    let mut vert_first_edge = vec![i32::MAX; num_vert];
-    for (i, edge) in mesh.halfedge.iter().enumerate() {
-        let sv = edge.start_vert;
-        if sv >= 0 && (sv as usize) < num_vert {
-            let sv = sv as usize;
-            if (i as i32) < vert_first_edge[sv] {
-                vert_first_edge[sv] = i as i32;
+    // For each vertex, find the first halfedge that starts there: the least
+    // index, which is the same whatever order the halfedges are looked at in.
+    let mut vert_first_edge: crate::scratch::Scratch<i32> =
+        crate::scratch::Scratch::with_capacity(num_vert);
+    vert_first_edge.resize(num_vert, i32::MAX);
+    {
+        // Walking the halfedges from the last to the first, the value left in
+        // each slot is the least index: the same whatever order a parallel
+        // pass would have looked in. One pass over the halfedges is cheaper
+        // than starting threads for it.
+        let halfedge = &mesh.halfedge;
+        for i in (0..halfedge.len()).rev() {
+            let sv = halfedge[i].start_vert;
+            if sv >= 0 && (sv as usize) < num_vert {
+                vert_first_edge[sv as usize] = i as i32;
             }
         }
     }
@@ -272,7 +301,7 @@ pub fn calculate_vert_normals(mesh: &mut ManifoldImpl) {
             Vec3::new(0.0, 0.0, 0.0)
         }
     });
-    mesh.vert_normal = normals;
+    crate::scratch::give(std::mem::replace(&mut mesh.vert_normal, normals));
 }
 
 // -----------------------------------------------------------------------
@@ -442,7 +471,7 @@ pub fn project_polygons(
 
 #[path = "face_op_triangulate.rs"]
 mod face_op_triangulate;
-pub use face_op_triangulate::{face2tri, face2tri_ct};
+pub use face_op_triangulate::{face2tri, face2tri_ct, face2tri_face_refs};
 
 // -----------------------------------------------------------------------
 // ReorderHalfedges — canonical ordering within each triangle
@@ -453,18 +482,19 @@ pub use face_op_triangulate::{face2tri, face2tri_ct};
 ///
 /// Mirrors `Manifold::Impl::ReorderHalfedges` in `src/sort.cpp`.
 pub fn reorder_halfedges(mesh: &mut ManifoldImpl) {
-    let num_tri = mesh.halfedge.len() / 3;
+    /// Halfedge count from which both steps run in parallel. Each triangle is
+    /// rotated on its own, and each new pair index is read from the rotated
+    /// start and end verts only, so the order of the work changes nothing.
+    const PAR_THRESHOLD: usize = 100_000;
 
     // Step 1: rotate each triangle so smallest start_vert is first
-    for tri in 0..num_tri {
-        let base = tri * 3;
-        let face = [
-            mesh.halfedge[base],
-            mesh.halfedge[base + 1],
-            mesh.halfedge[base + 2],
-        ];
+    crate::par::maybe_par_for_each_chunk_mut(&mut mesh.halfedge, 3, PAR_THRESHOLD, |tri| {
+        if tri.len() < 3 {
+            return;
+        }
+        let face = [tri[0], tri[1], tri[2]];
         if face[0].start_vert < 0 {
-            continue;
+            return;
         }
         let mut index = 0;
         for i in 1..3 {
@@ -473,31 +503,49 @@ pub fn reorder_halfedges(mesh: &mut ManifoldImpl) {
             }
         }
         for i in 0..3 {
-            mesh.halfedge[base + i] = face[(index + i) % 3];
+            tri[i] = face[(index + i) % 3];
         }
-    }
+    });
 
-    // Step 2: fix paired_halfedge references
-    for tri in 0..num_tri {
-        for i in 0..3 {
-            let base = tri * 3 + i;
-            let curr = mesh.halfedge[base];
-            if curr.start_vert < 0 {
-                break; // skip collapsed triangle
+    // Step 2: fix paired_halfedge references. `-2` leaves a halfedge as it is:
+    // one after a removed halfedge in its triangle, or one without a pair.
+    const KEEP: i32 = -2;
+    let halfedge = &mesh.halfedge;
+    let num_tri = halfedge.len() / 3;
+    let paired = crate::scratch::Scratch::from_vec(crate::par::maybe_par_map(
+        3 * num_tri,
+        PAR_THRESHOLD,
+        |edge| {
+            let tri = edge / 3;
+            // A collapsed triangle is skipped from its first removed halfedge.
+            for before in 3 * tri..=edge {
+                if halfedge[before].start_vert < 0 {
+                    return KEEP;
+                }
             }
+            let curr = halfedge[edge];
             if curr.paired_halfedge < 0 {
-                continue; // unpaired halfedge
+                return KEEP; // unpaired halfedge
             }
             let opp_face = curr.paired_halfedge as usize / 3;
             let mut index = -1i32;
             for j in 0..3 {
-                if curr.start_vert == mesh.halfedge[opp_face * 3 + j].end_vert {
+                if curr.start_vert == halfedge[opp_face * 3 + j].end_vert {
                     index = j as i32;
                 }
             }
-            mesh.halfedge[base].paired_halfedge = opp_face as i32 * 3 + index;
-        }
-    }
+            opp_face as i32 * 3 + index
+        },
+    ));
+    crate::par::maybe_par_for_each_indexed_mut(
+        &mut mesh.halfedge[..3 * num_tri],
+        PAR_THRESHOLD,
+        |edge, h| {
+            if paired[edge] != KEEP {
+                h.paired_halfedge = paired[edge];
+            }
+        },
+    );
 }
 
 // -----------------------------------------------------------------------

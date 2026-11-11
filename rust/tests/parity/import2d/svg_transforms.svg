@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="80mm" height="40mm" viewBox="0 0 80 40">
+  <g transform="translate(20,10) scale(1.5) rotate(30)">
+    <polygon points="0,0 10,0 5,8" fill="none" stroke="black"/>
+  </g>
+</svg>

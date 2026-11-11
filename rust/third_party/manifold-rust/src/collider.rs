@@ -27,6 +27,14 @@ use crate::types::Box as BBox;
 // - Root is always node index 1 (internal node 0)
 const K_ROOT: i32 = 1;
 
+/// Leaf count from which the tree is built in parallel (C++ `kSeqThreshold`).
+/// Both parallel passes give the sequential build's tree and boxes: see
+/// `create_radix_tree` and `build_internal_boxes_par`.
+const PAR_THRESHOLD: usize = 10_000;
+
+/// Most leaves in a subtree that one task of the parallel box refit handles.
+const REFIT_GRAIN: i32 = 4096;
+
 fn leaf_to_node(leaf: i32) -> i32 {
     leaf * 2
 }
@@ -52,11 +60,37 @@ fn is_internal(node: i32) -> bool {
 /// `node_bbox` — no separate leaf copy, and the morton codes are consumed at
 /// construction rather than stored, which matters because a collider is cached
 /// on every ManifoldImpl.
-#[derive(Clone, Debug, Default)]
+#[derive(Debug, Default)]
 pub struct Collider {
     node_bbox: Vec<BBox>,             // AABBs for all nodes (2*num_leaves - 1)
     node_parent: Vec<i32>,            // parent node per node (-1 at root)
     internal_children: Vec<[i32; 2]>, // child pairs for internal nodes (num_leaves - 1)
+    /// The links were checked at construction to form a proper radix tree
+    /// (see `create_radix_tree`), which the parallel box refit relies on.
+    /// Sorted morton codes always give one; `false` keeps the sequential refit.
+    proper: bool,
+}
+
+// The node arrays are recycled like a mesh's (see `crate::scratch`).
+impl Clone for Collider {
+    fn clone(&self) -> Self {
+        use crate::scratch::copy_of;
+        Collider {
+            node_bbox: copy_of(&self.node_bbox),
+            node_parent: copy_of(&self.node_parent),
+            internal_children: copy_of(&self.internal_children),
+            proper: self.proper,
+        }
+    }
+}
+
+impl Drop for Collider {
+    fn drop(&mut self) {
+        use crate::scratch::give_from;
+        give_from(&mut self.node_bbox);
+        give_from(&mut self.node_parent);
+        give_from(&mut self.internal_children);
+    }
 }
 
 impl Collider {
@@ -66,22 +100,40 @@ impl Collider {
     /// (sort_geometry sorts faces, merge sorts open verts).
     pub fn new(leaf_bbox: Vec<BBox>, leaf_morton: Vec<u32>) -> Self {
         debug_assert_eq!(leaf_bbox.len(), leaf_morton.len());
+        Self::from_leaf_fn(&leaf_morton, |leaf| leaf_bbox[leaf])
+    }
+
+    /// [`Collider::new`] with the box of each leaf given by a function of its
+    /// index. The boxes are written straight into the tree, in parallel for a
+    /// large one, instead of into a list that is then copied.
+    pub fn from_leaf_fn<F>(leaf_morton: &[u32], leaf_box: F) -> Self
+    where
+        F: Fn(usize) -> BBox + Sync + Send,
+    {
         debug_assert!(
             leaf_morton.windows(2).all(|w| w[0] <= w[1]),
             "Collider leaves must be pre-sorted by morton code"
         );
-        let n = leaf_bbox.len();
+        let n = leaf_morton.len();
         if n == 0 {
             return Self::default();
         }
         let num_nodes = 2 * n - 1;
+        let node_bbox = crate::par::maybe_par_map(num_nodes, PAR_THRESHOLD, |node| {
+            if node % 2 == 0 {
+                leaf_box(node / 2)
+            } else {
+                BBox::default()
+            }
+        });
         let mut collider = Self {
-            node_bbox: vec![BBox::default(); num_nodes],
-            node_parent: vec![-1; num_nodes],
-            internal_children: vec![[-1, -1]; n.saturating_sub(1)],
+            node_bbox,
+            node_parent: crate::scratch::filled(num_nodes, -1),
+            internal_children: Vec::new(),
+            proper: false,
         };
-        collider.create_radix_tree(&leaf_morton);
-        collider.update_boxes(leaf_bbox);
+        collider.create_radix_tree(leaf_morton);
+        collider.build_internal_boxes();
         collider
     }
 
@@ -164,8 +216,12 @@ impl Collider {
             split
         };
 
-        // For each internal node, find its range and split point
-        for internal in 0..num_internal {
+        // For each internal node, find its range and split point. A node's
+        // children depend only on the morton codes, so the nodes are worked
+        // out in parallel; the parent links are then written in node order.
+        // `ranges[i]` is the first and last leaf under internal node `i`.
+        let (children, ranges): (Vec<[i32; 2]>, Vec<[i32; 2]>) =
+            crate::par::maybe_par_map_unzip(num_internal, PAR_THRESHOLD, |internal| {
             let i = internal as i32;
             let mut first = i;
             let mut last = range_end(i);
@@ -194,11 +250,57 @@ impl Collider {
                 child1
             };
 
-            self.internal_children[internal] = [child1, child2];
-            let node = internal_to_node(i);
+            ([child1, child2], [first, last])
+        });
+        let ranges = crate::scratch::Scratch::from_vec(ranges);
+        for (internal, &[child1, child2]) in children.iter().enumerate() {
+            let node = internal_to_node(internal as i32);
             self.node_parent[child1 as usize] = node;
             self.node_parent[child2 as usize] = node;
         }
+
+        // Is this a proper radix tree? Each node sits at one end of its leaf
+        // range, its children split that range in two at `split`, and each
+        // child, if internal, records exactly its half and names this node as
+        // its parent. With the root over all the leaves that makes every node
+        // the child of one parent, in a tree whose ranges nest: what
+        // `build_internal_boxes_par` relies on.
+        let node_parent = &self.node_parent;
+        let last_leaf = num_leaves as i32 - 1;
+        let broken = crate::par::maybe_par_filter(num_internal, PAR_THRESHOLD, |internal| {
+            let i = internal as i32;
+            let [first, last] = ranges[internal];
+            let [child1, child2] = children[internal];
+            let split = child1 / 2;
+            let ok = first >= 0
+                && first < last
+                && last <= last_leaf
+                && (i == first || i == last)
+                && child1 >= 0
+                && child2 >= 0
+                && child1 != child2
+                && split >= first
+                && split < last
+                && child2 / 2 == split + 1
+                && (if is_leaf(child1) {
+                    split == first
+                } else {
+                    ranges[split as usize] == [first, split]
+                })
+                && (if is_leaf(child2) {
+                    split + 1 == last
+                } else {
+                    ((split + 1) as usize) < num_internal
+                        && ranges[(split + 1) as usize] == [split + 1, last]
+                })
+                && node_parent[child1 as usize] == internal_to_node(i)
+                && node_parent[child2 as usize] == internal_to_node(i);
+            !ok
+        });
+        self.proper = broken.is_empty()
+            && ranges[0] == [0, last_leaf]
+            && self.node_parent[K_ROOT as usize] == -1;
+        crate::scratch::give(std::mem::replace(&mut self.internal_children, children));
     }
 
     /// Refit internal boxes bottom-up from the leaf boxes already present in
@@ -207,6 +309,10 @@ impl Collider {
         let num_leaves = self.num_leaves();
         let num_internal = self.internal_children.len();
         if num_internal == 0 {
+            return;
+        }
+        if self.proper && num_leaves >= PAR_THRESHOLD && cfg!(feature = "parallel") {
+            self.build_internal_boxes_par();
             return;
         }
         let mut counter = vec![0u32; num_internal];
@@ -234,6 +340,125 @@ impl Collider {
                 self.node_bbox[parent as usize] = b1.union_box(&b2);
                 node = parent;
             }
+        }
+    }
+
+    /// The refit of `build_internal_boxes` for a proper radix tree
+    /// (`self.proper`), one task per subtree.
+    ///
+    /// In a radix tree the node over leaves `first..=last` sits at index
+    /// `first` or `last`, its left child (index `split`) is over
+    /// `first..=split` and its right child (index `split + 1`) over
+    /// `split + 1..=last`. So a subtree whose root is at `first` holds the
+    /// internal nodes `first..last`, and one whose root is at `last` holds
+    /// `first + 1..=last`. With leaf `i` stored at `2i` and internal node `i`
+    /// at `2i + 1`, the boxes of a subtree lie in one run of `node_bbox`
+    /// (`2 first..=2 last`, or one more for a root at `last`), and the runs of
+    /// two subtrees over different leaves do not overlap.
+    ///
+    /// The tree is cut, top down, into subtrees of at most `REFIT_GRAIN`
+    /// leaves. Each is refitted in its own run by the sequential algorithm on
+    /// its own leaves; the nodes above the subtrees are then refitted children
+    /// first. Every internal box is `box(child1).union_box(box(child2))` of
+    /// its two finished children, the one union the sequential refit makes for
+    /// it, so the boxes are the same bit for bit.
+    fn build_internal_boxes_par(&mut self) {
+        let num_leaves = self.num_leaves() as i32;
+
+        // Cut the tree: `upper` nodes span more than REFIT_GRAIN leaves and are
+        // listed parents first; `subtrees` are the roots below them, as
+        // (root node, first leaf, last leaf).
+        let mut upper: Vec<i32> = Vec::new();
+        let mut subtrees: Vec<(i32, i32, i32)> = Vec::new();
+        let mut stack: Vec<(i32, i32, i32)> = vec![(K_ROOT, 0, num_leaves - 1)];
+        while let Some((node, first, last)) = stack.pop() {
+            if is_leaf(node) {
+                continue;
+            }
+            if last - first < REFIT_GRAIN {
+                subtrees.push((node, first, last));
+                continue;
+            }
+            let [child1, child2] = self.internal_children[node_to_internal(node) as usize];
+            let split = child1 / 2;
+            upper.push(node);
+            stack.push((child1, first, split));
+            stack.push((child2, split + 1, last));
+        }
+        subtrees.sort_unstable_by_key(|s| s.1);
+
+        // Hand each subtree its run of the boxes.
+        struct Subtree<'a> {
+            root: i32,
+            first: i32,
+            last: i32,
+            /// `node_bbox[2 * first..]`, as far as the subtree's last node.
+            boxes: &'a mut [BBox],
+        }
+        let Collider {
+            node_bbox,
+            node_parent,
+            internal_children,
+            ..
+        } = self;
+        let node_parent: &[i32] = node_parent;
+        let internal_children: &[[i32; 2]] = internal_children;
+        let mut tasks: Vec<Subtree> = Vec::with_capacity(subtrees.len());
+        let mut rest: &mut [BBox] = node_bbox;
+        let mut rest_start = 0usize;
+        for &(root, first, last) in &subtrees {
+            let start = 2 * first as usize;
+            let end = if node_to_internal(root) == last {
+                2 * last as usize + 2
+            } else {
+                2 * last as usize + 1
+            };
+            let (_, tail) = std::mem::take(&mut rest).split_at_mut(start - rest_start);
+            let (boxes, tail) = tail.split_at_mut(end - start);
+            rest = tail;
+            rest_start = end;
+            tasks.push(Subtree {
+                root,
+                first,
+                last,
+                boxes,
+            });
+        }
+
+        crate::par::maybe_par_for_each(tasks, 2, |subtree| {
+            let Subtree {
+                root,
+                first,
+                last,
+                boxes,
+            } = subtree;
+            let base = 2 * first;
+            // Children seen so far, per internal node `first + slot`.
+            let mut counter = vec![0u8; (last - first + 1) as usize];
+            for leaf in first..=last {
+                let mut node = leaf_to_node(leaf);
+                while node != root {
+                    let parent = node_parent[node as usize];
+                    let internal = node_to_internal(parent);
+                    let slot = (internal - first) as usize;
+                    counter[slot] += 1;
+                    if counter[slot] < 2 {
+                        break; // wait for the second child
+                    }
+                    let [c1, c2] = internal_children[internal as usize];
+                    let b1 = boxes[(c1 - base) as usize];
+                    let b2 = boxes[(c2 - base) as usize];
+                    boxes[(parent - base) as usize] = b1.union_box(&b2);
+                    node = parent;
+                }
+            }
+        });
+
+        for &node in upper.iter().rev() {
+            let [c1, c2] = self.internal_children[node_to_internal(node) as usize];
+            let b1 = self.node_bbox[c1 as usize];
+            let b2 = self.node_bbox[c2 as usize];
+            self.node_bbox[node as usize] = b1.union_box(&b2);
         }
     }
 

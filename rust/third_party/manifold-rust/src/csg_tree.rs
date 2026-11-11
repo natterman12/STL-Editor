@@ -96,6 +96,27 @@ impl CsgLeafNode {
         }
     }
 
+    /// [`CsgLeafNode::get_impl`] without the copy when there is no transform to
+    /// apply: the mesh itself, borrowed.
+    pub fn impl_ref(&self) -> std::borrow::Cow<'_, ManifoldImpl> {
+        if self.transform == Mat3x4::identity() {
+            std::borrow::Cow::Borrowed(&*self.p_impl)
+        } else {
+            std::borrow::Cow::Owned(self.p_impl.transform(&self.transform))
+        }
+    }
+
+    /// [`CsgLeafNode::get_impl`] for a leaf that is no longer needed: when
+    /// nothing else holds the mesh and there is no transform to apply, the
+    /// mesh is moved out instead of copied.
+    pub fn into_impl(self) -> ManifoldImpl {
+        if self.transform == Mat3x4::identity() {
+            Arc::try_unwrap(self.p_impl).unwrap_or_else(|shared| (*shared).clone())
+        } else {
+            self.p_impl.transform(&self.transform)
+        }
+    }
+
     /// Return a new leaf with composed transform.
     /// Port of C++ CsgLeafNode::Transform()
     pub fn apply_transform(&self, m: Mat3x4) -> Self {
@@ -222,7 +243,7 @@ impl CsgNode {
         progress: Option<&ProgressReporter>,
     ) -> ManifoldImpl {
         let leaf = self.to_leaf_node(Mat3x4::identity(), token, progress);
-        leaf.get_impl()
+        leaf.into_impl()
     }
 
     /// Internal: convert this node to a CsgLeafNode, applying the given parent transform.
@@ -415,8 +436,10 @@ fn simple_boolean(
     if is_cancelled(token) {
         return CsgLeafNode::cancelled();
     }
-    let impl_a = a.get_impl();
-    let impl_b = b.get_impl();
+    // A leaf without a pending transform lends its mesh as it is; only a leaf
+    // with one needs a transformed copy.
+    let impl_a = a.impl_ref();
+    let impl_b = b.impl_ref();
     // Engine selection: CSG evaluation honors the process-global default
     // (types::BooleanConfig). With the default (Exact) this call resolves to
     // boolean3::boolean_with_token — behavior byte-identical to before the

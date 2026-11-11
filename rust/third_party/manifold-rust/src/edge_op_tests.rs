@@ -214,7 +214,10 @@ fn assert_orbit_owners_match(halfedge: &[Halfedge]) {
     ];
     for eligible in rules {
         let expected = sequential_orbit_owners(halfedge, eligible);
-        assert_eq!(orbit_owners(halfedge, 0, eligible), Some(expected));
+        assert_eq!(
+            orbit_owners(halfedge, 0, eligible).map(|owners| owners.into_vec()),
+            Some(expected)
+        );
     }
 }
 
