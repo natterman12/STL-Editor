@@ -957,8 +957,9 @@ def f_scale(state, fid, p, res, ctx):
 
 
 def _hollow_pitch(b, t, q):
-    v, _ = b.mesh()
-    diag = float(np.linalg.norm(v.max(0) - v.min(0)))
+    # the solid's own bounding box at full precision, as the web engine does (2.0 batch 3 spec)
+    bb = b.require_solid().bounding_box()
+    diag = float(np.linalg.norm(np.asarray(bb[3:], np.float64) - np.asarray(bb[:3], np.float64)))
     div = {"draft": 80, "normal": 150, "fine": 260}.get(q or "normal", 150)
     return max(min(t / 2.5, diag / div), diag / (div * 2.5))
 
