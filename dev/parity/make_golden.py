@@ -188,6 +188,11 @@ def main() -> int:
             existing = dest.read_text(encoding="utf-8") if dest.exists() else ""
             if _norm_newlines(existing) != _norm_newlines(text):
                 print(f"make_golden: MISMATCH {dest.relative_to(ROOT)}", file=sys.stderr)
+                import difflib
+                diff = difflib.unified_diff(_norm_newlines(existing).splitlines(), _norm_newlines(text).splitlines(),
+                                            "committed", "generated", n=2, lineterm="")
+                for line in list(diff)[:60]:
+                    print("  " + line, file=sys.stderr)
                 mismatch = True
             continue
         GOLDEN_DIR.mkdir(parents=True, exist_ok=True)
