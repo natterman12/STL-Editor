@@ -102,8 +102,8 @@ jobs:
         uses: browser-actions/setup-chrome@v1
         with:
           # Pin to the Chrome used when generating import2d_golden locally
-          # (Google Chrome 157.0.8103.51 on the golden machine).
-          chrome-version: "157.0.8103.51"
+          # (Google Chrome 157.0.8103.51 on the golden machine; Chrome for Testing has no .51, so the same-branch .50).
+          chrome-version: "157.0.8103.50"
 
       - name: Set CHROME_PATH
         shell: bash
