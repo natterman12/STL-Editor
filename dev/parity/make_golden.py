@@ -173,6 +173,49 @@ def build_all() -> dict[str, dict]:
     return {t: build_type(t, remesh_golden) for t in types}
 
 
+_REL = 1e-3      # volume, area and bounding box: 0.1 percent (main spec 5.3)
+_ABS = 1e-4      # or 1e-4 mm near zero
+_COUNT = 0.10    # triangle and vertex counts: up to 10 percent between machines
+
+
+def _close(a, b):
+    return abs(a - b) <= max(_ABS, _REL * max(abs(a), abs(b)))
+
+
+def _compare_records(old: dict, new: dict):
+    """Compare two golden files for one type. Returns (problems, machine_differences)."""
+    problems, machine = [], []
+    if sorted(old) != sorted(new):
+        return [f"case names differ: {sorted(set(old) ^ set(new))}"], machine
+    for name in sorted(new):
+        o, n = old[name], new[name]
+        if {k: v for k, v in o.items() if k != "bodies"} != {k: v for k, v in n.items() if k != "bodies"}:
+            problems.append(f"{name}: results, messages or flags differ")
+            continue
+        ob, nb = o.get("bodies") or [], n.get("bodies") or []
+        if [(b.get("id"), b.get("name"), b.get("solid")) for b in ob] != [(b.get("id"), b.get("name"), b.get("solid")) for b in nb]:
+            problems.append(f"{name}: bodies differ")
+            continue
+        for b1, b2 in zip(ob, nb):
+            s1, s2 = b1.get("stats") or {}, b2.get("stats") or {}
+            if sorted(s1) != sorted(s2) or s1.get("watertight") != s2.get("watertight"):
+                problems.append(f"{name}/{b2.get('id')}: stats fields or watertight differ")
+                continue
+            for k in ("volume", "area"):
+                if k in s1 and not _close(s1[k], s2[k]):
+                    problems.append(f"{name}/{b2.get('id')}: {k} {s1[k]} vs {s2[k]}")
+            for k in ("bbox_min", "bbox_max"):
+                if k in s1 and not all(_close(x, y) for x, y in zip(s1[k], s2[k])):
+                    problems.append(f"{name}/{b2.get('id')}: {k} differs")
+            for k in ("triangles", "vertices"):
+                if k in s1 and s1[k] != s2[k]:
+                    if abs(s1[k] - s2[k]) <= _COUNT * max(s1[k], s2[k]):
+                        machine.append(f"{name}/{b2.get('id')}: {k} {s1[k]} vs {s2[k]}")
+                    else:
+                        problems.append(f"{name}/{b2.get('id')}: {k} {s1[k]} vs {s2[k]}")
+    return problems, machine
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true", help="exit 1 if any golden differs")
@@ -187,6 +230,17 @@ def main() -> int:
         if args.check:
             existing = dest.read_text(encoding="utf-8") if dest.exists() else ""
             if _norm_newlines(existing) != _norm_newlines(text):
+                problems, machine = _compare_records(json.loads(existing) if existing else {}, data)
+                if not problems:
+                    # 1.x is not bit-identical across Windows builds (the C runtime's sin/cos feed
+                    # Manifold's round shapes), so a CI runner can tessellate connector pins a little
+                    # differently. The golden files from Nathan's PC stay the reference; here only
+                    # geometry within the spec's tolerances may differ.
+                    for line in machine:
+                        print(f"make_golden: machine difference (allowed) {dest.relative_to(ROOT)}: {line}")
+                    continue
+                for line in problems[:20]:
+                    print(f"  {line}", file=sys.stderr)
                 print(f"make_golden: MISMATCH {dest.relative_to(ROOT)}", file=sys.stderr)
                 import difflib
                 diff = difflib.unified_diff(_norm_newlines(existing).splitlines(), _norm_newlines(text).splitlines(),
