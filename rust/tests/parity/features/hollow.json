@@ -1,0 +1,155 @@
+[
+ {
+  "name": "hollow_draft",
+  "exactness": "approx",
+  "requires": [
+   "voxel"
+  ],
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 30,
+     "width": 30,
+     "height": 20,
+     "anchor": "base",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "hollow",
+    "params": {
+     "body": "f1",
+     "thickness": 2,
+     "resolution": "draft"
+    }
+   }
+  ]
+ },
+ {
+  "name": "hollow_normal",
+  "exactness": "approx",
+  "requires": [
+   "voxel"
+  ],
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 30,
+     "width": 30,
+     "height": 20,
+     "anchor": "base",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "hollow",
+    "params": {
+     "body": "f1",
+     "thickness": 2,
+     "resolution": "normal"
+    }
+   }
+  ]
+ },
+ {
+  "name": "hollow_fine",
+  "exactness": "approx",
+  "requires": [
+   "voxel"
+  ],
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 30,
+     "width": 30,
+     "height": 20,
+     "anchor": "base",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "hollow",
+    "params": {
+     "body": "f1",
+     "thickness": 2,
+     "resolution": "fine"
+    }
+   }
+  ]
+ },
+ {
+  "name": "hollow_too_thick",
+  "exactness": "exact",
+  "requires": [
+   "voxel"
+  ],
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 10,
+     "width": 10,
+     "height": 10,
+     "anchor": "base",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "hollow",
+    "params": {
+     "body": "f1",
+     "thickness": 6,
+     "resolution": "draft"
+    }
+   }
+  ]
+ },
+ {
+  "name": "hollow_two_shells",
+  "exactness": "approx",
+  "requires": [
+   "voxel"
+  ],
+  "sources": {
+   "s1": "two_blobs.stl"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": true,
+     "place": "keep"
+    }
+   },
+   {
+    "type": "hollow",
+    "params": {
+     "body": "f1",
+     "thickness": 1.5,
+     "resolution": "draft"
+    }
+   }
+  ]
+ }
+]

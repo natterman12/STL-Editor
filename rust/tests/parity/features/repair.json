@@ -27,7 +27,9 @@
  {
   "name": "repair_expr_voxel",
   "exactness": "approx",
-  "requires": ["voxel"],
+  "requires": [
+   "voxel"
+  ],
   "sources": {
    "s1": "open_box.stl"
   },
@@ -185,7 +187,9 @@
  {
   "name": "repair_nonmanifold_edge_auto",
   "exactness": "approx",
-  "requires": ["voxel"],
+  "requires": [
+   "voxel"
+  ],
   "sources": {
    "s1": "nonmanifold_edge.stl"
   },
@@ -236,7 +240,9 @@
  {
   "name": "repair_stray_triangle_auto",
   "exactness": "approx",
-  "requires": ["voxel"],
+  "requires": [
+   "voxel"
+  ],
   "sources": {
    "s1": "stray_triangle.stl"
   },
@@ -305,6 +311,151 @@
     "params": {
      "body": "f1",
      "mode": "quick"
+    }
+   }
+  ]
+ },
+ {
+  "name": "repair_rebuild_voxel_2",
+  "exactness": "approx",
+  "requires": [
+   "voxel"
+  ],
+  "sources": {
+   "s1": "open_box.stl"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": false,
+     "place": "keep"
+    }
+   },
+   {
+    "type": "repair",
+    "params": {
+     "body": "f1",
+     "mode": "rebuild",
+     "voxel": 2
+    }
+   }
+  ]
+ },
+ {
+  "name": "repair_rebuild_draft",
+  "exactness": "approx",
+  "requires": [
+   "voxel"
+  ],
+  "sources": {
+   "s1": "open_box.stl"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": false,
+     "place": "keep"
+    }
+   },
+   {
+    "type": "repair",
+    "params": {
+     "body": "f1",
+     "mode": "rebuild",
+     "resolution": "draft"
+    }
+   }
+  ]
+ },
+ {
+  "name": "repair_rebuild_normal",
+  "exactness": "approx",
+  "requires": [
+   "voxel"
+  ],
+  "sources": {
+   "s1": "open_box.stl"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": false,
+     "place": "keep"
+    }
+   },
+   {
+    "type": "repair",
+    "params": {
+     "body": "f1",
+     "mode": "rebuild",
+     "resolution": "normal"
+    }
+   }
+  ]
+ },
+ {
+  "name": "repair_rebuild_fine",
+  "exactness": "approx",
+  "requires": [
+   "voxel"
+  ],
+  "sources": {
+   "s1": "holed_block.stl"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": false,
+     "place": "keep"
+    }
+   },
+   {
+    "type": "repair",
+    "params": {
+     "body": "f1",
+     "mode": "rebuild",
+     "resolution": "fine"
+    }
+   }
+  ]
+ },
+ {
+  "name": "repair_rebuild_too_fine",
+  "exactness": "exact",
+  "requires": [
+   "voxel"
+  ],
+  "sources": {
+   "s1": "open_box.stl"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": false,
+     "place": "keep"
+    }
+   },
+   {
+    "type": "repair",
+    "params": {
+     "body": "f1",
+     "mode": "rebuild",
+     "voxel": 0.01
     }
    }
   ]

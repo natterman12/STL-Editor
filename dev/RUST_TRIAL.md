@@ -31,7 +31,7 @@ Caveat on the Node and Python columns in `ENGINE_REVIEW.md`: they were measured 
 
 ## 2. JS versus Rust remesh
 
-`rust/remesh` ports the isotropic remesh from `web/engine/meshedit.js` (split, collapse, flip, smooth) to Rust with wasm-bindgen. `dev/bench/remesh_rs_bench.mjs` refines the test mesh to edge 1.0 with the kernel, then runs both remeshes on the same arrays, three runs each.
+The trial crate `rust/remesh` (since moved into `rust/crates/stl-mesh/src/remesh.rs` as `remesh_core`, and deleted in 2.0 batch 3) ported the isotropic remesh from `web/engine/meshedit.js` (split, collapse, flip, smooth) to Rust with wasm-bindgen. The trial's bench script (since deleted) refined the test mesh to edge 1.0 with the kernel, then ran both remeshes on the same arrays, three runs each.
 
 | | JS (Node) | Rust (wasm) |
 |---|---|---|
@@ -51,7 +51,7 @@ Differences from the JS code:
 - The Rust side rejects a face that points at a missing vertex.
 - The JS remesh is called with a stand-in solid whose `refineToLength()` returns the refined mesh, so the JS timing excludes the refine step on both sides.
 
-Build: `wasm-pack build --target web` in `rust/remesh`. The `.wasm` is 50,039 bytes. Rust unit tests: 2 passed (`cargo test --release`).
+Build (the trial crate, now deleted): `wasm-pack build --target web` in `rust/remesh`. The `.wasm` is 50,039 bytes. Rust unit tests: 2 passed (`cargo test --release`).
 
 ## 3. Checks
 

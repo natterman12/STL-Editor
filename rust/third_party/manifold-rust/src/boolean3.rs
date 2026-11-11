@@ -38,7 +38,7 @@ use crate::types::{Box as BBox, Error, Halfedge, OpType, RayHit, TriRef};
 // drivers (intersect12, winding03) live in boolean3_kernels.rs.
 #[path = "boolean3_kernels.rs"]
 mod boolean3_kernels;
-use boolean3_kernels::{intersect12, kernel12, winding03};
+use boolean3_kernels::{intersect12, kernel12, vert_xn, winding03};
 
 // ---------------------------------------------------------------------------
 // Intersections — sparse intersection data between two meshes
@@ -145,6 +145,7 @@ impl Boolean3 {
 
         // Level 3: find all edge-face intersections in both directions
         let t_total = crate::timing::start();
+        let p_total = crate::timing::profile_start();
         let t = crate::timing::start();
         // Phase-boundary fast-path: skip launching the next stage if cancel
         // fired between stages (C++ boolean3.cpp:530/536/552/558).
@@ -188,6 +189,7 @@ impl Boolean3 {
         let w30 = winding03(in_p, in_q, &xv21.p1q2, expand_p, false, token)?;
         crate::timing::print("  Winding03 Q", t);
         report_stage(stage, stage_marks::AFTER_WINDING_Q);
+        crate::timing::profile_add(&crate::timing::PROFILE_INTERSECT, p_total);
         crate::timing::print("Intersections (total)", t_total);
 
         Some(Boolean3 {
@@ -481,6 +483,7 @@ pub fn boolean_with_token_and_stage(
     token: Option<&CancelToken>,
     stage: StageSink<'_>,
 ) -> ManifoldImpl {
+    let _bool_span = crate::timing::BoolSpan::new(mesh_a.num_tri() + mesh_b.num_tri());
     // Entry gate: a token cancelled before the call wins over every fast path
     // below, including the empty-input ones. C++ does the same at its outermost
     // gates (csg_tree.cpp:172, execution_impl.cpp's static factories), so an
@@ -802,11 +805,16 @@ pub fn ray_cast(mesh: &ManifoldImpl, origin: Vec3, endpoint: Vec3) -> Vec<RayHit
     };
 
     let mut hits: Vec<RayHit> = Vec::new();
+    let ray_xn = vert_xn(&ray_impl);
+    let mesh_xn = vert_xn(mesh);
 
     // Query BVH with ray AABB and test each candidate triangle.
     collider.collisions_with_boxes(std::slice::from_ref(&ray_box), false, |_qi, tri| {
         // halfedge 0 (forward) vs triangle tri; expand_p=false, forward=true.
-        let (s, v) = kernel12(0, tri, &ray_impl, mesh, &ray_impl, mesh, false, true);
+        let (s, v) = kernel12(
+            0, tri, &ray_impl, mesh, &ray_impl, mesh, false, true, &ray_xn, &mesh_xn, &ray_xn,
+            &mesh_xn,
+        );
         if s != 0 && v.x.is_finite() {
             // Compute parametric t along the ray.
             let origin_t = [origin.x, origin.y, origin.z][t_axis];

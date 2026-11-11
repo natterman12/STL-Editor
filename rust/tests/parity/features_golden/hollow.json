@@ -1,0 +1,207 @@
+{
+ "hollow_draft": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 7151.345120763223,
+     "bbox_max": [
+      15.0,
+      15.0,
+      20.0
+     ],
+     "bbox_min": [
+      -15.0,
+      -15.0,
+      0.0
+     ],
+     "triangles": 96,
+     "vertices": 52,
+     "volume": 7206.096440367073,
+     "watertight": true
+    }
+   }
+  ],
+  "requires": [
+   "voxel"
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "hollow_fine": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 7194.960317487648,
+     "bbox_max": [
+      15.0,
+      15.0,
+      20.0
+     ],
+     "bbox_min": [
+      -15.0,
+      -15.0,
+      0.0
+     ],
+     "triangles": 280,
+     "vertices": 144,
+     "volume": 7185.863817890898,
+     "watertight": true
+    }
+   }
+  ],
+  "requires": [
+   "voxel"
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "hollow_normal": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 7186.382109737059,
+     "bbox_max": [
+      15.0,
+      15.0,
+      20.0
+     ],
+     "bbox_min": [
+      -15.0,
+      -15.0,
+      0.0
+     ],
+     "triangles": 112,
+     "vertices": 60,
+     "volume": 7188.983345064134,
+     "watertight": true
+    }
+   }
+  ],
+  "requires": [
+   "voxel"
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "hollow_too_thick": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 600.0,
+     "bbox_max": [
+      5.0,
+      5.0,
+      10.0
+     ],
+     "bbox_min": [
+      -5.0,
+      -5.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 1000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "requires": [
+   "voxel"
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": "Wall thickness is too large for this body; nothing would be left hollow.",
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "hollow_two_shells": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "two_blobs",
+    "solid": true,
+    "stats": {
+     "area": 598.3854071337507,
+     "bbox_max": [
+      11.0,
+      5.0,
+      5.0
+     ],
+     "bbox_min": [
+      -13.0,
+      -5.0,
+      -5.0
+     ],
+     "triangles": 3178,
+     "vertices": 1597,
+     "volume": 438.36629340641804,
+     "watertight": true
+    }
+   }
+  ],
+  "requires": [
+   "voxel"
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ }
+}

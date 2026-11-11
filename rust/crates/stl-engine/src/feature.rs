@@ -71,6 +71,10 @@ pub struct FeatureResult {
     pub id: String,
     pub error: Option<String>,
     pub warning: Option<String>,
+    /// A plain-text note (1.x `info` when it is a string).
+    pub info: Option<String>,
+    /// Thin-wall Check's record: `{min, count, spots}` (1.x `thin`).
+    pub thin: Option<serde_json::Value>,
     pub created: Vec<String>,
     pub modified: Vec<String>,
     pub removed: Vec<String>,

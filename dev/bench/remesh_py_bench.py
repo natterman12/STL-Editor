@@ -1,4 +1,4 @@
-"""Desktop (Python) remesh timing on the same mesh as remesh_rs_bench.mjs and browser_bench.mjs.
+"""Desktop (Python) remesh timing on the same mesh as browser_bench.mjs.
 
 Run: python dev/bench/remesh_py_bench.py [edge] [runs]
 Loads dev/bench/test_mesh.stl, welds vertices with identical float32 bits (same rule as the

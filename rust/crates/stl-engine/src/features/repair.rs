@@ -1,14 +1,13 @@
 //! Repair (1.x `f_repair`): make a broken mesh a watertight solid. Modes `auto` and `quick`
-//! keep the original triangles; Rebuild (and `auto` falling back to it) needs the voxel tools.
+//! keep the original triangles; Rebuild (and `auto` falling back to it) goes through a voxel grid.
 
 use serde_json::{Map, Value};
 use stl_kernel::{MeshArrays, Solid};
 
+use super::common::pitch::fmt_g3;
+use super::common::{float, truthy};
 use crate::state::Body;
 use crate::{Ctx, FeatureError, FeatureResult, Registry, State};
-
-/// Temporary, until the voxel tools are ported (batch 3): 1.x calls `voxel_rebuild` here.
-const NEEDS_VOXEL: &str = "Rebuild needs the voxel tools, which aren't ported yet.";
 
 fn f_repair(
     state: &mut State,
@@ -50,8 +49,27 @@ fn f_repair(
             return Err(FeatureError("Quick repair wasn't enough. Use Rebuild.".into()));
         }
     }
-    let Some(man) = man else {
-        return Err(FeatureError(NEEDS_VOXEL.into()));
+    let man = match man {
+        Some(m) => m,
+        None => {
+            let pitch = if truthy(p.get("voxel")) {
+                float(p, "voxel", None)?
+            } else {
+                let target = match p.get("resolution").and_then(Value::as_str) {
+                    Some("draft") => 120.0,
+                    Some("fine") => 360.0,
+                    _ => 220.0,
+                };
+                let pts: Vec<[f32; 3]> = mesh.positions.chunks_exact(3).map(|c| [c[0], c[1], c[2]]).collect();
+                stl_mesh::voxel::auto_pitch(&pts, target)
+            };
+            let verts: Vec<[f64; 3]> = v.chunks_exact(3).map(|c| [c[0], c[1], c[2]]).collect();
+            let faces: Vec<[u32; 3]> = f.chunks_exact(3).map(|c| [c[0], c[1], c[2]]).collect();
+            let m = stl_mesh::voxel::voxel_rebuild(&verts, &faces, pitch, 0.6)
+                .map_err(|e| FeatureError(e.to_string()))?;
+            res.warning = Some(format!("Rebuilt as a watertight solid on a {} mm grid.", fmt_g3(pitch)));
+            m
+        }
     };
     state.bodies.insert(bid.to_string(), Body { name: b.name.clone(), solid: Some(man), mesh: None });
     res.modified.push(bid.to_string());

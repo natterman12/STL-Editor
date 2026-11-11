@@ -95,6 +95,56 @@ fn shadows(p: f64, q: f64, dir: f64) -> bool {
     }
 }
 
+/// `vert_pos.x` and `vert_normal.x` packed so the shadow test's first branch
+/// touches one array instead of two. The values are the same `f64`s.
+#[derive(Clone, Copy)]
+pub(super) struct Xn {
+    x: f64,
+    nx: f64,
+}
+
+pub(super) fn vert_xn(mesh: &ManifoldImpl) -> crate::scratch::Scratch<Xn> {
+    crate::scratch::Scratch::from_vec(crate::par::maybe_par_map(mesh.vert_pos.len(), 8_192, |i| {
+        Xn {
+            x: mesh.vert_pos[i].x,
+            nx: mesh.vert_normal[i].x,
+        }
+    }))
+}
+
+/// Triangle corners in XY, computed once per face. The reject below reads
+/// these instead of chasing halfedges back to vertices on every candidate.
+struct TriXy {
+    x: [f64; 3],
+    y: [f64; 3],
+    /// `1e-8 *` each edge's squared XY length, in the same order as the corners.
+    margin: [f64; 3],
+    area: f64,
+}
+
+fn tri_xy(mesh: &ManifoldImpl) -> crate::scratch::Scratch<TriXy> {
+    crate::scratch::Scratch::from_vec(crate::par::maybe_par_map(mesh.num_tri(), 4_096, |face| {
+        let mut x = [0.0; 3];
+        let mut y = [0.0; 3];
+        for i in 0..3 {
+            let p = mesh.vert_pos[mesh.halfedge[3 * face + i].start_vert as usize];
+            x[i] = p.x;
+            y[i] = p.y;
+        }
+        let cross = |ax: f64, ay: f64, bx: f64, by: f64, cx: f64, cy: f64| {
+            (bx - ax) * (cy - ay) - (by - ay) * (cx - ax)
+        };
+        let area = cross(x[0], y[0], x[1], y[1], x[2], y[2]);
+        let mut margin = [0.0; 3];
+        for i in 0..3 {
+            let ex = x[(i + 1) % 3] - x[i];
+            let ey = y[(i + 1) % 3] - y[i];
+            margin[i] = 1e-8 * (ex * ex + ey * ey);
+        }
+        TriXy { x, y, margin, area }
+    }))
+}
+
 // ---------------------------------------------------------------------------
 // Shadow01 — vertex-edge shadow test
 // ---------------------------------------------------------------------------
@@ -108,15 +158,17 @@ fn shadow01(
     in_b: &ManifoldImpl,
     expand_p: bool,
     forward: bool,
+    a_xn: &[Xn],
+    b_xn: &[Xn],
 ) -> (i32, Vec2) {
     let b1s = in_b.halfedge[b1].start_vert as usize;
     let b1e = in_b.halfedge[b1].end_vert as usize;
-    let a0x = in_a.vert_pos[a0].x;
-    let b1sx = in_b.vert_pos[b1s].x;
-    let b1ex = in_b.vert_pos[b1e].x;
-    let a0xp = in_a.vert_normal[a0].x;
-    let b1sxp = in_b.vert_normal[b1s].x;
-    let b1exp = in_b.vert_normal[b1e].x;
+    let a0x = a_xn[a0].x;
+    let b1sx = b_xn[b1s].x;
+    let b1ex = b_xn[b1e].x;
+    let a0xp = a_xn[a0].nx;
+    let b1sxp = b_xn[b1s].nx;
+    let b1exp = b_xn[b1e].nx;
 
     let mut s01 = if forward {
         shadows(a0x, b1ex, with_sign(expand_p, a0xp) - b1exp) as i32
@@ -153,6 +205,8 @@ fn kernel11(
     in_p: &ManifoldImpl,
     in_q: &ManifoldImpl,
     expand_p: bool,
+    p_xn: &[Xn],
+    q_xn: &[Xn],
 ) -> (i32, Vec4) {
     let xyzz11;
     let mut s11: i32 = 0;
@@ -167,7 +221,7 @@ fn kernel11(
         in_p.halfedge[p1].end_vert as usize,
     ];
     for i in 0..2 {
-        let (s01, yz01) = shadow01(p0[i], q1, in_p, in_q, expand_p, true);
+        let (s01, yz01) = shadow01(p0[i], q1, in_p, in_q, expand_p, true, p_xn, q_xn);
         if yz01.x.is_finite() {
             s11 += s01 * if i == 0 { -1 } else { 1 };
             if k < 2 && (k == 0 || (s01 != 0) != shadow_state) {
@@ -184,7 +238,7 @@ fn kernel11(
         in_q.halfedge[q1].end_vert as usize,
     ];
     for i in 0..2 {
-        let (s10, yz10) = shadow01(q0[i], p1, in_q, in_p, expand_p, false);
+        let (s10, yz10) = shadow01(q0[i], p1, in_q, in_p, expand_p, false, q_xn, p_xn);
         if yz10.x.is_finite() {
             s11 += s10 * if i == 0 { -1 } else { 1 };
             if k < 2 && (k == 0 || (s10 != 0) != shadow_state) {
@@ -225,6 +279,8 @@ fn kernel02(
     in_b: &ManifoldImpl,
     expand_p: bool,
     forward: bool,
+    a_xn: &[Xn],
+    b_xn: &[Xn],
 ) -> (i32, f64) {
     let mut s02: i32 = 0;
     let z02: f64;
@@ -242,7 +298,7 @@ fn kernel02(
             edge_b.paired_halfedge as usize
         };
 
-        let (s01, yz01) = shadow01(a0, b1f, in_a, in_b, expand_p, forward);
+        let (s01, yz01) = shadow01(a0, b1f, in_a, in_b, expand_p, forward, a_xn, b_xn);
         if yz01.x.is_finite() {
             s02 += s01
                 * if forward == edge_b.is_forward() {
@@ -292,6 +348,10 @@ pub(super) fn kernel12(
     in_q: &ManifoldImpl,
     expand_p: bool,
     forward: bool,
+    a_xn: &[Xn],
+    b_xn: &[Xn],
+    p_xn: &[Xn],
+    q_xn: &[Xn],
 ) -> (i32, Vec3) {
     let mut x12: i32 = 0;
     let mut v12 = Vec3::splat(f64::NAN);
@@ -304,7 +364,7 @@ pub(super) fn kernel12(
     let edge_a = in_a.halfedge[a1];
 
     for vert_a in [edge_a.start_vert as usize, edge_a.end_vert as usize] {
-        let (s, z) = kernel02(vert_a, b2, in_a, in_b, expand_p, forward);
+        let (s, z) = kernel02(vert_a, b2, in_a, in_b, expand_p, forward, a_xn, b_xn);
         if z.is_finite() {
             x12 += s * if (vert_a == edge_a.start_vert as usize) == forward {
                 1
@@ -331,9 +391,9 @@ pub(super) fn kernel12(
             edge_b.paired_halfedge as usize
         };
         let (s, xyzz) = if forward {
-            kernel11(a1, b1f, in_p, in_q, expand_p)
+            kernel11(a1, b1f, in_p, in_q, expand_p, p_xn, q_xn)
         } else {
-            kernel11(b1f, a1, in_p, in_q, expand_p)
+            kernel11(b1f, a1, in_p, in_q, expand_p, p_xn, q_xn)
         };
         if xyzz.x.is_finite() {
             x12 -= s * if edge_b.is_forward() { 1 } else { -1 };
@@ -360,6 +420,42 @@ pub(super) fn kernel12(
         v12.z = xzyy.y;
     }
     (x12, v12)
+}
+
+/// `true` when the segment is strictly outside the XY projection of `tri`,
+/// far enough that the shadow kernels cannot report a hit. Triangles are
+/// convex, so the segment misses when both endpoints lie clearly outside the
+/// same edge. A projection that is only a line is left to the kernel, and
+/// anything close to an edge is too. `margin` and `area` were computed with
+/// the same expressions this used to run on every candidate.
+#[inline]
+fn xy_clearly_misses(tri: &TriXy, px: f64, py: f64, qx: f64, qy: f64) -> bool {
+    if !(tri.area.abs() > 0.0) {
+        return false;
+    }
+    let cross = |ax: f64, ay: f64, bx: f64, by: f64, cx: f64, cy: f64| {
+        (bx - ax) * (cy - ay) - (by - ay) * (cx - ax)
+    };
+    for i in 0..3 {
+        let ax = tri.x[i];
+        let ay = tri.y[i];
+        let bx = tri.x[(i + 1) % 3];
+        let by = tri.y[(i + 1) % 3];
+        let e0 = cross(ax, ay, bx, by, px, py);
+        let e1 = cross(ax, ay, bx, by, qx, qy);
+        let margin = tri.margin[i];
+        let outside = |c: f64| {
+            if tri.area > 0.0 {
+                c < -margin
+            } else {
+                c > margin
+            }
+        };
+        if outside(e0) && outside(e1) {
+            return true;
+        }
+    }
+    false
 }
 
 // ---------------------------------------------------------------------------
@@ -405,6 +501,12 @@ pub(super) fn intersect12(
     } else {
         usize::MAX
     };
+    // Packed x / normal-x and the face XY corners. Built once per call; the
+    // inner kernel and the reject read them on every candidate.
+    let p_xn = vert_xn(in_p);
+    let q_xn = vert_xn(in_q);
+    let (a_xn, b_xn): (&[Xn], &[Xn]) = if forward { (&p_xn, &q_xn) } else { (&q_xn, &p_xn) };
+    let face_xy = tri_xy(b);
     let per_run: Vec<Vec<([i32; 2], i32, Vec3)>> =
         crate::par::maybe_par_map_each_ct(n.div_ceil(run_len), threshold, token, |run| {
             let mut local: Vec<([i32; 2], i32, Vec3)> = Vec::new();
@@ -412,19 +514,39 @@ pub(super) fn intersect12(
                 if !a.halfedge[query_idx].is_forward() {
                     continue;
                 }
-                let query = BBox::from_points(
-                    a.vert_pos[a.halfedge[query_idx].start_vert as usize],
-                    a.vert_pos[a.halfedge[query_idx].end_vert as usize],
-                );
+                let h = a.halfedge[query_idx];
+                let p = a.vert_pos[h.start_vert as usize];
+                let q = a.vert_pos[h.end_vert as usize];
+                let query = BBox::from_points(p, q);
                 // Every face box lies inside the mesh's box, so an edge whose
                 // box misses that one meets no face: most edges of a large
                 // mesh cut by a small one.
                 if !query.does_overlap_box(&b.bbox) {
                     continue;
                 }
+                let (px, py, qx, qy) = (p.x, p.y, q.x, q.y);
                 collider.collisions_one(&query, query_idx, |query_idx, face_idx| {
-                    let (x, v) =
-                        kernel12(query_idx, face_idx, a, b, in_p, in_q, expand_p, forward);
+                    // The kernels decide hits from the XY projection. A segment
+                    // that is clearly outside the projected triangle cannot
+                    // contribute one, so the full kernel is skipped. Near misses
+                    // fall through, and a debug build checks the skip.
+                    if xy_clearly_misses(&face_xy[face_idx], px, py, qx, qy) {
+                        debug_assert!(
+                            !kernel12(
+                                query_idx, face_idx, a, b, in_p, in_q, expand_p, forward, a_xn,
+                                b_xn, &p_xn[..], &q_xn[..],
+                            )
+                            .1
+                            .x
+                            .is_finite(),
+                            "XY reject dropped a real intersection"
+                        );
+                        return;
+                    }
+                    let (x, v) = kernel12(
+                        query_idx, face_idx, a, b, in_p, in_q, expand_p, forward, a_xn, b_xn,
+                        &p_xn[..], &q_xn[..],
+                    );
                     if v.x.is_finite() {
                         let pair = if forward {
                             [query_idx as i32, face_idx as i32]
@@ -552,6 +674,8 @@ pub(super) fn winding03(
     // Query b's cached face BVH (built in sort_geometry), as C++ queries
     // b.collider_.
     let collider = &b.collider;
+    let a_xn = vert_xn(a);
+    let b_xn = vert_xn(b);
 
     // For each representative vertex, compute winding number via kernel02
     let mut w03 = crate::scratch::filled(a.vert_pos.len(), 0i32);
@@ -579,7 +703,7 @@ pub(super) fn winding03(
             let (vi, ref qbox) = query_boxes[qi];
             let mut sum = 0i32;
             collider.collisions_one(qbox, 0, |_qi, face_idx| {
-                let (s02, z02) = kernel02(vi, face_idx, a, b, expand_p, forward);
+                let (s02, z02) = kernel02(vi, face_idx, a, b, expand_p, forward, &a_xn, &b_xn);
                 if z02.is_finite() {
                     sum += s02 * if forward { 1 } else { -1 };
                 }

@@ -1,0 +1,266 @@
+{
+ "thincheck_blobs": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "two_blobs",
+    "solid": true,
+    "stats": {
+     "area": 422.0512781332405,
+     "bbox_max": [
+      11.0,
+      5.0,
+      5.0
+     ],
+     "bbox_min": [
+      -13.0,
+      -5.0,
+      -5.0
+     ],
+     "triangles": 1024,
+     "vertices": 516,
+     "volume": 622.4734548658327,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "info": "Nothing thinner than 1 mm found.",
+    "thin": {
+     "count": 0,
+     "min": null,
+     "spots": []
+    },
+    "warning": null
+   }
+  ]
+ },
+ "thincheck_min_zero": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 600.0,
+     "bbox_max": [
+      5.0,
+      5.0,
+      10.0
+     ],
+     "bbox_min": [
+      -5.0,
+      -5.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 1000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": "The minimum thickness must be more than zero.",
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "thincheck_no_body": {
+  "bodies": [],
+  "results": [
+   {
+    "error": "Choose a body to check.",
+    "id": "f1",
+    "warning": null
+   }
+  ]
+ },
+ "thincheck_none": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 1600.0,
+     "bbox_max": [
+      10.0,
+      10.0,
+      10.0
+     ],
+     "bbox_min": [
+      -10.0,
+      -10.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 4000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "info": "Nothing thinner than 0.8 mm found.",
+    "thin": {
+     "count": 0,
+     "min": null,
+     "spots": []
+    },
+    "warning": null
+   }
+  ]
+ },
+ "thincheck_several_spots": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 5528.000122308731,
+     "bbox_max": [
+      30.0,
+      10.0,
+      28.0
+     ],
+     "bbox_min": [
+      -30.0,
+      -10.0,
+      0.0
+     ],
+     "triangles": 60,
+     "vertices": 32,
+     "volume": 9960.000917315483,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f3",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f4",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f5",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f6",
+    "thin": {
+     "count": 3,
+     "min": 0.402,
+     "spots": [
+      [
+       -20.0,
+       -0.0,
+       17.97
+      ],
+      [
+       0.0,
+       -0.0,
+       17.97
+      ],
+      [
+       20.0,
+       -0.0,
+       17.97
+      ]
+     ]
+    },
+    "warning": "3 thin spots under 0.8 mm. Thinnest: about 0.402 mm. Near X -20, Y -0, Z 17.97; X 0, Y -0, Z 17.97; X 20, Y -0, Z 17.97 (mm)."
+   }
+  ]
+ },
+ "thincheck_spots": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 3280.0,
+     "bbox_max": [
+      20.0,
+      20.0,
+      0.5
+     ],
+     "bbox_min": [
+      -20.0,
+      -20.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 800.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "thin": {
+     "count": 1,
+     "min": 0.501,
+     "spots": [
+      [
+       -0.0,
+       -0.0,
+       0.25
+      ]
+     ]
+    },
+    "warning": "1 thin spot under 0.8 mm. Thinnest: about 0.501 mm. Near X -0, Y -0, Z 0.25 (mm)."
+   }
+  ]
+ }
+}

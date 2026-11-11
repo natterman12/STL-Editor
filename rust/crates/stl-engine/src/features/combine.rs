@@ -49,11 +49,17 @@ fn f_combine(
             Solid::union_all(&all)
         }
         "cut" => {
-            if float(p, "clearance", Some(0.0))? > 0.0 {
-                // 1.x grows each tool first (meshtools.offset_solid); that arrives with the offset tools
-                return Err(FeatureError(
-                    "Cutting with a clearance needs the offset tools, which aren't ported yet.".into(),
-                ));
+            let clearance = float(p, "clearance", Some(0.0))?;
+            if clearance > 0.0 {
+                // 1.x grows each tool first (meshtools.offset_solid)
+                let mut grown = Vec::with_capacity(ts.len());
+                for t in &ts {
+                    grown.push(
+                        stl_mesh::offset::offset_solid(t, clearance, 12000)
+                            .map_err(|e| FeatureError(e.to_string()))?,
+                    );
+                }
+                ts = grown;
             }
             if ts.len() > 1 {
                 s.difference(&Solid::union_all(&ts))

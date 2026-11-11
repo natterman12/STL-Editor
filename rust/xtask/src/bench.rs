@@ -9,7 +9,7 @@ use serde_json::{json, Map, Value};
 use stl_engine::{Document, Registry};
 
 const RUNS: usize = 3;
-const NAMES: [(&str, &str); 8] = [
+const NAMES: [(&str, &str); 17] = [
     ("import", "Import (repair on)"),
     ("combine_join", "Combine join, 30 mm cube"),
     ("combine_cut", "Combine cut, 30 mm cube"),
@@ -18,6 +18,15 @@ const NAMES: [(&str, &str); 8] = [
     ("extrude", "Extrude 200-segment sketch, 20 mm"),
     ("revolve", "Revolve 200-segment sketch, 360 deg"),
     ("sweep", "Sweep 10 mm circle, 40-point path"),
+    ("simplify", "Simplify ratio 0.1"),
+    ("remesh", "Remesh edge 1.0"),
+    ("hollow", "Hollow 2 mm normal"),
+    ("shell", "Shell 2 mm, no faces"),
+    ("lattice", "Lattice cell 6, strut 1, wall 2"),
+    ("offset", "Offset grow 0.5 mm"),
+    ("thincheck", "Thin-wall Check 0.8 mm"),
+    ("repair_rebuild", "Repair rebuild normal, broken"),
+    ("sculpt", "Sculpt Smooth, 20 pts"),
 ];
 
 fn obj(v: Value) -> Map<String, Value> {
@@ -165,6 +174,108 @@ fn time_rust(data: &[u8]) -> Result<Vec<f64>, String> {
             .map_err(|e| e.0)?;
         let t = Instant::now();
         d.add_feature("sweep", obj(json!({"profile": prof, "path": path})), None).map_err(|e| e.0)?;
+        Ok(secs(t))
+    })?);
+    out.push(time_op(|| {
+        let (mut d, mesh) = doc_with_mesh(data, true)?;
+        let t = Instant::now();
+        d.add_feature("simplify", obj(json!({"body": mesh, "ratio": 0.1})), None)
+            .map_err(|e| e.0)?;
+        Ok(secs(t))
+    })?);
+    out.push(time_op(|| {
+        let (mut d, mesh) = doc_with_mesh(data, true)?;
+        let t = Instant::now();
+        d.add_feature("remesh", obj(json!({"body": mesh, "edge": 1.0})), None)
+            .map_err(|e| e.0)?;
+        Ok(secs(t))
+    })?);
+    out.push(time_op(|| {
+        let (mut d, mesh) = doc_with_mesh(data, true)?;
+        let t = Instant::now();
+        d.add_feature(
+            "hollow",
+            obj(json!({"body": mesh, "thickness": 2, "resolution": "normal"})),
+            None,
+        )
+        .map_err(|e| e.0)?;
+        Ok(secs(t))
+    })?);
+    out.push(time_op(|| {
+        let (mut d, mesh) = doc_with_mesh(data, true)?;
+        let t = Instant::now();
+        d.add_feature("shell", obj(json!({"body": mesh, "thickness": 2, "faces": []})), None)
+            .map_err(|e| e.0)?;
+        Ok(secs(t))
+    })?);
+    out.push(time_op(|| {
+        let (mut d, mesh) = doc_with_mesh(data, true)?;
+        let t = Instant::now();
+        d.add_feature(
+            "lattice",
+            obj(json!({"body": mesh, "cell": 6, "strut": 1, "thickness": 2})),
+            None,
+        )
+        .map_err(|e| e.0)?;
+        Ok(secs(t))
+    })?);
+    out.push(time_op(|| {
+        let (mut d, mesh) = doc_with_mesh(data, true)?;
+        let t = Instant::now();
+        d.add_feature(
+            "offset",
+            obj(json!({"bodies": [mesh], "distance": 0.5, "direction": "grow"})),
+            None,
+        )
+        .map_err(|e| e.0)?;
+        Ok(secs(t))
+    })?);
+    out.push(time_op(|| {
+        let (mut d, mesh) = doc_with_mesh(data, true)?;
+        let t = Instant::now();
+        d.add_feature("thincheck", obj(json!({"body": mesh, "min": 0.8})), None)
+            .map_err(|e| e.0)?;
+        Ok(secs(t))
+    })?);
+    out.push(time_op(|| {
+        let (mut d, mesh) = doc_with_mesh(&broken, false)?;
+        let t = Instant::now();
+        d.add_feature(
+            "repair",
+            obj(json!({"body": mesh, "mode": "rebuild", "resolution": "normal"})),
+            None,
+        )
+        .map_err(|e| e.0)?;
+        Ok(secs(t))
+    })?);
+    out.push(time_op(|| {
+        let (mut d, mesh) = doc_with_mesh(data, true)?;
+        let bb = d
+            .state
+            .body(&mesh)
+            .map_err(|e| e.0)?
+            .require_solid()
+            .map_err(|e| e.0)?
+            .bounding_box();
+        let (lo, hi) = (bb.min, bb.max);
+        let y = 0.5 * (lo[1] + hi[1]);
+        let z = hi[2];
+        let pts: Vec<Value> = (0..20)
+            .map(|i| {
+                let x = lo[0] + i as f64 * (hi[0] - lo[0]) / 19.0;
+                json!([x, y, z])
+            })
+            .collect();
+        let t = Instant::now();
+        d.add_feature(
+            "sculpt",
+            obj(json!({
+                "body": mesh,
+                "strokes": [{"points": pts, "radius": 5, "strength": 0.5, "mode": "smooth"}]
+            })),
+            None,
+        )
+        .map_err(|e| e.0)?;
         Ok(secs(t))
     })?);
     Ok(out)

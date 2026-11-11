@@ -309,6 +309,7 @@ pub fn compact_props(mesh: &mut ManifoldImpl) {
 ///
 /// Note: Collider construction is done in Phase 10.
 pub fn sort_geometry(mesh: &mut ManifoldImpl) {
+    let _span = crate::timing::ProfileSpan::big("sort_geometry", mesh.halfedge.len());
     if mesh.halfedge.is_empty() {
         mesh.collider = crate::collider::Collider::default();
         return;
@@ -352,6 +353,7 @@ pub fn sort_geometry(mesh: &mut ManifoldImpl) {
             face_box
         })
     };
+    mesh.bbox = collider.bounding_box();
     mesh.collider = collider;
     crate::timing::print("    collider", t);
     compact_props(mesh);

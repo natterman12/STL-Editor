@@ -672,6 +672,11 @@ impl Solid {
         Solid::wrap(self.0.refine_to_length(len))
     }
 
+    /// Merge nearly coplanar triangles within `tolerance` (1.x `Manifold.simplify`).
+    pub fn simplify(&self, tolerance: f64) -> Solid {
+        Solid::wrap(self.0.simplify(tolerance))
+    }
+
     /// Cut by the plane `normal . p = offset`. The first solid is the side the normal points
     /// to, the second is the other side.
     pub fn split_by_plane(&self, normal: [f64; 3], offset: f64) -> (Solid, Solid) {
@@ -700,6 +705,16 @@ impl Solid {
     pub fn hull_points(points: &[[f64; 3]]) -> Solid {
         let points: Vec<Vec3> = points.iter().map(|&p| v3(p)).collect();
         Solid::wrap(Manifold::hull(&points))
+    }
+
+    /// The Minkowski sum of this solid and `o` (1.x `Manifold.minkowski_sum`).
+    pub fn minkowski_sum(&self, o: &Solid) -> Solid {
+        Solid::wrap(self.0.minkowski_sum(&o.0))
+    }
+
+    /// The Minkowski difference of this solid and `o` (1.x `Manifold.minkowski_difference`).
+    pub fn minkowski_difference(&self, o: &Solid) -> Solid {
+        Solid::wrap(self.0.minkowski_difference(&o.0))
     }
 
     /// The separate bodies of this solid, largest volume first. Bodies of equal volume keep

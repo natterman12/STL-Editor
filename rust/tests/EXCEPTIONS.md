@@ -55,15 +55,12 @@ Every place where 2.0 does not match 1.x on purpose, with the reason.
 - **`"Plane size must be a number."`** when a plane's size is text that isn't a number. 1.x
   shows Python's own wording, `could not convert string to float: 'abc'`. Reason: the 1.x text
   is a programming error message that means nothing to someone who prints things.
-- **`"Choose a body first."`** when Split, Repair or Separate has no body chosen. 1.x shows
-  `"Body None no longer exists."`. A body that was chosen but has since been deleted still shows
-  `"Body '<id>' no longer exists."`, as in 1.x. Reason: nothing was deleted here, so "no longer
-  exists" is misleading. Combine already says `"Choose a target body and at least one tool body."`
-  in both versions, and Import has no body (a missing source file keeps its 1.x message), so
-  neither changes.
-- **`"Cutting with a clearance needs the offset tools, which aren't ported yet."`** when a
-  Combine cut has a clearance above 0. 1.x makes the tool bodies bigger first and cuts. Reason:
-  temporary. The offset tools arrive in a later batch, and this message goes away with them.
+- **`"Choose a body first."`** when Split, Repair, Separate or Hollow has no body chosen. 1.x
+  shows `"Body None no longer exists."`. A body that was chosen but has since been deleted still
+  shows `"Body '<id>' no longer exists."`, as in 1.x. Reason: nothing was deleted here, so "no
+  longer exists" is misleading. Combine already says `"Choose a target body and at least one tool
+  body."` in both versions, and Import has no body (a missing source file keeps its 1.x message),
+  so neither changes.
 
 ## Reading files (`stl-io`)
 
@@ -148,4 +145,22 @@ entry for it.
 Each of these is also an entry in `tests/parity/exceptions.json` (the case, the reason and
 2.0's values), so the parity run passes by exception instead of hiding the difference.
 Add new ones below, with the 1.x behaviour, the 2.0 behaviour and the reason.
+
+## Mesh tools (batch 3)
+
+- **Offset on a detailed body** (`offset/offset_detailed_body`) differs by 0.117 percent in area:
+  1.x gives 1399.6306720744435 mm² with 5946 triangles; 2.0 gives 1397.9951396150825 mm² with
+  5938 triangles. Reason: Manifold C++ 3.5.4's convex hull uses a float test that leaves an
+  inside-out pocket of 8 triangles in 1.x's Minkowski sum (about 0.819 mm² counted twice, so
+  about 1.64 mm² of false area). The vendored manifold-rust deliberately fixes that bug with an
+  exact orientation test (see the comment above `is_above` in
+  `rust/third_party/manifold-rust/src/quickhull.rs`), so 2.0's surface is clean. This is a 1.x bug
+  that 2.0 doesn't copy (agreed with Nathan on 2026-11-11).
+- **1.x desktop `_hollow_pitch` now takes the diagonal from the solid's bounding box at full
+  precision**, as the web engine does (commit e6ad2b9). Before, it used float32 points, a
+  difference of about 1e-6 mm on the test models. Reason: a 1.x fix so Hollow, Shell and Lattice
+  share the web rule when the golden files are made.
+- **`"The sculpt strokes are not valid."`** when the sculpt strokes JSON is malformed. 1.x would
+  crash with a Python error. Reason: a message instead of a crash; the editor never sends
+  malformed strokes.
 

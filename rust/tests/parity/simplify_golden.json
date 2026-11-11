@@ -1,0 +1,164 @@
+{
+ "doubled_faces_r0_02": {
+  "mesh": "simplify/doubled_faces_r0_02.stl",
+  "model": "doubled_faces.stl",
+  "ratio": 0.02,
+  "tris": 0
+ },
+ "doubled_faces_r0_10": {
+  "mesh": "simplify/doubled_faces_r0_10.stl",
+  "model": "doubled_faces.stl",
+  "ratio": 0.1,
+  "tris": 0
+ },
+ "doubled_faces_r0_50": {
+  "mesh": "simplify/doubled_faces_r0_50.stl",
+  "model": "doubled_faces.stl",
+  "ratio": 0.5,
+  "tris": 6
+ },
+ "holed_block_r0_02": {
+  "mesh": "simplify/holed_block_r0_02.stl",
+  "model": "holed_block.stl",
+  "ratio": 0.02,
+  "tris": 4
+ },
+ "holed_block_r0_10": {
+  "mesh": "simplify/holed_block_r0_10.stl",
+  "model": "holed_block.stl",
+  "ratio": 0.1,
+  "tris": 26
+ },
+ "holed_block_r0_50": {
+  "mesh": "simplify/holed_block_r0_50.stl",
+  "model": "holed_block.stl",
+  "ratio": 0.5,
+  "tris": 138
+ },
+ "inside_out_r0_02": {
+  "mesh": "simplify/inside_out_r0_02.stl",
+  "model": "inside_out.stl",
+  "ratio": 0.02,
+  "tris": 0
+ },
+ "inside_out_r0_10": {
+  "mesh": "simplify/inside_out_r0_10.stl",
+  "model": "inside_out.stl",
+  "ratio": 0.1,
+  "tris": 0
+ },
+ "inside_out_r0_50": {
+  "mesh": "simplify/inside_out_r0_50.stl",
+  "model": "inside_out.stl",
+  "ratio": 0.5,
+  "tris": 6
+ },
+ "nonmanifold_edge_r0_02": {
+  "mesh": "simplify/nonmanifold_edge_r0_02.stl",
+  "model": "nonmanifold_edge.stl",
+  "ratio": 0.02,
+  "tris": 0
+ },
+ "nonmanifold_edge_r0_10": {
+  "mesh": "simplify/nonmanifold_edge_r0_10.stl",
+  "model": "nonmanifold_edge.stl",
+  "ratio": 0.1,
+  "tris": 0
+ },
+ "nonmanifold_edge_r0_50": {
+  "mesh": "simplify/nonmanifold_edge_r0_50.stl",
+  "model": "nonmanifold_edge.stl",
+  "ratio": 0.5,
+  "tris": 0
+ },
+ "open_box_r0_02": {
+  "mesh": "simplify/open_box_r0_02.stl",
+  "model": "open_box.stl",
+  "ratio": 0.02,
+  "tris": 0
+ },
+ "open_box_r0_10": {
+  "mesh": "simplify/open_box_r0_10.stl",
+  "model": "open_box.stl",
+  "ratio": 0.1,
+  "tris": 0
+ },
+ "open_box_r0_50": {
+  "mesh": "simplify/open_box_r0_50.stl",
+  "model": "open_box.stl",
+  "ratio": 0.5,
+  "tris": 5
+ },
+ "overlapping_shells_r0_02": {
+  "mesh": "simplify/overlapping_shells_r0_02.stl",
+  "model": "overlapping_shells.stl",
+  "ratio": 0.02,
+  "tris": 0
+ },
+ "overlapping_shells_r0_10": {
+  "mesh": "simplify/overlapping_shells_r0_10.stl",
+  "model": "overlapping_shells.stl",
+  "ratio": 0.1,
+  "tris": 2
+ },
+ "overlapping_shells_r0_50": {
+  "mesh": "simplify/overlapping_shells_r0_50.stl",
+  "model": "overlapping_shells.stl",
+  "ratio": 0.5,
+  "tris": 12
+ },
+ "stray_triangle_r0_02": {
+  "mesh": "simplify/stray_triangle_r0_02.stl",
+  "model": "stray_triangle.stl",
+  "ratio": 0.02,
+  "tris": 0
+ },
+ "stray_triangle_r0_10": {
+  "mesh": "simplify/stray_triangle_r0_10.stl",
+  "model": "stray_triangle.stl",
+  "ratio": 0.1,
+  "tris": 0
+ },
+ "stray_triangle_r0_50": {
+  "mesh": "simplify/stray_triangle_r0_50.stl",
+  "model": "stray_triangle.stl",
+  "ratio": 0.5,
+  "tris": 0
+ },
+ "touching_cubes_r0_02": {
+  "mesh": "simplify/touching_cubes_r0_02.stl",
+  "model": "touching_cubes.stl",
+  "ratio": 0.02,
+  "tris": 0
+ },
+ "touching_cubes_r0_10": {
+  "mesh": "simplify/touching_cubes_r0_10.stl",
+  "model": "touching_cubes.stl",
+  "ratio": 0.1,
+  "tris": 0
+ },
+ "touching_cubes_r0_50": {
+  "mesh": "simplify/touching_cubes_r0_50.stl",
+  "model": "touching_cubes.stl",
+  "ratio": 0.5,
+  "tris": 12
+ },
+ "two_blobs_r0_02": {
+  "mesh": "simplify/two_blobs_r0_02.stl",
+  "model": "two_blobs.stl",
+  "ratio": 0.02,
+  "tris": 20
+ },
+ "two_blobs_r0_10": {
+  "mesh": "simplify/two_blobs_r0_10.stl",
+  "model": "two_blobs.stl",
+  "ratio": 0.1,
+  "tris": 102
+ },
+ "two_blobs_r0_50": {
+  "mesh": "simplify/two_blobs_r0_50.stl",
+  "model": "two_blobs.stl",
+  "ratio": 0.5,
+  "tris": 512
+ }
+}

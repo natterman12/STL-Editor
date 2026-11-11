@@ -592,6 +592,8 @@ dependencies = [
 name = "stl-mesh"
 version = "2.0.0-dev"
 dependencies = [
+ "rayon",
+ "serde",
  "serde_json",
  "stl-kernel",
  "stl-parity",

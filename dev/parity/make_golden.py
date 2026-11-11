@@ -50,6 +50,19 @@ BATCH2 = [
     "pushpull",
 ]
 
+BATCH3 = [
+    "simplify",
+    "remesh",
+    "sculpt",
+    "offset",
+    "hollow",
+    "shell",
+    "lattice",
+    "thincheck",
+]
+
+REMESH_GOLDEN = ROOT / "rust" / "tests" / "parity" / "remesh_golden.json"
+
 
 def _dumps(obj) -> str:
     return json.dumps(obj, indent=1, sort_keys=True, ensure_ascii=False) + "\n"
@@ -111,28 +124,53 @@ def _run_case(case: dict) -> dict:
 
     results_raw = doc.evaluate()
     results = [
-        {"id": r["id"], "error": r.get("error"), "warning": r.get("warning")}
+        {"id": r["id"], "error": r.get("error"), "warning": r.get("warning"),
+         **({"info": r["info"]} if isinstance(r.get("info"), str) else {}),
+         **({"thin": r["thin"]} if r.get("thin") else {})}
         for r in results_raw
     ]
     bodies = [_body_record(bid, b) for bid, b in doc.state.bodies.items()]
     return {"results": results, "bodies": bodies}
 
 
-def build_type(type_name: str) -> dict:
+def _load_remesh_golden() -> dict:
+    if not REMESH_GOLDEN.exists():
+        return {}
+    return json.loads(REMESH_GOLDEN.read_text(encoding="utf-8"))
+
+
+def build_type(type_name: str, remesh_golden: dict | None = None) -> dict:
     path = FEATURES_DIR / f"{type_name}.json"
     cases = json.loads(path.read_text(encoding="utf-8"))
+    remesh_golden = remesh_golden if remesh_golden is not None else {}
     out: dict[str, dict] = {}
     for case in cases:
         rec = _run_case(case)
         # Optional capability gates for the Rust parity runner (e.g. voxel, offset).
         if case.get("requires"):
             rec["requires"] = list(case["requires"])
+        # Remesh: desktop first for errors; otherwise stats come from the web golden.
+        if case.get("reference") == "web":
+            rec["reference"] = "web"
+            has_error = any(r.get("error") for r in rec.get("results") or [])
+            if not has_error:
+                web = remesh_golden.get(case["name"])
+                if web is None:
+                    raise RuntimeError(
+                        f"make_golden: remesh case {case['name']!r} has no entry in "
+                        f"{REMESH_GOLDEN.relative_to(ROOT)}; run remesh_golden.mjs first"
+                    )
+                stats = web["stats"]
+                for body in rec.get("bodies") or []:
+                    body["stats"] = stats
         out[case["name"]] = rec
     return {k: out[k] for k in sorted(out)}
 
 
 def build_all() -> dict[str, dict]:
-    return {t: build_type(t) for t in [*BATCH1, *BATCH2]}
+    remesh_golden = _load_remesh_golden()
+    types = [*BATCH1, *BATCH2, *BATCH3]
+    return {t: build_type(t, remesh_golden) for t in types}
 
 
 def main() -> int:
@@ -142,6 +180,7 @@ def main() -> int:
 
     golden = build_all()
     mismatch = False
+    types = [*BATCH1, *BATCH2, *BATCH3]
     for type_name, data in golden.items():
         text = _dumps(data)
         dest = GOLDEN_DIR / f"{type_name}.json"
@@ -158,7 +197,7 @@ def main() -> int:
     if args.check:
         if mismatch:
             return 1
-        print(f"make_golden: ok ({len(BATCH1) + len(BATCH2)} types)")
+        print(f"make_golden: ok ({len(types)} types)")
         return 0
     return 0
 

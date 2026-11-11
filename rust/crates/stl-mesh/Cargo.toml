@@ -6,6 +6,11 @@ publish.workspace = true
 
 [dependencies]
 stl-kernel = { path = "../stl-kernel" }
+serde = { version = "1", features = ["derive"] }
+
+# Band queries run on threads natively; the web build runs single-threaded.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+rayon = "1.12"
 
 # Test-only: the 1.x comparison rules and the golden file, used by tests/repair.rs.
 [dev-dependencies]

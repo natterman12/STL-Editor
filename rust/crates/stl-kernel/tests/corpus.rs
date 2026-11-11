@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use serde_json::Value;
-use stl_kernel::{KernelError, MeshArrays, Solid};
+use stl_kernel::{KernelError, MeshArrays, Shape2d, Solid};
 use stl_parity::{Exactness, MeshStats, compare_mesh, mesh_stats};
 
 fn tests_dir() -> PathBuf {
@@ -82,6 +82,35 @@ fn run_case(case: &Value) -> Vec<Solid> {
             "scale" => unary(&mut stack, |s| s.scale(vec3(&op["v"]))),
             "mirror" => unary(&mut stack, |s| s.mirror(vec3(&op["normal"]))),
             "refine_to_length" => unary(&mut stack, |s| s.refine_to_length(f(&op["len"]))),
+            "simplify" => unary(&mut stack, |s| s.simplify(f(&op["tolerance"]))),
+            "minkowski_sum" | "minkowski_difference" => {
+                let b = stack.pop().unwrap();
+                let a = stack.pop().unwrap();
+                stack.push(match kind {
+                    "minkowski_sum" => a.minkowski_sum(&b),
+                    _ => a.minkowski_difference(&b),
+                });
+            }
+            "offset_miter_extrude" => {
+                let contours: Vec<Vec<[f64; 2]>> = op["contours"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|c| {
+                        c.as_array()
+                            .unwrap()
+                            .iter()
+                            .map(|p| {
+                                let a = p.as_array().unwrap();
+                                [f(&a[0]), f(&a[1])]
+                            })
+                            .collect()
+                    })
+                    .collect();
+                let shape = Shape2d::from_even_odd(&contours)
+                    .offset_miter(f(&op["delta"]), f(&op["miter_limit"]));
+                stack.push(shape.extrude(f(&op["height"])));
+            }
             "hull" => unary(&mut stack, |s| s.hull()),
             "trim_by_plane" => {
                 unary(&mut stack, |s| s.trim_by_plane(vec3(&op["normal"]), f(&op["offset"])))

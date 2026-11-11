@@ -114,6 +114,21 @@ def _run_case(case: dict) -> list[dict]:
             stack[-1] = stack[-1].mirror(tuple(n))
         elif kind == "refine_to_length":
             stack[-1] = stack[-1].refine_to_length(float(op["len"]))
+        elif kind == "simplify":
+            stack[-1] = stack[-1].simplify(float(op["tolerance"]))
+        elif kind == "minkowski_sum":
+            b = stack.pop()
+            a = stack.pop()
+            stack.append(a.minkowski_sum(b))
+        elif kind == "minkowski_difference":
+            b = stack.pop()
+            a = stack.pop()
+            stack.append(a.minkowski_difference(b))
+        elif kind == "offset_miter_extrude":
+            contours = [np.asarray(c, dtype=np.float64) for c in op["contours"]]
+            cs = m3.CrossSection(contours, m3.FillRule.EvenOdd)
+            cs = cs.offset(float(op["delta"]), m3.JoinType.Miter, float(op["miter_limit"]), 0)
+            stack.append(m3.Manifold.extrude(cs, float(op["height"])))
         elif kind == "hull":
             stack[-1] = stack[-1].hull()
         elif kind == "trim_by_plane":

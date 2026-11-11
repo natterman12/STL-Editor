@@ -1,0 +1,213 @@
+[
+ {
+  "name": "thincheck_none",
+  "exactness": "approx",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 20,
+     "width": 20,
+     "height": 10,
+     "anchor": "base",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "thincheck",
+    "params": {
+     "body": "f1",
+     "min": 0.8
+    }
+   }
+  ]
+ },
+ {
+  "name": "thincheck_spots",
+  "exactness": "approx",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 40,
+     "width": 40,
+     "height": 0.5,
+     "anchor": "base",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "thincheck",
+    "params": {
+     "body": "f1",
+     "min": 0.8
+    }
+   }
+  ]
+ },
+ {
+  "name": "thincheck_min_zero",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 10,
+     "width": 10,
+     "height": 10,
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "thincheck",
+    "params": {
+     "body": "f1",
+     "min": 0
+    }
+   }
+  ]
+ },
+ {
+  "name": "thincheck_no_body",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "thincheck",
+    "params": {
+     "body": "",
+     "min": 0.8
+    }
+   }
+  ]
+ },
+ {
+  "name": "thincheck_blobs",
+  "exactness": "approx",
+  "sources": {
+   "s1": "two_blobs.stl"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": true,
+     "place": "keep"
+    }
+   },
+   {
+    "type": "thincheck",
+    "params": {
+     "body": "f1",
+     "min": 1.0
+    }
+   }
+  ]
+ },
+ {
+  "name": "thincheck_several_spots",
+  "exactness": "approx",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 60,
+     "width": 20,
+     "height": 8,
+     "anchor": "base",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 0.4,
+     "width": 15,
+     "height": 20,
+     "anchor": "base",
+     "plane": "XY",
+     "offset": [
+      -20,
+      0,
+      8
+     ],
+     "operation": "new"
+    }
+   },
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 0.4,
+     "width": 15,
+     "height": 20,
+     "anchor": "base",
+     "plane": "XY",
+     "offset": [
+      0,
+      0,
+      8
+     ],
+     "operation": "new"
+    }
+   },
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 0.4,
+     "width": 15,
+     "height": 20,
+     "anchor": "base",
+     "plane": "XY",
+     "offset": [
+      20,
+      0,
+      8
+     ],
+     "operation": "new"
+    }
+   },
+   {
+    "type": "combine",
+    "params": {
+     "target": "f1",
+     "tools": [
+      "f2",
+      "f3",
+      "f4"
+     ],
+     "operation": "join",
+     "keep_tools": false
+    }
+   },
+   {
+    "type": "thincheck",
+    "params": {
+     "body": "f1",
+     "min": 0.8
+    }
+   }
+  ]
+ }
+]

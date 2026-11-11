@@ -1,0 +1,187 @@
+[
+ {
+  "name": "lattice_cell6_strut1",
+  "exactness": "approx",
+  "requires": [
+   "voxel"
+  ],
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 30,
+     "width": 30,
+     "height": 20,
+     "anchor": "base",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "lattice",
+    "params": {
+     "body": "f1",
+     "cell": 6,
+     "strut": 1,
+     "thickness": 2,
+     "resolution": "draft"
+    }
+   }
+  ]
+ },
+ {
+  "name": "lattice_cell8_strut1_5",
+  "exactness": "approx",
+  "requires": [
+   "voxel"
+  ],
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 30,
+     "width": 30,
+     "height": 20,
+     "anchor": "base",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "lattice",
+    "params": {
+     "body": "f1",
+     "cell": 8,
+     "strut": 1.5,
+     "thickness": 2,
+     "resolution": "draft"
+    }
+   }
+  ]
+ },
+ {
+  "name": "lattice_strut_as_wide",
+  "exactness": "exact",
+  "requires": [
+   "voxel"
+  ],
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 30,
+     "width": 30,
+     "height": 20,
+     "anchor": "base",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "lattice",
+    "params": {
+     "body": "f1",
+     "cell": 6,
+     "strut": 6,
+     "thickness": 2,
+     "resolution": "draft"
+    }
+   }
+  ]
+ },
+ {
+  "name": "lattice_too_many_struts",
+  "exactness": "exact",
+  "requires": [
+   "voxel"
+  ],
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 100,
+     "width": 100,
+     "height": 100,
+     "anchor": "base",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "lattice",
+    "params": {
+     "body": "f1",
+     "cell": 2,
+     "strut": 0.5,
+     "thickness": 2,
+     "resolution": "draft"
+    }
+   }
+  ]
+ },
+ {
+  "name": "lattice_zero_size",
+  "exactness": "exact",
+  "requires": [
+   "voxel"
+  ],
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 30,
+     "width": 30,
+     "height": 20,
+     "anchor": "base",
+     "plane": "XY",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "lattice",
+    "params": {
+     "body": "f1",
+     "cell": 0,
+     "strut": 1,
+     "thickness": 2,
+     "resolution": "draft"
+    }
+   }
+  ]
+ },
+ {
+  "name": "lattice_no_body",
+  "exactness": "exact",
+  "requires": [
+   "voxel"
+  ],
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "lattice",
+    "params": {
+     "body": "",
+     "cell": 6,
+     "strut": 1,
+     "thickness": 2
+    }
+   }
+  ]
+ }
+]

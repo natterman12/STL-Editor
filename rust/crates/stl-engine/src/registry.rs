@@ -38,9 +38,9 @@ impl Registry {
         self.map.get(kind).copied()
     }
 
-    /// Named capabilities the port still lacks (e.g. `"voxel"`, `"offset"`). Empty until
-    /// later batches register them; golden cases with matching `requires` stay pending.
+    /// Named capabilities the port has (e.g. `"voxel"`, `"offset"`). Add one when
+    /// its tools are registered; golden cases whose `requires` are not all in this set stay pending.
     pub fn capabilities(&self) -> BTreeSet<&'static str> {
-        BTreeSet::new()
+        BTreeSet::from(["voxel", "offset"])
     }
 }

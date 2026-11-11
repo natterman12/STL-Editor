@@ -1,8 +1,8 @@
-"""Times four operations on dev/bench/test_mesh.stl through the 1.x Document (median of 3).
+"""Times operations on dev/bench/test_mesh.stl through the 1.x Document (median of 3).
 
-Prints one JSON object of seconds on stdout: {"import": s, "combine_join": s, "combine_cut": s,
-"split": s, "repair_quick": s, "extrude": s, "revolve": s, "sweep": s}. The Rust side (`cargo run --release -p xtask -- bench`) times the
-same operations with the same parameters and the same broken copy (every 100th triangle removed).
+Prints one JSON object of seconds on stdout. The Rust side (`cargo run --release -p xtask -- bench`)
+times the same operations with the same parameters and the same broken copy (every 100th triangle
+removed). Remesh uses desktop `stleditor/printing.py` remesh via the remesh feature.
 """
 import json
 import math
@@ -80,6 +80,17 @@ def with_sweep_sketches():
     return d, prof, path["id"]
 
 
+def with_sculpt(data):
+    """Imported mesh plus a 20-point Smooth stroke across the bbox (centre y, top z)."""
+    d, mesh = doc_with_mesh(data, True)
+    bb = d.state.bodies[mesh].require_solid().bounding_box()
+    lo, hi = bb[:3], bb[3:]
+    y = 0.5 * (lo[1] + hi[1])
+    z = hi[2]
+    pts = [[lo[0] + i * (hi[0] - lo[0]) / 19.0, y, z] for i in range(20)]
+    return d, mesh, pts
+
+
 def main():
     data = open(MESH, "rb").read()
     broken = broken_copy(data)
@@ -101,6 +112,31 @@ def main():
                           lambda c: c[0].add_feature("revolve", {"sketch": c[1], "axis": "y", "angle": 360}))
     r["sweep"] = median(with_sweep_sketches,
                         lambda c: c[0].add_feature("sweep", {"profile": c[1], "path": c[2]}))
+    r["simplify"] = median(lambda: doc_with_mesh(data, True),
+                           lambda c: c[0].add_feature("simplify", {"body": c[1], "ratio": 0.1}))
+    r["remesh"] = median(lambda: doc_with_mesh(data, True),
+                         lambda c: c[0].add_feature("remesh", {"body": c[1], "edge": 1.0}))
+    r["hollow"] = median(lambda: doc_with_mesh(data, True),
+                         lambda c: c[0].add_feature("hollow", {
+                             "body": c[1], "thickness": 2, "resolution": "normal"}))
+    r["shell"] = median(lambda: doc_with_mesh(data, True),
+                        lambda c: c[0].add_feature("shell", {
+                            "body": c[1], "thickness": 2, "faces": []}))
+    r["lattice"] = median(lambda: doc_with_mesh(data, True),
+                          lambda c: c[0].add_feature("lattice", {
+                              "body": c[1], "cell": 6, "strut": 1, "thickness": 2}))
+    r["offset"] = median(lambda: doc_with_mesh(data, True),
+                         lambda c: c[0].add_feature("offset", {
+                             "bodies": [c[1]], "distance": 0.5, "direction": "grow"}))
+    r["thincheck"] = median(lambda: doc_with_mesh(data, True),
+                            lambda c: c[0].add_feature("thincheck", {"body": c[1], "min": 0.8}))
+    r["repair_rebuild"] = median(lambda: doc_with_mesh(broken, False),
+                                 lambda c: c[0].add_feature("repair", {
+                                     "body": c[1], "mode": "rebuild", "resolution": "normal"}))
+    r["sculpt"] = median(lambda: with_sculpt(data),
+                         lambda c: c[0].add_feature("sculpt", {
+                             "body": c[1],
+                             "strokes": [{"points": c[2], "radius": 5, "strength": 0.5, "mode": "smooth"}]}))
     print(json.dumps(r))
 
 

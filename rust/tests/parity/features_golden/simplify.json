@@ -1,0 +1,230 @@
+{
+ "simplify_manifold_fallback": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Torus",
+    "solid": true,
+    "stats": {
+     "area": 1388.3079451774347,
+     "bbox_max": [
+      11.591110229492188,
+      11.931851387023926,
+      2.0
+     ],
+     "bbox_min": [
+      -9.52627944946289,
+      -9.659257888793945,
+      -1.9318516254425049
+     ],
+     "triangles": 252,
+     "vertices": 126,
+     "volume": 111.9352588746769,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "simplify_missing_body": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 600.0,
+     "bbox_max": [
+      5.0,
+      5.0,
+      10.0
+     ],
+     "bbox_min": [
+      -5.0,
+      -5.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 1000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": "Body 'gone' no longer exists.",
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "simplify_nonwatertight": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "open_box",
+    "solid": false,
+    "stats": {
+     "area": 0.0,
+     "bbox_max": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 0,
+     "vertices": 0,
+     "volume": 0.0,
+     "watertight": false
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": "1 mesh(es) are not watertight. They display and export, but editing needs Repair (Rebuild) first."
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": "Simplified mesh isn't watertight; run Repair to edit it."
+   }
+  ]
+ },
+ "simplify_ratio_half": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 1294.4271909999159,
+     "bbox_max": [
+      10.0,
+      10.0,
+      20.0
+     ],
+     "bbox_min": [
+      -10.0,
+      -10.0,
+      0.0
+     ],
+     "triangles": 6,
+     "vertices": 5,
+     "volume": 2666.6666666666665,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "simplify_ratio_zero": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 1294.4271909999159,
+     "bbox_max": [
+      10.0,
+      10.0,
+      20.0
+     ],
+     "bbox_min": [
+      -10.0,
+      -10.0,
+      0.0
+     ],
+     "triangles": 6,
+     "vertices": 5,
+     "volume": 2666.6666666666665,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "simplify_tolerance": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Sphere",
+    "solid": true,
+    "stats": {
+     "area": 1248.0657546166758,
+     "bbox_max": [
+      9.822251319885254,
+      9.822251319885254,
+      9.822251319885254
+     ],
+     "bbox_min": [
+      -9.822251319885254,
+      -9.822251319885254,
+      -9.822251319885254
+     ],
+     "triangles": 1044,
+     "vertices": 524,
+     "volume": 4133.512518776236,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ }
+}

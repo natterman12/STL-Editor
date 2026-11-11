@@ -365,6 +365,7 @@ pub(crate) fn boolean_result_with_ids(
     // Timing boundaries mirror the C++ MANIFOLD_TIMING stages (Assembly /
     // Triangulation / Simplification / Sorting) for side-by-side comparison.
     let t_assembly = crate::timing::start();
+    let p_assembly = crate::timing::profile_start();
     let t_sub = crate::timing::start();
 
     // Convert winding numbers to inclusion values
@@ -647,6 +648,7 @@ pub(crate) fn boolean_result_with_ids(
     drop(i30);
 
     crate::timing::print("    append_whole_edges", t_sub);
+    crate::timing::profile_add(&crate::timing::PROFILE_ASSEMBLY, p_assembly);
     crate::timing::print("Assembly", t_assembly);
     report_stage(stage, stage_marks::AFTER_ASSEMBLY);
 
@@ -657,6 +659,7 @@ pub(crate) fn boolean_result_with_ids(
 
     // Triangulate polygonal faces (allowConvex=false per C++ boolean_result.cpp)
     let t = crate::timing::start();
+    let p_tri = crate::timing::profile_start();
     // Every halfedge of an output face came from the same face of P or of Q,
     // so the reference of a face is worked out from the face rather than
     // kept per halfedge: which mesh, and which of its faces.
@@ -679,6 +682,7 @@ pub(crate) fn boolean_result_with_ids(
     // C++ clears faceEdge after Face2Tri; halfedgeRef is likewise done.
     drop(face_edge);
     drop(face_r2pq);
+    crate::timing::profile_add(&crate::timing::PROFILE_TRIANGULATE, p_tri);
     crate::timing::print("Triangulation", t);
     report_stage(stage, stage_marks::AFTER_TRIANGULATION);
 
@@ -688,6 +692,7 @@ pub(crate) fn boolean_result_with_ids(
     }
 
     let t = crate::timing::start();
+    let p_simp = crate::timing::profile_start();
     // Create properties via barycentric interpolation
     let t_sub = crate::timing::start();
     create_properties(&mut out_r, in_p, in_q, invert_q);
@@ -714,11 +719,13 @@ pub(crate) fn boolean_result_with_ids(
     let t_sub = crate::timing::start();
     out_r.remove_unreferenced_verts();
     crate::timing::print("    remove_unreferenced_verts", t_sub);
+    crate::timing::profile_add(&crate::timing::PROFILE_SIMPLIFY, p_simp);
     crate::timing::print("Simplification", t);
     report_stage(stage, stage_marks::AFTER_SIMPLIFY);
 
     // Finalize
     let t = crate::timing::start();
+    let p_sort = crate::timing::profile_start();
     let t_sub = crate::timing::start();
     out_r.calculate_bbox();
     crate::timing::print("    calculate_bbox", t_sub);
@@ -731,6 +738,7 @@ pub(crate) fn boolean_result_with_ids(
     );
     out_r.increment_mesh_ids_from(ids.map(|ids| ids.first_new));
     crate::timing::print("    increment_mesh_ids", t_sub);
+    crate::timing::profile_add(&crate::timing::PROFILE_SORTING, p_sort);
     crate::timing::print("Sorting", t);
 
     // Phase 11 (C++ boolean_result.cpp:963): after SortGeometry. Without this

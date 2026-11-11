@@ -19,6 +19,14 @@ pub mod loft;
 pub mod sweep;
 pub mod hole;
 pub mod pushpull;
+pub mod simplify;
+pub mod remesh;
+pub mod sculpt;
+pub mod offset;
+pub mod hollow;
+pub mod shell;
+pub mod lattice;
+pub mod thincheck;
 
 use crate::Registry;
 
@@ -41,5 +49,13 @@ pub fn register_all(r: Registry) -> Registry {
     let r = sweep::register(r);
     let r = hole::register(r);
     let r = pushpull::register(r);
+    let r = simplify::register(r);
+    let r = remesh::register(r);
+    let r = sculpt::register(r);
+    let r = offset::register(r);
+    let r = hollow::register(r);
+    let r = shell::register(r);
+    let r = lattice::register(r);
+    let r = thincheck::register(r);
     r
 }

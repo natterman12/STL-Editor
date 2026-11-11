@@ -297,6 +297,7 @@ impl ManifoldImpl {
 
     /// Check that the halfedge data structure is consistent (oriented even manifold).
     pub fn is_manifold(&self) -> bool {
+        let _span = crate::timing::ProfileSpan::big("is_manifold", self.halfedge.len());
         if self.halfedge.is_empty() {
             return true;
         }
@@ -382,6 +383,7 @@ impl ManifoldImpl {
         }
         let num_halfedge = 3 * num_tri;
         let num_edge = num_halfedge / 2;
+        let t_he = crate::timing::profile_start();
 
         let use_prop = tri_vert.is_empty();
 
@@ -422,6 +424,9 @@ impl ManifoldImpl {
                 )
             });
         crate::scratch::give(std::mem::replace(&mut self.halfedge, halfedges));
+        if num_halfedge >= crate::timing::PROFILE_BIG {
+            crate::timing::profile_print("create_halfedges build", t_he);
+        }
 
         // Sort halfedge indices by edge key. C++ CreateHalfedges uses a
         // STABLE sort here (impl.cpp), and the #1687 fix ensures its parallel
@@ -430,9 +435,13 @@ impl ManifoldImpl {
         // meshes) the tie must break on original halfedge-index order. Sorting
         // (key, index) pairs gives exactly that order: no two pairs are equal,
         // so there is one sorted order whatever the sort and the thread count.
+        let t_sort = crate::timing::profile_start();
         crate::par::maybe_par_sort_distinct(&mut keyed, 50_000);
         let mut ids: Vec<usize> = keyed.iter().map(|&(_, e)| e as usize).collect();
         crate::scratch::give(keyed);
+        if num_halfedge >= crate::timing::PROFILE_BIG {
+            crate::timing::profile_print("create_halfedges sort+ids", t_sort);
+        }
 
         // ids[0..num_edge] = backward halfedges (startVert > endVert), sorted by (min,max)
         // ids[num_edge..] = forward halfedges (startVert < endVert), sorted by (min,max)
@@ -447,6 +456,7 @@ impl ManifoldImpl {
         // whether it would do anything at all; nearly always it would not.
         // A run of more than 64 halfedges on one edge counts as a hit (the
         // loop then runs as it always did).
+        let t_opp = crate::timing::profile_start();
         let halfedge = &self.halfedge;
         let ids_ref = &ids;
         let same_edge = |a: usize, b: usize| {
@@ -486,8 +496,37 @@ impl ManifoldImpl {
             },
         )
         .unwrap_or(true);
+        if num_halfedge >= crate::timing::PROFILE_BIG {
+            crate::timing::profile_print(
+                &format!("create_halfedges opposed-scan hit={may_have_opposed}"),
+                t_opp,
+            );
+        }
 
-        for i in 0..if may_have_opposed { num_edge } else { 0 } {
+        let t_pair = crate::timing::profile_start();
+        if !may_have_opposed && num_edge >= 50_000 {
+            // Each halfedge index occurs once in `ids`, so the two writes for
+            // edge `i` never touch another edge's slots. The paired indices
+            // are exactly what the sequential loop writes.
+            struct SendPtr(*mut Halfedge);
+            unsafe impl Send for SendPtr {}
+            unsafe impl Sync for SendPtr {}
+            impl SendPtr {
+                unsafe fn pair(&self, i0: usize, i1: usize) {
+                    (*self.0.add(i0)).paired_halfedge = i1 as i32;
+                    (*self.0.add(i1)).paired_halfedge = i0 as i32;
+                }
+            }
+            let ptr = SendPtr(self.halfedge.as_mut_ptr());
+            let ids_p = &ids;
+            let n_edge = num_edge;
+            crate::par::maybe_par_for_range(num_edge, 50_000, move |i| {
+                let pair0 = ids_p[i];
+                let pair1 = ids_p[i + n_edge];
+                unsafe { ptr.pair(pair0, pair1) }
+            });
+        } else if may_have_opposed {
+        for i in 0..num_edge {
             let pair0 = ids[i];
             let h0_sv = self.halfedge[pair0].start_vert;
             let h0_ev = self.halfedge[pair0].end_vert;
@@ -535,8 +574,11 @@ impl ManifoldImpl {
                 }
             }
         }
+        }
 
-        // Final pairing pass
+        // Final pairing pass. The parallel branch above already wrote it when
+        // there were no opposed triangles and the mesh was large.
+        if may_have_opposed || num_edge < 50_000 {
         for i in 0..num_edge {
             let pair0 = ids[i];
             let pair1 = ids[i + num_edge];
@@ -558,6 +600,10 @@ impl ManifoldImpl {
                     prop_vert: 0,
                 };
             }
+        }
+        }
+        if num_halfedge >= crate::timing::PROFILE_BIG {
+            crate::timing::profile_print("create_halfedges pair", t_pair);
         }
     }
 
@@ -742,6 +788,7 @@ impl ManifoldImpl {
 
     /// Mark unreferenced vertices as NaN (to be cleaned up by later passes).
     pub fn remove_unreferenced_verts(&mut self) {
+        let _span = crate::timing::ProfileSpan::big("remove_unreferenced_verts", self.halfedge.len());
         use std::sync::atomic::{AtomicBool, Ordering};
         const PAR_THRESHOLD: usize = 100_000;
         // A vert is kept if any halfedge starts at it, whichever sets the flag.

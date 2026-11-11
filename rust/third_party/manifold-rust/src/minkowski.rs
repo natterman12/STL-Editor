@@ -82,6 +82,10 @@ pub fn minkowski_with_progress(
         return crate::boolean3::cancelled_impl();
     }
 
+    crate::timing::profile_reset_hulls();
+    crate::timing::profile_reset_bools();
+    let t_all = crate::timing::profile_start();
+
     let mut a_impl = a;
     let mut b_impl = b;
 
@@ -155,6 +159,7 @@ pub fn minkowski_with_progress(
                 return crate::boolean3::cancelled_impl();
             }
             let num_iter = (num_tri - offset).min(BATCH_SIZE);
+            let t_hulls = crate::timing::profile_start();
             let new_hulls = maybe_par_map_ct_progress(num_iter, 8, token, progress, |iter| {
                 let tri = offset + iter;
                 let mut simple_hull: Vec<Vec3> = Vec::with_capacity(3 * b_impl.vert_pos.len());
@@ -171,8 +176,14 @@ pub fn minkowski_with_progress(
             let Some(new_hulls) = new_hulls else {
                 return crate::boolean3::cancelled_impl();
             };
+            crate::timing::profile_print(&format!("minkowski hulls n={num_iter}"), t_hulls);
 
+            let t_batch = crate::timing::profile_start();
             composed_hulls.push(batch_boolean_impls(&new_hulls, OpType::Add, token));
+            crate::timing::profile_print(
+                &format!("minkowski batch-boolean n={num_iter} tris={}", a_impl.num_tri()),
+                t_batch,
+            );
             if let Some(p) = progress {
                 p.advance(1);
             }
@@ -265,7 +276,12 @@ pub fn minkowski_with_progress(
     // Final merge; C++ finishes with AsOriginal() = InitializeOriginal +
     // SetNormalsAndCoplanar.
     let op = if inset { OpType::Subtract } else { OpType::Add };
+    let t_final = crate::timing::profile_start();
     let mut out = batch_boolean_impls(&composed_hulls, op, token);
+    crate::timing::profile_print(
+        &format!("minkowski final-merge parts={}", composed_hulls.len()),
+        t_final,
+    );
 
     // The closing check `cancel.rs`'s invariant requires — "a cancelled token
     // can never produce a NoError result". Without it a cancel that landed
@@ -274,8 +290,22 @@ pub fn minkowski_with_progress(
     if is_cancelled(token) {
         return crate::boolean3::cancelled_impl();
     }
+    let t_orig = crate::timing::profile_start();
     out.initialize_original();
     out.set_normals_and_coplanar();
+    crate::timing::profile_print("minkowski as-original", t_orig);
+    if t_all.is_some() {
+        eprintln!(
+            "profile minkowski hull-build: {:.6} sec",
+            crate::timing::profile_take_secs(&crate::timing::PROFILE_HULL_BUILD)
+        );
+        eprintln!(
+            "profile minkowski hull-finish: {:.6} sec",
+            crate::timing::profile_take_secs(&crate::timing::PROFILE_HULL_FINISH)
+        );
+        crate::timing::profile_print("minkowski total", t_all);
+        crate::timing::profile_dump_bools();
+    }
 
     // `complete_phase`, not `advance(1)`, for the closing merge's unit: the
     // throttle only emits on a step boundary, so on a run of more than 100

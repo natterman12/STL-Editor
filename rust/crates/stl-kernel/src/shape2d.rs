@@ -33,14 +33,19 @@ impl Shape2d {
     /// A prism from z = 0 up to `height`. Empty when the shape is empty or `height` is not
     /// positive. The contours are used as given: overlapping contours are not merged first.
     pub fn extrude(&self, height: f64) -> Solid {
-        Solid::wrap(Manifold::extrude(&self.to_polygons(), height, 0, 0.0, Vec2::new(1.0, 1.0)))
+        Solid::wrap(Manifold::extrude(&self.polygons(), height, 0, 0.0, Vec2::new(1.0, 1.0)))
     }
 
     /// A prism from z = 0 up to `height` whose top is the shape scaled by `k` about the origin
     /// (1.x `Manifold.extrude(cs, h, 0, 0.0, scale_top=(k, k))`). `k <= 0` makes a cone; empty
     /// when the shape is empty or `height` is not positive.
     pub fn extrude_scaled(&self, height: f64, k: f64) -> Solid {
-        Solid::wrap(Manifold::extrude(&self.to_polygons(), height, 0, 0.0, Vec2::new(k, k)))
+        Solid::wrap(Manifold::extrude(&self.polygons(), height, 0, 0.0, Vec2::new(k, k)))
+    }
+
+    /// The part of the shape inside `o` (1.x `CrossSection` `^`).
+    pub fn intersection(&self, o: &Shape2d) -> Shape2d {
+        Shape2d::from_cross_section(&self.to_cross_section().intersection(&o.to_cross_section()))
     }
 
     /// The part of the shape inside the axis-aligned box `min..max` (CrossSection `^` a rectangle).
@@ -92,7 +97,7 @@ impl Shape2d {
     /// does); the part of the shape at negative x is dropped. `segments` is the count for a
     /// full circle; 0 lets the kernel choose.
     pub fn revolve(&self, segments: u32, degrees: f64) -> Solid {
-        Solid::wrap(Manifold::revolve(&self.to_polygons(), self::segments(segments), degrees))
+        Solid::wrap(Manifold::revolve(&self.polygons(), self::segments(segments), degrees))
     }
 
     /// Grow (positive) or shrink (negative) the shape by `delta` with round corners. Matches
@@ -103,6 +108,13 @@ impl Shape2d {
         // coordinates by 1e8, so its vertices sit on that grid); snap here so the grid searches
         // that follow (connector placement) see the same coordinates as 1.x.
         Shape2d::from_cross_section(&self.to_cross_section().offset(delta)).on_clipper_grid()
+    }
+
+    /// Grow (positive) or shrink (negative) the shape by `delta` with mitred corners up to
+    /// `miter_limit` times `|delta|` (1.x `CrossSection.offset(delta, JoinType.Miter, miter_limit, 0)`).
+    pub fn offset_miter(&self, delta: f64, miter_limit: f64) -> Shape2d {
+        Shape2d::from_cross_section(&self.to_cross_section().offset_with_params(delta, 2, miter_limit, 0))
+            .on_clipper_grid()
     }
 
     /// Drop contours that are almost flat and merge points closer than `epsilon` to the line
@@ -144,11 +156,16 @@ impl Shape2d {
         self.to_cross_section().is_empty()
     }
 
-    fn to_cross_section(&self) -> CrossSection {
-        CrossSection::new(self.to_polygons())
+    /// The closed contours of the shape (1.x `CrossSection.to_polygons()`).
+    pub fn to_polygons(&self) -> Vec<Vec<[f64; 2]>> {
+        self.contours.clone()
     }
 
-    fn to_polygons(&self) -> Polygons {
+    fn to_cross_section(&self) -> CrossSection {
+        CrossSection::new(self.polygons())
+    }
+
+    fn polygons(&self) -> Polygons {
         self.contours.iter().map(|c| c.iter().map(|p| Vec2::new(p[0], p[1])).collect()).collect()
     }
 

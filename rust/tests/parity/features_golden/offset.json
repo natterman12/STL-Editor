@@ -1,0 +1,288 @@
+{
+ "offset_detailed_body": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Sphere",
+    "solid": true,
+    "stats": {
+     "area": 1399.6306720744437,
+     "bbox_max": [
+      10.583486557006836,
+      10.583486557006836,
+      10.560369491577148
+     ],
+     "bbox_min": [
+      -10.560369491577148,
+      -10.560369491577148,
+      -10.560369491577148
+     ],
+     "triangles": 5946,
+     "vertices": 2975,
+     "volume": 4910.476167930432,
+     "watertight": true
+    }
+   }
+  ],
+  "requires": [
+   "offset"
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "offset_grow": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 1768.7367435278643,
+     "bbox_max": [
+      10.5411958694458,
+      10.5411958694458,
+      10.5411958694458
+     ],
+     "bbox_min": [
+      -10.5411958694458,
+      -10.5411958694458,
+      -0.5411961078643799
+     ],
+     "triangles": 92,
+     "vertices": 48,
+     "volume": 4907.801329578956,
+     "watertight": true
+    }
+   }
+  ],
+  "requires": [
+   "offset"
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "offset_no_body": {
+  "bodies": [],
+  "requires": [
+   "offset"
+  ],
+  "results": [
+   {
+    "error": "Choose a body to offset.",
+    "id": "f1",
+    "warning": null
+   }
+  ]
+ },
+ "offset_shrink": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 1390.5510654389673,
+     "bbox_max": [
+      9.4588041305542,
+      9.4588041305542,
+      9.4588041305542
+     ],
+     "bbox_min": [
+      -9.4588041305542,
+      -9.4588041305542,
+      0.5411961078643799
+     ],
+     "triangles": 28,
+     "vertices": 16,
+     "volume": 3191.3970176629387,
+     "watertight": true
+    }
+   }
+  ],
+  "requires": [
+   "offset"
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "offset_shrink_nothing": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 96.0,
+     "bbox_max": [
+      2.0,
+      2.0,
+      2.0
+     ],
+     "bbox_min": [
+      -2.0,
+      -2.0,
+      -2.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 64.0,
+     "watertight": true
+    }
+   }
+  ],
+  "requires": [
+   "offset"
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": "Shrinking by 5 mm leaves nothing of this body.",
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "offset_two_bodies": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 660.7452064537742,
+     "bbox_max": [
+      5.3247175216674805,
+      5.3247175216674805,
+      10.32471752166748
+     ],
+     "bbox_min": [
+      -5.3247175216674805,
+      -5.3247175216674805,
+      -0.3247176706790924
+     ],
+     "triangles": 92,
+     "vertices": 48,
+     "volume": 1203.8782958072086,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f2",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 660.7452430881613,
+     "bbox_max": [
+      25.324718475341797,
+      5.3247175216674805,
+      10.32471752166748
+     ],
+     "bbox_min": [
+      14.67528247833252,
+      -5.3247175216674805,
+      -0.3247176706790924
+     ],
+     "triangles": 92,
+     "vertices": 48,
+     "volume": 1203.8784019429643,
+     "watertight": true
+    }
+   }
+  ],
+  "requires": [
+   "offset"
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f3",
+    "warning": null
+   }
+  ]
+ },
+ "offset_zero_distance": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 600.0,
+     "bbox_max": [
+      5.0,
+      5.0,
+      10.0
+     ],
+     "bbox_min": [
+      -5.0,
+      -5.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 1000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "requires": [
+   "offset"
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": "Distance can't be zero.",
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ }
+}

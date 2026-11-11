@@ -300,6 +300,44 @@
    "watertight": true
   }
  ],
+ "minkowski_difference_cube_sphere": [
+  {
+   "triangles": 12,
+   "vertices": 8,
+   "volume": 8.0,
+   "area": 24.0,
+   "bbox_min": [
+    -1.0,
+    -1.0,
+    -1.0
+   ],
+   "bbox_max": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "watertight": true
+  }
+ ],
+ "minkowski_sum_cube_sphere": [
+  {
+   "triangles": 92,
+   "vertices": 48,
+   "volume": 196.88393727741155,
+   "area": 179.89297399571439,
+   "bbox_min": [
+    -3.0,
+    -3.0,
+    -3.0
+   ],
+   "bbox_max": [
+    3.0,
+    3.0,
+    3.0
+   ],
+   "watertight": true
+  }
+ ],
  "mirror_cube_x": [
   {
    "triangles": 12,
@@ -334,6 +372,25 @@
     4.0,
     -1.0,
     4.0
+   ],
+   "watertight": true
+  }
+ ],
+ "offset_miter_l_shape": [
+  {
+   "triangles": 20,
+   "vertices": 12,
+   "volume": 48.64000118732444,
+   "area": 134.08000387668594,
+   "bbox_min": [
+    0.4000000059604645,
+    0.4000000059604645,
+    0.0
+   ],
+   "bbox_max": [
+    9.600000381469727,
+    9.600000381469727,
+    1.0
    ],
    "watertight": true
   }
@@ -452,6 +509,25 @@
    "watertight": true
   }
  ],
+ "simplify_sphere": [
+  {
+   "triangles": 2126,
+   "vertices": 1065,
+   "volume": 4.152733446733066,
+   "area": 12.524381474364962,
+   "bbox_min": [
+    -1.0,
+    -1.0,
+    -1.0
+   ],
+   "bbox_max": [
+    1.0,
+    1.0,
+    0.9978589415550232
+   ],
+   "watertight": true
+  }
+ ],
  "slice_extrude_cube": [
   {
    "triangles": 28,
@@ -486,6 +562,25 @@
     4.0,
     4.0,
     2.0
+   ],
+   "watertight": true
+  }
+ ],
+ "sphere_r1_s8": [
+  {
+   "triangles": 32,
+   "vertices": 18,
+   "volume": 2.9428089247185127,
+   "area": 10.417751268578165,
+   "bbox_min": [
+    -1.0,
+    -1.0,
+    -1.0
+   ],
+   "bbox_max": [
+    1.0,
+    1.0,
+    1.0
    ],
    "watertight": true
   }

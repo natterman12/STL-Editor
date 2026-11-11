@@ -77,6 +77,7 @@ pub fn get_axis_aligned_projection(normal: Vec3) -> Proj2x3 {
 ///
 /// Mirrors `Manifold::Impl::SetNormalsAndCoplanar()` in `src/impl.cpp`.
 pub fn set_normals_and_coplanar(mesh: &mut ManifoldImpl) {
+    let _span = crate::timing::ProfileSpan::big("set_normals_and_coplanar", mesh.num_tri().saturating_mul(3));
     let t = crate::timing::start();
     let num_tri = mesh.num_tri();
     mesh.face_normal.resize(num_tri, Vec3::new(0.0, 0.0, 1.0));
@@ -211,6 +212,7 @@ pub fn set_normals_and_coplanar(mesh: &mut ManifoldImpl) {
 ///
 /// Mirrors `Manifold::Impl::CalculateVertNormals()` in `src/impl.cpp`.
 pub fn calculate_vert_normals(mesh: &mut ManifoldImpl) {
+    let _span = crate::timing::ProfileSpan::big("calculate_vert_normals", mesh.halfedge.len());
     let num_vert = mesh.vert_pos.len();
 
     // For each vertex, find the first halfedge that starts there: the least

@@ -22,6 +22,10 @@ const BATCH2: [&str; 7] = [
     "sketch", "extrude", "revolve", "loft", "sweep", "hole", "pushpull",
 ];
 
+const BATCH3: [&str; 8] = [
+    "simplify", "remesh", "sculpt", "offset", "hollow", "shell", "lattice", "thincheck",
+];
+
 #[derive(Debug, PartialEq)]
 enum Outcome {
     Passed,
@@ -60,6 +64,39 @@ fn requires_pending(registry: &Registry, case: &Value, golden: &Value) -> bool {
         }
     }
     false
+}
+
+/// Thin-wall Check record: count exact, each spot within 0.01, min within 0.001.
+fn compare_thin(gid: &str, g: Option<&Value>, got: Option<&Value>, bad: &mut Vec<String>) {
+    let (g, got) = match (g, got) {
+        (None, None) => return,
+        (Some(g), Some(got)) => (g, got),
+        (g, got) => {
+            bad.push(format!("{gid} thin: golden {g:?} got {got:?}"));
+            return;
+        }
+    };
+    if g["count"] != got["count"] {
+        bad.push(format!("{gid} thin count: golden {} got {}", g["count"], got["count"]));
+    }
+    match (g["min"].as_f64(), got["min"].as_f64()) {
+        (None, None) => {}
+        (Some(a), Some(b)) if (a - b).abs() <= 0.001 => {}
+        (a, b) => bad.push(format!("{gid} thin min: golden {a:?} got {b:?}")),
+    }
+    let (gs, rs) = (g["spots"].as_array().cloned().unwrap_or_default(), got["spots"].as_array().cloned().unwrap_or_default());
+    if gs.len() != rs.len() {
+        bad.push(format!("{gid} thin spots: golden {} got {}", gs.len(), rs.len()));
+        return;
+    }
+    for (i, (a, b)) in gs.iter().zip(&rs).enumerate() {
+        for k in 0..3 {
+            let (x, y) = (a[k].as_f64().unwrap_or(f64::NAN), b[k].as_f64().unwrap_or(f64::NAN));
+            if !((x - y).abs() <= 0.01) {
+                bad.push(format!("{gid} thin spot {i}[{k}]: golden {x} got {y}"));
+            }
+        }
+    }
 }
 
 /// Run one case against `registry` and compare it with its golden.
@@ -140,6 +177,11 @@ fn run_case(registry: &Registry, case: &Value, golden: &Value) -> Outcome {
                 bad.push(format!("{gid} {what}: golden {gv:?} got {rv:?}"));
             }
         }
+        let ginfo = g["info"].as_str();
+        if ginfo != r.info.as_deref() {
+            bad.push(format!("{gid} info: golden {ginfo:?} got {:?}", r.info));
+        }
+        compare_thin(gid, g.get("thin").filter(|v| !v.is_null()), r.thin.as_ref(), &mut bad);
     }
 
     let gbodies = golden["bodies"].as_array().cloned().unwrap_or_default();
@@ -266,6 +308,7 @@ fn failed_cases(failures: &[String]) -> usize {
 fn feature_parity() {
     let mut types = Vec::from(BATCH1);
     types.extend_from_slice(&BATCH2);
+    types.extend_from_slice(&BATCH3);
     let tally = run_all_with(&Registry::builtin(), &types, &read_exceptions());
     for f in &tally.failures {
         println!("{f}");

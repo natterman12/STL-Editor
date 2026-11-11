@@ -347,6 +347,211 @@
    }
   ]
  },
+ "repair_rebuild_draft": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "open_box",
+    "solid": true,
+    "stats": {
+     "area": 3939.4489516991152,
+     "bbox_max": [
+      20.030338287353516,
+      20.030338287353516,
+      19.965206146240234
+     ],
+     "bbox_min": [
+      -0.1117519959807396,
+      -0.1117519959807396,
+      -0.1117519959807396
+     ],
+     "triangles": 96332,
+     "vertices": 48168,
+     "volume": 381.5149180732187,
+     "watertight": true
+    }
+   }
+  ],
+  "requires": [
+   "voxel"
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": "1 mesh(es) are not watertight. They display and export, but editing needs Repair (Rebuild) first."
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": "Rebuilt as a watertight solid on a 0.289 mm grid."
+   }
+  ]
+ },
+ "repair_rebuild_fine": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "holed_block",
+    "solid": true,
+    "stats": {
+     "area": 2478.0781845796737,
+     "bbox_max": [
+      30.089160919189453,
+      20.00747299194336,
+      10.029720306396484
+     ],
+     "bbox_min": [
+      -0.05196746066212654,
+      -0.05196746066212654,
+      -0.05196746066212654
+     ],
+     "triangles": 479472,
+     "vertices": 239734,
+     "volume": 5552.827967386115,
+     "watertight": true
+    }
+   }
+  ],
+  "requires": [
+   "voxel"
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": "Rebuilt as a watertight solid on a 0.104 mm grid."
+   }
+  ]
+ },
+ "repair_rebuild_normal": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "open_box",
+    "solid": true,
+    "stats": {
+     "area": 3983.4930687949945,
+     "bbox_max": [
+      20.058269500732422,
+      20.058269500732422,
+      20.02274513244629
+     ],
+     "bbox_min": [
+      -0.060955632477998734,
+      -0.060955632477998734,
+      -0.060955632477998734
+     ],
+     "triangles": 324620,
+     "vertices": 162312,
+     "volume": 208.51195710650958,
+     "watertight": true
+    }
+   }
+  ],
+  "requires": [
+   "voxel"
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": "1 mesh(es) are not watertight. They display and export, but editing needs Repair (Rebuild) first."
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": "Rebuilt as a watertight solid on a 0.157 mm grid."
+   }
+  ]
+ },
+ "repair_rebuild_too_fine": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "open_box",
+    "solid": false,
+    "stats": {
+     "area": 2000.0,
+     "bbox_max": [
+      20.0,
+      20.0,
+      20.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 10,
+     "vertices": 8,
+     "volume": 5333.333333333333,
+     "watertight": false
+    }
+   }
+  ],
+  "requires": [
+   "voxel"
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": "1 mesh(es) are not watertight. They display and export, but editing needs Repair (Rebuild) first."
+   },
+   {
+    "error": "Resolution too fine for this model size. Use a coarser setting.",
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "repair_rebuild_voxel_2": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "open_box",
+    "solid": true,
+    "stats": {
+     "area": 3816.630651993732,
+     "bbox_max": [
+      20.774242401123047,
+      20.774242401123047,
+      20.322998046875
+     ],
+     "bbox_min": [
+      -0.7742404937744141,
+      -0.7742404937744141,
+      -0.7742404937744141
+     ],
+     "triangles": 2168,
+     "vertices": 1086,
+     "volume": 2842.400826205434,
+     "watertight": true
+    }
+   }
+  ],
+  "requires": [
+   "voxel"
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": "1 mesh(es) are not watertight. They display and export, but editing needs Repair (Rebuild) first."
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": "Rebuilt as a watertight solid on a 2 mm grid."
+   }
+  ]
+ },
  "repair_stray_triangle_auto": {
   "bodies": [
    {

@@ -1,0 +1,62 @@
+{
+ "remesh_edge_0_5": {
+  "stats": {
+   "triangles": 7034,
+   "vertices": 3519,
+   "volume": 2093.9781401108976,
+   "area": 793.1034037879492,
+   "bbox_min": [
+    -7.981351375579834,
+    -7.973442077636719,
+    -7.983270168304443
+   ],
+   "bbox_max": [
+    7.973888874053955,
+    7.988045692443848,
+    7.97526741027832
+   ],
+   "watertight": true
+  },
+  "mesh": "remesh/remesh_edge_0_5.stl"
+ },
+ "remesh_edge_1": {
+  "stats": {
+   "triangles": 3730,
+   "vertices": 1867,
+   "volume": 3999.999999999993,
+   "area": 1599.999999999999,
+   "bbox_min": [
+    -10,
+    -10,
+    0
+   ],
+   "bbox_max": [
+    10,
+    10,
+    10
+   ],
+   "watertight": true
+  },
+  "mesh": "remesh/remesh_edge_1.stl"
+ },
+ "remesh_edge_2": {
+  "stats": {
+   "triangles": 978,
+   "vertices": 491,
+   "volume": 4000.0000000000005,
+   "area": 1600,
+   "bbox_min": [
+    -10,
+    -10,
+    0
+   ],
+   "bbox_max": [
+    10,
+    10,
+    10
+   ],
+   "watertight": true
+  },
+  "mesh": "remesh/remesh_edge_2.stl"
+ }
+}

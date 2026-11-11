@@ -1,0 +1,220 @@
+{
+ "lattice_cell6_strut1": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 9437.615901931755,
+     "bbox_max": [
+      15.0,
+      15.0,
+      20.0
+     ],
+     "bbox_min": [
+      -15.0,
+      -15.0,
+      0.0
+     ],
+     "triangles": 7432,
+     "vertices": 3448,
+     "volume": 7814.340611650565,
+     "watertight": true
+    }
+   }
+  ],
+  "requires": [
+   "voxel"
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "lattice_cell8_strut1_5": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 8877.123446326837,
+     "bbox_max": [
+      15.0,
+      15.0,
+      20.0
+     ],
+     "bbox_min": [
+      -15.0,
+      -15.0,
+      0.0
+     ],
+     "triangles": 3252,
+     "vertices": 1516,
+     "volume": 7908.752641478865,
+     "watertight": true
+    }
+   }
+  ],
+  "requires": [
+   "voxel"
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "lattice_no_body": {
+  "bodies": [],
+  "requires": [
+   "voxel"
+  ],
+  "results": [
+   {
+    "error": "Choose a body to fill with a lattice.",
+    "id": "f1",
+    "warning": null
+   }
+  ]
+ },
+ "lattice_strut_as_wide": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 4200.0,
+     "bbox_max": [
+      15.0,
+      15.0,
+      20.0
+     ],
+     "bbox_min": [
+      -15.0,
+      -15.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 18000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "requires": [
+   "voxel"
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": "The struts are as wide as the cells, so there'd be no gaps. Use a thinner strut or a bigger cell.",
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "lattice_too_many_struts": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 60000.0,
+     "bbox_max": [
+      50.0,
+      50.0,
+      100.0
+     ],
+     "bbox_min": [
+      -50.0,
+      -50.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 1000000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "requires": [
+   "voxel"
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": "That's too many struts. Use a bigger cell size.",
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "lattice_zero_size": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 4200.0,
+     "bbox_max": [
+      15.0,
+      15.0,
+      20.0
+     ],
+     "bbox_min": [
+      -15.0,
+      -15.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 18000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "requires": [
+   "voxel"
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": "Cell size, strut diameter and wall thickness must all be above zero.",
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ }
+}

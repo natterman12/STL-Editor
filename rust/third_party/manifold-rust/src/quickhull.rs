@@ -138,13 +138,16 @@ pub fn convex_hull(points: &[Vec3]) -> ManifoldImpl {
         return ManifoldImpl::new();
     }
 
+    let t_build = crate::timing::profile_start();
     let qh = QuickHull::new(points);
     let (halfedges, vertices) = qh.build_mesh(DEFAULT_EPS);
+    crate::timing::profile_add(&crate::timing::PROFILE_HULL_BUILD, t_build);
 
     if halfedges.is_empty() {
         return ManifoldImpl::new();
     }
 
+    let t_finish = crate::timing::profile_start();
     let mut imp = ManifoldImpl::new();
     imp.halfedge = halfedges;
     imp.vert_pos = vertices;
@@ -153,6 +156,7 @@ pub fn convex_hull(points: &[Vec3]) -> ManifoldImpl {
     imp.initialize_original();
     imp.sort_geometry();
     imp.set_normals_and_coplanar();
+    crate::timing::profile_add(&crate::timing::PROFILE_HULL_FINISH, t_finish);
     imp
 }
 

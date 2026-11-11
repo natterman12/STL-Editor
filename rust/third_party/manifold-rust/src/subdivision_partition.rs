@@ -343,12 +343,7 @@ pub(crate) fn next3(i: i32) -> i32 {
 
 #[inline]
 pub(crate) fn lerp_vec4(a: Vec4, b: Vec4, t: f64) -> Vec4 {
-    Vec4::new(
-        a.x + (b.x - a.x) * t,
-        a.y + (b.y - a.y) * t,
-        a.z + (b.z - a.z) * t,
-        a.w + (b.w - a.w) * t,
-    )
+    a * (1.0 - t) + b * t
 }
 
 fn swap_i32(sorted_div: &mut IVec4, tri_idx: &mut IVec4, a: usize, b: usize) {
@@ -475,8 +470,8 @@ fn partition_quad(
         let corner_offset3 = edge_added[3] - 1 - (edge_added[3] * i) / partitions;
         let next_offset1 = get_edge_vert(1, corner_offset1 + 1);
         let next_offset3 = get_edge_vert(3, corner_offset3 + 1);
-        let added = ((edge_added[0] as f64)
-            + (edge_added[2] as f64 - edge_added[0] as f64) * (i as f64 / partitions as f64))
+        let t_part = i as f64 / partitions as f64;
+        let added = ((edge_added[0] as f64) * (1.0 - t_part) + (edge_added[2] as f64) * t_part)
             .round() as i32;
 
         new_corner_verts[1] = get_edge_vert(1, corner_offset1);

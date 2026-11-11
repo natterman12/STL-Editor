@@ -145,6 +145,17 @@ impl Collider {
         }
     }
 
+    /// Root bounding box enclosing all leaves (mirrors C++ `Collider::GetBoundingBox`).
+    pub fn bounding_box(&self) -> BBox {
+        if self.node_bbox.is_empty() {
+            BBox::default()
+        } else if self.node_bbox.len() == 1 {
+            self.node_bbox[0]
+        } else {
+            self.node_bbox[K_ROOT as usize]
+        }
+    }
+
     /// Build radix tree from sorted Morton codes (matches C++ CreateRadixTree).
     /// Only fills in topology (internal_children, node_parent); boxes are
     /// populated afterwards by update_boxes.

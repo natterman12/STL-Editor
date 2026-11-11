@@ -291,5 +291,51 @@
       {"op": "union"},
       {"op": "decompose"}
     ]
+  },
+  {
+    "name": "sphere_r1_s8",
+    "exactness": "exact",
+    "ops": [
+      {"op": "sphere", "r": 1, "segments": 8}
+    ]
+  },
+  {
+    "name": "minkowski_sum_cube_sphere",
+    "exactness": "exact",
+    "ops": [
+      {"op": "cube", "size": [4, 4, 4], "center": true},
+      {"op": "sphere", "r": 1, "segments": 8},
+      {"op": "minkowski_sum"}
+    ]
+  },
+  {
+    "name": "minkowski_difference_cube_sphere",
+    "exactness": "exact",
+    "ops": [
+      {"op": "cube", "size": [4, 4, 4], "center": true},
+      {"op": "sphere", "r": 1, "segments": 8},
+      {"op": "minkowski_difference"}
+    ]
+  },
+  {
+    "name": "simplify_sphere",
+    "exactness": "exact",
+    "ops": [
+      {"op": "sphere", "r": 1, "segments": 96},
+      {"op": "simplify", "tolerance": 0.01}
+    ]
+  },
+  {
+    "name": "offset_miter_l_shape",
+    "exactness": "exact",
+    "ops": [
+      {
+        "op": "offset_miter_extrude",
+        "contours": [[[0, 0], [10, 0], [10, 4], [4, 4], [4, 10], [0, 10]]],
+        "delta": -0.4,
+        "miter_limit": 2.0,
+        "height": 1.0
+      }
+    ]
   }
 ]

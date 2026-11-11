@@ -4,6 +4,7 @@
 pub mod connectors;
 pub mod frames;
 pub mod params;
+pub mod pitch;
 pub mod place;
 pub mod profiles;
 pub mod pushpull_tool;

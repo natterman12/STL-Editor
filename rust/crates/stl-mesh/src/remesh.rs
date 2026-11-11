@@ -9,7 +9,6 @@
 
 use std::collections::{HashMap, HashSet};
 use std::hash::{BuildHasherDefault, Hasher};
-use wasm_bindgen::prelude::*;
 
 /// Multiply-and-fold hasher for the integer keys used here (edges, grid cells).
 #[derive(Default)]
@@ -741,40 +740,6 @@ pub fn remesh_core(positions: &[f32], faces: &[u32], edge: f64, iterations: u32)
     Ok((vs, fs))
 }
 
-/// What `remesh` returns: read `positions` (Float32Array) and `faces` (Uint32Array), then
-/// call `free()`.
-#[wasm_bindgen]
-pub struct RemeshResult {
-    positions: Vec<f32>,
-    faces: Vec<u32>,
-}
-
-#[wasm_bindgen]
-impl RemeshResult {
-    #[wasm_bindgen(getter)]
-    pub fn positions(&self) -> Vec<f32> {
-        self.positions.clone()
-    }
-    #[wasm_bindgen(getter)]
-    pub fn faces(&self) -> Vec<u32> {
-        self.faces.clone()
-    }
-    #[wasm_bindgen(getter, js_name = triangleCount)]
-    pub fn triangle_count(&self) -> u32 {
-        (self.faces.len() / 3) as u32
-    }
-}
-
-/// Isotropic remesh of a closed mesh that was already refined to `edge` (millimetres).
-/// `iterations` defaults to 5. Throws an Error with a plain-English message.
-#[wasm_bindgen]
-pub fn remesh(positions: &[f32], faces: &[u32], edge: f64, iterations: Option<u32>) -> Result<RemeshResult, JsError> {
-    match remesh_core(positions, faces, edge, iterations.unwrap_or(5)) {
-        Ok((positions, faces)) => Ok(RemeshResult { positions, faces }),
-        Err(msg) => Err(JsError::new(&msg)),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -821,4 +786,24 @@ mod tests {
         assert_eq!(remesh_core(&v, &f[..33], 2.0, 5).unwrap_err(), "Remesh needs a closed solid.");
         assert_eq!(remesh_core(&v, &f, 0.0, 5).unwrap_err(), "Edge length must be positive.");
     }
+}
+
+/// Isotropic remesh of a solid to triangles of about `edge` mm (web `meshedit.js` `remesh`;
+/// `iterations` is 5 there). Gives back the refined solid if the result doesn't close up.
+pub fn remesh(s: &stl_kernel::Solid, edge: f64, iterations: u32) -> Result<stl_kernel::Solid, crate::MeshError> {
+    use crate::MeshError;
+    if !(edge > 0.0) {
+        return Err(MeshError::Message("Edge length must be positive.".into()));
+    }
+    let area = s.surface_area();
+    if area / (0.433 * edge * edge) > 3e6 {
+        return Err(MeshError::Message(
+            "That triangle size would make more than 3 million triangles. Use a bigger size.".into(),
+        ));
+    }
+    let fine = s.refine_to_length(edge);
+    let m = fine.to_mesh();
+    let (v, f) = remesh_core(&m.positions, &m.triangles, edge, iterations).map_err(MeshError::Message)?;
+    let arrays = stl_kernel::MeshArrays { positions: v, triangles: f };
+    Ok(stl_kernel::Solid::from_mesh(&arrays).unwrap_or(fine))
 }

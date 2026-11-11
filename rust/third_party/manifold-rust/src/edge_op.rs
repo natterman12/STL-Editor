@@ -137,8 +137,6 @@ pub fn remove_if_folded(mesh: &mut ManifoldImpl, edge: usize) {
             if sv >= 0 {
                 mesh.vert_pos[sv as usize] = Vec3::new(f64::NAN, f64::NAN, f64::NAN);
             }
-        } else {
-            return;
         }
         let p01 = mesh.halfedge[tri0edge[1]].paired_halfedge as usize;
         let p02 = mesh.halfedge[tri0edge[2]].paired_halfedge as usize;
@@ -528,6 +526,7 @@ pub fn recursive_edge_swap(
 /// Finds vertices where multiple halfedge cycles meet (pinched verts) and
 /// splits them into separate vertices — one per cycle.
 pub fn split_pinched_verts(mesh: &mut ManifoldImpl) {
+    let _span = crate::timing::ProfileSpan::big("split_pinched_verts", mesh.halfedge.len());
     split_pinched_verts_owners(mesh);
 }
 
@@ -821,6 +820,7 @@ pub fn dedupe_edge(mesh: &mut ManifoldImpl, edge: usize) {
 
 /// Finds and fixes all duplicate edges (4-manifold conditions).
 pub fn dedupe_edges(mesh: &mut ManifoldImpl) {
+    let _span = crate::timing::ProfileSpan::big("dedupe_edges", mesh.halfedge.len());
     dedupe_edges_from(mesh, None);
 }
 
@@ -1007,6 +1007,7 @@ const FLAG_PAR_THRESHOLD: usize = 100_001;
 
 /// Collapses edges shorter than epsilon_ when at least one endpoint is new.
 pub fn collapse_short_edges(mesh: &mut ManifoldImpl, first_new_vert: i32) {
+    let _span = crate::timing::ProfileSpan::big("collapse_short_edges", mesh.halfedge.len());
     let mut scratch = Vec::with_capacity(10);
     let n = mesh.halfedge.len();
 
@@ -1136,6 +1137,7 @@ pub fn collapse_colinear_edges(mesh: &mut ManifoldImpl, first_new_vert: i32) {
 
 /// Swaps long edges of degenerate triangles.
 pub fn swap_degenerates(mesh: &mut ManifoldImpl, first_new_vert: i32) {
+    let _span = crate::timing::ProfileSpan::big("swap_degenerates", mesh.halfedge.len());
     if mesh.face_normal.is_empty() {
         return;
     }

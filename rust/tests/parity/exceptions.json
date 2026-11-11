@@ -1,1 +1,46 @@
-{}
+{
+  "offset/offset_detailed_body": {
+    "reason": "Manifold C++ 3.5.4's float convex-hull test leaves an inside-out pocket of 8 triangles in 1.x's Minkowski sum (~0.819 mm² counted twice); manifold-rust uses an exact orientation test so 2.0's surface is clean. A 1.x bug 2.0 doesn't copy (agreed with Nathan on 2026-11-11).",
+    "expect": {
+      "bodies": [
+        {
+          "id": "f1",
+          "name": "Sphere",
+          "solid": true,
+          "stats": {
+            "area": 1397.9951396150825,
+            "bbox_max": [
+              10.583486557006836,
+              10.583486557006836,
+              10.560369491577148
+            ],
+            "bbox_min": [
+              -10.560369491577148,
+              -10.560369491577148,
+              -10.560369491577148
+            ],
+            "triangles": 5938,
+            "vertices": 2971,
+            "volume": 4910.490267226856,
+            "watertight": true
+          }
+        }
+      ],
+      "requires": [
+        "offset"
+      ],
+      "results": [
+        {
+          "error": null,
+          "id": "f1",
+          "warning": null
+        },
+        {
+          "error": null,
+          "id": "f2",
+          "warning": null
+        }
+      ]
+    }
+  }
+}
