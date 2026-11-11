@@ -102,16 +102,20 @@ Rules:
     - the errors for a non-flat face, no hollow space behind the face, and no body
     - a wall ≤ 0
   - **Lattice:** at least two cell and strut sizes, plus the struts-as-wide-as-cells, too-many-struts and zero-size errors.
-  - **Thin-wall Check:** a model with no thin spots, one with several, and a minimum ≤ 0. The `thin` result (`min`, `count`, `spots`) must match exactly.
+  - **Thin-wall Check:** a model with no thin spots, one with several, and a minimum ≤ 0.
+    - `count` and the messages must match exactly.
+    - Each value in `spots` may differ by one rounding step (0.01 mm), and `min` by 0.001 mm. 1.x rounds these values, and a tiny slicing difference can tip one across a rounding boundary.
   - **Repair:** the 3 pending rebuild cases now pass, plus `rebuild` with an explicit `voxel`, and each `resolution`.
   - **Combine:** the pending clearance case now passes.
 - **Voxel step golden, `rust/tests/parity/voxel/`:** made by `dev/parity/make_voxel_golden.py` from fixed inputs (the test models at coarse voxel sizes, plus hand-made grids).
   - **`solid_occupancy` and `mesh_occupancy`:** identical grids.
   - **`distance_transform_edt` and `gaussian_filter`:** within 1e-6.
   - **`marching_cubes`:** the same triangle count, and the same vertices within 1e-5 mm after sorting.
-- **Simplify golden, `rust/tests/parity/simplify/`:** made by `dev/parity/make_simplify_golden.py`. It runs `fast_simplification.simplify` on the test models and the bench mesh at ratios 0.5, 0.1 and 0.02. The port must give the same triangle count, and a symmetric Hausdorff distance under 0.01 mm.
+  - **Size limit:** all voxel golden files together stay under about 5 MB. Grids are kept small. A large grid or field is stored as a checksum plus counts (cells inside, sum and extremes of the field) instead of in full.
+- **Simplify golden, `rust/tests/parity/simplify/`:** made by `dev/parity/make_simplify_golden.py`. It runs `fast_simplification.simplify` on the committed test models at ratios 0.5, 0.1 and 0.02. The port must give the same triangle count, and a symmetric Hausdorff distance under 0.01 mm.
 - **Remesh golden:** made by `remesh_golden.mjs`. It writes stats and, for the comparison, a mesh file per case.
 - The CI golden job runs the new `--check` scripts, and the Node harness, like the batch 2 ones.
+- **No golden check uses the bench mesh**, because `dev/bench/test_mesh.stl` is generated locally and isn't in the repo. Golden cases use the committed models in `rust/tests/models/` only. The bench mesh is used only by the bench (section 5).
 
 ## 5. Done when
 
