@@ -173,7 +173,8 @@ def build_all() -> dict[str, dict]:
     return {t: build_type(t, remesh_golden) for t in types}
 
 
-_REL = 1e-3      # volume, area and bounding box: 0.1 percent (main spec 5.3)
+_REL = 1e-2      # volume, area and bounding box: 1 percent here (freshness check only; parity keeps 0.1 percent).
+                 # A tilted round pin can get one more or one less side on another machine.
 _ABS = 1e-4      # or 1e-4 mm near zero
 _COUNT = 0.10    # triangle and vertex counts: up to 10 percent between machines
 
