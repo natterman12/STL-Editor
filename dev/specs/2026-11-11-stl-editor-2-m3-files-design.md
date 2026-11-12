@@ -29,7 +29,7 @@ In scope:
   - bodies concatenated in order, as `export_bodies` does
 - **3MF:** a port of `trimesh/exchange/threemf.py` `export_3MF`, as `export_bodies` calls it. Each body is added to a `trimesh.Scene` with `node_name` and `geom_name` set to the body name.
   - The same zip entries, XML elements and attributes, object and build-item order, and the unit and number formatting that trimesh writes.
-  - The zip container need not be byte-identical, because compression settings may differ. The XML text inside must be.
+  - The zip container need not be byte-identical, because compression settings may differ. The XML text inside must be, apart from the `p:UUID` values: trimesh writes a random UUID on every object, on `<build>` and on each item, so 1.x's own output changes with each export. 2.0 writes UUIDs in the same places, and the comparison replaces them with a placeholder first.
 - **OBJ:** a port of `trimesh/exchange/obj.py` `export_obj`, applied to `trimesh.util.concatenate` of the bodies' meshes, with the defaults `export_bodies` uses.
   - The same header comment, vertex lines, any normal lines trimesh includes, face lines, and digits.
   - The output is byte-identical to 1.x.
@@ -76,7 +76,7 @@ Out of scope:
 
 - **STL and OBJ:** compared byte for byte with 1.x desktop `export_bodies` on the test models and on multi-body documents.
 - **3MF:** checked three ways.
-  - The XML inside the zip is compared byte for byte with 1.x's.
+  - The XML inside the zip is compared byte for byte with 1.x's, with UUID values replaced by a placeholder.
   - The file is read back by 1.x `load_mesh_file` and by 2.0's reader: the same parts, names and `MeshStats`.
   - The zip must open with a standard zip reader.
 - **STEP:** compared byte for byte with `web/engine/step.js` run in Node, with a fixed `date`, on the same bodies.
