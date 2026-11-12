@@ -234,18 +234,18 @@ programming error, the same practice as batch 1's `"Plane size must be a number.
 - **Faceted STEP export on desktop** (accepted by Nathan on 2026-11-11). In 1.x only the web
   edition writes faceted STEP; desktop 1.x only has the SolidCraft "To STEP" hand-off. 2.0
   offers faceted STEP in both editions, with the same bytes as the web edition's `step.js`.
-- **`"Can't export .{ext} files."`** (pending Nathan's OK) when an export path ends in an
+- **`"Can't export .{ext} files."`** (accepted by Nathan on 2026-11-12) when an export path ends in an
   extension that isn't `.stl`, `.3mf`, `.obj` or `.step`. 1.x hands the path to trimesh, which
   raises its own error or writes a format the editor doesn't offer.
-- **3MF `p:UUID` values come from a seeded generator** (pending Nathan's OK). trimesh writes a
+- **3MF `p:UUID` values come from a seeded generator** (accepted by Nathan on 2026-11-12). trimesh writes a
   random version 4 UUID on each object, on `<build>` and on each item, so no two 1.x exports
   are the same. 2.0 writes version 4 UUIDs in the same places, seeded from the clock at
   export time. The zip's compression settings may also differ from trimesh's
   (`compresslevel=5`); the XML inside is the same.
-- **The STEP date on the web build is `1970-01-01T00:00:00`** (pending Nathan's OK, milestone 4
+- **The STEP date on the web build is `1970-01-01T00:00:00`** (accepted by Nathan on 2026-11-12, milestone 4
   will pass the page's clock). The wasm32 engine has no system clock; `step.js` uses
   `new Date()`. Desktop uses the current UTC time.
-- **The export base name follows the web edition's rule** (pending Nathan's OK). 1.x has two
+- **The export base name follows the web edition's rule** (accepted by Nathan on 2026-11-12). 1.x has two
   rules. The web edition (`stepResult` and the export routes) uses the body's name when the
   bodies being exported come to one body, and otherwise the project path, then the title, then
   `model`, without `.stlx`. Desktop 1.x `r_export` looks at the ids it was given, so with no ids
