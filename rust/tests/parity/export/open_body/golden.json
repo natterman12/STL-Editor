@@ -1,0 +1,88 @@
+{
+ "base": "open_box",
+ "count": 1,
+ "document": {
+  "3mf_model_xml": {
+   "sha256": "c3fc51d119ed34fc410c203ee35d4b8eeb9bc081e529365c802d2ac5e32399bf",
+   "size": 1846
+  },
+  "obj": {
+   "sha256": "2835e1614353d0fbca3e36a1eff93abfd92b804aa2822d3e3b365ea445a7c9bd",
+   "size": 409
+  },
+  "stl": {
+   "sha256": "9a6a229b69a6cd0a12990b25afbe328175cafecd6a738c4b820f47239602cd62",
+   "size": 584
+  }
+ },
+ "error": null,
+ "readback": {
+  "3mf": [
+   {
+    "name": "out",
+    "stats": {
+     "area": 2000.0,
+     "bbox_max": [
+      20.0,
+      20.0,
+      20.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 10,
+     "vertices": 8,
+     "volume": 5333.333333333333,
+     "watertight": false
+    }
+   }
+  ],
+  "obj": [
+   {
+    "name": "out",
+    "stats": {
+     "area": 2000.0,
+     "bbox_max": [
+      20.0,
+      20.0,
+      20.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 10,
+     "vertices": 8,
+     "volume": 5333.333333333333,
+     "watertight": false
+    }
+   }
+  ],
+  "stl": [
+   {
+    "name": "out",
+    "stats": {
+     "area": 2000.0,
+     "bbox_max": [
+      20.0,
+      20.0,
+      20.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 10,
+     "vertices": 8,
+     "volume": 5333.333333333333,
+     "watertight": false
+    }
+   }
+  ]
+ },
+ "step_error": "open_box isn't a closed solid (it has holes, or faces that overlap or face the wrong way). Run Repair on it first, then export."
+}

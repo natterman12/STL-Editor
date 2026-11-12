@@ -1,0 +1,75 @@
+{
+  "one_body": {
+    "models": [{"file": "holed_block.stl", "name": "holed_block"}],
+    "hidden": [],
+    "body_ids": null,
+    "path": null,
+    "title": null
+  },
+  "three_bodies": {
+    "models": [
+      {"file": "holed_block.stl", "name": "block"},
+      {"file": "t_bracket.stl", "name": "bracket"},
+      {"file": "bridge_ring.stl", "name": "ring"}
+    ],
+    "hidden": [],
+    "body_ids": null,
+    "path": "three_bodies.stlx",
+    "title": null
+  },
+  "names_escape": {
+    "models": [{"file": "holed_block.stl", "name": "A & \"b\" <c> café 'd'"}],
+    "hidden": [],
+    "body_ids": null,
+    "path": null,
+    "title": null
+  },
+  "hidden_body": {
+    "models": [
+      {"file": "holed_block.stl", "name": "keep"},
+      {"file": "t_bracket.stl", "name": "hide_me"}
+    ],
+    "hidden": ["hide_me"],
+    "body_ids": null,
+    "path": null,
+    "title": null
+  },
+  "all_hidden": {
+    "models": [
+      {"file": "holed_block.stl", "name": "a"},
+      {"file": "t_bracket.stl", "name": "b"}
+    ],
+    "hidden": ["a", "b"],
+    "body_ids": null,
+    "path": "all_hidden.stlx",
+    "title": null
+  },
+  "empty": {
+    "models": [],
+    "hidden": [],
+    "body_ids": null,
+    "path": null,
+    "title": null
+  },
+  "sliver": {
+    "models": [{"file": "sliver.stl", "name": "sliver"}],
+    "hidden": [],
+    "body_ids": null,
+    "path": null,
+    "title": null
+  },
+  "numbers": {
+    "models": [{"file": "numbers.stl", "name": "numbers"}],
+    "hidden": [],
+    "body_ids": null,
+    "path": null,
+    "title": null
+  },
+  "open_body": {
+    "models": [{"file": "open_box.stl", "name": "open_box"}],
+    "hidden": [],
+    "body_ids": null,
+    "path": null,
+    "title": null
+  }
+}

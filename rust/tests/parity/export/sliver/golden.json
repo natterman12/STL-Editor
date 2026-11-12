@@ -1,0 +1,88 @@
+{
+ "base": "sliver",
+ "count": 1,
+ "document": {
+  "3mf_model_xml": {
+   "sha256": "e60177d66e2cceb888a3da89d60d0210260f09498c57ea24acbfa82fffc1463b",
+   "size": 1975
+  },
+  "obj": {
+   "sha256": "c5d0ee231151a9d442c5838da67e29dcbf41a51d74980bc58e25ec3cbc42847f",
+   "size": 468
+  },
+  "stl": {
+   "sha256": "76d26fab1a75f3635cd6885052fb06384c21044e875400a24b8554552f5f325f",
+   "size": 734
+  }
+ },
+ "error": null,
+ "readback": {
+  "3mf": [
+   {
+    "name": "out",
+    "stats": {
+     "area": 600.0,
+     "bbox_max": [
+      10.0,
+      10.0,
+      10.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 13,
+     "vertices": 9,
+     "volume": 1000.0,
+     "watertight": false
+    }
+   }
+  ],
+  "obj": [
+   {
+    "name": "out",
+    "stats": {
+     "area": 600.0,
+     "bbox_max": [
+      10.0,
+      10.0,
+      10.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 13,
+     "vertices": 9,
+     "volume": 1000.0,
+     "watertight": false
+    }
+   }
+  ],
+  "stl": [
+   {
+    "name": "out",
+    "stats": {
+     "area": 600.0,
+     "bbox_max": [
+      10.0,
+      10.0,
+      10.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 13,
+     "vertices": 9,
+     "volume": 1000.0,
+     "watertight": false
+    }
+   }
+  ]
+ },
+ "step_error": "sliver has faces with no area. Run Repair on it first, then export."
+}

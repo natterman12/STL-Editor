@@ -10,6 +10,9 @@ use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
+mod export;
+pub use export::{iso_from_unix_secs, iso_utc_now};
+
 use crate::labels::label;
 use crate::params::{Param, RESERVED, Resolved, is_valid_name, resolve_deep, resolve_params, uses_expr};
 use crate::{Ctx, Feature, FeatureError, FeatureResult, Registry, RollbackAfter, Source, State};

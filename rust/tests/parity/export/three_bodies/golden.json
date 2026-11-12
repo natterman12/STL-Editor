@@ -1,0 +1,128 @@
+{
+ "base": "three_bodies",
+ "count": 3,
+ "document": {
+  "3mf_model_xml": {
+   "sha256": "2466edd4961d3660936be83e3d182afac33dfb2c2befa437a4e70458d17ada43",
+   "size": 24042
+  },
+  "obj": {
+   "sha256": "dc62797645e21d637ae19ff6839e0248a31431c70d40e19fac574721c3156824",
+   "size": 10457
+  },
+  "stl": {
+   "sha256": "efc85992e38dac712d5a4e4ca09e579bb7a6e841d9160304a0c87811a9af9531",
+   "size": 17084
+  }
+ },
+ "error": null,
+ "readback": {
+  "3mf": [
+   {
+    "name": "out 1",
+    "stats": {
+     "area": 2464.0137973359465,
+     "bbox_max": [
+      30.0,
+      20.0,
+      10.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 276,
+     "vertices": 136,
+     "volume": 5438.1398433105005,
+     "watertight": true
+    }
+   },
+   {
+    "name": "out 2",
+    "stats": {
+     "area": 4120.0,
+     "bbox_max": [
+      50.0,
+      10.0,
+      36.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 36,
+     "vertices": 20,
+     "volume": 9000.0,
+     "watertight": true
+    }
+   },
+   {
+    "name": "out 3",
+    "stats": {
+     "area": 10240.0,
+     "bbox_max": [
+      50.0,
+      40.0,
+      58.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 28,
+     "vertices": 16,
+     "volume": 32000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "obj": [
+   {
+    "name": "out",
+    "stats": {
+     "area": 16824.013797335945,
+     "bbox_max": [
+      50.0,
+      40.0,
+      58.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 340,
+     "vertices": 171,
+     "volume": 46438.13984331049,
+     "watertight": true
+    }
+   }
+  ],
+  "stl": [
+   {
+    "name": "out",
+    "stats": {
+     "area": 16824.013797335945,
+     "bbox_max": [
+      50.0,
+      40.0,
+      58.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 340,
+     "vertices": 171,
+     "volume": 46438.13984331049,
+     "watertight": true
+    }
+   }
+  ]
+ },
+ "step_error": null
+}

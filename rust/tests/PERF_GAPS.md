@@ -1,6 +1,7 @@
 # Where 2.0 is slower than 1.x
 
-**No gaps.** Every row of `cargo run --release -p xtask -- bench` is at or under 1.0 against 1.x.
+**No gaps.** Every row of `cargo run --release -p xtask -- bench` is at or under 1.0 against 1.x
+(three runs on 2026-11-12). Offset is at 1.0 and is marked "watch" below.
 
 ## Combine join (closed 2026-11-11)
 
@@ -26,25 +27,55 @@ Bench (2026-11-11, three runs, ratio 2.0 / 1.x): join 0.82, 0.83, 0.85 (0.103, 0
 against 0.125, 0.125 and 0.124 s); cut 0.80, 0.80, 0.80; Split 0.72, 0.72, 0.76; Import 0.41, 0.41,
 0.40; Repair 0.29, 0.27, 0.28; Extrude 0.26 to 0.29; Revolve 0.67 to 0.74; Sweep 0.29 to 0.31.
 
-## Pattern circular x12 (open, pending Nathan's OK)
+## Pattern circular x12 (closed 2026-11-12)
 
-Bench (2026-11-11, quiet, 504k-triangle bench mesh): 1.x 6.933 s, 2.0 7.747 s, ratio 1.12. After
-one speed pass, 2.0 moves the 11 copies in parallel (0.37 s down to about 0.1 s). Almost all the
-rest, about 8 s, is the union of the 12 copies (`union_plain` in `stl-kernel`, which follows
-Manifold 3.5.4 step for step). Neighbouring copies overlap, so the booleans can't be skipped, and
-changing the union order would change the triangles. Pattern already works as 1.x does (one batch
-union). Closing this needs a faster boolean in the vendored manifold-rust on parts this size.
+Was 1.12 (1.x 6.933 s, 2.0 7.747 s). Profiling with `MANIFOLD_TIMING=1` showed most of the time in
+the union of the 12 overlapping copies. When both meshes of a boolean have at least 50,000
+triangles, the `Boolean3` build (both `Intersect12` directions and both `Winding03` floods) now runs
+on the caller's thread pool instead of the 10-thread pool, and four small kernels are inlined
+(`rust/third_party/manifold-rust`, listed in its `VENDORED.md`). The union order is unchanged and no
+boolean is skipped. The result on the bench mesh is the same byte for byte (sha256 of vertices and
+triangles), the kernel corpus is unchanged, and the parity run is unchanged (276 passed, 0 pending,
+0 failed).
 
-## Draw Walls, one line (open, pending Nathan's OK)
+Bench (2026-11-12, three runs): 0.93, 0.91, 0.96 (6.60, 6.58 and 6.68 s against 7.07, 7.22 and
+6.96 s).
 
-Bench (2026-11-11, quiet): 1.x 0.987 s, 2.0 1.363 s, ratio 1.38 (1.66 before the speed pass).
-The speed pass turned off WebView2's throttling of the hidden window, which made the engine itself
-about 1.7 times slower, and cut the argument handling. Support Fins on the same host is now 0.92.
-Draw Walls is a short engine call, so a fixed cost of about 0.3 s per call is left: handing the
-48 MB triangle soup of the bench mesh to the webview through the `sf://` protocol (about 0.3 s,
-inside WebView2), plus building the soup and the cache key. 1.x passes the same string to V8 in
-the same process. Closing this would mean keeping the mesh in the page between calls (sending it
-once per body, not once per wall).
+## Draw Walls, one line (closed 2026-11-12)
+
+Was 1.38. The Support Fins webview page now keeps any argument over 1 MB under a key (up to 6,
+oldest dropped first; a reload or a new host empties it), so the 48 MB triangle soup of a part
+crosses `sf://` once instead of on every wall. The soup and its key are kept for the last 2 bodies
+(1 on the web build), the soup is encoded on up to 8 threads, and the key is a tree SHA-256 used
+only as an in-process cache key. What is left per call is the engine itself (about 0.65 to 0.7 s,
+the same in Node) and the join of the walls to the part (about 0.11 s). Results are unchanged on
+both hosts (parity 276 passed, 0 pending, 0 failed, with the replay host and with
+`STL_FINS_HOST=webview`).
+
+Bench (2026-11-12, three runs): 0.80, 0.91, 0.93 (0.82, 0.91 and 0.91 s against 1.02, 1.00 and
+0.98 s). The bench shares one host across its runs, so only the first run sends the soup.
+
+## Export (milestone 3, 2026-11-12)
+
+All four rows are under 1.0. STEP is compared with `web/engine/step.js` in Node (default heap).
+STEP was 2.1 to 2.4 and 3MF 1.08 to 1.21 before one speed pass each (one output buffer, no
+per-number allocation, a hand-written edge table, and the CPython / V8 digit rule computed on
+the stack).
+
+| Row | Run 1 | Run 2 | Run 3 |
+|---|---|---|---|
+| Export STL | 0.31 | 0.33 | 0.31 |
+| Export 3MF | 0.58 | 0.56 | 0.55 |
+| Export OBJ | 0.35 | 0.34 | 0.35 |
+| Export STEP | 0.43 | 0.44 | 0.45 |
+
+## Offset grow 0.5 mm (watch)
+
+1.02 to 1.03 in the first bench of 2026-11-11 night, 1.00, 0.99 and 0.99 on 2026-11-12. The
+Pattern change is not involved: that path never runs on this row (the work mesh is 10,226
+triangles), and timing it with every boolean back on the 10-thread pool gave the same medians
+(6.10 to 6.17 s). Most of the time is Minkowski's 485 small booleans. The row sits at 1.0 within
+run-to-run spread; if it goes above 1.0 again it needs its own speed pass.
 
 ## What is left (not gaps)
 

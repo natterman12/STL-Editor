@@ -22,7 +22,9 @@
 //!   and IPC messages that don't have the expected shape are ignored.
 
 use std::borrow::Cow;
-use std::collections::HashMap;
+use std::collections::hash_map::RandomState;
+use std::collections::{HashMap, VecDeque};
+use std::hash::{BuildHasher, Hasher};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender, channel};
@@ -45,6 +47,8 @@ const CALL_LIMIT: Duration = Duration::from_secs(120);
 const START_LIMIT: Duration = Duration::from_secs(60);
 /// How often a waiting call checks that the browser process is still there.
 const POLL: Duration = Duration::from_millis(200);
+/// An argument longer than this (the triangle soup of a part) is kept in the page.
+const BIG: usize = 1_000_000;
 
 const PAGE: &str = r#"<!doctype html><html><head><meta charset="utf-8"><title>Support Fins</title></head><body>
 <script src="engine.js"></script>
@@ -52,6 +56,10 @@ const PAGE: &str = r#"<!doctype html><html><head><meta charset="utf-8"><title>Su
 (function () {
   function post(o) { window.ipc.postMessage(JSON.stringify(o)); }
   var E = typeof SupportFinsEngine === 'undefined' ? null : SupportFinsEngine;
+  // Big arguments (a part's triangle soup) kept between calls, under the host's key for them.
+  // The host says what to keep and drop; a reload empties it, and a missing key is reported
+  // so the host sends the whole call again.
+  var store = {};
   window.__sfRun = function (seq) {
     fetch('call/' + seq).then(function (r) { return r.json(); }).then(function (q) {
       var out;
@@ -64,6 +72,16 @@ const PAGE: &str = r#"<!doctype html><html><head><meta charset="utf-8"><title>Su
           // `args` are the values themselves; `sargs` (an argument that wasn't valid JSON) are
           // JSON text for the page to parse, as it always did.
           var args = q.sargs ? q.sargs.map(function (a) { return JSON.parse(a); }) : q.args;
+          var st = q.store, i;
+          if (st) {
+            if (st.reset) store = {};
+            st.drop.forEach(function (k) { delete store[k]; });
+            for (i in st.refs) {
+              if (!Object.prototype.hasOwnProperty.call(store, st.refs[i])) { post({ seq: seq, miss: st.refs[i] }); return; }
+              args[i] = store[st.refs[i]];
+            }
+            for (i in st.keep) store[st.keep[i]] = args[i];
+          }
           var v = fn.apply(E, args);
           out = { seq: seq, ok: true, v: typeof v === 'string' ? v : (v === undefined ? 'null' : JSON.stringify(v)) };
         }
@@ -81,6 +99,8 @@ const PAGE: &str = r#"<!doctype html><html><head><meta charset="utf-8"><title>Su
 enum Msg {
     Ready(bool),
     Done(u64, Result<String, String>),
+    /// The page doesn't hold a kept argument the call refers to.
+    Miss(u64),
 }
 
 /// What the custom protocol serves for one webview.
@@ -88,11 +108,16 @@ struct Shared {
     engine: Arc<Vec<u8>>,
     /// The call the page should fetch next: (seq, JSON request).
     pending: Mutex<Option<(u64, String)>>,
+    /// How many call requests over [`BIG`] bytes the page has fetched (tests count them).
+    big_sends: AtomicU64,
 }
 
 enum Ui {
     Create { id: u64, shared: Arc<Shared>, tx: Sender<Msg>, reply: Sender<Result<Option<u32>, String>> },
     Run { id: u64, seq: u64 },
+    /// Reloads the page, as a renderer reset would (tests only).
+    #[cfg(test)]
+    Reload(u64),
     Destroy(u64),
     /// Ends the UI thread (tests only).
     Exit,
@@ -266,6 +291,12 @@ fn handle(ev: Ui, target: &EventLoopWindowTarget<Ui>, slots: &mut HashMap<u64, S
                 }
             }
         }
+        #[cfg(test)]
+        Ui::Reload(id) => {
+            if let Some(slot) = slots.get(&id) {
+                let _ = slot.webview.evaluate_script("location.reload()");
+            }
+        }
         Ui::Exit => {}
         Ui::Destroy(id) => {
             if let Some(slot) = slots.remove(&id) {
@@ -342,7 +373,12 @@ fn serve(shared: &Shared, req: Request<Vec<u8>>) -> Response<Cow<'static, [u8]>>
             let seq: Option<u64> = p["call/".len()..].parse().ok();
             let mut pending = shared.pending.lock().unwrap_or_else(|e| e.into_inner());
             match pending.take() {
-                Some((s, body)) if Some(s) == seq => ok("application/json", Cow::Owned(body.into_bytes())),
+                Some((s, body)) if Some(s) == seq => {
+                    if body.len() > BIG {
+                        shared.big_sends.fetch_add(1, Ordering::SeqCst);
+                    }
+                    ok("application/json", Cow::Owned(body.into_bytes()))
+                }
                 other => {
                     *pending = other;
                     not_found()
@@ -365,13 +401,17 @@ fn page_url(url: &str) -> bool {
     ["sf://localhost/", "http://sf.localhost/", "https://sf.localhost/"].iter().any(|p| url.starts_with(p))
 }
 
-/// The page's two messages, exactly: `{"ready": bool}`, or `{"seq": n, "ok": true, "v": str}` /
+/// The page's messages, exactly: `{"ready": bool}`, `{"seq": n, "miss": key}`, or `{"seq": n, "ok": true, "v": str}` /
 /// `{"seq": n, "ok": false, "e": str}`. Anything else is ignored.
 fn parse_ipc(body: &str) -> Option<Msg> {
     let v: serde_json::Value = serde_json::from_str(body).ok()?;
     let o = v.as_object()?;
     if o.len() == 1 {
         return Some(Msg::Ready(o.get("ready")?.as_bool()?));
+    }
+    if o.len() == 2 {
+        o.get("miss")?.as_str()?;
+        return Some(Msg::Miss(o.get("seq")?.as_u64()?));
     }
     if o.len() != 3 {
         return None;
@@ -462,6 +502,8 @@ struct Live {
     rx: Receiver<Msg>,
     pid: Option<u32>,
     watch: ProcWatch,
+    /// The keys the page holds, least recently used first.
+    store: PageStore,
 }
 
 impl Drop for Live {
@@ -478,6 +520,45 @@ struct State {
 pub struct WebviewHost {
     engine: Arc<Vec<u8>>,
     state: Mutex<State>,
+    /// Keys the hash of a big argument (random per host).
+    hasher: RandomState,
+}
+
+/// The arguments kept in the page: at most [`STORE_MAX`] keys, the least recently used first.
+#[derive(Default)]
+struct PageStore {
+    keys: VecDeque<String>,
+}
+
+const STORE_MAX: usize = 6;
+
+impl PageStore {
+    fn holds(&self, k: &str) -> bool {
+        self.keys.iter().any(|x| x == k)
+    }
+
+    /// Marks `k` (held) as just used.
+    fn touch(&mut self, k: &str) {
+        if let Some(i) = self.keys.iter().position(|x| x == k) {
+            let k = self.keys.remove(i).expect("found");
+            self.keys.push_back(k);
+        }
+    }
+
+    /// Adds `k`, putting the keys dropped to make room into `dropped`.
+    fn add(&mut self, k: &str, dropped: &mut Vec<String>) {
+        self.keys.push_back(k.to_string());
+        while self.keys.len() > STORE_MAX {
+            dropped.extend(self.keys.pop_front());
+        }
+    }
+}
+
+/// One request, before it is turned into the JSON the page fetches.
+enum Query<'a> {
+    Has(&'a str),
+    /// The name, the arguments, and each big argument's key.
+    Call(&'a str, &'a [&'a str], Vec<Option<String>>),
 }
 
 impl WebviewHost {
@@ -485,7 +566,11 @@ impl WebviewHost {
     /// web engine is missing or can't load the file; the caller then uses Boa.
     pub fn start(engine_js: &Path) -> Result<Self, String> {
         let engine = std::fs::read(engine_js).map_err(|e| format!("could not read {}: {e}", engine_js.display()))?;
-        let host = WebviewHost { engine: Arc::new(engine), state: Mutex::new(State { live: None, seq: 0 }) };
+        let host = WebviewHost {
+            engine: Arc::new(engine),
+            state: Mutex::new(State { live: None, seq: 0 }),
+            hasher: RandomState::new(),
+        };
         let live = host.spawn()?;
         host.state.lock().unwrap_or_else(|e| e.into_inner()).live = Some(live);
         Ok(host)
@@ -509,9 +594,32 @@ impl WebviewHost {
         }
     }
 
+    /// How many requests over 1 MB the current page has fetched (tests only).
+    #[cfg(test)]
+    fn big_sends(&self) -> u64 {
+        let st = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        st.live.as_ref().map_or(0, |l| l.shared.big_sends.load(Ordering::SeqCst))
+    }
+
+    /// Reloads the page and waits until it is ready again (tests only). The host is not told,
+    /// so the next call finds the page's store empty.
+    #[cfg(test)]
+    fn reload_for_tests(&self) {
+        let st = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        let live = st.live.as_ref().expect("a live webview");
+        live.ui.send(Ui::Reload(live.id)).unwrap();
+        let deadline = Instant::now() + START_LIMIT;
+        loop {
+            match live.rx.recv_timeout(POLL) {
+                Ok(Msg::Ready(true)) => return,
+                _ => assert!(Instant::now() < deadline, "the page did not reload"),
+            }
+        }
+    }
+
     fn spawn(&self) -> Result<Live, String> {
         let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
-        let shared = Arc::new(Shared { engine: self.engine.clone(), pending: Mutex::new(None) });
+        let shared = Arc::new(Shared { engine: self.engine.clone(), pending: Mutex::new(None), big_sends: AtomicU64::new(0) });
         let (tx, rx) = channel();
         let (reply_tx, reply_rx) = channel();
         let ui = ui()?;
@@ -524,13 +632,13 @@ impl WebviewHost {
                 return Err("the web engine did not start in time".into());
             }
         };
-        let live = Live { id, ui, shared, rx, pid, watch: ProcWatch::new(pid) };
+        let live = Live { id, ui, shared, rx, pid, watch: ProcWatch::new(pid), store: PageStore::default() };
         let deadline = Instant::now() + START_LIMIT;
         loop {
             match live.rx.recv_timeout(POLL) {
                 Ok(Msg::Ready(true)) => return Ok(live),
                 Ok(Msg::Ready(false)) => return Err("the web engine could not load the Support Fins engine".into()),
-                Ok(Msg::Done(..)) => {}
+                Ok(Msg::Done(..) | Msg::Miss(_)) => {}
                 Err(RecvTimeoutError::Disconnected) => return Err("the web engine stopped while starting".into()),
                 Err(RecvTimeoutError::Timeout) => {
                     if live.watch.exited() || !live.ui.alive() || Instant::now() > deadline {
@@ -541,38 +649,63 @@ impl WebviewHost {
         }
     }
 
-    fn request(&self, body: String) -> Result<String, String> {
+    /// The key of a big argument: a 64-bit hash (keyed at random per host) and the length.
+    fn key_of(&self, a: &str) -> String {
+        let mut h = self.hasher.build_hasher();
+        h.write(a.as_bytes());
+        format!("{:016x}-{}", h.finish(), a.len())
+    }
+
+    fn request(&self, q: Query) -> Result<String, String> {
         let mut st = self.state.lock().unwrap_or_else(|e| e.into_inner());
         if st.live.is_none() {
             st.live = Some(self.spawn().map_err(|_| STOPPED.to_string())?);
         }
-        st.seq += 1;
-        let seq = st.seq;
-        let live = st.live.as_ref().expect("just made");
-        *live.shared.pending.lock().unwrap_or_else(|e| e.into_inner()) = Some((seq, body));
-        let outcome = if live.watch.exited() || live.ui.send(Ui::Run { id: live.id, seq }).is_err() {
-            None
-        } else {
-            let deadline = Instant::now() + CALL_LIMIT;
-            loop {
-                match live.rx.recv_timeout(POLL) {
-                    Ok(Msg::Done(s, r)) if s == seq => break Some(r),
-                    Ok(_) => {}
-                    Err(RecvTimeoutError::Disconnected) => break None,
-                    Err(RecvTimeoutError::Timeout) => {
-                        if live.watch.exited() || !live.ui.alive() || Instant::now() > deadline {
-                            break None;
+        // A call the page can't run (a kept argument is missing) is sent once more, whole.
+        let mut reset = false;
+        loop {
+            st.seq += 1;
+            let seq = st.seq;
+            let live = st.live.as_mut().expect("just made");
+            let body = match &q {
+                Query::Has(b) => b.to_string(),
+                Query::Call(name, args, keys) => call_body(name, args, keys, &mut live.store, reset),
+            };
+            *live.shared.pending.lock().unwrap_or_else(|e| e.into_inner()) = Some((seq, body));
+            // Some(Some(result)), Some(None) for a miss, None for a dead or stuck page
+            let outcome = if live.watch.exited() || live.ui.send(Ui::Run { id: live.id, seq }).is_err() {
+                None
+            } else {
+                let deadline = Instant::now() + CALL_LIMIT;
+                loop {
+                    match live.rx.recv_timeout(POLL) {
+                        Ok(Msg::Done(s, r)) if s == seq => break Some(Some(r)),
+                        Ok(Msg::Miss(s)) if s == seq => break Some(None),
+                        // the page loaded again: what it kept is gone
+                        Ok(Msg::Ready(_)) => live.store = PageStore::default(),
+                        Ok(_) => {}
+                        Err(RecvTimeoutError::Disconnected) => break None,
+                        Err(RecvTimeoutError::Timeout) => {
+                            if live.watch.exited() || !live.ui.alive() || Instant::now() > deadline {
+                                break None;
+                            }
                         }
                     }
                 }
-            }
-        };
-        match outcome {
-            Some(r) => r,
-            None => {
-                // Dead or stuck: throw this webview away; the next call builds a fresh one.
-                st.live = None;
-                Err(STOPPED.to_string())
+            };
+            match outcome {
+                Some(Some(r)) => return r,
+                Some(None) if !reset => {
+                    live.store = PageStore::default();
+                    reset = true;
+                }
+                // can't happen: a reset call refers to nothing kept
+                Some(None) => return Err(STOPPED.to_string()),
+                None => {
+                    // Dead or stuck: throw this webview away; the next call builds a fresh one.
+                    st.live = None;
+                    return Err(STOPPED.to_string());
+                }
             }
         }
     }
@@ -594,36 +727,73 @@ fn valid_json(a: &str) -> bool {
 /// (the page then gets the value without parsing a copy of a tens-of-MB string again, and the
 /// host doesn't escape one). An argument that isn't valid JSON is sent as text for the page to
 /// parse, so it fails there as it always did.
-fn call_body(name: &str, args: &[&str]) -> String {
+///
+/// A big argument (one with a key in `keys`) that the page already holds goes as `null` plus
+/// its key in `store.refs`; one it doesn't hold goes whole and is kept (`store.keep`, dropping
+/// the least recently used keys past [`STORE_MAX`] in `store.drop`). `reset` empties the page's
+/// store first. `store` is updated to what the page will hold.
+fn call_body(name: &str, args: &[&str], keys: &[Option<String>], store: &mut PageStore, reset: bool) -> String {
     let name = serde_json::to_string(name).unwrap_or_else(|_| "\"\"".into());
-    let cap = 64 + name.len() + args.iter().map(|a| a.len() + 2).sum::<usize>();
-    let mut out = String::with_capacity(cap);
-    out.push_str("{\"op\":\"call\",\"name\":");
-    out.push_str(&name);
-    if args.iter().all(|a| valid_json(a)) {
-        out.push_str(",\"args\":[");
-        for (i, a) in args.iter().enumerate() {
-            if i > 0 {
-                out.push(',');
-            }
-            out.push_str(a);
-        }
-        out.push_str("]}");
-    } else {
+    let key = |i: usize| keys.get(i).and_then(Option::as_deref);
+    // A held argument was valid JSON when it was kept (same key, same text).
+    let held: Vec<bool> = (0..args.len()).map(|i| key(i).is_some_and(|k| store.holds(k))).collect();
+    let mut out = String::new();
+    if !args.iter().zip(&held).all(|(a, &h)| h || valid_json(a)) {
+        out.push_str("{\"op\":\"call\",\"name\":");
+        out.push_str(&name);
         out.push_str(",\"sargs\":");
         out.push_str(&serde_json::to_string(args).unwrap_or_else(|_| "[]".into()));
         out.push('}');
+        return out;
     }
+    let cap = 160 + name.len() + args.iter().zip(&held).map(|(a, &h)| if h { 40 } else { a.len() + 40 }).sum::<usize>();
+    out.reserve(cap);
+    out.push_str("{\"op\":\"call\",\"name\":");
+    out.push_str(&name);
+    out.push_str(",\"args\":[");
+    let (mut refs, mut keep, mut drop) = (Vec::new(), Vec::new(), Vec::new());
+    for (i, a) in args.iter().enumerate() {
+        if i > 0 {
+            out.push(',');
+        }
+        match key(i) {
+            Some(k) if held[i] => {
+                store.touch(k);
+                out.push_str("null");
+                refs.push(format!("\"{i}\":\"{k}\""));
+            }
+            Some(k) => {
+                out.push_str(a);
+                store.add(k, &mut drop);
+                keep.push(format!("\"{i}\":\"{k}\""));
+            }
+            None => out.push_str(a),
+        }
+    }
+    out.push(']');
+    if reset || !refs.is_empty() || !keep.is_empty() {
+        // keys are hex digits, a dash and digits: no escaping needed
+        let drop: Vec<String> = drop.iter().map(|k| format!("\"{k}\"")).collect();
+        out.push_str(&format!(
+            ",\"store\":{{\"reset\":{reset},\"drop\":[{}],\"refs\":{{{}}},\"keep\":{{{}}}}}",
+            drop.join(","),
+            refs.join(","),
+            keep.join(",")
+        ));
+    }
+    out.push('}');
     out
 }
 
 impl FinsHost for WebviewHost {
     fn call(&self, name: &str, args: &[&str]) -> Result<String, String> {
-        self.request(call_body(name, args))
+        let keys = args.iter().map(|a| (a.len() > BIG).then(|| self.key_of(a))).collect();
+        self.request(Query::Call(name, args, keys))
     }
 
     fn has(&self, name: &str) -> bool {
-        matches!(self.request(serde_json::json!({ "op": "has", "name": name }).to_string()).as_deref(), Ok("true"))
+        let q = serde_json::json!({ "op": "has", "name": name }).to_string();
+        matches!(self.request(Query::Has(&q)).as_deref(), Ok("true"))
     }
 
     fn host_kind(&self) -> HostKind {
@@ -634,6 +804,10 @@ impl FinsHost for WebviewHost {
 #[cfg(test)]
 mod body_tests {
     use super::*;
+
+    fn call_body(name: &str, args: &[&str]) -> String {
+        super::call_body(name, args, &vec![None; args.len()], &mut PageStore::default(), false)
+    }
 
     #[test]
     fn call_body_embeds_json_args_and_falls_back() {
@@ -647,5 +821,136 @@ mod body_tests {
         let weird = format!("\"{}\u{1}\"", "A".repeat(10_000));
         let b: serde_json::Value = serde_json::from_str(&call_body("f", &[&weird])).unwrap();
         assert!(b.get("sargs").is_some());
+    }
+}
+
+#[cfg(test)]
+mod store_tests {
+    use super::*;
+
+    /// A stand-in engine: `sum(s)` answers the length of `s` and a checksum of its characters.
+    const FAKE: &str = "var SupportFinsEngine = { sum: function (s, k) { var h = 0;         for (var i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) % 1000003; }         return s.length + ':' + h + ':' + k; } };";
+
+    fn host(name: &str) -> WebviewHost {
+        let p = std::env::temp_dir().join(format!("stl-fins-fake-{}-{name}.js", std::process::id()));
+        std::fs::write(&p, FAKE).unwrap();
+        WebviewHost::start(&p).expect("the webview host should start on this machine")
+    }
+
+    /// A 2 MB JSON string argument, not all the same character.
+    fn big(seed: u8) -> String {
+        let a = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        let mut s = String::with_capacity(2_000_002);
+        s.push('"');
+        for i in 0..2_000_000usize {
+            s.push(a[(i * 7 + i / 64 + seed as usize) % 64] as char);
+        }
+        s.push('"');
+        s
+    }
+
+    fn want(arg: &str, k: &str) -> String {
+        let mut h: u64 = 0;
+        for c in arg[1..arg.len() - 1].bytes() {
+            h = (h * 31 + c as u64) % 1000003;
+        }
+        format!("{}:{h}:{k}", arg.len() - 2)
+    }
+
+    #[test]
+    fn large_arg_sent_once() {
+        let h = host("once");
+        let s = big(0);
+        let t = Instant::now();
+        assert_eq!(h.call("sum", &[&s, "\"a\""]).unwrap(), want(&s, "a"));
+        let first = t.elapsed();
+        let t = Instant::now();
+        assert_eq!(h.call("sum", &[&s, "\"b\""]).unwrap(), want(&s, "b"));
+        println!("large_arg_sent_once: first call {first:?}, second {:?}", t.elapsed());
+        assert_eq!(h.big_sends(), 1, "the 2 MB argument should cross sf:// once");
+        // a different big argument is sent, and both stay usable
+        let s2 = big(1);
+        assert_eq!(h.call("sum", &[&s2, "\"c\""]).unwrap(), want(&s2, "c"));
+        assert_eq!(h.call("sum", &[&s, "\"d\""]).unwrap(), want(&s, "d"));
+        assert_eq!(h.big_sends(), 2);
+    }
+
+    #[test]
+    fn large_arg_after_reload() {
+        let h = host("reload");
+        let s = big(2);
+        assert_eq!(h.call("sum", &[&s, "1"]).unwrap(), want(&s, "1"));
+        assert_eq!(h.big_sends(), 1);
+        h.reload_for_tests();
+        assert_eq!(h.call("sum", &[&s, "2"]).unwrap(), want(&s, "2"));
+        assert_eq!(h.big_sends(), 2, "after a reload the argument is sent again");
+        assert_eq!(h.call("sum", &[&s, "3"]).unwrap(), want(&s, "3"));
+        assert_eq!(h.big_sends(), 2, "and then kept again");
+    }
+
+    #[test]
+    fn store_keeps_six() {
+        let h = host("six");
+        let args: Vec<String> = (0..7).map(|i| big(10 + i)).collect();
+        for a in &args {
+            assert_eq!(h.call("sum", &[a, "0"]).unwrap(), want(a, "0"));
+        }
+        assert_eq!(h.big_sends(), 7);
+        // the newest six are kept; the oldest was dropped and is sent again
+        assert_eq!(h.call("sum", &[&args[6], "0"]).unwrap(), want(&args[6], "0"));
+        assert_eq!(h.big_sends(), 7);
+        assert_eq!(h.call("sum", &[&args[0], "0"]).unwrap(), want(&args[0], "0"));
+        assert_eq!(h.big_sends(), 8);
+    }
+
+    /// The real engine, with a part whose soup is over 1 MB: kept arguments give the same answer.
+    #[test]
+    fn large_arg_real_engine() {
+        let engine = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../web/vendor/support-fins/engine.iife.js");
+        let h = WebviewHost::start(&engine).expect("the webview host should start on this machine");
+        // a 100 x 100 mm plate, 5 mm thick, 10 mm above the bed: its underside is an overhang
+        let n = 90usize;
+        let mut bytes = Vec::new();
+        let mut tri = |p: [[f64; 3]; 3]| {
+            for v in p {
+                for x in v {
+                    bytes.extend_from_slice(&x.to_le_bytes());
+                }
+            }
+        };
+        let s = 100.0 / n as f64;
+        for i in 0..n {
+            for k in 0..n {
+                let (x0, y0, x1, y1) = (i as f64 * s - 50.0, k as f64 * s - 50.0, (i + 1) as f64 * s - 50.0, (k + 1) as f64 * s - 50.0);
+                for z in [10.0, 15.0] {
+                    let (a, b, c, d) = ([x0, y0, z], [x1, y0, z], [x1, y1, z], [x0, y1, z]);
+                    if z > 12.0 {
+                        tri([a, b, c]);
+                        tri([a, c, d]);
+                    } else {
+                        tri([a, c, b]);
+                        tri([a, d, c]);
+                    }
+                }
+            }
+        }
+        // a small foot at the far corner, so the plate sits above the bed
+        tri([[45.0, 45.0, 0.0], [45.0, 47.0, 0.0], [47.0, 47.0, 0.0]]);
+        tri([[45.0, 45.0, 0.0], [47.0, 47.0, 0.0], [47.0, 45.0, 0.0]]);
+        let soup = format!("\"{}\"", stl_engine::features::common::fins::b64_encode(&bytes));
+        assert!(soup.len() > BIG);
+        let opts = serde_json::to_string(&h.call("optionsFromDialogJson", &["\"{}\""]).unwrap()).unwrap();
+        let wall = |a: &str, b: &str| {
+            let t = Instant::now();
+            let r = h.call("drawWallB64", &[&soup, &serde_json::to_string(a).unwrap(), &serde_json::to_string(b).unwrap(), &opts]).unwrap();
+            (r, t.elapsed())
+        };
+        let (r1, t1) = wall("[-20,0,10]", "[20,0,10]");
+        let (r2, t2) = wall("[0,-20,10]", "[0,20,10]");
+        let (r3, t3) = wall("[-20,0,10]", "[20,0,10]");
+        println!("large_arg_real_engine: soup {} bytes; cold {t1:?}, warm {t2:?}, {t3:?}", soup.len());
+        assert_eq!(r1, r3, "the same arguments give the same answer");
+        assert_ne!(r1, r2);
+        assert_eq!(h.big_sends(), 1, "the soup crosses sf:// once");
     }
 }

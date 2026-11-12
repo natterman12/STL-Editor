@@ -138,9 +138,11 @@ jobs:
           python dev/parity/make_offset_corpus.py --check
           python dev/parity/make_voxel_golden.py --check
           python dev/parity/make_simplify_golden.py --check
+          python dev/parity/make_export_golden.py --check
           node dev/parity/js/solver_golden.mjs --check
           node dev/parity/js/import2d_golden.mjs --check
           node dev/parity/js/remesh_golden.mjs --check
+          node dev/parity/js/step_golden.mjs --check
 
       - name: Use the GNU host
         shell: bash

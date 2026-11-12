@@ -1,0 +1,108 @@
+{
+ "base": "all_hidden",
+ "count": 2,
+ "document": {
+  "3mf_model_xml": {
+   "sha256": "7381b8f14578745b0906db47b8891e00dd70179bd1b52143125f2eceb86934c6",
+   "size": 21398
+  },
+  "obj": {
+   "sha256": "49d07398589338729af639f759fdc41d5ae865759ccf1588ad34d70dc5984af8",
+   "size": 9217
+  },
+  "stl": {
+   "sha256": "e00bd43c7403b247afa59d1c68b3c46945827794ae6bcaacdda5ca549e83f246",
+   "size": 15284
+  }
+ },
+ "error": null,
+ "readback": {
+  "3mf": [
+   {
+    "name": "out 1",
+    "stats": {
+     "area": 2464.0137973359465,
+     "bbox_max": [
+      30.0,
+      20.0,
+      10.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 276,
+     "vertices": 136,
+     "volume": 5438.1398433105005,
+     "watertight": true
+    }
+   },
+   {
+    "name": "out 2",
+    "stats": {
+     "area": 10240.0,
+     "bbox_max": [
+      50.0,
+      40.0,
+      58.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 28,
+     "vertices": 16,
+     "volume": 32000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "obj": [
+   {
+    "name": "out",
+    "stats": {
+     "area": 12704.013797335947,
+     "bbox_max": [
+      50.0,
+      40.0,
+      58.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 304,
+     "vertices": 152,
+     "volume": 37438.1398433105,
+     "watertight": true
+    }
+   }
+  ],
+  "stl": [
+   {
+    "name": "out",
+    "stats": {
+     "area": 12704.013797335947,
+     "bbox_max": [
+      50.0,
+      40.0,
+      58.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 304,
+     "vertices": 152,
+     "volume": 37438.1398433105,
+     "watertight": true
+    }
+   }
+  ]
+ },
+ "step_error": null
+}

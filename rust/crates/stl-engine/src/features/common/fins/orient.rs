@@ -85,6 +85,7 @@ mod tests {
         let mesh = MeshData {
             verts: vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0], [1.0, 0.0, 1.0]],
             faces: vec![[0, 1, 2], [0, 2, 3], [1, 2, 4]],
+            memo: None,
         };
         assert_eq!(nearest_face(&mesh, [0.2, 0.5, 0.3], [0.0, 0.0, 1.0]), 1);
         assert_eq!(nearest_face(&mesh, [0.2, 0.5, 5.0], [0.0, 0.0, 1.0]), -1); // too far

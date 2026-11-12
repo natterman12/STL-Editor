@@ -37,10 +37,11 @@ GOLDEN = ROOT / "rust" / "tests" / "parity" / "fins_golden.json"
 SF_MODELS = ["t_bracket.stl", "lipped_shelf.stl", "bridge_ring.stl"]
 
 # Default options plus two non-default sets used by host parity tests.
+# dense_tines: from optionsSchemaJson; vertical + full density changes t_bracket vs default.
 OPTION_SETS = [
     ("default", {}),
     ("full", {"mode": "full"}),
-    ("dense_tines", {"tineDensity": 0.5, "threshold": 50}),
+    ("dense_tines", {"tineDir": "vertical", "tineDensity": 1.0}),
 ]
 
 

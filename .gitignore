@@ -39,3 +39,6 @@ dev/bench/node_modules/
 rust/target/
 !rust/tests/projects/*.stlx
 rust/third_party/*/target/
+
+# local check exports
+dev/out/

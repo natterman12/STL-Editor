@@ -16,10 +16,12 @@ pub mod results;
 pub mod walls;
 
 use std::collections::VecDeque;
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
+
+use stl_kernel::{MeshArrays, Solid};
 
 use crate::state::Body;
 use crate::{FeatureError, FinsHost, HostKind};
@@ -161,12 +163,67 @@ pub fn options(host: &dyn FinsHost, values: &Value) -> Result<String, FeatureErr
 // -- the mesh ---------------------------------------------------------------------------------
 
 /// A body's triangles: `b.mesh()` in 1.x.
+#[derive(Clone)]
 pub struct MeshData {
     pub verts: Vec<P3>,
     pub faces: Vec<[usize; 3]>,
+    /// The soup and key worked out once for the body this came from (`body_mesh`); `None`
+    /// for a mesh made any other way. Only ever filled from `verts` and `faces`.
+    pub memo: Option<Arc<MeshMemo>>,
+}
+
+/// [`soup_json`] and [`mesh_key`] of one body's mesh, each made the first time it is asked for.
+#[derive(Default)]
+pub struct MeshMemo {
+    soup_json: OnceLock<String>,
+    key: OnceLock<String>,
+}
+
+/// What a body's mesh comes from. Held, so the object can't be freed and its address reused.
+enum MeshSource {
+    Solid(Solid),
+    Mesh(Arc<MeshArrays>),
+}
+
+impl MeshSource {
+    fn of(b: &Body) -> Option<MeshSource> {
+        match (&b.solid, &b.mesh) {
+            (Some(s), _) => Some(MeshSource::Solid(s.clone())),
+            (None, Some(m)) => Some(MeshSource::Mesh(m.clone())),
+            (None, None) => None,
+        }
+    }
+    fn same(&self, o: &MeshSource) -> bool {
+        match (self, o) {
+            (MeshSource::Solid(a), MeshSource::Solid(b)) => a.shares_with(b),
+            (MeshSource::Mesh(a), MeshSource::Mesh(b)) => Arc::ptr_eq(a, b),
+            _ => false,
+        }
+    }
+}
+
+/// The meshes of the last [`MESH_MEMO`] bodies asked for, so drawing more walls on the same
+/// body doesn't make its mesh, soup and key again. A body's solid or mesh is never changed in
+/// place (a feature makes a new one), so the same object means the same triangles. One on the
+/// web build, whose memory never shrinks.
+#[cfg(not(target_arch = "wasm32"))]
+const MESH_MEMO: usize = 2;
+#[cfg(target_arch = "wasm32")]
+const MESH_MEMO: usize = 1;
+
+fn mesh_memo() -> &'static Mutex<VecDeque<(MeshSource, MeshData)>> {
+    static M: OnceLock<Mutex<VecDeque<(MeshSource, MeshData)>>> = OnceLock::new();
+    M.get_or_init(|| Mutex::new(VecDeque::new()))
 }
 
 pub fn body_mesh(b: &Body) -> MeshData {
+    let src = MeshSource::of(b);
+    if let Some(src) = &src {
+        let memo = mesh_memo().lock().unwrap_or_else(|e| e.into_inner());
+        if let Some((_, m)) = memo.iter().find(|(s, _)| s.same(src)) {
+            return m.clone();
+        }
+    }
     let m = match (&b.solid, &b.mesh) {
         (Some(s), _) => s.to_mesh(),
         (None, Some(m)) => (**m).clone(),
@@ -174,36 +231,119 @@ pub fn body_mesh(b: &Body) -> MeshData {
     };
     let verts = m.positions.chunks_exact(3).map(|p| [p[0] as f64, p[1] as f64, p[2] as f64]).collect();
     let faces = m.triangles.chunks_exact(3).map(|t| [t[0] as usize, t[1] as usize, t[2] as usize]).collect();
-    MeshData { verts, faces }
+    let Some(src) = src else { return MeshData { verts, faces, memo: None } };
+    let md = MeshData { verts, faces, memo: Some(Arc::new(MeshMemo::default())) };
+    let mut memo = mesh_memo().lock().unwrap_or_else(|e| e.into_inner());
+    memo.push_back((src, md.clone()));
+    while memo.len() > MESH_MEMO {
+        memo.pop_front();
+    }
+    md
 }
 
-/// `_mesh_key`: a hash of the float32 vertices and the int64 faces.
+/// `_mesh_key`: a hash of the float32 vertices and the int64 faces (only ever a key for this
+/// process's caches, never compared with 1.x).
 pub fn mesh_key(m: &MeshData) -> String {
+    match &m.memo {
+        Some(memo) => memo.key.get_or_init(|| make_mesh_key(m)).clone(),
+        None => make_mesh_key(m),
+    }
+}
+
+/// Vertices or faces per leaf of [`make_mesh_key`]'s hash.
+const KEY_LEAF: usize = 65_536;
+
+/// SHA-256 of fixed-size runs of the vertices and the faces (on several threads where there
+/// are any), then of the counts and those hashes: the same key whatever the threads.
+fn make_mesh_key(m: &MeshData) -> String {
+    let (nv, nf) = (m.verts.len().div_ceil(KEY_LEAF), m.faces.len().div_ceil(KEY_LEAF));
+    let leaves = crate::features::common::pose::par_map(nv + nf, |i| {
+        let mut buf: Vec<u8> = Vec::with_capacity(KEY_LEAF * 24);
+        if i < nv {
+            for v in &m.verts[i * KEY_LEAF..((i + 1) * KEY_LEAF).min(m.verts.len())] {
+                v.iter().for_each(|x| buf.extend_from_slice(&(*x as f32).to_le_bytes()));
+            }
+        } else {
+            let i = i - nv;
+            for f in &m.faces[i * KEY_LEAF..((i + 1) * KEY_LEAF).min(m.faces.len())] {
+                f.iter().for_each(|x| buf.extend_from_slice(&(*x as i64).to_le_bytes()));
+            }
+        }
+        Sha256::digest(&buf)
+    });
     let mut h = Sha256::new();
-    for v in &m.verts {
-        for x in v {
-            h.update((*x as f32).to_le_bytes());
-        }
-    }
-    for f in &m.faces {
-        for i in f {
-            h.update((*i as i64).to_le_bytes());
-        }
-    }
+    h.update(format!("v{}f{}", m.verts.len(), m.faces.len()).as_bytes());
+    leaves.iter().for_each(|d| h.update(d));
     h.finalize().iter().take(16).map(|b| format!("{b:02x}")).collect()
 }
 
 /// `_soup`: the triangles as little-endian float64 xyz per corner, base64.
 pub fn soup(m: &MeshData) -> String {
-    let mut bytes = Vec::with_capacity(m.faces.len() * 72);
-    for f in &m.faces {
-        for &i in f {
-            for x in m.verts[i] {
-                bytes.extend_from_slice(&x.to_le_bytes());
+    soup_text(m, false)
+}
+
+/// Triangles per block of [`soup_text`]'s work (each block is encoded on its own).
+const SOUP_BLOCK: usize = 16_384;
+
+/// The soup, in quotes when `quoted`. A triangle is 72 bytes, a whole number of base64 groups
+/// (96 characters), so each block of triangles is encoded straight into its own part of the
+/// text, on several threads where there are any. Same text as `b64_encode` of all the bytes.
+fn soup_text(m: &MeshData, quoted: bool) -> String {
+    let q = usize::from(quoted);
+    let mut out = vec![b'"'; m.faces.len() * 96 + 2 * q];
+    let body_len = out.len() - 2 * q;
+    let body = &mut out[q..q + body_len];
+    let encode = |faces: &[[usize; 3]], dst: &mut [u8]| {
+        let mut tri = [0u8; 72];
+        for (f, d) in faces.iter().zip(dst.chunks_exact_mut(96)) {
+            for (k, &i) in f.iter().enumerate() {
+                for (c, x) in m.verts[i].iter().enumerate() {
+                    tri[k * 24 + c * 8..k * 24 + c * 8 + 8].copy_from_slice(&x.to_le_bytes());
+                }
+            }
+            for (src, o) in tri.chunks_exact(3).zip(d.chunks_exact_mut(4)) {
+                let n = (src[0] as u32) << 16 | (src[1] as u32) << 8 | src[2] as u32;
+                o[0] = B64[(n >> 18) as usize & 63];
+                o[1] = B64[(n >> 12) as usize & 63];
+                o[2] = B64[(n >> 6) as usize & 63];
+                o[3] = B64[n as usize & 63];
             }
         }
+    };
+    let blocks: Vec<(&[[usize; 3]], &mut [u8])> = m.faces.chunks(SOUP_BLOCK).zip(body.chunks_mut(SOUP_BLOCK * 96)).collect();
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let workers = std::thread::available_parallelism().map_or(1, |p| p.get()).min(blocks.len()).min(8);
+        if workers > 1 {
+            let work = Mutex::new(blocks);
+            std::thread::scope(|s| {
+                for _ in 0..workers {
+                    s.spawn(|| loop {
+                        let job = work.lock().unwrap_or_else(|e| e.into_inner()).pop();
+                        match job {
+                            Some((f, d)) => encode(f, d),
+                            None => break,
+                        }
+                    });
+                }
+            });
+            return String::from_utf8(out).expect("base64 is ASCII");
+        }
     }
-    b64_encode(&bytes)
+    for (f, d) in blocks {
+        encode(f, d);
+    }
+    String::from_utf8(out).expect("base64 is ASCII")
+}
+
+/// [`soup`] as JSON text (quoted), as a call argument; kept with the body's mesh.
+pub fn soup_json(m: &MeshData) -> std::borrow::Cow<'_, str> {
+    // base64 never needs escaping
+    let make = || soup_text(m, true);
+    match &m.memo {
+        Some(memo) => std::borrow::Cow::Borrowed(memo.soup_json.get_or_init(make).as_str()),
+        None => std::borrow::Cow::Owned(make()),
+    }
 }
 
 const B64: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -308,6 +448,8 @@ pub fn clear_caches() {
     let mut c = caches().lock().unwrap_or_else(|e| e.into_inner());
     c.fins = Lru::new(CACHE_FINS);
     c.wall = Lru::new(CACHE_WALL);
+    drop(c);
+    mesh_memo().lock().unwrap_or_else(|e| e.into_inner()).clear();
 }
 
 /// `_cached("wall", key, fn)`.
@@ -451,6 +593,61 @@ mod tests {
         assert_eq!(c.get("b"), None);
         assert_eq!(c.get("a"), Some(1));
         assert_eq!(c.get("c"), Some(3));
+    }
+
+    #[test]
+    fn soup_blocks_match_one_encode() {
+        // more triangles than one block, so the blocks (and threads) are used
+        let n = SOUP_BLOCK.max(KEY_LEAF) * 2 + 7;
+        let verts: Vec<P3> = (0..n + 2).map(|i| [i as f64 * 0.37, -(i as f64) / 3.0, (i % 11) as f64 * 1e-3]).collect();
+        let faces: Vec<[usize; 3]> = (0..n).map(|i| [i, i + 1, i + 2]).collect();
+        let m = MeshData { verts, faces, memo: None };
+        let mut bytes = Vec::new();
+        for f in &m.faces {
+            for &i in f {
+                for x in m.verts[i] {
+                    bytes.extend_from_slice(&x.to_le_bytes());
+                }
+            }
+        }
+        let want = b64_encode(&bytes);
+        assert_eq!(soup(&m), want);
+        assert_eq!(soup_json(&m), format!("\"{want}\""));
+        // the key: the same for equal meshes, another when a vertex moves or a face changes
+        let k = mesh_key(&m);
+        assert_eq!(k.len(), 32);
+        assert_eq!(mesh_key(&MeshData { memo: None, ..m.clone() }), k);
+        let mut moved = m.clone();
+        moved.verts[KEY_LEAF + 3][1] += 0.5;
+        assert_ne!(mesh_key(&moved), k);
+        let mut flipped = m.clone();
+        flipped.faces[n - 1].swap(0, 1);
+        assert_ne!(mesh_key(&flipped), k);
+        let mut fewer = m.clone();
+        fewer.verts.pop();
+        assert_ne!(mesh_key(&fewer), k);
+        let empty = MeshData { verts: vec![], faces: vec![], memo: None };
+        assert_eq!(soup(&empty), "");
+        assert_eq!(soup_json(&empty), "\"\"");
+    }
+
+    #[test]
+    fn body_mesh_keeps_soup_and_key_per_body() {
+        let arrays = MeshArrays { positions: vec![0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.5], triangles: vec![0, 1, 2] };
+        let body = Body { name: "b".into(), solid: None, mesh: Some(Arc::new(arrays.clone())) };
+        let a = body_mesh(&body);
+        let plain = MeshData { verts: a.verts.clone(), faces: a.faces.clone(), memo: None };
+        assert_eq!(soup_json(&a), serde_json::to_string(&soup(&plain)).unwrap());
+        assert_eq!(mesh_key(&a), mesh_key(&plain));
+        // the same body again: the same memo, so nothing is made twice
+        let b = body_mesh(&body);
+        assert!(Arc::ptr_eq(a.memo.as_ref().unwrap(), b.memo.as_ref().unwrap()));
+        assert_eq!(soup_json(&b), soup_json(&a));
+        // another body with equal triangles: its own memo, the same answers
+        let other = Body { name: "c".into(), solid: None, mesh: Some(Arc::new(arrays)) };
+        let c = body_mesh(&other);
+        assert!(!Arc::ptr_eq(a.memo.as_ref().unwrap(), c.memo.as_ref().unwrap()));
+        assert_eq!(mesh_key(&c), mesh_key(&a));
     }
 
     #[test]

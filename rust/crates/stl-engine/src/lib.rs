@@ -11,8 +11,9 @@ pub mod registry;
 pub mod state;
 pub mod stlx;
 
-pub use document::Document;
+pub use document::{iso_from_unix_secs, iso_utc_now, Document};
 pub use error::FeatureError;
+pub use stl_io::{ExportFormat, ExportOptions};
 pub use features::common::{
     affine, apply_tool, base_planes, float, mirror_matrix, pivot, place, plane_frame, repeat_features, rotation,
     transform_body, Frame, PlaneDef, ToolRecord, Vec3,

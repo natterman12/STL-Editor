@@ -7,11 +7,11 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use serde_json::{json, Map, Value};
-use stl_engine::{Document, FinsHost, Registry};
+use stl_engine::{Document, ExportFormat, FinsHost, Registry};
 use stl_platform::fins::WebviewHost;
 
 const RUNS: usize = 3;
-const NAMES: [(&str, &str); 25] = [
+const NAMES: [(&str, &str); 29] = [
     ("import", "Import (repair on)"),
     ("combine_join", "Combine join, 30 mm cube"),
     ("combine_cut", "Combine cut, 30 mm cube"),
@@ -37,6 +37,10 @@ const NAMES: [(&str, &str); 25] = [
     ("thread", "Thread M8 x 30 external"),
     ("resizehole", "Resize Hole (hole_and_pin)"),
     ("supportwall", "Draw Walls, one line"),
+    ("export_stl", "Export STL"),
+    ("export_3mf", "Export 3MF"),
+    ("export_obj", "Export OBJ"),
+    ("export_step", "Export STEP"),
 ];
 
 fn obj(v: Value) -> Map<String, Value> {
@@ -484,6 +488,24 @@ fn time_rust(root: &Path, data: &[u8]) -> Result<Vec<f64>, String> {
         .map_err(|e| e.0)?;
         Ok(secs(t))
     })?);
+
+    // --- M3 export rows: Document::export to a temp file (same body as 1.x Document) ---
+    for (fmt, ext) in [
+        (ExportFormat::Stl, "stl"),
+        (ExportFormat::ThreeMf, "3mf"),
+        (ExportFormat::Obj, "obj"),
+        (ExportFormat::Step, "step"),
+    ] {
+        out.push(time_op(|| {
+            let (d, _mesh) = doc_with_mesh(data, true)?;
+            let path = std::env::temp_dir().join(format!("stl-editor-bench-export-{ext}"));
+            let t = Instant::now();
+            d.export(&path, fmt, None, None).map_err(|e| e.0)?;
+            let s = secs(t);
+            let _ = std::fs::remove_file(&path);
+            Ok(s)
+        })?);
+    }
     Ok(out)
 }
 

@@ -1,0 +1,11 @@
+{
+ "base": "model",
+ "count": 0,
+ "error": "There is nothing to export.",
+ "readback": {
+  "3mf": [],
+  "obj": [],
+  "stl": []
+ },
+ "step_error": null
+}

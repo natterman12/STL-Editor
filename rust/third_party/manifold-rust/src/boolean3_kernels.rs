@@ -151,6 +151,7 @@ fn tri_xy(mesh: &ManifoldImpl) -> crate::scratch::Scratch<TriXy> {
 // Tests whether vertex a0 of mesh A shadows edge b1 of mesh B.
 // Returns (winding contribution, (y,z) interpolated position).
 
+#[inline(always)]
 fn shadow01(
     a0: usize,
     b1: usize,
@@ -199,6 +200,7 @@ fn shadow01(
 // Kernel11 — edge-edge intersection
 // ---------------------------------------------------------------------------
 
+#[inline(always)]
 fn kernel11(
     p1: usize,
     q1: usize,
@@ -272,6 +274,7 @@ fn kernel11(
 // Kernel02 — vertex-face intersection
 // ---------------------------------------------------------------------------
 
+#[inline(always)]
 fn kernel02(
     a0: usize,
     b2: usize,
@@ -339,6 +342,7 @@ fn kernel02(
 // Kernel12 — edge-face intersection
 // ---------------------------------------------------------------------------
 
+#[inline(always)]
 pub(super) fn kernel12(
     a1: usize,
     b2: usize,
@@ -503,10 +507,13 @@ pub(super) fn intersect12(
     };
     // Packed x / normal-x and the face XY corners. Built once per call; the
     // inner kernel and the reject read them on every candidate.
+    let t_prep = crate::timing::start();
     let p_xn = vert_xn(in_p);
     let q_xn = vert_xn(in_q);
     let (a_xn, b_xn): (&[Xn], &[Xn]) = if forward { (&p_xn, &q_xn) } else { (&q_xn, &p_xn) };
     let face_xy = tri_xy(b);
+    crate::timing::print("    intersect prep", t_prep);
+    let t_query = crate::timing::start();
     let per_run: Vec<Vec<([i32; 2], i32, Vec3)>> =
         crate::par::maybe_par_map_each_ct(n.div_ceil(run_len), threshold, token, |run| {
             let mut local: Vec<([i32; 2], i32, Vec3)> = Vec::new();
@@ -559,6 +566,8 @@ pub(super) fn intersect12(
             }
             local
         })?;
+    crate::timing::print("    intersect query", t_query);
+    let t_sort = crate::timing::start();
     let total: usize = per_run.iter().map(Vec::len).sum();
     result.p1q2.reserve(total);
     result.x12.reserve(total);
@@ -595,6 +604,7 @@ pub(super) fn intersect12(
     result.p1q2 = crate::par::maybe_par_map(m, 10_000, |i| old_p1q2[indices[i]]);
     result.x12 = crate::par::maybe_par_map(m, 10_000, |i| old_x12[indices[i]]);
     result.v12 = crate::par::maybe_par_map(m, 10_000, |i| old_v12[indices[i]]);
+    crate::timing::print("    intersect sort", t_sort);
 
     Some(result)
 }

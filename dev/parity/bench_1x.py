@@ -140,69 +140,124 @@ def with_pattern_source(data):
     return d, mesh
 
 
-def main():
+def with_export_body(data):
+    """Imported bench mesh as the single body Document.export / geometry.export_bodies would write."""
+    from stleditor import geometry as G
+
+    d, mesh = doc_with_mesh(data, True)
+    body = d.state.body(mesh).copy(name=d.body_name(mesh))
+    return G, [body]
+
+
+def export_op(ext):
+    """Write the Document's body to a temp file via geometry.export_bodies (timed)."""
+    def go(ctx):
+        G, bodies = ctx
+        fd, path = tempfile.mkstemp(suffix=ext)
+        os.close(fd)
+        try:
+            G.export_bodies(bodies, path)
+        finally:
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
+    return go
+
+
+def time_export_step_node():
+    """Median STEP time from stepBytes in Node (dev/parity/js/bench_step.mjs)."""
+    import subprocess
+
+    script = os.path.join(ROOT, "dev", "parity", "js", "bench_step.mjs")
+    # Prefer the default heap; retry with 8 GB if Node runs out of memory.
+    attempts = [
+        ["node", script],
+        ["node", "--max-old-space-size=8192", script],
+    ]
+    last_err = ""
+    for cmd in attempts:
+        p = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
+        if p.returncode == 0:
+            line = next((l for l in reversed(p.stdout.splitlines()) if l.strip().startswith("{")), "")
+            return json.loads(line)["export_step"]
+        last_err = (p.stderr or p.stdout or "").strip()
+        if "heap" not in last_err.lower() and "out of memory" not in last_err.lower():
+            break
+    raise RuntimeError(f"bench_step.mjs failed: {last_err}")
+
+
+def main(only=None):
+    """Time all rows, or only the keys in `only` (for a subset check without the full bench)."""
+    want = set(only) if only else None
+
+    def take(key, build):
+        if want is not None and key not in want:
+            return
+        r[key] = build()
+
     force_bundled_fins()
     data = open(MESH, "rb").read()
     broken = broken_copy(data)
     hole_data = open(HOLE, "rb").read()
     r = {}
-    r["import"] = median(lambda: Document(),
-                         lambda d: d.import_file("test_mesh.stl", data=data, repair=True, place="keep"))
-    r["combine_join"] = median(lambda: with_cube(data), combine("join"))
-    r["combine_cut"] = median(lambda: with_cube(data), combine("cut"))
-    r["split"] = median(lambda: doc_with_mesh(data, True),
+    take("import", lambda: median(lambda: Document(),
+                         lambda d: d.import_file("test_mesh.stl", data=data, repair=True, place="keep")))
+    take("combine_join", lambda: median(lambda: with_cube(data), combine("join")))
+    take("combine_cut", lambda: median(lambda: with_cube(data), combine("cut")))
+    take("split", lambda: median(lambda: doc_with_mesh(data, True),
                         lambda c: c[0].add_feature("split", {
                             "body": c[1], "plane": {"origin": [0, 0, 0], "normal": [0, 0, 1]},
-                            "keep": "both", "connector": "none"}))
-    r["repair_quick"] = median(lambda: doc_with_mesh(broken, False),
-                               lambda c: c[0].add_feature("repair", {"body": c[1], "mode": "quick"}))
+                            "keep": "both", "connector": "none"})))
+    take("repair_quick", lambda: median(lambda: doc_with_mesh(broken, False),
+                               lambda c: c[0].add_feature("repair", {"body": c[1], "mode": "quick"})))
     ring = [{"id": "r", "type": "polyline", "closed": True, "pts": ngon(30, 0, 10, 200)}]
-    r["extrude"] = median(lambda: with_sketch(ring),
-                          lambda c: c[0].add_feature("extrude", {"sketch": c[1], "distance": 20}))
-    r["revolve"] = median(lambda: with_sketch(ring),
-                          lambda c: c[0].add_feature("revolve", {"sketch": c[1], "axis": "y", "angle": 360}))
-    r["sweep"] = median(with_sweep_sketches,
-                        lambda c: c[0].add_feature("sweep", {"profile": c[1], "path": c[2]}))
-    r["simplify"] = median(lambda: doc_with_mesh(data, True),
-                           lambda c: c[0].add_feature("simplify", {"body": c[1], "ratio": 0.1}))
-    r["remesh"] = median(lambda: doc_with_mesh(data, True),
-                         lambda c: c[0].add_feature("remesh", {"body": c[1], "edge": 1.0}))
-    r["hollow"] = median(lambda: doc_with_mesh(data, True),
+    take("extrude", lambda: median(lambda: with_sketch(ring),
+                          lambda c: c[0].add_feature("extrude", {"sketch": c[1], "distance": 20})))
+    take("revolve", lambda: median(lambda: with_sketch(ring),
+                          lambda c: c[0].add_feature("revolve", {"sketch": c[1], "axis": "y", "angle": 360})))
+    take("sweep", lambda: median(with_sweep_sketches,
+                        lambda c: c[0].add_feature("sweep", {"profile": c[1], "path": c[2]})))
+    take("simplify", lambda: median(lambda: doc_with_mesh(data, True),
+                           lambda c: c[0].add_feature("simplify", {"body": c[1], "ratio": 0.1})))
+    take("remesh", lambda: median(lambda: doc_with_mesh(data, True),
+                         lambda c: c[0].add_feature("remesh", {"body": c[1], "edge": 1.0})))
+    take("hollow", lambda: median(lambda: doc_with_mesh(data, True),
                          lambda c: c[0].add_feature("hollow", {
-                             "body": c[1], "thickness": 2, "resolution": "normal"}))
-    r["shell"] = median(lambda: doc_with_mesh(data, True),
+                             "body": c[1], "thickness": 2, "resolution": "normal"})))
+    take("shell", lambda: median(lambda: doc_with_mesh(data, True),
                         lambda c: c[0].add_feature("shell", {
-                            "body": c[1], "thickness": 2, "faces": []}))
-    r["lattice"] = median(lambda: doc_with_mesh(data, True),
+                            "body": c[1], "thickness": 2, "faces": []})))
+    take("lattice", lambda: median(lambda: doc_with_mesh(data, True),
                           lambda c: c[0].add_feature("lattice", {
-                              "body": c[1], "cell": 6, "strut": 1, "thickness": 2}))
-    r["offset"] = median(lambda: doc_with_mesh(data, True),
+                              "body": c[1], "cell": 6, "strut": 1, "thickness": 2})))
+    take("offset", lambda: median(lambda: doc_with_mesh(data, True),
                          lambda c: c[0].add_feature("offset", {
-                             "bodies": [c[1]], "distance": 0.5, "direction": "grow"}))
-    r["thincheck"] = median(lambda: doc_with_mesh(data, True),
-                            lambda c: c[0].add_feature("thincheck", {"body": c[1], "min": 0.8}))
-    r["repair_rebuild"] = median(lambda: doc_with_mesh(broken, False),
+                             "bodies": [c[1]], "distance": 0.5, "direction": "grow"})))
+    take("thincheck", lambda: median(lambda: doc_with_mesh(data, True),
+                            lambda c: c[0].add_feature("thincheck", {"body": c[1], "min": 0.8})))
+    take("repair_rebuild", lambda: median(lambda: doc_with_mesh(broken, False),
                                  lambda c: c[0].add_feature("repair", {
-                                     "body": c[1], "mode": "rebuild", "resolution": "normal"}))
-    r["sculpt"] = median(lambda: with_sculpt(data),
+                                     "body": c[1], "mode": "rebuild", "resolution": "normal"})))
+    take("sculpt", lambda: median(lambda: with_sculpt(data),
                          lambda c: c[0].add_feature("sculpt", {
                              "body": c[1],
-                             "strokes": [{"points": c[2], "radius": 5, "strength": 0.5, "mode": "smooth"}]}))
+                             "strokes": [{"points": c[2], "radius": 5, "strength": 0.5, "mode": "smooth"}]})))
 
     def supportfins_op(c):
         clear_sf_cache()
         c[0].add_feature("supportfins", {"body": c[1], "output": "join", "options": {}})
 
-    r["supportfins"] = median(lambda: doc_with_mesh(data, True), supportfins_op)
-    r["bedsplit"] = median(lambda: with_oversized_for_bed(data),
+    take("supportfins", lambda: median(lambda: doc_with_mesh(data, True), supportfins_op))
+    take("bedsplit", lambda: median(lambda: with_oversized_for_bed(data),
                            lambda c: c[0].add_feature("bedsplit", {
                                "body": c[1], "printer": "bambu_a1mini", "connector": "none",
-                               "margin": 5, "optimize": True}))
-    r["layflat"] = median(lambda: doc_with_mesh(data, True),
-                          lambda c: c[0].add_feature("layflat", {"bodies": [c[1]], "auto": True}))
-    r["plate"] = median(lambda: with_six_copies(data),
+                               "margin": 5, "optimize": True})))
+    take("layflat", lambda: median(lambda: doc_with_mesh(data, True),
+                          lambda c: c[0].add_feature("layflat", {"bodies": [c[1]], "auto": True})))
+    take("plate", lambda: median(lambda: with_six_copies(data),
                         lambda c: c[0].add_feature("plate", {
-                            "bodies": c[1], "printer": "bambu_x1", "gap": 5, "rotate": False}))
+                            "bodies": c[1], "printer": "bambu_x1", "gap": 5, "rotate": False})))
     def pattern_op(c):
         d, mesh = c
         d.add_feature("pattern", {
@@ -211,15 +266,15 @@ def main():
         # Manifold leaves the boolean lazy until volume/mesh; force the real work for the ratio.
         d.state.bodies[mesh].require_solid().volume()
 
-    r["pattern"] = median(lambda: with_pattern_source(data), pattern_op)
-    r["thread"] = median(lambda: Document(),
+    take("pattern", lambda: median(lambda: with_pattern_source(data), pattern_op))
+    take("thread", lambda: median(lambda: Document(),
                          lambda d: d.add_feature("thread", {
                              "kind": "external", "diameter": 8, "pitch": 1.25, "length": 30,
                              "tolerance": 0.2, "hand": "right", "chamfer": True,
-                             "plane": "XY", "offset": [0, 0, 0], "operation": "new"}))
-    r["resizehole"] = median(lambda: doc_with_mesh(hole_data, True),
+                             "plane": "XY", "offset": [0, 0, 0], "operation": "new"})))
+    take("resizehole", lambda: median(lambda: doc_with_mesh(hole_data, True),
                              lambda c: c[0].add_feature("resizehole", {
-                                 "body": c[1], "point": [16, 15, 7.5], "diameter": 6}))
+                                 "body": c[1], "point": [16, 15, 7.5], "diameter": 6})))
     def supportwall_op(c):
         clear_sf_cache()
         c[0].add_feature("supportwall", {
@@ -227,9 +282,16 @@ def main():
             "walls": [{"shape": "line", "points": [[-5, -10, -5], [5, -10, -5]]}],
             "output": "join", "options": {}})
 
-    r["supportwall"] = median(lambda: doc_with_mesh(data, True), supportwall_op)
+    take("supportwall", lambda: median(lambda: doc_with_mesh(data, True), supportwall_op))
+
+    # --- M3 export rows (temp file each run; STEP baseline is Node stepBytes) ---
+    take("export_stl", lambda: median(lambda: with_export_body(data), export_op(".stl")))
+    take("export_3mf", lambda: median(lambda: with_export_body(data), export_op(".3mf")))
+    take("export_obj", lambda: median(lambda: with_export_body(data), export_op(".obj")))
+    take("export_step", time_export_step_node)
     print(json.dumps(r))
 
 
 if __name__ == "__main__":
-    main()
+    # Optional keys after the script name time only those rows (e.g. export_stl export_3mf).
+    main(sys.argv[1:] or None)

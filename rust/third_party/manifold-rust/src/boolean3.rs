@@ -524,17 +524,36 @@ pub fn boolean_with_token_and_stage(
         }
     }
 
-    // Full boolean — compute intersections. On at most `BIG_JOB_THREADS`
-    // threads (a speed change only, see `par::with_big_job_pool`).
-    crate::par::with_big_job_pool(|| {
-        let Some(bool3) = Boolean3::new_with_token_and_stage(mesh_a, mesh_b, op, token, stage)
-        else {
-            return cancelled_impl();
-        };
-        if !bool3.valid {
-            return ManifoldImpl::new();
+    // Full boolean. A walk of one large mesh against another is a long chain
+    // of pointer chases, so it keeps every thread the caller already has.
+    // A boolean against a small tool stays on at most `BIG_JOB_THREADS`
+    // threads (see `par::with_big_job_pool`): those passes are short and
+    // were slower with more threads. The hits do not depend on the count.
+    let both_large = mesh_a.num_tri() >= 50_000 && mesh_b.num_tri() >= 50_000;
+    enum Built {
+        Cancel,
+        Empty,
+        Ready(Boolean3),
+    }
+    let build = || -> Built {
+        match Boolean3::new_with_token_and_stage(mesh_a, mesh_b, op, token, stage) {
+            None => Built::Cancel,
+            Some(b) if !b.valid => Built::Empty,
+            Some(b) => Built::Ready(b),
         }
+    };
+    let built = if both_large {
+        build()
+    } else {
+        crate::par::with_big_job_pool(build)
+    };
+    let bool3 = match built {
+        Built::Cancel => return cancelled_impl(),
+        Built::Empty => return ManifoldImpl::new(),
+        Built::Ready(b) => b,
+    };
 
+    crate::par::with_big_job_pool(|| {
         crate::boolean_result::boolean_result_with_token_and_stage(
             mesh_a, mesh_b, op, &bool3, token, stage,
         )

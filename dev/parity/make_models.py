@@ -158,6 +158,41 @@ def make_hole_and_pin() -> Path:
     return _write("hole_and_pin.stl", *_mesh_from_manifold(box - hole + pin))
 
 
+def _write_export(name: str, verts: np.ndarray, faces: np.ndarray) -> Path:
+    """Export-only models under models/export/ (not picked up by repair/simplify globs)."""
+    out = OUT / "export"
+    out.mkdir(parents=True, exist_ok=True)
+    path = out / name
+    path.write_bytes(_stl_bytes(verts, faces))
+    return path
+
+
+def make_sliver() -> Path:
+    # Closed 10 mm cube plus one zero-area triangle (collinear verts). STL writes a 0 normal;
+    # STEP errors with "has faces with no area". Kept out of models/*.stl so other goldens
+    # that iterate the flat folder stay unchanged.
+    v, f = _mesh_from_manifold(m3.Manifold.cube((10.0, 10.0, 10.0), False))
+    extra = np.array([[0.0, 0.0, 0.0], [10.0, 0.0, 0.0], [5.0, 0.0, 0.0]], dtype=np.float32)
+    faces = np.vstack([f, np.array([[len(v), len(v) + 1, len(v) + 2]], dtype=np.uint32)])
+    return _write_export("sliver.stl", np.vstack([v, extra]), faces)
+
+
+def make_numbers() -> Path:
+    # Closed tet whose vertices use -0.0, 1e-5 and 123456789 (float32) for number-format goldens.
+    v = np.array(
+        [
+            [-0.0, 0.0, 0.0],
+            [10.0, 0.0, 0.0],
+            [0.0, 1e-5, 0.0],
+            [0.0, 0.0, 123456789.0],
+        ],
+        dtype=np.float32,
+    )
+    # Winding so every edge is used once each way (STEP closed-solid check).
+    f = np.array([[0, 2, 1], [0, 1, 3], [0, 3, 2], [1, 2, 3]], dtype=np.uint32)
+    return _write_export("numbers.stl", v, f)
+
+
 def main() -> int:
     paths = [
         make_holed_block(),
@@ -173,6 +208,8 @@ def main() -> int:
         make_lipped_shelf(),
         make_bridge_ring(),
         make_hole_and_pin(),
+        make_sliver(),
+        make_numbers(),
     ]
     for p in paths:
         print(f"wrote {p.relative_to(ROOT)} ({p.stat().st_size} bytes)")

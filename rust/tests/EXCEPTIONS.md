@@ -184,7 +184,7 @@ Add new ones below, with the 1.x behaviour, the 2.0 behaviour and the reason.
   only the 120 s limit catches it, and because GTK can't be started on a second thread, a dead
   Linux webview stays dead until the next start, which then falls back to Boa. Boa has no
   limit. Reason: an improvement (spec section 2).
-- **Engine error text** (pending Nathan's OK). When the Support Fins engine throws, 1.x shows
+- **Engine error text** (accepted by Nathan on 2026-11-11). When the Support Fins engine throws, 1.x shows
   the first line of mini-racer's message, for example `Support Fins: <anonymous>:1: Error:
   boom`. 2.0 shows `Support Fins: boom`. Reason: `<anonymous>:1: Error:` is noise from 1.x's
   JavaScript runtime, not part of the engine's message. No golden case has an engine error.
@@ -222,3 +222,33 @@ programming error, the same practice as batch 1's `"Plane size must be a number.
 - **`"Body ... no longer exists."` for a Draw Walls body that is neither text nor empty** (for
   example a number) shows the value as JSON (`Body 5 no longer exists.`). 1.x shows Python's
   `repr`, which is the same for numbers but differs for lists and other values.
+
+## Bench (accepted by Nathan on 2026-11-11)
+
+- **The Resize Hole bench row uses `rust/tests/models/hole_and_pin.stl`**, not the bench mesh,
+  on both sides. Reason: the bench mesh's through-cut is square, so it has no round wall for
+  Resize Hole to pick.
+
+## File export (milestone 3)
+
+- **Faceted STEP export on desktop** (accepted by Nathan on 2026-11-11). In 1.x only the web
+  edition writes faceted STEP; desktop 1.x only has the SolidCraft "To STEP" hand-off. 2.0
+  offers faceted STEP in both editions, with the same bytes as the web edition's `step.js`.
+- **`"Can't export .{ext} files."`** (pending Nathan's OK) when an export path ends in an
+  extension that isn't `.stl`, `.3mf`, `.obj` or `.step`. 1.x hands the path to trimesh, which
+  raises its own error or writes a format the editor doesn't offer.
+- **3MF `p:UUID` values come from a seeded generator** (pending Nathan's OK). trimesh writes a
+  random version 4 UUID on each object, on `<build>` and on each item, so no two 1.x exports
+  are the same. 2.0 writes version 4 UUIDs in the same places, seeded from the clock at
+  export time. The zip's compression settings may also differ from trimesh's
+  (`compresslevel=5`); the XML inside is the same.
+- **The STEP date on the web build is `1970-01-01T00:00:00`** (pending Nathan's OK, milestone 4
+  will pass the page's clock). The wasm32 engine has no system clock; `step.js` uses
+  `new Date()`. Desktop uses the current UTC time.
+- **The export base name follows the web edition's rule** (pending Nathan's OK). 1.x has two
+  rules. The web edition (`stepResult` and the export routes) uses the body's name when the
+  bodies being exported come to one body, and otherwise the project path, then the title, then
+  `model`, without `.stlx`. Desktop 1.x `r_export` looks at the ids it was given, so with no ids
+  and one visible body it suggests the project name or `model` instead of the body's name, and it
+  never uses the title. 2.0 uses the web rule in both editions. Golden case `hidden_body`
+  (base `keep`) shows the difference: desktop 1.x would suggest `model`.

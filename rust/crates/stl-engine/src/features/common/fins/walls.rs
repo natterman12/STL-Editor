@@ -1,5 +1,7 @@
 //! `arc_path`, `wall_sections`, `walls` and `wall` from 1.x `supportfins.py`: hand-drawn walls.
 
+use std::borrow::Cow;
+use std::cell::OnceCell;
 use std::f64::consts::TAU;
 
 use serde_json::{json, Map, Value};
@@ -8,7 +10,7 @@ use stl_kernel::Solid;
 use super::orient::nearest_face;
 use super::results::solids;
 use super::{
-    cached_wall, call, call_json, decode_triangles, floats, has, mesh_key, options, parse_json, soup, truthy, MeshData, P3,
+    cached_wall, call, call_json, decode_triangles, floats, has, mesh_key, options, parse_json, soup_json, truthy, MeshData, P3,
 };
 use crate::{FeatureError, FinsHost};
 
@@ -101,8 +103,9 @@ fn j(v: &impl serde::Serialize) -> String {
     serde_json::to_string(v).unwrap_or_default()
 }
 
-fn get_soup(mesh: &MeshData, sc: &mut Option<String>) -> String {
-    sc.get_or_insert_with(|| soup(mesh)).clone()
+/// The body's soup as a JSON string argument, made the first time a call needs it.
+fn get_soup<'m>(mesh: &'m MeshData, sc: &'m OnceCell<Cow<'m, str>>) -> &'m str {
+    sc.get_or_init(|| soup_json(mesh))
 }
 
 fn fail(reason: &str) -> Value {
@@ -114,7 +117,7 @@ pub fn walls(host: &dyn FinsHost, mesh: &MeshData, wall_list: &[Value], values: 
     let opts = options(host, values)?;
     let mk = mesh_key(mesh);
     let curves = has(host, "drawWallThroughB64");
-    let mut soup_cache: Option<String> = None;
+    let soup_cache: OnceCell<Cow<str>> = OnceCell::new();
 
     let mut all = Vec::new();
     let mut report = Vec::new();
@@ -136,15 +139,17 @@ pub fn walls(host: &dyn FinsHost, mesh: &MeshData, wall_list: &[Value], values: 
         let sections: Vec<Option<Section>> = if hand { vec![None] } else { wall_sections(w, curves).into_iter().map(Some).collect() };
         for sec in sections {
             let r: Value = match sec {
-                None => hand_piece(host, mesh, &mk, &mut soup_cache, w, values, &opts)?,
+                None => hand_piece(host, mesh, &mk, &soup_cache, w, values, &opts)?,
                 Some((a, b, m)) => {
                     let key = format!("{mk}|{}|{opts}", j(&json!([a, b, m])));
-                    let s = get_soup(mesh, &mut soup_cache);
                     cached_wall(key, || {
+                        // every argument is JSON text: the soup already quoted, the rest quoted here
+                        let s = get_soup(mesh, &soup_cache);
+                        let (qa, qb, qo) = (j(&j(&a)), j(&j(&b)), j(&opts));
                         let r = if m.is_some() && curves {
-                            call(host, "drawWallThroughB64", &[&s, &j(&a), &j(&b), &j(&m.unwrap()), &opts])?
+                            call_json(host, "drawWallThroughB64", &[s, &qa, &qb, &j(&j(&m.unwrap())), &qo])?
                         } else {
-                            call(host, "drawWallB64", &[&s, &j(&a), &j(&b), &opts])?
+                            call_json(host, "drawWallB64", &[s, &qa, &qb, &qo])?
                         };
                         parse_json(&r)
                     })?
@@ -185,11 +190,11 @@ pub fn walls(host: &dyn FinsHost, mesh: &MeshData, wall_list: &[Value], values: 
 
 /// A gusset (off a side, out to an overhang) or an anchor fin (against a side), by hand.
 #[allow(clippy::too_many_arguments)]
-fn hand_piece(
+fn hand_piece<'m>(
     host: &dyn FinsHost,
-    mesh: &MeshData,
+    mesh: &'m MeshData,
     mk: &str,
-    soup_cache: &mut Option<String>,
+    soup_cache: &'m OnceCell<Cow<'m, str>>,
     w: &Value,
     values: &Value,
     opts: &str,
@@ -199,7 +204,6 @@ fn hand_piece(
         Some(v) if truthy(Some(v)) => floats(Some(v)),
         _ => vec![0.0, 0.0, 0.0],
     };
-    let s = get_soup(mesh, soup_cache);
     if w.get("shape").and_then(Value::as_str) == Some("gusset") {
         if !has(host, "gussetWallB64") {
             return Ok(fail("this Support Fins engine has no gussets"));
@@ -208,7 +212,9 @@ fn hand_piece(
             return Ok(fail("click the side, then the overhang"));
         }
         return cached_wall(format!("{mk}|g{}|{opts}", j(&json!([pts, n]))), || {
-            parse_json(&call(host, "gussetWallB64", &[&s, &j(&pts[0]), &j(&pts[1]), &j(&n), opts])?)
+            let s = get_soup(mesh, soup_cache);
+            let (a, b, nn, o) = (j(&j(&pts[0])), j(&j(&pts[1])), j(&j(&n)), j(&opts));
+            parse_json(&call_json(host, "gussetWallB64", &[s, &a, &b, &nn, &o])?)
         });
     }
     if !has(host, "anchorFinB64") {
@@ -233,8 +239,9 @@ fn hand_piece(
     };
     cached_wall(format!("{mk}|a{}|{opts}", j(&json!([pts[0], face]))), || {
         // every argument is JSON text: the strings quoted, the face a number
-        let (q, a0, o, sw) = (j(&s), j(&j(&pts[0])), j(&opts), j(&j(&sway)));
-        parse_json(&call_json(host, "anchorFinB64", &[&q, &a0, &face.to_string(), &o, &sw])?)
+        let s = get_soup(mesh, soup_cache);
+        let (a0, o, sw) = (j(&j(&pts[0])), j(&opts), j(&j(&sway)));
+        parse_json(&call_json(host, "anchorFinB64", &[s, &a0, &face.to_string(), &o, &sw])?)
     })
 }
 

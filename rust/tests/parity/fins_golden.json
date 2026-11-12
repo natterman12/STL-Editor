@@ -29,21 +29,21 @@
  "bridge_ring_dense_tines": {
   "model": "bridge_ring.stl",
   "options": {
-   "threshold": 50,
-   "tineDensity": 0.5
+   "tineDensity": 1.0,
+   "tineDir": "vertical"
   },
   "over": 2,
   "pieces": 3,
-  "report": "3 walls, 0 tines",
+  "report": "3 walls, 12 pins",
   "small": 0,
   "stats": {
    "braces": 3,
-   "finTriangles": 516,
+   "finTriangles": 924,
    "floating": 0,
    "floatingDrop": 0,
    "overhangRegions": 1,
    "padTriangles": 0,
-   "pins": false,
+   "pins": true,
    "props": 0,
    "smallHoleRegions": 0,
    "swayBraces": 0,
@@ -51,10 +51,10 @@
    "swaySkipped": 0,
    "swayTines": 0,
    "swayTriangles": 0,
-   "tines": 0,
+   "tines": 12,
    "unserved": 0
   },
-  "triangles_sha256": "86415cbb73487024807b846b3777a8c283fdfa63e29a0c0260f296779f920655"
+  "triangles_sha256": "5974d3a5e51ecd4231a36372d4d115525130c4584f7d40794446e3b765d41797"
  },
  "bridge_ring_full": {
   "model": "bridge_ring.stl",
@@ -115,21 +115,21 @@
  "lipped_shelf_dense_tines": {
   "model": "lipped_shelf.stl",
   "options": {
-   "threshold": 50,
-   "tineDensity": 0.5
+   "tineDensity": 1.0,
+   "tineDir": "vertical"
   },
   "over": 4,
   "pieces": 6,
-  "report": "6 walls, 0 tines",
+  "report": "6 walls, 180 pins",
   "small": 0,
   "stats": {
    "braces": 6,
-   "finTriangles": 7272,
+   "finTriangles": 13536,
    "floating": 0,
    "floatingDrop": 0,
    "overhangRegions": 2,
    "padTriangles": 0,
-   "pins": false,
+   "pins": true,
    "props": 0,
    "smallHoleRegions": 0,
    "swayBraces": 0,
@@ -137,10 +137,10 @@
    "swaySkipped": 0,
    "swayTines": 0,
    "swayTriangles": 0,
-   "tines": 0,
+   "tines": 180,
    "unserved": 0
   },
-  "triangles_sha256": "a4055e6bf1b0dbd3dba6b971c4760df065b9262c1a4f25be2502cd35b02147d3"
+  "triangles_sha256": "b669c816aa6052f73bf6a732eac38e3e6c0f4b2300947f8b428508b4107692ab"
  },
  "lipped_shelf_full": {
   "model": "lipped_shelf.stl",
@@ -201,21 +201,21 @@
  "t_bracket_dense_tines": {
   "model": "t_bracket.stl",
   "options": {
-   "threshold": 50,
-   "tineDensity": 0.5
+   "tineDensity": 1.0,
+   "tineDir": "vertical"
   },
   "over": 4,
   "pieces": 8,
-  "report": "8 walls, 0 tines",
+  "report": "8 walls, 80 pins",
   "small": 0,
   "stats": {
    "braces": 8,
-   "finTriangles": 3296,
+   "finTriangles": 6112,
    "floating": 0,
    "floatingDrop": 0,
    "overhangRegions": 2,
    "padTriangles": 0,
-   "pins": false,
+   "pins": true,
    "props": 0,
    "smallHoleRegions": 0,
    "swayBraces": 0,
@@ -223,10 +223,10 @@
    "swaySkipped": 0,
    "swayTines": 0,
    "swayTriangles": 0,
-   "tines": 0,
+   "tines": 80,
    "unserved": 0
   },
-  "triangles_sha256": "a6ad8287cbf61faaae55dc3789e0bd496fe2d49631382386434ac0f574b9a114"
+  "triangles_sha256": "8720ccb8ebe71ca29c7de63b98412c5736876dd532833ca2a0597a33f0cf03b5"
  },
  "t_bracket_full": {
   "model": "t_bracket.stl",
