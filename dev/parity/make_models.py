@@ -127,6 +127,37 @@ def make_stray_triangle() -> Path:
     return _write("stray_triangle.stl", v, f)
 
 
+def make_t_bracket() -> Path:
+    # Upright stem with a top flange; flange underside overhangs when Z is up.
+    stem = m3.Manifold.cube((8.0, 40.0, 50.0), False).translate((21.0, 0.0, 0.0))
+    flange = m3.Manifold.cube((50.0, 40.0, 8.0), False).translate((0.0, 0.0, 50.0))
+    return _write("t_bracket.stl", *_mesh_from_manifold(stem + flange))
+
+
+def make_lipped_shelf() -> Path:
+    # Back wall, forward shelf, and a down-hanging front lip (overhangs when Z is up).
+    back = m3.Manifold.cube((60.0, 6.0, 40.0), False)
+    shelf = m3.Manifold.cube((60.0, 35.0, 5.0), False).translate((0.0, 6.0, 20.0))
+    lip = m3.Manifold.cube((60.0, 3.0, 12.0), False).translate((0.0, 38.0, 8.0))
+    return _write("lipped_shelf.stl", *_mesh_from_manifold(back + shelf + lip))
+
+
+def make_bridge_ring() -> Path:
+    # Two posts with a top bridge; bridge underside overhangs when Z is up.
+    a = m3.Manifold.cube((10.0, 10.0, 30.0), False)
+    b = m3.Manifold.cube((10.0, 10.0, 30.0), False).translate((40.0, 0.0, 0.0))
+    bridge = m3.Manifold.cube((50.0, 10.0, 6.0), False).translate((0.0, 0.0, 30.0))
+    return _write("bridge_ring.stl", *_mesh_from_manifold(a + b + bridge))
+
+
+def make_hole_and_pin() -> Path:
+    # 40x30x15 block with a through-hole and a standing pin (for Resize Hole).
+    box = m3.Manifold.cube((40.0, 30.0, 15.0), False)
+    hole = m3.Manifold.cylinder(17.0, 4.0, 4.0, SEG, False).translate((12.0, 15.0, -1.0))
+    pin = m3.Manifold.cylinder(12.0, 3.0, 3.0, SEG, False).translate((28.0, 15.0, 15.0))
+    return _write("hole_and_pin.stl", *_mesh_from_manifold(box - hole + pin))
+
+
 def main() -> int:
     paths = [
         make_holed_block(),
@@ -138,6 +169,10 @@ def main() -> int:
         make_nonmanifold_edge(),
         make_overlapping_shells(),
         make_stray_triangle(),
+        make_t_bracket(),
+        make_lipped_shelf(),
+        make_bridge_ring(),
+        make_hole_and_pin(),
     ]
     for p in paths:
         print(f"wrote {p.relative_to(ROOT)} ({p.stat().st_size} bytes)")

@@ -3,13 +3,15 @@
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::Arc;
 use std::time::Instant;
 
 use serde_json::{json, Map, Value};
-use stl_engine::{Document, Registry};
+use stl_engine::{Document, FinsHost, Registry};
+use stl_platform::fins::WebviewHost;
 
 const RUNS: usize = 3;
-const NAMES: [(&str, &str); 17] = [
+const NAMES: [(&str, &str); 25] = [
     ("import", "Import (repair on)"),
     ("combine_join", "Combine join, 30 mm cube"),
     ("combine_cut", "Combine cut, 30 mm cube"),
@@ -27,6 +29,14 @@ const NAMES: [(&str, &str); 17] = [
     ("thincheck", "Thin-wall Check 0.8 mm"),
     ("repair_rebuild", "Repair rebuild normal, broken"),
     ("sculpt", "Sculpt Smooth, 20 pts"),
+    ("supportfins", "Support Fins, default options"),
+    ("bedsplit", "Fit to Bed, A1 mini (part too big)"),
+    ("layflat", "Lay Flat auto"),
+    ("plate", "Plate Layout, 6 copies"),
+    ("pattern", "Pattern circular x12"),
+    ("thread", "Thread M8 x 30 external"),
+    ("resizehole", "Resize Hole (hole_and_pin)"),
+    ("supportwall", "Draw Walls, one line"),
 ];
 
 fn obj(v: Value) -> Map<String, Value> {
@@ -106,8 +116,72 @@ fn with_sketch(entities: Value, plane: &str) -> Result<(Document, String), Strin
     Ok((d, sk))
 }
 
-fn time_rust(data: &[u8]) -> Result<Vec<f64>, String> {
+fn with_fins_doc(
+    data: &[u8],
+    host: Arc<dyn FinsHost>,
+) -> Result<(Document, String), String> {
+    let (mut d, mesh) = doc_with_mesh(data, true)?;
+    d.set_fins_host(host);
+    Ok((d, mesh))
+}
+
+/// Bench mesh is ~40 mm; scale ×10 so it needs cuts on the A1 mini (180 mm).
+fn with_oversized_for_bed(data: &[u8]) -> Result<(Document, String), String> {
+    let (mut d, mesh) = doc_with_mesh(data, true)?;
+    d.add_feature("scale", obj(json!({"bodies": [mesh], "factor": 10, "pivot": "center"})), None)
+        .map_err(|e| e.0)?;
+    Ok((d, mesh))
+}
+
+fn with_six_copies(data: &[u8]) -> Result<(Document, Vec<String>), String> {
+    let (mut d, mesh) = doc_with_mesh(data, true)?;
+    let pat = d
+        .add_feature(
+            "pattern",
+            obj(json!({
+                "bodies": [mesh],
+                "kind": "linear",
+                "direction": [1, 0, 0],
+                "spacing": 50,
+                "count": 6,
+                "join": false
+            })),
+            None,
+        )
+        .map_err(|e| e.0)?;
+    let mut bodies = vec![mesh.clone()];
+    for i in 2..=6 {
+        bodies.push(format!("{pat}.{mesh}.{i}"));
+    }
+    Ok((d, bodies))
+}
+
+/// Offset from the origin so circular ×12 does real work (a centred near-sphere is almost identity).
+fn with_pattern_source(data: &[u8]) -> Result<(Document, String), String> {
+    let (mut d, mesh) = doc_with_mesh(data, true)?;
+    d.add_feature(
+        "move",
+        obj(json!({"bodies": [mesh], "translate": [40, 0, 0], "rotate": [0, 0, 0], "pivot": "origin"})),
+        None,
+    )
+    .map_err(|e| e.0)?;
+    Ok((d, mesh))
+}
+
+fn time_rust(root: &Path, data: &[u8]) -> Result<Vec<f64>, String> {
     let broken = broken_copy(data);
+    let hole_path = root.join("rust/tests/models/hole_and_pin.stl");
+    let hole_data = std::fs::read(&hole_path).map_err(|e| {
+        format!(
+            "Resize Hole uses hole_and_pin.stl (bench mesh has a square cut, not a round wall): {}: {e}",
+            hole_path.display()
+        )
+    })?;
+    let engine = root.join("web/vendor/support-fins/engine.iife.js");
+    let fins: Arc<dyn FinsHost> = Arc::new(
+        WebviewHost::start(&engine).map_err(|e| format!("WebviewHost::start failed: {e}"))?,
+    );
+
     let mut out = Vec::new();
     out.push(time_op(|| {
         let mut d = Document::new(Registry::builtin());
@@ -278,6 +352,138 @@ fn time_rust(data: &[u8]) -> Result<Vec<f64>, String> {
         .map_err(|e| e.0)?;
         Ok(secs(t))
     })?);
+
+    // --- batch 4/5 rows ---
+    out.push(time_op(|| {
+        // Same mesh+options would hit the 6-entry fins LRU across the 3 median runs.
+        stl_engine::features::common::fins::clear_caches();
+        let (mut d, mesh) = with_fins_doc(data, fins.clone())?;
+        let t = Instant::now();
+        d.add_feature(
+            "supportfins",
+            obj(json!({"body": mesh, "output": "join", "options": {}})),
+            None,
+        )
+        .map_err(|e| e.0)?;
+        Ok(secs(t))
+    })?);
+    out.push(time_op(|| {
+        let (mut d, mesh) = with_oversized_for_bed(data)?;
+        let t = Instant::now();
+        d.add_feature(
+            "bedsplit",
+            obj(json!({
+                "body": mesh,
+                "printer": "bambu_a1mini",
+                "connector": "none",
+                "margin": 5,
+                "optimize": true
+            })),
+            None,
+        )
+        .map_err(|e| e.0)?;
+        Ok(secs(t))
+    })?);
+    out.push(time_op(|| {
+        let (mut d, mesh) = doc_with_mesh(data, true)?;
+        let t = Instant::now();
+        d.add_feature("layflat", obj(json!({"bodies": [mesh], "auto": true})), None)
+            .map_err(|e| e.0)?;
+        Ok(secs(t))
+    })?);
+    out.push(time_op(|| {
+        let (mut d, bodies) = with_six_copies(data)?;
+        let t = Instant::now();
+        d.add_feature(
+            "plate",
+            obj(json!({
+                "bodies": bodies,
+                "printer": "bambu_x1",
+                "gap": 5,
+                "rotate": false
+            })),
+            None,
+        )
+        .map_err(|e| e.0)?;
+        Ok(secs(t))
+    })?);
+    out.push(time_op(|| {
+        let (mut d, mesh) = with_pattern_source(data)?;
+        let t = Instant::now();
+        d.add_feature(
+            "pattern",
+            obj(json!({
+                "bodies": [mesh],
+                "kind": "circular",
+                "center": [0, 0, 0],
+                "axis": [0, 0, 1],
+                "angle": 360,
+                "count": 12,
+                "join": true
+            })),
+            None,
+        )
+        .map_err(|e| e.0)?;
+        // 1.x Manifold leaves the boolean lazy until volume/mesh; force the same work here.
+        let _ = d
+            .state
+            .body(&mesh)
+            .map_err(|e| e.0)?
+            .require_solid()
+            .map_err(|e| e.0)?
+            .volume();
+        Ok(secs(t))
+    })?);
+    out.push(time_op(|| {
+        let mut d = Document::new(Registry::builtin());
+        let t = Instant::now();
+        d.add_feature(
+            "thread",
+            obj(json!({
+                "kind": "external",
+                "diameter": 8,
+                "pitch": 1.25,
+                "length": 30,
+                "tolerance": 0.2,
+                "hand": "right",
+                "chamfer": true,
+                "plane": "XY",
+                "offset": [0, 0, 0],
+                "operation": "new"
+            })),
+            None,
+        )
+        .map_err(|e| e.0)?;
+        Ok(secs(t))
+    })?);
+    out.push(time_op(|| {
+        let (mut d, mesh) = doc_with_mesh(&hole_data, true)?;
+        let t = Instant::now();
+        d.add_feature(
+            "resizehole",
+            obj(json!({"body": mesh, "point": [16, 15, 7.5], "diameter": 6})),
+            None,
+        )
+        .map_err(|e| e.0)?;
+        Ok(secs(t))
+    })?);
+    out.push(time_op(|| {
+        stl_engine::features::common::fins::clear_caches();
+        let (mut d, mesh) = with_fins_doc(data, fins.clone())?;
+        let t = Instant::now();
+        d.add_feature(
+            "supportwall",
+            obj(json!({
+                "body": mesh,
+                "walls": [{"shape": "line", "points": [[-5, -10, -5], [5, -10, -5]]}],
+                "output": "join",
+                "options": {}
+            })),
+            None,
+        )
+        .map_err(|e| e.0)?;
+        Ok(secs(t))
+    })?);
     Ok(out)
 }
 
@@ -313,7 +519,7 @@ pub fn run() -> Result<bool, String> {
     }
     let data = std::fs::read(&mesh).map_err(|e| e.to_string())?;
     println!("bench: timing 2.0 (median of {RUNS})...");
-    let rust = time_rust(&data)?;
+    let rust = time_rust(&root, &data)?;
     println!("bench: timing 1.x (median of {RUNS})...");
     let py = time_python(&root)?;
 

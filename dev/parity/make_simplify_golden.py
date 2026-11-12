@@ -25,6 +25,8 @@ sys.path.insert(0, str(ROOT / "dev" / "parity"))
 from stleditor import geometry as G  # noqa: E402
 
 MODELS = ROOT / "rust" / "tests" / "models"
+# The Support Fins and Resize Hole models (batch 4) have golden cases of their own.
+LATER = {"bridge_ring.stl", "hole_and_pin.stl", "lipped_shelf.stl", "t_bracket.stl"}
 GOLDEN = ROOT / "rust" / "tests" / "parity" / "simplify_golden.json"
 OUT_DIR = ROOT / "rust" / "tests" / "parity" / "simplify"
 
@@ -49,7 +51,7 @@ def build() -> tuple[dict, dict[str, bytes]]:
     records: dict[str, dict] = {}
     meshes: dict[str, bytes] = {}
 
-    for path in sorted(MODELS.glob("*.stl")):
+    for path in sorted(p for p in MODELS.glob("*.stl") if p.name not in LATER):
         v, f = G.read_stl_bytes(path.read_bytes())
         wv, wf = G.weld(v, f)
         wv32 = np.asarray(wv, np.float32)

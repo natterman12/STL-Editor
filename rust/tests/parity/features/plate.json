@@ -1,0 +1,208 @@
+[
+ {
+  "name": "plate_no_rotate",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 40,
+     "width": 30,
+     "height": 10,
+     "plane": "XY",
+     "anchor": "base",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 40,
+     "width": 30,
+     "height": 20,
+     "plane": "XY",
+     "anchor": "base",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 50,
+     "width": 20,
+     "height": 5,
+     "plane": "XY",
+     "anchor": "base",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "move",
+    "params": {
+     "bodies": ["f1"],
+     "translate": [0, 0, 7],
+     "rotate": [0, 0, 0],
+     "pivot": "origin"
+    }
+   },
+   {
+    "type": "plate",
+    "params": {
+     "bodies": ["f1", "f2", "f3"],
+     "bed": [100, 100, 50],
+     "gap": 5,
+     "rotate": false
+    }
+   }
+  ]
+ },
+ {
+  "name": "plate_with_rotate",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 80,
+     "width": 20,
+     "height": 5,
+     "plane": "XY",
+     "anchor": "base",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "plate",
+    "params": {
+     "bodies": ["f1"],
+     "bed": [50, 100, 50],
+     "gap": 5,
+     "rotate": true
+    }
+   }
+  ]
+ },
+ {
+  "name": "plate_too_big",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 80,
+     "width": 20,
+     "height": 5,
+     "plane": "XY",
+     "anchor": "base",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "plate",
+    "params": {
+     "bodies": ["f1"],
+     "bed": [50, 100, 50],
+     "gap": 5,
+     "rotate": false
+    }
+   }
+  ]
+ },
+ {
+  "name": "plate_too_tall",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 10,
+     "width": 10,
+     "height": 60,
+     "plane": "XY",
+     "anchor": "base",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "plate",
+    "params": {
+     "bodies": ["f1"],
+     "bed": [100, 100, 50],
+     "gap": 5,
+     "rotate": false
+    }
+   }
+  ]
+ },
+ {
+  "name": "plate_no_room",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 60,
+     "width": 60,
+     "height": 5,
+     "plane": "XY",
+     "anchor": "base",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 60,
+     "width": 60,
+     "height": 5,
+     "plane": "XY",
+     "anchor": "base",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "plate",
+    "params": {
+     "bodies": ["f1", "f2"],
+     "bed": [100, 100, 50],
+     "gap": 5,
+     "rotate": false
+    }
+   }
+  ]
+ },
+ {
+  "name": "plate_no_bodies",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "plate",
+    "params": {
+     "bodies": [],
+     "bed": [100, 100, 50],
+     "gap": 5
+    }
+   }
+  ]
+ }
+]

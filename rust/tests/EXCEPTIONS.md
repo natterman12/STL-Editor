@@ -164,3 +164,61 @@ Add new ones below, with the 1.x behaviour, the 2.0 behaviour and the reason.
   crash with a Python error. Reason: a message instead of a crash; the editor never sends
   malformed strokes.
 
+
+## Printing tools and Support Fins (batches 4 and 5)
+
+- **Linux builds use the system WebKitGTK for Support Fins.** On the Linux target only, the
+  pure-Rust check allows these crates to use `pkg-config` or `system-deps` at build time:
+  `atk-sys`, `cairo-sys-rs`, `gdk-pixbuf-sys`, `gdk-sys`, `gdkwayland-sys`, `gio-sys`,
+  `glib-sys`, `gobject-sys`, `gtk`, `gtk-sys`, `javascriptcore-rs-sys`, `pango-sys`,
+  `soup3-sys` and `webkit2gtk-sys`. The check prints the reason ("system WebKitGTK for Support
+  Fins") and still fails for any other C build tool. Reason: spec section 4. `wry` is built
+  with x11 off, so `gdkx11-sys` and `x11-dl` stay out.
+- **macOS runs Support Fins in Boa (slow mode) until milestone 4.** WKWebView must be made on
+  the main thread, and the app that provides that hook comes in milestone 4. `wry`'s macOS
+  backend also builds C code (`objc2-exception-helper` uses `cc`), so `wry` and `tao` are
+  only built for Windows and Linux for now. Milestone 4 has to solve both.
+- **A Support Fins call on the webview host stops after 120 seconds** with "Support Fins: the
+  engine stopped responding.", and the next call starts a fresh host. 1.x has no limit and
+  could hang. On Windows a crashed WebView2 process is noticed within about 0.2 s; on Linux
+  only the 120 s limit catches it, and because GTK can't be started on a second thread, a dead
+  Linux webview stays dead until the next start, which then falls back to Boa. Boa has no
+  limit. Reason: an improvement (spec section 2).
+- **Engine error text** (pending Nathan's OK). When the Support Fins engine throws, 1.x shows
+  the first line of mini-racer's message, for example `Support Fins: <anonymous>:1: Error:
+  boom`. 2.0 shows `Support Fins: boom`. Reason: `<anonymous>:1: Error:` is noise from 1.x's
+  JavaScript runtime, not part of the engine's message. No golden case has an engine error.
+- **An update for a different engine `api` is recorded.** 1.x ignores it silently; 2.0 also
+  keeps the current engine but records `different api` in the update state's `error`.
+  Reason: Review Focus 3 of the batch plan.
+
+## Messages in features (batches 4 and 5)
+
+These replace a 1.x crash or Python error text. The editor never sends such values; they only
+come from a broken or hand-edited project file. Reason for each: a plain message instead of a
+programming error, the same practice as batch 1's `"Plane size must be a number."`.
+
+- **`"point must be a number."`** (Resize Hole) when the click point isn't three numbers. 1.x
+  raises numpy's `TypeError` or `ValueError` in `nearest_triangle`.
+- **`"Click the curved wall of a round hole or pin."`** (Resize Hole) when the body has no
+  triangles. 1.x gives this message only when the picked region is under 6 triangles; with no
+  triangles it fails first in numpy (`attempt to get argmin of an empty sequence`).
+- **`"count must be a whole number."`** (Fit Test) when `count` isn't a whole number. 1.x raises
+  Python's `int()` error (`invalid literal for int() with base 10: ...`). Python's `int()` also
+  takes text such as `"6_0"` (60); 2.0 rejects it. JSON numbers still round toward zero, as in 1.x.
+- **`"normal must be three numbers."`** (Lay Flat) when a given `normal` isn't three numbers.
+  2.0 checks this before doing anything. 1.x uses `p["normal"]` as it is and fails later in
+  the geometry with a numpy error.
+- **`"offset must be a number."`** (Thread) when the plane offset isn't a number. 1.x raises
+  numpy's `ValueError` from `np.asarray(..., float)`.
+- **`"Diameter, pitch and length must be positive."`** (Thread) also when a size is not a number
+  (NaN). 1.x only checks `<= 0`, so NaN gets past the check and fails later or builds nothing
+  useful.
+- **`"Could not build this thread. Try a different size or pitch."`** (Thread) also when the
+  thread would need more than a million turns or more vertices than a mesh can hold. 1.x has
+  no limit and can run out of memory instead.
+- **An empty `margin` in Fit to Bed** uses the default 5 mm. 1.x raises Python's
+  `could not convert string to float: ''`.
+- **`"Body ... no longer exists."` for a Draw Walls body that is neither text nor empty** (for
+  example a number) shows the value as JSON (`Body 5 no longer exists.`). 1.x shows Python's
+  `repr`, which is the same for numbers but differs for lists and other values.

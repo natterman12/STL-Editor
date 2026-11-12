@@ -1,0 +1,157 @@
+[
+ {
+  "name": "resizehole_shrink",
+  "exactness": "approx",
+  "sources": {
+   "s1": "hole_and_pin.stl"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": true,
+     "place": "keep"
+    }
+   },
+   {
+    "type": "resizehole",
+    "params": {
+     "body": "f1",
+     "point": [16, 15, 7.5],
+     "diameter": 6
+    }
+   }
+  ]
+ },
+ {
+  "name": "resizehole_grow",
+  "exactness": "approx",
+  "sources": {
+   "s1": "hole_and_pin.stl"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": true,
+     "place": "keep"
+    }
+   },
+   {
+    "type": "resizehole",
+    "params": {
+     "body": "f1",
+     "point": [16, 15, 7.5],
+     "diameter": 10
+    }
+   }
+  ]
+ },
+ {
+  "name": "resizehole_fill",
+  "exactness": "approx",
+  "sources": {
+   "s1": "hole_and_pin.stl"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": true,
+     "place": "keep"
+    }
+   },
+   {
+    "type": "resizehole",
+    "params": {
+     "body": "f1",
+     "point": [16, 15, 7.5],
+     "mode": "fill"
+    }
+   }
+  ]
+ },
+ {
+  "name": "resizehole_pin",
+  "exactness": "approx",
+  "sources": {
+   "s1": "hole_and_pin.stl"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": true,
+     "place": "keep"
+    }
+   },
+   {
+    "type": "resizehole",
+    "params": {
+     "body": "f1",
+     "point": [31, 15, 21],
+     "diameter": 5
+    }
+   }
+  ]
+ },
+ {
+  "name": "resizehole_no_click",
+  "exactness": "exact",
+  "sources": {
+   "s1": "hole_and_pin.stl"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": true,
+     "place": "keep"
+    }
+   },
+   {
+    "type": "resizehole",
+    "params": {
+     "body": "f1",
+     "diameter": 6
+    }
+   }
+  ]
+ },
+ {
+  "name": "resizehole_flat_face",
+  "exactness": "exact",
+  "sources": {
+   "s1": "hole_and_pin.stl"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": true,
+     "place": "keep"
+    }
+   },
+   {
+    "type": "resizehole",
+    "params": {
+     "body": "f1",
+     "point": [20, 15, 15],
+     "diameter": 4
+    }
+   }
+  ]
+ }
+]

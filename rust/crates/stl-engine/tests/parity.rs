@@ -6,8 +6,12 @@
 //! A case whose feature types aren't all in the registry yet is *pending* (milestone 2 fills
 //! the registry); any other mismatch is a failure.
 
+#[path = "fins_replay.rs"]
+mod fins_replay;
+
 use serde_json::{Map, Value};
 use std::collections::BTreeMap;
+use std::sync::Arc;
 use std::path::PathBuf;
 use stl_engine::params::Param;
 use stl_engine::{Body, Ctx, Document, Feature, FeatureError, FeatureResult, Registry, State};
@@ -25,6 +29,12 @@ const BATCH2: [&str; 7] = [
 const BATCH3: [&str; 8] = [
     "simplify", "remesh", "sculpt", "offset", "hollow", "shell", "lattice", "thincheck",
 ];
+
+const BATCH4: [&str; 9] = [
+    "bedsplit", "layflat", "plate", "pattern", "thread", "resizehole", "fittest", "snapfit", "hinge",
+];
+
+const BATCH5: [&str; 2] = ["supportfins", "supportwall"];
 
 #[derive(Debug, PartialEq)]
 enum Outcome {
@@ -99,6 +109,40 @@ fn compare_thin(gid: &str, g: Option<&Value>, got: Option<&Value>, bad: &mut Vec
     }
 }
 
+/// The Support Fins engine host for the cases that use it: the replay of 1.x's recorded answers,
+/// or a real host when `STL_FINS_HOST=webview|boa` is set.
+fn fins_host() -> (Arc<dyn stl_engine::FinsHost>, &'static str) {
+    match std::env::var("STL_FINS_HOST").ok().as_deref() {
+        None | Some("") | Some("replay") => (Arc::new(fins_replay::ReplayHost::new()), "replay"),
+        #[cfg(all(not(target_arch = "wasm32"), any(windows, target_os = "linux")))]
+        Some("webview") => (real_host(true), "webview"),
+        #[cfg(not(target_arch = "wasm32"))]
+        Some("boa") => (real_host(false), "boa"),
+        Some(other) => panic!("STL_FINS_HOST={other}: use replay, webview or boa"),
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn real_host(webview: bool) -> Arc<dyn stl_engine::FinsHost> {
+    use std::sync::OnceLock;
+    static HOST: OnceLock<Arc<dyn stl_engine::FinsHost>> = OnceLock::new();
+    HOST.get_or_init(|| {
+        let engine = parity_dir().join("../../../web/vendor/support-fins/engine.iife.js");
+        let host: Arc<dyn stl_engine::FinsHost> = if webview {
+            #[cfg(any(windows, target_os = "linux"))]
+            {
+                Arc::new(stl_platform::fins::WebviewHost::start(&engine).expect("the webview host didn't start"))
+            }
+            #[cfg(not(any(windows, target_os = "linux")))]
+            unreachable!()
+        } else {
+            Arc::new(stl_platform::fins::BoaHost::start(&engine).expect("the Boa host didn't start"))
+        };
+        stl_platform::fins::with_info(host, &engine)
+    })
+    .clone()
+}
+
 /// Run one case against `registry` and compare it with its golden.
 fn run_case(registry: &Registry, case: &Value, golden: &Value) -> Outcome {
     let features = case["features"].as_array().cloned().unwrap_or_default();
@@ -112,8 +156,21 @@ fn run_case(registry: &Registry, case: &Value, golden: &Value) -> Outcome {
         Some("exact") => Exactness::Exact,
         _ => Exactness::Approx,
     };
+    // Case `"ctx": {"preview": true}` — Ctx already has `preview`; Document::evaluate always
+    // rebuilds with preview=false. When set, evaluate the prefix then `Document::preview` the
+    // last feature so Support Fins preview-only paths match make_golden.py.
+    let preview = case
+        .get("ctx")
+        .and_then(|c| c.get("preview"))
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
 
     let mut doc = Document::new(registry.clone());
+    if features.iter().any(|f| matches!(f["type"].as_str(), Some("supportfins" | "supportwall"))) {
+        let (host, name) = fins_host();
+        println!("fins host: {name} ({})", case["name"].as_str().unwrap_or("?"));
+        doc.set_fins_host(host);
+    }
     let mut mapping: BTreeMap<String, String> = BTreeMap::new();
     if let Some(sources) = case["sources"].as_object() {
         let mut keys: Vec<&String> = sources.keys().collect();
@@ -157,7 +214,11 @@ fn run_case(registry: &Registry, case: &Value, golden: &Value) -> Outcome {
         })
         .collect();
 
-    let results = doc.evaluate();
+    let results = if preview {
+        evaluate_with_preview(&mut doc)
+    } else {
+        doc.evaluate()
+    };
     let mut bad: Vec<String> = Vec::new();
 
     let gres = golden["results"].as_array().cloned().unwrap_or_default();
@@ -211,6 +272,21 @@ fn run_case(registry: &Registry, case: &Value, golden: &Value) -> Outcome {
         }
     }
     if bad.is_empty() { Outcome::Passed } else { Outcome::Failed(bad) }
+}
+
+/// Evaluate every feature with `preview` on the last one (ids stay f1…fN).
+fn evaluate_with_preview(doc: &mut Document) -> Vec<FeatureResult> {
+    let mut results = doc.evaluate();
+    let Some(last) = doc.features.last().cloned() else {
+        return results;
+    };
+    // the last feature again as a preview of itself, so it keeps its id (f2~p0, not preview~p0)
+    let (st, res) = doc.preview(&last.kind, last.params.clone(), Some(&last.id));
+    doc.state = st;
+    if let Some(slot) = results.last_mut() {
+        *slot = res;
+    }
+    results
 }
 
 /// The cases where 2.0 differs from 1.x on purpose: `"<type>/<case>"` -> reason and 2.0's values.
@@ -309,10 +385,13 @@ fn feature_parity() {
     let mut types = Vec::from(BATCH1);
     types.extend_from_slice(&BATCH2);
     types.extend_from_slice(&BATCH3);
+    types.extend_from_slice(&BATCH4);
+    types.extend_from_slice(&BATCH5);
     let tally = run_all_with(&Registry::builtin(), &types, &read_exceptions());
     for f in &tally.failures {
         println!("{f}");
     }
+    println!("replay loose hits: {}", fins_replay::loose_hits_total());
     println!(
         "parity: {} passed ({} by exception), {} pending, {} failed",
         tally.passed,

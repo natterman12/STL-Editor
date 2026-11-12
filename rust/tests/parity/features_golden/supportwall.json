@@ -1,0 +1,156 @@
+{
+ "wall_cant_place": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "t_bracket",
+    "solid": true,
+    "stats": {
+     "area": 10240.0,
+     "bbox_max": [
+      50.0,
+      40.0,
+      58.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 28,
+     "vertices": 16,
+     "volume": 32000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": "Support Fins couldn’t place that wall: wall too short — 0.2mm, needs 2mm.",
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "wall_no_points": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "t_bracket",
+    "solid": true,
+    "stats": {
+     "area": 10240.0,
+     "bbox_max": [
+      50.0,
+      40.0,
+      58.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 28,
+     "vertices": 16,
+     "volume": 32000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": "Click on the part to draw a wall under an overhang.",
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "wall_one": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "t_bracket",
+    "solid": true,
+    "stats": {
+     "area": 12634.730924224934,
+     "bbox_max": [
+      50.0,
+      40.0,
+      58.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 440,
+     "vertices": 226,
+     "volume": 33061.99996471405,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "info": "Support Fins 1.0.5: wall 20.0 mm long, 49.8 mm tall, 0 tines",
+    "warning": null
+   }
+  ]
+ },
+ "wall_several": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "t_bracket",
+    "solid": true,
+    "stats": {
+     "area": 17317.992776203395,
+     "bbox_max": [
+      50.0,
+      40.0,
+      58.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 1252,
+     "vertices": 636,
+     "volume": 35185.99989414215,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "info": "Support Fins 1.0.5: 2 walls, 60.0 mm in all, 0 tines",
+    "warning": null
+   }
+  ]
+ }
+}

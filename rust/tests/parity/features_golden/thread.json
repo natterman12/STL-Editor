@@ -1,0 +1,220 @@
+{
+ "thread_bad_size": {
+  "bodies": [],
+  "results": [
+   {
+    "error": "Diameter, pitch and length must be positive.",
+    "id": "f1",
+    "warning": null
+   }
+  ]
+ },
+ "thread_chamfer_off": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "M8 screw",
+    "solid": true,
+    "stats": {
+     "area": 528.2519668230458,
+     "bbox_max": [
+      4.0,
+      3.997563362121582,
+      12.0
+     ],
+     "bbox_min": [
+      -4.0,
+      -3.997563362121582,
+      0.0
+     ],
+     "triangles": 7520,
+     "vertices": 3762,
+     "volume": 495.97668406225677,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   }
+  ]
+ },
+ "thread_external": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "M8 screw",
+    "solid": true,
+    "stats": {
+     "area": 489.6903732708501,
+     "bbox_max": [
+      3.9000000953674316,
+      3.8976242542266846,
+      12.0
+     ],
+     "bbox_min": [
+      -3.9000000953674316,
+      -3.8976242542266846,
+      0.0
+     ],
+     "triangles": 8248,
+     "vertices": 4126,
+     "volume": 464.7201848909987,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   }
+  ]
+ },
+ "thread_internal": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Cylinder",
+    "solid": true,
+    "stats": {
+     "area": 694.3731000946377,
+     "bbox_max": [
+      7.5,
+      6.495190620422363,
+      6.0
+     ],
+     "bbox_min": [
+      -7.5,
+      -6.495190620422363,
+      0.0
+     ],
+     "triangles": 4652,
+     "vertices": 2326,
+     "volume": 612.603360486486,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "thread_left_hand": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "M8 screw",
+    "solid": true,
+    "stats": {
+     "area": 528.2519668230459,
+     "bbox_max": [
+      4.0,
+      3.997563362121582,
+      12.0
+     ],
+     "bbox_min": [
+      -4.0,
+      -3.997563362121582,
+      0.0
+     ],
+     "triangles": 7520,
+     "vertices": 3762,
+     "volume": 495.97668406618277,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   }
+  ]
+ },
+ "thread_placed_plane": {
+  "bodies": [
+   {
+    "id": "f2",
+    "name": "M6 screw",
+    "solid": true,
+    "stats": {
+     "area": 242.8152936512808,
+     "bbox_max": [
+      2.9000000953674316,
+      2.898233413696289,
+      13.0
+     ],
+     "bbox_min": [
+      -2.9000000953674316,
+      -2.898233413696289,
+      5.0
+     ],
+     "triangles": 7096,
+     "vertices": 3550,
+     "volume": 168.1922829984251,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "thread_tolerance": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "M8 screw",
+    "solid": true,
+    "stats": {
+     "area": 410.46294099032167,
+     "bbox_max": [
+      3.8499999046325684,
+      3.8476545810699463,
+      10.0
+     ],
+     "bbox_min": [
+      -3.8499999046325684,
+      -3.8476545810699463,
+      0.0
+     ],
+     "triangles": 7096,
+     "vertices": 3550,
+     "volume": 375.631175005522,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   }
+  ]
+ }
+}

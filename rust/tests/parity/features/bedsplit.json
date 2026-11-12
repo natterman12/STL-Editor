@@ -1,0 +1,242 @@
+[
+ {
+  "name": "bedsplit_pins_a1mini",
+  "exactness": "approx",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 400,
+     "width": 60,
+     "height": 40,
+     "plane": "XY",
+     "anchor": "base",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "bedsplit",
+    "params": {
+     "body": "f1",
+     "printer": "bambu_a1mini",
+     "connector": "pins",
+     "margin": 5,
+     "optimize": true
+    }
+   }
+  ]
+ },
+ {
+  "name": "bedsplit_dowels_x1",
+  "exactness": "approx",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 400,
+     "width": 60,
+     "height": 40,
+     "plane": "XY",
+     "anchor": "base",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "bedsplit",
+    "params": {
+     "body": "f1",
+     "printer": "bambu_x1",
+     "connector": "dowels",
+     "margin": 5,
+     "optimize": true
+    }
+   }
+  ]
+ },
+ {
+  "name": "bedsplit_filament",
+  "exactness": "approx",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 400,
+     "width": 60,
+     "height": 40,
+     "plane": "XY",
+     "anchor": "base",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "bedsplit",
+    "params": {
+     "body": "f1",
+     "printer": "bambu_a1mini",
+     "connector": "filament",
+     "margin": 5,
+     "optimize": true
+    }
+   }
+  ]
+ },
+ {
+  "name": "bedsplit_magnets",
+  "exactness": "approx",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 400,
+     "width": 60,
+     "height": 40,
+     "plane": "XY",
+     "anchor": "base",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "bedsplit",
+    "params": {
+     "body": "f1",
+     "printer": "bambu_a1mini",
+     "connector": "magnets",
+     "margin": 5,
+     "optimize": true
+    }
+   }
+  ]
+ },
+ {
+  "name": "bedsplit_none",
+  "exactness": "approx",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 400,
+     "width": 60,
+     "height": 40,
+     "plane": "XY",
+     "anchor": "base",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "bedsplit",
+    "params": {
+     "body": "f1",
+     "printer": "bambu_a1mini",
+     "connector": "none",
+     "margin": 5,
+     "optimize": true
+    }
+   }
+  ]
+ },
+ {
+  "name": "bedsplit_already_fits",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 40,
+     "width": 30,
+     "height": 20,
+     "plane": "XY",
+     "anchor": "base",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "bedsplit",
+    "params": {
+     "body": "f1",
+     "printer": "bambu_x1",
+     "connector": "pins",
+     "margin": 5,
+     "optimize": true
+    }
+   }
+  ]
+ },
+ {
+  "name": "bedsplit_margin_too_large",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 40,
+     "width": 30,
+     "height": 20,
+     "plane": "XY",
+     "anchor": "base",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "bedsplit",
+    "params": {
+     "body": "f1",
+     "printer": "bambu_a1mini",
+     "connector": "pins",
+     "margin": 100,
+     "optimize": true
+    }
+   }
+  ]
+ },
+ {
+  "name": "bedsplit_thin_connectors",
+  "exactness": "approx",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 400,
+     "width": 8,
+     "height": 40,
+     "plane": "XY",
+     "anchor": "base",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "bedsplit",
+    "params": {
+     "body": "f1",
+     "printer": "bambu_a1mini",
+     "connector": "pins",
+     "margin": 5,
+     "optimize": true
+    }
+   }
+  ]
+ }
+]

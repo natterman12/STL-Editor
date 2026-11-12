@@ -1,0 +1,186 @@
+[
+ {
+  "name": "thread_external",
+  "exactness": "approx",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "thread",
+    "params": {
+     "kind": "external",
+     "diameter": 8,
+     "pitch": 1.25,
+     "length": 12,
+     "tolerance": 0.2,
+     "hand": "right",
+     "chamfer": true,
+     "plane": "XY",
+     "offset": [0, 0, 0],
+     "operation": "new"
+    }
+   }
+  ]
+ },
+ {
+  "name": "thread_internal",
+  "exactness": "approx",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "cylinder",
+     "radius": 7.5,
+     "height": 6,
+     "segments": 6,
+     "plane": "XY",
+     "offset": [0, 0, 0],
+     "anchor": "base",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "thread",
+    "params": {
+     "kind": "internal",
+     "diameter": 8,
+     "pitch": 1.25,
+     "length": 6,
+     "tolerance": 0.2,
+     "hand": "right",
+     "chamfer": true,
+     "plane": "XY",
+     "offset": [0, 0, 6],
+     "operation": "cut",
+     "targets": ["f1"]
+    }
+   }
+  ]
+ },
+ {
+  "name": "thread_left_hand",
+  "exactness": "approx",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "thread",
+    "params": {
+     "kind": "external",
+     "diameter": 8,
+     "pitch": 1.25,
+     "length": 12,
+     "tolerance": 0,
+     "hand": "left",
+     "chamfer": false,
+     "plane": "XY",
+     "offset": [0, 0, 0],
+     "operation": "new"
+    }
+   }
+  ]
+ },
+ {
+  "name": "thread_chamfer_off",
+  "exactness": "approx",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "thread",
+    "params": {
+     "kind": "external",
+     "diameter": 8,
+     "pitch": 1.25,
+     "length": 12,
+     "tolerance": 0,
+     "hand": "right",
+     "chamfer": false,
+     "plane": "XY",
+     "offset": [0, 0, 0],
+     "operation": "new"
+    }
+   }
+  ]
+ },
+ {
+  "name": "thread_tolerance",
+  "exactness": "approx",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "thread",
+    "params": {
+     "kind": "external",
+     "diameter": 8,
+     "pitch": 1.25,
+     "length": 10,
+     "tolerance": 0.3,
+     "hand": "right",
+     "chamfer": true,
+     "plane": "XY",
+     "offset": [0, 0, 0],
+     "operation": "new"
+    }
+   }
+  ]
+ },
+ {
+  "name": "thread_placed_plane",
+  "exactness": "approx",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "plane",
+    "params": {
+     "mode": "offset",
+     "base": "XY",
+     "distance": 5,
+     "name": "Offset"
+    }
+   },
+   {
+    "type": "thread",
+    "params": {
+     "kind": "external",
+     "diameter": 6,
+     "pitch": 1,
+     "length": 8,
+     "tolerance": 0.2,
+     "hand": "right",
+     "chamfer": true,
+     "plane": "f1",
+     "offset": [0, 0, 0],
+     "operation": "new"
+    }
+   }
+  ]
+ },
+ {
+  "name": "thread_bad_size",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "thread",
+    "params": {
+     "kind": "external",
+     "diameter": 0,
+     "pitch": 1.25,
+     "length": 12,
+     "tolerance": 0.2,
+     "hand": "right",
+     "chamfer": true,
+     "plane": "XY",
+     "offset": [0, 0, 0],
+     "operation": "new"
+    }
+   }
+  ]
+ }
+]

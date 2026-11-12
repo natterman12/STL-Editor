@@ -1,0 +1,126 @@
+{
+ "hinge_no_body": {
+  "bodies": [],
+  "results": [
+   {
+    "error": "Choose the block to put the living hinge in.",
+    "id": "f1",
+    "warning": null
+   }
+  ]
+ },
+ "hinge_ok": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 6331.0,
+     "bbox_max": [
+      40.0,
+      30.0,
+      20.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 28,
+     "vertices": 16,
+     "volume": 23415.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "hinge_too_thick": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 5200.0,
+     "bbox_max": [
+      40.0,
+      30.0,
+      20.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 24000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": "The hinge is as thick as the block, so there is nothing to cut.",
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "hinge_zero_slot": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 5200.0,
+     "bbox_max": [
+      40.0,
+      30.0,
+      20.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 24000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": "The slot width and the hinge thickness must be more than zero.",
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ }
+}

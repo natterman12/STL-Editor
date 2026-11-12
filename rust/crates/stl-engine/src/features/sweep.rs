@@ -165,7 +165,7 @@ mod tests {
 
     fn run(state: &mut State, p: Value) -> Result<(), FeatureError> {
         let src = BTreeMap::new();
-        let ctx = Ctx { sources: &src, preview: false };
+        let ctx = Ctx { sources: &src, preview: false, fins: &crate::NullHost };
         let mut res = FeatureResult::default();
         f_sweep(state, "f9", p.as_object().unwrap(), &mut res, &ctx)
     }

@@ -1,0 +1,592 @@
+{
+ "bedsplit_already_fits": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 5200.0,
+     "bbox_max": [
+      20.0,
+      15.0,
+      20.0
+     ],
+     "bbox_min": [
+      -20.0,
+      -15.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 24000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": "This body already fits the bed; nothing was split."
+   }
+  ]
+ },
+ "bedsplit_dowels_x1": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box 1",
+    "solid": true,
+    "stats": {
+     "area": 45012.64073627373,
+     "bbox_max": [
+      0.0,
+      30.0,
+      40.0
+     ],
+     "bbox_min": [
+      -200.0,
+      -30.0,
+      0.0
+     ],
+     "triangles": 396,
+     "vertices": 200,
+     "volume": 479718.8542784745,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f2.2",
+    "name": "Box 2",
+    "solid": true,
+    "stats": {
+     "area": 45012.64073627372,
+     "bbox_max": [
+      200.0,
+      30.0,
+      40.0
+     ],
+     "bbox_min": [
+      0.0,
+      -30.0,
+      0.0
+     ],
+     "triangles": 396,
+     "vertices": 200,
+     "volume": 479718.8542784745,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f2.pin1",
+    "name": "Pin 1",
+    "solid": true,
+    "stats": {
+     "area": 216.04788948739704,
+     "bbox_max": [
+      5.800000190734863,
+      -7.889999866485596,
+      22.110000610351562
+     ],
+     "bbox_min": [
+      -5.800000190734863,
+      -12.789999961853027,
+      17.209999084472656
+     ],
+     "triangles": 188,
+     "vertices": 96,
+     "volume": 218.12182479466813,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f2.pin2",
+    "name": "Pin 2",
+    "solid": true,
+    "stats": {
+     "area": 216.0478973089688,
+     "bbox_max": [
+      5.800000190734863,
+      27.43833351135254,
+      37.619998931884766
+     ],
+     "bbox_min": [
+      -5.800000190734863,
+      22.538333892822266,
+      32.720001220703125
+     ],
+     "triangles": 188,
+     "vertices": 96,
+     "volume": 218.12183824573512,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "bedsplit_filament": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box 1",
+    "solid": true,
+    "stats": {
+     "area": 31605.42016979255,
+     "bbox_max": [
+      -66.66666412353516,
+      30.0,
+      40.0
+     ],
+     "bbox_min": [
+      -200.0,
+      -30.0,
+      0.0
+     ],
+     "triangles": 780,
+     "vertices": 392,
+     "volume": 319929.047442671,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f2.2",
+    "name": "Box 2",
+    "solid": true,
+    "stats": {
+     "area": 31744.171442012215,
+     "bbox_max": [
+      66.66666412353516,
+      30.0,
+      40.0
+     ],
+     "bbox_min": [
+      -66.66666412353516,
+      -30.0,
+      0.0
+     ],
+     "triangles": 1548,
+     "vertices": 776,
+     "volume": 319858.0705717196,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f2.3",
+    "name": "Box 3",
+    "solid": true,
+    "stats": {
+     "area": 31605.42016979255,
+     "bbox_max": [
+      200.0,
+      30.0,
+      40.0
+     ],
+     "bbox_min": [
+      66.66666412353516,
+      -30.0,
+      0.0
+     ],
+     "triangles": 780,
+     "vertices": 392,
+     "volume": 319929.047442671,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "bedsplit_magnets": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box 1",
+    "solid": true,
+    "stats": {
+     "area": 31594.828223918077,
+     "bbox_max": [
+      -66.66666412353516,
+      30.0,
+      40.0
+     ],
+     "bbox_min": [
+      -200.0,
+      -30.0,
+      0.0
+     ],
+     "triangles": 396,
+     "vertices": 200,
+     "volume": 319798.58463821764,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f2.2",
+    "name": "Box 2",
+    "solid": true,
+    "stats": {
+     "area": 31722.987143090475,
+     "bbox_max": [
+      66.66666412353516,
+      30.0,
+      40.0
+     ],
+     "bbox_min": [
+      -66.66666412353516,
+      -30.0,
+      0.0
+     ],
+     "triangles": 780,
+     "vertices": 392,
+     "volume": 319597.14581096615,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f2.3",
+    "name": "Box 3",
+    "solid": true,
+    "stats": {
+     "area": 31594.82822391807,
+     "bbox_max": [
+      200.0,
+      30.0,
+      40.0
+     ],
+     "bbox_min": [
+      66.66666412353516,
+      -30.0,
+      0.0
+     ],
+     "triangles": 396,
+     "vertices": 200,
+     "volume": 319798.58463821764,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "bedsplit_margin_too_large": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 5200.0,
+     "bbox_max": [
+      20.0,
+      15.0,
+      20.0
+     ],
+     "bbox_min": [
+      -20.0,
+      -15.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 24000.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": "The margin is too large for this bed.",
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "bedsplit_none": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box 1",
+    "solid": true,
+    "stats": {
+     "area": 31466.66717529297,
+     "bbox_max": [
+      -66.66666412353516,
+      30.0,
+      40.0
+     ],
+     "bbox_min": [
+      -200.0,
+      -30.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 320000.0061035156,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f2.2",
+    "name": "Box 2",
+    "solid": true,
+    "stats": {
+     "area": 31466.665649414062,
+     "bbox_max": [
+      66.66666412353516,
+      30.0,
+      40.0
+     ],
+     "bbox_min": [
+      -66.66666412353516,
+      -30.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 319999.98779296875,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f2.3",
+    "name": "Box 3",
+    "solid": true,
+    "stats": {
+     "area": 31466.66717529297,
+     "bbox_max": [
+      200.0,
+      30.0,
+      40.0
+     ],
+     "bbox_min": [
+      66.66666412353516,
+      -30.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 320000.0061035156,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "bedsplit_pins_a1mini": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box 1",
+    "solid": true,
+    "stats": {
+     "area": 31646.03078447566,
+     "bbox_max": [
+      -66.66666412353516,
+      30.0,
+      40.0
+     ],
+     "bbox_min": [
+      -200.0,
+      -30.0,
+      0.0
+     ],
+     "triangles": 396,
+     "vertices": 200,
+     "volume": 319762.8581693861,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f2.2",
+    "name": "Box 2",
+    "solid": true,
+    "stats": {
+     "area": 31802.57853854692,
+     "bbox_max": [
+      66.66666412353516,
+      30.0,
+      40.0
+     ],
+     "bbox_min": [
+      -71.96666717529297,
+      -30.0,
+      0.0
+     ],
+     "triangles": 972,
+     "vertices": 488,
+     "volume": 319966.7220721731,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f2.3",
+    "name": "Box 3",
+    "solid": true,
+    "stats": {
+     "area": 31623.21646242853,
+     "bbox_max": [
+      200.0,
+      30.0,
+      40.0
+     ],
+     "bbox_min": [
+      61.36666488647461,
+      -30.0,
+      0.0
+     ],
+     "triangles": 588,
+     "vertices": 296,
+     "volume": 320203.88799963583,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "bedsplit_thin_connectors": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box 1",
+    "solid": true,
+    "stats": {
+     "area": 13440.000244140625,
+     "bbox_max": [
+      -66.66666412353516,
+      4.0,
+      40.0
+     ],
+     "bbox_min": [
+      -200.0,
+      -4.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 42666.66748046875,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f2.2",
+    "name": "Box 2",
+    "solid": true,
+    "stats": {
+     "area": 13439.99951171875,
+     "bbox_max": [
+      66.66666412353516,
+      4.0,
+      40.0
+     ],
+     "bbox_min": [
+      -66.66666412353516,
+      -4.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 42666.6650390625,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f2.3",
+    "name": "Box 3",
+    "solid": true,
+    "stats": {
+     "area": 13440.000244140625,
+     "bbox_max": [
+      200.0,
+      4.0,
+      40.0
+     ],
+     "bbox_min": [
+      66.66666412353516,
+      -4.0,
+      0.0
+     ],
+     "triangles": 12,
+     "vertices": 8,
+     "volume": 42666.66748046875,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": "2 cut face(s) were too thin for connectors. Try Filament pins (1.75 mm), or glue those seams."
+   }
+  ]
+ }
+}

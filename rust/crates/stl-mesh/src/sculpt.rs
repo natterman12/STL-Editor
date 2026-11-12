@@ -31,26 +31,50 @@ pub struct Stroke {
 }
 
 /// Distinct neighbours of every vertex (the 0/1 adjacency matrix of 1.x), sorted.
+///
+/// Each neighbour is written into one array and that vertex's slice is sorted, instead of
+/// growing a separate list per vertex. The sorted unique neighbours are the same.
 fn adjacency(f: &[[usize; 3]], n: usize) -> Vec<Vec<usize>> {
-    let mut adj = vec![Vec::new(); n];
+    let mut counts = vec![0u32; n];
     for t in f {
         for k in 0..3 {
             let (a, b) = (t[k], t[(k + 1) % 3]);
-            adj[a].push(b);
-            adj[b].push(a);
+            counts[a] += 1;
+            counts[b] += 1;
         }
     }
-    let tidy = |l: &mut Vec<usize>| {
-        l.sort_unstable();
-        l.dedup();
+    let mut start = vec![0u32; n + 1];
+    for i in 0..n {
+        start[i + 1] = start[i] + counts[i];
+    }
+    let mut edges = vec![0usize; start[n] as usize];
+    let mut cursor = start.clone();
+    for t in f {
+        for k in 0..3 {
+            let (a, b) = (t[k], t[(k + 1) % 3]);
+            let ia = cursor[a] as usize;
+            cursor[a] += 1;
+            edges[ia] = b;
+            let ib = cursor[b] as usize;
+            cursor[b] += 1;
+            edges[ib] = a;
+        }
+    }
+    let mut adj = vec![Vec::new(); n];
+    let tidy = |i: usize, slot: &mut Vec<usize>| {
+        let a = start[i] as usize;
+        let b = start[i + 1] as usize;
+        slot.extend_from_slice(&edges[a..b]);
+        slot.sort_unstable();
+        slot.dedup();
     };
     #[cfg(not(target_arch = "wasm32"))]
     {
         use rayon::prelude::*;
-        adj.par_iter_mut().for_each(tidy);
+        adj.par_iter_mut().enumerate().for_each(|(i, slot)| tidy(i, slot));
     }
     #[cfg(target_arch = "wasm32")]
-    adj.iter_mut().for_each(tidy);
+    adj.iter_mut().enumerate().for_each(|(i, slot)| tidy(i, slot));
     adj
 }
 

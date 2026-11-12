@@ -1,0 +1,96 @@
+{
+ "fittest_count_zero": {
+  "bodies": [],
+  "results": [
+   {
+    "error": "Count must be at least 1.",
+    "id": "f1",
+    "warning": null
+   }
+  ]
+ },
+ "fittest_diameter_zero": {
+  "bodies": [],
+  "results": [
+   {
+    "error": "Peg diameter must be more than zero.",
+    "id": "f1",
+    "warning": null
+   }
+  ]
+ },
+ "fittest_gap_zero": {
+  "bodies": [],
+  "results": [
+   {
+    "error": "Gap must be more than zero.",
+    "id": "f1",
+    "warning": null
+   }
+  ]
+ },
+ "fittest_ok": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Fit Test",
+    "solid": true,
+    "stats": {
+     "area": 2835.2777390129095,
+     "bbox_max": [
+      20.225000381469727,
+      14.074999809265137,
+      6.0
+     ],
+     "bbox_min": [
+      -20.225000381469727,
+      -14.074999809265137,
+      0.0
+     ],
+     "triangles": 1560,
+     "vertices": 776,
+     "volume": 3404.6286102224235,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "info": "3 pairs, peg Ø8 mm, clearances 0.05, 0.1, 0.15 mm.",
+    "warning": null
+   }
+  ]
+ },
+ "fittest_start_negative": {
+  "bodies": [],
+  "results": [
+   {
+    "error": "Clearance start can't be negative.",
+    "id": "f1",
+    "warning": null
+   }
+  ]
+ },
+ "fittest_step_zero": {
+  "bodies": [],
+  "results": [
+   {
+    "error": "Clearance step must be more than zero.",
+    "id": "f1",
+    "warning": null
+   }
+  ]
+ },
+ "fittest_thickness_zero": {
+  "bodies": [],
+  "results": [
+   {
+    "error": "Plate thickness must be more than zero.",
+    "id": "f1",
+    "warning": null
+   }
+  ]
+ }
+}

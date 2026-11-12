@@ -6,3 +6,25 @@ publish.workspace = true
 
 [dependencies]
 stl-engine = { path = "../stl-engine" }
+
+# Desktop only: the Support Fins engine hosts (stl-platform::fins) and the HTTPS
+# client (stl-platform::net). Never in the web build.
+# rustls default features pull aws-lc-rs (C). default-features = false, and the
+# RustCrypto provider instead of ring, keeps the pure-Rust check happy.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+serde_json = "1"
+boa_engine = { version = "=0.22.0", default-features = false }
+rustls = { version = "0.23.31", default-features = false, features = ["std", "tls12"] }
+rustls-rustcrypto = "=0.1.0-pre.0"
+webpki-roots = "1.0.12"
+
+# The webview host, Windows and Linux only. macOS uses Boa until milestone 4 adds the
+# main-thread hook WKWebView needs (wry's macOS backend also builds C through objc2's
+# exception helper, which the pure-Rust check refuses).
+[target.'cfg(any(windows, target_os = "linux"))'.dependencies]
+wry = { version = "=0.57.2", default-features = false, features = ["os-webview"] }
+tao = { version = "=0.37.2", default-features = false, features = ["rwh_06"] }
+
+[dev-dependencies]
+stl-mesh = { path = "../stl-mesh" }
+sha2 = "0.10"

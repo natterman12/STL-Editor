@@ -1,0 +1,230 @@
+{
+ "resizehole_fill": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "hole_and_pin",
+    "solid": true,
+    "stats": {
+     "area": 4725.831509344524,
+     "bbox_max": [
+      40.0,
+      30.0,
+      27.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 580,
+     "vertices": 292,
+     "volume": 18337.11613025893,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "resizehole_flat_face": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "hole_and_pin",
+    "solid": true,
+    "stats": {
+     "area": 5002.331085255626,
+     "bbox_max": [
+      40.0,
+      30.0,
+      27.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 272,
+     "vertices": 136,
+     "volume": 17587.969277447788,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": "That surface isn't round like a hole or pin. Click the curved wall itself.",
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "resizehole_grow": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "hole_and_pin",
+    "solid": true,
+    "stats": {
+     "area": 5040.006540481271,
+     "bbox_max": [
+      40.0,
+      30.0,
+      27.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 656,
+     "vertices": 328,
+     "volume": 17159.491926266393,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "resizehole_no_click": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "hole_and_pin",
+    "solid": true,
+    "stats": {
+     "area": 5002.331085255626,
+     "bbox_max": [
+      40.0,
+      30.0,
+      27.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 272,
+     "vertices": 136,
+     "volume": 17587.969277447788,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": "Click the wall of a round hole or pin.",
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "resizehole_pin": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "hole_and_pin",
+    "solid": true,
+    "stats": {
+     "area": 4964.976209804832,
+     "bbox_max": [
+      40.0,
+      30.0,
+      27.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 830,
+     "vertices": 415,
+     "volume": 17486.37798104739,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "resizehole_shrink": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "hole_and_pin",
+    "solid": true,
+    "stats": {
+     "area": 4952.020501312981,
+     "bbox_max": [
+      40.0,
+      30.0,
+      27.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 1098,
+     "vertices": 549,
+     "volume": 17913.17142303043,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ }
+}

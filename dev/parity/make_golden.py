@@ -20,6 +20,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "dev" / "parity"))
 
 from stleditor.document import Document  # noqa: E402
+from stleditor.features import State  # noqa: E402
 import stats as parity_stats  # noqa: E402
 
 FEATURES_DIR = ROOT / "rust" / "tests" / "parity" / "features"
@@ -61,6 +62,25 @@ BATCH3 = [
     "thincheck",
 ]
 
+BATCH4 = [
+    "bedsplit",
+    "layflat",
+    "plate",
+    "pattern",
+    "thread",
+    "resizehole",
+    "fittest",
+    "snapfit",
+    "hinge",
+]
+
+BATCH5 = [
+    "supportfins",
+    "supportwall",
+]
+
+ALL_TYPES = [*BATCH1, *BATCH2, *BATCH3, *BATCH4, *BATCH5]
+
 REMESH_GOLDEN = ROOT / "rust" / "tests" / "parity" / "remesh_golden.json"
 
 
@@ -88,6 +108,47 @@ def _body_record(bid: str, body) -> dict:
         "solid": bool(body.is_solid),
         "stats": parity_stats.mesh_stats(v, f),
     }
+
+
+def _force_bundled_fins() -> None:
+    """Support Fins goldens use the bundled engine only; update checks stay off."""
+    import tempfile
+
+    from stleditor import supportfins as SF
+
+    SF.USER_DIR = tempfile.mkdtemp(prefix="sf-make-golden-")
+    SF._ctx = None
+    SF._active = None
+    SF.check_update = lambda force=False: None  # type: ignore[assignment]
+    info = SF._read_info(SF.BUNDLED)
+    if info:
+        SF._choose = lambda: info  # type: ignore[assignment]
+
+
+def _evaluate_with_ctx(doc: Document, extra_ctx: dict) -> list:
+    """Like Document.evaluate, but merges extra_ctx (e.g. preview) into the feature ctx."""
+    ctx = {"load_source": doc.load_source, **extra_ctx}
+    state = State()
+    results = []
+    new_cache = []
+    h = ""
+    for i, f in enumerate(doc.active_features()):
+        h = doc._hash(f, h)
+        if i < len(doc._cache) and doc._cache[i][0] == h and i < len(doc._results):
+            state = doc._cache[i][1]
+            results.append(doc._results[i])
+            new_cache.append(doc._cache[i])
+            continue
+        if h in doc._memo:
+            state, res = doc._memo[h]
+        else:
+            state, res = doc.run_feature(state, f, ctx)
+        results.append(res)
+        new_cache.append((h, state))
+    doc._cache = new_cache
+    doc._results = results
+    doc.state = state
+    return results
 
 
 def _run_case(case: dict) -> dict:
@@ -122,7 +183,11 @@ def _run_case(case: dict) -> dict:
         )
     doc.features = features
 
-    results_raw = doc.evaluate()
+    extra_ctx = case.get("ctx") or {}
+    if extra_ctx:
+        results_raw = _evaluate_with_ctx(doc, dict(extra_ctx))
+    else:
+        results_raw = doc.evaluate()
     results = [
         {"id": r["id"], "error": r.get("error"), "warning": r.get("warning"),
          **({"info": r["info"]} if isinstance(r.get("info"), str) else {}),
@@ -168,9 +233,9 @@ def build_type(type_name: str, remesh_golden: dict | None = None) -> dict:
 
 
 def build_all() -> dict[str, dict]:
+    _force_bundled_fins()
     remesh_golden = _load_remesh_golden()
-    types = [*BATCH1, *BATCH2, *BATCH3]
-    return {t: build_type(t, remesh_golden) for t in types}
+    return {t: build_type(t, remesh_golden) for t in ALL_TYPES}
 
 
 _REL = 1e-2      # volume, area and bounding box: 1 percent here (freshness check only; parity keeps 0.1 percent).
@@ -224,7 +289,6 @@ def main() -> int:
 
     golden = build_all()
     mismatch = False
-    types = [*BATCH1, *BATCH2, *BATCH3]
     for type_name, data in golden.items():
         text = _dumps(data)
         dest = GOLDEN_DIR / f"{type_name}.json"
@@ -257,7 +321,7 @@ def main() -> int:
     if args.check:
         if mismatch:
             return 1
-        print(f"make_golden: ok ({len(types)} types)")
+        print(f"make_golden: ok ({len(ALL_TYPES)} types)")
         return 0
     return 0
 

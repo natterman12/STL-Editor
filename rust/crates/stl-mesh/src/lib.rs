@@ -1,6 +1,7 @@
 //! Mesh tools: remesh, simplify, voxelise and marching cubes, repair, sculpt, nearest-point search.
 
 mod error;
+pub mod fit;
 pub mod nearest;
 pub mod offset;
 pub mod remesh;
@@ -8,6 +9,7 @@ pub mod repair;
 pub mod sculpt;
 pub mod simplify;
 pub mod thin;
+pub mod thread;
 pub mod voxel;
 pub mod refs;
 mod weld;

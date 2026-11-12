@@ -1,13 +1,18 @@
 //! Helpers used by two or more features: planes and frames, placing and moving solids,
 //! combining a tool with the design, and reading numbers from parameters.
 
+pub mod bed;
 pub mod connectors;
+pub mod fins;
 pub mod frames;
 pub mod params;
 pub mod pitch;
+pub mod pose;
+pub mod printers;
 pub mod place;
 pub mod profiles;
 pub mod pushpull_tool;
+pub mod round;
 pub mod tool;
 
 pub use frames::{base_planes, plane_frame, Frame, PlaneDef, Vec3};

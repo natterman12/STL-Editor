@@ -22,7 +22,11 @@ fn pure_rust() -> Result<bool, String> {
             return Err(format!("cargo metadata failed for {target}: {}", String::from_utf8_lossy(&out.stderr)));
         }
         let meta: serde_json::Value = serde_json::from_slice(&out.stdout).map_err(|e| e.to_string())?;
-        for name in pure::forbidden(&meta) {
+        let allow: &[&str] = if target == pure::LINUX_ALLOW_TARGET { &pure::LINUX_ALLOW } else { &[] };
+        if !allow.is_empty() {
+            println!("pure-rust: {target}: allowed pkg-config/system-deps for {} ({})", allow.join(", "), pure::LINUX_ALLOW_REASON);
+        }
+        for name in pure::forbidden_except(&meta, allow) {
             println!("pure-rust: {target}: {name}");
             ok = false;
         }

@@ -1,0 +1,260 @@
+{
+ "bridge_ring_default": {
+  "model": "bridge_ring.stl",
+  "options": {},
+  "over": 2,
+  "pieces": 3,
+  "report": "3 walls, 0 tines",
+  "small": 0,
+  "stats": {
+   "braces": 3,
+   "finTriangles": 516,
+   "floating": 0,
+   "floatingDrop": 0,
+   "overhangRegions": 1,
+   "padTriangles": 0,
+   "pins": false,
+   "props": 0,
+   "smallHoleRegions": 0,
+   "swayBraces": 0,
+   "swayReason": null,
+   "swaySkipped": 0,
+   "swayTines": 0,
+   "swayTriangles": 0,
+   "tines": 0,
+   "unserved": 0
+  },
+  "triangles_sha256": "86415cbb73487024807b846b3777a8c283fdfa63e29a0c0260f296779f920655"
+ },
+ "bridge_ring_dense_tines": {
+  "model": "bridge_ring.stl",
+  "options": {
+   "threshold": 50,
+   "tineDensity": 0.5
+  },
+  "over": 2,
+  "pieces": 3,
+  "report": "3 walls, 0 tines",
+  "small": 0,
+  "stats": {
+   "braces": 3,
+   "finTriangles": 516,
+   "floating": 0,
+   "floatingDrop": 0,
+   "overhangRegions": 1,
+   "padTriangles": 0,
+   "pins": false,
+   "props": 0,
+   "smallHoleRegions": 0,
+   "swayBraces": 0,
+   "swayReason": null,
+   "swaySkipped": 0,
+   "swayTines": 0,
+   "swayTriangles": 0,
+   "tines": 0,
+   "unserved": 0
+  },
+  "triangles_sha256": "86415cbb73487024807b846b3777a8c283fdfa63e29a0c0260f296779f920655"
+ },
+ "bridge_ring_full": {
+  "model": "bridge_ring.stl",
+  "options": {
+   "mode": "full"
+  },
+  "over": 2,
+  "pieces": 3,
+  "report": "3 walls, 0 tines",
+  "small": 0,
+  "stats": {
+   "braces": 3,
+   "finTriangles": 516,
+   "floating": 0,
+   "floatingDrop": 0,
+   "overhangRegions": 1,
+   "padTriangles": 0,
+   "pins": false,
+   "props": 0,
+   "smallHoleRegions": 0,
+   "swayBraces": 0,
+   "swayReason": null,
+   "swaySkipped": 0,
+   "swayTines": 0,
+   "swayTriangles": 0,
+   "tines": 0,
+   "unserved": 0
+  },
+  "triangles_sha256": "86415cbb73487024807b846b3777a8c283fdfa63e29a0c0260f296779f920655"
+ },
+ "lipped_shelf_default": {
+  "model": "lipped_shelf.stl",
+  "options": {},
+  "over": 4,
+  "pieces": 6,
+  "report": "6 walls, 0 tines",
+  "small": 0,
+  "stats": {
+   "braces": 6,
+   "finTriangles": 7272,
+   "floating": 0,
+   "floatingDrop": 0,
+   "overhangRegions": 2,
+   "padTriangles": 0,
+   "pins": false,
+   "props": 0,
+   "smallHoleRegions": 0,
+   "swayBraces": 0,
+   "swayReason": null,
+   "swaySkipped": 0,
+   "swayTines": 0,
+   "swayTriangles": 0,
+   "tines": 0,
+   "unserved": 0
+  },
+  "triangles_sha256": "a4055e6bf1b0dbd3dba6b971c4760df065b9262c1a4f25be2502cd35b02147d3"
+ },
+ "lipped_shelf_dense_tines": {
+  "model": "lipped_shelf.stl",
+  "options": {
+   "threshold": 50,
+   "tineDensity": 0.5
+  },
+  "over": 4,
+  "pieces": 6,
+  "report": "6 walls, 0 tines",
+  "small": 0,
+  "stats": {
+   "braces": 6,
+   "finTriangles": 7272,
+   "floating": 0,
+   "floatingDrop": 0,
+   "overhangRegions": 2,
+   "padTriangles": 0,
+   "pins": false,
+   "props": 0,
+   "smallHoleRegions": 0,
+   "swayBraces": 0,
+   "swayReason": null,
+   "swaySkipped": 0,
+   "swayTines": 0,
+   "swayTriangles": 0,
+   "tines": 0,
+   "unserved": 0
+  },
+  "triangles_sha256": "a4055e6bf1b0dbd3dba6b971c4760df065b9262c1a4f25be2502cd35b02147d3"
+ },
+ "lipped_shelf_full": {
+  "model": "lipped_shelf.stl",
+  "options": {
+   "mode": "full"
+  },
+  "over": 4,
+  "pieces": 6,
+  "report": "6 walls, 0 tines",
+  "small": 0,
+  "stats": {
+   "braces": 6,
+   "finTriangles": 7272,
+   "floating": 0,
+   "floatingDrop": 0,
+   "overhangRegions": 2,
+   "padTriangles": 0,
+   "pins": false,
+   "props": 0,
+   "smallHoleRegions": 0,
+   "swayBraces": 0,
+   "swayReason": null,
+   "swaySkipped": 0,
+   "swayTines": 0,
+   "swayTriangles": 0,
+   "tines": 0,
+   "unserved": 0
+  },
+  "triangles_sha256": "a4055e6bf1b0dbd3dba6b971c4760df065b9262c1a4f25be2502cd35b02147d3"
+ },
+ "t_bracket_default": {
+  "model": "t_bracket.stl",
+  "options": {},
+  "over": 4,
+  "pieces": 8,
+  "report": "8 walls, 0 tines",
+  "small": 0,
+  "stats": {
+   "braces": 8,
+   "finTriangles": 3296,
+   "floating": 0,
+   "floatingDrop": 0,
+   "overhangRegions": 2,
+   "padTriangles": 0,
+   "pins": false,
+   "props": 0,
+   "smallHoleRegions": 0,
+   "swayBraces": 0,
+   "swayReason": null,
+   "swaySkipped": 0,
+   "swayTines": 0,
+   "swayTriangles": 0,
+   "tines": 0,
+   "unserved": 0
+  },
+  "triangles_sha256": "a6ad8287cbf61faaae55dc3789e0bd496fe2d49631382386434ac0f574b9a114"
+ },
+ "t_bracket_dense_tines": {
+  "model": "t_bracket.stl",
+  "options": {
+   "threshold": 50,
+   "tineDensity": 0.5
+  },
+  "over": 4,
+  "pieces": 8,
+  "report": "8 walls, 0 tines",
+  "small": 0,
+  "stats": {
+   "braces": 8,
+   "finTriangles": 3296,
+   "floating": 0,
+   "floatingDrop": 0,
+   "overhangRegions": 2,
+   "padTriangles": 0,
+   "pins": false,
+   "props": 0,
+   "smallHoleRegions": 0,
+   "swayBraces": 0,
+   "swayReason": null,
+   "swaySkipped": 0,
+   "swayTines": 0,
+   "swayTriangles": 0,
+   "tines": 0,
+   "unserved": 0
+  },
+  "triangles_sha256": "a6ad8287cbf61faaae55dc3789e0bd496fe2d49631382386434ac0f574b9a114"
+ },
+ "t_bracket_full": {
+  "model": "t_bracket.stl",
+  "options": {
+   "mode": "full"
+  },
+  "over": 4,
+  "pieces": 14,
+  "report": "14 walls, 0 tines",
+  "small": 0,
+  "stats": {
+   "braces": 14,
+   "finTriangles": 5888,
+   "floating": 0,
+   "floatingDrop": 0,
+   "overhangRegions": 2,
+   "padTriangles": 0,
+   "pins": false,
+   "props": 0,
+   "smallHoleRegions": 0,
+   "swayBraces": 0,
+   "swayReason": null,
+   "swaySkipped": 0,
+   "swayTines": 0,
+   "swayTriangles": 0,
+   "tines": 0,
+   "unserved": 0
+  },
+  "triangles_sha256": "20ab973120699fb54913fd56baf77a31749e970ad9edc8a3d4d4abdc2caf059d"
+ }
+}

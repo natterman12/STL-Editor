@@ -52,6 +52,8 @@ from stleditor import geometry as G  # noqa: E402
 import stats as parity_stats  # noqa: E402
 
 MODELS = ROOT / "rust" / "tests" / "models"
+# The Support Fins and Resize Hole models (batch 4) have golden cases of their own.
+LATER = {"bridge_ring.stl", "hole_and_pin.stl", "lipped_shelf.stl", "t_bracket.stl"}
 GOLDEN = ROOT / "rust" / "tests" / "parity" / "repair_golden.json"
 
 # name -> what it does to the raw triangles (triangle i has vertices 3i, 3i+1, 3i+2)
@@ -173,7 +175,7 @@ def run_steps(v, f) -> dict:
 
 def build() -> dict:
     records = {}
-    for path in sorted(MODELS.glob("*.stl")):
+    for path in sorted(p for p in MODELS.glob("*.stl") if p.name not in LATER):
         v, f = G.read_stl_bytes(path.read_bytes())
         for name in VARIANTS:
             vv, vf = variant(v, f, name)

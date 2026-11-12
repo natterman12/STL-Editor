@@ -62,11 +62,23 @@ jobs:
         with:
           workspaces: rust
 
+      - name: Install WebKitGTK and Xvfb (Linux Support Fins host)
+        if: runner.os == 'Linux'
+        run: sudo apt-get install -y libwebkit2gtk-4.1-dev xvfb
+        working-directory: .
+
+      # Support Fins' webview host needs a display on Linux.
       - name: Test
-        run: cargo test --workspace --release
+        run: ${{ runner.os == 'Linux' && 'xvfb-run -a ' || '' }}cargo test --workspace --release
+
+      - name: Support Fins cases on the WebView2 host
+        if: runner.os == 'Windows'
+        run: STL_FINS_HOST=webview cargo test --release -p stl-engine --test parity -- --nocapture
 
       - name: Build for WebAssembly
-        run: cargo build --target wasm32-unknown-unknown -p stl-kernel -p stl-parity -p stl-mesh -p stl-sketch -p stl-engine -p stl-io
+        run: |
+          cargo build --target wasm32-unknown-unknown -p stl-kernel -p stl-parity -p stl-mesh -p stl-sketch -p stl-engine -p stl-io
+          cargo build --target wasm32-unknown-unknown -p stl-app
 
       - name: Check the pure-Rust rule
         run: cargo run -p xtask -- pure-rust
@@ -117,6 +129,7 @@ jobs:
           python dev/parity/make_kernel_golden.py --check
           python dev/parity/make_expr_golden.py --check
           python dev/parity/make_golden.py --check
+          python dev/parity/make_fins_golden.py --check
           python dev/parity/make_reader_golden.py --check
           python dev/parity/make_repair_golden.py --check
           python dev/parity/make_sketch_golden.py --check
@@ -143,6 +156,13 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: rust
+
+      - name: Support Fins in the browser (web host)
+        shell: bash
+        working-directory: rust/crates/stl-app
+        run: |
+          npm install -g wasm-pack@0.15.1
+          wasm-pack test --headless --chrome .
 
       - name: Write project files from Rust
         shell: bash

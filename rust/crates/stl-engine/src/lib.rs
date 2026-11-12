@@ -4,6 +4,7 @@ pub mod document;
 pub mod error;
 pub mod feature;
 pub mod features;
+pub mod fins_host;
 pub mod labels;
 pub mod params;
 pub mod registry;
@@ -17,6 +18,7 @@ pub use features::common::{
     transform_body, Frame, PlaneDef, ToolRecord, Vec3,
 };
 pub use feature::{Ctx, Feature, FeatureResult, RollbackAfter, Source};
+pub use fins_host::{FinsHost, HostKind, NullHost};
 pub use labels::LABELS;
 pub use registry::{Evaluator, Registry};
 pub use state::{Body, State};

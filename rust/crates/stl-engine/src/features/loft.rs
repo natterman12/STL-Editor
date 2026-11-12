@@ -137,7 +137,7 @@ mod tests {
 
     fn run(state: &mut State, p: Value) -> Result<FeatureResult, FeatureError> {
         let src = BTreeMap::new();
-        let ctx = Ctx { sources: &src, preview: false };
+        let ctx = Ctx { sources: &src, preview: false, fins: &crate::NullHost };
         let mut res = FeatureResult::default();
         f_loft(state, "f9", p.as_object().unwrap(), &mut res, &ctx).map(|_| res)
     }

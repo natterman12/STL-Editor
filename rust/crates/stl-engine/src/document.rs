@@ -57,6 +57,7 @@ pub struct Document {
     current: Arc<State>,
     undo: Vec<Snapshot>,
     redo: Vec<Snapshot>,
+    fins: Arc<dyn crate::FinsHost>,
 }
 
 fn fail<T>(m: impl Into<String>) -> Result<T, FeatureError> {
@@ -190,7 +191,17 @@ impl Document {
             current: Arc::new(State::default()),
             undo: Vec::new(),
             redo: Vec::new(),
+            fins: Arc::new(crate::NullHost),
         }
+    }
+
+    /// The Support Fins engine host used by `supportfins` and `supportwall`.
+    pub fn set_fins_host(&mut self, host: Arc<dyn crate::FinsHost>) {
+        self.fins = host;
+    }
+
+    pub fn fins_host(&self) -> &Arc<dyn crate::FinsHost> {
+        &self.fins
     }
 
     // -- ids & sources -----------------------------------------------------------------------
@@ -442,7 +453,7 @@ impl Document {
             false => None,
         };
         let mut new = state.clone();
-        let ctx = Ctx { sources: &self.sources, preview };
+        let ctx = Ctx { sources: &self.sources, preview, fins: &*self.fins };
         let registry = &self.registry;
         let out = (|| {
             let resolved: Map<String, Value>;

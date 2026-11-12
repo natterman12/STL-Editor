@@ -88,12 +88,17 @@ pub struct FeatureResult {
     pub suppressed: bool,
     /// The result is a preview-only picture (not what committing would give), so it isn't reused.
     pub preview_only: bool,
+    /// Extra record keys a feature reports under their 1.x names (Support Fins: `paint`, `walls`,
+    /// `support`, and for the live preview `pieces`, `colors`, `ghosts`). Not compared by parity.
+    pub extra: Map<String, Value>,
 }
 
 /// What an evaluator can reach besides the state.
 pub struct Ctx<'a> {
     pub sources: &'a BTreeMap<String, Source>,
     pub preview: bool,
+    /// Where Support Fins' engine runs; `NullHost` unless the app sets one.
+    pub fins: &'a dyn crate::FinsHost,
 }
 
 impl Ctx<'_> {

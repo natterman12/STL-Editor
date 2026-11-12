@@ -26,6 +26,26 @@ Bench (2026-11-11, three runs, ratio 2.0 / 1.x): join 0.82, 0.83, 0.85 (0.103, 0
 against 0.125, 0.125 and 0.124 s); cut 0.80, 0.80, 0.80; Split 0.72, 0.72, 0.76; Import 0.41, 0.41,
 0.40; Repair 0.29, 0.27, 0.28; Extrude 0.26 to 0.29; Revolve 0.67 to 0.74; Sweep 0.29 to 0.31.
 
+## Pattern circular x12 (open, pending Nathan's OK)
+
+Bench (2026-11-11, quiet, 504k-triangle bench mesh): 1.x 6.933 s, 2.0 7.747 s, ratio 1.12. After
+one speed pass, 2.0 moves the 11 copies in parallel (0.37 s down to about 0.1 s). Almost all the
+rest, about 8 s, is the union of the 12 copies (`union_plain` in `stl-kernel`, which follows
+Manifold 3.5.4 step for step). Neighbouring copies overlap, so the booleans can't be skipped, and
+changing the union order would change the triangles. Pattern already works as 1.x does (one batch
+union). Closing this needs a faster boolean in the vendored manifold-rust on parts this size.
+
+## Draw Walls, one line (open, pending Nathan's OK)
+
+Bench (2026-11-11, quiet): 1.x 0.987 s, 2.0 1.363 s, ratio 1.38 (1.66 before the speed pass).
+The speed pass turned off WebView2's throttling of the hidden window, which made the engine itself
+about 1.7 times slower, and cut the argument handling. Support Fins on the same host is now 0.92.
+Draw Walls is a short engine call, so a fixed cost of about 0.3 s per call is left: handing the
+48 MB triangle soup of the bench mesh to the webview through the `sf://` protocol (about 0.3 s,
+inside WebView2), plus building the soup and the cache key. 1.x passes the same string to V8 in
+the same process. Closing this would mean keeping the mesh in the page between calls (sending it
+once per body, not once per wall).
+
 ## What is left (not gaps)
 
 - The union-find that works out what is inside what (`winding03`) runs on one thread in index order,

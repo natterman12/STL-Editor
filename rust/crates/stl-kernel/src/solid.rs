@@ -7,10 +7,12 @@ use manifold_rust::csg_tree::CsgLeafNode;
 use manifold_rust::edge_op;
 use manifold_rust::face_op;
 use manifold_rust::impl_mesh::{self, ManifoldImpl};
-use manifold_rust::linalg::{IVec3, Mat3, Mat3x4, Vec3, mat3x4_to_mat4};
+use manifold_rust::linalg::{self, IVec3, Mat3, Mat3x4, Vec3, mat3x4_to_mat4};
 use manifold_rust::manifold::Manifold;
 use manifold_rust::math;
-use manifold_rust::types::{BooleanConfig, Box as Bounds, Error, K_PRECISION, OpType, Relation, TriRef, cosd, sind};
+use manifold_rust::types::{
+    BooleanConfig, Box as Bounds, Error, Halfedge, K_PRECISION, OpType, Relation, TriRef, cosd, next_halfedge, sind,
+};
 
 use crate::{Aabb, KernelError, MeshArrays, Shape2d};
 
@@ -55,34 +57,22 @@ pub(crate) fn segments(n: u32) -> i32 {
 /// which a repair keeps making new duplicates cannot hang the import: `false` means it gave up
 /// (the mesh is then reported as not closed). Meshes that import need a handful of passes.
 fn dedupe_edges(imp: &mut ManifoldImpl) -> bool {
+    // The first pass of a large mesh runs just after pinched vertices are split, so each
+    // vertex is one orbit. Grouping halfedges by their start vertex then lists the same
+    // duplicates as walking every orbit, and the list is sorted below either way. A repair
+    // can pinch a vertex, so any pass after the first walks orbits again.
+    let mut by_vertex = imp.halfedge.len() > 10_000;
     for _ in 0..DEDUPE_PASSES {
         let n = imp.halfedge.len();
-        let live = |imp: &ManifoldImpl, e: usize| imp.halfedge[e].start_vert != -1 && imp.halfedge[e].end_vert != -1;
-        let mut seen = vec![false; n];
-        let mut duplicates: Vec<usize> = Vec::new();
-        let mut orbit: Vec<usize> = Vec::new();
-        let mut first: HashMap<i32, usize> = HashMap::new();
-        for i in 0..n {
-            if seen[i] || !live(imp, i) {
-                continue;
+        let mut duplicates = if by_vertex && n > 10_000 {
+            match duplicates_by_start_vert(imp) {
+                Some(d) => d,
+                None => duplicates_by_orbit(imp),
             }
-            // the halfedges that leave this vertex; for each end vertex the lowest one stays
-            orbit.clear();
-            first.clear();
-            imp.for_vert(i, |e| orbit.push(e));
-            for &e in &orbit {
-                seen[e] = true;
-                if live(imp, e) {
-                    let low = first.entry(imp.halfedge[e].end_vert).or_insert(e);
-                    *low = (*low).min(e);
-                }
-            }
-            for &e in &orbit {
-                if live(imp, e) && first[&imp.halfedge[e].end_vert] != e {
-                    duplicates.push(e);
-                }
-            }
-        }
+        } else {
+            duplicates_by_orbit(imp)
+        };
+        by_vertex = false;
         if duplicates.is_empty() {
             return true;
         }
@@ -98,6 +88,115 @@ fn dedupe_edges(imp: &mut ManifoldImpl) -> bool {
         }
     }
     false
+}
+
+/// Duplicate halfedges of one orbit walk: every live halfedge that is not the lowest index
+/// sharing its end vertex. Same list as the loop in [`dedupe_edges`] before a large mesh is
+/// sorted.
+fn duplicates_by_orbit(imp: &ManifoldImpl) -> Vec<usize> {
+    let n = imp.halfedge.len();
+    let live = |e: usize| imp.halfedge[e].start_vert != -1 && imp.halfedge[e].end_vert != -1;
+    let mut seen = vec![false; n];
+    let mut duplicates: Vec<usize> = Vec::new();
+    let mut orbit: Vec<usize> = Vec::new();
+    let mut first: HashMap<i32, usize> = HashMap::new();
+    for i in 0..n {
+        if seen[i] || !live(i) {
+            continue;
+        }
+        orbit.clear();
+        first.clear();
+        imp.for_vert(i, |e| orbit.push(e));
+        for &e in &orbit {
+            seen[e] = true;
+            if live(e) {
+                let low = first.entry(imp.halfedge[e].end_vert).or_insert(e);
+                *low = (*low).min(e);
+            }
+        }
+        for &e in &orbit {
+            if live(e) && first[&imp.halfedge[e].end_vert] != e {
+                duplicates.push(e);
+            }
+        }
+    }
+    duplicates
+}
+
+/// [`duplicates_by_orbit`] when every start vertex is a single orbit: bucket halfedges by
+/// start vertex (a counting pass, not a walk around the vertex) and keep every halfedge that
+/// is not the lowest index of its end vertex. `None` when a live halfedge names a vertex this
+/// mesh does not have; the caller walks orbits instead.
+fn duplicates_by_start_vert(imp: &ManifoldImpl) -> Option<Vec<usize>> {
+    let nv = imp.vert_pos.len();
+    if nv == 0 {
+        return Some(Vec::new());
+    }
+    let mut offset = vec![0u32; nv + 1];
+    for h in &imp.halfedge {
+        if h.start_vert == -1 || h.end_vert == -1 {
+            continue;
+        }
+        let s = h.start_vert as usize;
+        if s >= nv {
+            return None;
+        }
+        offset[s + 1] += 1;
+    }
+    for i in 1..offset.len() {
+        offset[i] += offset[i - 1];
+    }
+    let total = *offset.last().unwrap_or(&0) as usize;
+    let mut bucket = vec![0u32; total];
+    let mut cursor = offset.clone();
+    for (i, h) in imp.halfedge.iter().enumerate() {
+        if h.start_vert == -1 || h.end_vert == -1 {
+            continue;
+        }
+        let s = h.start_vert as usize;
+        let slot = cursor[s] as usize;
+        cursor[s] += 1;
+        bucket[slot] = i as u32;
+    }
+    let mut duplicates = Vec::new();
+    let mut ends: Vec<(i32, u32)> = Vec::new();
+    for s in 0..nv {
+        let a = offset[s] as usize;
+        let b = offset[s + 1] as usize;
+        if b <= a + 1 {
+            continue;
+        }
+        let slice = &mut bucket[a..b];
+        if slice.len() <= 16 {
+            ends.clear();
+            for &ei in slice.iter() {
+                let end = imp.halfedge[ei as usize].end_vert;
+                if let Some(slot) = ends.iter_mut().find(|p| p.0 == end) {
+                    if ei < slot.1 {
+                        duplicates.push(slot.1 as usize);
+                        slot.1 = ei;
+                    } else {
+                        duplicates.push(ei as usize);
+                    }
+                } else {
+                    ends.push((end, ei));
+                }
+            }
+        } else {
+            slice.sort_unstable_by_key(|&ei| (imp.halfedge[ei as usize].end_vert, ei));
+            let mut i = 0;
+            while i < slice.len() {
+                let end = imp.halfedge[slice[i] as usize].end_vert;
+                let mut j = i + 1;
+                while j < slice.len() && imp.halfedge[slice[j] as usize].end_vert == end {
+                    duplicates.push(slice[j] as usize);
+                    j += 1;
+                }
+                i = j;
+            }
+        }
+    }
+    Some(duplicates)
 }
 
 /// Whether another halfedge that leaves the start vertex of `edge` ends at the same vertex as
@@ -129,6 +228,165 @@ fn still_duplicated(imp: &ManifoldImpl, edge: usize) -> bool {
 /// The most passes [`dedupe_edges`] makes before it gives up.
 const DEDUPE_PASSES: usize = 100;
 
+/// Face normals and coplanar ids, the same ones `set_normals_and_coplanar` writes.
+///
+/// The flood there walks every triangle in area order, and almost every triangle is its own
+/// group. A triangle can start a larger group only when one of its own edges already passes
+/// the plane test, so those edges are listed first and every other triangle only stores its
+/// id. Vertex normals are left to the pass after degenerate triangles are removed.
+fn set_coplanar_and_normals(imp: &mut ManifoldImpl) {
+    let num_tri = imp.num_tri();
+    if num_tri == 0 {
+        return;
+    }
+    imp.face_normal.resize(num_tri, Vec3::new(0.0, 0.0, 1.0));
+    let (area2, new_normals): (Vec<f64>, Vec<Vec3>) = {
+        let halfedge = &imp.halfedge;
+        let vert_pos = &imp.vert_pos;
+        let old = &imp.face_normal;
+        manifold_rust::par::maybe_par_map_unzip(num_tri, 50_000, |tri| {
+            if halfedge[3 * tri].start_vert < 0 {
+                return (0.0, old[tri]);
+            }
+            let v = vert_pos[halfedge[3 * tri].start_vert as usize];
+            let n = linalg::cross(
+                vert_pos[halfedge[3 * tri].end_vert as usize] - v,
+                vert_pos[halfedge[3 * tri + 1].end_vert as usize] - v,
+            );
+            let normal = linalg::normalize(n);
+            let normal = if normal.x.is_nan() { Vec3::new(0.0, 0.0, 1.0) } else { normal };
+            (linalg::length2(n), normal)
+        })
+    };
+    imp.face_normal = new_normals;
+
+    let grows = {
+        let halfedge = &imp.halfedge;
+        let vert_pos = &imp.vert_pos;
+        let face_normal = &imp.face_normal;
+        let nref = imp.mesh_relation.tri_ref.len();
+        let tol = imp.tolerance;
+        let mut grows = vec![false; num_tri];
+        for h in manifold_rust::par::maybe_par_filter(halfedge.len(), 50_000, |h| {
+            neighbour_in_plane(halfedge, vert_pos, face_normal, nref, tol, h)
+        }) {
+            let tri = h / 3;
+            if tri < num_tri {
+                grows[tri] = true;
+            }
+        }
+        grows
+    };
+
+    let order: Vec<u32> = if area2.iter().any(|a| a.is_nan()) {
+        let mut idx: Vec<u32> = (0..num_tri as u32).collect();
+        idx.sort_by(|&a, &b| area2[b as usize].partial_cmp(&area2[a as usize]).unwrap_or(std::cmp::Ordering::Equal));
+        idx
+    } else {
+        let mut keyed: Vec<(u64, u32)> =
+            manifold_rust::par::maybe_par_map(num_tri, 50_000, |tri| (!area2[tri].to_bits(), tri as u32));
+        manifold_rust::par::maybe_par_sort_distinct(&mut keyed, 50_000);
+        keyed.into_iter().map(|(_, tri)| tri).collect()
+    };
+
+    let nref = num_tri.min(imp.mesh_relation.tri_ref.len());
+    for r in &mut imp.mesh_relation.tri_ref[..nref] {
+        r.coplanar_id = -1;
+    }
+    let tol = imp.tolerance;
+    let mut interior: Vec<usize> = Vec::new();
+    for tri in order {
+        let tri = tri as usize;
+        if tri >= nref {
+            continue;
+        }
+        if imp.mesh_relation.tri_ref[tri].coplanar_id >= 0 {
+            continue;
+        }
+        imp.mesh_relation.tri_ref[tri].coplanar_id = tri as i32;
+        if imp.halfedge[3 * tri].start_vert < 0 || !grows[tri] {
+            continue;
+        }
+        let base = imp.vert_pos[imp.halfedge[3 * tri].start_vert as usize];
+        let normal = imp.face_normal[tri];
+        interior.clear();
+        interior.push(3 * tri);
+        interior.push(3 * tri + 1);
+        interior.push(3 * tri + 2);
+        while let Some(h) = interior.pop() {
+            let paired = imp.halfedge[h].paired_halfedge;
+            if paired < 0 {
+                continue;
+            }
+            let h2 = next_halfedge(paired) as usize;
+            if h2 >= imp.halfedge.len() {
+                continue;
+            }
+            let h2_tri = h2 / 3;
+            if h2_tri >= nref || imp.mesh_relation.tri_ref[h2_tri].coplanar_id >= 0 {
+                continue;
+            }
+            let ev = imp.halfedge[h2].end_vert;
+            if ev < 0 || ev as usize >= imp.vert_pos.len() {
+                continue;
+            }
+            let v = imp.vert_pos[ev as usize];
+            if (linalg::dot(v - base, normal)).abs() < tol {
+                imp.mesh_relation.tri_ref[h2_tri].coplanar_id = tri as i32;
+                imp.face_normal[h2_tri] = normal;
+                let last = interior.last().copied();
+                if last == Some(imp.halfedge[h2].paired_halfedge as usize) {
+                    interior.pop();
+                } else {
+                    interior.push(h2);
+                }
+                interior.push(next_halfedge(h2 as i32) as usize);
+            }
+        }
+    }
+}
+
+/// Whether the flood in `set_normals_and_coplanar` would step from halfedge `h` into the
+/// neighbouring triangle, tested against this triangle's own plane. The flood only ever
+/// steps that way, so if it is false for every halfedge every coplanar group is one triangle.
+fn neighbour_in_plane(
+    halfedge: &[Halfedge],
+    vert_pos: &[Vec3],
+    face_normal: &[Vec3],
+    nref: usize,
+    tol: f64,
+    h: usize,
+) -> bool {
+    let tri = h / 3;
+    if tri >= face_normal.len() {
+        return false;
+    }
+    let base_i = halfedge[3 * tri].start_vert;
+    if base_i < 0 {
+        return false;
+    }
+    let paired = halfedge[h].paired_halfedge;
+    if paired < 0 {
+        return false;
+    }
+    let h2 = next_halfedge(paired) as usize;
+    if h2 >= halfedge.len() {
+        return false;
+    }
+    if h2 / 3 >= nref {
+        return false;
+    }
+    let ev = halfedge[h2].end_vert;
+    if ev < 0 {
+        return false;
+    }
+    let (ev, base_i) = (ev as usize, base_i as usize);
+    if ev >= vert_pos.len() || base_i >= vert_pos.len() {
+        return false;
+    }
+    (linalg::dot(vert_pos[ev] - vert_pos[base_i], face_normal[tri])).abs() < tol
+}
+
 /// Manifold 3.5.4 `CleanupTopology`. `false` when [`dedupe_edges`] gave up.
 fn cleanup_topology(imp: &mut ManifoldImpl) -> bool {
     if imp.halfedge.is_empty() {
@@ -144,6 +402,13 @@ fn cleanup_topology(imp: &mut ManifoldImpl) -> bool {
 /// pinched vertices or folded triangles it keeps triangles that 1.x removes. `m` has passed
 /// `MeshArrays::validate`.
 fn import_mesh(m: &MeshArrays) -> Manifold {
+    // The passes below are short and read a lot of memory. On a machine with hyperthreads,
+    // using every thread spends more on waking them than it saves; ten is the count a boolean
+    // of this size was measured with. The passes give the same triangles at any count.
+    manifold_rust::par::with_big_job_pool(|| import_mesh_body(m))
+}
+
+fn import_mesh_body(m: &MeshArrays) -> Manifold {
     let num_vert = m.positions.len() / 3;
     let num_tri = m.triangles.len() / 3;
     if num_vert < 4 || num_tri < 4 {
@@ -175,13 +440,18 @@ fn import_mesh(m: &MeshArrays) -> Manifold {
     // positions came in as f32, so the tolerance is at least f32 epsilon times the size
     imp.set_epsilon(-1.0, true);
     // pinched vertices are split before the normals are worked out
+    let verts_before = imp.vert_pos.len();
+    let edges_before = imp.halfedge.len();
     if !cleanup_topology(&mut imp) {
         return Manifold::make_empty(Error::NotManifold);
     }
+    // A cleanup that added nothing left a 2-manifold. Property dedupe and the normals do not
+    // change halfedges, so the cleanup inside RemoveDegenerates would find nothing.
+    let topology_unchanged = imp.vert_pos.len() == verts_before && imp.halfedge.len() == edges_before;
     imp.dedupe_prop_verts();
-    imp.set_normals_and_coplanar();
+    set_coplanar_and_normals(&mut imp);
     // RemoveDegenerates
-    if !cleanup_topology(&mut imp) {
+    if !topology_unchanged && !cleanup_topology(&mut imp) {
         return Manifold::make_empty(Error::NotManifold);
     }
     edge_op::collapse_short_edges(&mut imp, 0);

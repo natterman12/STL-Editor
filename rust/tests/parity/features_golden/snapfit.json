@@ -1,0 +1,93 @@
+{
+ "snapfit_hook_too_long": {
+  "bodies": [],
+  "results": [
+   {
+    "error": "The hook must be shorter than the arm.",
+    "id": "f1",
+    "warning": null
+   }
+  ]
+ },
+ "snapfit_join": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 5402.5,
+     "bbox_max": [
+      40.0,
+      30.0,
+      32.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 40,
+     "vertices": 22,
+     "volume": 24121.5,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   }
+  ]
+ },
+ "snapfit_new": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Snap-fit",
+    "solid": true,
+    "stats": {
+     "area": 228.0,
+     "bbox_max": [
+      8.0,
+      11.0,
+      12.0
+     ],
+     "bbox_min": [
+      5.0,
+      5.0,
+      -0.5
+     ],
+     "triangles": 24,
+     "vertices": 14,
+     "volume": 126.0,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   }
+  ]
+ },
+ "snapfit_zero_dims": {
+  "bodies": [],
+  "results": [
+   {
+    "error": "Arm length, width, thickness and hook height must all be more than zero.",
+    "id": "f1",
+    "warning": null
+   }
+  ]
+ }
+}

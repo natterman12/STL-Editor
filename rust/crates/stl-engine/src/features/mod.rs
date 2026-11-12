@@ -27,6 +27,17 @@ pub mod hollow;
 pub mod shell;
 pub mod lattice;
 pub mod thincheck;
+pub mod bedsplit;
+pub mod layflat;
+pub mod plate;
+pub mod pattern;
+pub mod thread;
+pub mod resizehole;
+pub mod fittest;
+pub mod snapfit;
+pub mod hinge;
+pub mod supportfins;
+pub mod supportwall;
 
 use crate::Registry;
 
@@ -57,5 +68,16 @@ pub fn register_all(r: Registry) -> Registry {
     let r = shell::register(r);
     let r = lattice::register(r);
     let r = thincheck::register(r);
+    let r = bedsplit::register(r);
+    let r = layflat::register(r);
+    let r = plate::register(r);
+    let r = pattern::register(r);
+    let r = thread::register(r);
+    let r = resizehole::register(r);
+    let r = fittest::register(r);
+    let r = snapfit::register(r);
+    let r = hinge::register(r);
+    let r = supportfins::register(r);
+    let r = supportwall::register(r);
     r
 }

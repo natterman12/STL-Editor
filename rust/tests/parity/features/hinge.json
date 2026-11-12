@@ -1,0 +1,108 @@
+[
+ {
+  "name": "hinge_ok",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 40,
+     "width": 30,
+     "height": 20,
+     "plane": "XY",
+     "anchor": "corner",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "hinge",
+    "params": {
+     "plane": {"origin": [0, 0, 0], "normal": [0, 0, 1], "xdir": [1, 0, 0]},
+     "x": 10,
+     "slot": 1,
+     "thickness": 0.5,
+     "targets": ["f1"]
+    }
+   }
+  ]
+ },
+ {
+  "name": "hinge_zero_slot",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 40,
+     "width": 30,
+     "height": 20,
+     "plane": "XY",
+     "anchor": "corner",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "hinge",
+    "params": {
+     "x": 10,
+     "slot": 0,
+     "thickness": 0.5,
+     "targets": ["f1"]
+    }
+   }
+  ]
+ },
+ {
+  "name": "hinge_no_body",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "hinge",
+    "params": {
+     "x": 10,
+     "slot": 1,
+     "thickness": 0.5,
+     "targets": []
+    }
+   }
+  ]
+ },
+ {
+  "name": "hinge_too_thick",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 40,
+     "width": 30,
+     "height": 20,
+     "plane": "XY",
+     "anchor": "corner",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "hinge",
+    "params": {
+     "plane": {"origin": [0, 0, 0], "normal": [0, 0, 1], "xdir": [1, 0, 0]},
+     "x": 10,
+     "slot": 1,
+     "thickness": 25,
+     "targets": ["f1"]
+    }
+   }
+  ]
+ }
+]

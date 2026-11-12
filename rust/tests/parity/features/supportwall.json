@@ -1,0 +1,129 @@
+[
+ {
+  "name": "wall_one",
+  "exactness": "approx",
+  "sources": {
+   "s1": "t_bracket.stl"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": true,
+     "place": "keep"
+    }
+   },
+   {
+    "type": "supportwall",
+    "params": {
+     "body": "f1",
+     "walls": [
+      {
+       "shape": "line",
+       "points": [[5, 10, 50], [5, 30, 50]]
+      }
+     ],
+     "output": "join",
+     "options": {}
+    }
+   }
+  ]
+ },
+ {
+  "name": "wall_several",
+  "exactness": "approx",
+  "sources": {
+   "s1": "t_bracket.stl"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": true,
+     "place": "keep"
+    }
+   },
+   {
+    "type": "supportwall",
+    "params": {
+     "body": "f1",
+     "walls": [
+      {
+       "shape": "line",
+       "points": [[5, 5, 50], [5, 35, 50]]
+      },
+      {
+       "shape": "line",
+       "points": [[45, 5, 50], [45, 35, 50]]
+      }
+     ],
+     "output": "join",
+     "options": {}
+    }
+   }
+  ]
+ },
+ {
+  "name": "wall_cant_place",
+  "exactness": "exact",
+  "sources": {
+   "s1": "t_bracket.stl"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": true,
+     "place": "keep"
+    }
+   },
+   {
+    "type": "supportwall",
+    "params": {
+     "body": "f1",
+     "walls": [
+      {
+       "shape": "line",
+       "points": [[5, 10, 50], [5.2, 10, 50]]
+      }
+     ],
+     "output": "join",
+     "options": {}
+    }
+   }
+  ]
+ },
+ {
+  "name": "wall_no_points",
+  "exactness": "exact",
+  "sources": {
+   "s1": "t_bracket.stl"
+  },
+  "params": [],
+  "features": [
+   {
+    "type": "import",
+    "params": {
+     "source": "s1",
+     "repair": true,
+     "place": "keep"
+    }
+   },
+   {
+    "type": "supportwall",
+    "params": {
+     "body": "f1",
+     "points": [],
+     "output": "join",
+     "options": {}
+    }
+   }
+  ]
+ }
+]

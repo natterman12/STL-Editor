@@ -1,0 +1,710 @@
+{
+ "fins_default_t_bracket": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "t_bracket",
+    "solid": true,
+    "stats": {
+     "area": 29397.847674880344,
+     "bbox_max": [
+      50.0,
+      42.400001525878906,
+      58.0
+     ],
+     "bbox_min": [
+      0.0,
+      -2.3999996185302734,
+      0.0
+     ],
+     "triangles": 3324,
+     "vertices": 1696,
+     "volume": 40495.999980926514,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "info": "Support Fins 1.0.5: 8 walls, 0 tines",
+    "warning": null
+   }
+  ]
+ },
+ "fins_hand_anchor": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "Box",
+    "solid": true,
+    "stats": {
+     "area": 7808.562367997423,
+     "bbox_max": [
+      30.0,
+      22.399999618530273,
+      35.0
+     ],
+     "bbox_min": [
+      0.0,
+      -2.3999996185302734,
+      0.0
+     ],
+     "triangles": 1662,
+     "vertices": 845,
+     "volume": 11983.213168264234,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f3",
+    "info": "Support Fins 1.0.5: 3 walls, 0 tines (1 drawn by hand)",
+    "warning": null
+   }
+  ]
+ },
+ "fins_hand_curve": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "t_bracket",
+    "solid": true,
+    "stats": {
+     "area": 32727.48187606571,
+     "bbox_max": [
+      50.0,
+      42.400001525878906,
+      58.0
+     ],
+     "bbox_min": [
+      -2.9946765899658203,
+      -2.3999996185302734,
+      0.0
+     ],
+     "triangles": 4308,
+     "vertices": 2174,
+     "volume": 42006.239073840894,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "info": "Support Fins 1.0.5: 8 walls, 0 tines (1 drawn by hand)",
+    "warning": null
+   }
+  ]
+ },
+ "fins_hand_line": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "t_bracket",
+    "solid": true,
+    "stats": {
+     "area": 31209.05890557021,
+     "bbox_max": [
+      50.0,
+      42.400001525878906,
+      58.0
+     ],
+     "bbox_min": [
+      0.0,
+      -2.3999996185302734,
+      0.0
+     ],
+     "triangles": 3890,
+     "vertices": 1961,
+     "volume": 41401.83447870874,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "info": "Support Fins 1.0.5: 8 walls, 0 tines (1 drawn by hand)",
+    "warning": null
+   }
+  ]
+ },
+ "fins_no_body": {
+  "bodies": [],
+  "results": [
+   {
+    "error": "Choose the body to support.",
+    "id": "f1",
+    "warning": null
+   }
+  ]
+ },
+ "fins_no_overhangs": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "holed_block",
+    "solid": true,
+    "stats": {
+     "area": 2464.013797335947,
+     "bbox_max": [
+      30.0,
+      20.0,
+      10.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 276,
+     "vertices": 136,
+     "volume": 5438.1398433105005,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "info": "Support Fins 1.0.5: 0 walls, 0 tines",
+    "warning": "\"holed_block\" has no overhangs in this position. Rotate it to the way you want to print it, then add fins."
+   }
+  ]
+ },
+ "fins_options_dense": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "bridge_ring",
+    "solid": true,
+    "stats": {
+     "area": 6104.8371188216,
+     "bbox_max": [
+      50.0,
+      10.0,
+      36.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 552,
+     "vertices": 290,
+     "volume": 9794.399969100952,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "info": "Support Fins 1.0.5: 3 walls, 0 tines",
+    "warning": null
+   }
+  ]
+ },
+ "fins_options_full": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "lipped_shelf",
+    "solid": true,
+    "stats": {
+     "area": 23715.65044014493,
+     "bbox_max": [
+      60.0,
+      42.0,
+      40.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 10412,
+     "vertices": 5346,
+     "volume": 32434.71533713395,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "info": "Support Fins 1.0.5: 6 walls, 0 tines",
+    "warning": null
+   }
+  ]
+ },
+ "fins_output_separate": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "t_bracket",
+    "solid": true,
+    "stats": {
+     "area": 10240.0,
+     "bbox_max": [
+      50.0,
+      40.0,
+      58.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 28,
+     "vertices": 16,
+     "volume": 32000.0,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f2",
+    "name": "t_bracket supports",
+    "solid": true,
+    "stats": {
+     "area": 19157.847674880344,
+     "bbox_max": [
+      50.0,
+      42.400001525878906,
+      49.79999923706055
+     ],
+     "bbox_min": [
+      0.0,
+      -2.3999996185302734,
+      0.0
+     ],
+     "triangles": 3296,
+     "vertices": 1680,
+     "volume": 8495.999980926514,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "info": "Support Fins 1.0.5: 8 walls, 0 tines",
+    "warning": null
+   }
+  ]
+ },
+ "fins_preview": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "t_bracket",
+    "solid": true,
+    "stats": {
+     "area": 10240.0,
+     "bbox_max": [
+      50.0,
+      40.0,
+      58.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "triangles": 28,
+     "vertices": 16,
+     "volume": 32000.0,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f2~p0",
+    "name": "t_bracket supports",
+    "solid": true,
+    "stats": {
+     "area": 2394.7309601912875,
+     "bbox_max": [
+      20.0,
+      3.6000003814697266,
+      49.79999923706055
+     ],
+     "bbox_min": [
+      0.0,
+      -2.3999996185302734,
+      0.0
+     ],
+     "triangles": 412,
+     "vertices": 210,
+     "volume": 1061.9999933242798,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f2~p1",
+    "name": "t_bracket supports",
+    "solid": true,
+    "stats": {
+     "area": 2394.730920899906,
+     "bbox_max": [
+      20.0,
+      16.53333282470703,
+      49.79999923706055
+     ],
+     "bbox_min": [
+      0.0,
+      10.533333778381348,
+      0.0
+     ],
+     "triangles": 412,
+     "vertices": 210,
+     "volume": 1061.9999818801878,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f2~p2",
+    "name": "t_bracket supports",
+    "solid": true,
+    "stats": {
+     "area": 2394.7309601912875,
+     "bbox_max": [
+      20.0,
+      29.46666717529297,
+      49.79999923706055
+     ],
+     "bbox_min": [
+      0.0,
+      23.46666717529297,
+      0.0
+     ],
+     "triangles": 412,
+     "vertices": 210,
+     "volume": 1061.9999933242798,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f2~p3",
+    "name": "t_bracket supports",
+    "solid": true,
+    "stats": {
+     "area": 2394.73099615769,
+     "bbox_max": [
+      20.0,
+      42.400001525878906,
+      49.79999923706055
+     ],
+     "bbox_min": [
+      0.0,
+      36.400001525878906,
+      0.0
+     ],
+     "triangles": 412,
+     "vertices": 210,
+     "volume": 1062.0000219345093,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f2~p4",
+    "name": "t_bracket supports",
+    "solid": true,
+    "stats": {
+     "area": 2394.7309601912875,
+     "bbox_max": [
+      50.0,
+      3.6000003814697266,
+      49.79999923706055
+     ],
+     "bbox_min": [
+      30.0,
+      -2.3999996185302734,
+      0.0
+     ],
+     "triangles": 412,
+     "vertices": 210,
+     "volume": 1061.9999933242796,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f2~p5",
+    "name": "t_bracket supports",
+    "solid": true,
+    "stats": {
+     "area": 2394.730920899906,
+     "bbox_max": [
+      50.0,
+      16.53333282470703,
+      49.79999923706055
+     ],
+     "bbox_min": [
+      30.0,
+      10.533333778381348,
+      0.0
+     ],
+     "triangles": 412,
+     "vertices": 210,
+     "volume": 1061.9999818801878,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f2~p6",
+    "name": "t_bracket supports",
+    "solid": true,
+    "stats": {
+     "area": 2394.7309601912875,
+     "bbox_max": [
+      50.0,
+      29.46666717529297,
+      49.79999923706055
+     ],
+     "bbox_min": [
+      30.0,
+      23.46666717529297,
+      0.0
+     ],
+     "triangles": 412,
+     "vertices": 210,
+     "volume": 1061.9999933242798,
+     "watertight": true
+    }
+   },
+   {
+    "id": "f2~p7",
+    "name": "t_bracket supports",
+    "solid": true,
+    "stats": {
+     "area": 2394.73099615769,
+     "bbox_max": [
+      50.0,
+      42.400001525878906,
+      49.79999923706055
+     ],
+     "bbox_min": [
+      30.0,
+      36.400001525878906,
+      0.0
+     ],
+     "triangles": 412,
+     "vertices": 210,
+     "volume": 1062.0000219345093,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "info": "Support Fins 1.0.5: 8 walls, 0 tines",
+    "warning": null
+   }
+  ]
+ },
+ "fins_raw_body": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "open_box",
+    "solid": false,
+    "stats": {
+     "area": 1999.999966649261,
+     "bbox_max": [
+      24.088319778442383,
+      20.0,
+      24.088319778442383
+     ],
+     "bbox_min": [
+      -4.088320732116699,
+      0.0,
+      -4.088320732116699
+     ],
+     "triangles": 10,
+     "vertices": 8,
+     "volume": 4788.223896319721,
+     "watertight": false
+    }
+   },
+   {
+    "id": "f3",
+    "name": "open_box supports",
+    "solid": true,
+    "stats": {
+     "area": 1374.621526033301,
+     "bbox_max": [
+      15.23254680633545,
+      24.0,
+      8.567431449890137
+     ],
+     "bbox_min": [
+      -4.088320255279541,
+      -6.222221374511719,
+      -4.088320732116699
+     ],
+     "triangles": 16212,
+     "vertices": 8134,
+     "volume": 385.4810353121722,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": "1 mesh(es) are not watertight. They display and export, but editing needs Repair (Rebuild) first."
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f3",
+    "info": "Support Fins 1.0.5: 3 walls, 12 tines",
+    "warning": "\"open_box\" isn't a watertight solid, so the supports were added as a separate body."
+   }
+  ]
+ },
+ "fins_removed": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "t_bracket",
+    "solid": true,
+    "stats": {
+     "area": 27003.116753980437,
+     "bbox_max": [
+      50.0,
+      42.400001525878906,
+      58.0
+     ],
+     "bbox_min": [
+      0.0,
+      -2.3999996185302734,
+      0.0
+     ],
+     "triangles": 2912,
+     "vertices": 1486,
+     "volume": 39433.99999904633,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "info": "Support Fins 1.0.5: 8 walls, 0 tines (1 removed)",
+    "warning": null
+   }
+  ]
+ },
+ "fins_removed_missing": {
+  "bodies": [
+   {
+    "id": "f1",
+    "name": "t_bracket",
+    "solid": true,
+    "stats": {
+     "area": 29397.847674880344,
+     "bbox_max": [
+      50.0,
+      42.400001525878906,
+      58.0
+     ],
+     "bbox_min": [
+      0.0,
+      -2.3999996185302734,
+      0.0
+     ],
+     "triangles": 3324,
+     "vertices": 1696,
+     "volume": 40495.999980926514,
+     "watertight": true
+    }
+   }
+  ],
+  "results": [
+   {
+    "error": null,
+    "id": "f1",
+    "warning": null
+   },
+   {
+    "error": null,
+    "id": "f2",
+    "info": "Support Fins 1.0.5: 8 walls, 0 tines",
+    "warning": "1 fin(s) you removed aren't there any more in this build, so nothing was removed for them."
+   }
+  ]
+ }
+}

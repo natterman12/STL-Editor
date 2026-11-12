@@ -1,0 +1,99 @@
+[
+ {
+  "name": "snapfit_new",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "snapfit",
+    "params": {
+     "plane": {"origin": [0, 0, 0], "normal": [0, 0, 1], "xdir": [1, 0, 0]},
+     "x": 5,
+     "y": 5,
+     "length": 12,
+     "width": 6,
+     "thickness": 1.5,
+     "hook_height": 1.5,
+     "operation": "new"
+    }
+   }
+  ]
+ },
+ {
+  "name": "snapfit_join",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "primitive",
+    "params": {
+     "shape": "box",
+     "length": 40,
+     "width": 30,
+     "height": 20,
+     "plane": "XY",
+     "anchor": "corner",
+     "operation": "new"
+    }
+   },
+   {
+    "type": "snapfit",
+    "params": {
+     "plane": {"origin": [0, 0, 20], "normal": [0, 0, 1], "xdir": [1, 0, 0]},
+     "x": 5,
+     "y": 5,
+     "length": 12,
+     "width": 6,
+     "thickness": 1.5,
+     "hook_height": 1.5,
+     "operation": "join",
+     "targets": ["f1"]
+    }
+   }
+  ]
+ },
+ {
+  "name": "snapfit_zero_dims",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "snapfit",
+    "params": {
+     "plane": {"origin": [0, 0, 0], "normal": [0, 0, 1], "xdir": [1, 0, 0]},
+     "x": 0,
+     "y": 0,
+     "length": 0,
+     "width": 6,
+     "thickness": 1.5,
+     "hook_height": 1.5,
+     "operation": "new"
+    }
+   }
+  ]
+ },
+ {
+  "name": "snapfit_hook_too_long",
+  "exactness": "exact",
+  "sources": {},
+  "params": [],
+  "features": [
+   {
+    "type": "snapfit",
+    "params": {
+     "plane": {"origin": [0, 0, 0], "normal": [0, 0, 1], "xdir": [1, 0, 0]},
+     "x": 0,
+     "y": 0,
+     "length": 12,
+     "width": 6,
+     "thickness": 1.5,
+     "hook_height": 12,
+     "operation": "new"
+    }
+   }
+  ]
+ }
+]
