@@ -64,7 +64,7 @@ jobs:
 
       - name: Install WebKitGTK and Xvfb (Linux Support Fins host)
         if: runner.os == 'Linux'
-        run: sudo apt-get install -y libwebkit2gtk-4.1-dev xvfb
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev xvfb
         working-directory: .
 
       # Support Fins' webview host needs a display on Linux.
