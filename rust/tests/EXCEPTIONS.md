@@ -242,9 +242,9 @@ programming error, the same practice as batch 1's `"Plane size must be a number.
   are the same. 2.0 writes version 4 UUIDs in the same places, seeded from the clock at
   export time. The zip's compression settings may also differ from trimesh's
   (`compresslevel=5`); the XML inside is the same.
-- **The STEP date on the web build is `1970-01-01T00:00:00`** (accepted by Nathan on 2026-11-12, milestone 4
-  will pass the page's clock). The wasm32 engine has no system clock; `step.js` uses
-  `new Date()`. Desktop uses the current UTC time.
+- **Closed in milestone 4a: the STEP date on the web build.** It was `1970-01-01T00:00:00`
+  (accepted by Nathan on 2026-11-12). The app now passes the page's clock (`Date`, UTC) with
+  every export, so the web build writes the real time, as `step.js` does.
 - **The export base name follows the web edition's rule** (accepted by Nathan on 2026-11-12). 1.x has two
   rules. The web edition (`stepResult` and the export routes) uses the body's name when the
   bodies being exported come to one body, and otherwise the project path, then the title, then
@@ -252,3 +252,38 @@ programming error, the same practice as batch 1's `"Plane size must be a number.
   and one visible body it suggests the project name or `model` instead of the body's name, and it
   never uses the title. 2.0 uses the web rule in both editions. Golden case `hidden_body`
   (base `keep`) shows the difference: desktop 1.x would suggest `model`.
+
+## The app: shell and viewport (milestone 4a, all pending Nathan's OK)
+
+- **New text: "The engine stopped unexpectedly. Your last saved project is safe."** with a
+  **Restart** button, shown when the engine thread or Web Worker dies. 1.x has no engine
+  that can die on its own. Restart reopens the last opened or saved project.
+- **The busy overlay has a Cancel button.** 1.x's busy overlay (`index.html` `#busy`) has
+  none. Cancel stops the running rebuild at the next step and leaves the project exactly as
+  it was before the command (undo history included); the status line then says "Cancelled."
+- **Opening a `.stlx` can't be cancelled,** and its progress shows only once the file is
+  loaded, because the project loader rebuilds every step inside the load. Opening a mesh file
+  can be cancelled.
+- **On the web, Cancel needs JS Promise Integration (JSPI)** to stop a rebuild that is already
+  running (Chrome and Edge 137+, Firefox 153+, Safari 27+). On a browser without JSPI the app
+  still works, but a running rebuild finishes first and Cancel takes effect between commands.
+- **The rollback marker can be dragged.** 1.x shows a resize cursor on the marker but has no
+  drag; you roll back from the menu or the step buttons. 2.0 also rolls back to where the
+  marker is dropped.
+- **Adding a step in the middle of the history takes two undos,** because it is added at the
+  end and then moved. 1.x adds it in place, in one undo step.
+- **Recent files last only for this session,** and come back from the bytes in memory, so a
+  Save after Open Recent asks where to save. Recent files that survive a restart, and the
+  settings, are milestone 5.
+- **The Help menu has no Check for Updates, Update Settings or About Support Fins yet.** They
+  need the update check and the Support Fins engine version, which are milestone 5.
+- **About:** the version comes from the 2.0 build, the Ko-fi link sits below the text instead
+  of inside it, and the heart isn't coloured. The credits line is 1.x's word for word, so it
+  still names 1.x's Python libraries (trimesh, scikit-image, SciPy, NumPy, Shapely), which
+  2.0 doesn't use.
+- **Ten constraint icons** (`c_coincident` to `c_symmetric`) are text glyphs in 1.x's
+  `icons.js`. The icon renderer has no text support, so 2.0 draws them as paths that look
+  close but not identical.
+- **If the graphics device is lost** (a driver reset), the view goes blank until the app is
+  restarted; nothing crashes and the project is kept. eframe 0.37 doesn't create a new
+  device on its own. A browser tab in 1.x reloads its WebGL context instead.

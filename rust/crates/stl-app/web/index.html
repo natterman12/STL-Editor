@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>STL Editor</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #1c1e22; }
+    #stl-canvas { display: block; width: 100%; height: 100%; }
+  </style>
+</head>
+<body>
+  <canvas id="stl-canvas"></canvas>
+  <script type="module">
+    // The wasm glue constructs WebAssembly.Suspending at startup. Browsers
+    // without JS Promise Integration would throw there and never draw.
+    // A plain stand-in lets the module start; Cancel then waits until the
+    // current command has finished (see worker.js).
+    const pass = function (fn) { return fn; };
+    if (typeof WebAssembly.Suspending !== "function") WebAssembly.Suspending = pass;
+    if (typeof WebAssembly.promising !== "function") WebAssembly.promising = pass;
+    const { default: init, stl_browser_body_count } = await import("./stl-app.js");
+    await init();
+    const q = new URLSearchParams(location.search);
+    if (q.get("report") === "1") {
+      const deadline = performance.now() + 80000;
+      let shown = "error:timed out waiting for the browser tree";
+      while (performance.now() < deadline) {
+        if (globalThis.__STL_CHECK_ERROR__) {
+          shown = "error:" + globalThis.__STL_CHECK_ERROR__;
+          break;
+        }
+        const n = stl_browser_body_count();
+        if (typeof n === "number" && n >= 0) {
+          shown = String(n);
+          break;
+        }
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      await fetch("/__report", { method: "POST", body: shown });
+    }
+  </script>
+</body>
+</html>

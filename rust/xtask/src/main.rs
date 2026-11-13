@@ -1,5 +1,7 @@
 mod bench;
 mod pure;
+mod uibench;
+mod web;
 
 use std::process::{Command, ExitCode};
 
@@ -55,8 +57,22 @@ fn main() -> ExitCode {
                 ExitCode::FAILURE
             }
         },
+        Some("web") => match web::run(std::env::args().skip(2)) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("web: {e}");
+                ExitCode::FAILURE
+            }
+        },
+        Some("uibench") => match uibench::run(std::env::args().skip(2)) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("uibench: {e}");
+                ExitCode::FAILURE
+            }
+        },
         _ => {
-            eprintln!("usage: cargo run -p xtask -- pure-rust | cargo run --release -p xtask -- bench");
+            eprintln!("usage: cargo run -p xtask -- pure-rust | cargo run --release -p xtask -- bench | cargo run --release -p xtask -- uibench [--quick] | cargo run -p xtask -- web [--serve]");
             ExitCode::FAILURE
         }
     }

@@ -8,6 +8,7 @@ use indexmap::IndexMap;
 use serde_json::{Map, Value, json};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 mod export;
@@ -61,7 +62,15 @@ pub struct Document {
     undo: Vec<Snapshot>,
     redo: Vec<Snapshot>,
     fins: Arc<dyn crate::FinsHost>,
+    /// Set from another thread to stop the running command (checked before each feature runs).
+    cancel: Option<Arc<AtomicBool>>,
+    /// Set when a feature was skipped because of `cancel`; `transact` then puts everything back.
+    cancelled: bool,
+    progress: Option<ProgressFn>,
 }
+
+/// Called as features are rebuilt: features done, features in all, and the one just run.
+type ProgressFn = Box<dyn FnMut(usize, usize, &str) + Send>;
 
 fn fail<T>(m: impl Into<String>) -> Result<T, FeatureError> {
     Err(FeatureError(m.into()))
@@ -195,7 +204,63 @@ impl Document {
             undo: Vec::new(),
             redo: Vec::new(),
             fins: Arc::new(crate::NullHost),
+            cancel: None,
+            cancelled: false,
+            progress: None,
         }
+    }
+
+    /// A flag another thread can set to stop the running command. Checked before each feature
+    /// runs; see `transact`.
+    pub fn set_cancel(&mut self, flag: Arc<AtomicBool>) {
+        self.cancel = Some(flag);
+    }
+
+    /// Reports each feature a rebuild runs: done, total, the feature's name.
+    pub fn set_progress(&mut self, f: Box<dyn FnMut(usize, usize, &str) + Send>) {
+        self.progress = Some(f);
+    }
+
+    /// Run one command on the document. If it was cancelled (see `set_cancel`) the document is
+    /// put back exactly as it was before (features, undo history, caches) and the error is
+    /// `"Cancelled."`.
+    pub fn transact<R>(&mut self, f: impl FnOnce(&mut Document) -> Result<R, FeatureError>) -> Result<R, FeatureError> {
+        let saved = (
+            self.snapshot(),
+            self.undo.clone(),
+            self.redo.clone(),
+            self.dirty,
+            self.next_id,
+            self.sources.keys().cloned().collect::<BTreeSet<_>>(),
+            self.pv.clone(),
+            self.cache.clone(),
+            self.results.clone(),
+            self.current.clone(),
+            self.state.clone(),
+            self.memo.clone(),
+        );
+        self.cancelled = false;
+        let out = f(self);
+        if !std::mem::take(&mut self.cancelled) {
+            return out;
+        }
+        let (snap, undo, redo, dirty, next_id, keys, pv, cache, results, current, state, memo) = saved;
+        self.features = snap.features;
+        self.rollback = snap.rollback;
+        self.ui = snap.ui;
+        self.params = snap.params;
+        self.undo = undo;
+        self.redo = redo;
+        self.dirty = dirty;
+        self.next_id = next_id;
+        self.sources.retain(|k, _| keys.contains(k));
+        self.pv = pv;
+        self.cache = cache;
+        self.results = results;
+        self.current = current;
+        self.state = state;
+        self.memo = memo;
+        fail("Cancelled.")
     }
 
     /// The Support Fins engine host used by `supportfins` and `supportwall`.
@@ -270,6 +335,14 @@ impl Document {
         self.ui = snap.ui;
         self.params = snap.params;
         self.rebuild();
+    }
+
+    pub fn can_undo(&self) -> bool {
+        !self.undo.is_empty()
+    }
+
+    pub fn can_redo(&self) -> bool {
+        !self.redo.is_empty()
     }
 
     pub fn undo(&mut self) -> bool {
@@ -379,6 +452,7 @@ impl Document {
         let mut cache = Vec::with_capacity(end);
         let mut h = String::new();
         let mut ran = false;
+        let mut progress = self.progress.take();
         for (i, f) in feats[..end].iter().enumerate() {
             h = self.hash(f, &h);
             if i < old_cache.len() && old_cache[i].0 == h && i < old_results.len() {
@@ -398,12 +472,17 @@ impl Document {
                     if let Some(st) = st {
                         state = Arc::new(st);
                     }
+                    if let Some(p) = progress.as_mut() {
+                        let label = f.name.clone().unwrap_or_else(|| label(&f.kind).to_string());
+                        p(i + 1, end, &label);
+                    }
                     res
                 }
             };
             results.push(res);
             cache.push((h.clone(), state.clone()));
         }
+        self.progress = progress;
         self.features = feats;
         self.cache = cache;
         self.results = results;
@@ -446,6 +525,11 @@ impl Document {
         // the kernel keeps big buffers for reuse; this marks an operation so the idle release never runs mid-way
         let _op = stl_kernel::ScratchGuard::begin();
         let mut res = FeatureResult { id: f.id.clone(), ..Default::default() };
+        if self.cancel.as_ref().is_some_and(|c| c.load(Ordering::Relaxed)) {
+            self.cancelled = true;
+            res.error = Some("Cancelled.".to_string());
+            return (None, res);
+        }
         if f.suppressed {
             res.suppressed = true;
             return (None, res);

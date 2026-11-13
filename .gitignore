@@ -42,3 +42,8 @@ rust/third_party/*/target/
 
 # local check exports
 dev/out/
+
+# per-task build folders
+rust/target-*/
+rust/crates/*/target/
+rust/rust/

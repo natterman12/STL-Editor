@@ -1,6 +1,8 @@
-//! Mesh tools: remesh, simplify, voxelise and marching cubes, repair, sculpt, nearest-point search.
+//! Mesh tools: remesh, simplify, voxelise and marching cubes, repair, sculpt, nearest-point search,
+//! and a bounding-volume tree for picking.
 
 mod error;
+pub mod bvh;
 pub mod fit;
 pub mod nearest;
 pub mod offset;
@@ -22,5 +24,6 @@ pub use repair::{
     cap_holes, fill_holes, fix_inversion, fix_winding, local_repair, merge_overlapping_shells, process,
     quick_repair, touching_shells,
 };
+pub use bvh::Bvh;
 pub use error::MeshError;
 pub use weld::weld;
