@@ -61,7 +61,15 @@ fn the_restart_helper_survives_odd_folder_names() {
     let c = StlApp::restart_helper_command(exe, 4242);
     let args: Vec<String> = c.get_args().map(|a| a.to_string_lossy().into_owned()).collect();
     let text = args.join(" ");
+    #[cfg(windows)]
     assert!(!text.contains("STL Editor"), "the path is not in the script text: {text}");
+    #[cfg(not(windows))]
+    {
+        // sh -c <script> stle-restart <pid> <exe>: the path is its own argument ($2), never in the script
+        assert_eq!(args[0], "-c");
+        assert!(!args[1].contains("STL Editor"), "the path is not in the script text: {}", args[1]);
+        assert_eq!(args.last().map(String::as_str), Some(exe.to_str().unwrap()));
+    }
     #[cfg(windows)]
     {
         assert!(text.contains("$env:STLE_EXE") && text.contains("Process]::Start"), "{text}");

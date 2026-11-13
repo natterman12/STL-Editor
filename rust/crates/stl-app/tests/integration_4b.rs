@@ -123,6 +123,9 @@ fn scene(rec: &Rec) -> Harness<'static, StlApp> {
         app,
     );
     h.run_steps(3);
+    // bodies are prepared on a worker thread: wait until they are on screen and pickable
+    h.state_mut().viewport.flush();
+    h.run_steps(1);
     h
 }
 
@@ -727,8 +730,16 @@ fn overhangs_worked_out_a_slice_at_a_time_match_the_whole() {
 // ------------------------------------------------------------------ review findings
 
 /// A frame budget that also holds in a debug build (about ten times slower than release).
+/// One 60 Hz frame in release builds. Shared CI runners (a few slow cores, other tests running
+/// at once) get twice that; the real 16.7 ms rule is checked on this PC by these tests and uibench.
 fn frame_budget() -> Duration {
-    if cfg!(debug_assertions) { Duration::from_millis(250) } else { Duration::from_micros(16_700) }
+    if cfg!(debug_assertions) {
+        Duration::from_millis(250)
+    } else if std::env::var_os("CI").is_some() {
+        Duration::from_micros(33_400)
+    } else {
+        Duration::from_micros(16_700)
+    }
 }
 
 struct SharedNative(Arc<stl_app::engine_link::native::NativeLink>);

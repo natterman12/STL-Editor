@@ -1,4 +1,6 @@
 //! Support Fins coverage and Draw Walls (M4b Task 6).
+//! Desktop only: it reads the golden files from disk and checks the worker thread.
+#![cfg(not(target_arch = "wasm32"))]
 
 use std::fs;
 use std::path::PathBuf;
