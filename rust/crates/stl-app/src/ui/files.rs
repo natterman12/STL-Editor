@@ -46,6 +46,8 @@ enum Waiting {
 }
 
 struct Opening {
+    /// The file name the top bar shows once it opens (1.x shows `basename(path)`); `None` for a new project.
+    title: Option<String>,
     /// Name of the project (without the extension) once it opens; `None` for a new project.
     project_name: Option<String>,
     project_path: Option<String>,
@@ -75,6 +77,8 @@ pub struct Files {
     saving: Vec<Saving>,
     /// The name of the open project (without the extension), for the Save suggestion.
     pub project_name: Option<String>,
+    /// The file name the top bar and the browser show (`basic.stlx`, as 1.x does); `None` is "Untitled".
+    pub title: Option<String>,
     /// Where the open project lives on disk (desktop only). Save writes here without asking;
     /// Save As asks and moves it. `None` for a new project, and always on the web.
     project_path: Option<String>,
@@ -126,7 +130,7 @@ impl Files {
     /// File > Recent: open a file from this session's list again. False when it isn't there.
     pub fn open_recent(&mut self, link: &dyn EngineLink, name: &str) -> bool {
         let Some(f) = self.recent.iter().find(|f| f.name == name).cloned() else { return false };
-        self.opening = Some(Opening { project_name: Some(stem(&f.name)), project_path: None, recent: Some(f.clone()), seen: false, failed: false, ahead: usize::from(self.engine_busy) });
+        self.opening = Some(Opening { title: Some(f.name.clone()), project_name: Some(stem(&f.name)), project_path: None, recent: Some(f.clone()), seen: false, failed: false, ahead: usize::from(self.engine_busy) });
         link.send(Command::Open { name: f.name, bytes: f.bytes });
         true
     }
@@ -134,7 +138,7 @@ impl Files {
     /// File > New: an empty project replaces the document (the engine has no separate "new").
     pub fn new_document(&mut self, link: &dyn EngineLink) {
         let bytes = stl_engine::stlx::to_bytes(&stl_engine::Document::new(stl_engine::Registry::builtin())).unwrap_or_default();
-        self.opening = Some(Opening { project_name: None, project_path: None, recent: None, seen: false, failed: false, ahead: usize::from(self.engine_busy) });
+        self.opening = Some(Opening { title: None, project_name: None, project_path: None, recent: None, seen: false, failed: false, ahead: usize::from(self.engine_busy) });
         link.send(Command::Open { name: "Untitled.stlx".to_string(), bytes });
     }
 
@@ -226,6 +230,7 @@ impl Files {
                     let o = self.opening.take().expect("checked");
                     if !o.failed {
                         self.project_name = o.project_name;
+                        self.title = o.title;
                         self.project_path = o.project_path;
                         if let Some(f) = o.recent {
                             self.remember(&f.name, &f.bytes);
@@ -247,6 +252,7 @@ impl Files {
                     if s.project && path.is_some() {
                         if let Some(n) = path.as_deref().and_then(|p| std::path::Path::new(p).file_name()) {
                             self.project_name = Some(stem(&n.to_string_lossy()));
+                            self.title = Some(n.to_string_lossy().into_owned());
                         }
                         self.project_path = path;
                     }
@@ -273,16 +279,23 @@ impl Files {
             self.fit_after_bodies = true;
             link.send(Command::Import { name: file.name, bytes: file.bytes });
         } else {
-            self.opening = Some(Opening {
-                project_name: Some(stem(&file.name)),
-                project_path: path.filter(|_| is_project(&file.name)),
-                recent: Some(file.clone()),
-                seen: false,
-                failed: false,
-                ahead: usize::from(self.engine_busy),
-            });
-            link.send(Command::Open { name: file.name, bytes: file.bytes });
+            self.open_bytes(link, file, path);
         }
+    }
+
+    /// Open a project or mesh whose bytes are known (File > Open, a file on the command line).
+    /// The name, path and Recent entry are taken on once the engine accepts it.
+    pub fn open_bytes(&mut self, link: &dyn EngineLink, file: PickedFile, path: Option<String>) {
+        self.opening = Some(Opening {
+            title: Some(file.name.clone()),
+            project_name: Some(stem(&file.name)),
+            project_path: path.filter(|_| is_project(&file.name)),
+            recent: Some(file.clone()),
+            seen: false,
+            failed: false,
+            ahead: usize::from(self.engine_busy),
+        });
+        link.send(Command::Open { name: file.name, bytes: file.bytes });
     }
 
     /// Dropped files, as 1.x: a project is refused with a hint; any other file is inserted.
@@ -293,18 +306,23 @@ impl Files {
     pub fn handle_drop(&mut self, ctx: &egui::Context, link: &dyn EngineLink) -> FileOutcome {
         let (hovering, dropped) = ctx.input(|i| (!i.raw.hovered_files.is_empty(), i.raw.dropped_files.clone()));
         self.dragging = hovering && dropped.is_empty();
-        let mut out = FileOutcome::default();
         #[cfg(not(target_arch = "wasm32"))]
-        for f in dropped {
-            let name = f.path().file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-            match f.bytes() {
-                Err(e) => out.messages.push((Level::Error, format!("{name}: {e}"))),
-                Ok(bytes) => self.accept_dropped(link, name, bytes, &mut out),
+        {
+            let mut out = FileOutcome::default();
+            for f in dropped {
+                let name = f.path().file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+                match f.bytes() {
+                    Err(e) => out.messages.push((Level::Error, format!("{name}: {e}"))),
+                    Ok(bytes) => self.accept_dropped(link, name, bytes, &mut out),
+                }
             }
+            out
         }
         #[cfg(target_arch = "wasm32")]
-        let _ = dropped;
-        out
+        {
+            let _ = (dropped, link);
+            FileOutcome::default()
+        }
     }
 
     /// One dropped file whose contents are known.
@@ -313,13 +331,12 @@ impl Files {
     }
 
     /// The dashed accent frame with "Drop to insert meshes" while a file is dragged over.
-    #[allow(deprecated)]
     /// `rect` is the viewport (1.x `#drop-overlay` sits inside `#viewport`, not over the top bar).
     pub fn drop_overlay(&self, ctx: &egui::Context, t: &crate::theme::Tokens, rect: egui::Rect) {
         if !self.dragging {
             return;
         }
-        let painter = ctx.layer_painter(egui::LayerId::new(egui::Order::Foreground, egui::Id::new("drop-overlay")));
+        let painter = ctx.layer_painter(egui::LayerId::new(egui::Order::Foreground, egui::Id::unique("drop-overlay")));
         painter.rect_filled(rect, 0.0, t.accent_soft);
         let stroke = egui::Stroke::new(3.0, t.accent);
         let r = rect.shrink(1.5);

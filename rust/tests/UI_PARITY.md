@@ -16,7 +16,7 @@ Batch rules: **4a** = shell, viewport, files, browser tree, timeline or paramete
 | desktop_v11.js | Thread tool, lay flat, sketch relations and dimensions, inch mode, dark theme, update banner | 4c | rust/crates/stl-app/tests/ui/desktop_v11.rs | planned |
 | gizmo.js | Move / Rotate / Scale handles on the part, and Land on bed | 4b | rust/crates/stl-app/tests/ui/gizmo.rs | planned |
 | kofi.js | Ko-fi links on the start screen, Help menu and About dialog | 4a | tests/ui_shell.rs `help_menu_has_kofi_and_about`, `help_shortcuts_and_about_use_the_1x_text`, `start_page_kofi_link_text_and_url` | pass |
-| params.js | Parameters dialog: names, expressions, live values, undo, removing a used parameter | 4a | tests/ui_panels.rs `params_edit_expr`, `params_resolved_shows_used_marker`, `params_cancel_closes`, `params_show_the_1x_hint_and_three_decimals`, `params_undo_and_removing_a_used_parameter_with_the_engine` | pass |
+| params.js | Parameters dialog: names, expressions, live values, undo, removing a used parameter | 4a | tests/ui_panels.rs `params_edit_expr`, `params_resolved_shows_used_marker`, `params_cancel_closes`, `params_show_the_1x_hint_and_three_decimals`, `params_undo_and_removing_a_used_parameter_with_the_engine`, `params_dialog_matches_1x_layout`, `params_dialog_snapshots_dark_light` | pass |
 | ribbon.js | Ribbon tabs and groups once each, Inspect pinned, narrow window folds groups into » | 4a | tests/ui_shell.rs `ribbon_tools_match_ribbon_def`, `ribbon_group_names_and_tabs_match_ribbon_def`, `each_tool_is_on_one_tab_only`, `ribbon_tabs_show_their_tools_and_inspect_is_pinned`, `narrow_window_folds_groups_into_more` | pass |
 | sf11.js | Support Fins: suggest orientations, strength, support plastic, gussets, anchors | 4b | rust/crates/stl-app/tests/ui/sf11.rs | planned |
 | sf9.js | Support Fins modes: Rotate, Add fins, Remove fins; Move applies on release | 4b | rust/crates/stl-app/tests/ui/sf9.rs | planned |
@@ -44,6 +44,15 @@ Batch rules: **4a** = shell, viewport, files, browser tree, timeline or paramete
 - **touch.js (4b):** 4a covers tablet/phone layout and one-finger orbit.
 - **v110.js (4b):** 4a covers ribbon tabs and the Export / Send to Slicer menus.
 - **web2.js (4c):** 4a covers import, export, and save/reopen; hole and thread panels are 4b.
+
+## Milestone 4a fixes (2026-11-13)
+
+Checks added for what the 4a screenshots showed. None of them maps to a single 1.x test file.
+
+- **Title, swatches, Parameters list, About credits:** `tests/m4a_fix_t1.rs` (`title_after_each_open_path`, `failed_open_keeps_title`, `swatch_matches_viewport_colour`, `params_listed_expanded`, `about_lists_rust_crates_only`). Pass.
+- **Start view, grid and axes, section cut face:** `tests/m4a_fix_t5.rs` (`start_page_uses_iso_view`, `start_grid_and_axes`, `section_cap_shows_grid`, `grid_through_body`, dark and light). Pass.
+- **WebGL2:** `cargo run -p xtask -- web --check --webgl2` (both bodies in the tree, a pick at the block's centre hits it, section view changes the picture). Pass.
+- **Screenshots:** `dev/m4a_shots/capture_m4a_shots.mjs` and `tests/m4a_shots.rs` reach every state and fail when two states give the same picture (`states_differ`). Pass.
 
 ## Counts
 

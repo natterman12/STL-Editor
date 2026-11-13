@@ -253,9 +253,16 @@ programming error, the same practice as batch 1's `"Plane size must be a number.
   never uses the title. 2.0 uses the web rule in both editions. Golden case `hidden_body`
   (base `keep`) shows the difference: desktop 1.x would suggest `model`.
 
-## The app: shell and viewport (milestone 4a, all pending Nathan's OK)
+## The app: shell and viewport (milestone 4a)
 
-- **New text: "The engine stopped unexpectedly. Your last saved project is safe."** with a
+Nathan accepted four of these on 2026-11-12; they are marked "Accepted". The rest are still
+pending Nathan's OK.
+
+- **Accepted (2026-11-12): `x11-dl` is on the Linux pure-Rust allow-list.** It is winit's X11
+  backend. Its build script asks `pkg-config` for the X11 library folders, and no feature drops
+  that build dependency. It loads the X11 libraries at run time (`xtask/src/pure.rs`).
+
+- **Accepted (2026-11-12). New text: "The engine stopped unexpectedly. Your last saved project is safe."** with a
   **Restart** button, shown when the engine thread or Web Worker dies. 1.x has no engine
   that can die on its own. Restart reopens the last opened or saved project.
 - **The busy overlay has a Cancel button.** 1.x's busy overlay (`index.html` `#busy`) has
@@ -272,15 +279,28 @@ programming error, the same practice as batch 1's `"Plane size must be a number.
   marker is dropped.
 - **Adding a step in the middle of the history takes two undos,** because it is added at the
   end and then moved. 1.x adds it in place, in one undo step.
-- **Recent files last only for this session,** and come back from the bytes in memory, so a
+- **Accepted (2026-11-12): Open Recent without a path until milestone 5. Recent files last only for this session,** and come back from the bytes in memory, so a
   Save after Open Recent asks where to save. Recent files that survive a restart, and the
   settings, are milestone 5.
 - **The Help menu has no Check for Updates, Update Settings or About Support Fins yet.** They
   need the update check and the Support Fins engine version, which are milestone 5.
-- **About:** the version comes from the 2.0 build, the Ko-fi link sits below the text instead
-  of inside it, and the heart isn't coloured. The credits line is 1.x's word for word, so it
-  still names 1.x's Python libraries (trimesh, scikit-image, SciPy, NumPy, Shapely), which
-  2.0 doesn't use.
+- **Accepted (2026-11-12): plain-text Help and About layout.** The version comes from the 2.0
+  build, the Ko-fi link sits below the text instead of inside it, and the heart isn't
+  coloured.
+- **About credits list what 2.0 uses** (egui and eframe, wgpu, the manifold-rust port, the
+  Selawik font and the other Rust crates, each with its licence) instead of 1.x's Python
+  libraries. 1.x's thanks and Ko-fi text are kept. Nathan asked for this on 2026-11-12.
+- **A dropped `.stlx` is refused** with "Use File › Open for projects.", as in 1.x. The fixes
+  plan asked for a dropped project to open and set the title; 2.0 keeps 1.x's behaviour.
+  Pending Nathan's OK.
+- **The section cut face shows the floor grid** where the inside of the part is on or below
+  the bed, as 1.x does (`viewer.js` draws the see-through grid after the solid cut face). The
+  fixes plan asked for the cut face to hide the grid; 2.0 follows 1.x. Pending Nathan's OK.
+- **2.0 opens straight in the start view.** 1.x flies the camera there over 320 ms during
+  load. Pending Nathan's OK.
+- **The web check for WebGL2 runs on SwiftShader** (Chrome's software WebGL2), because
+  `--disable-features=WebGPU` alone leaves WebGPU on in Chrome 157. Hardware WebGL2 is not
+  covered by the check. Pending Nathan's OK.
 - **Ten constraint icons** (`c_coincident` to `c_symmetric`) are text glyphs in 1.x's
   `icons.js`. The icon renderer has no text support, so 2.0 draws them as paths that look
   close but not identical.

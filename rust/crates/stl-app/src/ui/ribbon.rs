@@ -310,7 +310,7 @@ pub fn fit(ui: &Ui, d: &Def, avail: f32) -> Fit {
 fn paint_tool(ui: &mut Ui, tk: &Tokens, rect: Rect, id: Id, tool: &Tool, icon: &str, label: &str, big: bool, caret: bool, mode: Mode, on: bool, web: bool) -> egui::Response {
     let desk_only = web && matches!(tool.key, "to_step" | "send");
     let resp = ui.interact(rect, id, Sense::click());
-    resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, label));
+    resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, label));
     let p = ui.painter();
     let finish = tool.key.starts_with("finish");
     let (mut fg, ic) = if on { (tk.sel_text, tk.sel_text) } else if finish { (tk.ok, tk.ok) } else { (tk.text, tk.accent) };
@@ -385,8 +385,8 @@ pub fn show(ui: &mut Ui, tk: &Tokens, st: &RibbonState) -> (Option<Pick>, Fit) {
         let tf = FontId::new(11.5, FontFamily::Name("bold".into()));
         let tw = ui.painter().layout_no_wrap(l.to_owned(), tf.clone(), tk.text).size().x;
         let r = Rect::from_min_size(Pos2::new(x, ty), Vec2::new(tw + 24.0, 22.0));
-        let resp = ui.interact(r, ui.id().with(("rtab", k)), Sense::click());
-        resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, l));
+        let resp = ui.interact(r, ui.scope_id().with(("rtab", k)), Sense::click());
+        resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, l));
         let active = k == st.tab;
         let col = if active {
             ui.painter().rect_filled(r, CornerRadius::same(11), tk.sel);
@@ -411,7 +411,7 @@ pub fn show(ui: &mut Ui, tk: &Tokens, st: &RibbonState) -> (Option<Pick>, Fit) {
     let mode = fit.mode;
     let top = body.min.y + 3.0;
     let mut gx = body.min.x + 4.0;
-    let mut draw_group = |ui: &mut Ui, g: &Group, gi: Option<usize>, x0: f32, pick: &mut Option<Pick>, border_left: bool| -> f32 {
+    let draw_group = |ui: &mut Ui, g: &Group, gi: Option<usize>, x0: f32, pick: &mut Option<Pick>, border_left: bool| -> f32 {
         let w = group_w(ui, mode, g);
         let pad = if mode == Mode::Normal { 6.0 } else { 3.0 };
         let gr = Rect::from_min_size(Pos2::new(x0, top), Vec2::new(w, items_h + 17.0));
@@ -430,7 +430,7 @@ pub fn show(ui: &mut Ui, tk: &Tokens, st: &RibbonState) -> (Option<Pick>, Fit) {
                 Item::Big(tool) => {
                     let r = Rect::from_min_size(Pos2::new(ix, top), Vec2::new(iw, items_h));
                     let on = st.active == Some(tool.key);
-                    if paint_tool(ui, tk, r, ui.id().with(("tool", tool.key)), tool, tool.icon, tool.label, true, false, mode, on, st.web).clicked() {
+                    if paint_tool(ui, tk, r, ui.scope_id().with(("tool", tool.key)), tool, tool.icon, tool.label, true, false, mode, on, st.web).clicked() {
                         *pick = Some(Pick::Tool(tool.key));
                     }
                 }
@@ -438,7 +438,7 @@ pub fn show(ui: &mut Ui, tk: &Tokens, st: &RibbonState) -> (Option<Pick>, Fit) {
                     for (n, tool) in v.iter().enumerate() {
                         let r = Rect::from_min_size(Pos2::new(ix, top + 18.0 * n as f32), Vec2::new(iw, 18.0));
                         let on = st.active == Some(tool.key);
-                        if paint_tool(ui, tk, r, ui.id().with(("tool", tool.key)), tool, tool.icon, tool.label, false, false, mode, on, st.web).clicked() {
+                        if paint_tool(ui, tk, r, ui.scope_id().with(("tool", tool.key)), tool, tool.icon, tool.label, false, false, mode, on, st.web).clicked() {
                             *pick = Some(Pick::Tool(tool.key));
                         }
                     }
@@ -448,7 +448,7 @@ pub fn show(ui: &mut Ui, tk: &Tokens, st: &RibbonState) -> (Option<Pick>, Fit) {
                     let last = st.drop_last.get(*id).and_then(|k| items.iter().find(|x| x.key == k)).unwrap_or(&items[0]);
                     let on = st.active.is_some_and(|a| items.iter().any(|x| x.key == a));
                     let tool = Tool { key: id, label, icon: last.icon };
-                    if paint_tool(ui, tk, r, ui.id().with(("drop", *id)), &tool, last.icon, label, true, true, mode, on, st.web).clicked() {
+                    if paint_tool(ui, tk, r, ui.scope_id().with(("drop", *id)), &tool, last.icon, label, true, true, mode, on, st.web).clicked() {
                         *pick = Some(Pick::Drop(id, r));
                     }
                 }
@@ -459,8 +459,8 @@ pub fn show(ui: &mut Ui, tk: &Tokens, st: &RibbonState) -> (Option<Pick>, Fit) {
         let ly = top + items_h + 2.0;
         let lr = Rect::from_min_size(Pos2::new(x0 + 1.0, ly), Vec2::new(w - 2.0, 14.0));
         if let (true, Some(gi)) = (g.has_drop(), gi) {
-            let resp = ui.interact(lr, ui.id().with(("glabel", gi)), Sense::click());
-            resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, format!("{} tools", g.label)));
+            let resp = ui.interact(lr, ui.scope_id().with(("glabel", gi)), Sense::click());
+            resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, format!("{} tools", g.label)));
             if resp.hovered() {
                 ui.painter().rect_filled(lr, CornerRadius::same(4), tk.hover);
             }
@@ -495,7 +495,7 @@ pub fn show(ui: &mut Ui, tk: &Tokens, st: &RibbonState) -> (Option<Pick>, Fit) {
         ui.painter().vline(mr.min.x + 0.5, mr.y_range(), Stroke::new(1.0, tk.divider));
         let br = Rect::from_min_size(Pos2::new(mx + 4.0, top), Vec2::new(34.0, items_h));
         let mt = Tool { key: "more", label: "More", icon: "more" };
-        let resp = paint_tool(ui, tk, br, ui.id().with("more"), &mt, "more", "More tools", true, false, Mode::Tight, false, st.web);
+        let resp = paint_tool(ui, tk, br, ui.scope_id().with("more"), &mt, "more", "More tools", true, false, Mode::Tight, false, st.web);
         if resp.clicked() {
             pick = Some(Pick::More(br));
         }
@@ -509,6 +509,3 @@ pub fn folded_groups(st_tab: &str, fit: &Fit) -> Vec<(&'static str, Vec<Tool>)> 
     let d = def(st_tab);
     d.groups.iter().enumerate().filter(|(i, _)| fit.folded.get(*i).copied().unwrap_or(false)).map(|(_, g)| (g.label, g.tools())).collect()
 }
-
-#[allow(dead_code)]
-fn _unused(_: Id) {}

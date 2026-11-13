@@ -75,7 +75,7 @@ pub fn show(ctx: &egui::Context, tk: &Tokens, d: &mut Dialogs) -> Option<String>
     let (tag, kind) = d.cur.as_mut()?;
     let screen = ctx.content_rect();
     // the scrim blocks everything under it
-    Area::new(Id::new("modal-scrim")).order(Order::Foreground).fixed_pos(screen.min).show(ctx, |ui| {
+    Area::new(Id::unique("modal-scrim")).order(Order::Foreground).fixed_pos(screen.min).show(ctx, |ui| {
         let (r, _) = ui.allocate_exact_size(screen.size(), egui::Sense::click_and_drag());
         ui.painter().rect_filled(r, 0.0, tk.scrim);
     });
@@ -84,7 +84,7 @@ pub fn show(ctx: &egui::Context, tk: &Tokens, d: &mut Dialogs) -> Option<String>
     // keys first, so the text field doesn't see them
     let enter = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
     let esc = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Escape));
-    Area::new(Id::new("modal-card")).order(Order::Tooltip).anchor(egui::Align2::CENTER_CENTER, Vec2::ZERO).show(ctx, |ui| {
+    Area::new(Id::unique("modal-card")).order(Order::Tooltip).anchor(egui::Align2::CENTER_CENTER, Vec2::ZERO).show(ctx, |ui| {
         Frame::new()
             .fill(tk.panel)
             .stroke(Stroke::new(1.0, tk.line))
@@ -102,7 +102,7 @@ pub fn show(ctx: &egui::Context, tk: &Tokens, d: &mut Dialogs) -> Option<String>
                 match kind {
                     Kind::Prompt { title: t, buf, fresh } => {
                         title(ui, t);
-                        let id = Id::new("modal-input");
+                        let id = Id::unique("modal-input");
                         let out = egui::TextEdit::singleline(buf).id(id).desired_width(f32::INFINITY).margin(Margin::symmetric(8, 6)).show(ui);
                         if *fresh {
                             *fresh = false;

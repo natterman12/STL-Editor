@@ -16,7 +16,7 @@ use crate::app::StlApp;
 use crate::engine_link::native::NativeLink;
 use crate::engine_link::{Command, EngineLink, Update};
 use crate::platform::native::NativePlatform;
-use crate::viewport::Viewport;
+use crate::viewport::{FrameTrace, Viewport};
 
 const ORBIT_S: f64 = 10.0;
 const PAN_S: f64 = 5.0;
@@ -49,8 +49,14 @@ enum Phase {
     Zoom,
     Idle,
     Rebuild,
+    /// A few frames after the new mesh is on screen (the old one is freed in the first),
+    /// traced but not counted.
+    AfterRebuild,
     Done,
 }
+
+/// Frames traced after the rebuild row ends.
+const AFTER_FRAMES: usize = 3;
 
 struct ScenarioStat {
     times_ms: Vec<f64>,
@@ -93,6 +99,98 @@ fn summarise(times: &[f64]) -> (f64, f64, f64) {
     (median, p99, longest)
 }
 
+/// One rebuild frame, split up. `dt_ms` runs from the previous frame's start to this one's,
+/// so the parts are the previous frame's: its engine updates (`poll_ms`, the viewport's
+/// `sync_ms` inside it), the rest of its layout (`ui_ms`, the viewport's `frame_ms` inside it),
+/// its paint callback (`paint_ms`: the upload slice and the render encode), and `other_ms`,
+/// what is left. eframe's own count of the previous frame's work (`cpu_ms`, everything but
+/// getting the next swapchain image and submitting) splits `other_ms` into egui's own work
+/// (`egui_ms`: tessellation and its render) and `wait_ms` (the swapchain, the submit, and the
+/// time until the window thread ran the next frame).
+#[derive(Clone, Copy, Debug, Default)]
+struct TraceRow {
+    at_ms: f64,
+    dt_ms: f64,
+    poll_ms: f64,
+    ui_ms: f64,
+    vp: FrameTrace,
+    other_ms: f64,
+    cpu_ms: f64,
+    egui_ms: f64,
+    wait_ms: f64,
+    /// The engine was still working on the command.
+    engine_busy: bool,
+}
+
+impl TraceRow {
+    fn to_json(&self) -> Value {
+        json!({
+            "at_ms": self.at_ms,
+            "dt_ms": self.dt_ms,
+            "poll_ms": self.poll_ms,
+            "sync_ms": self.vp.sync_ms,
+            "ui_ms": self.ui_ms,
+            "frame_ms": self.vp.frame_ms,
+            "collect_ms": self.vp.collect_ms,
+            "promote_ms": self.vp.promote_ms,
+            "promoted": self.vp.promoted,
+            "paint_ms": self.vp.paint_ms,
+            "paints": self.vp.paints,
+            "upload_pending": self.vp.upload_pending,
+            "uploads_done": self.vp.uploads_done,
+            "other_ms": self.other_ms,
+            "cpu_ms": self.cpu_ms,
+            "egui_ms": self.egui_ms,
+            "wait_ms": self.wait_ms,
+            "engine_busy": self.engine_busy,
+            "stage": self.stage(),
+            "prep_jobs": self.vp.prep_jobs,
+            "trees_building": self.vp.trees_building,
+        })
+    }
+
+    fn line(&self) -> String {
+        format!(
+            "{:.2} ms at {:.0} ms: poll {:.2} (sync {:.2}), ui {:.2} (viewport frame {:.2}: collect {:.2}, promote {:.2} x{}), paint {:.2} x{}{}{}, other {:.2} (egui {:.2}, wait {:.2}); {}",
+            self.dt_ms,
+            self.at_ms,
+            self.poll_ms,
+            self.vp.sync_ms,
+            self.ui_ms,
+            self.vp.frame_ms,
+            self.vp.collect_ms,
+            self.vp.promote_ms,
+            self.vp.promoted,
+            self.vp.paint_ms,
+            self.vp.paints,
+            if self.vp.upload_pending { ", uploading" } else { "" },
+            if self.vp.uploads_done > 0 { ", upload finished" } else { "" },
+            self.other_ms,
+            self.egui_ms,
+            self.wait_ms,
+            self.stage(),
+        )
+    }
+
+    /// What was running off the window thread.
+    fn stage(&self) -> String {
+        let mut s = Vec::new();
+        if self.engine_busy {
+            s.push("engine busy");
+        }
+        if self.vp.prep_jobs > 0 {
+            s.push("mesh prep");
+        }
+        if self.vp.trees_building > 0 {
+            s.push("picking tree");
+        }
+        if self.vp.upload_pending {
+            s.push("upload");
+        }
+        if s.is_empty() { "nothing".into() } else { s.join(", ") }
+    }
+}
+
 /// `EngineLink` over a shared [`NativeLink`] so the driver can call `is_busy`.
 struct SharedLink {
     inner: Arc<NativeLink>,
@@ -132,6 +230,13 @@ pub struct BenchApp {
     rebuild_ms: f64,
     rebuild_gave_up: bool,
     rebuild_slow: u32,
+    /// Every rebuild frame, split up (see [`TraceRow`]).
+    trace: Vec<TraceRow>,
+    /// [`Phase::AfterRebuild`]'s frames.
+    after: Vec<TraceRow>,
+    /// The last frame's engine updates and the rest of its layout, for the next row.
+    last_poll_ms: f64,
+    last_ui_ms: f64,
     idle_prepared: bool,
     mesh_path: PathBuf,
     open_sent: bool,
@@ -177,6 +282,10 @@ impl BenchApp {
             rebuild_ms: 0.0,
             rebuild_gave_up: false,
             rebuild_slow: 0,
+            trace: Vec::new(),
+            after: Vec::new(),
+            last_poll_ms: 0.0,
+            last_ui_ms: 0.0,
             idle_prepared: false,
             mesh_path,
             open_sent: false,
@@ -201,6 +310,8 @@ impl BenchApp {
                 REBUILD_NOTE.to_string()
             },
             "idle_note": IDLE_NOTE,
+            "rebuild_trace": self.trace_json(),
+            "after_rebuild": self.after.iter().map(|r| r.to_json()).collect::<Vec<_>>(),
             "mesh": self.mesh_path.display().to_string(),
             "scenarios": {
                 "orbit": self.orbit.to_json(),
@@ -218,6 +329,46 @@ impl BenchApp {
         self.phase = Phase::Done;
         ctx.send_viewport_cmd(egui::ViewportCommand::Close);
     }
+
+    fn trace_row(&self, frame: &eframe::Frame, dt_ms: f64, vp: FrameTrace, last_poll: f64, last_ui: f64) -> TraceRow {
+        let cpu_ms = frame.info().cpu_usage.map_or(0.0, |s| s as f64 * 1000.0);
+        TraceRow {
+            at_ms: self.rebuild_started.map(|t| t.elapsed().as_secs_f64() * 1000.0).unwrap_or(0.0),
+            dt_ms,
+            poll_ms: last_poll,
+            ui_ms: last_ui,
+            vp,
+            other_ms: (dt_ms - last_poll - last_ui - vp.paint_ms).max(0.0),
+            cpu_ms,
+            egui_ms: (cpu_ms - last_poll - last_ui - vp.paint_ms).max(0.0),
+            wait_ms: (dt_ms - cpu_ms).max(0.0),
+            engine_busy: self.link.is_busy(),
+        }
+    }
+
+    /// The slowest rebuild frame and every one over 16.7 ms, split up, and the most each part
+    /// took in any rebuild frame.
+    fn trace_json(&self) -> Value {
+        let max = |f: &dyn Fn(&TraceRow) -> f64| self.trace.iter().map(f).fold(0.0, f64::max);
+        let slowest = self.trace.iter().max_by(|a, b| a.dt_ms.total_cmp(&b.dt_ms));
+        json!({
+            "frames": self.trace.len(),
+            "slowest": slowest.map(|r| r.to_json()),
+            "over_16_7": self.trace.iter().filter(|r| r.dt_ms > 16.7).map(|r| r.to_json()).collect::<Vec<_>>(),
+            "max": {
+                "poll_ms": max(&|r| r.poll_ms),
+                "sync_ms": max(&|r| r.vp.sync_ms),
+                "ui_ms": max(&|r| r.ui_ms),
+                "frame_ms": max(&|r| r.vp.frame_ms),
+                "collect_ms": max(&|r| r.vp.collect_ms),
+                "promote_ms": max(&|r| r.vp.promote_ms),
+                "paint_ms": max(&|r| r.vp.paint_ms),
+                "other_ms": max(&|r| r.other_ms),
+                "egui_ms": max(&|r| r.egui_ms),
+                "wait_ms": max(&|r| r.wait_ms),
+            }
+        })
+    }
 }
 
 impl eframe::App for BenchApp {
@@ -228,6 +379,9 @@ impl eframe::App for BenchApp {
         }
         let dt_ms = now.duration_since(self.last_frame).as_secs_f64() * 1000.0;
         self.last_frame = now;
+        // The viewport's timings since the last frame started: that frame's layout and paint.
+        let vp = self.app.viewport.take_trace();
+        let (last_poll, last_ui) = (std::mem::take(&mut self.last_poll_ms), std::mem::take(&mut self.last_ui_ms));
 
         if !self.open_sent {
             match std::fs::read(&self.mesh_path) {
@@ -323,19 +477,39 @@ impl eframe::App for BenchApp {
                         return;
                     }
                 }
+                let row = self.trace_row(frame, dt_ms, vp, last_poll, last_ui);
                 if dt_ms > 16.7 {
                     if self.rebuild_slow < 24 {
-                        let at = self.rebuild_started.map(|t| t.elapsed().as_secs_f64() * 1000.0).unwrap_or(0.0);
-                        eprintln!("uibench: rebuild frame {dt_ms:.2} ms at {at:.0} ms into the rebuild");
+                        eprintln!("uibench: rebuild frame {}", row.line());
                     }
                     self.rebuild_slow += 1;
                 }
+                self.trace.push(row);
                 self.rebuild.record(dt_ms);
+            }
+            Phase::AfterRebuild => {
+                self.app.viewport.camera_mut().rotate(6.0, 2.0);
+                ui.ctx().request_repaint();
+                let row = self.trace_row(frame, dt_ms, vp, last_poll, last_ui);
+                eprintln!("uibench: after the rebuild (not counted) {}", row.line());
+                self.after.push(row);
             }
             Phase::Loading | Phase::Done => {}
         }
 
+        // In the rebuild, take the engine's updates here so their cost is timed apart from
+        // the layout (`layout` polls again and finds nothing new).
+        let t_poll = Instant::now();
+        let traced = matches!(self.phase, Phase::Rebuild | Phase::AfterRebuild);
+        if traced && self.app.poll() {
+            ui.ctx().request_repaint();
+        }
+        let t_ui = Instant::now();
         self.app.ui(ui, frame);
+        if traced {
+            self.last_poll_ms = t_ui.duration_since(t_poll).as_secs_f64() * 1000.0;
+            self.last_ui_ms = t_ui.elapsed().as_secs_f64() * 1000.0;
+        }
 
         // Advance phases after poll/layout so body state is current.
         match self.phase {
@@ -390,9 +564,18 @@ impl eframe::App for BenchApp {
                         );
                     }
                     eprintln!("uibench: rebuild frames over 16.7 ms: {}", self.rebuild_slow);
-                    self.finish_and_close(ui.ctx());
+                    if let Some(r) = self.trace.iter().max_by(|a, b| a.dt_ms.total_cmp(&b.dt_ms)) {
+                        eprintln!("uibench: slowest rebuild frame {}", r.line());
+                    }
+                    if self.rebuild_gave_up {
+                        self.finish_and_close(ui.ctx());
+                    } else {
+                        self.phase = Phase::AfterRebuild;
+                        ui.ctx().request_repaint();
+                    }
                 }
             }
+            Phase::AfterRebuild if self.after.len() >= AFTER_FRAMES => self.finish_and_close(ui.ctx()),
             _ => {}
         }
     }

@@ -15,7 +15,6 @@ use stl_app::app::StlApp;
 use stl_app::engine_link::native::NativeLink;
 use stl_app::engine_link::{Command, EngineLink, Update};
 use stl_app::platform::{Pending, PickedFile, Platform};
-use stl_app::ui::browser::Browser;
 use stl_app::ui::ThemePref;
 use stl_app::viewport::renderer::Headless;
 
@@ -119,18 +118,33 @@ fn apply_state(h: &mut Harness<'static, StlApp>, link: &NativeLink, state: &str)
             h.state_mut().viewport.fit_all();
         }
         "rename" => {
+            // same Command the Rename dialog's OK sends; 1.x shows the finished rename
             if let Some(b) = h.state().bodies.first().cloned() {
-                h.state_mut().browser = Browser::with_rename(b.id, b.name);
+                link.send(Command::BodyProps {
+                    id: b.id,
+                    name: Some("Renamed body".into()),
+                    color: None,
+                    hidden: None,
+                });
+                settle(h, link);
+                assert!(
+                    h.state().bodies.iter().any(|b| b.name == "Renamed body"),
+                    "rename: body name did not update"
+                );
             }
             h.state_mut().viewport.fit_all();
         }
         "timeline" => {
-            // basic.stlx already has rollback=2; force a visible marker if missing.
-            if h.state().timeline_view.marker.is_none() && !h.state().timeline_view.items.is_empty() {
-                let n = h.state().timeline_view.items.len().saturating_sub(1).max(1);
-                link.send(Command::Rollback(Some(n)));
-                settle(h, link);
-            }
+            // like 1.x's "previous step" button: one step back from where the marker is now
+            let cur = h.state().timeline_view.marker.unwrap_or(h.state().timeline_view.items.len());
+            assert!(cur >= 1, "timeline: nothing to roll back");
+            link.send(Command::Rollback(Some(cur - 1)));
+            settle(h, link);
+            assert_eq!(
+                h.state().timeline_view.marker,
+                Some(cur - 1),
+                "timeline: rollback did not move the marker"
+            );
             h.state_mut().viewport.fit_all();
         }
         "parameters" => {
@@ -148,7 +162,7 @@ fn apply_state(h: &mut Harness<'static, StlApp>, link: &NativeLink, state: &str)
     wait_meshes(h);
 }
 
-fn capture_one(gpu: &Headless, state: &str, theme: &str) -> PathBuf {
+fn capture_one(gpu: &Headless, state: &str, theme: &str) -> (PathBuf, u64) {
     let dark = theme != "light";
     let link = Arc::new(NativeLink::new());
     let platform = FakePlatform::default();
@@ -157,11 +171,6 @@ fn capture_one(gpu: &Headless, state: &str, theme: &str) -> PathBuf {
     app.viewport.init_gpu(&gpu.render_state);
 
     let needs_project = state != "start";
-    if needs_project {
-        let path = project_path();
-        let bytes = std::fs::read(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
-        link.send(Command::Open { name: "basic.stlx".into(), bytes });
-    }
 
     let renderer = wgpu_renderer::WgpuRenderer::new(gpu.render_state.clone());
     let mut init = false;
@@ -183,6 +192,8 @@ fn capture_one(gpu: &Headless, state: &str, theme: &str) -> PathBuf {
         );
 
     if needs_project {
+        // app open path (Files::open_bytes): title becomes basic.stlx and the project is clean
+        h.state_mut().open_launch_file(&project_path());
         settle(&mut h, &link);
         assert!(!h.state().bodies.is_empty(), "{state}/{theme}: expected bodies after open");
     } else {
@@ -196,7 +207,10 @@ fn capture_one(gpu: &Headless, state: &str, theme: &str) -> PathBuf {
     std::fs::create_dir_all(out.parent().unwrap()).unwrap();
     img.save(&out).unwrap_or_else(|e| panic!("save {}: {e}", out.display()));
     eprintln!("wrote {} ({}x{})", out.display(), img.width(), img.height());
-    out
+    use std::hash::{Hash, Hasher};
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    img.as_raw().hash(&mut hasher);
+    (out, hasher.finish())
 }
 
 fn write_index() {
@@ -226,10 +240,18 @@ fn m4a_shots_2x() {
         panic!("no GPU adapter for m4a_shots");
     };
     std::fs::create_dir_all(out_dir()).unwrap();
+    let mut identical = Vec::new();
     for theme in THEMES {
+        // states_differ: within one theme, no two states may give identical images.
+        let mut seen: Vec<(&str, u64)> = Vec::new();
         for state in STATES {
-            capture_one(&gpu, state, theme);
+            let (_, hash) = capture_one(&gpu, state, theme);
+            if let Some((other, _)) = seen.iter().find(|(_, h)| *h == hash) {
+                identical.push(format!("{theme}: {other} and {state} are identical"));
+            }
+            seen.push((state, hash));
         }
     }
     write_index();
+    assert!(identical.is_empty(), "states_differ FAILED: {identical:?}");
 }

@@ -54,6 +54,9 @@ pub struct StlApp {
     /// A file from the command line, until its bodies arrive. `true` is an insert (fit the view);
     /// `false` is a project (isometric view).
     launch_file: Option<bool>,
+    /// 1.x `app.js` turns the view to isometric once at startup (`viewer.setView('iso')`); done
+    /// on the first frame the workspace has a size, since the distance depends on the view's shape.
+    start_view_done: bool,
 }
 
 /// A short fingerprint of the history, to tell whether it changed since the last save.
@@ -85,23 +88,41 @@ const HELP_ROWS: &[(&str, &str)] = &[
     ("Double-click a dimension", "Change it (a parameter name works too)"),
 ];
 
-/// 1.x's About text (app.js:2546-2547) plus `THANKS` (app.js:31), as plain lines.
-fn about_text(web: bool) -> String {
+/// What 2.0 is built from, each with its licence (read from the workspace's `Cargo.toml` files and
+/// the crates' own metadata). Shown in Help > About; nothing from 1.x's Python or JavaScript stack.
+pub const CREDITS: &[(&str, &str)] = &[
+    ("Manifold geometry, the manifold-rust port", "Apache-2.0"),
+    ("egui and eframe, the user interface", "MIT or Apache-2.0"),
+    ("wgpu, the 3D drawing", "MIT or Apache-2.0"),
+    ("Selawik font", "SIL Open Font Licence 1.1"),
+    ("Noto Emoji, a small piece of it for the heart and warning marks", "SIL Open Font Licence 1.1"),
+    ("rayon, ttf-parser, serde", "MIT or Apache-2.0"),
+    ("zip, quick-xml, reading and writing project and 3MF files", "MIT"),
+    ("usvg, resvg, for SVG shapes in sketches", "Apache-2.0 or MIT"),
+];
+
+/// 1.x's About text (app.js:2546-2547) plus `THANKS` (app.js:31), as plain lines, with the credits of
+/// what 2.0 actually uses in place of 1.x's library list.
+pub fn about_text(web: bool) -> String {
     let version = env!("CARGO_PKG_VERSION");
     let thanks = "
 
 STL Editor is free and made in spare time. If it saves you time, you can buy me a coffee on Ko-fi ♥";
-    if web {
+    let credits: String = CREDITS.iter().map(|(what, lic)| format!("
+{what} ({lic})")).collect();
+    let edition = if web {
         format!("Web edition {version}
-CAD-style editing for STL, 3MF and OBJ meshes, running entirely in your browser: your files never leave your computer.
-
-Geometry by Manifold (Apache-2.0), viewport by three.js (MIT), fflate (MIT), opentype.js (MIT), DejaVu fonts (free licence). Free software under the GPL-3.0: source on GitHub.{thanks}")
+CAD-style editing for STL, 3MF and OBJ meshes, running entirely in your browser: your files never leave your computer.")
     } else {
         format!("Version {version}
-CAD-style editing for STL, 3MF and OBJ meshes.
+CAD-style editing for STL, 3MF and OBJ meshes.")
+    };
+    let gpl = if web { "
 
-Geometry by Manifold (Apache-2.0), viewport by three.js (MIT), repair helpers from trimesh (MIT), scikit-image, SciPy, NumPy and Shapely (BSD). Licence texts are in the LICENSES folder.{thanks}")
-    }
+Free software under the GPL-3.0: source on GitHub." } else { "" };
+    format!("{edition}
+
+Built with:{credits}{gpl}{thanks}")
 }
 
 const DISCARD_TAG: &str = "discard-unsaved";
@@ -139,6 +160,7 @@ impl StlApp {
             clean_sig: history_sig(&TimelineView::default()),
             pending_discard: None,
             launch_file: None,
+            start_view_done: false,
         }
     }
 
@@ -162,13 +184,10 @@ impl StlApp {
         };
         let project = name.to_ascii_lowercase().ends_with(".stlx");
         if project {
-            let stem = match name.rfind('.') {
-                Some(i) if i > 0 => name[..i].to_string(),
-                _ => name.clone(),
-            };
-            self.files.project_name = Some(stem);
-            self.launch_file = Some(false);
-            self.link.send(Command::Open { name, bytes });
+            // goes through the same path as File > Open: the title, Recent, the isometric view and
+            // "clean" follow once the engine has accepted the file (a refused file changes nothing)
+            let file = crate::platform::PickedFile { name, bytes };
+            self.files.open_bytes(&*self.link, file, Some(path.display().to_string()));
         } else {
             self.launch_file = Some(true);
             self.link.send(Command::Import { name, bytes });
@@ -586,7 +605,7 @@ impl StlApp {
     fn run_search_command(&mut self, ctx: &egui::Context, key: &str, anchor: Pos2) {
         self.shell.query.clear();
         self.shell.menu = None;
-        ctx.memory_mut(|m| m.surrender_focus(Id::new(topbar::SEARCH_ID)));
+        ctx.memory_mut(|m| m.surrender_focus(Id::unique(topbar::SEARCH_ID)));
         if let Some(c) = ribbon::all_commands().into_iter().find(|c| c.k == key) {
             if let Some(tab) = c.tab {
                 let here = ribbon::def(&self.shell.tab).groups.iter().any(|g| g.tools().iter().any(|x| x.key == key));
@@ -672,7 +691,7 @@ impl StlApp {
         let drop = self.files.handle_drop(&ctx, &*self.link);
         self.shell.dragging_files = self.files.dragging;
         self.apply_file_outcome(drop);
-        self.shell.doc_name = self.files.project_name.clone().unwrap_or_else(|| "Untitled".to_owned());
+        self.shell.doc_name = self.files.title.clone().unwrap_or_else(|| "Untitled".to_owned());
         self.shell.recent = self.files.recent_names();
         self.run_keys(&ctx);
         let tk = self.tokens.clone();
@@ -733,7 +752,7 @@ impl StlApp {
                 egui::Key::Escape => {
                     self.shell.query.clear();
                     self.shell.menu = None;
-                    ctx.memory_mut(|m| m.surrender_focus(Id::new(topbar::SEARCH_ID)));
+                    ctx.memory_mut(|m| m.surrender_focus(Id::unique(topbar::SEARCH_ID)));
                 }
                 _ => {}
             }
@@ -756,6 +775,14 @@ impl StlApp {
         let mut commands: Vec<Command> = Vec::new();
         let mut events: Vec<UiEvent> = Vec::new();
         egui::CentralPanel::default().frame(Frame::NONE).show(ui, |ui| {
+            let avail = ui.available_size();
+            if !self.start_view_done && avail.x >= 1.0 && avail.y >= 1.0 {
+                // 1.x flies there during load; 2.0 starts in place, so the first picture is it
+                self.start_view_done = true;
+                self.viewport.set_view_size(avail.x, avail.y);
+                self.viewport.set_view("iso");
+                self.viewport.camera_mut().finish_flight();
+            }
             let vr = self.viewport.show(ui);
             let ws = vr.response.rect;
             if vr.section_clicked {
@@ -831,11 +858,11 @@ impl StlApp {
     fn params_dialog(&mut self, ctx: &egui::Context, tk: &Tokens) {
         let mut cmds = Vec::new();
         let mut close = false;
-        Area::new(Id::new("params-scrim")).order(Order::Foreground).fixed_pos(ctx.content_rect().min).show(ctx, |ui| {
+        Area::new(Id::unique("params-scrim")).order(Order::Foreground).fixed_pos(ctx.content_rect().min).show(ctx, |ui| {
             let (r, _) = ui.allocate_exact_size(ctx.content_rect().size(), Sense::click_and_drag());
             ui.painter().rect_filled(r, 0.0, tk.scrim);
         });
-        Area::new(Id::new("params-card")).order(Order::Tooltip).anchor(Align2::CENTER_CENTER, Vec2::ZERO).show(ctx, |ui| {
+        Area::new(Id::unique("params-card")).order(Order::Tooltip).anchor(Align2::CENTER_CENTER, Vec2::ZERO).show(ctx, |ui| {
             Frame::new().fill(tk.panel).stroke(Stroke::new(1.0, tk.line)).corner_radius(CornerRadius::same(9)).shadow(tk.shadow_lg).inner_margin(Margin { left: 20, right: 20, top: 18, bottom: 14 }).show(ui, |ui| {
                 ui.set_max_width(720.0);
                 let used: std::collections::HashSet<String> =
@@ -861,7 +888,7 @@ impl StlApp {
     /// "The engine stopped unexpectedly. Your last saved project is safe." with Restart (pending Nathan's OK).
     fn engine_lost_dialog(&mut self, ctx: &egui::Context, tk: &Tokens) {
         let mut restart = false;
-        Area::new(Id::new("engine-lost")).order(Order::Tooltip).anchor(Align2::CENTER_CENTER, Vec2::ZERO).show(ctx, |ui| {
+        Area::new(Id::unique("engine-lost")).order(Order::Tooltip).anchor(Align2::CENTER_CENTER, Vec2::ZERO).show(ctx, |ui| {
             Frame::new().fill(tk.panel).stroke(Stroke::new(1.0, tk.line)).corner_radius(CornerRadius::same(9)).shadow(tk.shadow_lg).inner_margin(Margin { left: 20, right: 20, top: 18, bottom: 14 }).show(ui, |ui| {
                 ui.label(RichText::new("The engine stopped unexpectedly. Your last saved project is safe.").size(12.0).color(tk.text));
                 ui.add_space(14.0);
@@ -883,14 +910,14 @@ impl StlApp {
         let panel_frame = || Frame::new().fill(tk.panel).stroke(Stroke::new(1.0, tk.line)).corner_radius(CornerRadius::same(tk.radius as u8)).shadow(tk.shadow);
 
         // browser: 240 wide, 8px from the top left, leaves room for the history bar
-        Area::new(Id::new("browser-panel")).order(Order::Middle).fixed_pos(ws.min + Vec2::new(8.0, 8.0)).show(ctx, |ui| {
+        Area::new(Id::unique("browser-panel")).order(Order::Middle).fixed_pos(ws.min + Vec2::new(8.0, 8.0)).show(ctx, |ui| {
             panel_frame().inner_margin(Margin::symmetric(9, 6)).show(ui, |ui| {
                 // 238 wide in all (220 + the 9 px margins and the 1 px borders). Not inside a
                 // `ui.horizontal`: that gives its content one row of height and clips the tree.
                 ui.set_width(220.0);
                 ui.set_max_height((ws.height() - 60.0).max(40.0));
                 // TASK 8 call site: browser tree
-                let view = browser::BrowserView { doc_name: &self.shell.doc_name, bodies: &self.bodies, selection: &self.shell.selection, planes: &self.planes, sketches: &self.sketches, param_count: self.param_views.len(), origin_visible: self.viewport.base_planes_visible() };
+                let view = browser::BrowserView { doc_name: &self.shell.doc_name, bodies: &self.bodies, selection: &self.shell.selection, planes: &self.planes, sketches: &self.sketches, params: &self.param_views, origin_visible: self.viewport.base_planes_visible() };
                 browser::show(ui, ctx, tk, &mut self.browser, view, commands, events);
                 // the Origin eye turns the three base planes on and off (app.js:2435)
                 if let Some(v) = self.browser.take_origin_toggle() {
@@ -908,7 +935,7 @@ impl StlApp {
 
         // history bar along the bottom
         let bar = Rect::from_min_max(Pos2::new(ws.min.x + 8.0, ws.max.y - 8.0 - 36.0), Pos2::new(ws.max.x - 8.0, ws.max.y - 8.0));
-        Area::new(Id::new("history-bar")).order(Order::Middle).fixed_pos(bar.min).show(ctx, |ui| {
+        Area::new(Id::unique("history-bar")).order(Order::Middle).fixed_pos(bar.min).show(ctx, |ui| {
             panel_frame().inner_margin(Margin::ZERO).show(ui, |ui| {
                 ui.set_width(bar.width() - 2.0);
                 ui.set_height(34.0);
@@ -933,7 +960,7 @@ impl StlApp {
         // hint line
         if !self.shell.hint.is_empty() {
             let pos = Pos2::new(ws.center().x, ws.max.y - 54.0);
-            Area::new(Id::new("hint")).order(Order::Middle).interactable(false).pivot(Align2::CENTER_BOTTOM).fixed_pos(pos).show(ctx, |ui| {
+            Area::new(Id::unique("hint")).order(Order::Middle).interactable(false).pivot(Align2::CENTER_BOTTOM).fixed_pos(pos).show(ctx, |ui| {
                 Frame::new().fill(tk.float).stroke(Stroke::new(1.0, tk.line)).corner_radius(CornerRadius::same(14)).shadow(tk.shadow).inner_margin(Margin::symmetric(12, 5)).show(ui, |ui| {
                     ui.set_max_width(ws.width() * 0.6);
                     ui.label(RichText::new(self.shell.hint.as_str()).size(12.0).color(tk.strong));
@@ -942,7 +969,7 @@ impl StlApp {
         }
         // HUD (1.x leaves it empty; the sketch HUD is 4c)
         if let Some(h) = &self.shell.hud {
-            Area::new(Id::new("hud")).order(Order::Middle).interactable(false).fixed_pos(ws.min + Vec2::new(256.0, 8.0)).show(ctx, |ui| {
+            Area::new(Id::unique("hud")).order(Order::Middle).interactable(false).fixed_pos(ws.min + Vec2::new(256.0, 8.0)).show(ctx, |ui| {
                 Frame::new().fill(tk.float).stroke(Stroke::new(1.0, tk.line)).corner_radius(CornerRadius::same(tk.radius as u8)).shadow(tk.shadow).inner_margin(Margin::symmetric(10, 6)).show(ui, |ui| {
                     ui.set_min_width(160.0);
                     ui.label(RichText::new(h.as_str()).size(12.0).color(tk.text));
@@ -951,7 +978,7 @@ impl StlApp {
         }
         // drop overlay while a file is dragged over the window
         if self.shell.dragging_files {
-            Area::new(Id::new("drop-overlay")).order(Order::Foreground).interactable(false).fixed_pos(ws.min).show(ctx, |ui| {
+            Area::new(Id::unique("drop-overlay")).order(Order::Foreground).interactable(false).fixed_pos(ws.min).show(ctx, |ui| {
                 let (r, _) = ui.allocate_exact_size(ws.size(), Sense::hover());
                 ui.painter().rect_filled(r, 0.0, tk.accent_soft);
                 let dash = Stroke::new(3.0, tk.accent);

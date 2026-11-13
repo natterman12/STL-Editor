@@ -25,9 +25,15 @@ use stl_kernel::MeshArrays;
 
 #[path = "support/wgpu_renderer.rs"]
 mod wgpu_renderer;
+#[path = "support/gpu.rs"]
+mod gpu;
 
 fn empty_mesh() -> Arc<MeshArrays> {
     Arc::new(MeshArrays { positions: Vec::new(), triangles: Vec::new() })
+}
+
+fn param_view(name: &str, v: f64) -> ParamView {
+    ParamView { name: name.into(), expr: format!("{v}"), note: String::new(), value: Some(v), error: None, used: false }
 }
 
 fn test_body(id: &str, name: &str, hidden: bool) -> BodyView {
@@ -113,7 +119,7 @@ struct BrowserUi {
     sketches: Vec<SketchView>,
     selection: Vec<String>,
     origin_visible: bool,
-    param_count: usize,
+    params: Vec<ParamView>,
     dark: bool,
     commands: Rc<RefCell<Vec<Command>>>,
     events: Rc<RefCell<Vec<UiEvent>>>,
@@ -131,7 +137,7 @@ impl BrowserUi {
             origin_visible: self.origin_visible,
             planes: &self.planes,
             sketches: &self.sketches,
-            param_count: self.param_count,
+            params: &self.params,
         };
         show_browser(
             ui,
@@ -422,7 +428,7 @@ fn browser_hide_body() {
             sketches: Vec::new(),
             selection: Vec::new(),
             origin_visible: true,
-            param_count: 0,
+            params: Vec::new(),
             dark: true,
             commands: commands.clone(),
             events: Rc::new(RefCell::new(Vec::new())),
@@ -453,7 +459,7 @@ fn browser_rename_body() {
             sketches: Vec::new(),
             selection: Vec::new(),
             origin_visible: true,
-            param_count: 0,
+            params: Vec::new(),
             dark: true,
             commands: commands.clone(),
             events: Rc::new(RefCell::new(Vec::new())),
@@ -482,7 +488,7 @@ fn browser_select_body() {
             sketches: Vec::new(),
             selection: Vec::new(),
             origin_visible: true,
-            param_count: 0,
+            params: Vec::new(),
             dark: true,
             commands: Rc::new(RefCell::new(Vec::new())),
             events: events.clone(),
@@ -507,7 +513,7 @@ fn browser_origin_eye() {
             sketches: Vec::new(),
             selection: Vec::new(),
             origin_visible: true,
-            param_count: 0,
+            params: Vec::new(),
             dark: true,
             commands: Rc::new(RefCell::new(Vec::new())),
             events: Rc::new(RefCell::new(Vec::new())),
@@ -540,7 +546,7 @@ fn browser_lists_planes_and_sketches() {
             sketches: vec![SketchView { id: "s1".into(), name: "Sketch1".into(), plane: "Top".into(), hidden: false, ..Default::default() }],
             selection: Vec::new(),
             origin_visible: true,
-            param_count: 2,
+            params: vec![param_view("dx", 5.0), param_view("spare", 1.0)],
             dark: true,
             commands: Rc::new(RefCell::new(Vec::new())),
             events: Rc::new(RefCell::new(Vec::new())),
@@ -593,7 +599,7 @@ fn browser_basic_fixture_context_colour() {
             sketches: Vec::new(),
             selection: Vec::new(),
             origin_visible: true,
-            param_count: 1,
+            params: vec![param_view("dx", 5.0)],
             dark: true,
             commands: Rc::new(RefCell::new(Vec::new())),
             events: Rc::new(RefCell::new(Vec::new())),
@@ -616,7 +622,7 @@ fn params_edit_expr() {
     let mut params = Params::default();
     params.set_open(true);
     let mut harness = Harness::builder()
-        .with_size(egui::vec2(560.0, 220.0))
+        .with_size(egui::vec2(800.0, 340.0))
         .with_accessibility_check(false)
         .build_ui_state(
         |ui, st: &mut ParamsUi| st.draw(ui),
@@ -659,7 +665,7 @@ fn params_edit_expr() {
 #[test]
 fn params_resolved_shows_used_marker() {
     let mut harness = Harness::builder()
-        .with_size(egui::vec2(560.0, 220.0))
+        .with_size(egui::vec2(800.0, 340.0))
         .with_accessibility_check(false)
         .build_ui_state(
         |ui, st: &mut ParamsUi| st.draw(ui),
@@ -700,7 +706,7 @@ fn params_resolved_shows_used_marker() {
 fn params_cancel_closes() {
     let commands = Rc::new(RefCell::new(Vec::new()));
     let mut harness = Harness::builder()
-        .with_size(egui::vec2(560.0, 220.0))
+        .with_size(egui::vec2(800.0, 340.0))
         .with_accessibility_check(false)
         .build_ui_state(
         |ui, st: &mut ParamsUi| st.draw(ui),
@@ -938,7 +944,7 @@ fn browser_marks_a_body_that_is_not_watertight() {
             sketches: Vec::new(),
             selection: Vec::new(),
             origin_visible: true,
-            param_count: 0,
+            params: Vec::new(),
             dark: true,
             commands: Rc::new(RefCell::new(Vec::new())),
             events: Rc::new(RefCell::new(Vec::new())),
@@ -956,7 +962,7 @@ fn browser_marks_a_body_that_is_not_watertight() {
 fn params_show_the_1x_hint_and_three_decimals() {
     let mut params = Params::default();
     params.set_open(true);
-    let mut harness = Harness::builder().with_size(egui::vec2(560.0, 260.0)).with_accessibility_check(false).build_ui_state(
+    let mut harness = Harness::builder().with_size(egui::vec2(800.0, 340.0)).with_accessibility_check(false).build_ui_state(
         |ui, st: &mut ParamsUi| st.draw(ui),
         ParamsUi {
             params,
@@ -974,6 +980,89 @@ fn params_show_the_1x_hint_and_three_decimals() {
     harness.state_mut().views = vec![ParamView { name: "r".into(), expr: "7".into(), value: Some(7.0), ..Default::default() }];
     harness.run();
     harness.get_by_label("= 7");
+}
+
+#[test]
+fn params_dialog_matches_1x_layout() {
+    let long_note = "X shift for the second blob";
+    let mut params = Params::default();
+    params.set_open(true);
+    let mut harness = Harness::builder().with_size(egui::vec2(800.0, 340.0)).with_accessibility_check(false).build_ui_state(
+        |ui, st: &mut ParamsUi| st.draw(ui),
+        ParamsUi {
+            params,
+            views: vec![
+                ParamView { name: "dx".into(), expr: "=width/2 + 3".into(), note: long_note.into(), value: Some(5.0), ..Default::default() },
+                ParamView { name: "spare_length".into(), expr: "1".into(), note: "unused".into(), value: Some(1.0), ..Default::default() },
+            ],
+            used: HashSet::new(),
+            dark: true,
+            commands: Rc::new(RefCell::new(Vec::new())),
+        },
+    );
+    harness.run();
+    // like 1.x: Cancel then Apply at the bottom right, below "+ Add parameter"
+    let add = harness.get_by_label("+ Add parameter").rect();
+    let cancel = harness.get_by_label("Cancel").rect();
+    let apply = harness.get_by_label("Apply").rect();
+    assert!(cancel.max.x < apply.min.x, "Cancel is left of Apply: {cancel:?} {apply:?}");
+    assert!(apply.min.y > add.max.y && cancel.min.y > add.max.y, "the action row is below the add button");
+    assert!((apply.center().y - cancel.center().y).abs() < 1.0, "one row");
+    // the table is as wide as 1.x's card (720 px): Apply ends at its right edge, Add starts at its left
+    assert!(apply.max.x - add.min.x > 700.0, "buttons span the card: {add:?} {apply:?}");
+    // the cells are as wide as 1.x's, so the text is not cut off
+    let cells: Vec<_> = harness.get_all_by_role(egui::accesskit::Role::TextInput).collect();
+    let find = |v: &str| cells.iter().find(|n| n.value().as_deref() == Some(v)).unwrap_or_else(|| panic!("no field {v:?}")).rect();
+    assert!(find("spare_length").width() >= 150.0, "name cell width {:?}", find("spare_length"));
+    assert!(find("=width/2 + 3").width() >= 178.0, "value cell width {:?}", find("=width/2 + 3"));
+    assert!(find(long_note).width() >= 174.0, "note cell width {:?}", find(long_note));
+    // and the long note really fits in its cell
+    let font = egui::FontId::proportional(13.0);
+    let need = harness.ctx.fonts_mut(|f| f.layout_no_wrap(long_note.into(), font, egui::Color32::WHITE).size().x);
+    assert!(need + 10.0 <= find(long_note).width(), "{long_note:?} needs {need}px");
+}
+
+/// The dialog as a picture (snapshot), dark and light; skipped without a GPU adapter.
+#[test]
+fn params_dialog_snapshots_dark_light() {
+    let Some(gpu) = gpu::headless() else {
+        eprintln!("no GPU adapter: skipped params snapshots");
+        return;
+    };
+    for (dark, name) in [(true, "params_dialog_dark"), (false, "params_dialog_light")] {
+        let renderer = wgpu_renderer::WgpuRenderer::new(gpu.render_state.clone());
+        let mut harness = Harness::builder()
+            .with_size(egui::vec2(780.0, 300.0))
+            .with_render_cursor(false)
+            .with_accessibility_check(false)
+            .renderer(renderer)
+            .build_ui_state(
+                |ui, st: &mut ParamsUi| {
+                    ui.painter().rect_filled(ui.max_rect(), 0.0, theme::tokens(st.dark).panel);
+                    ui.add_space(14.0);
+                    st.draw(ui);
+                },
+                ParamsUi {
+                    params: {
+                        let mut p = Params::default();
+                        p.set_open(true);
+                        p
+                    },
+                    views: vec![
+                        ParamView { name: "dx".into(), expr: "5".into(), note: "X shift".into(), value: Some(5.0), ..Default::default() },
+                        ParamView { name: "spare".into(), expr: "1".into(), note: "unused".into(), value: Some(1.0), ..Default::default() },
+                    ],
+                    used: HashSet::from(["dx".to_string()]),
+                    dark,
+                    commands: Rc::new(RefCell::new(Vec::new())),
+                },
+            );
+        harness.run();
+        gpu::snapshot_2d(&mut harness, &gpu, name);
+        let errors: Vec<String> = harness.take_snapshot_results().into_inner().iter().map(|e| e.to_string()).collect();
+        assert!(errors.is_empty(), "{}", errors.join("
+"));
+    }
 }
 
 #[test]
@@ -999,9 +1088,7 @@ fn status_line_with_long_multibyte_text_does_not_panic() {
 }
 
 fn panel_picture(dark: bool) -> Option<image::RgbaImage> {
-    use stl_app::viewport::renderer::Headless;
-
-    let gpu = Headless::new()?;
+    let gpu = gpu::headless()?;
     let renderer = wgpu_renderer::WgpuRenderer::new(gpu.render_state.clone());
     let commands = Rc::new(RefCell::new(Vec::new()));
     let mut harness = Harness::builder()
@@ -1073,7 +1160,7 @@ fn params_undo_and_removing_a_used_parameter_with_the_engine() {
     let commands = Rc::new(RefCell::new(Vec::new()));
     let mut params = Params::default();
     params.set_open(true);
-    let mut harness = Harness::builder().with_size(egui::vec2(640.0, 260.0)).with_accessibility_check(false).build_ui_state(
+    let mut harness = Harness::builder().with_size(egui::vec2(800.0, 340.0)).with_accessibility_check(false).build_ui_state(
         |ui, st: &mut ParamsUi| st.draw(ui),
         ParamsUi {
             params,

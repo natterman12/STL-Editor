@@ -544,7 +544,9 @@ impl GpuState {
                 cull: Some(wgpu::Face::Front),
                 depth_write: true,
                 compare: Greater,
-                bias: NO_BIAS,
+                // pushed back like the bodies (three's polygonOffset 1, 1), so grid lines on the
+                // cap's plane (a part standing on the bed) win cleanly instead of z-fighting
+                bias: BODY_BIAS,
                 blend: None,
             },
         );
@@ -892,7 +894,9 @@ impl GpuState {
                 pass.draw(bt.range.clone(), 0..1);
             }
         };
-        // 2. the grid (renderOrder -1)
+        // 2. the grid (renderOrder -1), depth-tested against the bodies and the cap as in 1.x:
+        // it shows on the cut face where the cap's back faces lie on or under the grid's plane.
+        // That is the "hatch" on 1.x's cut faces (viewer.js's cap itself is a flat #d06060).
         draw_batches(&mut pass, &|o| o < 0);
         // 3. see-through bodies and every body's edges, back to front
         let mut order: Vec<&BodyDraw> = frame.bodies.iter().filter(|d| d.visible).collect();

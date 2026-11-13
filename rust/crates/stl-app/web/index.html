@@ -19,7 +19,45 @@
     const pass = function (fn) { return fn; };
     if (typeof WebAssembly.Suspending !== "function") WebAssembly.Suspending = pass;
     if (typeof WebAssembly.promising !== "function") WebAssembly.promising = pass;
-    const { default: init, stl_browser_body_count } = await import("./stl-app.js");
+    // Headless check only: read the viewport's pixels back from the canvas. The app calls this
+    // from a microtask right after it painted a frame, while the canvas still holds that frame.
+    // `label` "off" keeps the pixels; "on" also counts how many pixels in the middle of the view
+    // differ from the "off" grab (the viewcube corner is left out, its button changes by itself).
+    const grabs = {};
+    globalThis.__stlGrab = (label, x, y, w, h) => {
+      const canvas = document.getElementById("stl-canvas");
+      x = Math.min(x, canvas.width - 1);
+      y = Math.min(y, canvas.height - 1);
+      w = Math.max(1, Math.min(w, canvas.width - x));
+      h = Math.max(1, Math.min(h, canvas.height - y));
+      const flat = document.createElement("canvas");
+      flat.width = canvas.width;
+      flat.height = canvas.height;
+      const ctx = flat.getContext("2d", { willReadFrequently: true });
+      ctx.drawImage(canvas, 0, 0);
+      const img = ctx.getImageData(x, y, w, h);
+      const px = new Uint32Array(img.data.buffer);
+      const counts = new Map();
+      let top = 0;
+      for (let i = 0; i < px.length; i++) {
+        const n = (counts.get(px[i]) || 0) + 1;
+        counts.set(px[i], n);
+        if (n > top) top = n;
+      }
+      grabs[label] = { px, w, h };
+      let differ = -1;
+      if (label !== "off" && grabs.off && grabs.off.w === w && grabs.off.h === h) {
+        differ = 0;
+        const a = grabs.off.px;
+        for (let yy = Math.floor(h * 0.15); yy < Math.floor(h * 0.85); yy++) {
+          for (let xx = Math.floor(w * 0.15); xx < Math.floor(w * 0.85); xx++) {
+            if (a[yy * w + xx] !== px[yy * w + xx]) differ++;
+          }
+        }
+      }
+      return JSON.stringify({ w, h, distinct: counts.size, mode: top / px.length, differ });
+    };
+    const { default: init, stl_browser_body_count, stl_check_status } = await import("./stl-app.js");
     await init();
     const q = new URLSearchParams(location.search);
     if (q.get("report") === "1") {
@@ -36,6 +74,19 @@
           break;
         }
         await new Promise((r) => setTimeout(r, 50));
+      }
+      // `full=1`: also wait for the backend, pick and section-view result (a count, then
+      // "ok:<backend>:<bodies hit>" or "error:...", joined by "|").
+      if (q.get("full") === "1" && !shown.startsWith("error:")) {
+        let status = "";
+        const until = performance.now() + 60000;
+        while (performance.now() < until) {
+          if (globalThis.__STL_CHECK_ERROR__) { status = "error:" + globalThis.__STL_CHECK_ERROR__; break; }
+          status = stl_check_status();
+          if (status) break;
+          await new Promise((r) => setTimeout(r, 50));
+        }
+        shown = shown + "|" + (status || "error:timed out waiting for the pick and section check");
       }
       await fetch("/__report", { method: "POST", body: shown });
     }

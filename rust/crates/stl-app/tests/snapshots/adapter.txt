@@ -1,0 +1,5 @@
+# The GPU adapter these snapshots were recorded on: name | backend | device type, as wgpu reports
+# them. 3D views are compared with their snapshots only on this adapter; elsewhere (CI's software
+# rasterizer, another GPU) the tests' structural checks run instead, and pictures of egui alone
+# are compared with a small tolerance. See tests/support/gpu.rs.
+NVIDIA GeForce RTX 3080 Ti | Vulkan | DiscreteGpu

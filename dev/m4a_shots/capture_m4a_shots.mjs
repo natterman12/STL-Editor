@@ -7,14 +7,15 @@
  *   node dev/m4a_shots/capture_m4a_shots.mjs
  */
 import { spawn } from 'node:child_process';
-import { access, mkdir, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from '../../tests/ui/node_modules/playwright/index.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
-const OUT = path.join(ROOT, 'dev/out/m4a-shots');
+const OUT = process.env.M4A_SHOTS_OUT ? path.resolve(process.env.M4A_SHOTS_OUT) : path.join(ROOT, 'dev/out/m4a-shots');
 const SIZE = { width: 1280, height: 800 };
 const PROJECT = path.join(ROOT, 'rust/tests/projects/basic.stlx');
 const WEB_URL = 'http://127.0.0.1:8790/index.html?web';
@@ -69,9 +70,23 @@ function startServe() {
   });
 }
 
+/** Waits until 1.x has really finished: no "Working..." overlay, every body drawn, viewer idle. */
 async function waitIdle(page) {
-  await page.waitForFunction(() => window.app && !window.app.busy, null, { timeout: 120000 });
-  await page.waitForTimeout(350);
+  await page.waitForFunction(
+    () => {
+      const a = window.app;
+      if (!a || !a.viewer || !a.state) return false;
+      const busy = document.getElementById('busy');
+      if (busy && !busy.classList.contains('hidden')) return false;
+      if (!document.getElementById('modal')?.classList.contains('hidden') && window.__allowModal !== true) return false;
+      return a.state.bodies.every((b) => a.viewer.bodies.has(b.id)) && !a.viewer._raf;
+    },
+    null,
+    { timeout: 120000 },
+  );
+  // two animation frames so the last render has reached the screen
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+  await page.waitForTimeout(250);
 }
 
 async function setTheme1x(page, theme) {
@@ -80,6 +95,8 @@ async function setTheme1x(page, theme) {
     if (window.app && window.app.setTheme) window.app.setTheme(th);
   }, theme);
   await page.waitForTimeout(200);
+  const got = await page.evaluate(() => document.documentElement.dataset.theme);
+  if (got !== theme) throw new Error(`theme ${theme} not applied (got ${got})`);
 }
 
 async function openProject1x(page) {
@@ -104,6 +121,7 @@ async function openProject1x(page) {
   await page.evaluate(async () => {
     await window.app.cmd('open', { force: true });
   });
+  await page.waitForFunction(() => window.app.state.bodies.length > 0, null, { timeout: 120000 });
   await waitIdle(page);
   await page.evaluate(() => {
     if (window.app.viewer && window.app.viewer.setView) window.app.viewer.setView('iso');
@@ -121,29 +139,46 @@ async function applyState1x(page, state) {
         /* empty start page is fine */
       }
     });
-    await page.waitForTimeout(400);
+    await waitIdle(page);
     return;
   }
   await openProject1x(page);
   if (state === 'project') return;
+  const info = await page.evaluate(() => ({
+    bodies: window.app.state.bodies.map((b) => b.id),
+    rollback: window.app.state.rollback ?? null,
+    features: window.app.state.features.length,
+  }));
+  if (!info.bodies.length) throw new Error(`${state}: project opened but has no bodies`);
   if (state === 'rename') {
-    await page.evaluate(() => {
-      const row = document.querySelector('#tree .nm, #browser .nm, .tree .body .nm');
-      if (row) row.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
-    });
-    await page.waitForTimeout(400);
-  } else if (state === 'timeline') {
-    await page.evaluate(async () => {
-      const { post } = await import('/js/api.js');
-      await post('rollback', { index: 1 }, { quiet: true });
-    });
+    // what a double-click on a body row does (the tree re-renders between the clicks, so a
+    // synthetic dblclick is unreliable): open the Rename prompt, type a name, press Enter
+    await page.evaluate((id) => {
+      window.app.renameBody(id);
+    }, info.bodies[0]);
+    await page.waitForSelector('#modal:not(.hidden) input', { timeout: 10000 });
+    await page.fill('#modal input', 'Renamed body');
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => !document.querySelector('#modal:not(.hidden)'), null, { timeout: 10000 });
     await waitIdle(page);
+    const names = await page.$$eval('#tree [data-body] .nm', (n) => n.map((x) => x.textContent));
+    if (!names.includes('Renamed body')) throw new Error(`rename: tree shows ${JSON.stringify(names)}`);
+  } else if (state === 'timeline') {
+    await page.click('#tl-prev');
+    await waitIdle(page);
+    const after = await page.evaluate(() => window.app.state.rollback ?? null);
+    if (after === info.rollback) throw new Error(`timeline: rollback did not move (${info.rollback})`);
   } else if (state === 'parameters') {
-    await page.evaluate(() => window.app.cmd('params'));
-    await page.waitForTimeout(400);
+    await page.evaluate(() => {
+      window.__allowModal = true;
+      window.app.editParams();
+    });
+    await page.waitForSelector('#modal:not(.hidden) table.params', { timeout: 10000 });
+    await page.waitForTimeout(300);
   } else if (state === 'section') {
-    await page.evaluate(() => window.app.cmd('section'));
-    await page.waitForTimeout(500);
+    await page.click('#btn-section');
+    await page.waitForFunction(() => window.app.sectionOn === true, null, { timeout: 10000 });
+    await waitIdle(page);
   }
 }
 
@@ -199,6 +234,29 @@ async function capture1x() {
   }
 }
 
+/** states_differ: within one theme and edition, no two states may give identical images. */
+async function statesDiffer(edition) {
+  const bad = [];
+  let checked = 0;
+  for (const theme of THEMES) {
+    const seen = new Map();
+    for (const state of STATES) {
+      const p = path.join(OUT, `${state}_${theme}_${edition}.png`);
+      if (!(await exists(p))) continue;
+      checked++;
+      const h = createHash('sha256').update(await readFile(p)).digest('hex');
+      if (seen.has(h)) bad.push(`${edition}/${theme}: ${seen.get(h)} and ${state} are identical`);
+      else seen.set(h, state);
+    }
+  }
+  if (bad.length) {
+    for (const b of bad) console.error(`states_differ FAILED: ${b}`);
+    return false;
+  }
+  log(`states_differ ok (${edition}, ${checked} images)`);
+  return true;
+}
+
 async function main() {
   await mkdir(OUT, { recursive: true });
   await capture1x();
@@ -216,6 +274,9 @@ async function main() {
     log(`note: ${missing2x.length} 2.0 shots not present yet (run cargo test -p stl-app --test m4a_shots -- --ignored)`);
   }
   log(`index: ${path.join(OUT, 'index.md')}`);
+  let ok = await statesDiffer('1x');
+  if (missing2x.length === 0) ok = (await statesDiffer('2x')) && ok;
+  if (!ok) process.exit(1);
 }
 
 main().catch((e) => {

@@ -56,7 +56,7 @@ pub fn show(ctx: &Context, tokens: &Tokens, state: &mut Busy, commands: &mut Vec
         state.label.clone()
     };
 
-    egui::Area::new(egui::Id::new("busy_overlay"))
+    egui::Area::new(egui::Id::unique("busy_overlay"))
         .order(egui::Order::Foreground)
         .fixed_pos(screen.left_top())
         .show(ctx, |ui| {
@@ -76,7 +76,7 @@ pub fn show(ctx: &Context, tokens: &Tokens, state: &mut Busy, commands: &mut Vec
                 ui.painter().line_segment([p0, p1], egui::Stroke::new(3.0, col));
             }
 
-            egui::Area::new(egui::Id::new("busy_pill"))
+            egui::Area::new(egui::Id::unique("busy_pill"))
                 .order(egui::Order::Foreground)
                 .fixed_pos(center + egui::vec2(0.0, 40.0))
                 .pivot(egui::Align2::CENTER_CENTER)

@@ -72,7 +72,7 @@ fn main() -> ExitCode {
             }
         },
         _ => {
-            eprintln!("usage: cargo run -p xtask -- pure-rust | cargo run --release -p xtask -- bench | cargo run --release -p xtask -- uibench [--quick] | cargo run -p xtask -- web [--serve]");
+            eprintln!("usage: cargo run -p xtask -- pure-rust | cargo run --release -p xtask -- bench | cargo run --release -p xtask -- uibench [--quick] | cargo run -p xtask -- web [--serve | --check [--webgl2]]");
             ExitCode::FAILURE
         }
     }

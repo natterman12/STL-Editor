@@ -21,7 +21,7 @@ fn bold(size: f32) -> egui::FontId {
 pub fn show(ctx: &egui::Context, tk: &Tokens, workspace: Rect, recent: &[String]) -> Option<StartPick> {
     let mut pick = None;
     let centre = Pos2::new(workspace.center().x, workspace.center().y - 22.0);
-    Area::new(Id::new("start-page")).order(Order::Middle).pivot(Align2::CENTER_CENTER).fixed_pos(centre).show(ctx, |ui| {
+    Area::new(Id::unique("start-page")).order(Order::Middle).pivot(Align2::CENTER_CENTER).fixed_pos(centre).show(ctx, |ui| {
         Frame::new()
             .fill(tk.panel)
             .stroke(Stroke::new(1.0, tk.line))
@@ -55,7 +55,7 @@ pub fn show(ctx: &egui::Context, tk: &Tokens, workspace: Rect, recent: &[String]
                     for p in recent.iter().take(6) {
                         let name = p.rsplit(['/', '\\']).next().unwrap_or(p);
                         let (r, resp) = ui.allocate_exact_size(Vec2::new(ui.available_width().min(420.0), 22.0), Sense::click());
-                        resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, name));
+                        resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, name));
                         if resp.hovered() {
                             ui.painter().rect_filled(r, CornerRadius::same(4), tk.hover);
                         }
@@ -76,7 +76,7 @@ pub fn show(ctx: &egui::Context, tk: &Tokens, workspace: Rect, recent: &[String]
                     let r = ui.add(egui::Label::new(RichText::new("Support STL Editor ").size(11.5).color(tk.muted)).sense(Sense::click()));
                     ui.add_space(3.0);
                     ui.label(RichText::new("♥").size(11.5).color(tk.heart));
-                    r.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Link, true, "Support STL Editor"));
+                    r.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Link, true, "Support STL Editor"));
                     if r.clicked() {
                         pick = Some(StartPick::OpenUrl(KOFI.into()));
                     }

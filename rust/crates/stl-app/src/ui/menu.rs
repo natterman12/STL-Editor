@@ -81,7 +81,7 @@ pub fn show(ctx: &egui::Context, tk: &Tokens, m: &mut OpenMenu) -> MenuResult {
     let mut result = MenuResult::None;
     let frame_no = ctx.cumulative_pass_nr();
     let first = *m.opened_at.get_or_insert(frame_no);
-    let area = Area::new(Id::new("stl-menu")).order(Order::Foreground).fixed_pos(m.pos).constrain(true).show(ctx, |ui| {
+    let area = Area::new(Id::unique("stl-menu")).order(Order::Foreground).fixed_pos(m.pos).constrain(true).show(ctx, |ui| {
         Frame::new()
             .fill(tk.panel)
             .stroke(Stroke::new(1.0, tk.line))
@@ -119,7 +119,7 @@ fn rows(ui: &mut Ui, tk: &Tokens, m: &mut OpenMenu, result: &mut MenuResult) {
                 ui.painter().galley(r.min + Vec2::new(10.0, 4.0), g, tk.muted);
             }
             MenuItem::Item { id, label, icon, key, dis, title } => {
-                // "✓ Light": the fonts have no check glyph, so the mark is drawn
+                // "✓ Light": the mark is drawn instead of typed
                 let (checked, label) = match label.strip_prefix("✓ ") {
                     Some(l) => (true, l.to_owned()),
                     None => (false, label),
@@ -128,7 +128,7 @@ fn rows(ui: &mut Ui, tk: &Tokens, m: &mut OpenMenu, result: &mut MenuResult) {
                 let label_g = ui.painter().layout_no_wrap(label.clone(), egui::FontId::proportional(12.0), tk.text);
                 let w = (10.0 + if checked { 12.0 } else { 0.0 } + if icon.is_some() { 25.0 } else { 0.0 } + label_g.size().x + key_w + 12.0).max(ui.available_width());
                 let (r, resp) = ui.allocate_exact_size(Vec2::new(w, 26.0), if dis { Sense::hover() } else { Sense::click() });
-                resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, !dis, label.clone()));
+                resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, !dis, label.clone()));
                 let hot = !dis && (resp.hovered() || m.hot == Some(i));
                 let (fg, k_fg) = if hot { (tk.sel_text, tk.sel_text.gamma_multiply(0.8)) } else { (tk.text, tk.muted) };
                 let alpha = if dis { 0.4 } else { 1.0 };

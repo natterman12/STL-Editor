@@ -10,10 +10,12 @@ use std::time::Instant;
 
 use stl_app::engine_link::{BodyView, PlaneView};
 use stl_app::viewport::pick::Hit;
-use stl_app::viewport::renderer::Headless;
 use stl_app::viewport::{PlaneFrame, PreviewMesh, PreviewPack, Viewport};
 use stl_kernel::MeshArrays;
 use stl_mesh::bvh::ray_triangle;
+
+#[path = "support/gpu.rs"]
+mod gpu;
 
 fn close(a: [f64; 3], b: [f64; 3], tol: f64) -> bool {
     a.iter().zip(b).all(|(p, q)| (p - q).abs() <= tol)
@@ -410,7 +412,7 @@ fn body_just_behind_a_plane_wins() {
 
 #[test]
 fn pick_uses_the_revision_on_screen() {
-    let Some(gpu) = Headless::new() else {
+    let Some(gpu) = gpu::headless() else {
         eprintln!("no GPU adapter: skipped");
         return;
     };

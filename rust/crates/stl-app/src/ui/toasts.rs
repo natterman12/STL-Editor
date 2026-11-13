@@ -64,7 +64,7 @@ pub fn show(ctx: &Context, tokens: &Tokens, state: &mut Toasts) {
     }
 
     let screen = ctx.content_rect();
-    egui::Area::new(egui::Id::new("toasts"))
+    egui::Area::new(egui::Id::unique("toasts"))
         .order(egui::Order::Foreground)
         .fixed_pos(egui::pos2(screen.right() - 14.0, screen.bottom() - 56.0))
         .pivot(egui::Align2::RIGHT_BOTTOM)

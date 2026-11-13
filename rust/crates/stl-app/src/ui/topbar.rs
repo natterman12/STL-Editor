@@ -72,8 +72,8 @@ pub fn show(ui: &mut Ui, tk: &Tokens, st: &mut TopbarState) -> TopbarOut {
     for (k, l) in MENUS {
         let tw = ui.painter().layout_no_wrap(l.into(), FontId::proportional(12.0), tk.chrome_text).size().x;
         let r = Rect::from_min_size(Pos2::new(x, cy - 12.0), Vec2::new(tw + 18.0, 24.0));
-        let resp = ui.interact(r, ui.id().with(("menu-btn", k)), Sense::click());
-        resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, l));
+        let resp = ui.interact(r, ui.scope_id().with(("menu-btn", k)), Sense::click());
+        resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, l));
         let open = st.open_menu == Some(k);
         let col = if open || resp.hovered() {
             ui.painter().rect_filled(r, CornerRadius::same(tk.radius_sm as u8), tk.chrome_hover);
@@ -103,9 +103,9 @@ pub fn show(ui: &mut Ui, tk: &Tokens, st: &mut TopbarState) -> TopbarOut {
             x += 9.0;
         }
         let r = Rect::from_min_size(Pos2::new(x, cy - 12.0), Vec2::new(26.0, 24.0));
-        let resp = ui.interact(r, ui.id().with(("quick", *key)), if *enabled { Sense::click() } else { Sense::hover() });
+        let resp = ui.interact(r, ui.scope_id().with(("quick", *key)), if *enabled { Sense::click() } else { Sense::hover() });
         let label = tip.split(" (").next().unwrap_or(tip);
-        resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, *enabled, label));
+        resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, *enabled, label));
         let hot = *enabled && resp.hovered();
         if hot {
             ui.painter().rect_filled(r, CornerRadius::same(tk.radius_sm as u8), tk.chrome_hover);
@@ -124,7 +124,7 @@ pub fn show(ui: &mut Ui, tk: &Tokens, st: &mut TopbarState) -> TopbarOut {
     x += 9.0;
 
     // search box (right)
-    let sid = Id::new(SEARCH_ID);
+    let sid = Id::unique(SEARCH_ID);
     let focused = ui.memory(|m| m.has_focus(sid));
     let sw = if focused { 260.0 } else { 210.0 };
     let sr = Rect::from_min_size(Pos2::new(bar.max.x - 8.0 - sw, cy - 11.0), Vec2::new(sw, 22.0));

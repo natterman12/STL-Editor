@@ -2,13 +2,30 @@
 
 use egui::{Color32, Context, RichText, Ui};
 
-use crate::engine_link::{BodyView, Command, PlaneView, SketchView};
+use crate::engine_link::{BodyView, Command, ParamView, PlaneView, SketchView};
 use crate::icons;
 use crate::theme::Tokens;
 use crate::ui::UiEvent;
 
-/// Default swatch when a body has no colour (`app.js` pickColor fallback, not a CSS token).
-const DEFAULT_BODY_RGB: [u8; 3] = [154, 167, 180]; // #9aa7b4
+/// The swatch colour of the body at `index`: exactly what the viewport draws for it. That is the
+/// user's colour, else the feature's (`BodyView.color` carries whichever the engine resolved), else
+/// the default body colour for that position; a body that isn't watertight is drawn `NOT_SOLID` pink.
+pub fn swatch_rgb(b: &BodyView, index: usize) -> [u8; 3] {
+    crate::viewport::body_color(b, index)
+}
+
+/// 1.x's `num()` (app.js:33): rounded to three decimals, no trailing zeros.
+pub fn fmt_num(v: f64) -> String {
+    format!("{}", (v * 1000.0).round() / 1000.0)
+}
+
+/// The text of a Parameters row in the tree: `dx = 5`, or `dx = ?` when the value has an error.
+pub fn param_row_text(q: &ParamView) -> String {
+    match (&q.error, q.value) {
+        (Some(_), _) | (None, None) => format!("{} = ?", q.name),
+        (None, Some(v)) => format!("{} = {}", q.name, fmt_num(v)),
+    }
+}
 
 /// Local UI state for rename and colour pickers.
 #[derive(Clone, Debug, Default)]
@@ -45,16 +62,8 @@ pub struct BrowserView<'a> {
     pub origin_visible: bool,
     pub planes: &'a [PlaneView],
     pub sketches: &'a [SketchView],
-    pub param_count: usize,
-}
-
-fn parse_hex(s: &str) -> Option<[u8; 3]> {
-    let h = s.strip_prefix('#')?;
-    if h.len() != 6 {
-        return None;
-    }
-    let n = u32::from_str_radix(h, 16).ok()?;
-    Some([(n >> 16) as u8, (n >> 8) as u8, n as u8])
+    /// Listed under the Parameters folder, always expanded (1.x `renderTree`).
+    pub params: &'a [ParamView],
 }
 
 fn fmt_triangles(n: usize) -> String {
@@ -87,6 +96,7 @@ fn body_row(
     state: &mut Browser,
     b: &BodyView,
     selected: bool,
+    index: usize,
     selection: &[String],
     commands: &mut Vec<Command>,
     events: &mut Vec<UiEvent>,
@@ -102,7 +112,7 @@ fn body_row(
             commands.push(Command::BodyProps { id: b.id.clone(), name: None, color: None, hidden: Some(!b.hidden) });
         }
 
-        let rgb = b.color.as_deref().and_then(parse_hex).unwrap_or(DEFAULT_BODY_RGB);
+        let rgb = swatch_rgb(b, index);
         let swatch = Color32::from_rgb(rgb[0], rgb[1], rgb[2]);
         let sw_resp = ui
             .push_id(format!("browser_swatch_{}", b.id), |ui| {
@@ -201,7 +211,7 @@ pub fn show(
 ) {
     let planes = view.planes;
     let sketches = view.sketches;
-    let param_count = view.param_count;
+    let params = view.params;
     ui.horizontal(|ui| {
         ui.label(RichText::new("Browser").strong().color(tokens.strong).size(12.0));
         let n = view.bodies.len();
@@ -241,9 +251,9 @@ pub fn show(
             ui.label(RichText::new("Bodies").strong().color(tokens.label));
             ui.label(RichText::new(view.bodies.len().to_string()).color(tokens.muted).size(10.5));
         });
-        for b in view.bodies {
+        for (index, b) in view.bodies.iter().enumerate() {
             let selected = view.selection.contains(&b.id);
-            body_row(ui, ctx, tokens, state, b, selected, view.selection, commands, events);
+            body_row(ui, ctx, tokens, state, b, selected, index, view.selection, commands, events);
         }
 
         if !planes.is_empty() {
@@ -268,17 +278,35 @@ pub fn show(
             }
         }
 
-        if param_count > 0 {
+        if !params.is_empty() {
             ui.horizontal(|ui| {
                 ui.add_space(8.0 + 14.0);
                 let r = ui.add(
                     egui::Label::new(RichText::new("Parameters").strong().color(tokens.label)).sense(egui::Sense::click()),
                 );
-                ui.label(RichText::new(param_count.to_string()).color(tokens.muted).size(10.5));
+                ui.label(RichText::new(params.len().to_string()).color(tokens.muted).size(10.5));
                 if r.clicked() {
                     state.open_params = true;
                 }
             });
+            // always expanded, `name = value` (1.x lists them under the folder); a click opens the table
+            for q in params {
+                ui.horizontal(|ui| {
+                    ui.add_space(8.0 + 14.0 * 2.0);
+                    let colour = if q.error.is_some() { tokens.danger } else { tokens.text };
+                    let r = ui.push_id(format!("browser_param_{}", q.name), |ui| {
+                        ui.add(egui::Label::new(RichText::new(param_row_text(q)).color(colour)).sense(egui::Sense::click()))
+                    });
+                    let tip = q.error.as_deref().unwrap_or(q.note.as_str());
+                    let r = r.inner;
+                    if !tip.is_empty() {
+                        r.clone().on_hover_text(tip);
+                    }
+                    if r.clicked() {
+                        state.open_params = true;
+                    }
+                });
+            }
         }
 
         if !sketches.is_empty() {

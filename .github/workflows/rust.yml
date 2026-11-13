@@ -69,7 +69,17 @@ jobs:
 
       # Support Fins' webview host needs a display on Linux.
       - name: Test
-        run: ${{ runner.os == 'Linux' && 'xvfb-run -a ' || '' }}cargo test --workspace --release
+        run: ${{ runner.os == 'Linux' && 'xvfb-run -a ' || '' }}cargo test --workspace --release --no-fail-fast
+
+      - name: Upload snapshot differences
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: snapshot-diffs-${{ runner.os }}
+          path: |
+            rust/crates/stl-app/tests/snapshots/*.diff.png
+            rust/crates/stl-app/tests/snapshots/*.new.png
+          if-no-files-found: ignore
 
       - name: Support Fins cases on the WebView2 host
         if: runner.os == 'Windows'
@@ -207,6 +217,7 @@ jobs:
           workspaces: rust
 
       # eframe / wgpu / egui need X11, Wayland and xkbcommon headers on Linux.
+      # stl-platform (wry) needs WebKitGTK on Linux.
       - name: Install eframe / wgpu system libraries (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -220,6 +231,7 @@ jobs:
             libxi-dev \
             libgl1-mesa-dev \
             pkg-config \
+            libwebkit2gtk-4.1-dev \
             xvfb
         working-directory: .
 
@@ -261,6 +273,7 @@ jobs:
         with:
           workspaces: rust
 
+      # Host build of xtask pulls stl-platform (wry/WebKitGTK) via glib-sys.
       - name: Install eframe / wgpu system libraries
         run: |
           sudo apt-get update
@@ -272,7 +285,8 @@ jobs:
             libxrandr-dev \
             libxi-dev \
             libgl1-mesa-dev \
-            pkg-config
+            pkg-config \
+            libwebkit2gtk-4.1-dev
         working-directory: .
 
       - name: Install Chrome

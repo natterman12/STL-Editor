@@ -1,9 +1,10 @@
-//! `cargo run -p xtask -- web [--serve] [--check]`
+//! `cargo run -p xtask -- web [--serve] [--check [--webgl2]]`
 //!
 //! Builds the wasm app into `<CARGO_TARGET_DIR>/web/` with wasm-bindgen 0.2.130 (the same CLI
 //! the headless Chrome tests use) and, with `--serve`, serves it on localhost. `--check` opens
 //! the page in headless Chrome, loads a project fixture into the running app, and checks the
-//! body count the egui browser tree publishes.
+//! body count the egui browser tree publishes, picks across the view, turns the section view on
+//! and checks which graphics backend ran (WebGPU, or with `--webgl2` WebGPU off and WebGL2).
 
 use std::fs;
 use std::io::{Read, Write};
@@ -21,10 +22,14 @@ pub fn run(args: impl Iterator<Item = String>) -> Result<(), String> {
     let args: Vec<String> = args.collect();
     let serve = args.iter().any(|a| a == "--serve");
     let check = args.iter().any(|a| a == "--check");
+    let webgl2 = args.iter().any(|a| a == "--webgl2");
+    if webgl2 && !check {
+        return Err("--webgl2 goes with --check".into());
+    }
     let out = build()?;
     println!("web: built {}", out.display());
     if check {
-        return headless_check(&out);
+        return headless_check(&out, webgl2);
     }
     if serve {
         serve_forever(&out)?;
@@ -178,24 +183,34 @@ fn serve_forever(root: &Path) -> Result<(), String> {
     }
 }
 
-fn headless_check(root: &Path) -> Result<(), String> {
+fn headless_check(root: &Path, webgl2: bool) -> Result<(), String> {
     let fixture = fixture_file()?;
-    let expect = body_count(&fixture)?;
+    let fixture_bodies = fixture_bodies(&fixture)?;
+    let expect = fixture_bodies.len();
+    // The block is the body named like a block (the holed block in basic.stlx), else the first.
+    let block = fixture_bodies.iter().find(|(_, n)| n.to_lowercase().contains("block")).unwrap_or(&fixture_bodies[0]).0.clone();
+    let ids: Vec<&str> = fixture_bodies.iter().map(|(id, _)| id.as_str()).collect();
     let fixtures = fixture.parent().unwrap().to_path_buf();
     let name = fixture.file_name().and_then(|s| s.to_str()).unwrap_or("basic.stlx");
     let report = Arc::new(Mutex::new(None));
     let running = Arc::new(AtomicBool::new(true));
     let addr = serve_on(root, &fixtures, &report, &running, "127.0.0.1:0")?;
-    let url = format!("http://{addr}/?project=/fixtures/{name}&report=1");
-    println!("web: checking {url} (engine bodies: {expect})");
+    let url = format!("http://{addr}/?project=/fixtures/{name}&report=1&full=1&bodies={}&block={block}", ids.join(","));
+    println!("web: checking {url} (engine bodies: {expect}: {}; block: {block})", describe(&fixture_bodies));
     let chrome = find_chrome()?;
-    let profile = std::env::temp_dir().join("stl-editor-web-check");
+    let profile = std::env::temp_dir().join(if webgl2 { "stl-editor-web-check-webgl2" } else { "stl-editor-web-check" });
     let _ = fs::create_dir_all(&profile);
+    // WebGL2 mode: `--disable-features=WebGPU` alone leaves `navigator.gpu` in Chrome 157. With the GPU off
+    // (software WebGL via SwiftShader) `requestAdapter()` finds nothing and wgpu falls back to GL.
+    let gpu_flags: &[&str] = if webgl2 {
+        &["--disable-features=WebGPU", "--disable-gpu", "--enable-unsafe-swiftshader"]
+    } else {
+        &["--enable-unsafe-webgpu", "--enable-features=WebGPU"]
+    };
     let mut child = Command::new(&chrome)
+        .args(gpu_flags)
         .args([
             "--headless=new",
-            "--enable-unsafe-webgpu",
-            "--enable-features=WebGPU",
             "--window-size=1280,800",
             "--no-first-run",
             "--disable-extensions",
@@ -229,18 +244,46 @@ fn headless_check(root: &Path) -> Result<(), String> {
     if let Some(err) = text.strip_prefix("error:") {
         return Err(format!("the page reported: {err}"));
     }
-    let n: usize = text.trim().parse().map_err(|_| format!("the browser tree showed {text:?}, not a count"))?;
+    let (count, status) = text.split_once('|').unwrap_or((text.as_str(), ""));
+    let n: usize = count.trim().parse().map_err(|_| format!("the browser tree showed {count:?}, not a count"))?;
     if n != expect {
         return Err(format!("browser tree shows {n} bodies, the fixture has {expect}"));
     }
     println!("web: headless Chrome saw {n} bodies in the browser tree ({name})");
+    if let Some(err) = status.strip_prefix("error:") {
+        return Err(format!("the pick and section check failed: {err}"));
+    }
+    // "ok:<backend>:<details>"
+    let mut parts = status.strip_prefix("ok:").unwrap_or("").splitn(2, ':');
+    let backend = parts.next().unwrap_or("");
+    let details = parts.next().unwrap_or("");
+    let want = if webgl2 { "Gl" } else { "BrowserWebGpu" };
+    if backend != want {
+        return Err(format!("the viewport ran on {backend:?}, expected {want:?}{}", if webgl2 { "" } else { " (does this Chrome have WebGPU?)" }));
+    }
+    if !details.contains(&format!("block={block}@centre")) {
+        return Err(format!("the page did not report a pick at the centre of the block {block} that hit it: {details:?}"));
+    }
+    if !details.contains("section differs in") {
+        return Err(format!("the page did not report the section view readback: {details:?}"));
+    }
+    println!("web: backend {backend}; {details}");
     Ok(())
 }
 
-fn body_count(path: &Path) -> Result<usize, String> {
+fn describe(bodies: &[(String, String)]) -> String {
+    bodies.iter().map(|(id, name)| format!("{id}={name}")).collect::<Vec<_>>().join(", ")
+}
+
+/// The fixture's body ids and names, in order.
+fn fixture_bodies(path: &Path) -> Result<Vec<(String, String)>, String> {
     let bytes = fs::read(path).map_err(|e| format!("could not read {}: {e}", path.display()))?;
     let doc = stl_engine::stlx::from_bytes(&bytes, stl_engine::Registry::builtin()).map_err(|e| e.0)?;
-    Ok(doc.state.bodies.len())
+    let bodies: Vec<(String, String)> = doc.state.bodies.iter().map(|(id, b)| (id.clone(), b.name.clone())).collect();
+    if bodies.is_empty() {
+        return Err(format!("{} has no bodies", path.display()));
+    }
+    Ok(bodies)
 }
 
 fn fixture_file() -> Result<PathBuf, String> {

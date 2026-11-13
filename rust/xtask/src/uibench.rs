@@ -1,7 +1,8 @@
-//! `cargo run --release -p xtask -- uibench [--quick]`
+//! `cargo run --release -p xtask -- uibench [--quick] [--results <file.md>]`
 //!
 //! Builds the release `stl-app` binary, runs it with `--bench <tmp.json>`, reads the JSON, and
-//! appends a dated markdown table to `rust/tests/UI_BENCH.md`.
+//! appends a dated markdown table to `rust/tests/UI_BENCH.md` (or the `--results` file). It also
+//! prints the rebuild's frame trace: where the slowest frames' time went.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -14,10 +15,11 @@ pub fn run(args: impl Iterator<Item = String>) -> Result<(), String> {
     if args.iter().any(|a| a == "--time-features") {
         return time_features();
     }
-    let quick = args.into_iter().any(|a| a == "--quick");
+    let quick = args.iter().any(|a| a == "--quick");
+    let results = args.iter().position(|a| a == "--results").and_then(|i| args.get(i + 1)).map(PathBuf::from);
 
     let root = workspace_root()?;
-    let md_path = root.join("tests/UI_BENCH.md");
+    let md_path = results.unwrap_or_else(|| root.join("tests/UI_BENCH.md"));
     let out_json = std::env::temp_dir().join(format!("stl-uibench-{}.json", std::process::id()));
 
     build_app(&root)?;
@@ -25,6 +27,7 @@ pub fn run(args: impl Iterator<Item = String>) -> Result<(), String> {
 
     let text = std::fs::read_to_string(&out_json).map_err(|e| format!("read {}: {e}", out_json.display()))?;
     let report: Value = serde_json::from_str(&text).map_err(|e| format!("parse bench JSON: {e}"))?;
+    print_trace(&report);
     let table = format_table(&report)?;
     append_results(&md_path, &table)?;
     let _ = std::fs::remove_file(&out_json);
@@ -188,6 +191,72 @@ fn run_app(root: &Path, out_json: &Path, quick: bool) -> Result<(), String> {
     Ok(())
 }
 
+/// The rebuild's frame trace: the slowest frame and every one over 16.7 ms, split up, and
+/// the most each part took in any rebuild frame.
+fn print_trace(report: &Value) {
+    let Some(t) = report.get("rebuild_trace") else { return };
+    if let Some(r) = t.get("slowest").filter(|r| !r.is_null()) {
+        println!("uibench: slowest rebuild frame {}", trace_line(r));
+    }
+    for r in t.get("over_16_7").and_then(|v| v.as_array()).into_iter().flatten() {
+        println!("uibench: over 16.7 ms {}", trace_line(r));
+    }
+    for r in report.get("after_rebuild").and_then(|v| v.as_array()).into_iter().flatten() {
+        println!("uibench: after the rebuild (not counted) {}", trace_line(r));
+    }
+    if let Some(m) = t.get("max") {
+        println!(
+            "uibench: most per rebuild frame: poll {:.2} (sync {:.2}), ui {:.2} (viewport frame {:.2}: collect {:.2}, promote {:.2}), paint {:.2}, other {:.2} (egui {:.2}, wait {:.2}) ms",
+            num(m, "poll_ms"),
+            num(m, "sync_ms"),
+            num(m, "ui_ms"),
+            num(m, "frame_ms"),
+            num(m, "collect_ms"),
+            num(m, "promote_ms"),
+            num(m, "paint_ms"),
+            num(m, "other_ms"),
+            num(m, "egui_ms"),
+            num(m, "wait_ms"),
+        );
+    }
+}
+
+fn trace_line(r: &Value) -> String {
+    format!(
+        "{:.2} ms at {:.0} ms: poll {:.2} (sync {:.2}), ui {:.2} (viewport frame {:.2}: collect {:.2}, promote {:.2} x{}), paint {:.2}{}{}, other {:.2} (egui {:.2}, wait {:.2}); {}",
+        num(r, "dt_ms"),
+        num(r, "at_ms"),
+        num(r, "poll_ms"),
+        num(r, "sync_ms"),
+        num(r, "ui_ms"),
+        num(r, "frame_ms"),
+        num(r, "collect_ms"),
+        num(r, "promote_ms"),
+        uint(r, "promoted"),
+        num(r, "paint_ms"),
+        if r.get("upload_pending").and_then(|v| v.as_bool()).unwrap_or(false) { ", uploading" } else { "" },
+        if uint(r, "uploads_done") > 0 { ", upload finished" } else { "" },
+        num(r, "other_ms"),
+        num(r, "egui_ms"),
+        num(r, "wait_ms"),
+        r.get("stage").and_then(|v| v.as_str()).unwrap_or("?"),
+    )
+}
+
+/// One sentence for the results file: where the slowest rebuild frame's time went.
+fn slowest_note(report: &Value) -> Option<String> {
+    let r = report.pointer("/rebuild_trace/slowest").filter(|r| !r.is_null())?;
+    Some(format!(
+        "Slowest rebuild frame: {:.2} ms. The frame before it spent {:.2} ms on engine updates, {:.2} ms on the rest of the layout, {:.2} ms in the viewport's paint callback (upload and render), {:.2} ms on egui's own paint, and {:.2} ms waiting (the swapchain, the submit, and until the window thread ran again).",
+        num(r, "dt_ms"),
+        num(r, "poll_ms"),
+        num(r, "ui_ms"),
+        num(r, "paint_ms"),
+        num(r, "egui_ms"),
+        num(r, "wait_ms"),
+    ))
+}
+
 fn scenario<'a>(report: &'a Value, key: &str) -> Result<&'a Value, String> {
     let path = format!("/scenarios/{key}");
     report.pointer(&path).ok_or_else(|| format!("bench JSON missing scenarios.{key}"))
@@ -241,6 +310,9 @@ pub fn format_table(report: &Value) -> Result<String, String> {
         out.push_str(&format!(
             "_This run: {rebuild_kind} took {rebuild_ms:.0} ms from the command until the new mesh was uploaded and drawn. Frame times on that row are the orbiting frames in between._\n\n"
         ));
+    }
+    if let Some(n) = slowest_note(report) {
+        out.push_str(&format!("_{n}_\n\n"));
     }
     out.push_str("| Scenario | frames | median ms | p99 ms | longest ms | idle frames | uploads |\n");
     out.push_str("| --- | ---: | ---: | ---: | ---: | ---: | ---: |\n");
@@ -335,6 +407,26 @@ mod tests {
         assert!(t.contains("_note_"));
         assert!(t.contains("_idle note_"));
         assert!(t.contains("4164 ms"));
+        assert!(!t.contains("Slowest rebuild frame"));
+    }
+
+    #[test]
+    fn format_table_notes_slowest_rebuild_frame() {
+        let s = json!({"frames": 1, "median_ms": 1.0, "p99_ms": 1.0, "longest_ms": 1.0, "idle_frames": 0, "uploads": 1});
+        let report = json!({
+            "date": "2026-11-12",
+            "scenarios": {"orbit": s, "pan": s, "zoom": s, "idle": s, "fillet_rebuild": s},
+            "rebuild_trace": {
+                "slowest": {"dt_ms": 9.5, "at_ms": 10.0, "poll_ms": 1.25, "ui_ms": 2.0, "paint_ms": 3.0, "other_ms": 3.25, "egui_ms": 1.0, "wait_ms": 2.25},
+                "over_16_7": [],
+                "max": {}
+            }
+        });
+        let t = format_table(&report).unwrap();
+        assert!(t.contains("Slowest rebuild frame: 9.50 ms"), "{t}");
+        assert!(t.contains("1.25 ms on engine updates"), "{t}");
+        assert!(t.contains("3.00 ms in the viewport's paint callback"), "{t}");
+        assert!(t.contains("2.25 ms waiting"), "{t}");
     }
 
     #[test]

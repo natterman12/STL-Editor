@@ -1,7 +1,8 @@
 # Where 2.0 is slower than 1.x
 
-**No gaps.** Every row of `cargo run --release -p xtask -- bench` is at or under 1.0 against 1.x
-(three runs on 2026-11-12). Offset is at 1.0 and is marked "watch" below.
+**One gap: Offset 0.2 mm on the full bench mesh** (below). Every row of
+`cargo run --release -p xtask -- bench` is at or under 1.0 against 1.x (three runs on
+2026-11-12). Offset 0.5 mm on the bench's work mesh is at 1.0 and is marked "watch" below.
 
 ## Combine join (closed 2026-11-11)
 
@@ -68,6 +69,26 @@ the stack).
 | Export 3MF | 0.58 | 0.56 | 0.55 |
 | Export OBJ | 0.35 | 0.34 | 0.35 |
 | Export STEP | 0.43 | 0.44 | 0.45 |
+
+## Offset grow 0.2 mm on the full bench mesh (open, 2026-11-13)
+
+This is the Offset that uibench tried on `dev/bench/test_mesh.stl` (503,804 triangles) before it
+switched to Hollow for its rebuild row.
+
+| | Time | Result |
+|---|---|---|
+| 1.x `meshtools.offset_solid`, grow 0.2 mm | 12.5 s and 25.3 s (two runs) | 23,162 triangles |
+| 2.0 `stl-engine` Offset, grow 0.2 mm | about 200 to 360 s (earlier full uibench runs) | not recorded |
+
+The 1.x times come from `py -3.14 dev/out/offset_timing/offset_timing.py` (log in
+`dev/out/offset_timing/offset_timing.log`). The two 1.x runs differ because the second ran
+while other jobs were compiling. The 2.0 time was not measured again in this run.
+
+2.0 is 8 to 29 times slower here. 1.x's result has 23,162 triangles, so 1.x works on a much
+smaller mesh before its Minkowski sum. In 2.0, a 0.2 mm grow only simplifies within 0.08 mm,
+so the Minkowski sum still sees most of the 504k triangles. Next step: compare the two
+simplify steps on this mesh (target size and tolerance) before any speed work, because a
+different simplify would also change the result.
 
 ## Offset grow 0.5 mm (watch)
 

@@ -21,6 +21,24 @@ use stl_kernel::MeshArrays;
 
 #[path = "support/wgpu_renderer.rs"]
 mod wgpu_renderer;
+#[path = "support/gpu.rs"]
+mod gpu;
+
+/// Names the adapter in the test log (run with `--nocapture`): snapshots are compared only on
+/// the one in `tests/snapshots/adapter.txt` (see `support/gpu.rs`).
+#[test]
+fn gpu_adapter() {
+    let Some(g) = gpu::headless() else {
+        eprintln!("no GPU adapter");
+        return;
+    };
+    eprintln!(
+        "adapter {:?}, snapshots recorded on {:?}, target format {:?}",
+        gpu::adapter_key(&g),
+        gpu::recorded_adapter(),
+        g.render_state.target_format
+    );
+}
 
 fn cube_mesh() -> Arc<MeshArrays> {
     let p = [
@@ -201,19 +219,20 @@ fn section_picture(gpu: &Headless, dark: bool, section: bool, name: Option<&str>
     });
     harness.run();
     if let Some(name) = name {
-        harness.snapshot(name);
+        gpu::snapshot(&mut harness, gpu, name);
     }
     let picture = harness.render().expect("section picture");
     // this test makes several harnesses: check each one's snapshot here
     let errors: Vec<String> = harness.take_snapshot_results().into_inner().iter().map(|e| e.to_string()).collect();
     assert!(errors.is_empty(), "{}", errors.join("
 "));
+    gpu::assert_view_toolbar(&picture, dark, gpu::top_band(&picture), name.unwrap_or("section"));
     picture
 }
 
 #[test]
 fn section_snapshot() {
-    let Some(gpu) = Headless::new() else {
+    let Some(gpu) = gpu::headless() else {
         eprintln!("no GPU adapter: skipped");
         return;
     };
@@ -223,8 +242,9 @@ fn section_snapshot() {
     let dark_caps = cap_pixels(&dark);
     let light_caps = cap_pixels(&light);
     let open_caps = cap_pixels(&open);
-    assert!(dark_caps >= 30, "dark section shows {dark_caps} cap pixels, image {}x{}", dark.width(), dark.height());
-    assert!(light_caps >= 30, "light section shows {light_caps} cap pixels");
+    // about 5,700 (dark) and 6,100 (light) as recorded; the red X axis alone gives about 130
+    assert!(dark_caps >= 2500, "dark section shows {dark_caps} cap pixels, image {}x{}", dark.width(), dark.height());
+    assert!(light_caps >= 2500, "light section shows {light_caps} cap pixels");
     assert!(open_caps * 4 < dark_caps, "section off has {open_caps} red pixels, on has {dark_caps}");
     assert_ne!(dark.as_raw(), light.as_raw(), "dark and light section views are the same picture");
 }
@@ -243,7 +263,7 @@ fn repaint_delay(harness: &Harness<'_>) -> Duration {
 /// repaints the window: the viewport reuses its last render instead of drawing the scene again.
 #[test]
 fn idle_draws_no_frames() {
-    let gpu = Headless::new();
+    let gpu = gpu::headless();
     if gpu.is_none() {
         eprintln!("no GPU adapter: only the repaint requests are checked");
     }
@@ -318,7 +338,7 @@ fn rebuild_never_stalls() {
         eprintln!("bench mesh missing at {path}: skipped");
         return;
     };
-    let Some(gpu) = Headless::new() else {
+    let Some(gpu) = gpu::headless() else {
         eprintln!("no GPU adapter: skipped");
         return;
     };
@@ -366,5 +386,11 @@ fn rebuild_never_stalls() {
         vp.stats().uploads()
     );
     assert!(vp.stats().uploads() > uploads_before, "the rebuilt mesh was never uploaded");
+    // a frame budget for a GPU: a software rasterizer (WARP on the CI runner) draws the bench
+    // mesh at 1280 x 800 on the CPU, far slower with or without a rebuild
+    if gpu::is_software(&gpu) {
+        eprintln!("software adapter {:?}: frame times not checked", gpu::adapter_key(&gpu));
+        return;
+    }
     assert!(longest < 16.7, "longest frame {longest:.2} ms");
 }

@@ -14,6 +14,10 @@
 //! (the glue constructs them at startup) and this module does not yield, so the
 //! command runs straight through and Cancel is handled at the next command boundary.
 
+// wasm-bindgen's `suspending` / `jspi` attrs expand to experimental helpers; no non-allow fix
+// without dropping JSPI cancel-between-features. Listed for Task 6.
+#![allow(deprecated)]
+
 use std::cell::{Cell, RefCell};
 use std::collections::VecDeque;
 use std::rc::Rc;

@@ -12,10 +12,11 @@ use stl_app::engine_link::{Command, EngineLink, Update};
 use stl_app::theme;
 use stl_app::ui::dialogs::DialogResult;
 use stl_app::ui::{ribbon, ThemePref, UiEvent};
-use stl_app::viewport::renderer::Headless;
 
 #[path = "support/wgpu_renderer.rs"]
 mod wgpu_renderer;
+#[path = "support/gpu.rs"]
+mod gpu;
 
 fn repo() -> std::path::PathBuf {
     std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..")
@@ -480,7 +481,7 @@ mod snapshots {
 
     /// The shell in a 1280 x 720 window, rendered through egui and the app's theme.
     fn snap(name: &str, dark: bool, setup: impl FnOnce(&mut Harness<'static, StlApp>)) {
-        let Some(gpu) = Headless::new() else {
+        let Some(gpu) = super::gpu::headless() else {
             eprintln!("no GPU adapter: skipped");
             return;
         };
@@ -502,7 +503,11 @@ mod snapshots {
         h.run_steps(4);
         setup(&mut h);
         h.run_steps(4);
-        h.snapshot(name);
+        // egui alone: the harness never calls `init_gpu`, so the viewport adds no paint callback
+        // and the picture has no 3D view in it; that is what lets `snapshot_2d` compare it on
+        // every adapter
+        assert!(!h.state().viewport.has_gpu(), "{name}: the shell picture has the 3D view in it: use gpu::snapshot");
+        super::gpu::snapshot_2d(&mut h, &gpu, name);
     }
 
     #[test]
@@ -694,8 +699,8 @@ fn recent_files_open_again_from_the_file_menu() {
     assert_eq!(h.state().shell.recent, vec!["a.stl".to_string()]);
     h.get_by_label("File").click();
     h.run_steps(3);
-    // the start page lists it too; the menu entry is the last one
-    assert_eq!(h.get_all_by_label("a.stl").count(), 2);
+    // the browser root, the start page and the menu entry; the menu entry is the last one
+    assert_eq!(h.get_all_by_label("a.stl").count(), 3);
     h.get_all_by_label("a.stl").last().unwrap().click();
     h.run_steps(3);
     assert_eq!(opens(&link), 2);
@@ -721,6 +726,6 @@ fn help_shortcuts_and_about_use_the_1x_text() {
     h.get_by_label("About STL Editor").click();
     h.run_steps(3);
     assert!(h.query_by_label_contains("CAD-style editing for STL, 3MF and OBJ meshes.").is_some());
-    assert!(h.query_by_label_contains("Licence texts are in the LICENSES folder.").is_some());
+    assert!(h.query_by_label_contains("egui and eframe").is_some());
     assert!(h.query_by_label_contains("you can buy me a coffee on Ko-fi").is_some());
 }

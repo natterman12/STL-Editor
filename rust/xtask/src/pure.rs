@@ -12,7 +12,7 @@ pub const FORBIDDEN: [&str; 5] = ["cc", "cmake", "bindgen", "pkg-config", "vcpkg
 ///
 /// * wry's Linux backend links system WebKitGTK. These `-sys` crates (names from
 ///   `cargo tree -p stl-platform --target x86_64-unknown-linux-gnu -e build`) find it at build time.
-/// * `x11-dl` is winit's X11 backend. It dlopens libX11 and friends. Its build script asks
+/// * `x11-dl` (accepted by Nathan on 2026-11-12) is winit's X11 backend. It dlopens libX11 and friends. Its build script asks
 ///   `pkg-config` for each library directory and treats a missing tool as "unknown path".
 ///   There is no feature that drops that build dependency. Wayland's dlopen path still
 ///   build-depends on `pkg-config` (`wayland-sys`) and `cc` (`wayland-backend`).

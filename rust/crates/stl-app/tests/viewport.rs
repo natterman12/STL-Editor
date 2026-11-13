@@ -20,6 +20,8 @@ use stl_kernel::{Aabb, MeshArrays};
 
 #[path = "support/wgpu_renderer.rs"]
 mod wgpu_renderer;
+#[path = "support/gpu.rs"]
+mod gpu;
 
 fn close(a: [f64; 3], b: [f64; 3], tol: f64) -> bool {
     (0..3).all(|k| (a[k] - b[k]).abs() <= tol)
@@ -161,7 +163,7 @@ fn mouse_modes_map_buttons() {
 
 #[test]
 fn sync_skips_unchanged_revision() {
-    let Some(gpu) = Headless::new() else {
+    let Some(gpu) = gpu::headless() else {
         eprintln!("no GPU adapter: skipped");
         return;
     };
@@ -202,7 +204,7 @@ fn sync_skips_unchanged_revision() {
 
 #[test]
 fn surface_lost_recovers() {
-    let Some(gpu) = Headless::new() else {
+    let Some(gpu) = gpu::headless() else {
         eprintln!("no GPU adapter: skipped");
         return;
     };
@@ -236,7 +238,7 @@ fn surface_lost_recovers() {
 fn orbit_bench_mesh_frame_times() {
     let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../../dev/bench/test_mesh.stl");
     let Ok(bytes) = std::fs::read(path) else { return eprintln!("no bench mesh: skipped") };
-    let Some(gpu) = Headless::new() else { return eprintln!("no GPU adapter: skipped") };
+    let Some(gpu) = gpu::headless() else { return eprintln!("no GPU adapter: skipped") };
     let mut vp = Viewport::new();
     vp.load_dev_mesh("test_mesh.stl", &bytes).unwrap();
     vp.flush();
@@ -261,7 +263,7 @@ fn orbit_bench_mesh_frame_times() {
 
 #[test]
 fn device_loss_recovers_on_a_new_device() {
-    let Some(a) = Headless::new() else {
+    let Some(a) = gpu::headless() else {
         eprintln!("no GPU adapter: skipped");
         return;
     };
@@ -287,7 +289,7 @@ fn device_loss_recovers_on_a_new_device() {
 
     // a new render state (what eframe makes for a new device): the viewport sets itself up
     // there and uploads the body again from the mesh it kept
-    let Some(b) = Headless::new() else { return };
+    let Some(b) = gpu::headless() else { return };
     let after = b.render(&mut vp, 96, 64).expect("a picture on the new device");
     assert_eq!(vp.stats().gpu_states(), 2);
     assert_eq!(vp.stats().uploads(), 2);
@@ -302,7 +304,7 @@ fn device_loss_recovers_on_a_new_device() {
 fn device_loss_through_the_paint_callback() {
     use std::cell::RefCell;
     use std::rc::Rc;
-    let Some(a) = Headless::new() else {
+    let Some(a) = gpu::headless() else {
         eprintln!("no GPU adapter: skipped");
         return;
     };
@@ -357,7 +359,7 @@ fn device_loss_through_the_paint_callback() {
     assert!(vp.borrow().stats().device_lost());
     assert_eq!(vp.borrow().stats().uploads(), 1);
 
-    let Some(b) = Headless::new() else { return };
+    let Some(b) = gpu::headless() else { return };
     vp.borrow_mut().camera_mut().rotate(-1.0, 0.0);
     let mut hb = harness_on(&b.render_state);
     hb.run();
@@ -386,7 +388,7 @@ fn cube_pixels(img: &image::RgbaImage) -> usize {
 
 #[test]
 fn gpu_error_keeps_body_buffers() {
-    let Some(gpu) = Headless::new() else {
+    let Some(gpu) = gpu::headless() else {
         eprintln!("no GPU adapter: skipped");
         return;
     };
@@ -693,12 +695,9 @@ mod snapshots {
     use super::*;
 
     /// The cube in a 480 x 320 window (kittest adds an 8-point margin), through egui, the app's
-    /// theme and the paint callback.
-    fn snapshot(name: &str, dark: bool, setup: impl FnOnce(&mut Viewport)) {
-        let Some(gpu) = Headless::new() else {
-            eprintln!("no GPU adapter: skipped");
-            return;
-        };
+    /// theme and the paint callback. With `name`, the picture is compared with the snapshot on
+    /// the adapter that recorded them (`support/gpu.rs`); the tests' own checks run everywhere.
+    fn picture(gpu: &Headless, name: Option<&str>, dark: bool, setup: impl FnOnce(&mut Viewport)) -> image::RgbaImage {
         let mut vp = Viewport::new();
         vp.init_gpu(&gpu.render_state);
         vp.set_theme(dark);
@@ -716,40 +715,109 @@ mod snapshots {
         });
         stl_app::theme::apply(&harness.ctx, &stl_app::theme::tokens(dark));
         harness.run();
-        harness.snapshot(name);
+        if let Some(name) = name {
+            super::gpu::snapshot(&mut harness, gpu, name);
+        }
+        let img = harness.render().expect("picture");
+        let errors: Vec<String> = harness.take_snapshot_results().into_inner().iter().map(|e| e.to_string()).collect();
+        assert!(errors.is_empty(), "{}", errors.join("
+"));
+        super::gpu::assert_view_toolbar(&img, dark, super::gpu::top_band(&img), name.unwrap_or("viewport"));
+        img
+    }
+
+    /// Pixels that differ by more than 24 in some channel.
+    fn changed(a: &image::RgbaImage, b: &image::RgbaImage) -> usize {
+        a.pixels().zip(b.pixels()).filter(|(p, q)| (0..3).any(|k| p.0[k].abs_diff(q.0[k]) > 24)).count()
+    }
+
+    /// Pixels of the cube's grey-blue sides: mid-grey with a little more blue than red (not the
+    /// dark or light background and grid, the saturated axes, or the selection's blue).
+    fn body_pixels(img: &image::RgbaImage) -> usize {
+        img.pixels()
+            .filter(|p| {
+                let [r, g, b, _] = p.0.map(u32::from);
+                let lum = (r + g + b) / 3;
+                (80..=200).contains(&lum) && r + 8 <= b && b <= r + 45 && r <= g && g <= b
+            })
+            .count()
+    }
+
+    /// The cube fills a good part of the window (about 43,000 pixels as recorded).
+    fn assert_cube(name: &str, img: &image::RgbaImage) {
+        let n = body_pixels(img);
+        assert!(n >= 20_000, "{name}: the cube shows on only {n} pixels");
+    }
+
+    fn snapshot(name: &str, dark: bool, setup: impl FnOnce(&mut Viewport)) -> Option<(super::gpu::TestGpu, image::RgbaImage)> {
+        let Some(gpu) = super::gpu::headless() else {
+            eprintln!("no GPU adapter: skipped");
+            return None;
+        };
+        let img = picture(&gpu, Some(name), dark, setup);
+        Some((gpu, img))
     }
 
     #[test]
     fn viewport_cube_shaded() {
-        snapshot("viewport_cube_shaded", true, |vp| vp.set_edges_visible(false));
+        let Some((_, img)) = snapshot("viewport_cube_shaded", true, |vp| vp.set_edges_visible(false)) else { return };
+        assert_cube("shaded", &img);
     }
 
     #[test]
     fn viewport_cube_edges() {
-        snapshot("viewport_cube_edges", true, |vp| vp.set_edges_visible(true));
+        let Some((gpu, img)) = snapshot("viewport_cube_edges", true, |vp| vp.set_edges_visible(true)) else { return };
+        assert_cube("edges", &img);
+        // the edge lines: the same cube without them differs along its outline
+        let plain = picture(&gpu, None, true, |vp| vp.set_edges_visible(false));
+        let n = changed(&img, &plain);
+        assert!(n >= 150, "edges: only {n} pixels differ from the cube without edges");
     }
 
     #[test]
     fn viewport_cube_selected() {
-        snapshot("viewport_cube_selected", true, |vp| vp.set_selection(&["b1".to_owned()]));
+        let Some((gpu, img)) = snapshot("viewport_cube_selected", true, |vp| vp.set_selection(&["b1".to_owned()])) else { return };
+        // the selection colours the cube: most of its pixels change
+        let plain = picture(&gpu, None, true, |_| {});
+        assert_cube("unselected", &plain);
+        let (cube, n, left) = (body_pixels(&plain), changed(&img, &plain), body_pixels(&img));
+        assert!(n * 2 >= cube && left * 4 < cube, "selected: {n} pixels differ from the {cube} of the unselected cube, {left} keep its colour");
     }
 
     #[test]
     fn viewport_cube_hidden() {
-        snapshot("viewport_cube_hidden", true, |vp| {
+        let Some((_, img)) = snapshot("viewport_cube_hidden", true, |vp| {
             let mut b = cube(1);
             b.hidden = true;
             vp.sync_bodies(&[b]);
-        });
+        }) else {
+            return;
+        };
+        let n = body_pixels(&img);
+        assert!(n < 2500, "hidden: the cube still shows on {n} pixels");
+    }
+
+    /// Dark and light, with the base planes: the cube shows in both, on a background of the
+    /// theme's lightness, and the planes add their tint over the bed.
+    fn themed(name: &str, dark: bool) {
+        let Some((gpu, img)) = snapshot(name, dark, |vp| vp.set_base_planes_visible(true)) else { return };
+        assert_cube(name, &img);
+        // left of the cube, inside the view (kittest's margin is 8 points)
+        let [r, g, b, _] = img.get_pixel(30, 200).0;
+        let lum = (r as u32 + g as u32 + b as u32) / 3;
+        assert!(if dark { lum < 90 } else { lum > 170 }, "{name}: background pixel {:?} is not {}", [r, g, b], if dark { "dark" } else { "light" });
+        let without = picture(&gpu, None, dark, |vp| vp.set_base_planes_visible(false));
+        let n = changed(&img, &without);
+        assert!(n >= 500, "{name}: the base planes change only {n} pixels");
     }
 
     #[test]
     fn viewport_cube_dark() {
-        snapshot("viewport_cube_dark", true, |vp| vp.set_base_planes_visible(true));
+        themed("viewport_cube_dark", true);
     }
 
     #[test]
     fn viewport_cube_light() {
-        snapshot("viewport_cube_light", false, |vp| vp.set_base_planes_visible(true));
+        themed("viewport_cube_light", false);
     }
 }

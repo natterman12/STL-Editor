@@ -2,11 +2,21 @@
 
 use std::collections::HashSet;
 
-use egui::{RichText, Ui};
+use egui::{Align, Layout, Margin, RichText, Ui};
 use stl_engine::params::{Param, resolve_params};
 
 use crate::engine_link::{Command, ParamView};
 use crate::theme::Tokens;
+use crate::ui::dialogs::button;
+
+/// Column widths from 1.x's `table.params` at its 720 px card: Name 22%, Value 26%, the live
+/// value 22%, then the note takes the rest (web/css/app.css:556-567).
+const NAME_W: f32 = 150.0;
+const EXPR_W: f32 = 178.0;
+const PV_W: f32 = 150.0;
+const NOTE_W: f32 = 174.0;
+const TABLE_W: f32 = 720.0;
+const CELL_H: f32 = 26.0;
 
 const HINT: &str = "Name a value once and use it in any number: type the name (or =width/2 + 3) in a tool's field. Change a value here and every step that uses it is rebuilt. Lengths are in mm, angles in degrees; a parameter can use others.";
 
@@ -102,19 +112,22 @@ pub fn show(
         ui.label(RichText::new("STL Editor").strong().color(tokens.strong).size(14.0));
         ui.label(RichText::new(msg).color(tokens.text).size(12.0));
         ui.add_space(8.0);
-        ui.horizontal(|ui| {
-            if ui.button("Cancel").clicked() {
-                state.confirm = None; // back to the table with the edits kept
-            }
-            if ui.button("OK").clicked() {
+        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+            ui.spacing_mut().item_spacing.x = 8.0;
+            if button(ui, tokens, "OK", true).clicked() {
                 commit_rows(&state.rows, commands);
                 state.confirm = None;
                 state.open = false;
+            }
+            if button(ui, tokens, "Cancel", false).clicked() {
+                state.confirm = None; // back to the table with the edits kept
             }
         });
         return;
     }
 
+    // the card is as wide as 1.x's (760 px with padding), or the window if that is narrower
+    ui.set_min_width(TABLE_W.min(ui.available_width()));
     ui.label(RichText::new("Parameters").strong().color(tokens.strong).size(14.0));
     ui.label(RichText::new(HINT).color(tokens.muted).size(11.5));
     ui.add_space(6.0);
@@ -127,9 +140,11 @@ pub fn show(
         .collect();
     let resolved = resolve_params(&list);
 
+    // 1.x draws every field with a 1px `--input-line` border (egui hides it until hover)
+    ui.visuals_mut().widgets.inactive.bg_stroke = egui::Stroke::new(1.0, tokens.input_line);
     egui::Grid::new("params_table")
         .num_columns(5)
-        .spacing([4.0, 4.0])
+        .spacing([8.0, 4.0])
         .show(ui, |ui| {
             ui.label(RichText::new("Name").color(tokens.muted).size(11.0).strong());
             ui.label(RichText::new("Value").color(tokens.muted).size(11.0).strong());
@@ -143,11 +158,17 @@ pub fn show(
             for (i, row) in state.rows.iter_mut().enumerate() {
                 // `push_id(..).response` is the scope's own response; the field is `.inner`.
                 let name_resp = ui
-                    .push_id(("param_name", i), |ui| ui.add(egui::TextEdit::singleline(&mut row.name).desired_width(80.0)))
+                    .push_id(("param_name", i), |ui| {
+                        // add_sized: a plain desired_width is clamped to a Grid cell's first-pass width
+                        ui.add_sized([NAME_W, CELL_H], egui::TextEdit::singleline(&mut row.name).margin(cell_margin()).font(cell_font()))
+                    })
                     .inner;
                 let expr_resp = ui
                     .push_id(("param_expr", i), |ui| {
-                        ui.add(egui::TextEdit::singleline(&mut row.expr).desired_width(90.0).text_color(tokens.expr))
+                        ui.add_sized(
+                            [EXPR_W, CELL_H],
+                            egui::TextEdit::singleline(&mut row.expr).margin(cell_margin()).font(cell_font()),
+                        )
                     })
                     .inner;
 
@@ -169,11 +190,14 @@ pub fn show(
                     // 1.x greys only the "· used" part (a `.muted` span, app.js:1166)
                     job.append(" · used", 0.0, egui::TextFormat::simple(font, tokens.muted));
                 }
-                ui.add(egui::Label::new(job).truncate());
+                ui.scope(|ui| {
+                    ui.set_width(PV_W);
+                    ui.add(egui::Label::new(job).truncate());
+                });
 
-                ui.add(egui::TextEdit::singleline(&mut row.note).desired_width(80.0));
+                ui.add_sized([NOTE_W, CELL_H], egui::TextEdit::singleline(&mut row.note).margin(cell_margin()).font(cell_font()));
 
-                if ui.small_button("×").clicked() {
+                if button(ui, tokens, "×", false).on_hover_text("Remove").clicked() {
                     remove = Some(i);
                 }
                 ui.end_row();
@@ -201,11 +225,15 @@ pub fn show(
             }
         });
 
-    ui.horizontal(|ui| {
-        if ui.button("+ Add parameter").clicked() {
-            state.rows.push(Row { name: String::new(), expr: String::new(), note: String::new() });
-        }
-        if ui.button("Apply").clicked() {
+    ui.add_space(4.0);
+    if button(ui, tokens, "+ Add parameter", false).clicked() {
+        state.rows.push(Row { name: String::new(), expr: String::new(), note: String::new() });
+    }
+    // 1.x's `.modal-actions`: Cancel, then the blue Apply, on the right
+    ui.add_space(14.0);
+    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+        ui.spacing_mut().item_spacing.x = 8.0;
+        if button(ui, tokens, "Apply", true).clicked() {
             let missing = removed_but_used(&state.rows, views, used);
             if missing.is_empty() {
                 commit_rows(&state.rows, commands);
@@ -214,12 +242,21 @@ pub fn show(
                 state.confirm = Some(confirm_text(&missing));
             }
         }
-        if ui.button("Cancel").clicked() {
+        if button(ui, tokens, "Cancel", false).clicked() {
             state.snap = None;
             state.sync(views);
             state.open = false;
         }
     });
+}
+
+/// 1.x `table.params input`: 13 px text, padding 3px 5px.
+fn cell_margin() -> Margin {
+    Margin::symmetric(5, 4)
+}
+
+fn cell_font() -> egui::FontId {
+    egui::FontId::proportional(13.0)
 }
 
 fn commit_rows(rows: &[Row], commands: &mut Vec<Command>) {

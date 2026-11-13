@@ -137,6 +137,104 @@ struct Job {
     thread: std::thread::JoinHandle<()>,
 }
 
+/// Where the viewport's time went, summed since the last [`Viewport::take_trace`] (the UI
+/// bench reads it every frame to explain a slow one).
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct FrameTrace {
+    /// `sync_bodies`: the engine's new body list.
+    pub sync_ms: f64,
+    /// Picking up meshes the workers prepared (dropping their finished threads included).
+    pub collect_ms: f64,
+    /// Moving uploaded revisions on screen; frees the revision they replace.
+    pub promote_ms: f64,
+    /// Revisions moved on screen.
+    pub promoted: u32,
+    /// `frame_for_size` in all (collect and promote included).
+    pub frame_ms: f64,
+    /// The paint callback's `prepare`: the upload slice, then encoding the render.
+    pub paint_ms: f64,
+    /// Paint callbacks that ran.
+    pub paints: u32,
+    /// A paint callback left bytes to upload.
+    pub upload_pending: bool,
+    /// Body uploads that finished (counted by the paint callbacks).
+    pub uploads_done: u64,
+    /// At the last frame: meshes still being prepared for the GPU, and picking trees still
+    /// being built, off the UI thread.
+    pub prep_jobs: u32,
+    pub trees_building: u32,
+}
+
+#[derive(Default)]
+struct TraceCell(std::sync::Mutex<FrameTrace>);
+
+impl TraceCell {
+    fn add(&self, f: impl FnOnce(&mut FrameTrace)) {
+        f(&mut self.0.lock().unwrap_or_else(|e| e.into_inner()));
+    }
+}
+
+/// Free a replaced mesh revision (its display mesh, picking tree and maybe the mesh) off the
+/// window thread: giving back a big body's memory took about 2 ms of a frame. Inline on wasm.
+fn free_later<T: Send + 'static>(old: T) {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let spawned = std::thread::Builder::new().name("stl-viewport-free".into()).spawn(move || drop(old));
+        // No thread to be had: free it here.
+        drop(spawned);
+    }
+    #[cfg(target_arch = "wasm32")]
+    drop(old);
+}
+
+fn ms_since(t: web_time::Instant) -> f64 {
+    t.elapsed().as_secs_f64() * 1000.0
+}
+
+/// [`renderer::ViewportCallback`], timed for [`FrameTrace`].
+struct TimedCallback {
+    inner: renderer::ViewportCallback,
+    trace: Arc<TraceCell>,
+}
+
+impl egui_wgpu::CallbackTrait for TimedCallback {
+    fn prepare(
+        &self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        screen: &egui_wgpu::ScreenDescriptor,
+        encoder: &mut wgpu::CommandEncoder,
+        resources: &mut egui_wgpu::CallbackResources,
+    ) -> Vec<wgpu::CommandBuffer> {
+        let t = web_time::Instant::now();
+        let uploads = self.inner.stats.uploads();
+        let out = egui_wgpu::CallbackTrait::prepare(&self.inner, device, queue, screen, encoder, resources);
+        let pending = self.inner.stats.upload_pending.load(std::sync::atomic::Ordering::Relaxed);
+        let done = self.inner.stats.uploads().saturating_sub(uploads);
+        self.trace.add(|tr| {
+            tr.paint_ms += ms_since(t);
+            tr.paints += 1;
+            tr.upload_pending |= pending;
+            tr.uploads_done += done;
+        });
+        out
+    }
+
+    fn finish_prepare(
+        &self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        encoder: &mut wgpu::CommandEncoder,
+        resources: &mut egui_wgpu::CallbackResources,
+    ) -> Vec<wgpu::CommandBuffer> {
+        egui_wgpu::CallbackTrait::finish_prepare(&self.inner, device, queue, encoder, resources)
+    }
+
+    fn paint(&self, info: egui::PaintCallbackInfo, pass: &mut wgpu::RenderPass<'static>, resources: &egui_wgpu::CallbackResources) {
+        egui_wgpu::CallbackTrait::paint(&self.inner, info, pass, resources);
+    }
+}
+
 /// A camera move asked for while a shown body's box was still being worked out.
 enum ViewRequest {
     Fit(Aabb),
@@ -187,6 +285,7 @@ pub struct Viewport {
     batches: Vec<FlatBatch>,
     last_size: [u32; 2],
     stats: Arc<Stats>,
+    trace: Arc<TraceCell>,
     /// egui's target format, once [`Viewport::init_gpu`] ran.
     gpu_format: Option<wgpu::TextureFormat>,
     ctx: Option<egui::Context>,
@@ -236,18 +335,19 @@ impl Default for Viewport {
             batches: Vec::new(),
             last_size: [0, 0],
             stats: Arc::new(Stats::default()),
+            trace: Arc::default(),
             gpu_format: None,
             ctx: None,
         }
     }
 }
 
-fn color_of(css: Option<&str>, index: usize) -> [u8; 3] {
+pub fn color_of(css: Option<&str>, index: usize) -> [u8; 3] {
     css.and_then(scene::parse_css_hex).unwrap_or_else(|| scene::rgb(scene::PALETTE[index % scene::PALETTE.len()]))
 }
 
 /// `_makeBody`: `info.solid ? info.color : '#d9a0a0'`.
-fn body_color(view: &BodyView, index: usize) -> [u8; 3] {
+pub fn body_color(view: &BodyView, index: usize) -> [u8; 3] {
     if view.solid { color_of(view.color.as_deref(), index) } else { scene::rgb(scene::NOT_SOLID) }
 }
 
@@ -285,6 +385,11 @@ impl Viewport {
         self.stats.clone()
     }
 
+    /// What the viewport spent since the last call, and start again (the UI bench).
+    pub fn take_trace(&self) -> FrameTrace {
+        std::mem::take(&mut *self.trace.0.lock().unwrap_or_else(|e| e.into_inner()))
+    }
+
     fn changed(&mut self) {
         self.dirty = true;
         if let Some(ctx) = &self.ctx {
@@ -303,6 +408,7 @@ impl Viewport {
     /// thread (display mesh and box, then its picking tree) and uploaded once; colour, name and
     /// hidden changes apply at once. Nothing here walks a mesh.
     pub fn sync_bodies(&mut self, bodies: &[BodyView]) {
+        let t = web_time::Instant::now();
         let mut old: HashMap<String, BodyEntry> = self.bodies.drain(..).map(|b| (b.view.id.clone(), b)).collect();
         #[cfg(not(target_arch = "wasm32"))]
         self.jobs.retain(|id, _| bodies.iter().any(|b| &b.id == id));
@@ -316,14 +422,21 @@ impl Viewport {
             };
             if entry.newest().is_none_or(|r| r.revision != b.revision) {
                 if let Some(r) = self.schedule(b) {
-                    entry.ready = Some(r);
+                    if let Some(old) = entry.ready.replace(r) {
+                        free_later(old);
+                    }
                 }
             }
             self.bodies.push(entry);
         }
+        // Bodies that are gone.
+        if !old.is_empty() {
+            free_later(old);
+        }
         self.promote();
         self.update_extent();
         self.overlays_changed();
+        self.trace.add(|tr| tr.sync_ms += ms_since(t));
     }
 
     /// Prepare a body's mesh: on a worker thread (native; `None`, picked up by a later frame),
@@ -380,6 +493,7 @@ impl Viewport {
     /// Pick up meshes prepared in the background (with `wait`, block until every job is done,
     /// picking trees included), then show revisions whose upload has finished.
     fn collect_jobs(&mut self, wait: bool) {
+        let t = web_time::Instant::now();
         let mut changed = false;
         #[cfg(not(target_arch = "wasm32"))]
         {
@@ -398,7 +512,10 @@ impl Viewport {
                 self.builders.push(job.thread);
                 let Some(p) = p else { continue };
                 if let Some(e) = self.bodies.iter_mut().find(|e| e.view.id == id && e.view.revision == job.revision) {
-                    e.ready = Some(Revision { revision: job.revision, mesh: job.mesh, prepared: Arc::new(p), bvh: job.bvh });
+                    let r = Revision { revision: job.revision, mesh: job.mesh, prepared: Arc::new(p), bvh: job.bvh };
+                    if let Some(old) = e.ready.replace(r) {
+                        free_later(old);
+                    }
                     changed = true;
                 }
             }
@@ -412,6 +529,7 @@ impl Viewport {
         }
         #[cfg(target_arch = "wasm32")]
         let _ = wait;
+        self.trace.add(|tr| tr.collect_ms += ms_since(t));
         changed |= self.promote();
         if changed {
             // A new box can move the grid, the origin and the plane sizes. A revision that only
@@ -431,16 +549,28 @@ impl Viewport {
         if self.bodies.iter().all(|e| e.ready.is_none()) {
             return false;
         }
+        let t = web_time::Instant::now();
         let immediate = !self.has_gpu() || self.stats.device_lost();
         let on_gpu = if immediate { HashMap::new() } else { self.stats.on_gpu_map().clone() };
         let mut moved = false;
+        let mut promoted = 0;
+        let mut replaced = Vec::new();
         for e in &mut self.bodies {
             let Some(r) = &e.ready else { continue };
             if immediate || on_gpu.get(&e.view.id) == Some(&r.revision) {
-                e.shown = e.ready.take();
+                replaced.extend(std::mem::replace(&mut e.shown, e.ready.take()));
                 moved = true;
+                promoted += 1;
             }
         }
+        drop(on_gpu);
+        if !replaced.is_empty() {
+            free_later(replaced);
+        }
+        self.trace.add(|tr| {
+            tr.promote_ms += ms_since(t);
+            tr.promoted += promoted;
+        });
         moved
     }
 
@@ -1048,7 +1178,16 @@ impl Viewport {
     /// The frame for a view of `w` x `h` points at `ppp` pixels per point (1.x caps the pixel
     /// ratio at 2).
     pub fn frame_for_size(&mut self, w: f32, h: f32, ppp: f32) -> Arc<FrameData> {
+        let t = web_time::Instant::now();
         self.collect_jobs(false);
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let (jobs, trees) = (self.jobs.len() as u32, self.builders.len() as u32);
+            self.trace.add(|tr| {
+                tr.prep_jobs = jobs;
+                tr.trees_building = trees;
+            });
+        }
         if self.flat_dirty {
             self.rebuild_flat();
             self.dirty = true;
@@ -1065,7 +1204,7 @@ impl Viewport {
             self.dirty = false;
         }
         let bg = crate::theme::tokens(self.dark).bg;
-        Arc::new(FrameData {
+        let frame = Arc::new(FrameData {
             id: self.frame_id,
             size,
             clear: [bg.r() as f64 / 255.0, bg.g() as f64 / 255.0, bg.b() as f64 / 255.0, 1.0],
@@ -1074,7 +1213,9 @@ impl Viewport {
             flat_version: self.flat_version,
             flat: self.flat.clone(),
             batches: self.batches.clone(),
-        })
+        });
+        self.trace.add(|tr| tr.frame_ms += ms_since(t));
+        frame
     }
 
     /// Handle the mouse and draw the view, filling the available space.
@@ -1107,10 +1248,8 @@ impl Viewport {
         let bg = crate::theme::tokens(self.dark).bg;
         ui.painter().rect_filled(rect, 0.0, bg);
         if let Some(format) = self.gpu_format.filter(|_| rect.width() >= 1.0 && rect.height() >= 1.0) {
-            ui.painter().add(egui_wgpu::Callback::new_paint_callback(
-                rect,
-                renderer::ViewportCallback { frame, ctx: ui.ctx().clone(), format, stats: self.stats.clone() },
-            ));
+            let inner = renderer::ViewportCallback { frame, ctx: ui.ctx().clone(), format, stats: self.stats.clone() };
+            ui.painter().add(egui_wgpu::Callback::new_paint_callback(rect, TimedCallback { inner, trace: self.trace.clone() }));
         }
         let cube = viewcube::show(ui, rect, self.viewcube_inset, self.section_on, self.dark);
         if let Some(v) = cube.view {

@@ -3,7 +3,8 @@
 //! - Desktop: at run time load the system UI font (Segoe UI on Windows; never shipped) and put it
 //!   first in the proportional family.
 //! - Web, or a machine without it: the bundled Selawik (SIL Open Font License 1.1, Microsoft;
-//!   `assets/fonts/Selawik-OFL.txt`). Selawik is Microsoft's metric-compatible stand-in for Segoe
+//!   `assets/fonts/Selawik-OFL.txt`), plus a 2.6 KB piece of Noto Emoji for the few symbols Selawik
+//!   lacks (`assets/fonts/Symbols-OFL.txt`). Selawik is Microsoft's metric-compatible stand-in for Segoe
 //!   UI, so text widths and line breaks stay the same as with the real font.
 
 use egui::{FontData, FontDefinitions, FontFamily};
@@ -11,6 +12,11 @@ use std::sync::Arc;
 
 const SELAWIK: &[u8] = include_bytes!("../assets/fonts/selawk.ttf");
 const SELAWIK_BOLD: &[u8] = include_bytes!("../assets/fonts/selawkb.ttf");
+/// A 2.6 KB piece of Noto Emoji (SIL OFL 1.1, `assets/fonts/Symbols-OFL.txt`) with the four marks
+/// the text uses that Selawik and egui's default fonts lack: heart, warning sign, check mark and
+/// heavy check mark (U+2713 shares U+2714's drawing). It is the last fallback, so it never
+/// replaces a glyph another font has.
+const SYMBOLS: &[u8] = include_bytes!("../assets/fonts/symbols.ttf");
 
 /// System UI font files to try, in order (desktop only).
 #[cfg(not(target_arch = "wasm32"))]
@@ -38,18 +44,31 @@ fn system_font() -> Option<Vec<u8>> {
 }
 
 /// The font definitions: system UI font first when present, then Selawik, then egui's defaults
-/// (which keep the symbol and emoji glyphs).
+/// (which keep some symbol and emoji glyphs), then the bundled symbols font.
 pub fn definitions() -> FontDefinitions {
-    let mut f = FontDefinitions::default();
-    f.font_data.insert("selawik".into(), Arc::new(FontData::from_static(SELAWIK)));
-    f.font_data.insert("selawik-bold".into(), Arc::new(FontData::from_static(SELAWIK_BOLD)));
-    let prop = f.families.entry(FontFamily::Proportional).or_default();
-    prop.insert(0, "selawik".into());
+    let mut f = bundled_definitions();
     if let Some(bytes) = system_font() {
         f.font_data.insert("system-ui".into(), Arc::new(FontData::from_owned(bytes)));
         f.families.entry(FontFamily::Proportional).or_default().insert(0, "system-ui".into());
     }
-    f.families.insert(FontFamily::Name("bold".into()), vec!["selawik-bold".into(), "selawik".into()]);
+    f
+}
+
+/// Only the fonts that ship inside the app (no system font): what the web edition and a machine
+/// without Segoe UI show. Every character the app can print must have a glyph here
+/// (`tests/fonts_fallback.rs` checks the string table).
+pub fn bundled_definitions() -> FontDefinitions {
+    let mut f = FontDefinitions::default();
+    f.font_data.insert("selawik".into(), Arc::new(FontData::from_static(SELAWIK)));
+    f.font_data.insert("selawik-bold".into(), Arc::new(FontData::from_static(SELAWIK_BOLD)));
+    f.font_data.insert(
+        "symbols".into(),
+        Arc::new(FontData::from_static(SYMBOLS).tweak(egui::FontTweak { scale: 0.85, ..Default::default() })),
+    );
+    let prop = f.families.entry(FontFamily::Proportional).or_default();
+    prop.insert(0, "selawik".into());
+    prop.push("symbols".into());
+    f.families.insert(FontFamily::Name("bold".into()), vec!["selawik-bold".into(), "selawik".into(), "symbols".into()]);
     f
 }
 
