@@ -310,7 +310,7 @@ jobs:
           # setup-chrome leaves the binary path; put its directory on PATH as `chrome`.
           chrome_bin="${{ steps.chrome.outputs.chrome-path }}"
           chrome_dir="$(dirname "$chrome_bin")"
-          ln -sf "$chrome_bin" "$chrome_dir/chrome"
+          [ "$(basename "$chrome_bin")" = chrome ] || ln -sf "$chrome_bin" "$chrome_dir/chrome"
           export PATH="$chrome_dir:$PATH"
           export CHROMEDRIVER="$(command -v chromedriver)"
           cargo test -p stl-app --target wasm32-unknown-unknown
