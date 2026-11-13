@@ -13,8 +13,13 @@ pub struct Timeline {
     item_rects: Vec<Rect>,
     /// Set on item click; app copies into the status line (`app.js:2124`).
     pub status_message: Option<String>,
-    /// Set on double-click; same as `UiEvent::OpenTool` with the feature id for edit in 4b.
+    /// Set on double-click or menu Edit (the same id goes out as `UiEvent::EditFeature`).
     pub edit_feature: Option<String>,
+    /// Set by the app while the open tool has a `features` field: a click on a repeatable step
+    /// ticks it in that field instead of showing its status (`#timeline` click in app.js).
+    pub features_pick: bool,
+    /// The step that click ticked; the app takes it and calls `fields::features::toggle`.
+    pub ticked: Option<String>,
 }
 
 impl Timeline {
@@ -24,6 +29,10 @@ impl Timeline {
 
     pub fn take_edit_feature(&mut self) -> Option<String> {
         self.edit_feature.take()
+    }
+
+    pub fn take_ticked(&mut self) -> Option<String> {
+        self.ticked.take()
     }
 }
 
@@ -241,7 +250,10 @@ fn draw_item(
         );
     }
 
-    if response.clicked() {
+    let repeatable = crate::tools::fields::features::REPEATABLE.contains(&item.kind.as_str()) && item.active && item.error.is_none() && !item.suppressed;
+    if response.clicked() && state.features_pick && repeatable {
+        state.ticked = Some(item.id.clone());
+    } else if response.clicked() {
         let msg = if let Some(e) = &item.error {
             format!("{} — {}", item.label, e)
         } else {
@@ -251,7 +263,7 @@ fn draw_item(
     }
     if response.double_clicked() {
         state.edit_feature = Some(item.id.clone());
-        events.push(UiEvent::OpenTool(item.kind.clone()));
+        events.push(UiEvent::EditFeature(item.id.clone()));
     }
 
     response.context_menu(|ui| {
@@ -259,7 +271,8 @@ fn draw_item(
             .add_enabled(!nav_locked, egui::Button::new(if item.kind == "import" { "Position / Repair…" } else { "Edit…" }))
             .clicked()
         {
-            events.push(UiEvent::OpenTool(item.kind.clone()));
+            state.edit_feature = Some(item.id.clone());
+            events.push(UiEvent::EditFeature(item.id.clone()));
             ui.close();
         }
         if ui

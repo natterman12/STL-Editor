@@ -257,6 +257,36 @@ fn slowest_note(report: &Value) -> Option<String> {
     ))
 }
 
+/// What the open tool row did: how many tools, how many answered a preview, and the slowest ones.
+fn open_tool_note(report: &Value) -> Option<String> {
+    let tools = report.get("open_tool_tools").and_then(|t| t.as_array()).filter(|t| !t.is_empty())?;
+    let outcome = |t: &Value| t.get("outcome").and_then(|o| o.as_str()).unwrap_or("").to_owned();
+    let previews = tools.iter().filter(|t| outcome(t) == "preview").count();
+    let timeouts: Vec<&str> = tools.iter().filter(|t| outcome(t) == "timeout").filter_map(|t| t.get("tool").and_then(|k| k.as_str())).collect();
+    let mut slow: Vec<&Value> = tools.iter().filter(|t| outcome(t) == "preview").collect();
+    slow.sort_by(|a, b| num(b, "ms").total_cmp(&num(a, "ms")));
+    let slowest: Vec<String> = slow.iter().take(3).map(|t| format!("{} {:.0} ms", t.get("tool").and_then(|k| k.as_str()).unwrap_or("?"), num(t, "ms"))).collect();
+    let mut s = format!("Open tool: {} tools opened, {previews} answered a preview", tools.len());
+    if !slowest.is_empty() {
+        s.push_str(&format!("; slowest first previews: {}", slowest.join(", ")));
+    }
+    if !timeouts.is_empty() {
+        s.push_str(&format!("; gave up on: {}", timeouts.join(", ")));
+    }
+    let mut worst: Vec<&Value> = tools.iter().filter(|t| t.get("longest_frame_ms").is_some()).collect();
+    worst.sort_by(|a, b| num(b, "longest_frame_ms").total_cmp(&num(a, "longest_frame_ms")));
+    let worst: Vec<String> = worst
+        .iter()
+        .take(3)
+        .map(|t| format!("{} {:.1} ms (frame {})", t.get("tool").and_then(|k| k.as_str()).unwrap_or("?"), num(t, "longest_frame_ms"), num(t, "longest_frame_no")))
+        .collect();
+    if !worst.is_empty() {
+        s.push_str(&format!("; longest frames: {}", worst.join(", ")));
+    }
+    s.push('.');
+    Some(s)
+}
+
 fn scenario<'a>(report: &'a Value, key: &str) -> Result<&'a Value, String> {
     let path = format!("/scenarios/{key}");
     report.pointer(&path).ok_or_else(|| format!("bench JSON missing scenarios.{key}"))
@@ -295,8 +325,11 @@ pub fn format_table(report: &Value) -> Result<String, String> {
     let orbit = scenario(report, "orbit")?;
     let pan = scenario(report, "pan")?;
     let zoom = scenario(report, "zoom")?;
+    let gizmo = scenario(report, "gizmo_drag")?;
     let idle = scenario(report, "idle")?;
     let fillet = scenario(report, "fillet_rebuild")?;
+    // Open each tool once and wait for its first preview (`scenarios.open_tool` in `src/bench.rs`).
+    let open_tool = scenario(report, "open_tool").ok();
 
     let mut out = String::new();
     out.push_str(&format!("\n### {date}{note}\n\n"));
@@ -314,6 +347,9 @@ pub fn format_table(report: &Value) -> Result<String, String> {
     if let Some(n) = slowest_note(report) {
         out.push_str(&format!("_{n}_\n\n"));
     }
+    if let Some(n) = open_tool_note(report) {
+        out.push_str(&format!("_{n}_\n\n"));
+    }
     out.push_str("| Scenario | frames | median ms | p99 ms | longest ms | idle frames | uploads |\n");
     out.push_str("| --- | ---: | ---: | ---: | ---: | ---: | ---: |\n");
     out.push_str(&row("orbit 10 s", orbit));
@@ -322,6 +358,12 @@ pub fn format_table(report: &Value) -> Result<String, String> {
     out.push('\n');
     out.push_str(&row("zoom 5 s", zoom));
     out.push('\n');
+    out.push_str(&row("gizmo drag", gizmo));
+    out.push('\n');
+    if let Some(o) = open_tool {
+        out.push_str(&row("open tool", o));
+        out.push('\n');
+    }
     out.push_str(&row("idle 5 s", idle));
     out.push('\n');
     out.push_str(&row(&format!("{rebuild_kind} rebuild"), fillet));
@@ -395,6 +437,7 @@ mod tests {
                 "orbit": {"frames": 10, "median_ms": 1.0, "p99_ms": 2.0, "longest_ms": 3.0, "idle_frames": 0, "uploads": 1},
                 "pan": {"frames": 5, "median_ms": 1.1, "p99_ms": 2.1, "longest_ms": 3.1, "idle_frames": 0, "uploads": 1},
                 "zoom": {"frames": 5, "median_ms": 1.2, "p99_ms": 2.2, "longest_ms": 3.2, "idle_frames": 0, "uploads": 1},
+                "gizmo_drag": {"frames": 8, "median_ms": 1.3, "p99_ms": 2.3, "longest_ms": 3.3, "idle_frames": 0, "uploads": 1},
                 "idle": {"frames": 1, "median_ms": 0.0, "p99_ms": 0.0, "longest_ms": 0.0, "idle_frames": 1, "uploads": 1},
                 "fillet_rebuild": {"frames": 4, "median_ms": 5.0, "p99_ms": 6.0, "longest_ms": 7.0, "idle_frames": 0, "uploads": 2},
             }
@@ -402,6 +445,7 @@ mod tests {
         let t = format_table(&report).unwrap();
         assert!(t.contains("### 2026-11-12 (quick)"));
         assert!(t.contains("| orbit 10 s | 10 |"));
+        assert!(t.contains("| gizmo drag | 8 |"));
         assert!(t.contains("| hollow rebuild | 4 |"));
         assert!(t.contains("42.50"));
         assert!(t.contains("_note_"));
@@ -411,11 +455,29 @@ mod tests {
     }
 
     #[test]
+    fn format_table_has_the_open_tool_row() {
+        let s = json!({"frames": 3, "median_ms": 1.0, "p99_ms": 1.0, "longest_ms": 1.0, "idle_frames": 0, "uploads": 1});
+        let report = json!({
+            "date": "2026-11-13",
+            "scenarios": {"orbit": s, "pan": s, "zoom": s, "gizmo_drag": s, "open_tool": {"frames": 90, "median_ms": 4.2, "p99_ms": 6.1, "longest_ms": 9.0, "idle_frames": 0, "uploads": 1}, "idle": s, "fillet_rebuild": s},
+            "open_tool_tools": [
+                {"tool": "hole", "outcome": "preview", "ms": 310.0},
+                {"tool": "hollow", "outcome": "preview", "ms": 1500.0},
+                {"tool": "import", "outcome": "no preview", "ms": 800.0},
+            ],
+        });
+        let t = format_table(&report).unwrap();
+        assert!(t.contains("| open tool | 90 | 4.20 | 6.10 | 9.00 | 0 | 1 |"), "{t}");
+        assert!(t.contains("Open tool: 3 tools opened, 2 answered a preview; slowest first previews: hollow 1500 ms, hole 310 ms."), "{t}");
+        assert!(t.find("| open tool").unwrap() < t.find("| idle 5 s").unwrap(), "the row sits between the gizmo drag and idle rows");
+    }
+
+    #[test]
     fn format_table_notes_slowest_rebuild_frame() {
         let s = json!({"frames": 1, "median_ms": 1.0, "p99_ms": 1.0, "longest_ms": 1.0, "idle_frames": 0, "uploads": 1});
         let report = json!({
             "date": "2026-11-12",
-            "scenarios": {"orbit": s, "pan": s, "zoom": s, "idle": s, "fillet_rebuild": s},
+            "scenarios": {"orbit": s, "pan": s, "zoom": s, "gizmo_drag": s, "idle": s, "fillet_rebuild": s},
             "rebuild_trace": {
                 "slowest": {"dt_ms": 9.5, "at_ms": 10.0, "poll_ms": 1.25, "ui_ms": 2.0, "paint_ms": 3.0, "other_ms": 3.25, "egui_ms": 1.0, "wait_ms": 2.25},
                 "over_16_7": [],

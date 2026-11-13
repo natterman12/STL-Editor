@@ -7,7 +7,9 @@ pub mod engine_link;
 pub mod fonts;
 pub mod icons;
 pub mod platform;
+pub mod supports;
 pub mod theme;
+pub mod tools;
 pub mod ui;
 pub mod viewport;
 #[cfg(target_arch = "wasm32")]

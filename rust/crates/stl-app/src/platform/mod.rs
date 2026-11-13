@@ -90,6 +90,12 @@ pub trait Platform {
     }
     fn now_iso_utc(&self) -> String;
     fn is_web(&self) -> bool;
+    /// A small remembered setting (1.x kept these in `localStorage`: `stle_sf_material`,
+    /// `stle_sf_reach`, `stle_draw_shape`). Default: nothing is remembered.
+    fn setting(&self, _key: &str) -> Option<String> {
+        None
+    }
+    fn set_setting(&self, _key: &str, _value: &str) {}
 }
 
 /// Returns nothing; for tests and the empty window.

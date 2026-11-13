@@ -46,6 +46,17 @@ if (!jspi) {
 const here = new URL(self.location.href);
 const glue = self.__STL_GLUE__ || here.searchParams.get("glue") || new URL("./stl-app.js", here).href;
 const wasmUrl = self.__STL_WASM__ || here.searchParams.get("wasm") || new URL("./stl-app_bg.wasm", here).href;
+// Support Fins' own engine (engine.iife.js, copied beside this file by `xtask web`) defines
+// SupportFinsEngine; the web host in the wasm module looks it up on this worker's global.
+// A module worker has no importScripts, so it is fetched and run as a classic script.
+try {
+  const r = await fetch(new URL("./support-fins/engine.iife.js", here));
+  if (r.ok) {
+    (0, self.eval)((await r.text()) + "\n;if (typeof SupportFinsEngine !== 'undefined') self.SupportFinsEngine = SupportFinsEngine;");
+  }
+} catch (e) {
+  // without it Support Fins reports that its engine is missing; the rest of the app is unaffected
+}
 const mod = await import(glue);
 await mod.default(wasmUrl);
 mod.engine_worker();

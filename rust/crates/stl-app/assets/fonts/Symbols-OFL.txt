@@ -1,5 +1,6 @@
 Copyright 2013 Google Inc. All Rights Reserved.
-(symbols.ttf is a 4-character subset of Noto Emoji, renamed STL Editor Symbols.)
+(symbols.ttf is a 6-character subset of Noto Sans Math + Noto Sans Symbols 2,
+renamed STL Editor Symbols. Rebuild: dev/fonts/rebuild_symbols.py.)
 
 This Font Software is licensed under the SIL Open Font License,
 Version 1.1.

@@ -79,11 +79,11 @@ fn open_project_sends_bodies() {
 }
 
 fn slow() -> Command {
-    Command::AddFeature { kind: TEST_SLOW_KIND.into(), params: json!({}), index: None }
+    Command::AddFeature { kind: TEST_SLOW_KIND.into(), params: json!({}), index: None, name: None }
 }
 
 fn add_box(w: f64) -> Command {
-    Command::AddFeature { kind: "primitive".into(), params: box_params(w), index: None }
+    Command::AddFeature { kind: "primitive".into(), params: box_params(w), index: None, name: None }
 }
 
 /// Polls until the slow command reports that it is under way (it has already changed the document).
@@ -237,6 +237,7 @@ fn engine_panic_shows_restart() {
         kind: stl_app::engine_link::worker::TEST_PANIC_KIND.into(),
         params: json!({}),
         index: None,
+        name: None,
     });
     let end = Instant::now() + Duration::from_secs(30);
     let mut ups = Vec::new();
@@ -292,7 +293,7 @@ fn sketch_view_has_geometry() {
         {"id": "r1", "type": "rect", "x": 0, "y": 0, "w": 20, "h": 10},
         {"id": "l1", "type": "line", "p1": [0, 0], "p2": [5, 5], "construction": true}
     ]});
-    w.handle(Command::AddFeature { kind: "sketch".into(), params, index: None });
+    w.handle(Command::AddFeature { kind: "sketch".into(), params, index: None, name: None });
     let first = last_sketches(&take(&log));
     assert_eq!(first.len(), 1);
     let s = &first[0];
@@ -302,7 +303,7 @@ fn sketch_view_has_geometry() {
     assert_eq!(s.frame[3], [0.0, 0.0, 1.0], "XY plane normal");
 
     // an unrelated change keeps the very same curves
-    w.handle(Command::AddFeature { kind: "primitive".into(), params: box_params(4.0), index: None });
+    w.handle(Command::AddFeature { kind: "primitive".into(), params: box_params(4.0), index: None, name: None });
     let second = last_sketches(&take(&log));
     assert!(Arc::ptr_eq(&first[0].outlines, &second[0].outlines));
 }
@@ -318,6 +319,7 @@ fn planes_skip_base_and_follow_hidden() {
         kind: "plane".into(),
         params: json!({"mode": "offset", "base": "XY", "distance": 10, "name": "P1"}),
         index: None,
+        name: None,
     });
     let planes = last_planes(&take(&log));
     assert_eq!(planes.len(), 1, "base planes are drawn by the viewport, not sent");

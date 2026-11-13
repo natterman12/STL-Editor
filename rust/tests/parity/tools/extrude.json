@@ -1,0 +1,1056 @@
+{
+  "tool": "extrude",
+  "label": "Extrude",
+  "type": "extrude",
+  "icon": "extrude",
+  "flags": {
+    "placeOnFace": false,
+    "noLivePreview": false,
+    "gizmo": false,
+    "planeTool": false,
+    "sculpt": false,
+    "paint": false,
+    "wallTool": false
+  },
+  "hint": "Pick a sketch, set the distance · Cut goes into the material automatically",
+  "extra": [],
+  "fields": [
+    {
+      "key": "sketch",
+      "label": "Sketch",
+      "kind": "sketch"
+    },
+    {
+      "key": "regions",
+      "label": "Profiles",
+      "kind": "regions"
+    },
+    {
+      "key": "operation",
+      "label": "Operation",
+      "kind": "select",
+      "options": [
+        [
+          "new",
+          "New body"
+        ],
+        [
+          "join",
+          "Join"
+        ],
+        [
+          "cut",
+          "Cut"
+        ],
+        [
+          "intersect",
+          "Intersect"
+        ]
+      ]
+    },
+    {
+      "key": "direction",
+      "label": "Direction",
+      "kind": "select",
+      "options": [
+        [
+          "one",
+          "One side"
+        ],
+        [
+          "reverse",
+          "Flipped"
+        ],
+        [
+          "symmetric",
+          "Symmetric"
+        ],
+        [
+          "two",
+          "Two sides"
+        ]
+      ]
+    },
+    {
+      "key": "through_all",
+      "label": "Through all",
+      "kind": "bool",
+      "hasShow": true
+    },
+    {
+      "key": "distance",
+      "label": "Distance",
+      "kind": "number",
+      "unit": "mm",
+      "hasShow": true
+    },
+    {
+      "key": "distance2",
+      "label": "Distance 2",
+      "kind": "number",
+      "unit": "mm",
+      "hasShow": true
+    },
+    {
+      "key": "start_offset",
+      "label": "Start offset",
+      "kind": "number",
+      "unit": "mm"
+    },
+    {
+      "key": "taper",
+      "label": "Taper angle",
+      "kind": "number",
+      "unit": "°"
+    },
+    {
+      "key": "targets",
+      "label": "Bodies",
+      "kind": "bodies",
+      "multi": true,
+      "placeholder": "Auto (bodies it touches)",
+      "hasShow": true
+    }
+  ],
+  "ctxNote": "FIXTURE_CTX: selection [body_a], lastSketch sk1, sketchOnBody true, two bodies, one extrude cut",
+  "defaults": {
+    "sketch": "sk1",
+    "regions": [],
+    "operation": "join",
+    "direction": "one",
+    "distance": 10,
+    "distance2": 10,
+    "start_offset": 0,
+    "taper": 0,
+    "through_all": false,
+    "targets": []
+  },
+  "toParams_defaults": {
+    "sketch": "sk1",
+    "regions": [],
+    "operation": "join",
+    "direction": "one",
+    "distance": 10,
+    "distance2": 10,
+    "start_offset": 0,
+    "taper": 0,
+    "through_all": false,
+    "targets": []
+  },
+  "shown_defaults": [
+    "sketch",
+    "regions",
+    "operation",
+    "direction",
+    "distance",
+    "start_offset",
+    "taper",
+    "targets"
+  ],
+  "cases": [
+    {
+      "name": "select:operation=new",
+      "values": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "new",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "toParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "new",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "shown": [
+        "sketch",
+        "regions",
+        "operation",
+        "direction",
+        "distance",
+        "start_offset",
+        "taper"
+      ]
+    },
+    {
+      "name": "select:operation=join",
+      "values": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "join",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "toParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "join",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "shown": [
+        "sketch",
+        "regions",
+        "operation",
+        "direction",
+        "distance",
+        "start_offset",
+        "taper",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:operation=cut",
+      "values": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "cut",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "toParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "cut",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "shown": [
+        "sketch",
+        "regions",
+        "operation",
+        "direction",
+        "through_all",
+        "distance",
+        "start_offset",
+        "taper",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:operation=intersect",
+      "values": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "intersect",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "toParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "intersect",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "shown": [
+        "sketch",
+        "regions",
+        "operation",
+        "direction",
+        "distance",
+        "start_offset",
+        "taper",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:direction=one",
+      "values": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "join",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "toParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "join",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "shown": [
+        "sketch",
+        "regions",
+        "operation",
+        "direction",
+        "distance",
+        "start_offset",
+        "taper",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:direction=reverse",
+      "values": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "join",
+        "direction": "reverse",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "toParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "join",
+        "direction": "reverse",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "shown": [
+        "sketch",
+        "regions",
+        "operation",
+        "direction",
+        "distance",
+        "start_offset",
+        "taper",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:direction=symmetric",
+      "values": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "join",
+        "direction": "symmetric",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "toParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "join",
+        "direction": "symmetric",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "shown": [
+        "sketch",
+        "regions",
+        "operation",
+        "direction",
+        "distance",
+        "start_offset",
+        "taper",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:direction=two",
+      "values": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "join",
+        "direction": "two",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "toParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "join",
+        "direction": "two",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "shown": [
+        "sketch",
+        "regions",
+        "operation",
+        "direction",
+        "distance",
+        "distance2",
+        "start_offset",
+        "taper",
+        "targets"
+      ]
+    },
+    {
+      "name": "bool:through_all=true",
+      "values": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "join",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": true,
+        "targets": []
+      },
+      "toParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "join",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": true,
+        "targets": []
+      },
+      "shown": [
+        "sketch",
+        "regions",
+        "operation",
+        "direction",
+        "distance",
+        "start_offset",
+        "taper",
+        "targets"
+      ]
+    },
+    {
+      "name": "bool:through_all=false",
+      "values": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "join",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "toParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "join",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "shown": [
+        "sketch",
+        "regions",
+        "operation",
+        "direction",
+        "distance",
+        "start_offset",
+        "taper",
+        "targets"
+      ]
+    }
+  ],
+  "onChange": [],
+  "roundTrips": [
+    {
+      "name": "defaults",
+      "params": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "join",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "fromParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "join",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "toParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "join",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      }
+    },
+    {
+      "name": "select:operation=new",
+      "params": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "new",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "fromParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "new",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "toParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "new",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      }
+    },
+    {
+      "name": "select:operation=join",
+      "params": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "join",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "fromParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "join",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "toParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "join",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      }
+    },
+    {
+      "name": "select:operation=cut",
+      "params": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "cut",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "fromParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "cut",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "toParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "cut",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      }
+    },
+    {
+      "name": "select:operation=intersect",
+      "params": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "intersect",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "fromParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "intersect",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "toParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "intersect",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      }
+    },
+    {
+      "name": "select:direction=one",
+      "params": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "join",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "fromParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "join",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "toParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "join",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      }
+    },
+    {
+      "name": "select:direction=reverse",
+      "params": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "join",
+        "direction": "reverse",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "fromParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "join",
+        "direction": "reverse",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "toParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "join",
+        "direction": "reverse",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      }
+    },
+    {
+      "name": "select:direction=symmetric",
+      "params": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "join",
+        "direction": "symmetric",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "fromParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "join",
+        "direction": "symmetric",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "toParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "join",
+        "direction": "symmetric",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      }
+    },
+    {
+      "name": "select:direction=two",
+      "params": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "join",
+        "direction": "two",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "fromParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "join",
+        "direction": "two",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "toParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "join",
+        "direction": "two",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      }
+    }
+  ],
+  "ctxCases": {
+    "nosel": {
+      "defaults": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "join",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "toParams_defaults": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "join",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "shown_defaults": [
+        "sketch",
+        "regions",
+        "operation",
+        "direction",
+        "distance",
+        "start_offset",
+        "taper",
+        "targets"
+      ]
+    },
+    "two": {
+      "defaults": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "join",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "toParams_defaults": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "join",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "shown_defaults": [
+        "sketch",
+        "regions",
+        "operation",
+        "direction",
+        "distance",
+        "start_offset",
+        "taper",
+        "targets"
+      ]
+    },
+    "nonsolid": {
+      "defaults": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "join",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "toParams_defaults": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "join",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "shown_defaults": [
+        "sketch",
+        "regions",
+        "operation",
+        "direction",
+        "distance",
+        "start_offset",
+        "taper",
+        "targets"
+      ]
+    },
+    "nobbox": {
+      "defaults": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "join",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "toParams_defaults": {
+        "sketch": "sk1",
+        "regions": [],
+        "operation": "join",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "shown_defaults": [
+        "sketch",
+        "regions",
+        "operation",
+        "direction",
+        "distance",
+        "start_offset",
+        "taper",
+        "targets"
+      ]
+    },
+    "empty": {
+      "defaults": {
+        "regions": [],
+        "operation": "new",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "toParams_defaults": {
+        "regions": [],
+        "operation": "new",
+        "direction": "one",
+        "distance": 10,
+        "distance2": 10,
+        "start_offset": 0,
+        "taper": 0,
+        "through_all": false,
+        "targets": []
+      },
+      "shown_defaults": [
+        "sketch",
+        "regions",
+        "operation",
+        "direction",
+        "distance",
+        "start_offset",
+        "taper"
+      ]
+    }
+  }
+}

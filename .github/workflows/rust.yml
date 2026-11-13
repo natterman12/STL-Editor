@@ -153,6 +153,7 @@ jobs:
           node dev/parity/js/import2d_golden.mjs --check
           node dev/parity/js/remesh_golden.mjs --check
           node dev/parity/js/step_golden.mjs --check
+          node dev/parity/js/tools_golden.mjs --check
 
       - name: Use the GNU host
         shell: bash
@@ -240,6 +241,9 @@ jobs:
 
       - name: egui_kittest UI tests
         run: ${{ runner.os == 'Linux' && 'xvfb-run -a ' || '' }}cargo test -p stl-app --test ui
+
+      - name: Tools golden (2.0 registry)
+        run: ${{ runner.os == 'Linux' && 'xvfb-run -a ' || '' }}cargo test -p stl-app --test tools_golden
 
       - name: Upload Windows exe
         if: runner.os == 'Windows'

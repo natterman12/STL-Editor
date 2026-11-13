@@ -12,7 +12,8 @@ use stl_engine::{Document, FeatureError, Registry, RollbackAfter};
 use stl_io::ExportOptions;
 
 use super::views::{self, Views};
-use super::{Command, Level, Update};
+use super::{Command, FinsAsk, Level, Update};
+use stl_engine::FinsHost;
 
 /// Where updates go. `Send + Sync` so the document's progress callback can hold a copy; the web
 /// link, which is single threaded, wraps its postMessage call to satisfy this.
@@ -37,6 +38,8 @@ pub struct Worker {
     /// The last saved (or opened) project file, for Restart.
     saved: Option<Vec<u8>>,
     lost: bool,
+    /// The Support Fins engine, started the first time something asks for it.
+    fins: Option<Arc<dyn FinsHost>>,
 }
 
 fn is_project(name: &str) -> bool {
@@ -47,13 +50,16 @@ impl Worker {
     /// `cancel` is set by the link when the user presses Cancel; the worker clears it when the
     /// command it stopped has ended.
     pub fn new(sink: Sink, cancel: Arc<AtomicBool>) -> Worker {
-        let mut w = Worker { sink, cancel, doc: Document::new(Registry::builtin()), views: Views::new(), saved: None, lost: false };
+        let mut w = Worker { sink, cancel, doc: Document::new(Registry::builtin()), views: Views::new(), saved: None, lost: false, fins: None };
         w.hook();
         w
     }
 
     /// Connects the cancel flag and the progress report to the current document.
     fn hook(&mut self) {
+        if let Some(h) = &self.fins {
+            self.doc.set_fins_host(h.clone());
+        }
         self.doc.set_cancel(self.cancel.clone());
         let sink = self.sink.clone();
         self.doc.set_progress(Box::new(move |done, total, label| {
@@ -72,8 +78,26 @@ impl Worker {
     /// Run one command. A panic anywhere in it is caught: the worker sends `EngineLost` and
     /// ignores commands until `restart`.
     pub fn handle(&mut self, c: Command) {
-        if self.lost || matches!(c, Command::Cancel) {
+        if self.lost || matches!(c, Command::Cancel | Command::ClearPreview) {
             return; // Cancel is a flag the link sets while the command runs
+        }
+        if let Command::Fins { seq, ask } = c {
+            let run = catch_unwind(AssertUnwindSafe(|| self.fins_ask(seq, ask)));
+            if run.is_err() {
+                self.lost = true;
+                self.send(Update::EngineLost);
+            }
+            return;
+        }
+        if let Command::Preview { seq, kind, params, edit_id } = c {
+            self.ensure_fins(&kind);
+            // A preview is not a change: no Busy overlay, no refresh, nothing in the history.
+            let run = catch_unwind(AssertUnwindSafe(|| self.preview(seq, &kind, params, edit_id.as_deref())));
+            if run.is_err() {
+                self.lost = true;
+                self.send(Update::EngineLost);
+            }
+            return;
         }
         self.send(Update::Busy(true));
         let run = catch_unwind(AssertUnwindSafe(|| self.run(c)));
@@ -97,12 +121,86 @@ impl Worker {
             self.doc = d;
         }
         self.hook();
+        self.fins_for_loaded();
         self.cancel.store(false, Ordering::SeqCst);
         if catch_unwind(AssertUnwindSafe(|| self.refresh())).is_err() {
             self.lost = true;
             self.send(Update::EngineLost);
         }
         self.send(Update::Busy(false));
+    }
+
+    /// The Support Fins engine is started when a Support Fins step is first needed, not at startup.
+    fn ensure_fins(&mut self, kind: &str) {
+        if self.fins.is_none() && matches!(kind, "supportfins" | "supportwall") {
+            self.start_fins();
+        }
+    }
+
+    /// A project that has Support Fins steps is read on the empty host; start the engine and run
+    /// those steps again (1.x started it with the app).
+    fn fins_for_loaded(&mut self) {
+        if !self.doc.features.iter().any(|f| matches!(f.kind.as_str(), "supportfins" | "supportwall")) {
+            return;
+        }
+        let host = match &self.fins {
+            Some(h) => h.clone(),
+            None => {
+                let h = make_fins_host();
+                self.fins = Some(h.clone());
+                h
+            }
+        };
+        self.doc.replace_fins_host(host);
+    }
+
+    fn start_fins(&mut self) -> Arc<dyn FinsHost> {
+        if let Some(h) = &self.fins {
+            return h.clone();
+        }
+        let h = make_fins_host();
+        self.doc.set_fins_host(h.clone());
+        self.fins = Some(h.clone());
+        h
+    }
+
+    /// `supportfins/info`, `/strength`, `/suggest`: asked of the engine, never changing the document.
+    fn fins_ask(&mut self, seq: u64, ask: FinsAsk) {
+        use stl_engine::features::common::fins;
+        let name = ask.name().to_owned();
+        let host = self.start_fins();
+        let result: Result<Value, String> = match ask {
+            FinsAsk::Info => fins::info(&*host).map_err(|e| e.0),
+            FinsAsk::Strength { body, options, load } => match self.doc.state.bodies.get(&body) {
+                None => Err(format!("Body '{body}' no longer exists.")),
+                Some(b) => {
+                    let mesh = fins::body_mesh(b);
+                    fins::orient::strength(&*host, &mesh, &options, Some(&load)).map_err(|e| e.0)
+                }
+            },
+            FinsAsk::Suggest { body, options, top } => match self.doc.state.bodies.get(&body) {
+                None => Err(format!("Body '{body}' no longer exists.")),
+                Some(b) => {
+                    let mesh = fins::body_mesh(b);
+                    fins::orient::suggest(&*host, &mesh, &options, top).map_err(|e| e.0)
+                }
+            },
+        };
+        self.send(Update::Fins { seq, ask: name, result });
+    }
+
+    /// `Document::preview`, as 1.x's `preview` route: the meshes the feature would make, and its
+    /// record. The document is not changed.
+    fn preview(&mut self, seq: u64, kind: &str, params: Value, edit_id: Option<&str>) {
+        let (state, res) = self.doc.preview(kind, object(params), edit_id);
+        let result = views::result_json(&res);
+        if let Some(e) = res.error.clone() {
+            self.send(Update::Preview { seq, pack: Default::default(), msg: None, error: Some(e), warn: false, result });
+            return;
+        }
+        let pack = views::preview_pack(&state, &res);
+        let (msg, warn) = views::preview_msg(&res);
+        self.send(Update::Preview { seq, pack, msg, error: None, warn, result });
     }
 
     fn fail(&self, e: FeatureError) {
@@ -115,18 +213,20 @@ impl Worker {
 
     fn run(&mut self, c: Command) {
         let result = self.apply(c);
-        // whatever happened, the UI is told what the document looks like now
-        self.refresh();
+        // The error goes first: the app counts a command as done when the timeline it sends next
+        // shows it (a Support Fins turn, a handle's first Add), so a failure must be known by then.
         if let Err(e) = result {
             self.fail(e);
         }
+        // whatever happened, the UI is told what the document looks like now
+        self.refresh();
     }
 
     fn apply(&mut self, c: Command) -> Result<(), FeatureError> {
         match c {
             Command::Open { name, bytes } => self.open(&name, bytes),
             Command::Import { name, bytes } => self.doc.transact(|d| import(d, &name, bytes)),
-            Command::AddFeature { kind, params, index } => {
+            Command::AddFeature { kind, params, index, name } => {
                 if kind == TEST_PANIC_KIND {
                     panic!("test panic");
                 }
@@ -134,20 +234,32 @@ impl Worker {
                 if kind == TEST_SLOW_KIND {
                     return self.slow();
                 }
+                self.ensure_fins(&kind);
                 let params = object(params);
                 let r = self.doc.transact(|d| {
-                    let id = d.add_feature(&kind, params, None)?;
-                    if let Some(i) = index.filter(|&i| i < d.features.len() - 1) {
-                        d.move_feature(&id, i)?;
+                    let before = d.rollback;
+                    let active = before.map_or(d.features.len(), |r| r.min(d.features.len()));
+                    match index.filter(|&i| i < active) {
+                        // 1.x addFeatureSmart: roll back to the place, add, and put the marker back
+                        // where it was, one step further along
+                        Some(at) => {
+                            d.set_rollback(Some(at));
+                            let id = d.add_feature(&kind, params, name)?;
+                            d.set_rollback(before.map(|b| b + 1));
+                            Ok(id)
+                        }
+                        None => d.add_feature(&kind, params, name),
                     }
-                    Ok(id)
                 })?;
                 self.report(&r);
                 Ok(())
             }
-            Command::EditFeature { id, params } => {
+            Command::EditFeature { id, params, rollback_after } => {
+                if let Some(k) = self.doc.features.iter().find(|f| f.id == id).map(|f| f.kind.clone()) {
+                    self.ensure_fins(&k);
+                }
                 let params = object(params);
-                self.doc.transact(|d| d.edit_feature(&id, Some(params), None, None, RollbackAfter::Keep))?;
+                self.doc.transact(|d| d.edit_feature(&id, Some(params), None, None, rollback_after.map_or(RollbackAfter::Keep, RollbackAfter::Set)))?;
                 self.report(&id);
                 Ok(())
             }
@@ -188,7 +300,7 @@ impl Worker {
                 self.send(Update::Exported { name: format!("{title}.{}", format.ext()), bytes, count });
                 Ok(())
             }
-            Command::Cancel => Ok(()),
+            Command::Cancel | Command::ClearPreview | Command::Preview { .. } | Command::Fins { .. } => Ok(()),
         }
     }
 
@@ -217,6 +329,7 @@ impl Worker {
             self.doc = doc;
             self.views.clear();
             self.hook();
+            self.fins_for_loaded();
             self.saved = Some(bytes);
             let end = self.doc.rollback.map_or(self.doc.features.len(), |r| r.min(self.doc.features.len()));
             for (i, f) in self.doc.features[..end].iter().enumerate() {
@@ -297,4 +410,47 @@ fn seed(title: &str, date: &str) -> u64 {
         h = h.wrapping_mul(0x0100_0000_01b3);
     }
     h
+}
+
+/// Desktop: the engine files beside the program (or the newest downloaded one), on the system web
+/// engine or Boa. Web: the `SupportFinsEngine` the page loaded.
+#[cfg(not(target_arch = "wasm32"))]
+fn make_fins_host() -> Arc<dyn FinsHost> {
+    use std::path::PathBuf;
+    let rel = ["web", "vendor", "support-fins"];
+    let mut starts: Vec<PathBuf> = Vec::new();
+    if let Ok(exe) = std::env::current_exe() {
+        starts.extend(exe.parent().map(|p| p.to_path_buf()));
+    }
+    if let Ok(cwd) = std::env::current_dir() {
+        starts.push(cwd);
+    }
+    starts.push(PathBuf::from(env!("CARGO_MANIFEST_DIR")));
+    let mut bundled = None;
+    for s in starts {
+        for a in s.ancestors() {
+            let d: PathBuf = rel.iter().fold(a.to_path_buf(), |p, x| p.join(x));
+            if d.join("engine.iife.js").is_file() {
+                bundled = Some(d);
+                break;
+            }
+        }
+        if bundled.is_some() {
+            break;
+        }
+    }
+    let user = std::env::var_os("APPDATA")
+        .or_else(|| std::env::var_os("XDG_CONFIG_HOME"))
+        .map(|p| PathBuf::from(p).join("STL Editor").join("support-fins"))
+        .unwrap_or_default();
+    let bundled = bundled.unwrap_or_default();
+    match stl_platform::fins::choose_engine(&bundled, &user) {
+        Ok(info) => stl_platform::fins::start_fins_host(&info.path),
+        Err(_) => Arc::new(stl_engine::NullHost),
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+fn make_fins_host() -> Arc<dyn FinsHost> {
+    Arc::new(crate::web::fins::BrowserHost)
 }

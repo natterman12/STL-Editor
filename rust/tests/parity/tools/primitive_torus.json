@@ -1,0 +1,1162 @@
+{
+  "tool": "primitive_torus",
+  "label": "Torus",
+  "type": "primitive",
+  "icon": "torus",
+  "flags": {
+    "placeOnFace": true,
+    "noLivePreview": false,
+    "gizmo": false,
+    "planeTool": false,
+    "sculpt": false,
+    "paint": false,
+    "wallTool": false
+  },
+  "hint": "Click a flat face to place it there, or set the position · use Cut to subtract it",
+  "extra": [],
+  "fields": [
+    {
+      "key": "radius",
+      "label": "Ring radius",
+      "kind": "number",
+      "unit": "mm"
+    },
+    {
+      "key": "radius2",
+      "label": "Tube radius",
+      "kind": "number",
+      "unit": "mm"
+    },
+    {
+      "key": "plane",
+      "label": "On",
+      "kind": "plane"
+    },
+    {
+      "key": "offset",
+      "label": "Position",
+      "kind": "vec3",
+      "unit": "mm"
+    },
+    {
+      "key": "rotate",
+      "label": "Rotate",
+      "kind": "vec3",
+      "unit": "°"
+    },
+    {
+      "key": "anchor",
+      "label": "Anchor",
+      "kind": "select",
+      "options": [
+        [
+          "base",
+          "Base"
+        ],
+        [
+          "center",
+          "Centre"
+        ]
+      ]
+    },
+    {
+      "key": "operation",
+      "label": "Operation",
+      "kind": "select",
+      "options": [
+        [
+          "new",
+          "New body"
+        ],
+        [
+          "join",
+          "Join"
+        ],
+        [
+          "cut",
+          "Cut"
+        ],
+        [
+          "intersect",
+          "Intersect"
+        ]
+      ]
+    },
+    {
+      "key": "targets",
+      "label": "Bodies",
+      "kind": "bodies",
+      "multi": true,
+      "placeholder": "Auto",
+      "hasShow": true
+    }
+  ],
+  "ctxNote": "FIXTURE_CTX: selection [body_a], lastSketch sk1, sketchOnBody true, two bodies, one extrude cut",
+  "defaults": {
+    "shape": "torus",
+    "radius": 15,
+    "radius2": 4,
+    "plane": "XY",
+    "offset": [
+      0,
+      0,
+      0
+    ],
+    "rotate": [
+      0,
+      0,
+      0
+    ],
+    "anchor": "base",
+    "operation": "new",
+    "targets": [],
+    "body_name": "Torus"
+  },
+  "toParams_defaults": {
+    "shape": "torus",
+    "radius": 15,
+    "radius2": 4,
+    "plane": "XY",
+    "offset": [
+      0,
+      0,
+      0
+    ],
+    "rotate": [
+      0,
+      0,
+      0
+    ],
+    "anchor": "base",
+    "operation": "new",
+    "targets": [],
+    "body_name": "Torus"
+  },
+  "shown_defaults": [
+    "radius",
+    "radius2",
+    "plane",
+    "offset",
+    "rotate",
+    "anchor",
+    "operation"
+  ],
+  "cases": [
+    {
+      "name": "select:anchor=base",
+      "values": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Torus"
+      },
+      "toParams": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Torus"
+      },
+      "shown": [
+        "radius",
+        "radius2",
+        "plane",
+        "offset",
+        "rotate",
+        "anchor",
+        "operation"
+      ]
+    },
+    {
+      "name": "select:anchor=center",
+      "values": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "center",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Torus"
+      },
+      "toParams": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "center",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Torus"
+      },
+      "shown": [
+        "radius",
+        "radius2",
+        "plane",
+        "offset",
+        "rotate",
+        "anchor",
+        "operation"
+      ]
+    },
+    {
+      "name": "select:operation=new",
+      "values": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Torus"
+      },
+      "toParams": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Torus"
+      },
+      "shown": [
+        "radius",
+        "radius2",
+        "plane",
+        "offset",
+        "rotate",
+        "anchor",
+        "operation"
+      ]
+    },
+    {
+      "name": "select:operation=join",
+      "values": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "join",
+        "targets": [],
+        "body_name": "Torus"
+      },
+      "toParams": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "join",
+        "targets": [],
+        "body_name": "Torus"
+      },
+      "shown": [
+        "radius",
+        "radius2",
+        "plane",
+        "offset",
+        "rotate",
+        "anchor",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:operation=cut",
+      "values": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "cut",
+        "targets": [],
+        "body_name": "Torus"
+      },
+      "toParams": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "cut",
+        "targets": [],
+        "body_name": "Torus"
+      },
+      "shown": [
+        "radius",
+        "radius2",
+        "plane",
+        "offset",
+        "rotate",
+        "anchor",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:operation=intersect",
+      "values": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "intersect",
+        "targets": [],
+        "body_name": "Torus"
+      },
+      "toParams": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "intersect",
+        "targets": [],
+        "body_name": "Torus"
+      },
+      "shown": [
+        "radius",
+        "radius2",
+        "plane",
+        "offset",
+        "rotate",
+        "anchor",
+        "operation",
+        "targets"
+      ]
+    }
+  ],
+  "onChange": [],
+  "roundTrips": [
+    {
+      "name": "defaults",
+      "params": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Torus"
+      },
+      "fromParams": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Torus"
+      },
+      "toParams": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Torus"
+      }
+    },
+    {
+      "name": "select:anchor=base",
+      "params": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Torus"
+      },
+      "fromParams": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Torus"
+      },
+      "toParams": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Torus"
+      }
+    },
+    {
+      "name": "select:anchor=center",
+      "params": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "center",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Torus"
+      },
+      "fromParams": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "center",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Torus"
+      },
+      "toParams": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "center",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Torus"
+      }
+    },
+    {
+      "name": "select:operation=new",
+      "params": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Torus"
+      },
+      "fromParams": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Torus"
+      },
+      "toParams": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Torus"
+      }
+    },
+    {
+      "name": "select:operation=join",
+      "params": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "join",
+        "targets": [],
+        "body_name": "Torus"
+      },
+      "fromParams": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "join",
+        "targets": [],
+        "body_name": "Torus"
+      },
+      "toParams": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "join",
+        "targets": [],
+        "body_name": "Torus"
+      }
+    },
+    {
+      "name": "select:operation=cut",
+      "params": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "cut",
+        "targets": [],
+        "body_name": "Torus"
+      },
+      "fromParams": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "cut",
+        "targets": [],
+        "body_name": "Torus"
+      },
+      "toParams": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "cut",
+        "targets": [],
+        "body_name": "Torus"
+      }
+    },
+    {
+      "name": "select:operation=intersect",
+      "params": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "intersect",
+        "targets": [],
+        "body_name": "Torus"
+      },
+      "fromParams": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "intersect",
+        "targets": [],
+        "body_name": "Torus"
+      },
+      "toParams": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "intersect",
+        "targets": [],
+        "body_name": "Torus"
+      }
+    }
+  ],
+  "ctxCases": {
+    "nosel": {
+      "defaults": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Torus"
+      },
+      "toParams_defaults": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Torus"
+      },
+      "shown_defaults": [
+        "radius",
+        "radius2",
+        "plane",
+        "offset",
+        "rotate",
+        "anchor",
+        "operation"
+      ]
+    },
+    "two": {
+      "defaults": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Torus"
+      },
+      "toParams_defaults": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Torus"
+      },
+      "shown_defaults": [
+        "radius",
+        "radius2",
+        "plane",
+        "offset",
+        "rotate",
+        "anchor",
+        "operation"
+      ]
+    },
+    "nonsolid": {
+      "defaults": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Torus"
+      },
+      "toParams_defaults": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Torus"
+      },
+      "shown_defaults": [
+        "radius",
+        "radius2",
+        "plane",
+        "offset",
+        "rotate",
+        "anchor",
+        "operation"
+      ]
+    },
+    "nobbox": {
+      "defaults": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Torus"
+      },
+      "toParams_defaults": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Torus"
+      },
+      "shown_defaults": [
+        "radius",
+        "radius2",
+        "plane",
+        "offset",
+        "rotate",
+        "anchor",
+        "operation"
+      ]
+    },
+    "empty": {
+      "defaults": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Torus"
+      },
+      "toParams_defaults": {
+        "shape": "torus",
+        "radius": 15,
+        "radius2": 4,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Torus"
+      },
+      "shown_defaults": [
+        "radius",
+        "radius2",
+        "plane",
+        "offset",
+        "rotate",
+        "anchor",
+        "operation"
+      ]
+    }
+  }
+}

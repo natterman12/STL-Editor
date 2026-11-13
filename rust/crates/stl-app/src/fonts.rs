@@ -3,8 +3,9 @@
 //! - Desktop: at run time load the system UI font (Segoe UI on Windows; never shipped) and put it
 //!   first in the proportional family.
 //! - Web, or a machine without it: the bundled Selawik (SIL Open Font License 1.1, Microsoft;
-//!   `assets/fonts/Selawik-OFL.txt`), plus a 2.6 KB piece of Noto Emoji for the few symbols Selawik
-//!   lacks (`assets/fonts/Symbols-OFL.txt`). Selawik is Microsoft's metric-compatible stand-in for Segoe
+//!   `assets/fonts/Selawik-OFL.txt`), plus a ~6.9 KB piece of Noto Sans Math + Noto Sans Symbols 2
+//!   for the few symbols Selawik lacks (`assets/fonts/Symbols-OFL.txt`; rebuild
+//!   `dev/fonts/rebuild_symbols.py`). Selawik is Microsoft's metric-compatible stand-in for Segoe
 //!   UI, so text widths and line breaks stay the same as with the real font.
 
 use egui::{FontData, FontDefinitions, FontFamily};
@@ -12,10 +13,11 @@ use std::sync::Arc;
 
 const SELAWIK: &[u8] = include_bytes!("../assets/fonts/selawk.ttf");
 const SELAWIK_BOLD: &[u8] = include_bytes!("../assets/fonts/selawkb.ttf");
-/// A 2.6 KB piece of Noto Emoji (SIL OFL 1.1, `assets/fonts/Symbols-OFL.txt`) with the four marks
-/// the text uses that Selawik and egui's default fonts lack: heart, warning sign, check mark and
-/// heavy check mark (U+2713 shares U+2714's drawing). It is the last fallback, so it never
-/// replaces a glyph another font has.
+/// A ~6.9 KB piece of Noto Sans Math + Noto Sans Symbols 2 (SIL OFL 1.1,
+/// `assets/fonts/Symbols-OFL.txt`) with the six marks the text uses that Selawik and egui's
+/// default fonts lack: → (U+2192), ″ (U+2033), ♥ (U+2665), ⚠ (U+26A0), ✓ (U+2713), ✔ (U+2714).
+/// Rebuild with `dev/fonts/rebuild_symbols.py`. It is the last fallback, so it never replaces a
+/// glyph another font has.
 const SYMBOLS: &[u8] = include_bytes!("../assets/fonts/symbols.ttf");
 
 /// System UI font files to try, in order (desktop only).

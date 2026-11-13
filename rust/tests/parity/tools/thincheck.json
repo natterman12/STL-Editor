@@ -1,0 +1,232 @@
+{
+  "tool": "thincheck",
+  "label": "Thin-wall Check",
+  "type": "thincheck",
+  "icon": "measure",
+  "flags": {
+    "placeOnFace": false,
+    "noLivePreview": false,
+    "gizmo": false,
+    "planeTool": false,
+    "sculpt": false,
+    "paint": false,
+    "wallTool": false
+  },
+  "hint": "Finds walls, pins and ribs thinner than the minimum, which may not print. The result shows below and nothing is changed. 0.8 mm suits a 0.4 mm nozzle. Click Apply to keep the check in the timeline",
+  "extra": [
+    {
+      "name": "toParams:no body",
+      "op": "toParams",
+      "input": {
+        "bodies": [],
+        "min": 0.8
+      },
+      "result": {
+        "min": 0.8
+      }
+    },
+    {
+      "name": "toParams:picked body",
+      "op": "toParams",
+      "input": {
+        "bodies": [
+          "body_b"
+        ],
+        "min": 0.8
+      },
+      "result": {
+        "body": "body_b",
+        "min": 0.8
+      }
+    },
+    {
+      "name": "fromParams:body null",
+      "op": "fromParams",
+      "input": {
+        "body": null,
+        "min": 0.8
+      },
+      "result": {
+        "min": 0.8,
+        "body": null,
+        "bodies": []
+      }
+    },
+    {
+      "name": "fromParams:body empty string",
+      "op": "fromParams",
+      "input": {
+        "body": "",
+        "min": 0.8
+      },
+      "result": {
+        "min": 0.8,
+        "body": "",
+        "bodies": []
+      }
+    },
+    {
+      "name": "fromParams:body zero",
+      "op": "fromParams",
+      "input": {
+        "body": 0,
+        "min": 0.8
+      },
+      "result": {
+        "min": 0.8,
+        "body": 0,
+        "bodies": []
+      }
+    },
+    {
+      "name": "fromParams:body name",
+      "op": "fromParams",
+      "input": {
+        "body": "body_b",
+        "min": 0.8
+      },
+      "result": {
+        "min": 0.8,
+        "body": "body_b",
+        "bodies": [
+          "body_b"
+        ]
+      }
+    },
+    {
+      "name": "fromParams:body missing",
+      "op": "fromParams",
+      "input": {
+        "min": 0.8
+      },
+      "result": {
+        "min": 0.8,
+        "bodies": []
+      }
+    }
+  ],
+  "fields": [
+    {
+      "key": "bodies",
+      "label": "Body",
+      "kind": "bodies",
+      "multi": false
+    },
+    {
+      "key": "min",
+      "label": "Minimum thickness",
+      "kind": "number",
+      "unit": "mm"
+    }
+  ],
+  "ctxNote": "FIXTURE_CTX: selection [body_a], lastSketch sk1, sketchOnBody true, two bodies, one extrude cut",
+  "defaults": {
+    "bodies": [
+      "body_a"
+    ],
+    "min": 0.8
+  },
+  "toParams_defaults": {
+    "body": "body_a",
+    "min": 0.8
+  },
+  "shown_defaults": [
+    "bodies",
+    "min"
+  ],
+  "cases": [],
+  "onChange": [],
+  "roundTrips": [
+    {
+      "name": "defaults",
+      "params": {
+        "body": "body_a",
+        "min": 0.8
+      },
+      "fromParams": {
+        "min": 0.8,
+        "body": "body_a",
+        "bodies": [
+          "body_a"
+        ]
+      },
+      "toParams": {
+        "body": "body_a",
+        "min": 0.8
+      }
+    }
+  ],
+  "ctxCases": {
+    "nosel": {
+      "defaults": {
+        "bodies": [],
+        "min": 0.8
+      },
+      "toParams_defaults": {
+        "min": 0.8
+      },
+      "shown_defaults": [
+        "bodies",
+        "min"
+      ]
+    },
+    "two": {
+      "defaults": {
+        "bodies": [
+          "body_a"
+        ],
+        "min": 0.8
+      },
+      "toParams_defaults": {
+        "body": "body_a",
+        "min": 0.8
+      },
+      "shown_defaults": [
+        "bodies",
+        "min"
+      ]
+    },
+    "nonsolid": {
+      "defaults": {
+        "bodies": [],
+        "min": 0.8
+      },
+      "toParams_defaults": {
+        "min": 0.8
+      },
+      "shown_defaults": [
+        "bodies",
+        "min"
+      ]
+    },
+    "nobbox": {
+      "defaults": {
+        "bodies": [
+          "body_c"
+        ],
+        "min": 0.8
+      },
+      "toParams_defaults": {
+        "body": "body_c",
+        "min": 0.8
+      },
+      "shown_defaults": [
+        "bodies",
+        "min"
+      ]
+    },
+    "empty": {
+      "defaults": {
+        "bodies": [],
+        "min": 0.8
+      },
+      "toParams_defaults": {
+        "min": 0.8
+      },
+      "shown_defaults": [
+        "bodies",
+        "min"
+      ]
+    }
+  }
+}

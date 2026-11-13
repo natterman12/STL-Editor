@@ -1,0 +1,216 @@
+{
+  "tool": "hinge",
+  "label": "Living hinge",
+  "type": "hinge",
+  "icon": "split",
+  "flags": {
+    "placeOnFace": false,
+    "noLivePreview": false,
+    "gizmo": false,
+    "planeTool": false,
+    "sculpt": false,
+    "paint": false,
+    "wallTool": false
+  },
+  "hint": "Cuts a thin slot across the whole block, leaving a thin strip of material under it (the hinge) so the two sides can flex. Position is measured along the plane’s X; 0.5 mm is a common hinge thickness for PLA",
+  "extra": [],
+  "fields": [
+    {
+      "key": "plane",
+      "label": "On",
+      "kind": "plane"
+    },
+    {
+      "key": "x",
+      "label": "Position",
+      "kind": "number",
+      "unit": "mm"
+    },
+    {
+      "key": "slot",
+      "label": "Slot width",
+      "kind": "number",
+      "unit": "mm"
+    },
+    {
+      "key": "thickness",
+      "label": "Hinge thickness",
+      "kind": "number",
+      "unit": "mm"
+    },
+    {
+      "key": "targets",
+      "label": "Bodies",
+      "kind": "bodies",
+      "multi": true,
+      "placeholder": "Auto"
+    }
+  ],
+  "ctxNote": "FIXTURE_CTX: selection [body_a], lastSketch sk1, sketchOnBody true, two bodies, one extrude cut",
+  "defaults": {
+    "plane": "XY",
+    "x": 10,
+    "slot": 1,
+    "thickness": 0.5,
+    "targets": []
+  },
+  "toParams_defaults": {
+    "plane": "XY",
+    "x": 10,
+    "slot": 1,
+    "thickness": 0.5,
+    "targets": []
+  },
+  "shown_defaults": [
+    "plane",
+    "x",
+    "slot",
+    "thickness",
+    "targets"
+  ],
+  "cases": [],
+  "onChange": [],
+  "roundTrips": [
+    {
+      "name": "defaults",
+      "params": {
+        "plane": "XY",
+        "x": 10,
+        "slot": 1,
+        "thickness": 0.5,
+        "targets": []
+      },
+      "fromParams": {
+        "plane": "XY",
+        "x": 10,
+        "slot": 1,
+        "thickness": 0.5,
+        "targets": []
+      },
+      "toParams": {
+        "plane": "XY",
+        "x": 10,
+        "slot": 1,
+        "thickness": 0.5,
+        "targets": []
+      }
+    }
+  ],
+  "ctxCases": {
+    "nosel": {
+      "defaults": {
+        "plane": "XY",
+        "x": 10,
+        "slot": 1,
+        "thickness": 0.5,
+        "targets": []
+      },
+      "toParams_defaults": {
+        "plane": "XY",
+        "x": 10,
+        "slot": 1,
+        "thickness": 0.5,
+        "targets": []
+      },
+      "shown_defaults": [
+        "plane",
+        "x",
+        "slot",
+        "thickness",
+        "targets"
+      ]
+    },
+    "two": {
+      "defaults": {
+        "plane": "XY",
+        "x": 10,
+        "slot": 1,
+        "thickness": 0.5,
+        "targets": []
+      },
+      "toParams_defaults": {
+        "plane": "XY",
+        "x": 10,
+        "slot": 1,
+        "thickness": 0.5,
+        "targets": []
+      },
+      "shown_defaults": [
+        "plane",
+        "x",
+        "slot",
+        "thickness",
+        "targets"
+      ]
+    },
+    "nonsolid": {
+      "defaults": {
+        "plane": "XY",
+        "x": 10,
+        "slot": 1,
+        "thickness": 0.5,
+        "targets": []
+      },
+      "toParams_defaults": {
+        "plane": "XY",
+        "x": 10,
+        "slot": 1,
+        "thickness": 0.5,
+        "targets": []
+      },
+      "shown_defaults": [
+        "plane",
+        "x",
+        "slot",
+        "thickness",
+        "targets"
+      ]
+    },
+    "nobbox": {
+      "defaults": {
+        "plane": "XY",
+        "x": 10,
+        "slot": 1,
+        "thickness": 0.5,
+        "targets": []
+      },
+      "toParams_defaults": {
+        "plane": "XY",
+        "x": 10,
+        "slot": 1,
+        "thickness": 0.5,
+        "targets": []
+      },
+      "shown_defaults": [
+        "plane",
+        "x",
+        "slot",
+        "thickness",
+        "targets"
+      ]
+    },
+    "empty": {
+      "defaults": {
+        "plane": "XY",
+        "x": 10,
+        "slot": 1,
+        "thickness": 0.5,
+        "targets": []
+      },
+      "toParams_defaults": {
+        "plane": "XY",
+        "x": 10,
+        "slot": 1,
+        "thickness": 0.5,
+        "targets": []
+      },
+      "shown_defaults": [
+        "plane",
+        "x",
+        "slot",
+        "thickness",
+        "targets"
+      ]
+    }
+  }
+}

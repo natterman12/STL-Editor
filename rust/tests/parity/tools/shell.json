@@ -1,0 +1,1600 @@
+{
+  "tool": "shell",
+  "label": "Shell",
+  "type": "shell",
+  "icon": "hollow",
+  "flags": {
+    "placeOnFace": false,
+    "noLivePreview": true,
+    "gizmo": false,
+    "planeTool": false,
+    "sculpt": false,
+    "paint": false,
+    "wallTool": false
+  },
+  "hint": "Click the flat faces to leave open; the rest of the part becomes a wall of this thickness, measured inward",
+  "extra": [
+    {
+      "name": "toParams:no body",
+      "op": "toParams",
+      "input": {
+        "body": [],
+        "openings": "1",
+        "face1": null,
+        "face2": null,
+        "face3": null,
+        "face4": null,
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "result": {
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "toParams:picked body",
+      "op": "toParams",
+      "input": {
+        "body": [
+          "body_b"
+        ],
+        "openings": "1",
+        "face1": null,
+        "face2": null,
+        "face3": null,
+        "face4": null,
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "result": {
+        "body": "body_b",
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "fromParams:body null",
+      "op": "fromParams",
+      "input": {
+        "body": null,
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "result": {
+        "body": [],
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal",
+        "openings": "0",
+        "face1": null,
+        "face2": null,
+        "face3": null,
+        "face4": null
+      }
+    },
+    {
+      "name": "fromParams:body empty string",
+      "op": "fromParams",
+      "input": {
+        "body": "",
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "result": {
+        "body": [],
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal",
+        "openings": "0",
+        "face1": null,
+        "face2": null,
+        "face3": null,
+        "face4": null
+      }
+    },
+    {
+      "name": "fromParams:body zero",
+      "op": "fromParams",
+      "input": {
+        "body": 0,
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "result": {
+        "body": [],
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal",
+        "openings": "0",
+        "face1": null,
+        "face2": null,
+        "face3": null,
+        "face4": null
+      }
+    },
+    {
+      "name": "fromParams:body name",
+      "op": "fromParams",
+      "input": {
+        "body": "body_b",
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "result": {
+        "body": [
+          "body_b"
+        ],
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal",
+        "openings": "0",
+        "face1": null,
+        "face2": null,
+        "face3": null,
+        "face4": null
+      }
+    },
+    {
+      "name": "fromParams:body missing",
+      "op": "fromParams",
+      "input": {
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "result": {
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal",
+        "body": [],
+        "openings": "0",
+        "face1": null,
+        "face2": null,
+        "face3": null,
+        "face4": null
+      }
+    },
+    {
+      "name": "toParams:openings \"0\"",
+      "op": "toParams",
+      "input": {
+        "body": [
+          "body_a"
+        ],
+        "openings": "0",
+        "face1": {
+          "normal": [
+            0,
+            0,
+            1
+          ]
+        },
+        "face2": {
+          "normal": [
+            1,
+            0,
+            0
+          ]
+        },
+        "face3": null,
+        "face4": {
+          "normal": [
+            0,
+            1,
+            0
+          ]
+        },
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "result": {
+        "body": "body_a",
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "toParams:openings \"1\"",
+      "op": "toParams",
+      "input": {
+        "body": [
+          "body_a"
+        ],
+        "openings": "1",
+        "face1": {
+          "normal": [
+            0,
+            0,
+            1
+          ]
+        },
+        "face2": {
+          "normal": [
+            1,
+            0,
+            0
+          ]
+        },
+        "face3": null,
+        "face4": {
+          "normal": [
+            0,
+            1,
+            0
+          ]
+        },
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "result": {
+        "body": "body_a",
+        "faces": [
+          {
+            "normal": [
+              0,
+              0,
+              1
+            ]
+          }
+        ],
+        "thickness": 2,
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "toParams:openings \"2\"",
+      "op": "toParams",
+      "input": {
+        "body": [
+          "body_a"
+        ],
+        "openings": "2",
+        "face1": {
+          "normal": [
+            0,
+            0,
+            1
+          ]
+        },
+        "face2": {
+          "normal": [
+            1,
+            0,
+            0
+          ]
+        },
+        "face3": null,
+        "face4": {
+          "normal": [
+            0,
+            1,
+            0
+          ]
+        },
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "result": {
+        "body": "body_a",
+        "faces": [
+          {
+            "normal": [
+              0,
+              0,
+              1
+            ]
+          },
+          {
+            "normal": [
+              1,
+              0,
+              0
+            ]
+          }
+        ],
+        "thickness": 2,
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "toParams:openings \"3\"",
+      "op": "toParams",
+      "input": {
+        "body": [
+          "body_a"
+        ],
+        "openings": "3",
+        "face1": {
+          "normal": [
+            0,
+            0,
+            1
+          ]
+        },
+        "face2": {
+          "normal": [
+            1,
+            0,
+            0
+          ]
+        },
+        "face3": null,
+        "face4": {
+          "normal": [
+            0,
+            1,
+            0
+          ]
+        },
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "result": {
+        "body": "body_a",
+        "faces": [
+          {
+            "normal": [
+              0,
+              0,
+              1
+            ]
+          },
+          {
+            "normal": [
+              1,
+              0,
+              0
+            ]
+          }
+        ],
+        "thickness": 2,
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "toParams:openings \"4\"",
+      "op": "toParams",
+      "input": {
+        "body": [
+          "body_a"
+        ],
+        "openings": "4",
+        "face1": {
+          "normal": [
+            0,
+            0,
+            1
+          ]
+        },
+        "face2": {
+          "normal": [
+            1,
+            0,
+            0
+          ]
+        },
+        "face3": null,
+        "face4": {
+          "normal": [
+            0,
+            1,
+            0
+          ]
+        },
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "result": {
+        "body": "body_a",
+        "faces": [
+          {
+            "normal": [
+              0,
+              0,
+              1
+            ]
+          },
+          {
+            "normal": [
+              1,
+              0,
+              0
+            ]
+          },
+          {
+            "normal": [
+              0,
+              1,
+              0
+            ]
+          }
+        ],
+        "thickness": 2,
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "toParams:openings 2",
+      "op": "toParams",
+      "input": {
+        "body": [
+          "body_a"
+        ],
+        "openings": 2,
+        "face1": {
+          "normal": [
+            0,
+            0,
+            1
+          ]
+        },
+        "face2": {
+          "normal": [
+            1,
+            0,
+            0
+          ]
+        },
+        "face3": null,
+        "face4": {
+          "normal": [
+            0,
+            1,
+            0
+          ]
+        },
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "result": {
+        "body": "body_a",
+        "faces": [
+          {
+            "normal": [
+              0,
+              0,
+              1
+            ]
+          },
+          {
+            "normal": [
+              1,
+              0,
+              0
+            ]
+          }
+        ],
+        "thickness": 2,
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "toParams:openings \"2.5\"",
+      "op": "toParams",
+      "input": {
+        "body": [
+          "body_a"
+        ],
+        "openings": "2.5",
+        "face1": {
+          "normal": [
+            0,
+            0,
+            1
+          ]
+        },
+        "face2": {
+          "normal": [
+            1,
+            0,
+            0
+          ]
+        },
+        "face3": null,
+        "face4": {
+          "normal": [
+            0,
+            1,
+            0
+          ]
+        },
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "result": {
+        "body": "body_a",
+        "faces": [
+          {
+            "normal": [
+              0,
+              0,
+              1
+            ]
+          },
+          {
+            "normal": [
+              1,
+              0,
+              0
+            ]
+          }
+        ],
+        "thickness": 2,
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "toParams:openings \"\"",
+      "op": "toParams",
+      "input": {
+        "body": [
+          "body_a"
+        ],
+        "openings": "",
+        "face1": {
+          "normal": [
+            0,
+            0,
+            1
+          ]
+        },
+        "face2": {
+          "normal": [
+            1,
+            0,
+            0
+          ]
+        },
+        "face3": null,
+        "face4": {
+          "normal": [
+            0,
+            1,
+            0
+          ]
+        },
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "result": {
+        "body": "body_a",
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "toParams:openings null",
+      "op": "toParams",
+      "input": {
+        "body": [
+          "body_a"
+        ],
+        "openings": null,
+        "face1": {
+          "normal": [
+            0,
+            0,
+            1
+          ]
+        },
+        "face2": {
+          "normal": [
+            1,
+            0,
+            0
+          ]
+        },
+        "face3": null,
+        "face4": {
+          "normal": [
+            0,
+            1,
+            0
+          ]
+        },
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "result": {
+        "body": "body_a",
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "toParams:openings \"abc\"",
+      "op": "toParams",
+      "input": {
+        "body": [
+          "body_a"
+        ],
+        "openings": "abc",
+        "face1": {
+          "normal": [
+            0,
+            0,
+            1
+          ]
+        },
+        "face2": {
+          "normal": [
+            1,
+            0,
+            0
+          ]
+        },
+        "face3": null,
+        "face4": {
+          "normal": [
+            0,
+            1,
+            0
+          ]
+        },
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "result": {
+        "body": "body_a",
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "toParams:body is text",
+      "op": "toParams",
+      "input": {
+        "body": "body_a",
+        "openings": "1",
+        "face1": {
+          "normal": [
+            0,
+            0,
+            1
+          ]
+        },
+        "face2": {
+          "normal": [
+            1,
+            0,
+            0
+          ]
+        },
+        "face3": null,
+        "face4": {
+          "normal": [
+            0,
+            1,
+            0
+          ]
+        },
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "result": {
+        "body": "body_a",
+        "faces": [
+          {
+            "normal": [
+              0,
+              0,
+              1
+            ]
+          }
+        ],
+        "thickness": 2,
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "toParams:body is empty list",
+      "op": "toParams",
+      "input": {
+        "body": [],
+        "openings": "1",
+        "face1": {
+          "normal": [
+            0,
+            0,
+            1
+          ]
+        },
+        "face2": {
+          "normal": [
+            1,
+            0,
+            0
+          ]
+        },
+        "face3": null,
+        "face4": {
+          "normal": [
+            0,
+            1,
+            0
+          ]
+        },
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "result": {
+        "faces": [
+          {
+            "normal": [
+              0,
+              0,
+              1
+            ]
+          }
+        ],
+        "thickness": 2,
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "fromParams:5 faces",
+      "op": "fromParams",
+      "input": {
+        "body": "body_a",
+        "faces": [
+          {
+            "i": 1
+          },
+          {
+            "i": 2
+          },
+          {
+            "i": 3
+          },
+          {
+            "i": 4
+          },
+          {
+            "i": 5
+          }
+        ],
+        "thickness": 2
+      },
+      "result": {
+        "body": [
+          "body_a"
+        ],
+        "faces": [
+          {
+            "i": 1
+          },
+          {
+            "i": 2
+          },
+          {
+            "i": 3
+          },
+          {
+            "i": 4
+          },
+          {
+            "i": 5
+          }
+        ],
+        "thickness": 2,
+        "openings": "5",
+        "face1": {
+          "i": 1
+        },
+        "face2": {
+          "i": 2
+        },
+        "face3": {
+          "i": 3
+        },
+        "face4": {
+          "i": 4
+        }
+      }
+    },
+    {
+      "name": "fromParams:falsy faces",
+      "op": "fromParams",
+      "input": {
+        "body": "body_a",
+        "faces": [
+          0,
+          null,
+          {
+            "a": 1
+          }
+        ]
+      },
+      "result": {
+        "body": [
+          "body_a"
+        ],
+        "faces": [
+          0,
+          null,
+          {
+            "a": 1
+          }
+        ],
+        "openings": "3",
+        "face1": null,
+        "face2": null,
+        "face3": {
+          "a": 1
+        },
+        "face4": null
+      }
+    },
+    {
+      "name": "fromParams:faces null",
+      "op": "fromParams",
+      "input": {
+        "body": "body_a",
+        "faces": null
+      },
+      "result": {
+        "body": [
+          "body_a"
+        ],
+        "faces": null,
+        "openings": "0",
+        "face1": null,
+        "face2": null,
+        "face3": null,
+        "face4": null
+      }
+    },
+    {
+      "name": "fromParams:faces missing",
+      "op": "fromParams",
+      "input": {
+        "body": "body_a"
+      },
+      "result": {
+        "body": [
+          "body_a"
+        ],
+        "openings": "0",
+        "face1": null,
+        "face2": null,
+        "face3": null,
+        "face4": null
+      }
+    }
+  ],
+  "fields": [
+    {
+      "key": "body",
+      "label": "Body",
+      "kind": "bodies",
+      "multi": false
+    },
+    {
+      "key": "openings",
+      "label": "Open faces",
+      "kind": "select",
+      "options": [
+        [
+          "0",
+          "None (closed)"
+        ],
+        [
+          "1",
+          "1"
+        ],
+        [
+          "2",
+          "2"
+        ],
+        [
+          "3",
+          "3"
+        ],
+        [
+          "4",
+          "4"
+        ]
+      ]
+    },
+    {
+      "key": "face1",
+      "label": "Face 1",
+      "kind": "pface",
+      "hasShow": true
+    },
+    {
+      "key": "face2",
+      "label": "Face 2",
+      "kind": "pface",
+      "hasShow": true
+    },
+    {
+      "key": "face3",
+      "label": "Face 3",
+      "kind": "pface",
+      "hasShow": true
+    },
+    {
+      "key": "face4",
+      "label": "Face 4",
+      "kind": "pface",
+      "hasShow": true
+    },
+    {
+      "key": "thickness",
+      "label": "Wall",
+      "kind": "number",
+      "unit": "mm"
+    },
+    {
+      "key": "resolution",
+      "label": "Quality",
+      "kind": "select",
+      "options": [
+        [
+          "draft",
+          "Draft"
+        ],
+        [
+          "normal",
+          "Normal"
+        ],
+        [
+          "fine",
+          "Fine"
+        ]
+      ]
+    }
+  ],
+  "ctxNote": "FIXTURE_CTX: selection [body_a], lastSketch sk1, sketchOnBody true, two bodies, one extrude cut",
+  "defaults": {
+    "body": [
+      "body_a"
+    ],
+    "openings": "1",
+    "face1": null,
+    "face2": null,
+    "face3": null,
+    "face4": null,
+    "thickness": 2,
+    "resolution": "normal"
+  },
+  "toParams_defaults": {
+    "body": "body_a",
+    "faces": [],
+    "thickness": 2,
+    "resolution": "normal"
+  },
+  "shown_defaults": [
+    "body",
+    "openings",
+    "face1",
+    "thickness",
+    "resolution"
+  ],
+  "cases": [
+    {
+      "name": "select:openings=0",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "openings": "0",
+        "face1": null,
+        "face2": null,
+        "face3": null,
+        "face4": null,
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "toParams": {
+        "body": "body_a",
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "shown": [
+        "body",
+        "openings",
+        "thickness",
+        "resolution"
+      ]
+    },
+    {
+      "name": "select:openings=1",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "openings": "1",
+        "face1": null,
+        "face2": null,
+        "face3": null,
+        "face4": null,
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "toParams": {
+        "body": "body_a",
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "shown": [
+        "body",
+        "openings",
+        "face1",
+        "thickness",
+        "resolution"
+      ]
+    },
+    {
+      "name": "select:openings=2",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "openings": "2",
+        "face1": null,
+        "face2": null,
+        "face3": null,
+        "face4": null,
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "toParams": {
+        "body": "body_a",
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "shown": [
+        "body",
+        "openings",
+        "face1",
+        "face2",
+        "thickness",
+        "resolution"
+      ]
+    },
+    {
+      "name": "select:openings=3",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "openings": "3",
+        "face1": null,
+        "face2": null,
+        "face3": null,
+        "face4": null,
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "toParams": {
+        "body": "body_a",
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "shown": [
+        "body",
+        "openings",
+        "face1",
+        "face2",
+        "face3",
+        "thickness",
+        "resolution"
+      ]
+    },
+    {
+      "name": "select:openings=4",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "openings": "4",
+        "face1": null,
+        "face2": null,
+        "face3": null,
+        "face4": null,
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "toParams": {
+        "body": "body_a",
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "shown": [
+        "body",
+        "openings",
+        "face1",
+        "face2",
+        "face3",
+        "face4",
+        "thickness",
+        "resolution"
+      ]
+    },
+    {
+      "name": "select:resolution=draft",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "openings": "1",
+        "face1": null,
+        "face2": null,
+        "face3": null,
+        "face4": null,
+        "thickness": 2,
+        "resolution": "draft"
+      },
+      "toParams": {
+        "body": "body_a",
+        "faces": [],
+        "thickness": 2,
+        "resolution": "draft"
+      },
+      "shown": [
+        "body",
+        "openings",
+        "face1",
+        "thickness",
+        "resolution"
+      ]
+    },
+    {
+      "name": "select:resolution=normal",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "openings": "1",
+        "face1": null,
+        "face2": null,
+        "face3": null,
+        "face4": null,
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "toParams": {
+        "body": "body_a",
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "shown": [
+        "body",
+        "openings",
+        "face1",
+        "thickness",
+        "resolution"
+      ]
+    },
+    {
+      "name": "select:resolution=fine",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "openings": "1",
+        "face1": null,
+        "face2": null,
+        "face3": null,
+        "face4": null,
+        "thickness": 2,
+        "resolution": "fine"
+      },
+      "toParams": {
+        "body": "body_a",
+        "faces": [],
+        "thickness": 2,
+        "resolution": "fine"
+      },
+      "shown": [
+        "body",
+        "openings",
+        "face1",
+        "thickness",
+        "resolution"
+      ]
+    }
+  ],
+  "onChange": [],
+  "roundTrips": [
+    {
+      "name": "defaults",
+      "params": {
+        "body": "body_a",
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "fromParams": {
+        "body": [
+          "body_a"
+        ],
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal",
+        "openings": "0",
+        "face1": null,
+        "face2": null,
+        "face3": null,
+        "face4": null
+      },
+      "toParams": {
+        "body": "body_a",
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "select:openings=0",
+      "params": {
+        "body": "body_a",
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "fromParams": {
+        "body": [
+          "body_a"
+        ],
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal",
+        "openings": "0",
+        "face1": null,
+        "face2": null,
+        "face3": null,
+        "face4": null
+      },
+      "toParams": {
+        "body": "body_a",
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "select:openings=1",
+      "params": {
+        "body": "body_a",
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "fromParams": {
+        "body": [
+          "body_a"
+        ],
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal",
+        "openings": "0",
+        "face1": null,
+        "face2": null,
+        "face3": null,
+        "face4": null
+      },
+      "toParams": {
+        "body": "body_a",
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "select:openings=2",
+      "params": {
+        "body": "body_a",
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "fromParams": {
+        "body": [
+          "body_a"
+        ],
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal",
+        "openings": "0",
+        "face1": null,
+        "face2": null,
+        "face3": null,
+        "face4": null
+      },
+      "toParams": {
+        "body": "body_a",
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "select:openings=3",
+      "params": {
+        "body": "body_a",
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "fromParams": {
+        "body": [
+          "body_a"
+        ],
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal",
+        "openings": "0",
+        "face1": null,
+        "face2": null,
+        "face3": null,
+        "face4": null
+      },
+      "toParams": {
+        "body": "body_a",
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "select:openings=4",
+      "params": {
+        "body": "body_a",
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "fromParams": {
+        "body": [
+          "body_a"
+        ],
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal",
+        "openings": "0",
+        "face1": null,
+        "face2": null,
+        "face3": null,
+        "face4": null
+      },
+      "toParams": {
+        "body": "body_a",
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "select:resolution=draft",
+      "params": {
+        "body": "body_a",
+        "faces": [],
+        "thickness": 2,
+        "resolution": "draft"
+      },
+      "fromParams": {
+        "body": [
+          "body_a"
+        ],
+        "faces": [],
+        "thickness": 2,
+        "resolution": "draft",
+        "openings": "0",
+        "face1": null,
+        "face2": null,
+        "face3": null,
+        "face4": null
+      },
+      "toParams": {
+        "body": "body_a",
+        "faces": [],
+        "thickness": 2,
+        "resolution": "draft"
+      }
+    },
+    {
+      "name": "select:resolution=normal",
+      "params": {
+        "body": "body_a",
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "fromParams": {
+        "body": [
+          "body_a"
+        ],
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal",
+        "openings": "0",
+        "face1": null,
+        "face2": null,
+        "face3": null,
+        "face4": null
+      },
+      "toParams": {
+        "body": "body_a",
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "select:resolution=fine",
+      "params": {
+        "body": "body_a",
+        "faces": [],
+        "thickness": 2,
+        "resolution": "fine"
+      },
+      "fromParams": {
+        "body": [
+          "body_a"
+        ],
+        "faces": [],
+        "thickness": 2,
+        "resolution": "fine",
+        "openings": "0",
+        "face1": null,
+        "face2": null,
+        "face3": null,
+        "face4": null
+      },
+      "toParams": {
+        "body": "body_a",
+        "faces": [],
+        "thickness": 2,
+        "resolution": "fine"
+      }
+    }
+  ],
+  "ctxCases": {
+    "nosel": {
+      "defaults": {
+        "body": [],
+        "openings": "1",
+        "face1": null,
+        "face2": null,
+        "face3": null,
+        "face4": null,
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "toParams_defaults": {
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "shown_defaults": [
+        "body",
+        "openings",
+        "face1",
+        "thickness",
+        "resolution"
+      ]
+    },
+    "two": {
+      "defaults": {
+        "body": [
+          "body_a"
+        ],
+        "openings": "1",
+        "face1": null,
+        "face2": null,
+        "face3": null,
+        "face4": null,
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "toParams_defaults": {
+        "body": "body_a",
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "shown_defaults": [
+        "body",
+        "openings",
+        "face1",
+        "thickness",
+        "resolution"
+      ]
+    },
+    "nonsolid": {
+      "defaults": {
+        "body": [],
+        "openings": "1",
+        "face1": null,
+        "face2": null,
+        "face3": null,
+        "face4": null,
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "toParams_defaults": {
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "shown_defaults": [
+        "body",
+        "openings",
+        "face1",
+        "thickness",
+        "resolution"
+      ]
+    },
+    "nobbox": {
+      "defaults": {
+        "body": [
+          "body_c"
+        ],
+        "openings": "1",
+        "face1": null,
+        "face2": null,
+        "face3": null,
+        "face4": null,
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "toParams_defaults": {
+        "body": "body_c",
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "shown_defaults": [
+        "body",
+        "openings",
+        "face1",
+        "thickness",
+        "resolution"
+      ]
+    },
+    "empty": {
+      "defaults": {
+        "body": [],
+        "openings": "1",
+        "face1": null,
+        "face2": null,
+        "face3": null,
+        "face4": null,
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "toParams_defaults": {
+        "faces": [],
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "shown_defaults": [
+        "body",
+        "openings",
+        "face1",
+        "thickness",
+        "resolution"
+      ]
+    }
+  }
+}

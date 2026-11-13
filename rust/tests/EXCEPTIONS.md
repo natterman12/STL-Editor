@@ -282,28 +282,57 @@ pending Nathan's OK.
 - **Accepted (2026-11-12): Open Recent without a path until milestone 5. Recent files last only for this session,** and come back from the bytes in memory, so a
   Save after Open Recent asks where to save. Recent files that survive a restart, and the
   settings, are milestone 5.
-- **The Help menu has no Check for Updates, Update Settings or About Support Fins yet.** They
-  need the update check and the Support Fins engine version, which are milestone 5.
+- **The Help menu has no Check for Updates or Update Settings yet.** They need the update
+  check, which is milestone 5. About Support Fins arrived in milestone 4b.
 - **Accepted (2026-11-12): plain-text Help and About layout.** The version comes from the 2.0
   build, the Ko-fi link sits below the text instead of inside it, and the heart isn't
   coloured.
 - **About credits list what 2.0 uses** (egui and eframe, wgpu, the manifold-rust port, the
   Selawik font and the other Rust crates, each with its licence) instead of 1.x's Python
   libraries. 1.x's thanks and Ko-fi text are kept. Nathan asked for this on 2026-11-12.
-- **A dropped `.stlx` is refused** with "Use File › Open for projects.", as in 1.x. The fixes
+- **Accepted (2026-11-13): a dropped `.stlx` is refused** with "Use File › Open for projects.", as in 1.x. The fixes
   plan asked for a dropped project to open and set the title; 2.0 keeps 1.x's behaviour.
-  Pending Nathan's OK.
-- **The section cut face shows the floor grid** where the inside of the part is on or below
+- **Accepted (2026-11-13): the section cut face shows the floor grid** where the inside of the part is on or below
   the bed, as 1.x does (`viewer.js` draws the see-through grid after the solid cut face). The
-  fixes plan asked for the cut face to hide the grid; 2.0 follows 1.x. Pending Nathan's OK.
-- **2.0 opens straight in the start view.** 1.x flies the camera there over 320 ms during
-  load. Pending Nathan's OK.
-- **The web check for WebGL2 runs on SwiftShader** (Chrome's software WebGL2), because
+  fixes plan asked for the cut face to hide the grid; 2.0 follows 1.x.
+- **Accepted (2026-11-13): 2.0 opens straight in the start view for now.** 1.x flies the camera there over 320 ms during
+  load. The fly-in moves to milestone 4c's look pass.
+- **Accepted (2026-11-13): the web check for WebGL2 runs on SwiftShader** (Chrome's software WebGL2), because
   `--disable-features=WebGPU` alone leaves WebGPU on in Chrome 157. Hardware WebGL2 is not
-  covered by the check. Pending Nathan's OK.
+  covered by the check. Nathan: enough for now.
 - **Ten constraint icons** (`c_coincident` to `c_symmetric`) are text glyphs in 1.x's
   `icons.js`. The icon renderer has no text support, so 2.0 draws them as paths that look
   close but not identical.
 - **If the graphics device is lost** (a driver reset), the view goes blank until the app is
   restarted; nothing crashes and the project is kept. eframe 0.37 doesn't create a new
   device on its own. A browser tab in 1.x reloads its WebGL context instead.
+
+## Tools and Support Fins (milestone 4b)
+
+All pending Nathan's OK.
+
+- **Restart now (About Support Fins) asks first when there are unsaved changes:** "Restart
+  without saving them?". 1.x keeps an autosave copy for Recover Unsaved Work and restarts
+  without asking; 2.0 has no autosave until milestone 5. Like 1.x, the new copy waits for the
+  old one to close and reopens nothing.
+- **On the web, the instant red overhangs are worked out in 4 ms slices per frame,** so on a
+  very large part they can appear over a few frames instead of at once. The faces drawn are
+  the same. On the desktop they are worked out on another thread.
+- **Scale's starting size is worked out from the mesh's single-precision positions.** 1.x uses
+  double precision, so on an exact tie in the third decimal the starting size can differ by
+  0.001 mm.
+- **On the web, a large tool preview is prepared on the page's own thread** (the web build has
+  no threads for it). On the desktop it is prepared in the background. For a 500,000-triangle
+  preview this is estimated at 0.3 to 1 s, during which the page doesn't respond. Not measured
+  in a browser yet.
+- **The Diameter readout of a picked cylinder face is always in millimetres,** also in inch
+  mode.
+- **The outline of a picked flat face** (Lay Flat, Push/Pull) is chained from the face's
+  boundary edges. 1.x's `faceOutline` also simplifies and orders the rings, so the drawn
+  outline can have more points; the picked face and its params are the same.
+- **Look differences egui forces:** a select is egui's drop-down, not the system one (grouped
+  options keep 1.x's group headings); dashed selection boxes are solid; the busy note uses
+  egui's spinner; the focus glow is two strokes.
+- **Two UI checks wait for later milestones:** the browser drawer of `touch` (2.0's browser
+  panel floats and has no drawer; milestone 5) and the sketch and Extrude timeline edit of
+  `desktop_tools` (needs sketch mode; milestone 4c).

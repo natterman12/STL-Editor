@@ -1,8 +1,31 @@
 # Where 2.0 is slower than 1.x
 
-**One gap: Offset 0.2 mm on the full bench mesh** (below). Every row of
-`cargo run --release -p xtask -- bench` is at or under 1.0 against 1.x (three runs on
-2026-11-12). Offset 0.5 mm on the bench's work mesh is at 1.0 and is marked "watch" below.
+Close-out bench (2026-11-13, quiet, median of 3): Offset grow 0.5 mm is 1.x 6.512 s,
+2.0 3.120 s, ratio 0.48. The same quiet run also printed Combine join 1.08, Combine cut 1.03,
+Split 1.22, Support Fins 1.02, Fit to Bed 1.04 and Pattern circular x12 1.14; those paths were
+not changed for Offset.
+
+A/B check of those rows (2026-11-13): the same `xtask bench` built from a clean HEAD (dd965a6, a
+separate worktree and target folder) and from the 4b working tree, run in turn A, B, A, B, A, B,
+each run started only when no other cargo, rustc or xtask was running. 2.0 seconds, median of the
+three runs (each run is itself a median of 3):
+
+| Row | HEAD | 4b | Verdict |
+|---|---|---|---|
+| Combine join | 0.151 | 0.147 | noise |
+| Combine cut | 0.176 | 0.180 | noise |
+| Split at z = 0 | 0.149 | 0.155 | noise |
+| Support Fins | 7.47 | 7.77 | noise (runs overlap: 7.43 to 7.65 against 7.58 to 7.99) |
+| Fit to Bed | 2.86 | 2.86 | noise |
+| Pattern circular x12 | 7.95 | 7.98 | noise |
+| Offset grow 0.5 mm | 6.49 | 2.94 | faster (the 4b Minkowski batches) |
+
+4b did not slow these rows down: HEAD, without any 4b change, is just as slow. The gap against
+the earlier closed numbers (join 0.103 s on 2026-11-11) is the machine, not the code: the 1.x
+side slowed by about as much (join 0.125 s then, 0.154 s in the close-out run), so the ratios move
+with whatever else the PC is doing. One 4b run of Pattern took 28.7 s (something else woke up);
+the median ignores it. Cargo.lock only gains the `rayon` line under stl-kernel, at the version
+manifold already used, so the thread pools are unchanged.
 
 ## Combine join (closed 2026-11-11)
 
@@ -70,33 +93,47 @@ the stack).
 | Export OBJ | 0.35 | 0.34 | 0.35 |
 | Export STEP | 0.43 | 0.44 | 0.45 |
 
-## Offset grow 0.2 mm on the full bench mesh (open, 2026-11-13)
+## Offset grow 0.2 mm on the full bench mesh (closed 2026-11-13)
 
-This is the Offset that uibench tried on `dev/bench/test_mesh.stl` (503,804 triangles) before it
-switched to Hollow for its rebuild row.
+The 200 to 360 s figure was stale. On `dev/bench/test_mesh.stl` (503,804 triangles), a 0.2 mm
+grow simplifies at 0.02, 0.04 and 0.06 mm (21,972, then 12,262, then 8,766 triangles, about
+0.17 to 0.18 s each) and stops at 0.06 mm, under the 12,000 cap. It does not try 0.08 mm and
+it does not leave the 504k triangles for Minkowski. The work mesh is 8,766 triangles against a
+32-triangle sphere. The result is 23,146 triangles (1.x was 23,162).
 
-| | Time | Result |
-|---|---|---|
-| 1.x `meshtools.offset_solid`, grow 0.2 mm | 12.5 s and 25.3 s (two runs) | 23,162 triangles |
-| 2.0 `stl-engine` Offset, grow 0.2 mm | about 200 to 360 s (earlier full uibench runs) | not recorded |
+After simplify, the time is the Minkowski sum: 9 batches of 1,000 triangle hulls, then a union
+with the original. Stock, one batch after another (release, kernel `offset_solid`, no
+`MANIFOLD_TIMING`): minkowski 5.486 s, union with the original 0.103 s, the whole offset 6.011 s.
+The same batches on a desktop pool of at most 8 threads (the web build still runs them one by
+one): minkowski 2.347 s, of which the closing merge is about 0.26 s, then the union with the
+original 0.115 s. The stages together are 2.976 s. Against the 1.x times of 12.5 s and 25.3 s
+that is well under 1.0. The pool is smaller than manifold's 10-thread boolean pool, so each
+batch boolean stays on it and the batches overlap. Memory keeps the speedup near 2x, not 9x.
+Parts under 4,000 triangles stay on the stock path, which is faster for a handful of batches.
 
-The 1.x times come from `py -3.14 dev/out/offset_timing/offset_timing.py` (log in
-`dev/out/offset_timing/offset_timing.log`). The two 1.x runs differ because the second ran
-while other jobs were compiling. The 2.0 time was not measured again in this run.
+The union order is unchanged: hull point order, batch size 1000, closing list
+`[solid, batch0, batch1, ...]`, same Add or Subtract. The bench mesh matches the stock mesh
+bit for bit at 0.2 mm (23,146 triangles) and at 0.5 mm (27,338). `offset_unchanged` hashes
+every Offset parity case, the combine cut that uses a clearance, and the two kernel Minkowski
+cases, recorded before this change.
 
-2.0 is 8 to 29 times slower here. 1.x's result has 23,162 triangles, so 1.x works on a much
-smaller mesh before its Minkowski sum. In 2.0, a 0.2 mm grow only simplifies within 0.08 mm,
-so the Minkowski sum still sees most of the 504k triangles. Next step: compare the two
-simplify steps on this mesh (target size and tolerance) before any speed work, because a
-different simplify would also change the result.
+Code: `rust/crates/stl-kernel/src/minkowski.rs`, called from `Solid::minkowski_sum` and
+`minkowski_difference`. `rayon` is a native-only dependency of `stl-kernel`. manifold-rust
+is unchanged.
 
-## Offset grow 0.5 mm (watch)
+## Offset grow 0.5 mm (bench row, 2026-11-13)
 
-1.02 to 1.03 in the first bench of 2026-11-11 night, 1.00, 0.99 and 0.99 on 2026-11-12. The
-Pattern change is not involved: that path never runs on this row (the work mesh is 10,226
-triangles), and timing it with every boolean back on the 10-thread pool gave the same medians
-(6.10 to 6.17 s). Most of the time is Minkowski's 485 small booleans. The row sits at 1.0 within
-run-to-run spread; if it goes above 1.0 again it needs its own speed pass.
+Was 1.02 to 1.03 on 2026-11-11 night, then 1.00, 0.99 and 0.99 on 2026-11-12. The work mesh
+still simplifies at the first step, 0.05 mm, to 10,226 triangles (11 batches). The same batch
+change applies.
+
+Quiet close-out `xtask bench` on 2026-11-13 (median of 3): 1.x 6.512 s, 2.0 3.120 s,
+ratio 0.48. An earlier same-day run with other builds in the checkout was 1.x 6.507 s,
+2.0 2.831 s, ratio 0.44. A direct `offset_solid` on the same mesh: stock minkowski 6.308 s
+(whole offset 6.726 s), batches together minkowski 2.959 s (stages 3.222 s). Both results
+are 27,338 triangles and match bit for bit. The quiet close-out run also printed Combine
+join 1.08, Combine cut 1.03, Split 1.22, Support Fins 1.02, Fit to Bed 1.04 and Pattern
+circular x12 1.14 (8.294 s against 7.303 s). Those paths were not changed for Offset.
 
 ## What is left (not gaps)
 

@@ -33,7 +33,7 @@ use wasm_bindgen::JsCast;
 use web_sys::{DedicatedWorkerGlobalScope, ErrorEvent, MessageEvent, Url, Worker, WorkerOptions, WorkerType};
 
 use super::worker::{self, Worker as EngineWorker};
-use super::{BodyView, Command, EngineLink, ExportFormat, Level, ParamView, PlaneView, SketchOutline, SketchView, TimelineItem, TimelineView, Update};
+use super::{BodyView, Command, EngineLink, FinsAsk, ExportFormat, Level, ParamView, PlaneView, SketchOutline, SketchView, TimelineItem, TimelineView, Update};
 
 /// One turn of the worker event loop. The worker script resolves this after it has
 /// recorded a cancel that arrived while the command was running.
@@ -117,6 +117,7 @@ fn emit(update: Update) {
         Update::Bodies(bodies) => emit_bodies(bodies),
         Update::Saved { bytes } => emit_file("saved", None, &bytes, None),
         Update::Exported { name, bytes, count } => emit_file("exported", Some(name), &bytes, Some(count)),
+        Update::Preview { seq, pack, msg, error, warn, result } => emit_preview(seq, pack, msg, error, warn, result),
         other => post(&js_from_json(&plain_update(&other))),
     }
 }
@@ -147,7 +148,20 @@ fn plain_update(update: &Update) -> Value {
             ("text".into(), Value::String(text.clone())),
         ])),
         Update::EngineLost => Value::Object(Map::from_iter([("t".into(), Value::String("engineLost".into()))])),
-        Update::Bodies(_) | Update::Saved { .. } | Update::Exported { .. } => Value::Null,
+        Update::Fins { seq, ask, result } => {
+            let (ok, data) = match result {
+                Ok(v) => (true, v.clone()),
+                Err(e) => (false, Value::String(e.clone())),
+            };
+            Value::Object(Map::from_iter([
+                ("t".into(), Value::String("fins".into())),
+                ("seq".into(), Value::from(*seq)),
+                ("ask".into(), Value::String(ask.clone())),
+                ("ok".into(), Value::Bool(ok)),
+                ("data".into(), data),
+            ]))
+        }
+        Update::Bodies(_) | Update::Saved { .. } | Update::Exported { .. } | Update::Preview { .. } => Value::Null,
     }
 }
 
@@ -164,6 +178,7 @@ fn json_timeline(t: &TimelineView) -> Value {
                 ("suppressed".into(), Value::Bool(i.suppressed)),
                 ("warning".into(), i.warning.clone().map(Value::String).unwrap_or(Value::Null)),
                 ("active".into(), Value::Bool(i.active)),
+                ("params".into(), i.params.clone()),
             ]))
         })
         .collect();
@@ -291,6 +306,46 @@ fn emit_bodies(bodies: Vec<BodyView>) {
     note_mesh(&bufs);
 }
 
+/// A preview: the tool's meshes cross as transferred buffers, like the bodies.
+fn emit_preview(seq: u64, pack: super::PreviewPack, msg: Option<String>, error: Option<String>, warn: bool, result: Value) {
+    let mut rows = Vec::new();
+    let mut bufs: Vec<(ArrayBuffer, u32)> = Vec::new();
+    for m in &pack.meshes {
+        let pos = f32_bytes(&m.mesh.positions);
+        let tri = u32_bytes(&m.mesh.triangles);
+        rows.push(Value::Object(Map::from_iter([("id".into(), Value::String(m.id.clone()))])));
+        bufs.push((bytes_to_buffer(&pos), pos.len() as u32));
+        bufs.push((bytes_to_buffer(&tri), tri.len() as u32));
+    }
+    let strs = |v: &[String]| Value::Array(v.iter().cloned().map(Value::String).collect());
+    let colors: Map<String, Value> = pack.colors.iter().map(|(k, v)| (k.clone(), Value::String(v.clone()))).collect();
+    let msg = js_from_json(&Value::Object(Map::from_iter([
+        ("t".into(), Value::String("preview".into())),
+        ("seq".into(), Value::from(seq)),
+        ("msg".into(), msg.map(Value::String).unwrap_or(Value::Null)),
+        ("error".into(), error.map(Value::String).unwrap_or(Value::Null)),
+        ("warn".into(), Value::Bool(warn)),
+        ("result".into(), result),
+        ("meshes".into(), Value::Array(rows)),
+        ("removed".into(), strs(&pack.removed)),
+        ("hide".into(), strs(&pack.hide)),
+        ("ghosts".into(), strs(&pack.ghosts)),
+        ("colors".into(), Value::Object(colors)),
+    ])));
+    let arr = Array::from(&get(&msg, "meshes"));
+    for (i, pair) in bufs.chunks(2).enumerate() {
+        let item = arr.get(i as u32);
+        set(&item, "positions", pair[0].0.as_ref());
+        set(&item, "triangles", pair[1].0.as_ref());
+    }
+    let transfer = Array::new();
+    for (buf, _) in &bufs {
+        transfer.push(buf.as_ref());
+    }
+    post_transfer(&msg, &transfer);
+    note_mesh(&bufs);
+}
+
 fn emit_file(kind: &str, name: Option<String>, bytes: &[u8], count: Option<usize>) {
     let mut map = Map::new();
     map.insert("t".into(), Value::String(kind.into()));
@@ -369,8 +424,13 @@ fn decode_command(data: &JsValue) -> Result<Command, String> {
             kind: req_string(data, "kind")?,
             params: json_field(data, "params"),
             index: opt_usize(&get(data, "index")),
+            name: get(data, "name").as_string().filter(|n| !n.is_empty()),
         }),
-        "edit" => Ok(Command::EditFeature { id: req_string(data, "id")?, params: json_field(data, "params") }),
+        "edit" => Ok(Command::EditFeature {
+            id: req_string(data, "id")?,
+            params: json_field(data, "params"),
+            rollback_after: get(data, "setRollback").as_bool().unwrap_or(false).then(|| opt_usize(&get(data, "rollbackAfter"))),
+        }),
         "delete" => Ok(Command::DeleteFeature { id: req_string(data, "id")? }),
         "suppress" => Ok(Command::SetSuppressed {
             id: req_string(data, "id")?,
@@ -390,6 +450,26 @@ fn decode_command(data: &JsValue) -> Result<Command, String> {
             color: opt_string(&get(data, "color")),
             hidden: opt_bool(&get(data, "hidden")),
         }),
+        "preview" => Ok(Command::Preview {
+            seq: get(data, "seq").as_f64().unwrap_or(0.0) as u64,
+            kind: req_string(data, "kind")?,
+            params: json_field(data, "params"),
+            edit_id: opt_string(&get(data, "editId")),
+        }),
+        "clearPreview" => Ok(Command::ClearPreview),
+        "fins" => {
+            let ask = match req_string(data, "ask")?.as_str() {
+                "info" => FinsAsk::Info,
+                "strength" => FinsAsk::Strength { body: req_string(data, "body")?, options: json_field(data, "options"), load: json_field(data, "load") },
+                "suggest" => FinsAsk::Suggest {
+                    body: req_string(data, "body")?,
+                    options: json_field(data, "options"),
+                    top: get(data, "top").as_f64().unwrap_or(3.0) as i64,
+                },
+                other => return Err(format!("The engine got a message it doesn't understand (fins {other}).")),
+            };
+            Ok(Command::Fins { seq: get(data, "seq").as_f64().unwrap_or(0.0) as u64, ask })
+        }
         "save" => Ok(Command::Save),
         "export" => Ok(Command::Export {
             format: export_format(&req_string(data, "format")?)?,
@@ -440,20 +520,49 @@ fn encode_command(c: &Command) -> JsValue {
         Command::Save => "save",
         Command::Export { .. } => "export",
         Command::Cancel => "cancel",
+        Command::Preview { .. } => "preview",
+        Command::ClearPreview => "clearPreview",
+        Command::Fins { .. } => "fins",
     };
     m.insert("t".into(), Value::String(tag.into()));
     if let Command::Open { name, .. } | Command::Import { name, .. } = c {
         m.insert("name".into(), Value::String(name.clone()));
     }
     match c {
-        Command::AddFeature { kind, params, index } => {
+        Command::AddFeature { kind, params, index, name } => {
+            m.insert("name".into(), name.clone().map(Value::String).unwrap_or(Value::Null));
             m.insert("kind".into(), Value::String(kind.clone()));
             m.insert("params".into(), params.clone());
             m.insert("index".into(), index.map(Value::from).unwrap_or(Value::Null));
         }
-        Command::EditFeature { id, params } => {
+        Command::EditFeature { id, params, rollback_after } => {
             m.insert("id".into(), Value::String(id.clone()));
             m.insert("params".into(), params.clone());
+            m.insert("setRollback".into(), Value::Bool(rollback_after.is_some()));
+            m.insert("rollbackAfter".into(), rollback_after.flatten().map(Value::from).unwrap_or(Value::Null));
+        }
+        Command::Preview { seq, kind, params, edit_id } => {
+            m.insert("seq".into(), Value::from(*seq));
+            m.insert("kind".into(), Value::String(kind.clone()));
+            m.insert("params".into(), params.clone());
+            m.insert("editId".into(), edit_id.clone().map(Value::String).unwrap_or(Value::Null));
+        }
+        Command::Fins { seq, ask } => {
+            m.insert("seq".into(), Value::from(*seq));
+            m.insert("ask".into(), Value::String(ask.name().into()));
+            match ask {
+                FinsAsk::Info => {}
+                FinsAsk::Strength { body, options, load } => {
+                    m.insert("body".into(), Value::String(body.clone()));
+                    m.insert("options".into(), options.clone());
+                    m.insert("load".into(), load.clone());
+                }
+                FinsAsk::Suggest { body, options, top } => {
+                    m.insert("body".into(), Value::String(body.clone()));
+                    m.insert("options".into(), options.clone());
+                    m.insert("top".into(), Value::from(*top));
+                }
+            }
         }
         Command::DeleteFeature { id } => {
             m.insert("id".into(), Value::String(id.clone()));
@@ -700,6 +809,8 @@ fn post_cmd(inner: &Rc<RefCell<Inner>>, c: &Command) {
     let pending = match c {
         Command::Open { name, bytes } if name.to_lowercase().ends_with(".stlx") => Pending::Project(bytes.clone()),
         Command::Open { .. } => Pending::Clear,
+        // a preview sends no Busy: it is not one of the commands the worker counts
+        Command::Preview { .. } | Command::ClearPreview | Command::Fins { .. } => return post_js(inner, &encode_command(c)),
         _ => Pending::Other,
     };
     inner.borrow_mut().sent.push_back(pending);
@@ -827,6 +938,9 @@ impl EngineLink for WebLink {
             post_js(&self.inner, &js_from_json(&Value::Object(Map::from_iter([("t".into(), Value::String("cancel".into()))]))));
             return;
         }
+        if matches!(c, Command::ClearPreview) {
+            return; // a late preview is dropped by the app; nothing queued can be skipped here
+        }
         let ready = self.inner.borrow().ready && !self.inner.borrow().lost;
         if ready {
             post_cmd(&self.inner, &c);
@@ -872,6 +986,22 @@ fn decode_update(data: &JsValue) -> Option<Update> {
         "planes" => Update::Planes(decode_planes(data)),
         "sketches" => Update::Sketches(decode_sketches(data)),
         "bodies" => Update::Bodies(decode_bodies(data)),
+        "preview" => Update::Preview {
+            seq: get(data, "seq").as_f64().unwrap_or(0.0) as u64,
+            pack: decode_pack(data),
+            msg: opt_string(&get(data, "msg")),
+            error: opt_string(&get(data, "error")),
+            warn: get(data, "warn").as_bool().unwrap_or(false),
+            result: json_field(data, "result"),
+        },
+        "fins" => {
+            let data_v = json_field(data, "data");
+            Update::Fins {
+                seq: get(data, "seq").as_f64().unwrap_or(0.0) as u64,
+                ask: opt_string(&get(data, "ask")).unwrap_or_default(),
+                result: if get(data, "ok").as_bool().unwrap_or(false) { Ok(data_v) } else { Err(data_v.as_str().unwrap_or("Support Fins failed.").to_owned()) },
+            }
+        }
         "saved" => Update::Saved { bytes: bytes_field(data, "bytes") },
         "exported" => Update::Exported {
             name: opt_string(&get(data, "name")).unwrap_or_else(|| "model".into()),
@@ -893,6 +1023,7 @@ fn decode_timeline(data: &JsValue) -> TimelineView {
             suppressed: get(&item, "suppressed").as_bool().unwrap_or(false),
             warning: opt_string(&get(&item, "warning")),
             active: get(&item, "active").as_bool().unwrap_or(true),
+            params: json_field(&item, "params"),
         })
         .collect();
     TimelineView {
@@ -994,6 +1125,31 @@ fn decode_bodies(data: &JsValue) -> Vec<BodyView> {
             }),
         })
         .collect()
+}
+
+fn strings_of(v: &JsValue) -> Vec<String> {
+    array_of(v).iter().filter_map(|x| x.as_string()).collect()
+}
+
+fn decode_pack(data: &JsValue) -> super::PreviewPack {
+    let meshes = array_of(&get(data, "meshes"))
+        .iter()
+        .map(|m| crate::viewport::PreviewMesh {
+            id: opt_string(&get(&m, "id")).unwrap_or_default(),
+            mesh: Arc::new(MeshArrays { positions: f32s(&bytes_of(&get(&m, "positions"))), triangles: u32s(&bytes_of(&get(&m, "triangles"))) }),
+        })
+        .collect();
+    let colors = match json_field(data, "colors") {
+        Value::Object(o) => o.into_iter().filter_map(|(k, v)| v.as_str().map(|s| (k, s.to_string()))).collect(),
+        _ => Default::default(),
+    };
+    super::PreviewPack {
+        meshes,
+        removed: strings_of(&get(data, "removed")),
+        hide: strings_of(&get(data, "hide")),
+        colors,
+        ghosts: strings_of(&get(data, "ghosts")),
+    }
 }
 
 fn arr3_of(v: &JsValue) -> [f64; 3] {

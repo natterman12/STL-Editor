@@ -11,7 +11,7 @@
 //! those Rayon workers run below the window. File dialogs, mesh preparation and driver
 //! threads stay at normal priority.
 
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::mpsc::{channel, Sender};
 use std::sync::{Arc, Mutex, OnceLock};
 
@@ -32,6 +32,10 @@ pub struct NativeLink {
     pending: Arc<AtomicUsize>,
     /// Called after the worker has put updates in the list (wakes the UI).
     wake: Arc<Mutex<Option<Box<dyn Fn() + Send>>>>,
+    /// A queued `Preview` older than this is skipped (a newer one, or `ClearPreview`, came after).
+    preview_gate: Arc<AtomicU64>,
+    /// The newest preview `seq` sent.
+    preview_last: AtomicU64,
 }
 
 impl NativeLink {
@@ -41,7 +45,8 @@ impl NativeLink {
         let cancel = Arc::new(AtomicBool::new(false));
         let pending = Arc::new(AtomicUsize::new(0));
         let wake: Arc<Mutex<Option<Box<dyn Fn() + Send>>>> = Arc::new(Mutex::new(None));
-        let (u, c, p, w) = (updates.clone(), cancel.clone(), pending.clone(), wake.clone());
+        let preview_gate = Arc::new(AtomicU64::new(0));
+        let (u, c, p, w, g) = (updates.clone(), cancel.clone(), pending.clone(), wake.clone(), preview_gate.clone());
         std::thread::Builder::new()
             .name("stl-engine".into())
             .spawn(move || {
@@ -62,6 +67,7 @@ impl NativeLink {
                 let mut worker = Worker::new(sink, c);
                 while let Ok(job) = rx.recv() {
                     match job {
+                        Job::Run(Command::Preview { seq, .. }) if seq < g.load(Ordering::SeqCst) => {}
                         Job::Run(cmd) => worker.handle(cmd),
                         Job::Restart => worker.restart(),
                     }
@@ -69,7 +75,7 @@ impl NativeLink {
                 }
             })
             .expect("the engine thread starts");
-        NativeLink { jobs, updates, cancel, pending, wake }
+        NativeLink { jobs, updates, cancel, pending, wake, preview_gate, preview_last: AtomicU64::new(0) }
     }
 
     /// `f` runs on the engine thread whenever new updates are waiting (for `Context::request_repaint`).
@@ -104,6 +110,19 @@ impl EngineLink for NativeLink {
                 if self.is_busy() {
                     self.cancel.store(true, Ordering::SeqCst);
                 }
+            }
+            Command::Preview { seq, .. } if seq < self.preview_last.load(Ordering::SeqCst) => {}
+            // the engine skips every queued preview older than the newest one
+            c @ Command::Preview { .. } => {
+                if let Command::Preview { seq, .. } = &c {
+                    self.preview_last.store(*seq, Ordering::SeqCst);
+                    self.preview_gate.store(*seq, Ordering::SeqCst);
+                }
+                self.queue(Job::Run(c));
+            }
+            // nothing to run: previews already queued are skipped, the app drops late answers
+            Command::ClearPreview => {
+                self.preview_gate.store(self.preview_last.load(Ordering::SeqCst) + 1, Ordering::SeqCst);
             }
             c => self.queue(Job::Run(c)),
         }

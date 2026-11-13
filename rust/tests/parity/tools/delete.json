@@ -1,0 +1,128 @@
+{
+  "tool": "delete",
+  "label": "Remove Bodies",
+  "type": "delete",
+  "icon": "delete",
+  "flags": {
+    "placeOnFace": false,
+    "noLivePreview": false,
+    "gizmo": false,
+    "planeTool": false,
+    "sculpt": false,
+    "paint": false,
+    "wallTool": false
+  },
+  "hint": null,
+  "extra": [],
+  "fields": [
+    {
+      "key": "bodies",
+      "label": "Bodies",
+      "kind": "bodies",
+      "multi": true
+    }
+  ],
+  "ctxNote": "FIXTURE_CTX: selection [body_a], lastSketch sk1, sketchOnBody true, two bodies, one extrude cut",
+  "defaults": {
+    "bodies": [
+      "body_a"
+    ]
+  },
+  "toParams_defaults": {
+    "bodies": [
+      "body_a"
+    ]
+  },
+  "shown_defaults": [
+    "bodies"
+  ],
+  "cases": [],
+  "onChange": [],
+  "roundTrips": [
+    {
+      "name": "defaults",
+      "params": {
+        "bodies": [
+          "body_a"
+        ]
+      },
+      "fromParams": {
+        "bodies": [
+          "body_a"
+        ]
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ]
+      }
+    }
+  ],
+  "ctxCases": {
+    "nosel": {
+      "defaults": {
+        "bodies": []
+      },
+      "toParams_defaults": {
+        "bodies": []
+      },
+      "shown_defaults": [
+        "bodies"
+      ]
+    },
+    "two": {
+      "defaults": {
+        "bodies": [
+          "body_a",
+          "body_b"
+        ]
+      },
+      "toParams_defaults": {
+        "bodies": [
+          "body_a",
+          "body_b"
+        ]
+      },
+      "shown_defaults": [
+        "bodies"
+      ]
+    },
+    "nonsolid": {
+      "defaults": {
+        "bodies": []
+      },
+      "toParams_defaults": {
+        "bodies": []
+      },
+      "shown_defaults": [
+        "bodies"
+      ]
+    },
+    "nobbox": {
+      "defaults": {
+        "bodies": [
+          "body_c"
+        ]
+      },
+      "toParams_defaults": {
+        "bodies": [
+          "body_c"
+        ]
+      },
+      "shown_defaults": [
+        "bodies"
+      ]
+    },
+    "empty": {
+      "defaults": {
+        "bodies": []
+      },
+      "toParams_defaults": {
+        "bodies": []
+      },
+      "shown_defaults": [
+        "bodies"
+      ]
+    }
+  }
+}

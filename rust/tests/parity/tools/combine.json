@@ -1,0 +1,591 @@
+{
+  "tool": "combine",
+  "label": "Combine",
+  "type": "combine",
+  "icon": "combine",
+  "flags": {
+    "placeOnFace": false,
+    "noLivePreview": false,
+    "gizmo": false,
+    "planeTool": false,
+    "sculpt": false,
+    "paint": false,
+    "wallTool": false
+  },
+  "hint": "Pick the body to keep, then the bodies to join, cut away or intersect with it",
+  "extra": [
+    {
+      "name": "toParams:no body",
+      "op": "toParams",
+      "input": {
+        "target": [],
+        "tools": [],
+        "operation": "join",
+        "clearance": 0,
+        "keep_tools": false
+      },
+      "result": {
+        "tools": [],
+        "operation": "join",
+        "clearance": 0,
+        "keep_tools": false
+      }
+    },
+    {
+      "name": "toParams:picked body",
+      "op": "toParams",
+      "input": {
+        "target": [
+          "body_b"
+        ],
+        "tools": [],
+        "operation": "join",
+        "clearance": 0,
+        "keep_tools": false
+      },
+      "result": {
+        "target": "body_b",
+        "tools": [],
+        "operation": "join",
+        "clearance": 0,
+        "keep_tools": false
+      }
+    },
+    {
+      "name": "fromParams:body null",
+      "op": "fromParams",
+      "input": {
+        "target": null,
+        "tools": [],
+        "operation": "join",
+        "clearance": 0,
+        "keep_tools": false
+      },
+      "result": {
+        "target": [],
+        "tools": [],
+        "operation": "join",
+        "clearance": 0,
+        "keep_tools": false
+      }
+    },
+    {
+      "name": "fromParams:body empty string",
+      "op": "fromParams",
+      "input": {
+        "target": "",
+        "tools": [],
+        "operation": "join",
+        "clearance": 0,
+        "keep_tools": false
+      },
+      "result": {
+        "target": [],
+        "tools": [],
+        "operation": "join",
+        "clearance": 0,
+        "keep_tools": false
+      }
+    },
+    {
+      "name": "fromParams:body zero",
+      "op": "fromParams",
+      "input": {
+        "target": 0,
+        "tools": [],
+        "operation": "join",
+        "clearance": 0,
+        "keep_tools": false
+      },
+      "result": {
+        "target": [],
+        "tools": [],
+        "operation": "join",
+        "clearance": 0,
+        "keep_tools": false
+      }
+    },
+    {
+      "name": "fromParams:body name",
+      "op": "fromParams",
+      "input": {
+        "target": "body_b",
+        "tools": [],
+        "operation": "join",
+        "clearance": 0,
+        "keep_tools": false
+      },
+      "result": {
+        "target": [
+          "body_b"
+        ],
+        "tools": [],
+        "operation": "join",
+        "clearance": 0,
+        "keep_tools": false
+      }
+    },
+    {
+      "name": "fromParams:body missing",
+      "op": "fromParams",
+      "input": {
+        "tools": [],
+        "operation": "join",
+        "clearance": 0,
+        "keep_tools": false
+      },
+      "result": {
+        "tools": [],
+        "operation": "join",
+        "clearance": 0,
+        "keep_tools": false,
+        "target": []
+      }
+    },
+    {
+      "name": "toParams:two tools",
+      "op": "toParams",
+      "input": {
+        "target": [
+          "body_a"
+        ],
+        "tools": [
+          "body_b"
+        ],
+        "operation": "cut",
+        "clearance": 0,
+        "keep_tools": false
+      },
+      "result": {
+        "target": "body_a",
+        "tools": [
+          "body_b"
+        ],
+        "operation": "cut",
+        "clearance": 0,
+        "keep_tools": false
+      }
+    }
+  ],
+  "fields": [
+    {
+      "key": "target",
+      "label": "Target body",
+      "kind": "bodies",
+      "multi": false
+    },
+    {
+      "key": "tools",
+      "label": "Tool bodies",
+      "kind": "bodies",
+      "multi": true
+    },
+    {
+      "key": "operation",
+      "label": "Operation",
+      "kind": "select",
+      "options": [
+        [
+          "join",
+          "Join"
+        ],
+        [
+          "cut",
+          "Cut"
+        ],
+        [
+          "intersect",
+          "Intersect"
+        ]
+      ]
+    },
+    {
+      "key": "clearance",
+      "label": "Clearance",
+      "kind": "number",
+      "unit": "mm",
+      "help": "Grow the tool bodies first, so a part made to fit this cut-out isn't too tight. 0.2–0.3 mm suits most FDM printers.",
+      "hasShow": true
+    },
+    {
+      "key": "keep_tools",
+      "label": "Keep tools",
+      "kind": "bool"
+    }
+  ],
+  "ctxNote": "FIXTURE_CTX: selection [body_a], lastSketch sk1, sketchOnBody true, two bodies, one extrude cut",
+  "defaults": {
+    "target": [
+      "body_a"
+    ],
+    "tools": [],
+    "operation": "join",
+    "clearance": 0,
+    "keep_tools": false
+  },
+  "toParams_defaults": {
+    "target": "body_a",
+    "tools": [],
+    "operation": "join",
+    "clearance": 0,
+    "keep_tools": false
+  },
+  "shown_defaults": [
+    "target",
+    "tools",
+    "operation",
+    "keep_tools"
+  ],
+  "cases": [
+    {
+      "name": "select:operation=join",
+      "values": {
+        "target": [
+          "body_a"
+        ],
+        "tools": [],
+        "operation": "join",
+        "clearance": 0,
+        "keep_tools": false
+      },
+      "toParams": {
+        "target": "body_a",
+        "tools": [],
+        "operation": "join",
+        "clearance": 0,
+        "keep_tools": false
+      },
+      "shown": [
+        "target",
+        "tools",
+        "operation",
+        "keep_tools"
+      ]
+    },
+    {
+      "name": "select:operation=cut",
+      "values": {
+        "target": [
+          "body_a"
+        ],
+        "tools": [],
+        "operation": "cut",
+        "clearance": 0,
+        "keep_tools": false
+      },
+      "toParams": {
+        "target": "body_a",
+        "tools": [],
+        "operation": "cut",
+        "clearance": 0,
+        "keep_tools": false
+      },
+      "shown": [
+        "target",
+        "tools",
+        "operation",
+        "clearance",
+        "keep_tools"
+      ]
+    },
+    {
+      "name": "select:operation=intersect",
+      "values": {
+        "target": [
+          "body_a"
+        ],
+        "tools": [],
+        "operation": "intersect",
+        "clearance": 0,
+        "keep_tools": false
+      },
+      "toParams": {
+        "target": "body_a",
+        "tools": [],
+        "operation": "intersect",
+        "clearance": 0,
+        "keep_tools": false
+      },
+      "shown": [
+        "target",
+        "tools",
+        "operation",
+        "keep_tools"
+      ]
+    },
+    {
+      "name": "bool:keep_tools=true",
+      "values": {
+        "target": [
+          "body_a"
+        ],
+        "tools": [],
+        "operation": "join",
+        "clearance": 0,
+        "keep_tools": true
+      },
+      "toParams": {
+        "target": "body_a",
+        "tools": [],
+        "operation": "join",
+        "clearance": 0,
+        "keep_tools": true
+      },
+      "shown": [
+        "target",
+        "tools",
+        "operation",
+        "keep_tools"
+      ]
+    },
+    {
+      "name": "bool:keep_tools=false",
+      "values": {
+        "target": [
+          "body_a"
+        ],
+        "tools": [],
+        "operation": "join",
+        "clearance": 0,
+        "keep_tools": false
+      },
+      "toParams": {
+        "target": "body_a",
+        "tools": [],
+        "operation": "join",
+        "clearance": 0,
+        "keep_tools": false
+      },
+      "shown": [
+        "target",
+        "tools",
+        "operation",
+        "keep_tools"
+      ]
+    }
+  ],
+  "onChange": [],
+  "roundTrips": [
+    {
+      "name": "defaults",
+      "params": {
+        "target": "body_a",
+        "tools": [],
+        "operation": "join",
+        "clearance": 0,
+        "keep_tools": false
+      },
+      "fromParams": {
+        "target": [
+          "body_a"
+        ],
+        "tools": [],
+        "operation": "join",
+        "clearance": 0,
+        "keep_tools": false
+      },
+      "toParams": {
+        "target": "body_a",
+        "tools": [],
+        "operation": "join",
+        "clearance": 0,
+        "keep_tools": false
+      }
+    },
+    {
+      "name": "select:operation=join",
+      "params": {
+        "target": "body_a",
+        "tools": [],
+        "operation": "join",
+        "clearance": 0,
+        "keep_tools": false
+      },
+      "fromParams": {
+        "target": [
+          "body_a"
+        ],
+        "tools": [],
+        "operation": "join",
+        "clearance": 0,
+        "keep_tools": false
+      },
+      "toParams": {
+        "target": "body_a",
+        "tools": [],
+        "operation": "join",
+        "clearance": 0,
+        "keep_tools": false
+      }
+    },
+    {
+      "name": "select:operation=cut",
+      "params": {
+        "target": "body_a",
+        "tools": [],
+        "operation": "cut",
+        "clearance": 0,
+        "keep_tools": false
+      },
+      "fromParams": {
+        "target": [
+          "body_a"
+        ],
+        "tools": [],
+        "operation": "cut",
+        "clearance": 0,
+        "keep_tools": false
+      },
+      "toParams": {
+        "target": "body_a",
+        "tools": [],
+        "operation": "cut",
+        "clearance": 0,
+        "keep_tools": false
+      }
+    },
+    {
+      "name": "select:operation=intersect",
+      "params": {
+        "target": "body_a",
+        "tools": [],
+        "operation": "intersect",
+        "clearance": 0,
+        "keep_tools": false
+      },
+      "fromParams": {
+        "target": [
+          "body_a"
+        ],
+        "tools": [],
+        "operation": "intersect",
+        "clearance": 0,
+        "keep_tools": false
+      },
+      "toParams": {
+        "target": "body_a",
+        "tools": [],
+        "operation": "intersect",
+        "clearance": 0,
+        "keep_tools": false
+      }
+    }
+  ],
+  "ctxCases": {
+    "nosel": {
+      "defaults": {
+        "target": [],
+        "tools": [],
+        "operation": "join",
+        "clearance": 0,
+        "keep_tools": false
+      },
+      "toParams_defaults": {
+        "tools": [],
+        "operation": "join",
+        "clearance": 0,
+        "keep_tools": false
+      },
+      "shown_defaults": [
+        "target",
+        "tools",
+        "operation",
+        "keep_tools"
+      ]
+    },
+    "two": {
+      "defaults": {
+        "target": [
+          "body_a"
+        ],
+        "tools": [
+          "body_b"
+        ],
+        "operation": "join",
+        "clearance": 0,
+        "keep_tools": false
+      },
+      "toParams_defaults": {
+        "target": "body_a",
+        "tools": [
+          "body_b"
+        ],
+        "operation": "join",
+        "clearance": 0,
+        "keep_tools": false
+      },
+      "shown_defaults": [
+        "target",
+        "tools",
+        "operation",
+        "keep_tools"
+      ]
+    },
+    "nonsolid": {
+      "defaults": {
+        "target": [],
+        "tools": [],
+        "operation": "join",
+        "clearance": 0,
+        "keep_tools": false
+      },
+      "toParams_defaults": {
+        "tools": [],
+        "operation": "join",
+        "clearance": 0,
+        "keep_tools": false
+      },
+      "shown_defaults": [
+        "target",
+        "tools",
+        "operation",
+        "keep_tools"
+      ]
+    },
+    "nobbox": {
+      "defaults": {
+        "target": [
+          "body_c"
+        ],
+        "tools": [],
+        "operation": "join",
+        "clearance": 0,
+        "keep_tools": false
+      },
+      "toParams_defaults": {
+        "target": "body_c",
+        "tools": [],
+        "operation": "join",
+        "clearance": 0,
+        "keep_tools": false
+      },
+      "shown_defaults": [
+        "target",
+        "tools",
+        "operation",
+        "keep_tools"
+      ]
+    },
+    "empty": {
+      "defaults": {
+        "target": [],
+        "tools": [],
+        "operation": "join",
+        "clearance": 0,
+        "keep_tools": false
+      },
+      "toParams_defaults": {
+        "tools": [],
+        "operation": "join",
+        "clearance": 0,
+        "keep_tools": false
+      },
+      "shown_defaults": [
+        "target",
+        "tools",
+        "operation",
+        "keep_tools"
+      ]
+    }
+  }
+}

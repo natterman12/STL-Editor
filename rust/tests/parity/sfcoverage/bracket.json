@@ -1,0 +1,16 @@
+{
+  "bare_at": [
+    [
+      25,
+      15,
+      30
+    ]
+  ],
+  "held": 0,
+  "total": 300,
+  "reach": 5,
+  "gap": 0.2,
+  "threshold_deg": 45,
+  "stl": "bracket.stl",
+  "orient": "ry90"
+}

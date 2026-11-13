@@ -1,0 +1,366 @@
+{
+  "tool": "sweep",
+  "label": "Sweep",
+  "type": "sweep",
+  "icon": "revolve",
+  "flags": {
+    "placeOnFace": false,
+    "noLivePreview": false,
+    "gizmo": false,
+    "planeTool": false,
+    "sculpt": false,
+    "paint": false,
+    "wallTool": false
+  },
+  "hint": "The profile starts at the first point of the path and turns to face along it. Draw the profile centred on its sketch origin. The path must be one open chain of lines and arcs.",
+  "extra": [],
+  "fields": [
+    {
+      "key": "profile",
+      "label": "Profile sketch",
+      "kind": "sketch"
+    },
+    {
+      "key": "path",
+      "label": "Path sketch",
+      "kind": "sketch"
+    },
+    {
+      "key": "operation",
+      "label": "Operation",
+      "kind": "select",
+      "options": [
+        [
+          "new",
+          "New body"
+        ],
+        [
+          "join",
+          "Join"
+        ],
+        [
+          "cut",
+          "Cut"
+        ],
+        [
+          "intersect",
+          "Intersect"
+        ]
+      ]
+    },
+    {
+      "key": "targets",
+      "label": "Bodies",
+      "kind": "bodies",
+      "multi": true,
+      "placeholder": "Auto",
+      "hasShow": true
+    }
+  ],
+  "ctxNote": "FIXTURE_CTX: selection [body_a], lastSketch sk1, sketchOnBody true, two bodies, one extrude cut",
+  "defaults": {
+    "profile": "sk1",
+    "path": "",
+    "operation": "new",
+    "targets": []
+  },
+  "toParams_defaults": {
+    "profile": "sk1",
+    "path": "",
+    "operation": "new",
+    "targets": []
+  },
+  "shown_defaults": [
+    "profile",
+    "path",
+    "operation"
+  ],
+  "cases": [
+    {
+      "name": "select:operation=new",
+      "values": {
+        "profile": "sk1",
+        "path": "",
+        "operation": "new",
+        "targets": []
+      },
+      "toParams": {
+        "profile": "sk1",
+        "path": "",
+        "operation": "new",
+        "targets": []
+      },
+      "shown": [
+        "profile",
+        "path",
+        "operation"
+      ]
+    },
+    {
+      "name": "select:operation=join",
+      "values": {
+        "profile": "sk1",
+        "path": "",
+        "operation": "join",
+        "targets": []
+      },
+      "toParams": {
+        "profile": "sk1",
+        "path": "",
+        "operation": "join",
+        "targets": []
+      },
+      "shown": [
+        "profile",
+        "path",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:operation=cut",
+      "values": {
+        "profile": "sk1",
+        "path": "",
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "profile": "sk1",
+        "path": "",
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "profile",
+        "path",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:operation=intersect",
+      "values": {
+        "profile": "sk1",
+        "path": "",
+        "operation": "intersect",
+        "targets": []
+      },
+      "toParams": {
+        "profile": "sk1",
+        "path": "",
+        "operation": "intersect",
+        "targets": []
+      },
+      "shown": [
+        "profile",
+        "path",
+        "operation",
+        "targets"
+      ]
+    }
+  ],
+  "onChange": [],
+  "roundTrips": [
+    {
+      "name": "defaults",
+      "params": {
+        "profile": "sk1",
+        "path": "",
+        "operation": "new",
+        "targets": []
+      },
+      "fromParams": {
+        "profile": "sk1",
+        "path": "",
+        "operation": "new",
+        "targets": []
+      },
+      "toParams": {
+        "profile": "sk1",
+        "path": "",
+        "operation": "new",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:operation=new",
+      "params": {
+        "profile": "sk1",
+        "path": "",
+        "operation": "new",
+        "targets": []
+      },
+      "fromParams": {
+        "profile": "sk1",
+        "path": "",
+        "operation": "new",
+        "targets": []
+      },
+      "toParams": {
+        "profile": "sk1",
+        "path": "",
+        "operation": "new",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:operation=join",
+      "params": {
+        "profile": "sk1",
+        "path": "",
+        "operation": "join",
+        "targets": []
+      },
+      "fromParams": {
+        "profile": "sk1",
+        "path": "",
+        "operation": "join",
+        "targets": []
+      },
+      "toParams": {
+        "profile": "sk1",
+        "path": "",
+        "operation": "join",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:operation=cut",
+      "params": {
+        "profile": "sk1",
+        "path": "",
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "profile": "sk1",
+        "path": "",
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "profile": "sk1",
+        "path": "",
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:operation=intersect",
+      "params": {
+        "profile": "sk1",
+        "path": "",
+        "operation": "intersect",
+        "targets": []
+      },
+      "fromParams": {
+        "profile": "sk1",
+        "path": "",
+        "operation": "intersect",
+        "targets": []
+      },
+      "toParams": {
+        "profile": "sk1",
+        "path": "",
+        "operation": "intersect",
+        "targets": []
+      }
+    }
+  ],
+  "ctxCases": {
+    "nosel": {
+      "defaults": {
+        "profile": "sk1",
+        "path": "",
+        "operation": "new",
+        "targets": []
+      },
+      "toParams_defaults": {
+        "profile": "sk1",
+        "path": "",
+        "operation": "new",
+        "targets": []
+      },
+      "shown_defaults": [
+        "profile",
+        "path",
+        "operation"
+      ]
+    },
+    "two": {
+      "defaults": {
+        "profile": "sk1",
+        "path": "",
+        "operation": "new",
+        "targets": []
+      },
+      "toParams_defaults": {
+        "profile": "sk1",
+        "path": "",
+        "operation": "new",
+        "targets": []
+      },
+      "shown_defaults": [
+        "profile",
+        "path",
+        "operation"
+      ]
+    },
+    "nonsolid": {
+      "defaults": {
+        "profile": "sk1",
+        "path": "",
+        "operation": "new",
+        "targets": []
+      },
+      "toParams_defaults": {
+        "profile": "sk1",
+        "path": "",
+        "operation": "new",
+        "targets": []
+      },
+      "shown_defaults": [
+        "profile",
+        "path",
+        "operation"
+      ]
+    },
+    "nobbox": {
+      "defaults": {
+        "profile": "sk1",
+        "path": "",
+        "operation": "new",
+        "targets": []
+      },
+      "toParams_defaults": {
+        "profile": "sk1",
+        "path": "",
+        "operation": "new",
+        "targets": []
+      },
+      "shown_defaults": [
+        "profile",
+        "path",
+        "operation"
+      ]
+    },
+    "empty": {
+      "defaults": {
+        "path": "",
+        "operation": "new",
+        "targets": []
+      },
+      "toParams_defaults": {
+        "path": "",
+        "operation": "new",
+        "targets": []
+      },
+      "shown_defaults": [
+        "profile",
+        "path",
+        "operation"
+      ]
+    }
+  }
+}

@@ -1,0 +1,9070 @@
+{
+  "tool": "thread",
+  "label": "Thread",
+  "type": "thread",
+  "icon": "thread",
+  "flags": {
+    "placeOnFace": true,
+    "noLivePreview": false,
+    "gizmo": false,
+    "planeTool": false,
+    "sculpt": false,
+    "paint": false,
+    "wallTool": false
+  },
+  "hint": "Click a face to put the thread there (tapped holes go into the face, screws stand on it). For FDM, pitches of 1 mm or more and 0.2–0.4 mm clearance print best",
+  "extra": [
+    {
+      "name": "onchange:kind=external plane face",
+      "op": "onChange",
+      "input": {
+        "trigger": "kind",
+        "values": {
+          "kind": "external",
+          "size": "M8",
+          "diameter": 8,
+          "pitch": 1.25,
+          "length": 10,
+          "tolerance": 0.3,
+          "hand": "right",
+          "chamfer": true,
+          "plane": {
+            "body": "body_a",
+            "origin": [
+              0,
+              0,
+              10
+            ],
+            "normal": [
+              0,
+              0,
+              1
+            ]
+          },
+          "offset": [
+            0,
+            0,
+            0
+          ],
+          "operation": "cut",
+          "targets": []
+        }
+      },
+      "result": {
+        "operation": "join"
+      }
+    },
+    {
+      "name": "onchange:plane plane face",
+      "op": "onChange",
+      "input": {
+        "trigger": "plane",
+        "values": {
+          "kind": "external",
+          "size": "M8",
+          "diameter": 8,
+          "pitch": 1.25,
+          "length": 10,
+          "tolerance": 0.3,
+          "hand": "right",
+          "chamfer": true,
+          "plane": {
+            "body": "body_a",
+            "origin": [
+              0,
+              0,
+              10
+            ],
+            "normal": [
+              0,
+              0,
+              1
+            ]
+          },
+          "offset": [
+            0,
+            0,
+            0
+          ],
+          "operation": "cut",
+          "targets": []
+        }
+      },
+      "result": {
+        "operation": "join"
+      }
+    },
+    {
+      "name": "onchange:kind=external plane name",
+      "op": "onChange",
+      "input": {
+        "trigger": "kind",
+        "values": {
+          "kind": "external",
+          "size": "M8",
+          "diameter": 8,
+          "pitch": 1.25,
+          "length": 10,
+          "tolerance": 0.3,
+          "hand": "right",
+          "chamfer": true,
+          "plane": "XY",
+          "offset": [
+            0,
+            0,
+            0
+          ],
+          "operation": "cut",
+          "targets": []
+        }
+      },
+      "result": {
+        "operation": "new"
+      }
+    },
+    {
+      "name": "onchange:plane plane name",
+      "op": "onChange",
+      "input": {
+        "trigger": "plane",
+        "values": {
+          "kind": "external",
+          "size": "M8",
+          "diameter": 8,
+          "pitch": 1.25,
+          "length": 10,
+          "tolerance": 0.3,
+          "hand": "right",
+          "chamfer": true,
+          "plane": "XY",
+          "offset": [
+            0,
+            0,
+            0
+          ],
+          "operation": "cut",
+          "targets": []
+        }
+      },
+      "result": null
+    },
+    {
+      "name": "onchange:kind=external plane list",
+      "op": "onChange",
+      "input": {
+        "trigger": "kind",
+        "values": {
+          "kind": "external",
+          "size": "M8",
+          "diameter": 8,
+          "pitch": 1.25,
+          "length": 10,
+          "tolerance": 0.3,
+          "hand": "right",
+          "chamfer": true,
+          "plane": [
+            1,
+            2
+          ],
+          "offset": [
+            0,
+            0,
+            0
+          ],
+          "operation": "cut",
+          "targets": []
+        }
+      },
+      "result": {
+        "operation": "join"
+      }
+    },
+    {
+      "name": "onchange:plane plane list",
+      "op": "onChange",
+      "input": {
+        "trigger": "plane",
+        "values": {
+          "kind": "external",
+          "size": "M8",
+          "diameter": 8,
+          "pitch": 1.25,
+          "length": 10,
+          "tolerance": 0.3,
+          "hand": "right",
+          "chamfer": true,
+          "plane": [
+            1,
+            2
+          ],
+          "offset": [
+            0,
+            0,
+            0
+          ],
+          "operation": "cut",
+          "targets": []
+        }
+      },
+      "result": {
+        "operation": "join"
+      }
+    },
+    {
+      "name": "onchange:kind=external plane null",
+      "op": "onChange",
+      "input": {
+        "trigger": "kind",
+        "values": {
+          "kind": "external",
+          "size": "M8",
+          "diameter": 8,
+          "pitch": 1.25,
+          "length": 10,
+          "tolerance": 0.3,
+          "hand": "right",
+          "chamfer": true,
+          "plane": null,
+          "offset": [
+            0,
+            0,
+            0
+          ],
+          "operation": "cut",
+          "targets": []
+        }
+      },
+      "result": {
+        "operation": "new"
+      }
+    },
+    {
+      "name": "onchange:plane plane null",
+      "op": "onChange",
+      "input": {
+        "trigger": "plane",
+        "values": {
+          "kind": "external",
+          "size": "M8",
+          "diameter": 8,
+          "pitch": 1.25,
+          "length": 10,
+          "tolerance": 0.3,
+          "hand": "right",
+          "chamfer": true,
+          "plane": null,
+          "offset": [
+            0,
+            0,
+            0
+          ],
+          "operation": "cut",
+          "targets": []
+        }
+      },
+      "result": null
+    },
+    {
+      "name": "onchange:kind=external plane empty",
+      "op": "onChange",
+      "input": {
+        "trigger": "kind",
+        "values": {
+          "kind": "external",
+          "size": "M8",
+          "diameter": 8,
+          "pitch": 1.25,
+          "length": 10,
+          "tolerance": 0.3,
+          "hand": "right",
+          "chamfer": true,
+          "plane": "",
+          "offset": [
+            0,
+            0,
+            0
+          ],
+          "operation": "cut",
+          "targets": []
+        }
+      },
+      "result": {
+        "operation": "new"
+      }
+    },
+    {
+      "name": "onchange:plane plane empty",
+      "op": "onChange",
+      "input": {
+        "trigger": "plane",
+        "values": {
+          "kind": "external",
+          "size": "M8",
+          "diameter": 8,
+          "pitch": 1.25,
+          "length": 10,
+          "tolerance": 0.3,
+          "hand": "right",
+          "chamfer": true,
+          "plane": "",
+          "offset": [
+            0,
+            0,
+            0
+          ],
+          "operation": "cut",
+          "targets": []
+        }
+      },
+      "result": null
+    },
+    {
+      "name": "onchange:plane internal",
+      "op": "onChange",
+      "input": {
+        "trigger": "plane",
+        "values": {
+          "kind": "internal",
+          "size": "M8",
+          "diameter": 8,
+          "pitch": 1.25,
+          "length": 10,
+          "tolerance": 0.3,
+          "hand": "right",
+          "chamfer": true,
+          "plane": {
+            "body": "body_a",
+            "origin": [
+              0,
+              0,
+              10
+            ],
+            "normal": [
+              0,
+              0,
+              1
+            ]
+          },
+          "offset": [
+            0,
+            0,
+            0
+          ],
+          "operation": "cut",
+          "targets": []
+        }
+      },
+      "result": null
+    },
+    {
+      "name": "onchange:diameter",
+      "op": "onChange",
+      "input": {
+        "trigger": "diameter",
+        "values": {
+          "kind": "internal",
+          "size": "M8",
+          "diameter": 8,
+          "pitch": 1.25,
+          "length": 10,
+          "tolerance": 0.3,
+          "hand": "right",
+          "chamfer": true,
+          "plane": "XY",
+          "offset": [
+            0,
+            0,
+            0
+          ],
+          "operation": "cut",
+          "targets": []
+        }
+      },
+      "result": {
+        "size": "custom"
+      }
+    },
+    {
+      "name": "onchange:pitch",
+      "op": "onChange",
+      "input": {
+        "trigger": "pitch",
+        "values": {
+          "kind": "internal",
+          "size": "M8",
+          "diameter": 8,
+          "pitch": 1.25,
+          "length": 10,
+          "tolerance": 0.3,
+          "hand": "right",
+          "chamfer": true,
+          "plane": "XY",
+          "offset": [
+            0,
+            0,
+            0
+          ],
+          "operation": "cut",
+          "targets": []
+        }
+      },
+      "result": {
+        "size": "custom"
+      }
+    },
+    {
+      "name": "onchange:size unknown",
+      "op": "onChange",
+      "input": {
+        "trigger": "size",
+        "values": {
+          "kind": "internal",
+          "size": "nope",
+          "diameter": 8,
+          "pitch": 1.25,
+          "length": 10,
+          "tolerance": 0.3,
+          "hand": "right",
+          "chamfer": true,
+          "plane": "XY",
+          "offset": [
+            0,
+            0,
+            0
+          ],
+          "operation": "cut",
+          "targets": []
+        }
+      },
+      "result": null
+    },
+    {
+      "name": "toParams:external screw",
+      "op": "toParams",
+      "input": {
+        "kind": "external",
+        "size": "M5",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "result": {
+        "kind": "external",
+        "size": "M5",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": [],
+        "body_name": "M5 screw"
+      }
+    },
+    {
+      "name": "toParams:custom size",
+      "op": "toParams",
+      "input": {
+        "kind": "external",
+        "size": "custom",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "result": {
+        "kind": "external",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "toParams:unknown size",
+      "op": "toParams",
+      "input": {
+        "kind": "internal",
+        "size": "nope",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "result": {
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "fromParams:keeps size",
+      "op": "fromParams",
+      "input": {
+        "kind": "internal",
+        "size": "M3",
+        "diameter": 3
+      },
+      "result": {
+        "size": "M3",
+        "kind": "internal",
+        "diameter": 3
+      }
+    }
+  ],
+  "fields": [
+    {
+      "key": "kind",
+      "label": "Type",
+      "kind": "select",
+      "options": [
+        [
+          "internal",
+          "Tapped hole"
+        ],
+        [
+          "external",
+          "Screw / stud"
+        ]
+      ]
+    },
+    {
+      "key": "size",
+      "label": "Size",
+      "kind": "select",
+      "options": [
+        [
+          "M1.6",
+          "M1.6 × 0.35",
+          "Metric (ISO coarse)"
+        ],
+        [
+          "M2",
+          "M2 × 0.4",
+          "Metric (ISO coarse)"
+        ],
+        [
+          "M2.5",
+          "M2.5 × 0.45",
+          "Metric (ISO coarse)"
+        ],
+        [
+          "M3",
+          "M3 × 0.5",
+          "Metric (ISO coarse)"
+        ],
+        [
+          "M4",
+          "M4 × 0.7",
+          "Metric (ISO coarse)"
+        ],
+        [
+          "M5",
+          "M5 × 0.8",
+          "Metric (ISO coarse)"
+        ],
+        [
+          "M6",
+          "M6 × 1",
+          "Metric (ISO coarse)"
+        ],
+        [
+          "M7",
+          "M7 × 1",
+          "Metric (ISO coarse)"
+        ],
+        [
+          "M8",
+          "M8 × 1.25",
+          "Metric (ISO coarse)"
+        ],
+        [
+          "M10",
+          "M10 × 1.5",
+          "Metric (ISO coarse)"
+        ],
+        [
+          "M12",
+          "M12 × 1.75",
+          "Metric (ISO coarse)"
+        ],
+        [
+          "M14",
+          "M14 × 2",
+          "Metric (ISO coarse)"
+        ],
+        [
+          "M16",
+          "M16 × 2",
+          "Metric (ISO coarse)"
+        ],
+        [
+          "M20",
+          "M20 × 2.5",
+          "Metric (ISO coarse)"
+        ],
+        [
+          "M24",
+          "M24 × 3",
+          "Metric (ISO coarse)"
+        ],
+        [
+          "M30",
+          "M30 × 3.5",
+          "Metric (ISO coarse)"
+        ],
+        [
+          "#0-80",
+          "#0-80 UNF",
+          "Inch, fine (UNF)"
+        ],
+        [
+          "#1-64",
+          "#1-64 UNC",
+          "Inch, coarse (UNC)"
+        ],
+        [
+          "#2-56",
+          "#2-56 UNC",
+          "Inch, coarse (UNC)"
+        ],
+        [
+          "#4-40",
+          "#4-40 UNC",
+          "Inch, coarse (UNC)"
+        ],
+        [
+          "#6-32",
+          "#6-32 UNC",
+          "Inch, coarse (UNC)"
+        ],
+        [
+          "#8-32",
+          "#8-32 UNC",
+          "Inch, coarse (UNC)"
+        ],
+        [
+          "#10-24",
+          "#10-24 UNC",
+          "Inch, coarse (UNC)"
+        ],
+        [
+          "1/4\"-20",
+          "1/4\"-20 UNC",
+          "Inch, coarse (UNC)"
+        ],
+        [
+          "5/16\"-18",
+          "5/16\"-18 UNC",
+          "Inch, coarse (UNC)"
+        ],
+        [
+          "3/8\"-16",
+          "3/8\"-16 UNC",
+          "Inch, coarse (UNC)"
+        ],
+        [
+          "7/16\"-14",
+          "7/16\"-14 UNC",
+          "Inch, coarse (UNC)"
+        ],
+        [
+          "1/2\"-13",
+          "1/2\"-13 UNC",
+          "Inch, coarse (UNC)"
+        ],
+        [
+          "5/8\"-11",
+          "5/8\"-11 UNC",
+          "Inch, coarse (UNC)"
+        ],
+        [
+          "3/4\"-10",
+          "3/4\"-10 UNC",
+          "Inch, coarse (UNC)"
+        ],
+        [
+          "#10-32",
+          "#10-32 UNF",
+          "Inch, fine (UNF)"
+        ],
+        [
+          "1/4\"-28",
+          "1/4\"-28 UNF",
+          "Inch, fine (UNF)"
+        ],
+        [
+          "5/16\"-24",
+          "5/16\"-24 UNF",
+          "Inch, fine (UNF)"
+        ],
+        [
+          "3/8\"-24",
+          "3/8\"-24 UNF",
+          "Inch, fine (UNF)"
+        ],
+        [
+          "1/2\"-20",
+          "1/2\"-20 UNF",
+          "Inch, fine (UNF)"
+        ],
+        [
+          "custom",
+          "Custom",
+          ""
+        ]
+      ],
+      "groups": true
+    },
+    {
+      "key": "diameter",
+      "label": "Major Ø",
+      "kind": "number",
+      "unit": "mm"
+    },
+    {
+      "key": "pitch",
+      "label": "Pitch",
+      "kind": "number",
+      "unit": "mm"
+    },
+    {
+      "key": "length",
+      "label": "Length",
+      "kind": "number",
+      "unit": "mm"
+    },
+    {
+      "key": "tolerance",
+      "label": "Print clearance",
+      "kind": "number",
+      "unit": "mm"
+    },
+    {
+      "key": "hand",
+      "label": "Hand",
+      "kind": "select",
+      "options": [
+        [
+          "right",
+          "Right"
+        ],
+        [
+          "left",
+          "Left"
+        ]
+      ]
+    },
+    {
+      "key": "chamfer",
+      "label": "Chamfered ends",
+      "kind": "bool"
+    },
+    {
+      "key": "plane",
+      "label": "On",
+      "kind": "plane"
+    },
+    {
+      "key": "offset",
+      "label": "Position",
+      "kind": "vec3",
+      "unit": "mm"
+    },
+    {
+      "key": "operation",
+      "label": "Operation",
+      "kind": "select",
+      "options": [
+        [
+          "new",
+          "New body"
+        ],
+        [
+          "join",
+          "Join"
+        ],
+        [
+          "cut",
+          "Cut"
+        ],
+        [
+          "intersect",
+          "Intersect"
+        ]
+      ]
+    },
+    {
+      "key": "targets",
+      "label": "Bodies",
+      "kind": "bodies",
+      "multi": true,
+      "placeholder": "Auto",
+      "hasShow": true
+    }
+  ],
+  "ctxNote": "FIXTURE_CTX: selection [body_a], lastSketch sk1, sketchOnBody true, two bodies, one extrude cut",
+  "defaults": {
+    "kind": "internal",
+    "size": "M8",
+    "diameter": 8,
+    "pitch": 1.25,
+    "length": 10,
+    "tolerance": 0.3,
+    "hand": "right",
+    "chamfer": true,
+    "plane": "XY",
+    "offset": [
+      0,
+      0,
+      0
+    ],
+    "operation": "cut",
+    "targets": []
+  },
+  "toParams_defaults": {
+    "kind": "internal",
+    "size": "M8",
+    "diameter": 8,
+    "pitch": 1.25,
+    "length": 10,
+    "tolerance": 0.3,
+    "hand": "right",
+    "chamfer": true,
+    "plane": "XY",
+    "offset": [
+      0,
+      0,
+      0
+    ],
+    "operation": "cut",
+    "targets": []
+  },
+  "shown_defaults": [
+    "kind",
+    "size",
+    "diameter",
+    "pitch",
+    "length",
+    "tolerance",
+    "hand",
+    "chamfer",
+    "plane",
+    "offset",
+    "operation",
+    "targets"
+  ],
+  "cases": [
+    {
+      "name": "select:kind=internal",
+      "values": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:kind=external",
+      "values": {
+        "kind": "external",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "external",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": [],
+        "body_name": "M8 screw"
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:size=M1.6",
+      "values": {
+        "kind": "internal",
+        "size": "M1.6",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M1.6",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:size=M2",
+      "values": {
+        "kind": "internal",
+        "size": "M2",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M2",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:size=M2.5",
+      "values": {
+        "kind": "internal",
+        "size": "M2.5",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M2.5",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:size=M3",
+      "values": {
+        "kind": "internal",
+        "size": "M3",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M3",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:size=M4",
+      "values": {
+        "kind": "internal",
+        "size": "M4",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M4",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:size=M5",
+      "values": {
+        "kind": "internal",
+        "size": "M5",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M5",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:size=M6",
+      "values": {
+        "kind": "internal",
+        "size": "M6",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M6",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:size=M7",
+      "values": {
+        "kind": "internal",
+        "size": "M7",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M7",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:size=M8",
+      "values": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:size=M10",
+      "values": {
+        "kind": "internal",
+        "size": "M10",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M10",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:size=M12",
+      "values": {
+        "kind": "internal",
+        "size": "M12",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M12",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:size=M14",
+      "values": {
+        "kind": "internal",
+        "size": "M14",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M14",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:size=M16",
+      "values": {
+        "kind": "internal",
+        "size": "M16",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M16",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:size=M20",
+      "values": {
+        "kind": "internal",
+        "size": "M20",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M20",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:size=M24",
+      "values": {
+        "kind": "internal",
+        "size": "M24",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M24",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:size=M30",
+      "values": {
+        "kind": "internal",
+        "size": "M30",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M30",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:size=#0-80",
+      "values": {
+        "kind": "internal",
+        "size": "#0-80",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "#0-80",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:size=#1-64",
+      "values": {
+        "kind": "internal",
+        "size": "#1-64",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "#1-64",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:size=#2-56",
+      "values": {
+        "kind": "internal",
+        "size": "#2-56",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "#2-56",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:size=#4-40",
+      "values": {
+        "kind": "internal",
+        "size": "#4-40",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "#4-40",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:size=#6-32",
+      "values": {
+        "kind": "internal",
+        "size": "#6-32",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "#6-32",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:size=#8-32",
+      "values": {
+        "kind": "internal",
+        "size": "#8-32",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "#8-32",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:size=#10-24",
+      "values": {
+        "kind": "internal",
+        "size": "#10-24",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "#10-24",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:size=1/4\"-20",
+      "values": {
+        "kind": "internal",
+        "size": "1/4\"-20",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "1/4\"-20",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:size=5/16\"-18",
+      "values": {
+        "kind": "internal",
+        "size": "5/16\"-18",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "5/16\"-18",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:size=3/8\"-16",
+      "values": {
+        "kind": "internal",
+        "size": "3/8\"-16",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "3/8\"-16",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:size=7/16\"-14",
+      "values": {
+        "kind": "internal",
+        "size": "7/16\"-14",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "7/16\"-14",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:size=1/2\"-13",
+      "values": {
+        "kind": "internal",
+        "size": "1/2\"-13",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "1/2\"-13",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:size=5/8\"-11",
+      "values": {
+        "kind": "internal",
+        "size": "5/8\"-11",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "5/8\"-11",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:size=3/4\"-10",
+      "values": {
+        "kind": "internal",
+        "size": "3/4\"-10",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "3/4\"-10",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:size=#10-32",
+      "values": {
+        "kind": "internal",
+        "size": "#10-32",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "#10-32",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:size=1/4\"-28",
+      "values": {
+        "kind": "internal",
+        "size": "1/4\"-28",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "1/4\"-28",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:size=5/16\"-24",
+      "values": {
+        "kind": "internal",
+        "size": "5/16\"-24",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "5/16\"-24",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:size=3/8\"-24",
+      "values": {
+        "kind": "internal",
+        "size": "3/8\"-24",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "3/8\"-24",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:size=1/2\"-20",
+      "values": {
+        "kind": "internal",
+        "size": "1/2\"-20",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "1/2\"-20",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:size=custom",
+      "values": {
+        "kind": "internal",
+        "size": "custom",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:hand=right",
+      "values": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:hand=left",
+      "values": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "left",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "left",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "bool:chamfer=true",
+      "values": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "bool:chamfer=false",
+      "values": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": false,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": false,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:operation=new",
+      "values": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "new",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "new",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation"
+      ]
+    },
+    {
+      "name": "select:operation=join",
+      "values": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "join",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "join",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:operation=cut",
+      "values": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:operation=intersect",
+      "values": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "intersect",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "intersect",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    }
+  ],
+  "onChange": [
+    {
+      "name": "onchange:size=M1.6",
+      "trigger": "size",
+      "values_before": {
+        "kind": "internal",
+        "size": "M1.6",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "patch": {
+        "diameter": 1.6,
+        "pitch": 0.35
+      },
+      "values_after": {
+        "kind": "internal",
+        "size": "M1.6",
+        "diameter": 1.6,
+        "pitch": 0.35,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M1.6",
+        "diameter": 1.6,
+        "pitch": 0.35,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "onchange:size=M2",
+      "trigger": "size",
+      "values_before": {
+        "kind": "internal",
+        "size": "M2",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "patch": {
+        "diameter": 2,
+        "pitch": 0.4
+      },
+      "values_after": {
+        "kind": "internal",
+        "size": "M2",
+        "diameter": 2,
+        "pitch": 0.4,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M2",
+        "diameter": 2,
+        "pitch": 0.4,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "onchange:size=M2.5",
+      "trigger": "size",
+      "values_before": {
+        "kind": "internal",
+        "size": "M2.5",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "patch": {
+        "diameter": 2.5,
+        "pitch": 0.45
+      },
+      "values_after": {
+        "kind": "internal",
+        "size": "M2.5",
+        "diameter": 2.5,
+        "pitch": 0.45,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M2.5",
+        "diameter": 2.5,
+        "pitch": 0.45,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "onchange:size=M3",
+      "trigger": "size",
+      "values_before": {
+        "kind": "internal",
+        "size": "M3",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "patch": {
+        "diameter": 3,
+        "pitch": 0.5
+      },
+      "values_after": {
+        "kind": "internal",
+        "size": "M3",
+        "diameter": 3,
+        "pitch": 0.5,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M3",
+        "diameter": 3,
+        "pitch": 0.5,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "onchange:size=M4",
+      "trigger": "size",
+      "values_before": {
+        "kind": "internal",
+        "size": "M4",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "patch": {
+        "diameter": 4,
+        "pitch": 0.7
+      },
+      "values_after": {
+        "kind": "internal",
+        "size": "M4",
+        "diameter": 4,
+        "pitch": 0.7,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M4",
+        "diameter": 4,
+        "pitch": 0.7,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "onchange:size=M5",
+      "trigger": "size",
+      "values_before": {
+        "kind": "internal",
+        "size": "M5",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "patch": {
+        "diameter": 5,
+        "pitch": 0.8
+      },
+      "values_after": {
+        "kind": "internal",
+        "size": "M5",
+        "diameter": 5,
+        "pitch": 0.8,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M5",
+        "diameter": 5,
+        "pitch": 0.8,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "onchange:size=M6",
+      "trigger": "size",
+      "values_before": {
+        "kind": "internal",
+        "size": "M6",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "patch": {
+        "diameter": 6,
+        "pitch": 1
+      },
+      "values_after": {
+        "kind": "internal",
+        "size": "M6",
+        "diameter": 6,
+        "pitch": 1,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M6",
+        "diameter": 6,
+        "pitch": 1,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "onchange:size=M7",
+      "trigger": "size",
+      "values_before": {
+        "kind": "internal",
+        "size": "M7",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "patch": {
+        "diameter": 7,
+        "pitch": 1
+      },
+      "values_after": {
+        "kind": "internal",
+        "size": "M7",
+        "diameter": 7,
+        "pitch": 1,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M7",
+        "diameter": 7,
+        "pitch": 1,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "onchange:size=M8",
+      "trigger": "size",
+      "values_before": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "patch": {
+        "diameter": 8,
+        "pitch": 1.25
+      },
+      "values_after": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "onchange:size=M10",
+      "trigger": "size",
+      "values_before": {
+        "kind": "internal",
+        "size": "M10",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "patch": {
+        "diameter": 10,
+        "pitch": 1.5
+      },
+      "values_after": {
+        "kind": "internal",
+        "size": "M10",
+        "diameter": 10,
+        "pitch": 1.5,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M10",
+        "diameter": 10,
+        "pitch": 1.5,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "onchange:size=M12",
+      "trigger": "size",
+      "values_before": {
+        "kind": "internal",
+        "size": "M12",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "patch": {
+        "diameter": 12,
+        "pitch": 1.75
+      },
+      "values_after": {
+        "kind": "internal",
+        "size": "M12",
+        "diameter": 12,
+        "pitch": 1.75,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M12",
+        "diameter": 12,
+        "pitch": 1.75,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "onchange:size=M14",
+      "trigger": "size",
+      "values_before": {
+        "kind": "internal",
+        "size": "M14",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "patch": {
+        "diameter": 14,
+        "pitch": 2
+      },
+      "values_after": {
+        "kind": "internal",
+        "size": "M14",
+        "diameter": 14,
+        "pitch": 2,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M14",
+        "diameter": 14,
+        "pitch": 2,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "onchange:size=M16",
+      "trigger": "size",
+      "values_before": {
+        "kind": "internal",
+        "size": "M16",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "patch": {
+        "diameter": 16,
+        "pitch": 2
+      },
+      "values_after": {
+        "kind": "internal",
+        "size": "M16",
+        "diameter": 16,
+        "pitch": 2,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M16",
+        "diameter": 16,
+        "pitch": 2,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "onchange:size=M20",
+      "trigger": "size",
+      "values_before": {
+        "kind": "internal",
+        "size": "M20",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "patch": {
+        "diameter": 20,
+        "pitch": 2.5
+      },
+      "values_after": {
+        "kind": "internal",
+        "size": "M20",
+        "diameter": 20,
+        "pitch": 2.5,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M20",
+        "diameter": 20,
+        "pitch": 2.5,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "onchange:size=M24",
+      "trigger": "size",
+      "values_before": {
+        "kind": "internal",
+        "size": "M24",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "patch": {
+        "diameter": 24,
+        "pitch": 3
+      },
+      "values_after": {
+        "kind": "internal",
+        "size": "M24",
+        "diameter": 24,
+        "pitch": 3,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M24",
+        "diameter": 24,
+        "pitch": 3,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "onchange:size=M30",
+      "trigger": "size",
+      "values_before": {
+        "kind": "internal",
+        "size": "M30",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "patch": {
+        "diameter": 30,
+        "pitch": 3.5
+      },
+      "values_after": {
+        "kind": "internal",
+        "size": "M30",
+        "diameter": 30,
+        "pitch": 3.5,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M30",
+        "diameter": 30,
+        "pitch": 3.5,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "onchange:size=#0-80",
+      "trigger": "size",
+      "values_before": {
+        "kind": "internal",
+        "size": "#0-80",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "patch": {
+        "diameter": 1.524,
+        "pitch": 0.3175
+      },
+      "values_after": {
+        "kind": "internal",
+        "size": "#0-80",
+        "diameter": 1.524,
+        "pitch": 0.3175,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "#0-80",
+        "diameter": 1.524,
+        "pitch": 0.3175,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "onchange:size=#1-64",
+      "trigger": "size",
+      "values_before": {
+        "kind": "internal",
+        "size": "#1-64",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "patch": {
+        "diameter": 1.8542,
+        "pitch": 0.3969
+      },
+      "values_after": {
+        "kind": "internal",
+        "size": "#1-64",
+        "diameter": 1.8542,
+        "pitch": 0.3969,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "#1-64",
+        "diameter": 1.8542,
+        "pitch": 0.3969,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "onchange:size=#2-56",
+      "trigger": "size",
+      "values_before": {
+        "kind": "internal",
+        "size": "#2-56",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "patch": {
+        "diameter": 2.1844,
+        "pitch": 0.4536
+      },
+      "values_after": {
+        "kind": "internal",
+        "size": "#2-56",
+        "diameter": 2.1844,
+        "pitch": 0.4536,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "#2-56",
+        "diameter": 2.1844,
+        "pitch": 0.4536,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "onchange:size=#4-40",
+      "trigger": "size",
+      "values_before": {
+        "kind": "internal",
+        "size": "#4-40",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "patch": {
+        "diameter": 2.8448,
+        "pitch": 0.635
+      },
+      "values_after": {
+        "kind": "internal",
+        "size": "#4-40",
+        "diameter": 2.8448,
+        "pitch": 0.635,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "#4-40",
+        "diameter": 2.8448,
+        "pitch": 0.635,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "onchange:size=#6-32",
+      "trigger": "size",
+      "values_before": {
+        "kind": "internal",
+        "size": "#6-32",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "patch": {
+        "diameter": 3.5052,
+        "pitch": 0.7938
+      },
+      "values_after": {
+        "kind": "internal",
+        "size": "#6-32",
+        "diameter": 3.5052,
+        "pitch": 0.7938,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "#6-32",
+        "diameter": 3.5052,
+        "pitch": 0.7938,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "onchange:size=#8-32",
+      "trigger": "size",
+      "values_before": {
+        "kind": "internal",
+        "size": "#8-32",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "patch": {
+        "diameter": 4.1656,
+        "pitch": 0.7938
+      },
+      "values_after": {
+        "kind": "internal",
+        "size": "#8-32",
+        "diameter": 4.1656,
+        "pitch": 0.7938,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "#8-32",
+        "diameter": 4.1656,
+        "pitch": 0.7938,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "onchange:size=#10-24",
+      "trigger": "size",
+      "values_before": {
+        "kind": "internal",
+        "size": "#10-24",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "patch": {
+        "diameter": 4.826,
+        "pitch": 1.0583
+      },
+      "values_after": {
+        "kind": "internal",
+        "size": "#10-24",
+        "diameter": 4.826,
+        "pitch": 1.0583,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "#10-24",
+        "diameter": 4.826,
+        "pitch": 1.0583,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "onchange:size=1/4\"-20",
+      "trigger": "size",
+      "values_before": {
+        "kind": "internal",
+        "size": "1/4\"-20",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "patch": {
+        "diameter": 6.35,
+        "pitch": 1.27
+      },
+      "values_after": {
+        "kind": "internal",
+        "size": "1/4\"-20",
+        "diameter": 6.35,
+        "pitch": 1.27,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "1/4\"-20",
+        "diameter": 6.35,
+        "pitch": 1.27,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "onchange:size=5/16\"-18",
+      "trigger": "size",
+      "values_before": {
+        "kind": "internal",
+        "size": "5/16\"-18",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "patch": {
+        "diameter": 7.9375,
+        "pitch": 1.4111
+      },
+      "values_after": {
+        "kind": "internal",
+        "size": "5/16\"-18",
+        "diameter": 7.9375,
+        "pitch": 1.4111,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "5/16\"-18",
+        "diameter": 7.9375,
+        "pitch": 1.4111,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "onchange:size=3/8\"-16",
+      "trigger": "size",
+      "values_before": {
+        "kind": "internal",
+        "size": "3/8\"-16",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "patch": {
+        "diameter": 9.525,
+        "pitch": 1.5875
+      },
+      "values_after": {
+        "kind": "internal",
+        "size": "3/8\"-16",
+        "diameter": 9.525,
+        "pitch": 1.5875,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "3/8\"-16",
+        "diameter": 9.525,
+        "pitch": 1.5875,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "onchange:size=7/16\"-14",
+      "trigger": "size",
+      "values_before": {
+        "kind": "internal",
+        "size": "7/16\"-14",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "patch": {
+        "diameter": 11.1125,
+        "pitch": 1.8143
+      },
+      "values_after": {
+        "kind": "internal",
+        "size": "7/16\"-14",
+        "diameter": 11.1125,
+        "pitch": 1.8143,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "7/16\"-14",
+        "diameter": 11.1125,
+        "pitch": 1.8143,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "onchange:size=1/2\"-13",
+      "trigger": "size",
+      "values_before": {
+        "kind": "internal",
+        "size": "1/2\"-13",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "patch": {
+        "diameter": 12.7,
+        "pitch": 1.9538
+      },
+      "values_after": {
+        "kind": "internal",
+        "size": "1/2\"-13",
+        "diameter": 12.7,
+        "pitch": 1.9538,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "1/2\"-13",
+        "diameter": 12.7,
+        "pitch": 1.9538,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "onchange:size=5/8\"-11",
+      "trigger": "size",
+      "values_before": {
+        "kind": "internal",
+        "size": "5/8\"-11",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "patch": {
+        "diameter": 15.875,
+        "pitch": 2.3091
+      },
+      "values_after": {
+        "kind": "internal",
+        "size": "5/8\"-11",
+        "diameter": 15.875,
+        "pitch": 2.3091,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "5/8\"-11",
+        "diameter": 15.875,
+        "pitch": 2.3091,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "onchange:size=3/4\"-10",
+      "trigger": "size",
+      "values_before": {
+        "kind": "internal",
+        "size": "3/4\"-10",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "patch": {
+        "diameter": 19.05,
+        "pitch": 2.54
+      },
+      "values_after": {
+        "kind": "internal",
+        "size": "3/4\"-10",
+        "diameter": 19.05,
+        "pitch": 2.54,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "3/4\"-10",
+        "diameter": 19.05,
+        "pitch": 2.54,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "onchange:size=#10-32",
+      "trigger": "size",
+      "values_before": {
+        "kind": "internal",
+        "size": "#10-32",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "patch": {
+        "diameter": 4.826,
+        "pitch": 0.7938
+      },
+      "values_after": {
+        "kind": "internal",
+        "size": "#10-32",
+        "diameter": 4.826,
+        "pitch": 0.7938,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "#10-32",
+        "diameter": 4.826,
+        "pitch": 0.7938,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "onchange:size=1/4\"-28",
+      "trigger": "size",
+      "values_before": {
+        "kind": "internal",
+        "size": "1/4\"-28",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "patch": {
+        "diameter": 6.35,
+        "pitch": 0.9071
+      },
+      "values_after": {
+        "kind": "internal",
+        "size": "1/4\"-28",
+        "diameter": 6.35,
+        "pitch": 0.9071,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "1/4\"-28",
+        "diameter": 6.35,
+        "pitch": 0.9071,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "onchange:size=5/16\"-24",
+      "trigger": "size",
+      "values_before": {
+        "kind": "internal",
+        "size": "5/16\"-24",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "patch": {
+        "diameter": 7.9375,
+        "pitch": 1.0583
+      },
+      "values_after": {
+        "kind": "internal",
+        "size": "5/16\"-24",
+        "diameter": 7.9375,
+        "pitch": 1.0583,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "5/16\"-24",
+        "diameter": 7.9375,
+        "pitch": 1.0583,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "onchange:size=3/8\"-24",
+      "trigger": "size",
+      "values_before": {
+        "kind": "internal",
+        "size": "3/8\"-24",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "patch": {
+        "diameter": 9.525,
+        "pitch": 1.0583
+      },
+      "values_after": {
+        "kind": "internal",
+        "size": "3/8\"-24",
+        "diameter": 9.525,
+        "pitch": 1.0583,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "3/8\"-24",
+        "diameter": 9.525,
+        "pitch": 1.0583,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "onchange:size=1/2\"-20",
+      "trigger": "size",
+      "values_before": {
+        "kind": "internal",
+        "size": "1/2\"-20",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "patch": {
+        "diameter": 12.7,
+        "pitch": 1.27
+      },
+      "values_after": {
+        "kind": "internal",
+        "size": "1/2\"-20",
+        "diameter": 12.7,
+        "pitch": 1.27,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "1/2\"-20",
+        "diameter": 12.7,
+        "pitch": 1.27,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "onchange:size=custom",
+      "trigger": "size",
+      "values_before": {
+        "kind": "internal",
+        "size": "custom",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "patch": null,
+      "values_after": {
+        "kind": "internal",
+        "size": "custom",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "onchange:kind=internal",
+      "trigger": "kind",
+      "values_before": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "patch": {
+        "operation": "cut"
+      },
+      "values_after": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "onchange:kind=external",
+      "trigger": "kind",
+      "values_before": {
+        "kind": "external",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "patch": {
+        "operation": "new"
+      },
+      "values_after": {
+        "kind": "external",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "new",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "external",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "new",
+        "targets": [],
+        "body_name": "M8 screw"
+      },
+      "shown": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation"
+      ]
+    }
+  ],
+  "roundTrips": [
+    {
+      "name": "defaults",
+      "params": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "M8",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "size": "M8",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:kind=internal",
+      "params": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "M8",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "size": "M8",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:kind=external",
+      "params": {
+        "kind": "external",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": [],
+        "body_name": "M8 screw"
+      },
+      "fromParams": {
+        "size": "M8",
+        "kind": "external",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": [],
+        "body_name": "M8 screw"
+      },
+      "toParams": {
+        "size": "M8",
+        "kind": "external",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": [],
+        "body_name": "M8 screw"
+      }
+    },
+    {
+      "name": "select:size=M1.6",
+      "params": {
+        "kind": "internal",
+        "size": "M1.6",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "M1.6",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "size": "M1.6",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:size=M2",
+      "params": {
+        "kind": "internal",
+        "size": "M2",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "M2",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "size": "M2",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:size=M2.5",
+      "params": {
+        "kind": "internal",
+        "size": "M2.5",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "M2.5",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "size": "M2.5",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:size=M3",
+      "params": {
+        "kind": "internal",
+        "size": "M3",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "M3",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "size": "M3",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:size=M4",
+      "params": {
+        "kind": "internal",
+        "size": "M4",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "M4",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "size": "M4",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:size=M5",
+      "params": {
+        "kind": "internal",
+        "size": "M5",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "M5",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "size": "M5",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:size=M6",
+      "params": {
+        "kind": "internal",
+        "size": "M6",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "M6",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "size": "M6",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:size=M7",
+      "params": {
+        "kind": "internal",
+        "size": "M7",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "M7",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "size": "M7",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:size=M8",
+      "params": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "M8",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "size": "M8",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:size=M10",
+      "params": {
+        "kind": "internal",
+        "size": "M10",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "M10",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "size": "M10",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:size=M12",
+      "params": {
+        "kind": "internal",
+        "size": "M12",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "M12",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "size": "M12",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:size=M14",
+      "params": {
+        "kind": "internal",
+        "size": "M14",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "M14",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "size": "M14",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:size=M16",
+      "params": {
+        "kind": "internal",
+        "size": "M16",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "M16",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "size": "M16",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:size=M20",
+      "params": {
+        "kind": "internal",
+        "size": "M20",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "M20",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "size": "M20",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:size=M24",
+      "params": {
+        "kind": "internal",
+        "size": "M24",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "M24",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "size": "M24",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:size=M30",
+      "params": {
+        "kind": "internal",
+        "size": "M30",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "M30",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "size": "M30",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:size=#0-80",
+      "params": {
+        "kind": "internal",
+        "size": "#0-80",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "#0-80",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "size": "#0-80",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:size=#1-64",
+      "params": {
+        "kind": "internal",
+        "size": "#1-64",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "#1-64",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "size": "#1-64",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:size=#2-56",
+      "params": {
+        "kind": "internal",
+        "size": "#2-56",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "#2-56",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "size": "#2-56",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:size=#4-40",
+      "params": {
+        "kind": "internal",
+        "size": "#4-40",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "#4-40",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "size": "#4-40",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:size=#6-32",
+      "params": {
+        "kind": "internal",
+        "size": "#6-32",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "#6-32",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "size": "#6-32",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:size=#8-32",
+      "params": {
+        "kind": "internal",
+        "size": "#8-32",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "#8-32",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "size": "#8-32",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:size=#10-24",
+      "params": {
+        "kind": "internal",
+        "size": "#10-24",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "#10-24",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "size": "#10-24",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:size=1/4\"-20",
+      "params": {
+        "kind": "internal",
+        "size": "1/4\"-20",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "1/4\"-20",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "size": "1/4\"-20",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:size=5/16\"-18",
+      "params": {
+        "kind": "internal",
+        "size": "5/16\"-18",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "5/16\"-18",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "size": "5/16\"-18",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:size=3/8\"-16",
+      "params": {
+        "kind": "internal",
+        "size": "3/8\"-16",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "3/8\"-16",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "size": "3/8\"-16",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:size=7/16\"-14",
+      "params": {
+        "kind": "internal",
+        "size": "7/16\"-14",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "7/16\"-14",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "size": "7/16\"-14",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:size=1/2\"-13",
+      "params": {
+        "kind": "internal",
+        "size": "1/2\"-13",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "1/2\"-13",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "size": "1/2\"-13",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:size=5/8\"-11",
+      "params": {
+        "kind": "internal",
+        "size": "5/8\"-11",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "5/8\"-11",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "size": "5/8\"-11",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:size=3/4\"-10",
+      "params": {
+        "kind": "internal",
+        "size": "3/4\"-10",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "3/4\"-10",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "size": "3/4\"-10",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:size=#10-32",
+      "params": {
+        "kind": "internal",
+        "size": "#10-32",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "#10-32",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "size": "#10-32",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:size=1/4\"-28",
+      "params": {
+        "kind": "internal",
+        "size": "1/4\"-28",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "1/4\"-28",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "size": "1/4\"-28",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:size=5/16\"-24",
+      "params": {
+        "kind": "internal",
+        "size": "5/16\"-24",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "5/16\"-24",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "size": "5/16\"-24",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:size=3/8\"-24",
+      "params": {
+        "kind": "internal",
+        "size": "3/8\"-24",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "3/8\"-24",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "size": "3/8\"-24",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:size=1/2\"-20",
+      "params": {
+        "kind": "internal",
+        "size": "1/2\"-20",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "1/2\"-20",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "size": "1/2\"-20",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:size=custom",
+      "params": {
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "custom",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:hand=right",
+      "params": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "M8",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "size": "M8",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:hand=left",
+      "params": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "left",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "M8",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "left",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "size": "M8",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "left",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:operation=new",
+      "params": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "new",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "M8",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "new",
+        "targets": []
+      },
+      "toParams": {
+        "size": "M8",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "new",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:operation=join",
+      "params": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "join",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "M8",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "join",
+        "targets": []
+      },
+      "toParams": {
+        "size": "M8",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "join",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:operation=cut",
+      "params": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "M8",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "size": "M8",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:operation=intersect",
+      "params": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "intersect",
+        "targets": []
+      },
+      "fromParams": {
+        "size": "M8",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "intersect",
+        "targets": []
+      },
+      "toParams": {
+        "size": "M8",
+        "kind": "internal",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "intersect",
+        "targets": []
+      }
+    }
+  ],
+  "ctxCases": {
+    "nosel": {
+      "defaults": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams_defaults": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown_defaults": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    "two": {
+      "defaults": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams_defaults": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown_defaults": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    "nonsolid": {
+      "defaults": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams_defaults": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown_defaults": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    "nobbox": {
+      "defaults": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams_defaults": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown_defaults": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    },
+    "empty": {
+      "defaults": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams_defaults": {
+        "kind": "internal",
+        "size": "M8",
+        "diameter": 8,
+        "pitch": 1.25,
+        "length": 10,
+        "tolerance": 0.3,
+        "hand": "right",
+        "chamfer": true,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown_defaults": [
+        "kind",
+        "size",
+        "diameter",
+        "pitch",
+        "length",
+        "tolerance",
+        "hand",
+        "chamfer",
+        "plane",
+        "offset",
+        "operation",
+        "targets"
+      ]
+    }
+  }
+}

@@ -131,6 +131,21 @@ const TOOL_LABELS: &[(&str, &str)] = &[
     ("sculpt", "Sculpt"), ("remesh", "Remesh"), ("repair", "Repair"), ("simplify", "Simplify"), ("separate", "Separate"), ("delete", "Remove Bodies"),
 ];
 
+/// The two tools only the desktop app has (`DESKTOP_TOOLS` in app.js).
+pub const DESKTOP_TOOLS: [&str; 2] = ["to_step", "send"];
+
+/// What choosing a tool in the ribbon, a dropdown or the tool search asks the app to open
+/// (`onRibbon`'s tail): Rotate opens Move with `_gizmo: "rotate"`, every other tool opens as itself.
+/// `sketch` and the inspect tools go through the same event; the app decides what they start.
+pub fn tool_event(key: &str) -> super::UiEvent {
+    if key == "rotate" {
+        let mut v = serde_json::Map::new();
+        v.insert("_gizmo".to_owned(), serde_json::Value::from("rotate"));
+        return super::UiEvent::OpenToolWith("move".to_owned(), v);
+    }
+    super::UiEvent::OpenTool(key.to_owned())
+}
+
 /// One entry of the tool search (`allCommands()`).
 #[derive(Clone, Debug, PartialEq)]
 pub struct Command {

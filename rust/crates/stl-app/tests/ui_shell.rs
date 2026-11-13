@@ -614,10 +614,12 @@ fn keys_use_the_real_app_state() {
     h.run_steps(3);
     assert!(!h.state().shell.events.contains(&UiEvent::OpenTool("delete".into())), "tool_open comes from the app");
     h.state_mut().shell.active_tool = None;
+    h.state_mut().close_tool(false); // E opened the real Extrude tool (4b); the key state reads it
     h.key_press(Key::Delete);
     h.run_steps(3);
     assert!(h.state().shell.events.contains(&UiEvent::OpenTool("delete".into())), "selection comes from the app");
     // Escape with nothing open clears the selection
+    h.state_mut().close_tool(false); // Delete opened the real Delete tool
     h.key_press(Key::Escape);
     h.run_steps(3);
     assert!(h.state().shell.selection.is_empty());

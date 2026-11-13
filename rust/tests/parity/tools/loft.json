@@ -1,0 +1,512 @@
+{
+  "tool": "loft",
+  "label": "Loft",
+  "type": "loft",
+  "icon": "extrude",
+  "flags": {
+    "placeOnFace": false,
+    "noLivePreview": false,
+    "gizmo": false,
+    "planeTool": false,
+    "sculpt": false,
+    "paint": false,
+    "wallTool": false
+  },
+  "hint": "Pick two or more closed sketches on parallel planes, in order from the first end to the last. Each one is a single outline with no holes.",
+  "extra": [
+    {
+      "name": "fromParams:sparse profiles",
+      "op": "fromParams",
+      "input": {
+        "profiles": [
+          "a",
+          "",
+          "c"
+        ],
+        "operation": "",
+        "targets": null
+      },
+      "result": {
+        "profile_1": "a",
+        "profile_2": "",
+        "profile_3": "c",
+        "profile_4": "",
+        "operation": "new",
+        "targets": []
+      }
+    },
+    {
+      "name": "fromParams:no profiles",
+      "op": "fromParams",
+      "input": {},
+      "result": {
+        "profile_1": "",
+        "profile_2": "",
+        "profile_3": "",
+        "profile_4": "",
+        "operation": "new",
+        "targets": []
+      }
+    },
+    {
+      "name": "toParams:gaps",
+      "op": "toParams",
+      "input": {
+        "profile_1": "a",
+        "profile_2": "",
+        "profile_3": "c",
+        "profile_4": "",
+        "operation": "new",
+        "targets": []
+      },
+      "result": {
+        "profiles": [
+          "a",
+          "c"
+        ],
+        "operation": "new",
+        "targets": []
+      }
+    },
+    {
+      "name": "toParams:no operation",
+      "op": "toParams",
+      "input": {
+        "profile_1": "a"
+      },
+      "result": {
+        "profiles": [
+          "a"
+        ]
+      }
+    }
+  ],
+  "fields": [
+    {
+      "key": "profile_1",
+      "label": "Profile 1",
+      "kind": "sketch"
+    },
+    {
+      "key": "profile_2",
+      "label": "Profile 2",
+      "kind": "sketch"
+    },
+    {
+      "key": "profile_3",
+      "label": "Profile 3 (optional)",
+      "kind": "sketch"
+    },
+    {
+      "key": "profile_4",
+      "label": "Profile 4 (optional)",
+      "kind": "sketch"
+    },
+    {
+      "key": "operation",
+      "label": "Operation",
+      "kind": "select",
+      "options": [
+        [
+          "new",
+          "New body"
+        ],
+        [
+          "join",
+          "Join"
+        ],
+        [
+          "cut",
+          "Cut"
+        ],
+        [
+          "intersect",
+          "Intersect"
+        ]
+      ]
+    },
+    {
+      "key": "targets",
+      "label": "Bodies",
+      "kind": "bodies",
+      "multi": true,
+      "placeholder": "Auto",
+      "hasShow": true
+    }
+  ],
+  "ctxNote": "FIXTURE_CTX: selection [body_a], lastSketch sk1, sketchOnBody true, two bodies, one extrude cut",
+  "defaults": {
+    "profile_1": "sk1",
+    "profile_2": "",
+    "profile_3": "",
+    "profile_4": "",
+    "operation": "new",
+    "targets": []
+  },
+  "toParams_defaults": {
+    "profiles": [
+      "sk1"
+    ],
+    "operation": "new",
+    "targets": []
+  },
+  "shown_defaults": [
+    "profile_1",
+    "profile_2",
+    "profile_3",
+    "profile_4",
+    "operation"
+  ],
+  "cases": [
+    {
+      "name": "select:operation=new",
+      "values": {
+        "profile_1": "sk1",
+        "profile_2": "",
+        "profile_3": "",
+        "profile_4": "",
+        "operation": "new",
+        "targets": []
+      },
+      "toParams": {
+        "profiles": [
+          "sk1"
+        ],
+        "operation": "new",
+        "targets": []
+      },
+      "shown": [
+        "profile_1",
+        "profile_2",
+        "profile_3",
+        "profile_4",
+        "operation"
+      ]
+    },
+    {
+      "name": "select:operation=join",
+      "values": {
+        "profile_1": "sk1",
+        "profile_2": "",
+        "profile_3": "",
+        "profile_4": "",
+        "operation": "join",
+        "targets": []
+      },
+      "toParams": {
+        "profiles": [
+          "sk1"
+        ],
+        "operation": "join",
+        "targets": []
+      },
+      "shown": [
+        "profile_1",
+        "profile_2",
+        "profile_3",
+        "profile_4",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:operation=cut",
+      "values": {
+        "profile_1": "sk1",
+        "profile_2": "",
+        "profile_3": "",
+        "profile_4": "",
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "profiles": [
+          "sk1"
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "profile_1",
+        "profile_2",
+        "profile_3",
+        "profile_4",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:operation=intersect",
+      "values": {
+        "profile_1": "sk1",
+        "profile_2": "",
+        "profile_3": "",
+        "profile_4": "",
+        "operation": "intersect",
+        "targets": []
+      },
+      "toParams": {
+        "profiles": [
+          "sk1"
+        ],
+        "operation": "intersect",
+        "targets": []
+      },
+      "shown": [
+        "profile_1",
+        "profile_2",
+        "profile_3",
+        "profile_4",
+        "operation",
+        "targets"
+      ]
+    }
+  ],
+  "onChange": [],
+  "roundTrips": [
+    {
+      "name": "defaults",
+      "params": {
+        "profiles": [
+          "sk1"
+        ],
+        "operation": "new",
+        "targets": []
+      },
+      "fromParams": {
+        "profile_1": "sk1",
+        "profile_2": "",
+        "profile_3": "",
+        "profile_4": "",
+        "operation": "new",
+        "targets": []
+      },
+      "toParams": {
+        "profiles": [
+          "sk1"
+        ],
+        "operation": "new",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:operation=new",
+      "params": {
+        "profiles": [
+          "sk1"
+        ],
+        "operation": "new",
+        "targets": []
+      },
+      "fromParams": {
+        "profile_1": "sk1",
+        "profile_2": "",
+        "profile_3": "",
+        "profile_4": "",
+        "operation": "new",
+        "targets": []
+      },
+      "toParams": {
+        "profiles": [
+          "sk1"
+        ],
+        "operation": "new",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:operation=join",
+      "params": {
+        "profiles": [
+          "sk1"
+        ],
+        "operation": "join",
+        "targets": []
+      },
+      "fromParams": {
+        "profile_1": "sk1",
+        "profile_2": "",
+        "profile_3": "",
+        "profile_4": "",
+        "operation": "join",
+        "targets": []
+      },
+      "toParams": {
+        "profiles": [
+          "sk1"
+        ],
+        "operation": "join",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:operation=cut",
+      "params": {
+        "profiles": [
+          "sk1"
+        ],
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "profile_1": "sk1",
+        "profile_2": "",
+        "profile_3": "",
+        "profile_4": "",
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "profiles": [
+          "sk1"
+        ],
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:operation=intersect",
+      "params": {
+        "profiles": [
+          "sk1"
+        ],
+        "operation": "intersect",
+        "targets": []
+      },
+      "fromParams": {
+        "profile_1": "sk1",
+        "profile_2": "",
+        "profile_3": "",
+        "profile_4": "",
+        "operation": "intersect",
+        "targets": []
+      },
+      "toParams": {
+        "profiles": [
+          "sk1"
+        ],
+        "operation": "intersect",
+        "targets": []
+      }
+    }
+  ],
+  "ctxCases": {
+    "nosel": {
+      "defaults": {
+        "profile_1": "sk1",
+        "profile_2": "",
+        "profile_3": "",
+        "profile_4": "",
+        "operation": "new",
+        "targets": []
+      },
+      "toParams_defaults": {
+        "profiles": [
+          "sk1"
+        ],
+        "operation": "new",
+        "targets": []
+      },
+      "shown_defaults": [
+        "profile_1",
+        "profile_2",
+        "profile_3",
+        "profile_4",
+        "operation"
+      ]
+    },
+    "two": {
+      "defaults": {
+        "profile_1": "sk1",
+        "profile_2": "",
+        "profile_3": "",
+        "profile_4": "",
+        "operation": "new",
+        "targets": []
+      },
+      "toParams_defaults": {
+        "profiles": [
+          "sk1"
+        ],
+        "operation": "new",
+        "targets": []
+      },
+      "shown_defaults": [
+        "profile_1",
+        "profile_2",
+        "profile_3",
+        "profile_4",
+        "operation"
+      ]
+    },
+    "nonsolid": {
+      "defaults": {
+        "profile_1": "sk1",
+        "profile_2": "",
+        "profile_3": "",
+        "profile_4": "",
+        "operation": "new",
+        "targets": []
+      },
+      "toParams_defaults": {
+        "profiles": [
+          "sk1"
+        ],
+        "operation": "new",
+        "targets": []
+      },
+      "shown_defaults": [
+        "profile_1",
+        "profile_2",
+        "profile_3",
+        "profile_4",
+        "operation"
+      ]
+    },
+    "nobbox": {
+      "defaults": {
+        "profile_1": "sk1",
+        "profile_2": "",
+        "profile_3": "",
+        "profile_4": "",
+        "operation": "new",
+        "targets": []
+      },
+      "toParams_defaults": {
+        "profiles": [
+          "sk1"
+        ],
+        "operation": "new",
+        "targets": []
+      },
+      "shown_defaults": [
+        "profile_1",
+        "profile_2",
+        "profile_3",
+        "profile_4",
+        "operation"
+      ]
+    },
+    "empty": {
+      "defaults": {
+        "profile_2": "",
+        "profile_3": "",
+        "profile_4": "",
+        "operation": "new",
+        "targets": []
+      },
+      "toParams_defaults": {
+        "profiles": [],
+        "operation": "new",
+        "targets": []
+      },
+      "shown_defaults": [
+        "profile_1",
+        "profile_2",
+        "profile_3",
+        "profile_4",
+        "operation"
+      ]
+    }
+  }
+}

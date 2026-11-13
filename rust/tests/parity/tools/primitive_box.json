@@ -1,0 +1,1350 @@
+{
+  "tool": "primitive_box",
+  "label": "Box",
+  "type": "primitive",
+  "icon": "box",
+  "flags": {
+    "placeOnFace": true,
+    "noLivePreview": false,
+    "gizmo": false,
+    "planeTool": false,
+    "sculpt": false,
+    "paint": false,
+    "wallTool": false
+  },
+  "hint": "Click a flat face to place it there, or set the position · use Cut to subtract it",
+  "extra": [],
+  "fields": [
+    {
+      "key": "length",
+      "label": "Length (X)",
+      "kind": "number",
+      "unit": "mm"
+    },
+    {
+      "key": "width",
+      "label": "Width (Y)",
+      "kind": "number",
+      "unit": "mm"
+    },
+    {
+      "key": "height",
+      "label": "Height (Z)",
+      "kind": "number",
+      "unit": "mm"
+    },
+    {
+      "key": "plane",
+      "label": "On",
+      "kind": "plane"
+    },
+    {
+      "key": "offset",
+      "label": "Position",
+      "kind": "vec3",
+      "unit": "mm"
+    },
+    {
+      "key": "rotate",
+      "label": "Rotate",
+      "kind": "vec3",
+      "unit": "°"
+    },
+    {
+      "key": "anchor",
+      "label": "Anchor",
+      "kind": "select",
+      "options": [
+        [
+          "base",
+          "Base"
+        ],
+        [
+          "center",
+          "Centre"
+        ],
+        [
+          "corner",
+          "Corner"
+        ]
+      ]
+    },
+    {
+      "key": "operation",
+      "label": "Operation",
+      "kind": "select",
+      "options": [
+        [
+          "new",
+          "New body"
+        ],
+        [
+          "join",
+          "Join"
+        ],
+        [
+          "cut",
+          "Cut"
+        ],
+        [
+          "intersect",
+          "Intersect"
+        ]
+      ]
+    },
+    {
+      "key": "targets",
+      "label": "Bodies",
+      "kind": "bodies",
+      "multi": true,
+      "placeholder": "Auto",
+      "hasShow": true
+    }
+  ],
+  "ctxNote": "FIXTURE_CTX: selection [body_a], lastSketch sk1, sketchOnBody true, two bodies, one extrude cut",
+  "defaults": {
+    "shape": "box",
+    "length": 20,
+    "width": 20,
+    "height": 20,
+    "plane": "XY",
+    "offset": [
+      0,
+      0,
+      0
+    ],
+    "rotate": [
+      0,
+      0,
+      0
+    ],
+    "anchor": "base",
+    "operation": "new",
+    "targets": [],
+    "body_name": "Box"
+  },
+  "toParams_defaults": {
+    "shape": "box",
+    "length": 20,
+    "width": 20,
+    "height": 20,
+    "plane": "XY",
+    "offset": [
+      0,
+      0,
+      0
+    ],
+    "rotate": [
+      0,
+      0,
+      0
+    ],
+    "anchor": "base",
+    "operation": "new",
+    "targets": [],
+    "body_name": "Box"
+  },
+  "shown_defaults": [
+    "length",
+    "width",
+    "height",
+    "plane",
+    "offset",
+    "rotate",
+    "anchor",
+    "operation"
+  ],
+  "cases": [
+    {
+      "name": "select:anchor=base",
+      "values": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Box"
+      },
+      "toParams": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Box"
+      },
+      "shown": [
+        "length",
+        "width",
+        "height",
+        "plane",
+        "offset",
+        "rotate",
+        "anchor",
+        "operation"
+      ]
+    },
+    {
+      "name": "select:anchor=center",
+      "values": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "center",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Box"
+      },
+      "toParams": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "center",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Box"
+      },
+      "shown": [
+        "length",
+        "width",
+        "height",
+        "plane",
+        "offset",
+        "rotate",
+        "anchor",
+        "operation"
+      ]
+    },
+    {
+      "name": "select:anchor=corner",
+      "values": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "corner",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Box"
+      },
+      "toParams": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "corner",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Box"
+      },
+      "shown": [
+        "length",
+        "width",
+        "height",
+        "plane",
+        "offset",
+        "rotate",
+        "anchor",
+        "operation"
+      ]
+    },
+    {
+      "name": "select:operation=new",
+      "values": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Box"
+      },
+      "toParams": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Box"
+      },
+      "shown": [
+        "length",
+        "width",
+        "height",
+        "plane",
+        "offset",
+        "rotate",
+        "anchor",
+        "operation"
+      ]
+    },
+    {
+      "name": "select:operation=join",
+      "values": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "join",
+        "targets": [],
+        "body_name": "Box"
+      },
+      "toParams": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "join",
+        "targets": [],
+        "body_name": "Box"
+      },
+      "shown": [
+        "length",
+        "width",
+        "height",
+        "plane",
+        "offset",
+        "rotate",
+        "anchor",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:operation=cut",
+      "values": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "cut",
+        "targets": [],
+        "body_name": "Box"
+      },
+      "toParams": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "cut",
+        "targets": [],
+        "body_name": "Box"
+      },
+      "shown": [
+        "length",
+        "width",
+        "height",
+        "plane",
+        "offset",
+        "rotate",
+        "anchor",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:operation=intersect",
+      "values": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "intersect",
+        "targets": [],
+        "body_name": "Box"
+      },
+      "toParams": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "intersect",
+        "targets": [],
+        "body_name": "Box"
+      },
+      "shown": [
+        "length",
+        "width",
+        "height",
+        "plane",
+        "offset",
+        "rotate",
+        "anchor",
+        "operation",
+        "targets"
+      ]
+    }
+  ],
+  "onChange": [],
+  "roundTrips": [
+    {
+      "name": "defaults",
+      "params": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Box"
+      },
+      "fromParams": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Box"
+      },
+      "toParams": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Box"
+      }
+    },
+    {
+      "name": "select:anchor=base",
+      "params": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Box"
+      },
+      "fromParams": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Box"
+      },
+      "toParams": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Box"
+      }
+    },
+    {
+      "name": "select:anchor=center",
+      "params": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "center",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Box"
+      },
+      "fromParams": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "center",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Box"
+      },
+      "toParams": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "center",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Box"
+      }
+    },
+    {
+      "name": "select:anchor=corner",
+      "params": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "corner",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Box"
+      },
+      "fromParams": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "corner",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Box"
+      },
+      "toParams": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "corner",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Box"
+      }
+    },
+    {
+      "name": "select:operation=new",
+      "params": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Box"
+      },
+      "fromParams": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Box"
+      },
+      "toParams": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Box"
+      }
+    },
+    {
+      "name": "select:operation=join",
+      "params": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "join",
+        "targets": [],
+        "body_name": "Box"
+      },
+      "fromParams": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "join",
+        "targets": [],
+        "body_name": "Box"
+      },
+      "toParams": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "join",
+        "targets": [],
+        "body_name": "Box"
+      }
+    },
+    {
+      "name": "select:operation=cut",
+      "params": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "cut",
+        "targets": [],
+        "body_name": "Box"
+      },
+      "fromParams": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "cut",
+        "targets": [],
+        "body_name": "Box"
+      },
+      "toParams": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "cut",
+        "targets": [],
+        "body_name": "Box"
+      }
+    },
+    {
+      "name": "select:operation=intersect",
+      "params": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "intersect",
+        "targets": [],
+        "body_name": "Box"
+      },
+      "fromParams": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "intersect",
+        "targets": [],
+        "body_name": "Box"
+      },
+      "toParams": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "intersect",
+        "targets": [],
+        "body_name": "Box"
+      }
+    }
+  ],
+  "ctxCases": {
+    "nosel": {
+      "defaults": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Box"
+      },
+      "toParams_defaults": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Box"
+      },
+      "shown_defaults": [
+        "length",
+        "width",
+        "height",
+        "plane",
+        "offset",
+        "rotate",
+        "anchor",
+        "operation"
+      ]
+    },
+    "two": {
+      "defaults": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Box"
+      },
+      "toParams_defaults": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Box"
+      },
+      "shown_defaults": [
+        "length",
+        "width",
+        "height",
+        "plane",
+        "offset",
+        "rotate",
+        "anchor",
+        "operation"
+      ]
+    },
+    "nonsolid": {
+      "defaults": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Box"
+      },
+      "toParams_defaults": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Box"
+      },
+      "shown_defaults": [
+        "length",
+        "width",
+        "height",
+        "plane",
+        "offset",
+        "rotate",
+        "anchor",
+        "operation"
+      ]
+    },
+    "nobbox": {
+      "defaults": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Box"
+      },
+      "toParams_defaults": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Box"
+      },
+      "shown_defaults": [
+        "length",
+        "width",
+        "height",
+        "plane",
+        "offset",
+        "rotate",
+        "anchor",
+        "operation"
+      ]
+    },
+    "empty": {
+      "defaults": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Box"
+      },
+      "toParams_defaults": {
+        "shape": "box",
+        "length": 20,
+        "width": 20,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Box"
+      },
+      "shown_defaults": [
+        "length",
+        "width",
+        "height",
+        "plane",
+        "offset",
+        "rotate",
+        "anchor",
+        "operation"
+      ]
+    }
+  }
+}

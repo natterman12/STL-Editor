@@ -216,8 +216,9 @@ impl Files {
                     }
                     out.fit |= std::mem::take(&mut self.fit_after_bodies);
                 }
-                // The engine sends the bodies before an error, so only the end of the command
-                // says whether the file was accepted.
+                // The engine sends an error before the bodies and timeline that follow it, and the
+                // bodies come either way, so only the end of the command says whether the file was
+                // accepted.
                 Update::Busy(true) => self.engine_busy = true,
                 Update::Busy(false) if self.opening.as_ref().is_some_and(|o| o.ahead > 0) => {
                     self.engine_busy = false;

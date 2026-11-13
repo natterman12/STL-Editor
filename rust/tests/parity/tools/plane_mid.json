@@ -1,0 +1,174 @@
+{
+  "tool": "plane_mid",
+  "label": "Midplane",
+  "type": "plane",
+  "icon": "plane_mid",
+  "flags": {
+    "placeOnFace": false,
+    "noLivePreview": false,
+    "gizmo": false,
+    "planeTool": true,
+    "sculpt": false,
+    "paint": false,
+    "wallTool": false
+  },
+  "hint": "Pick two planes or flat faces",
+  "extra": [],
+  "fields": [
+    {
+      "key": "base",
+      "label": "First",
+      "kind": "plane"
+    },
+    {
+      "key": "base2",
+      "label": "Second",
+      "kind": "plane"
+    },
+    {
+      "key": "name",
+      "label": "Name",
+      "kind": "text"
+    }
+  ],
+  "ctxNote": "FIXTURE_CTX: selection [body_a], lastSketch sk1, sketchOnBody true, two bodies, one extrude cut",
+  "defaults": {
+    "mode": "midplane",
+    "base": null,
+    "base2": null,
+    "name": ""
+  },
+  "toParams_defaults": {
+    "mode": "midplane",
+    "base": null,
+    "base2": null,
+    "name": ""
+  },
+  "shown_defaults": [
+    "base",
+    "base2",
+    "name"
+  ],
+  "cases": [],
+  "onChange": [],
+  "roundTrips": [
+    {
+      "name": "defaults",
+      "params": {
+        "mode": "midplane",
+        "base": null,
+        "base2": null,
+        "name": ""
+      },
+      "fromParams": {
+        "mode": "midplane",
+        "base": null,
+        "base2": null,
+        "name": ""
+      },
+      "toParams": {
+        "mode": "midplane",
+        "base": null,
+        "base2": null,
+        "name": ""
+      }
+    }
+  ],
+  "ctxCases": {
+    "nosel": {
+      "defaults": {
+        "mode": "midplane",
+        "base": null,
+        "base2": null,
+        "name": ""
+      },
+      "toParams_defaults": {
+        "mode": "midplane",
+        "base": null,
+        "base2": null,
+        "name": ""
+      },
+      "shown_defaults": [
+        "base",
+        "base2",
+        "name"
+      ]
+    },
+    "two": {
+      "defaults": {
+        "mode": "midplane",
+        "base": null,
+        "base2": null,
+        "name": ""
+      },
+      "toParams_defaults": {
+        "mode": "midplane",
+        "base": null,
+        "base2": null,
+        "name": ""
+      },
+      "shown_defaults": [
+        "base",
+        "base2",
+        "name"
+      ]
+    },
+    "nonsolid": {
+      "defaults": {
+        "mode": "midplane",
+        "base": null,
+        "base2": null,
+        "name": ""
+      },
+      "toParams_defaults": {
+        "mode": "midplane",
+        "base": null,
+        "base2": null,
+        "name": ""
+      },
+      "shown_defaults": [
+        "base",
+        "base2",
+        "name"
+      ]
+    },
+    "nobbox": {
+      "defaults": {
+        "mode": "midplane",
+        "base": null,
+        "base2": null,
+        "name": ""
+      },
+      "toParams_defaults": {
+        "mode": "midplane",
+        "base": null,
+        "base2": null,
+        "name": ""
+      },
+      "shown_defaults": [
+        "base",
+        "base2",
+        "name"
+      ]
+    },
+    "empty": {
+      "defaults": {
+        "mode": "midplane",
+        "base": null,
+        "base2": null,
+        "name": ""
+      },
+      "toParams_defaults": {
+        "mode": "midplane",
+        "base": null,
+        "base2": null,
+        "name": ""
+      },
+      "shown_defaults": [
+        "base",
+        "base2",
+        "name"
+      ]
+    }
+  }
+}

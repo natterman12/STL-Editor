@@ -8,6 +8,8 @@ publish.workspace = true
 # Its threads (rayon) are for native targets; the web build runs single-threaded.
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 manifold-rust = { version = "=0.19.2", features = ["parallel"] }
+# Desktop only: the web build runs Minkowski batches one at a time.
+rayon = "1.12"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 manifold-rust = "=0.19.2"

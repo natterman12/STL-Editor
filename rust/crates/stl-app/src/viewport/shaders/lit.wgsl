@@ -13,11 +13,11 @@ struct VsOut {
 @vertex
 fn vs_body(@location(0) p: vec3<f32>, @location(1) n: vec3<f32>) -> VsOut {
     var o: VsOut;
-    let wp = vec4<f32>(p, 1.0);
+    let wp = b.model * vec4<f32>(p, 1.0);
     o.pos = g.view_proj * wp;
     o.view_pos = -(g.view * wp).xyz;
-    o.normal = (g.view * vec4<f32>(n, 0.0)).xyz;
-    o.world = p;
+    o.normal = (g.view * (b.normal_m * vec4<f32>(n, 0.0))).xyz;
+    o.world = wp.xyz;
     return o;
 }
 
@@ -104,10 +104,11 @@ fn fs_body(in: VsOut) -> @location(0) vec4<f32> {
 @vertex
 fn vs_edge(@location(0) p: vec3<f32>) -> VsOut {
     var o: VsOut;
-    o.pos = g.view_proj * vec4<f32>(p, 1.0);
+    let wp = b.model * vec4<f32>(p, 1.0);
+    o.pos = g.view_proj * wp;
     o.view_pos = vec3<f32>(0.0);
     o.normal = vec3<f32>(0.0, 0.0, 1.0);
-    o.world = p;
+    o.world = wp.xyz;
     return o;
 }
 

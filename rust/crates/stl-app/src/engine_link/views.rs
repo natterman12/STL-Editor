@@ -168,6 +168,7 @@ pub fn timeline(doc: &Document) -> TimelineView {
             suppressed: f.suppressed,
             warning: results.get(i).and_then(|r| r.warning.clone()),
             active: i < active_count,
+            params: serde_json::Value::Object(f.params.clone()),
         })
         .collect();
     TimelineView {
@@ -258,4 +259,58 @@ pub fn planes(doc: &Document) -> Vec<PlaneView> {
 fn outline(e: &Entity) -> Option<SketchOutline> {
     let (pts, closed) = entity_path(e);
     (pts.len() >= 2).then(|| SketchOutline { pts, closed, construction: e.construction() })
+}
+
+/// What a preview shows (1.x `packMeshes` in the `preview` route): the bodies the feature made or
+/// changed, and the ones it removed. `state` is what `Document::preview` returned.
+pub fn preview_pack(state: &stl_engine::State, res: &stl_engine::FeatureResult) -> super::PreviewPack {
+    let mut ids: Vec<&String> = Vec::new();
+    for id in res.created.iter().chain(res.modified.iter()) {
+        if !ids.contains(&id) && state.bodies.contains_key(id) {
+            ids.push(id);
+        }
+    }
+    let meshes = ids
+        .into_iter()
+        .map(|id| {
+            let b = &state.bodies[id];
+            crate::viewport::PreviewMesh { id: id.clone(), mesh: Arc::new(Views::mesh_of(b.solid.as_ref(), b.mesh.as_ref())) }
+        })
+        .collect();
+    let colors = res
+        .extra
+        .get("colors")
+        .and_then(Value::as_object)
+        .map(|o| o.iter().filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string()))).collect())
+        .unwrap_or_default();
+    let ghosts = res.extra.get("ghosts").and_then(Value::as_array).map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect()).unwrap_or_default();
+    super::PreviewPack { meshes, removed: res.removed.clone(), hide: Vec::new(), colors, ghosts }
+}
+
+/// 1.x's `pack.result`: the feature's record under its 1.x key names.
+pub fn result_json(res: &stl_engine::FeatureResult) -> Value {
+    let mut m = serde_json::Map::new();
+    m.insert("id".into(), Value::String(res.id.clone()));
+    m.insert("error".into(), res.error.clone().map_or(Value::Null, Value::String));
+    m.insert("warning".into(), res.warning.clone().map_or(Value::Null, Value::String));
+    m.insert("info".into(), res.info.clone().map_or(Value::Null, Value::String));
+    m.insert("flipped".into(), Value::Bool(res.flipped));
+    m.insert("created".into(), Value::from(res.created.clone()));
+    m.insert("modified".into(), Value::from(res.modified.clone()));
+    m.insert("removed".into(), Value::from(res.removed.clone()));
+    for (k, v) in &res.extra {
+        m.insert(k.clone(), v.clone());
+    }
+    Value::Object(m)
+}
+
+/// The note a preview shows under the form, and whether it is a warning (1.x `runPreview`).
+pub fn preview_msg(res: &stl_engine::FeatureResult) -> (Option<String>, bool) {
+    if let Some(w) = res.warning.clone().filter(|w| !w.is_empty()) {
+        return (Some(w), true);
+    }
+    if res.flipped {
+        return (Some("Cutting into the material (direction flipped).".to_string()), false);
+    }
+    (res.info.clone().filter(|i| !i.is_empty()), false)
 }

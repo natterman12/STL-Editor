@@ -14,13 +14,19 @@ pub use stl_io::ExportFormat;
 use stl_kernel::MeshArrays;
 
 pub use crate::viewport::overlays::SketchOutline;
+pub use crate::viewport::PreviewPack;
 
 #[derive(Clone, Debug)]
 pub enum Command {
     Open { name: String, bytes: Vec<u8> },
     Import { name: String, bytes: Vec<u8> },
-    AddFeature { kind: String, params: serde_json::Value, index: Option<usize> },
-    EditFeature { id: String, params: serde_json::Value },
+    /// `index`: put the step before the one now at that place (1.x `insertBeforeSupports`); the
+    /// rollback marker moves one step on. `name`: the step's name (default: made from the kind).
+    AddFeature { kind: String, params: serde_json::Value, index: Option<usize>, name: Option<String> },
+    /// `rollback_after`: `Some(marker)` puts the rollback marker there as part of the same edit, so
+    /// one Ctrl+Z undoes the whole OK of an edit session (1.x `feature/edit` with `rollback_after`);
+    /// `None` leaves the marker alone.
+    EditFeature { id: String, params: serde_json::Value, rollback_after: Option<Option<usize>> },
     DeleteFeature { id: String },
     /// Switch a step off (or on again): it keeps its place but does nothing. Undoable.
     SetSuppressed { id: String, suppressed: bool },
@@ -32,7 +38,35 @@ pub enum Command {
     BodyProps { id: String, name: Option<String>, color: Option<String>, hidden: Option<bool> },
     Save,
     Export { format: ExportFormat, ids: Option<Vec<String>>, date: String },
+    /// Evaluate a tool's feature without committing it (1.x `post('preview', ...)`). Never enters
+    /// the undo history and never changes the document. `seq` grows with every request: only the
+    /// newest answer is shown.
+    Preview { seq: u64, kind: String, params: serde_json::Value, edit_id: Option<String> },
+    /// The tool closed: previews still queued are skipped (native), and any that arrive are dropped.
+    ClearPreview,
+    /// A question for the Support Fins engine (its schema, the strength of a pose, orientation
+    /// suggestions). Never changes the document and shows no Busy overlay; the answer is
+    /// [`Update::Fins`] with the same `seq`.
+    Fins { seq: u64, ask: FinsAsk },
     Cancel,
+}
+
+/// What the Support Fins panel asks the engine (1.x `supportfins/info`, `/strength`, `/suggest`).
+#[derive(Clone, Debug, PartialEq)]
+pub enum FinsAsk {
+    Info,
+    Strength { body: String, options: serde_json::Value, load: serde_json::Value },
+    Suggest { body: String, options: serde_json::Value, top: i64 },
+}
+
+impl FinsAsk {
+    pub fn name(&self) -> &'static str {
+        match self {
+            FinsAsk::Info => "info",
+            FinsAsk::Strength { .. } => "strength",
+            FinsAsk::Suggest { .. } => "suggest",
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -56,6 +90,13 @@ pub enum Update {
     Saved { bytes: Vec<u8> },
     Exported { name: String, bytes: Vec<u8>, count: usize },
     Error(String),
+    /// The answer to `Command::Preview`. `error` is the feature's error text; `msg` is the note to
+    /// show (1.x: the warning, else "Cutting into the material (direction flipped)." when flipped,
+    /// else the info) and `warn` says which colour it takes. `result` is 1.x's whole `pack.result`
+    /// record (Support Fins reads `paint`, `walls`, `pieces`, `support` from it).
+    Preview { seq: u64, pack: PreviewPack, msg: Option<String>, error: Option<String>, warn: bool, result: serde_json::Value },
+    /// The answer to [`Command::Fins`]: `ask` is `"info"`, `"strength"` or `"suggest"`.
+    Fins { seq: u64, ask: String, result: Result<serde_json::Value, String> },
     EngineLost,
 }
 
@@ -84,6 +125,8 @@ pub struct TimelineItem {
     pub warning: Option<String>,
     /// Before the rollback marker, so it counts in the model (1.x `f.active`).
     pub active: bool,
+    /// The step's params (1.x `f.params`).
+    pub params: serde_json::Value,
 }
 
 #[derive(Clone, Debug, Default)]

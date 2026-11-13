@@ -1,0 +1,638 @@
+{
+  "tool": "mirror",
+  "label": "Mirror",
+  "type": "mirror",
+  "icon": "mirror",
+  "flags": {
+    "placeOnFace": false,
+    "noLivePreview": false,
+    "gizmo": false,
+    "planeTool": false,
+    "sculpt": false,
+    "paint": false,
+    "wallTool": false
+  },
+  "hint": "Features: repeats a cut, hole or extrude on the other side of the plane (tick them below or click them on the timeline). Bodies: mirrors whole bodies",
+  "extra": [
+    {
+      "name": "fromParams:minimal",
+      "op": "fromParams",
+      "input": {
+        "plane": "XY"
+      },
+      "result": {
+        "kind": "bodies",
+        "features": [],
+        "bodies": [],
+        "mode": "copy",
+        "plane": "XY"
+      }
+    },
+    {
+      "name": "fromParams:kind empty",
+      "op": "fromParams",
+      "input": {
+        "kind": "",
+        "plane": "XY"
+      },
+      "result": {
+        "kind": "",
+        "features": [],
+        "bodies": [],
+        "mode": "copy",
+        "plane": "XY"
+      }
+    }
+  ],
+  "fields": [
+    {
+      "key": "kind",
+      "label": "Mirror",
+      "kind": "select",
+      "options": [
+        [
+          "features",
+          "Features"
+        ],
+        [
+          "bodies",
+          "Bodies"
+        ]
+      ]
+    },
+    {
+      "key": "features",
+      "label": "Features",
+      "kind": "features",
+      "hasShow": true
+    },
+    {
+      "key": "bodies",
+      "label": "Bodies",
+      "kind": "bodies",
+      "multi": true,
+      "hasShow": true
+    },
+    {
+      "key": "plane",
+      "label": "Mirror plane",
+      "kind": "plane"
+    },
+    {
+      "key": "mode",
+      "label": "Result",
+      "kind": "select",
+      "options": [
+        [
+          "join",
+          "Join"
+        ],
+        [
+          "copy",
+          "New body"
+        ],
+        [
+          "replace",
+          "Replace"
+        ]
+      ],
+      "hasShow": true
+    }
+  ],
+  "ctxNote": "FIXTURE_CTX: selection [body_a], lastSketch sk1, sketchOnBody true, two bodies, one extrude cut",
+  "defaults": {
+    "kind": "bodies",
+    "features": [
+      "f_extrude"
+    ],
+    "bodies": [
+      "body_a"
+    ],
+    "plane": "YZ",
+    "mode": "copy"
+  },
+  "toParams_defaults": {
+    "kind": "bodies",
+    "features": [
+      "f_extrude"
+    ],
+    "bodies": [
+      "body_a"
+    ],
+    "plane": "YZ",
+    "mode": "copy"
+  },
+  "shown_defaults": [
+    "kind",
+    "bodies",
+    "plane",
+    "mode"
+  ],
+  "cases": [
+    {
+      "name": "select:kind=features",
+      "values": {
+        "kind": "features",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "plane": "YZ",
+        "mode": "copy"
+      },
+      "toParams": {
+        "kind": "features",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "plane": "YZ",
+        "mode": "copy"
+      },
+      "shown": [
+        "kind",
+        "features",
+        "plane"
+      ]
+    },
+    {
+      "name": "select:kind=bodies",
+      "values": {
+        "kind": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "plane": "YZ",
+        "mode": "copy"
+      },
+      "toParams": {
+        "kind": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "plane": "YZ",
+        "mode": "copy"
+      },
+      "shown": [
+        "kind",
+        "bodies",
+        "plane",
+        "mode"
+      ]
+    },
+    {
+      "name": "select:mode=join",
+      "values": {
+        "kind": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "plane": "YZ",
+        "mode": "join"
+      },
+      "toParams": {
+        "kind": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "plane": "YZ",
+        "mode": "join"
+      },
+      "shown": [
+        "kind",
+        "bodies",
+        "plane",
+        "mode"
+      ]
+    },
+    {
+      "name": "select:mode=copy",
+      "values": {
+        "kind": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "plane": "YZ",
+        "mode": "copy"
+      },
+      "toParams": {
+        "kind": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "plane": "YZ",
+        "mode": "copy"
+      },
+      "shown": [
+        "kind",
+        "bodies",
+        "plane",
+        "mode"
+      ]
+    },
+    {
+      "name": "select:mode=replace",
+      "values": {
+        "kind": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "plane": "YZ",
+        "mode": "replace"
+      },
+      "toParams": {
+        "kind": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "plane": "YZ",
+        "mode": "replace"
+      },
+      "shown": [
+        "kind",
+        "bodies",
+        "plane",
+        "mode"
+      ]
+    }
+  ],
+  "onChange": [],
+  "roundTrips": [
+    {
+      "name": "defaults",
+      "params": {
+        "kind": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "plane": "YZ",
+        "mode": "copy"
+      },
+      "fromParams": {
+        "kind": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "copy",
+        "plane": "YZ"
+      },
+      "toParams": {
+        "kind": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "copy",
+        "plane": "YZ"
+      }
+    },
+    {
+      "name": "select:kind=features",
+      "params": {
+        "kind": "features",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "plane": "YZ",
+        "mode": "copy"
+      },
+      "fromParams": {
+        "kind": "features",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "copy",
+        "plane": "YZ"
+      },
+      "toParams": {
+        "kind": "features",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "copy",
+        "plane": "YZ"
+      }
+    },
+    {
+      "name": "select:kind=bodies",
+      "params": {
+        "kind": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "plane": "YZ",
+        "mode": "copy"
+      },
+      "fromParams": {
+        "kind": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "copy",
+        "plane": "YZ"
+      },
+      "toParams": {
+        "kind": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "copy",
+        "plane": "YZ"
+      }
+    },
+    {
+      "name": "select:mode=join",
+      "params": {
+        "kind": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "plane": "YZ",
+        "mode": "join"
+      },
+      "fromParams": {
+        "kind": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "join",
+        "plane": "YZ"
+      },
+      "toParams": {
+        "kind": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "join",
+        "plane": "YZ"
+      }
+    },
+    {
+      "name": "select:mode=copy",
+      "params": {
+        "kind": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "plane": "YZ",
+        "mode": "copy"
+      },
+      "fromParams": {
+        "kind": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "copy",
+        "plane": "YZ"
+      },
+      "toParams": {
+        "kind": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "copy",
+        "plane": "YZ"
+      }
+    },
+    {
+      "name": "select:mode=replace",
+      "params": {
+        "kind": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "plane": "YZ",
+        "mode": "replace"
+      },
+      "fromParams": {
+        "kind": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "replace",
+        "plane": "YZ"
+      },
+      "toParams": {
+        "kind": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "replace",
+        "plane": "YZ"
+      }
+    }
+  ],
+  "ctxCases": {
+    "nosel": {
+      "defaults": {
+        "kind": "features",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [],
+        "plane": "YZ",
+        "mode": "copy"
+      },
+      "toParams_defaults": {
+        "kind": "features",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [],
+        "plane": "YZ",
+        "mode": "copy"
+      },
+      "shown_defaults": [
+        "kind",
+        "features",
+        "plane"
+      ]
+    },
+    "two": {
+      "defaults": {
+        "kind": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a",
+          "body_b"
+        ],
+        "plane": "YZ",
+        "mode": "copy"
+      },
+      "toParams_defaults": {
+        "kind": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a",
+          "body_b"
+        ],
+        "plane": "YZ",
+        "mode": "copy"
+      },
+      "shown_defaults": [
+        "kind",
+        "bodies",
+        "plane",
+        "mode"
+      ]
+    },
+    "nonsolid": {
+      "defaults": {
+        "kind": "features",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [],
+        "plane": "YZ",
+        "mode": "copy"
+      },
+      "toParams_defaults": {
+        "kind": "features",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [],
+        "plane": "YZ",
+        "mode": "copy"
+      },
+      "shown_defaults": [
+        "kind",
+        "features",
+        "plane"
+      ]
+    },
+    "nobbox": {
+      "defaults": {
+        "kind": "bodies",
+        "features": [],
+        "bodies": [
+          "body_c"
+        ],
+        "plane": "YZ",
+        "mode": "copy"
+      },
+      "toParams_defaults": {
+        "kind": "bodies",
+        "features": [],
+        "bodies": [
+          "body_c"
+        ],
+        "plane": "YZ",
+        "mode": "copy"
+      },
+      "shown_defaults": [
+        "kind",
+        "bodies",
+        "plane",
+        "mode"
+      ]
+    },
+    "empty": {
+      "defaults": {
+        "kind": "bodies",
+        "features": [],
+        "bodies": [],
+        "plane": "YZ",
+        "mode": "copy"
+      },
+      "toParams_defaults": {
+        "kind": "bodies",
+        "features": [],
+        "bodies": [],
+        "plane": "YZ",
+        "mode": "copy"
+      },
+      "shown_defaults": [
+        "kind",
+        "bodies",
+        "plane",
+        "mode"
+      ]
+    }
+  }
+}

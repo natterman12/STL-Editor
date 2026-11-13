@@ -1,0 +1,418 @@
+{
+  "tool": "sculpt",
+  "label": "Sculpt",
+  "type": "sculpt",
+  "icon": "sculpt",
+  "flags": {
+    "placeOnFace": false,
+    "noLivePreview": false,
+    "gizmo": false,
+    "planeTool": false,
+    "sculpt": true,
+    "paint": false,
+    "wallTool": false
+  },
+  "hint": "Drag across the model to brush it · right-drag to orbit · works best on finely meshed bodies (use Remesh first on blocky parts)",
+  "extra": [
+    {
+      "name": "fromParams:params win",
+      "op": "fromParams",
+      "input": {
+        "body": "body_a",
+        "mode": "flatten",
+        "radius": 9,
+        "strength": 1,
+        "strokes": []
+      },
+      "result": {
+        "mode": "flatten",
+        "radius": 9,
+        "strength": 1,
+        "body": "body_a",
+        "strokes": []
+      }
+    },
+    {
+      "name": "fromParams:strokes only",
+      "op": "fromParams",
+      "input": {
+        "strokes": [
+          {
+            "p": [
+              1,
+              2,
+              3
+            ]
+          }
+        ]
+      },
+      "result": {
+        "mode": "smooth",
+        "radius": 5,
+        "strength": 0.5,
+        "strokes": [
+          {
+            "p": [
+              1,
+              2,
+              3
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "fromParams:radius 0",
+      "op": "fromParams",
+      "input": {
+        "radius": 0,
+        "strength": 0
+      },
+      "result": {
+        "mode": "smooth",
+        "radius": 0,
+        "strength": 0
+      }
+    },
+    {
+      "name": "toParams:no strokes",
+      "op": "toParams",
+      "input": {
+        "body": "body_a",
+        "mode": "smooth"
+      },
+      "result": {
+        "body": "body_a"
+      }
+    },
+    {
+      "name": "toParams:null body",
+      "op": "toParams",
+      "input": {
+        "body": null,
+        "strokes": []
+      },
+      "result": {
+        "body": null,
+        "strokes": []
+      }
+    }
+  ],
+  "fields": [
+    {
+      "key": "mode",
+      "label": "Brush",
+      "kind": "select",
+      "options": [
+        [
+          "smooth",
+          "Smooth"
+        ],
+        [
+          "flatten",
+          "Flatten"
+        ],
+        [
+          "inflate",
+          "Inflate"
+        ],
+        [
+          "deflate",
+          "Deflate"
+        ]
+      ]
+    },
+    {
+      "key": "radius",
+      "label": "Size",
+      "kind": "number",
+      "unit": "mm"
+    },
+    {
+      "key": "strength",
+      "label": "Strength",
+      "kind": "number",
+      "unit": "0–1"
+    }
+  ],
+  "ctxNote": "FIXTURE_CTX: selection [body_a], lastSketch sk1, sketchOnBody true, two bodies, one extrude cut",
+  "defaults": {
+    "body": "body_a",
+    "mode": "smooth",
+    "radius": 5,
+    "strength": 0.5,
+    "strokes": []
+  },
+  "toParams_defaults": {
+    "body": "body_a",
+    "strokes": []
+  },
+  "shown_defaults": [
+    "mode",
+    "radius",
+    "strength"
+  ],
+  "cases": [
+    {
+      "name": "select:mode=smooth",
+      "values": {
+        "body": "body_a",
+        "mode": "smooth",
+        "radius": 5,
+        "strength": 0.5,
+        "strokes": []
+      },
+      "toParams": {
+        "body": "body_a",
+        "strokes": []
+      },
+      "shown": [
+        "mode",
+        "radius",
+        "strength"
+      ]
+    },
+    {
+      "name": "select:mode=flatten",
+      "values": {
+        "body": "body_a",
+        "mode": "flatten",
+        "radius": 5,
+        "strength": 0.5,
+        "strokes": []
+      },
+      "toParams": {
+        "body": "body_a",
+        "strokes": []
+      },
+      "shown": [
+        "mode",
+        "radius",
+        "strength"
+      ]
+    },
+    {
+      "name": "select:mode=inflate",
+      "values": {
+        "body": "body_a",
+        "mode": "inflate",
+        "radius": 5,
+        "strength": 0.5,
+        "strokes": []
+      },
+      "toParams": {
+        "body": "body_a",
+        "strokes": []
+      },
+      "shown": [
+        "mode",
+        "radius",
+        "strength"
+      ]
+    },
+    {
+      "name": "select:mode=deflate",
+      "values": {
+        "body": "body_a",
+        "mode": "deflate",
+        "radius": 5,
+        "strength": 0.5,
+        "strokes": []
+      },
+      "toParams": {
+        "body": "body_a",
+        "strokes": []
+      },
+      "shown": [
+        "mode",
+        "radius",
+        "strength"
+      ]
+    }
+  ],
+  "onChange": [],
+  "roundTrips": [
+    {
+      "name": "defaults",
+      "params": {
+        "body": "body_a",
+        "strokes": []
+      },
+      "fromParams": {
+        "mode": "smooth",
+        "radius": 5,
+        "strength": 0.5,
+        "body": "body_a",
+        "strokes": []
+      },
+      "toParams": {
+        "body": "body_a",
+        "strokes": []
+      }
+    },
+    {
+      "name": "select:mode=smooth",
+      "params": {
+        "body": "body_a",
+        "strokes": []
+      },
+      "fromParams": {
+        "mode": "smooth",
+        "radius": 5,
+        "strength": 0.5,
+        "body": "body_a",
+        "strokes": []
+      },
+      "toParams": {
+        "body": "body_a",
+        "strokes": []
+      }
+    },
+    {
+      "name": "select:mode=flatten",
+      "params": {
+        "body": "body_a",
+        "strokes": []
+      },
+      "fromParams": {
+        "mode": "smooth",
+        "radius": 5,
+        "strength": 0.5,
+        "body": "body_a",
+        "strokes": []
+      },
+      "toParams": {
+        "body": "body_a",
+        "strokes": []
+      }
+    },
+    {
+      "name": "select:mode=inflate",
+      "params": {
+        "body": "body_a",
+        "strokes": []
+      },
+      "fromParams": {
+        "mode": "smooth",
+        "radius": 5,
+        "strength": 0.5,
+        "body": "body_a",
+        "strokes": []
+      },
+      "toParams": {
+        "body": "body_a",
+        "strokes": []
+      }
+    },
+    {
+      "name": "select:mode=deflate",
+      "params": {
+        "body": "body_a",
+        "strokes": []
+      },
+      "fromParams": {
+        "mode": "smooth",
+        "radius": 5,
+        "strength": 0.5,
+        "body": "body_a",
+        "strokes": []
+      },
+      "toParams": {
+        "body": "body_a",
+        "strokes": []
+      }
+    }
+  ],
+  "ctxCases": {
+    "nosel": {
+      "defaults": {
+        "body": null,
+        "mode": "smooth",
+        "radius": 5,
+        "strength": 0.5,
+        "strokes": []
+      },
+      "toParams_defaults": {
+        "body": null,
+        "strokes": []
+      },
+      "shown_defaults": [
+        "mode",
+        "radius",
+        "strength"
+      ]
+    },
+    "two": {
+      "defaults": {
+        "body": "body_a",
+        "mode": "smooth",
+        "radius": 5,
+        "strength": 0.5,
+        "strokes": []
+      },
+      "toParams_defaults": {
+        "body": "body_a",
+        "strokes": []
+      },
+      "shown_defaults": [
+        "mode",
+        "radius",
+        "strength"
+      ]
+    },
+    "nonsolid": {
+      "defaults": {
+        "body": null,
+        "mode": "smooth",
+        "radius": 5,
+        "strength": 0.5,
+        "strokes": []
+      },
+      "toParams_defaults": {
+        "body": null,
+        "strokes": []
+      },
+      "shown_defaults": [
+        "mode",
+        "radius",
+        "strength"
+      ]
+    },
+    "nobbox": {
+      "defaults": {
+        "body": "body_c",
+        "mode": "smooth",
+        "radius": 5,
+        "strength": 0.5,
+        "strokes": []
+      },
+      "toParams_defaults": {
+        "body": "body_c",
+        "strokes": []
+      },
+      "shown_defaults": [
+        "mode",
+        "radius",
+        "strength"
+      ]
+    },
+    "empty": {
+      "defaults": {
+        "body": null,
+        "mode": "smooth",
+        "radius": 5,
+        "strength": 0.5,
+        "strokes": []
+      },
+      "toParams_defaults": {
+        "body": null,
+        "strokes": []
+      },
+      "shown_defaults": [
+        "mode",
+        "radius",
+        "strength"
+      ]
+    }
+  }
+}

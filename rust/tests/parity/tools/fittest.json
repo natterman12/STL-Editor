@@ -1,0 +1,242 @@
+{
+  "tool": "fittest",
+  "label": "Fit Test",
+  "type": "fittest",
+  "icon": "hole",
+  "flags": {
+    "placeOnFace": false,
+    "noLivePreview": false,
+    "gizmo": false,
+    "planeTool": false,
+    "sculpt": false,
+    "paint": false,
+    "wallTool": false
+  },
+  "hint": "Makes one plate with pegs and matching holes at stepped clearances (e.g. 0.05 to 0.30 mm). Print it, try each peg in its hole, and use the loosest snug fit as your printer’s clearance",
+  "extra": [],
+  "fields": [
+    {
+      "key": "diameter",
+      "label": "Peg diameter",
+      "kind": "number",
+      "unit": "mm"
+    },
+    {
+      "key": "start",
+      "label": "Clearance start",
+      "kind": "number",
+      "unit": "mm"
+    },
+    {
+      "key": "step",
+      "label": "Clearance step",
+      "kind": "number",
+      "unit": "mm"
+    },
+    {
+      "key": "count",
+      "label": "Count",
+      "kind": "number"
+    },
+    {
+      "key": "thickness",
+      "label": "Plate thickness",
+      "kind": "number",
+      "unit": "mm"
+    },
+    {
+      "key": "gap",
+      "label": "Gap between pairs",
+      "kind": "number",
+      "unit": "mm"
+    }
+  ],
+  "ctxNote": "FIXTURE_CTX: selection [body_a], lastSketch sk1, sketchOnBody true, two bodies, one extrude cut",
+  "defaults": {
+    "diameter": 8,
+    "start": 0.05,
+    "step": 0.05,
+    "count": 6,
+    "thickness": 3,
+    "gap": 4
+  },
+  "toParams_defaults": {
+    "diameter": 8,
+    "start": 0.05,
+    "step": 0.05,
+    "count": 6,
+    "thickness": 3,
+    "gap": 4
+  },
+  "shown_defaults": [
+    "diameter",
+    "start",
+    "step",
+    "count",
+    "thickness",
+    "gap"
+  ],
+  "cases": [],
+  "onChange": [],
+  "roundTrips": [
+    {
+      "name": "defaults",
+      "params": {
+        "diameter": 8,
+        "start": 0.05,
+        "step": 0.05,
+        "count": 6,
+        "thickness": 3,
+        "gap": 4
+      },
+      "fromParams": {
+        "diameter": 8,
+        "start": 0.05,
+        "step": 0.05,
+        "count": 6,
+        "thickness": 3,
+        "gap": 4
+      },
+      "toParams": {
+        "diameter": 8,
+        "start": 0.05,
+        "step": 0.05,
+        "count": 6,
+        "thickness": 3,
+        "gap": 4
+      }
+    }
+  ],
+  "ctxCases": {
+    "nosel": {
+      "defaults": {
+        "diameter": 8,
+        "start": 0.05,
+        "step": 0.05,
+        "count": 6,
+        "thickness": 3,
+        "gap": 4
+      },
+      "toParams_defaults": {
+        "diameter": 8,
+        "start": 0.05,
+        "step": 0.05,
+        "count": 6,
+        "thickness": 3,
+        "gap": 4
+      },
+      "shown_defaults": [
+        "diameter",
+        "start",
+        "step",
+        "count",
+        "thickness",
+        "gap"
+      ]
+    },
+    "two": {
+      "defaults": {
+        "diameter": 8,
+        "start": 0.05,
+        "step": 0.05,
+        "count": 6,
+        "thickness": 3,
+        "gap": 4
+      },
+      "toParams_defaults": {
+        "diameter": 8,
+        "start": 0.05,
+        "step": 0.05,
+        "count": 6,
+        "thickness": 3,
+        "gap": 4
+      },
+      "shown_defaults": [
+        "diameter",
+        "start",
+        "step",
+        "count",
+        "thickness",
+        "gap"
+      ]
+    },
+    "nonsolid": {
+      "defaults": {
+        "diameter": 8,
+        "start": 0.05,
+        "step": 0.05,
+        "count": 6,
+        "thickness": 3,
+        "gap": 4
+      },
+      "toParams_defaults": {
+        "diameter": 8,
+        "start": 0.05,
+        "step": 0.05,
+        "count": 6,
+        "thickness": 3,
+        "gap": 4
+      },
+      "shown_defaults": [
+        "diameter",
+        "start",
+        "step",
+        "count",
+        "thickness",
+        "gap"
+      ]
+    },
+    "nobbox": {
+      "defaults": {
+        "diameter": 8,
+        "start": 0.05,
+        "step": 0.05,
+        "count": 6,
+        "thickness": 3,
+        "gap": 4
+      },
+      "toParams_defaults": {
+        "diameter": 8,
+        "start": 0.05,
+        "step": 0.05,
+        "count": 6,
+        "thickness": 3,
+        "gap": 4
+      },
+      "shown_defaults": [
+        "diameter",
+        "start",
+        "step",
+        "count",
+        "thickness",
+        "gap"
+      ]
+    },
+    "empty": {
+      "defaults": {
+        "diameter": 8,
+        "start": 0.05,
+        "step": 0.05,
+        "count": 6,
+        "thickness": 3,
+        "gap": 4
+      },
+      "toParams_defaults": {
+        "diameter": 8,
+        "start": 0.05,
+        "step": 0.05,
+        "count": 6,
+        "thickness": 3,
+        "gap": 4
+      },
+      "shown_defaults": [
+        "diameter",
+        "start",
+        "step",
+        "count",
+        "thickness",
+        "gap"
+      ]
+    }
+  }
+}

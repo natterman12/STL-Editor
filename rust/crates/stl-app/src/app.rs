@@ -14,6 +14,13 @@ use crate::ui::keys::{self, KeyAction, KeyState};
 use crate::ui::{browser, busy, params, ribbon, status, timeline, toasts, topbar};
 use crate::ui::{Shell, ThemePref, UiAction, UiEvent};
 use crate::viewport::Viewport;
+use crate::tools::panel::OpenTool;
+use crate::tools::gizmo::Gizmo;
+use crate::tools::sculpt::Sculpt;
+use crate::tools::{Ctx, ToolDef, Values};
+#[path = "app_wiring.rs"]
+mod wiring;
+use std::collections::{BTreeMap, HashMap};
 use egui::{Align2, Area, CornerRadius, Frame, Id, Margin, Order, Pos2, Rect, RichText, Sense, Stroke, Vec2};
 
 const DESKTOP_URL: &str = "https://natterman12.github.io/STL-Editor/#download";
@@ -57,9 +64,43 @@ pub struct StlApp {
     /// 1.x `app.js` turns the view to isometric once at startup (`viewer.setView('iso')`); done
     /// on the first frame the workspace has a size, since the distance depends on the view's shape.
     start_view_done: bool,
+    /// The open tool (`this.tool`).
+    pub tool: Option<crate::tools::panel::OpenTool>,
+    /// Shared by all tools: only the answer to the newest one lands.
+    preview_seq: u64,
+    /// A rollback marker sent and not yet seen in the timeline.
+    pending_marker: Option<Option<usize>>,
+    /// OK was pressed and the engine has not answered: the tool stays open until it does (1.x
+    /// `commitTool` awaits the edit), so a refusal leaves it open with its values.
+    committing: bool,
+    runtime_tools: HashMap<String, &'static ToolDef>,
+    /// The handles of Move / Rotate / Scale (and Support Fins' rings) while that tool is open.
+    gizmo: Option<Gizmo>,
+    sculpt: Sculpt,
+    /// Support Fins, coverage and Draw Walls (`app_wiring.rs`).
+    sf: wiring::Sf,
 }
 
 /// A short fingerprint of the history, to tell whether it changed since the last save.
+fn arr_empty(v: Option<&serde_json::Value>) -> bool {
+    v.and_then(|x| x.as_array()).map_or(true, |a| a.is_empty())
+}
+
+/// `ctx()` (app.js:581): what a tool's defaults and rules look at.
+pub fn make_ctx<'a>(bodies: &'a [BodyView], planes: &'a [PlaneView], sketches: &'a [SketchView], features: &'a [crate::engine_link::TimelineItem], selection: &'a [String]) -> Ctx<'a> {
+    let last = features.iter().rev().find(|f| f.kind == "sketch" && f.active);
+    let sk = last.and_then(|f| sketches.iter().find(|s| s.id == f.id));
+    Ctx {
+        bodies,
+        planes,
+        sketches,
+        features,
+        selection,
+        last_sketch: sk.map(|s| s.id.as_str()),
+        sketch_on_body: last.is_some_and(|f| f.params.get("plane").and_then(|p| p.as_object()).is_some_and(|o| o.contains_key("body"))),
+    }
+}
+
 fn history_sig(t: &TimelineView) -> String {
     format!("{:?}|{:?}", t.items, t.marker)
 }
@@ -161,6 +202,14 @@ impl StlApp {
             pending_discard: None,
             launch_file: None,
             start_view_done: false,
+            tool: None,
+            preview_seq: 0,
+            pending_marker: None,
+            committing: false,
+            runtime_tools: HashMap::new(),
+            gizmo: None,
+            sculpt: Sculpt::new(),
+            sf: Default::default(),
         }
     }
 
@@ -233,7 +282,11 @@ impl StlApp {
                     self.viewport.sync_bodies(&b);
                     self.bodies = b;
                 }
-                Update::Timeline(t) => self.timeline_view = t,
+                Update::Timeline(t) => {
+                    self.timeline_view = t;
+                    self.pending_marker = None;
+                    self.after_timeline();
+                }
                 Update::Params(p) => self.param_views = p,
                 Update::Planes(p) => {
                     self.viewport.sync_planes(&p);
@@ -249,8 +302,16 @@ impl StlApp {
                 }
                 Update::Progress { done, total, label } => self.busy.set_progress(done, total, &label),
                 Update::Busy(on) => self.busy.set_busy(on),
-                Update::Error(e) => self.toasts.push(Level::Error, e),
+                Update::Error(e) => {
+                    // the error belongs to one command: a turn, a handle's add or edit, or OK
+                    if !self.pose_failed(&e) && !self.accept_failed(&e) {
+                        self.commit_failed(&e);
+                    }
+                    self.toasts.push(Level::Error, e);
+                }
+                Update::Fins { seq, ask, result } => self.on_fins(seq, &ask, result),
                 Update::EngineLost => self.engine_lost = true,
+                Update::Preview { seq, pack, msg, error, warn, result } => self.on_preview(seq, pack, msg, error, warn, result),
                 // TASK 9 (files.rs): Saved { bytes } and Exported { name, bytes, count } go to the
                 // platform's save dialog.
                 Update::Saved { .. } | Update::Exported { .. } => {}
@@ -301,7 +362,7 @@ impl StlApp {
                 UiAction::SaveAs => Some((FileAction::SaveAs, None)),
                 UiAction::Export(f) => ExportFormat::from_ext(&f).map(|f| (FileAction::Export(f), (!self.shell.selection.is_empty()).then(|| self.shell.selection.clone()))),
                 UiAction::RemoveSelected => {
-                    self.shell.push_event(UiEvent::OpenTool("delete".into()));
+                    self.push_ui_event(UiEvent::OpenTool("delete".into()));
                     None
                 }
                 UiAction::New | UiAction::OpenRecent(_) => {
@@ -359,11 +420,11 @@ impl StlApp {
             // Support Fins wall editor arrive in 4c / 4b, so these stay false until then
             dyn_field_focused: false,
             sketcher_active: false,
-            walls_active: false,
-            walls_pending: false,
-            tool_open: self.shell.active_tool.is_some(),
+            walls_active: self.walls_on(),
+            walls_pending: self.walls_pending(),
+            tool_open: self.tool.is_some() || self.shell.active_tool.is_some(),
             // `tool.def.gizmo === 'move'`: only the Move tool has the gizmo
-            tool_gizmo_move: self.shell.active_tool.as_deref() == Some("move"),
+            tool_gizmo_move: self.tool.as_ref().is_some_and(|t| t.def.key == "move"),
             // `mode !== 'model'` is the Info mode, which comes with the Inspect tools in 4b
             mode_not_model: false,
             selection_nonempty: !self.shell.selection.is_empty(),
@@ -386,7 +447,7 @@ impl StlApp {
                     self.shell.selection = ids.clone();
                     self.viewport.set_selection(ids);
                 }
-                self.shell.push_event(e);
+                self.push_ui_event(e);
             } else {
                 match a {
                     KeyAction::FocusSearch => self.shell.focus_search = true,
@@ -397,29 +458,394 @@ impl StlApp {
                         self.viewport.set_section_enabled(!on);
                     }
                     KeyAction::New => self.shell.file_requests.push(UiAction::New),
-                    KeyAction::BeginSketch => self.shell.push_event(UiEvent::OpenTool("sketch".into())),
-                    // sketcher, walls, gizmo, panel keys: 4b and 4c
+                    KeyAction::BeginSketch => self.push_ui_event(UiEvent::OpenTool("sketch".into())),
+                    KeyAction::PanelCancel => self.tool_cancel(),
+                    KeyAction::PanelOk => self.tool_ok(),
+                    KeyAction::Walls(_) | KeyAction::Gizmo { .. } => self.tool_key(&a),
+                    // the sketcher's keys are 4c
                     _ => {}
                 }
             }
         }
     }
 
+    // ------------------------------------------------------------------ tools
+
+    /// Push a UI event; tool events open the tool at once (Task 3's ribbon, search, keys and
+    /// timeline all come through here).
+    pub fn push_ui_event(&mut self, e: UiEvent) {
+        match &e {
+            UiEvent::OpenTool(k) => {
+                self.open_tool(k, None);
+            }
+            UiEvent::OpenToolWith(k, v) => {
+                self.open_tool(k, Some(v.clone()));
+            }
+            UiEvent::EditFeature(id) => {
+                self.edit_feature(id);
+            }
+            _ => {}
+        }
+        self.shell.push_event(e);
+    }
+
+    /// Run-time tool definitions (Support Fins builds its tools from the engine's schema).
+    pub fn register_tool_def(&mut self, def: &'static ToolDef) {
+        self.runtime_tools.insert(def.key.to_owned(), def);
+    }
+
+    pub fn find_tool(&self, key: &str) -> Option<&'static ToolDef> {
+        self.runtime_tools.get(key).copied().or_else(|| crate::tools::tool(key)).or_else(|| crate::supports::support_tool(key))
+    }
+
+    pub fn tool(&self) -> Option<&OpenTool> {
+        self.tool.as_ref()
+    }
+
+    /// `setValue(key, val)` on the open tool: `onChange` runs and a preview is scheduled.
+    pub fn tool_set_value(&mut self, key: &str, val: serde_json::Value) {
+        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection);
+        if let Some(t) = self.tool.as_mut() {
+            t.set_value(key, val, &ctx);
+        }
+    }
+
+    /// Several values at once (the gizmo's `translate` / `rotate` / `size`); one preview follows.
+    pub fn tool_set_values(&mut self, patch: Values) {
+        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection);
+        if let Some(t) = self.tool.as_mut() {
+            t.set_values(patch, &ctx);
+        }
+    }
+
+    pub fn tool_set_active_field(&mut self, key: Option<String>) {
+        if let Some(t) = self.tool.as_mut() {
+            t.active_field = key;
+        }
+    }
+
+    pub fn tool_mut(&mut self) -> Option<&mut OpenTool> {
+        self.tool.as_mut()
+    }
+
+    /// The rollback marker as it is now, counting one we sent and haven't heard back.
+    fn marker_now(&self) -> Option<usize> {
+        self.pending_marker.unwrap_or(self.timeline_view.marker)
+    }
+
+    /// `openTool(key, { values })`. False when there is no such tool.
+    pub fn open_tool(&mut self, key: &str, values: Option<Values>) -> bool {
+        if matches!(key, "supportfins" | "supportwall") {
+            // Support Fins' settings are read from its engine first (once)
+            self.open_support(key, None, values);
+            return true;
+        }
+        match self.find_tool(key) {
+            Some(def) => {
+                self.open_tool_def(def, None, values);
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// `openTool(key, { editFeature })`: reopen the tool of a timeline step.
+    pub fn edit_feature(&mut self, id: &str) -> bool {
+        let Some(item) = self.timeline_view.items.iter().find(|i| i.id == id).cloned() else { return false };
+        let Some(key) = crate::tools::panel::tool_key_for(&item.kind, &item.params) else { return false };
+        if matches!(key.as_str(), "supportfins" | "supportwall") {
+            self.open_support(&key, Some(item.id), None);
+            return true;
+        }
+        let Some(def) = self.find_tool(&key) else { return false };
+        self.open_tool_def(def, Some((item.id, item.params)), None);
+        true
+    }
+
+    /// Open any `ToolDef`, also one built at run time (`edit`: the step's id and params).
+    pub fn open_tool_def(&mut self, def: &'static ToolDef, edit: Option<(String, serde_json::Value)>, values: Option<Values>) {
+        self.close_tool(false);
+        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection);
+        let mut v = match &edit {
+            Some((_, p)) => (def.from_params)(p.clone()),
+            None => (def.defaults)(&ctx),
+        };
+        if let Some(extra) = values {
+            for (k, x) in extra {
+                v.insert(k, x);
+            }
+        }
+        let prev = self.marker_now();
+        let edit_id = edit.map(|(id, _)| id);
+        if let Some(id) = &edit_id {
+            if let Some(idx) = self.timeline_view.items.iter().position(|f| &f.id == id) {
+                self.link.send(Command::Rollback(Some(idx)));
+                self.pending_marker = Some(Some(idx));
+            }
+        }
+        let mut t = OpenTool::new(def, v, edit_id, prev);
+        t.preview.schedule(0, def.flags.no_live_preview);
+        self.shell.hint = def.hint.unwrap_or("").to_owned();
+        self.shell.active_tool = Some(def.key.to_owned());
+        self.viewport.set_viewcube_inset(crate::tools::panel::VIEWCUBE_INSET);
+        self.tool = Some(t);
+        self.after_open(def);
+    }
+
+    /// `closeTool(committed)`: Cancel puts the rollback back when a step was being edited.
+    pub fn close_tool(&mut self, committed: bool) {
+        self.committing = false;
+        let Some(t) = self.tool.take() else { return };
+        self.before_close(&t);
+        self.viewport.clear_preview();
+        self.link.send(Command::ClearPreview);
+        if t.edit_id.is_some() && !committed {
+            self.link.send(Command::Rollback(t.prev_rollback));
+            self.pending_marker = Some(t.prev_rollback);
+        }
+        self.shell.hint.clear();
+        self.shell.active_tool = None;
+        self.viewport.set_viewcube_inset(0.0);
+    }
+
+    pub fn tool_cancel(&mut self) {
+        self.close_tool(false);
+    }
+
+    /// `commitTool()`: the OK button.
+    pub fn tool_ok(&mut self) {
+        use crate::tools::preview::{MsgKind, ToolMsg};
+        let params: BTreeMap<String, f64> = self.param_views.iter().filter_map(|p| p.value.map(|v| (p.name.clone(), v))).collect();
+        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection);
+        if self.committing {
+            return; // the first OK is still on its way
+        }
+        let Some(t) = self.tool.as_mut() else { return };
+        if !t.valid() {
+            t.msg = Some(ToolMsg::new(MsgKind::Err, "Fill in the highlighted selections first."));
+            return;
+        }
+        if let Some(e) = t.expr_error(&ctx, &params) {
+            t.msg = Some(ToolMsg::new(MsgKind::Err, e));
+            return;
+        }
+        let p = t.params(&ctx);
+        let kind = t.def.kind.to_owned();
+        match t.edit_id.clone() {
+            Some(id) => {
+                // one transaction (1.x commitTool: feature/edit with rollback_after): Ctrl+Z puts back
+                // the steps that came after it
+                self.link.send(Command::EditFeature { id, params: p, rollback_after: Some(t.prev_rollback) });
+                t.msg = Some(ToolMsg::new(MsgKind::Busy, format!("Updating {}…", t.def.label)));
+            }
+            None => {
+                t.msg = Some(ToolMsg::new(MsgKind::Busy, format!("{}…", t.def.label)));
+                self.add_step(kind, p);
+            }
+        }
+        // closed by `after_timeline` when the engine has taken it; kept open if it refuses
+        self.committing = true;
+    }
+
+    /// `schedulePreview` fired: check the clock. Tests pass their own `now`.
+    pub fn run_previews(&mut self, now: web_time::Instant) {
+        use crate::tools::preview::{MsgKind, ToolMsg};
+        let fire = {
+            let Some(t) = self.tool.as_mut() else { return };
+            if t.preview.busy_shown(now) {
+                t.msg = Some(ToolMsg::new(MsgKind::Busy, if t.def.flags.wall_tool { "Building the walls…" } else { "Building supports…" }));
+            }
+            t.preview.tick(now)
+        };
+        if fire {
+            self.run_preview_now(now);
+        }
+    }
+
+    /// `runPreview()` at once (the Preview button, the delay passing).
+    pub fn run_preview_now(&mut self, now: web_time::Instant) {
+        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection);
+        let Some(t) = self.tool.as_mut() else { return };
+        self.preview_seq += 1;
+        let seq = self.preview_seq;
+        if !t.valid() || (t.def.flags.sculpt && arr_empty(t.values.get("strokes"))) {
+            // a preview still on its way is out of date now: it mustn't land after this
+            t.preview.invalidate(seq);
+            t.msg = None;
+            let paint_no_body = t.def.flags.paint && crate::supports::body_id(&t.values).is_none();
+            self.viewport.clear_preview();
+            // no part picked: its red overhangs and the coverage go too (with a part, they stay)
+            if paint_no_body {
+                self.sf_quick_paint();
+            }
+            return;
+        }
+        t.preview.start(seq, now, t.def.flags.paint);
+        let params = t.params(&ctx);
+        self.link.send(Command::Preview { seq, kind: t.def.kind.to_owned(), params, edit_id: t.edit_id.clone() });
+    }
+
+    /// A click in the viewport while a tool is open (`feedPick`): the active pick field takes it.
+    fn tool_click(&mut self, pos: Pos2) {
+        use crate::tools::fields::bodies as pk;
+        if self.tool.is_none() {
+            return;
+        }
+        let planes = self.viewport.base_planes_visible() || !self.planes.is_empty();
+        let Some(hit) = self.viewport.pick(pos, true, planes) else { return };
+        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection);
+        let Some(t) = self.tool.as_mut() else { return };
+        let out = pk::feed(t.def, t.active_field.as_deref(), &mut t.values, &hit, &ctx);
+        if !out.used {
+            return;
+        }
+        if out.changed {
+            if out.advance {
+                if let Some(cur) = t.active_field.clone() {
+                    t.active_field = pk::advance_field(t.def, &t.values, &cur);
+                }
+            }
+            t.schedule_preview(60);
+        }
+        if let Some((l, m)) = &out.message {
+            t.msg = Some(crate::tools::preview::ToolMsg::new(if *l == Level::Error { crate::tools::preview::MsgKind::Err } else { crate::tools::preview::MsgKind::Info }, m.clone()));
+        }
+        pk::apply_face(&mut self.viewport, &out);
+        // Support Fins: a part that already has supports opens those instead of a second set
+        if let Some(bid) = out.reopen_supports.clone() {
+            let key = self.tool.as_ref().filter(|t| t.edit_id.is_none()).map(|t| t.def.key);
+            if let Some(key) = key {
+                if self.sf_reopen(key, &bid, None) {
+                    return;
+                }
+            }
+        }
+        if out.quick_paint {
+            self.sf_quick_paint();
+        }
+    }
+
+    /// `renderOverlayForTool`: what the fields want drawn, redrawn only when the values change.
+    fn tool_marks(&mut self) {
+        use crate::tools::fields::bodies as pk;
+        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection);
+        let Some(t) = self.tool.as_mut() else { return };
+        let sig = format!("{:?}|{:?}|{}", t.values, t.active_field, self.bodies.len() + self.planes.len() + self.sketches.len());
+        if t.marks_sig == sig {
+            return;
+        }
+        t.marks_sig = sig;
+        let marks = pk::tool_marks(t.def, &t.values, &ctx);
+        pk::apply_marks(&mut self.viewport, &marks);
+    }
+
+    /// Draw the tool panel and act on its buttons.
+    fn tool_panel(&mut self, egui_ctx: &egui::Context, tk: &Tokens, ws: Rect) {
+        let params: BTreeMap<String, f64> = self.param_views.iter().filter_map(|p| p.value.map(|v| (p.name.clone(), v))).collect();
+        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection);
+        let Some(t) = self.tool.as_mut() else { return };
+        let env = crate::tools::panel::PanelEnv { tk, inch: self.shell.inch, params: &params, ctx: &ctx, ws };
+        let out = t.show(egui_ctx, &env);
+        if out.clear_face {
+            self.viewport.clear_overlay("face");
+        }
+        self.tool_marks();
+        if !out.sf_events.is_empty() {
+            self.sf_panel_events(out.sf_events.clone());
+        }
+        let now = web_time::Instant::now();
+        if out.ok {
+            self.tool_ok();
+        } else if out.cancel {
+            self.tool_cancel();
+        } else if out.preview_now {
+            self.run_preview_now(now);
+        }
+    }
+
+    /// `runPreview`'s answer. Only the newest preview of the open tool lands; one for a closed
+    /// tool, or while the gizmo is dragged, is dropped.
+    fn on_preview(&mut self, seq: u64, pack: crate::viewport::PreviewPack, msg: Option<String>, error: Option<String>, warn: bool, result: serde_json::Value) {
+        use crate::tools::preview::{MsgKind, ToolMsg};
+        {
+            let Some(t) = self.tool.as_ref() else { return };
+            if !t.preview.accepts(seq) || t.dragging {
+                return;
+            }
+        }
+        // a handle is held: the late preview must not snap the part back (the moved bodies are
+        // put back first when one lands)
+        if let Some(g) = self.gizmo.as_mut() {
+            if !g.accept_preview(&mut self.viewport) {
+                return;
+            }
+        }
+        let Some(t) = self.tool.as_mut() else { return };
+        t.preview.done();
+        if let Some(e) = error {
+            t.last_result = result;
+            t.msg = Some(ToolMsg::new(MsgKind::Err, e));
+            self.viewport.clear_preview();
+            self.sf_on_preview_error();
+            return;
+        }
+        self.viewport.show_preview(&pack);
+        let (key, wall_tool) = (t.def.key, t.def.flags.wall_tool);
+        let mode = crate::supports::mode_of(&t.values).to_owned();
+        let (mut msg, mut warn) = (msg.filter(|m| !m.is_empty()), warn);
+        if warn {
+            if let Some(m) = msg.clone() {
+                if key == "supportfins" && mode == "rotate" {
+                    // "no overhangs in this position" is said by the Held card, not again up here
+                    let w = crate::supports::warning_line("rotate", &m);
+                    if w.trim().is_empty() {
+                        warn = false;
+                        msg = if result.get("flipped").and_then(|v| v.as_bool()).unwrap_or(false) {
+                            Some("Cutting into the material (direction flipped).".to_owned())
+                        } else {
+                            result.get("info").and_then(|v| v.as_str()).filter(|i| !i.is_empty()).map(str::to_owned)
+                        };
+                    } else {
+                        msg = Some(w.trim().to_owned());
+                    }
+                } else if wall_tool {
+                    if let Some(info) = result.get("info").and_then(|v| v.as_str()).filter(|i| !i.is_empty()) {
+                        msg = Some(format!("{info}. {m}"));
+                    }
+                }
+            }
+        }
+        if let Some(t) = self.tool.as_mut() {
+            t.msg = msg.map(|m| ToolMsg::new(if warn { MsgKind::Warn } else { MsgKind::Info }, m));
+        }
+        self.sf_on_preview(&result, &pack);
+        // the record is kept for whoever reads it next (Support Fins reads paint, walls, pieces)
+        if let Some(t) = self.tool.as_mut() {
+            t.last_result = result;
+        }
+    }
+
     // ------------------------------------------------------------------ actions
 
-    fn send(&self, c: Command) {
+    fn send(&mut self, c: Command) {
+        // 1.x: Undo and Redo close the open tool first (a rolled-back edit session is put back)
+        if matches!(c, Command::Undo | Command::Redo) && self.tool.is_some() {
+            self.close_tool(false);
+        }
         self.link.send(c);
     }
 
     /// A ribbon / search / dropdown tool was chosen (`App.onRibbon`).
-    fn on_ribbon(&mut self, key: &str, anchor: Pos2) {
+    pub fn on_ribbon(&mut self, key: &str, anchor: Pos2) {
         match key {
             "import" => self.shell.file_requests.push(UiAction::Insert),
             "export" => self.open_export_menu(anchor),
             "params" => { self.params_open = true; self.params.set_open(true); }
             // Send to Slicer is desktop-only and not part of 4a
             "send" => {}
-            k => self.shell.push_event(UiEvent::OpenTool(k.to_owned())),
+            "sf_about" => self.show_sf_about(),
+            // Rotate opens Move with the rings (`_gizmo: "rotate"`)
+            k => self.push_ui_event(ribbon::tool_event(k)),
         }
     }
 
@@ -694,6 +1120,12 @@ impl StlApp {
         self.shell.doc_name = self.files.title.clone().unwrap_or_else(|| "Untitled".to_owned());
         self.shell.recent = self.files.recent_names();
         self.run_keys(&ctx);
+        self.run_previews(web_time::Instant::now());
+        if let Some(t) = &self.tool {
+            if let Some(d) = t.preview.next_wake(web_time::Instant::now()) {
+                ctx.request_repaint_after(d);
+            }
+        }
         let tk = self.tokens.clone();
 
         // ---- top bar
@@ -789,6 +1221,19 @@ impl StlApp {
                 let on = self.viewport.section_enabled();
                 self.viewport.set_section_enabled(!on);
             }
+            // the handles, the Sculpt brush and Draw Walls' pointer first: a click on one of
+            // them isn't a click on the part
+            let mut consumed = self.tool_frame(ui, &vr.response);
+            if let Some(g) = self.gizmo.as_mut() {
+                consumed |= g.consume_click();
+            }
+            if vr.response.clicked() && !consumed {
+                if let Some(pos) = vr.response.interact_pointer_pos() {
+                    if !self.sf_click(pos) {
+                        self.tool_click(pos);
+                    }
+                }
+            }
             self.overlays(&ctx, &tk, ws, &mut commands, &mut events);
             let empty = self.timeline_view.items.is_empty() && self.shell.active_tool.is_none();
             if empty {
@@ -797,7 +1242,7 @@ impl StlApp {
         });
         match start_pick {
             Some(StartPick::Open) => self.shell.file_requests.push(UiAction::Insert),
-            Some(StartPick::Box) => self.shell.push_event(UiEvent::OpenTool("primitive_box".into())),
+            Some(StartPick::Box) => self.push_ui_event(UiEvent::OpenTool("primitive_box".into())),
             Some(StartPick::Recent(p)) => self.shell.file_requests.push(UiAction::OpenRecent(p)),
             Some(StartPick::OpenUrl(u)) => ctx.open_url(egui::OpenUrl::new_tab(u)),
             None => {}
@@ -813,7 +1258,7 @@ impl StlApp {
             if let UiEvent::Hover(h) = &e {
                 self.viewport.set_hover(h.as_deref());
             }
-            self.shell.push_event(e);
+            self.push_ui_event(e);
         }
 
         // ---- popups on top of everything
@@ -826,11 +1271,19 @@ impl StlApp {
             }
         }
         if let Some(url) = dialogs::show(&ctx, &tk, &mut self.shell.dialogs) {
-            ctx.open_url(egui::OpenUrl::new_tab(url));
+            if url == wiring::RESTART_URL {
+                self.restart_app(&ctx);
+            } else {
+                ctx.open_url(egui::OpenUrl::new_tab(url));
+            }
         }
         self.run_requests(&ctx);
         if let Some((tag, res)) = self.shell.dialogs.take_result() {
-            if tag == DISCARD_TAG {
+            if tag == wiring::RESTART_TAG {
+                if res == DialogResult::Yes {
+                    self.restart_now(&ctx);
+                }
+            } else if tag == DISCARD_TAG {
                 if let Some(what) = self.pending_discard.take().filter(|_| res == DialogResult::Yes) {
                     self.replace_document(what);
                 }
@@ -930,8 +1383,7 @@ impl StlApp {
             });
         });
 
-        // TASK 4b call site: the floating tool panel (right, 290 wide) goes here; the view cube moves
-        // left with `viewport.set_viewcube_inset(298.0)` while it is open.
+        self.tool_panel(ctx, tk, ws);
 
         // history bar along the bottom
         let bar = Rect::from_min_max(Pos2::new(ws.min.x + 8.0, ws.max.y - 8.0 - 36.0), Pos2::new(ws.max.x - 8.0, ws.max.y - 8.0));
@@ -945,10 +1397,20 @@ impl StlApp {
                 let st_rect = Rect::from_min_max(Pos2::new(inner.max.x - status_w - 6.0, inner.min.y), Pos2::new(inner.max.x - 8.0, inner.max.y));
                 let mut tl_ui = ui.new_child(egui::UiBuilder::new().max_rect(tl_rect));
                 // TASK 8 call site: history bar
+                self.timeline.features_pick = self.tool.as_ref().is_some_and(|t| t.shown_fields().any(|f| matches!(f.kind, crate::tools::FieldKind::Features)));
                 timeline::show(&mut tl_ui, ctx, tk, &mut self.timeline, &self.timeline_view, self.shell.active_tool.is_some(), false, commands, events);
                 // clicking a step puts its name (and any error) in the status line (app.js:2124)
                 if let Some(m) = self.timeline.take_status() {
                     self.status_text = m;
+                }
+                if let Some(id) = self.timeline.take_ticked() {
+                    if let Some(t) = self.tool.as_mut() {
+                        let key = t.shown_fields().find(|f| matches!(f.kind, crate::tools::FieldKind::Features)).map(|f| f.key);
+                        if let Some(key) = key {
+                            crate::tools::fields::features::toggle(&mut t.values, key, &id);
+                            t.schedule_preview(crate::tools::preview::DELAY_MS);
+                        }
+                    }
                 }
                 self.timeline.take_edit_feature(); // the tool opens through the OpenTool event (4b)
                 let mut st_ui = ui.new_child(egui::UiBuilder::new().max_rect(st_rect));

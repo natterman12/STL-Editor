@@ -1,0 +1,2756 @@
+{
+  "tool": "bedsplit",
+  "label": "Fit to Bed",
+  "type": "bedsplit",
+  "icon": "bedsplit",
+  "flags": {
+    "placeOnFace": false,
+    "noLivePreview": false,
+    "gizmo": false,
+    "planeTool": false,
+    "sculpt": false,
+    "paint": false,
+    "wallTool": false
+  },
+  "hint": "Cuts the part into pieces that fit your printer, with pins so they line up. Smart cut positions puts seams where the part is thinnest",
+  "extra": [
+    {
+      "name": "toParams:no body",
+      "op": "toParams",
+      "input": {
+        "body": [],
+        "printer": "bambu_x1",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "result": {
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      }
+    },
+    {
+      "name": "toParams:picked body",
+      "op": "toParams",
+      "input": {
+        "body": [
+          "body_b"
+        ],
+        "printer": "bambu_x1",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "result": {
+        "body": "body_b",
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      }
+    },
+    {
+      "name": "fromParams:body null",
+      "op": "fromParams",
+      "input": {
+        "body": null,
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "result": {
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "body": [],
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      }
+    },
+    {
+      "name": "fromParams:body empty string",
+      "op": "fromParams",
+      "input": {
+        "body": "",
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "result": {
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "body": [],
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      }
+    },
+    {
+      "name": "fromParams:body zero",
+      "op": "fromParams",
+      "input": {
+        "body": 0,
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "result": {
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "body": [],
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      }
+    },
+    {
+      "name": "fromParams:body name",
+      "op": "fromParams",
+      "input": {
+        "body": "body_b",
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "result": {
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "body": [
+          "body_b"
+        ],
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      }
+    },
+    {
+      "name": "fromParams:body missing",
+      "op": "fromParams",
+      "input": {
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "result": {
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true,
+        "body": []
+      }
+    },
+    {
+      "name": "toParams:custom printer keeps bed",
+      "op": "toParams",
+      "input": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "custom",
+        "bed": [
+          100,
+          120,
+          90
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "result": {
+        "body": "body_a",
+        "printer": "custom",
+        "bed": [
+          100,
+          120,
+          90
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      }
+    },
+    {
+      "name": "onchange:printer",
+      "op": "onChange",
+      "input": {
+        "trigger": "printer",
+        "values": {
+          "body": [
+            "body_a"
+          ],
+          "printer": "custom",
+          "bed": [
+            256,
+            256,
+            256
+          ],
+          "margin": 5,
+          "connector": "pins",
+          "pin_d": 5,
+          "pin_len": 10,
+          "clearance": 0.15,
+          "optimize": true
+        }
+      },
+      "result": null
+    },
+    {
+      "name": "onchange:margin",
+      "op": "onChange",
+      "input": {
+        "trigger": "margin",
+        "values": {
+          "body": [
+            "body_a"
+          ],
+          "printer": "bambu_x1",
+          "bed": [
+            256,
+            256,
+            256
+          ],
+          "margin": 5,
+          "connector": "pins",
+          "pin_d": 5,
+          "pin_len": 10,
+          "clearance": 0.15,
+          "optimize": true
+        }
+      },
+      "result": null
+    }
+  ],
+  "fields": [
+    {
+      "key": "body",
+      "label": "Body",
+      "kind": "bodies",
+      "multi": false
+    },
+    {
+      "key": "printer",
+      "label": "Printer",
+      "kind": "select",
+      "options": [
+        [
+          "bambu_x1",
+          "Bambu X1C / P1S / P1P / A1 (256)"
+        ],
+        [
+          "bambu_a1mini",
+          "Bambu A1 mini (180)"
+        ],
+        [
+          "bambu_h2d",
+          "Bambu H2D (325×320)"
+        ],
+        [
+          "prusa_mk4",
+          "Prusa MK4 (250×210)"
+        ],
+        [
+          "prusa_xl",
+          "Prusa XL (360)"
+        ],
+        [
+          "voron_350",
+          "Voron 2.4 350"
+        ],
+        [
+          "voron_300",
+          "Voron 2.4 300"
+        ],
+        [
+          "ender3",
+          "Ender 3 (220)"
+        ],
+        [
+          "custom",
+          "Custom size"
+        ]
+      ]
+    },
+    {
+      "key": "bed",
+      "label": "Bed X Y Z",
+      "kind": "vec3",
+      "unit": "mm",
+      "hasShow": true
+    },
+    {
+      "key": "margin",
+      "label": "Margin",
+      "kind": "number",
+      "unit": "mm"
+    },
+    {
+      "key": "connector",
+      "label": "Connectors",
+      "kind": "select",
+      "options": [
+        [
+          "pins",
+          "Printed pins"
+        ],
+        [
+          "dowels",
+          "Holes + loose pins"
+        ],
+        [
+          "filament",
+          "Filament pins (1.75)"
+        ],
+        [
+          "magnets",
+          "Magnets 6×3"
+        ],
+        [
+          "none",
+          "None"
+        ]
+      ],
+      "hasShow": true
+    },
+    {
+      "key": "pin_d",
+      "label": "Pin / pocket Ø",
+      "kind": "number",
+      "unit": "mm",
+      "hasShow": true
+    },
+    {
+      "key": "pin_len",
+      "label": "Pin length",
+      "kind": "number",
+      "unit": "mm",
+      "hasShow": true
+    },
+    {
+      "key": "clearance",
+      "label": "Clearance",
+      "kind": "number",
+      "unit": "mm",
+      "hasShow": true
+    },
+    {
+      "key": "optimize",
+      "label": "Smart cut positions",
+      "kind": "bool"
+    }
+  ],
+  "ctxNote": "FIXTURE_CTX: selection [body_a], lastSketch sk1, sketchOnBody true, two bodies, one extrude cut",
+  "defaults": {
+    "body": [
+      "body_a"
+    ],
+    "printer": "bambu_x1",
+    "bed": [
+      256,
+      256,
+      256
+    ],
+    "margin": 5,
+    "connector": "pins",
+    "pin_d": 5,
+    "pin_len": 10,
+    "clearance": 0.15,
+    "optimize": true
+  },
+  "toParams_defaults": {
+    "body": "body_a",
+    "printer": "bambu_x1",
+    "margin": 5,
+    "connector": "pins",
+    "pin_d": 5,
+    "pin_len": 10,
+    "clearance": 0.15,
+    "optimize": true
+  },
+  "shown_defaults": [
+    "body",
+    "printer",
+    "margin",
+    "connector",
+    "pin_d",
+    "pin_len",
+    "clearance",
+    "optimize"
+  ],
+  "cases": [
+    {
+      "name": "select:printer=bambu_x1",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "bambu_x1",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "shown": [
+        "body",
+        "printer",
+        "margin",
+        "connector",
+        "pin_d",
+        "pin_len",
+        "clearance",
+        "optimize"
+      ]
+    },
+    {
+      "name": "select:printer=bambu_a1mini",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "bambu_a1mini",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "bambu_a1mini",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "shown": [
+        "body",
+        "printer",
+        "margin",
+        "connector",
+        "pin_d",
+        "pin_len",
+        "clearance",
+        "optimize"
+      ]
+    },
+    {
+      "name": "select:printer=bambu_h2d",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "bambu_h2d",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "bambu_h2d",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "shown": [
+        "body",
+        "printer",
+        "margin",
+        "connector",
+        "pin_d",
+        "pin_len",
+        "clearance",
+        "optimize"
+      ]
+    },
+    {
+      "name": "select:printer=prusa_mk4",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "prusa_mk4",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "prusa_mk4",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "shown": [
+        "body",
+        "printer",
+        "margin",
+        "connector",
+        "pin_d",
+        "pin_len",
+        "clearance",
+        "optimize"
+      ]
+    },
+    {
+      "name": "select:printer=prusa_xl",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "prusa_xl",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "prusa_xl",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "shown": [
+        "body",
+        "printer",
+        "margin",
+        "connector",
+        "pin_d",
+        "pin_len",
+        "clearance",
+        "optimize"
+      ]
+    },
+    {
+      "name": "select:printer=voron_350",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "voron_350",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "voron_350",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "shown": [
+        "body",
+        "printer",
+        "margin",
+        "connector",
+        "pin_d",
+        "pin_len",
+        "clearance",
+        "optimize"
+      ]
+    },
+    {
+      "name": "select:printer=voron_300",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "voron_300",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "voron_300",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "shown": [
+        "body",
+        "printer",
+        "margin",
+        "connector",
+        "pin_d",
+        "pin_len",
+        "clearance",
+        "optimize"
+      ]
+    },
+    {
+      "name": "select:printer=ender3",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "ender3",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "ender3",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "shown": [
+        "body",
+        "printer",
+        "margin",
+        "connector",
+        "pin_d",
+        "pin_len",
+        "clearance",
+        "optimize"
+      ]
+    },
+    {
+      "name": "select:printer=custom",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "custom",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "custom",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "shown": [
+        "body",
+        "printer",
+        "bed",
+        "margin",
+        "connector",
+        "pin_d",
+        "pin_len",
+        "clearance",
+        "optimize"
+      ]
+    },
+    {
+      "name": "select:connector=pins",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "bambu_x1",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "shown": [
+        "body",
+        "printer",
+        "margin",
+        "connector",
+        "pin_d",
+        "pin_len",
+        "clearance",
+        "optimize"
+      ]
+    },
+    {
+      "name": "select:connector=dowels",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "bambu_x1",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "dowels",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "dowels",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "shown": [
+        "body",
+        "printer",
+        "margin",
+        "connector",
+        "pin_d",
+        "pin_len",
+        "clearance",
+        "optimize"
+      ]
+    },
+    {
+      "name": "select:connector=filament",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "bambu_x1",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "filament",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "filament",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "shown": [
+        "body",
+        "printer",
+        "margin",
+        "connector",
+        "pin_d",
+        "pin_len",
+        "clearance",
+        "optimize"
+      ]
+    },
+    {
+      "name": "select:connector=magnets",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "bambu_x1",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "magnets",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "magnets",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "shown": [
+        "body",
+        "printer",
+        "margin",
+        "connector",
+        "pin_d",
+        "pin_len",
+        "clearance",
+        "optimize"
+      ]
+    },
+    {
+      "name": "select:connector=none",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "bambu_x1",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "none",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "none",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "shown": [
+        "body",
+        "printer",
+        "margin",
+        "connector",
+        "optimize"
+      ]
+    },
+    {
+      "name": "bool:optimize=true",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "bambu_x1",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "shown": [
+        "body",
+        "printer",
+        "margin",
+        "connector",
+        "pin_d",
+        "pin_len",
+        "clearance",
+        "optimize"
+      ]
+    },
+    {
+      "name": "bool:optimize=false",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "bambu_x1",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": false
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": false
+      },
+      "shown": [
+        "body",
+        "printer",
+        "margin",
+        "connector",
+        "pin_d",
+        "pin_len",
+        "clearance",
+        "optimize"
+      ]
+    }
+  ],
+  "onChange": [
+    {
+      "name": "onchange:printer=bambu_x1",
+      "trigger": "printer",
+      "values_before": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "bambu_x1",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "patch": null,
+      "values_after": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "bambu_x1",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "shown": [
+        "body",
+        "printer",
+        "margin",
+        "connector",
+        "pin_d",
+        "pin_len",
+        "clearance",
+        "optimize"
+      ]
+    },
+    {
+      "name": "onchange:printer=bambu_a1mini",
+      "trigger": "printer",
+      "values_before": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "bambu_a1mini",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "patch": null,
+      "values_after": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "bambu_a1mini",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "bambu_a1mini",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "shown": [
+        "body",
+        "printer",
+        "margin",
+        "connector",
+        "pin_d",
+        "pin_len",
+        "clearance",
+        "optimize"
+      ]
+    },
+    {
+      "name": "onchange:printer=bambu_h2d",
+      "trigger": "printer",
+      "values_before": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "bambu_h2d",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "patch": null,
+      "values_after": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "bambu_h2d",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "bambu_h2d",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "shown": [
+        "body",
+        "printer",
+        "margin",
+        "connector",
+        "pin_d",
+        "pin_len",
+        "clearance",
+        "optimize"
+      ]
+    },
+    {
+      "name": "onchange:printer=prusa_mk4",
+      "trigger": "printer",
+      "values_before": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "prusa_mk4",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "patch": null,
+      "values_after": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "prusa_mk4",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "prusa_mk4",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "shown": [
+        "body",
+        "printer",
+        "margin",
+        "connector",
+        "pin_d",
+        "pin_len",
+        "clearance",
+        "optimize"
+      ]
+    },
+    {
+      "name": "onchange:printer=prusa_xl",
+      "trigger": "printer",
+      "values_before": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "prusa_xl",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "patch": null,
+      "values_after": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "prusa_xl",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "prusa_xl",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "shown": [
+        "body",
+        "printer",
+        "margin",
+        "connector",
+        "pin_d",
+        "pin_len",
+        "clearance",
+        "optimize"
+      ]
+    },
+    {
+      "name": "onchange:printer=voron_350",
+      "trigger": "printer",
+      "values_before": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "voron_350",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "patch": null,
+      "values_after": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "voron_350",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "voron_350",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "shown": [
+        "body",
+        "printer",
+        "margin",
+        "connector",
+        "pin_d",
+        "pin_len",
+        "clearance",
+        "optimize"
+      ]
+    },
+    {
+      "name": "onchange:printer=voron_300",
+      "trigger": "printer",
+      "values_before": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "voron_300",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "patch": null,
+      "values_after": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "voron_300",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "voron_300",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "shown": [
+        "body",
+        "printer",
+        "margin",
+        "connector",
+        "pin_d",
+        "pin_len",
+        "clearance",
+        "optimize"
+      ]
+    },
+    {
+      "name": "onchange:printer=ender3",
+      "trigger": "printer",
+      "values_before": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "ender3",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "patch": null,
+      "values_after": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "ender3",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "ender3",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "shown": [
+        "body",
+        "printer",
+        "margin",
+        "connector",
+        "pin_d",
+        "pin_len",
+        "clearance",
+        "optimize"
+      ]
+    },
+    {
+      "name": "onchange:printer=custom",
+      "trigger": "printer",
+      "values_before": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "custom",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "patch": null,
+      "values_after": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "custom",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "custom",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "shown": [
+        "body",
+        "printer",
+        "bed",
+        "margin",
+        "connector",
+        "pin_d",
+        "pin_len",
+        "clearance",
+        "optimize"
+      ]
+    },
+    {
+      "name": "onchange:connector=pins",
+      "trigger": "connector",
+      "values_before": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "bambu_x1",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "patch": {
+        "pin_d": 5,
+        "pin_len": 10
+      },
+      "values_after": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "bambu_x1",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "shown": [
+        "body",
+        "printer",
+        "margin",
+        "connector",
+        "pin_d",
+        "pin_len",
+        "clearance",
+        "optimize"
+      ]
+    },
+    {
+      "name": "onchange:connector=dowels",
+      "trigger": "connector",
+      "values_before": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "bambu_x1",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "dowels",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "patch": {
+        "pin_d": 5,
+        "pin_len": 12
+      },
+      "values_after": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "bambu_x1",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "dowels",
+        "pin_d": 5,
+        "pin_len": 12,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "dowels",
+        "pin_d": 5,
+        "pin_len": 12,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "shown": [
+        "body",
+        "printer",
+        "margin",
+        "connector",
+        "pin_d",
+        "pin_len",
+        "clearance",
+        "optimize"
+      ]
+    },
+    {
+      "name": "onchange:connector=filament",
+      "trigger": "connector",
+      "values_before": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "bambu_x1",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "filament",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "patch": {
+        "pin_d": 1.75,
+        "pin_len": 10
+      },
+      "values_after": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "bambu_x1",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "filament",
+        "pin_d": 1.75,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "filament",
+        "pin_d": 1.75,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "shown": [
+        "body",
+        "printer",
+        "margin",
+        "connector",
+        "pin_d",
+        "pin_len",
+        "clearance",
+        "optimize"
+      ]
+    },
+    {
+      "name": "onchange:connector=magnets",
+      "trigger": "connector",
+      "values_before": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "bambu_x1",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "magnets",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "patch": {
+        "pin_d": 6,
+        "pin_len": 3
+      },
+      "values_after": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "bambu_x1",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "magnets",
+        "pin_d": 6,
+        "pin_len": 3,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "magnets",
+        "pin_d": 6,
+        "pin_len": 3,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "shown": [
+        "body",
+        "printer",
+        "margin",
+        "connector",
+        "pin_d",
+        "pin_len",
+        "clearance",
+        "optimize"
+      ]
+    },
+    {
+      "name": "onchange:connector=none",
+      "trigger": "connector",
+      "values_before": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "bambu_x1",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "none",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "patch": {
+        "pin_d": 5,
+        "pin_len": 10
+      },
+      "values_after": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "bambu_x1",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "none",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "none",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "shown": [
+        "body",
+        "printer",
+        "margin",
+        "connector",
+        "optimize"
+      ]
+    }
+  ],
+  "roundTrips": [
+    {
+      "name": "defaults",
+      "params": {
+        "body": "body_a",
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "fromParams": {
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "body": [
+          "body_a"
+        ],
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      }
+    },
+    {
+      "name": "select:printer=bambu_x1",
+      "params": {
+        "body": "body_a",
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "fromParams": {
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "body": [
+          "body_a"
+        ],
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      }
+    },
+    {
+      "name": "select:printer=bambu_a1mini",
+      "params": {
+        "body": "body_a",
+        "printer": "bambu_a1mini",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "fromParams": {
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "body": [
+          "body_a"
+        ],
+        "printer": "bambu_a1mini",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "bambu_a1mini",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      }
+    },
+    {
+      "name": "select:printer=bambu_h2d",
+      "params": {
+        "body": "body_a",
+        "printer": "bambu_h2d",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "fromParams": {
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "body": [
+          "body_a"
+        ],
+        "printer": "bambu_h2d",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "bambu_h2d",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      }
+    },
+    {
+      "name": "select:printer=prusa_mk4",
+      "params": {
+        "body": "body_a",
+        "printer": "prusa_mk4",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "fromParams": {
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "body": [
+          "body_a"
+        ],
+        "printer": "prusa_mk4",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "prusa_mk4",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      }
+    },
+    {
+      "name": "select:printer=prusa_xl",
+      "params": {
+        "body": "body_a",
+        "printer": "prusa_xl",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "fromParams": {
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "body": [
+          "body_a"
+        ],
+        "printer": "prusa_xl",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "prusa_xl",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      }
+    },
+    {
+      "name": "select:printer=voron_350",
+      "params": {
+        "body": "body_a",
+        "printer": "voron_350",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "fromParams": {
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "body": [
+          "body_a"
+        ],
+        "printer": "voron_350",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "voron_350",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      }
+    },
+    {
+      "name": "select:printer=voron_300",
+      "params": {
+        "body": "body_a",
+        "printer": "voron_300",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "fromParams": {
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "body": [
+          "body_a"
+        ],
+        "printer": "voron_300",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "voron_300",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      }
+    },
+    {
+      "name": "select:printer=ender3",
+      "params": {
+        "body": "body_a",
+        "printer": "ender3",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "fromParams": {
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "body": [
+          "body_a"
+        ],
+        "printer": "ender3",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "ender3",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      }
+    },
+    {
+      "name": "select:printer=custom",
+      "params": {
+        "body": "body_a",
+        "printer": "custom",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "fromParams": {
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "body": [
+          "body_a"
+        ],
+        "printer": "custom",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "body": "body_a",
+        "printer": "custom",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      }
+    },
+    {
+      "name": "select:connector=pins",
+      "params": {
+        "body": "body_a",
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "fromParams": {
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "body": [
+          "body_a"
+        ],
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      }
+    },
+    {
+      "name": "select:connector=dowels",
+      "params": {
+        "body": "body_a",
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "dowels",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "fromParams": {
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "body": [
+          "body_a"
+        ],
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "dowels",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "dowels",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      }
+    },
+    {
+      "name": "select:connector=filament",
+      "params": {
+        "body": "body_a",
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "filament",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "fromParams": {
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "body": [
+          "body_a"
+        ],
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "filament",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "filament",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      }
+    },
+    {
+      "name": "select:connector=magnets",
+      "params": {
+        "body": "body_a",
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "magnets",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "fromParams": {
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "body": [
+          "body_a"
+        ],
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "magnets",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "magnets",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      }
+    },
+    {
+      "name": "select:connector=none",
+      "params": {
+        "body": "body_a",
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "none",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "fromParams": {
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "body": [
+          "body_a"
+        ],
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "none",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "none",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      }
+    }
+  ],
+  "ctxCases": {
+    "nosel": {
+      "defaults": {
+        "body": [],
+        "printer": "bambu_x1",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams_defaults": {
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "shown_defaults": [
+        "body",
+        "printer",
+        "margin",
+        "connector",
+        "pin_d",
+        "pin_len",
+        "clearance",
+        "optimize"
+      ]
+    },
+    "two": {
+      "defaults": {
+        "body": [
+          "body_a"
+        ],
+        "printer": "bambu_x1",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams_defaults": {
+        "body": "body_a",
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "shown_defaults": [
+        "body",
+        "printer",
+        "margin",
+        "connector",
+        "pin_d",
+        "pin_len",
+        "clearance",
+        "optimize"
+      ]
+    },
+    "nonsolid": {
+      "defaults": {
+        "body": [],
+        "printer": "bambu_x1",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams_defaults": {
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "shown_defaults": [
+        "body",
+        "printer",
+        "margin",
+        "connector",
+        "pin_d",
+        "pin_len",
+        "clearance",
+        "optimize"
+      ]
+    },
+    "nobbox": {
+      "defaults": {
+        "body": [
+          "body_c"
+        ],
+        "printer": "bambu_x1",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams_defaults": {
+        "body": "body_c",
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "shown_defaults": [
+        "body",
+        "printer",
+        "margin",
+        "connector",
+        "pin_d",
+        "pin_len",
+        "clearance",
+        "optimize"
+      ]
+    },
+    "empty": {
+      "defaults": {
+        "body": [],
+        "printer": "bambu_x1",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "toParams_defaults": {
+        "printer": "bambu_x1",
+        "margin": 5,
+        "connector": "pins",
+        "pin_d": 5,
+        "pin_len": 10,
+        "clearance": 0.15,
+        "optimize": true
+      },
+      "shown_defaults": [
+        "body",
+        "printer",
+        "margin",
+        "connector",
+        "pin_d",
+        "pin_len",
+        "clearance",
+        "optimize"
+      ]
+    }
+  }
+}

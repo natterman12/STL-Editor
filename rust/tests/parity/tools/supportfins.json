@@ -1,0 +1,2978 @@
+{
+  "tool": "supportfins",
+  "label": "Support Fins",
+  "type": "supportfins",
+  "icon": "fins",
+  "flags": {
+    "placeOnFace": false,
+    "noLivePreview": false,
+    "gizmo": "pose",
+    "planeTool": false,
+    "sculpt": false,
+    "paint": true,
+    "wallTool": false
+  },
+  "hint": "Red faces need support. Turn the part with the rings (it stays on the bed); Support Fins puts breakaway fins and a bed pad under the red.",
+  "extra": null,
+  "fields": [
+    {
+      "key": "body",
+      "label": "Body",
+      "kind": "bodies",
+      "multi": false
+    },
+    {
+      "key": "output",
+      "label": "Add as",
+      "kind": "select",
+      "help": "Part of the body: the fins are joined to it, so it exports and slices as one object (what Support Fins itself does). Separate body: a body of its own you can hide or remove; export both together.",
+      "options": [
+        [
+          "join",
+          "Part of the body"
+        ],
+        [
+          "separate",
+          "Separate body"
+        ]
+      ]
+    },
+    {
+      "key": "_mode",
+      "label": "On the part",
+      "kind": "select",
+      "help": "Rotate: drag the rings to turn the part the way it will print (it stays on the bed, and the fins follow). Add fins: draw walls by hand where Auto left a gap. Remove fins: click a fin to take it away, click it again to bring it back.",
+      "options": [
+        [
+          "rotate",
+          "Rotate"
+        ],
+        [
+          "add",
+          "Add fins"
+        ],
+        [
+          "remove",
+          "Remove fins"
+        ]
+      ]
+    },
+    {
+      "key": "walls",
+      "label": "Hand walls",
+      "kind": "walls",
+      "hasShow": true
+    },
+    {
+      "key": "removed",
+      "label": "Removed",
+      "kind": "removed",
+      "hasShow": true
+    },
+    {
+      "key": "_hdr_placement",
+      "label": "Placement",
+      "kind": "hdr",
+      "hasShow": true
+    },
+    {
+      "key": "sf:mode",
+      "label": "Placement mode",
+      "kind": "select",
+      "help": "Auto: a tined wall under each overhang steep and flat enough to grip, a plain breakaway wall under the shallow ones. Full coverage: Auto, then walls under every overhang Auto left bare -- more walls and plastic, every reachable overhang held. Wide roofs and flat shelves usually need Full coverage.",
+      "options": [
+        [
+          "auto",
+          "Auto — place supports for me"
+        ],
+        [
+          "full",
+          "Full coverage — every overhang"
+        ]
+      ],
+      "hasShow": true
+    },
+    {
+      "key": "_hdr_setup",
+      "label": "Setup",
+      "kind": "hdr",
+      "hasShow": true
+    },
+    {
+      "key": "sf:threshold",
+      "label": "Overhang",
+      "kind": "number",
+      "unit": "°",
+      "help": "Surface angle from the plate below which a face needs support.",
+      "hasShow": true
+    },
+    {
+      "key": "sf:nozzle",
+      "label": "Nozzle",
+      "kind": "select",
+      "help": "Your printer's nozzle diameter. Sizes support walls, contact tips and tines using the website's nozzle scaling. Set it to the nozzle used to print the fins; layer height and support gap are separate settings. Default 0.4mm.",
+      "options": [
+        [
+          "0.2",
+          "0.2"
+        ],
+        [
+          "0.25",
+          "0.25"
+        ],
+        [
+          "0.4",
+          "0.4"
+        ],
+        [
+          "0.6",
+          "0.6"
+        ],
+        [
+          "0.8",
+          "0.8"
+        ],
+        [
+          "1.0",
+          "1.0"
+        ],
+        [
+          "1.2",
+          "1.2"
+        ],
+        [
+          "1.4",
+          "1.4"
+        ],
+        [
+          "1.6",
+          "1.6"
+        ],
+        [
+          "1.8",
+          "1.8"
+        ],
+        [
+          "2.0",
+          "2.0"
+        ]
+      ],
+      "hasShow": true
+    },
+    {
+      "key": "_hdr_tines",
+      "label": "Tines",
+      "kind": "hdr",
+      "hasShow": true
+    },
+    {
+      "key": "sf:tines",
+      "label": "Tines",
+      "kind": "bool",
+      "help": "Tines fuse the support to the part so it grips instead of just propping. Off = plain breakaway wall.",
+      "hasShow": true
+    },
+    {
+      "key": "sf:tineDensity",
+      "label": "Tine grip",
+      "kind": "number",
+      "unit": "%",
+      "help": "How tightly to space the grip tines. Light = fewest marks (default), a per-wall floor keeps grip; Firm = dense comb / max grip for a tippy or tall part.",
+      "hasShow": true
+    },
+    {
+      "key": "sf:tineDir",
+      "label": "Direction",
+      "kind": "select",
+      "help": "Horizontal: one-layer tines that grip the part and snap off clean (FDM). Vertical: pins that stand up from each wall into the part, like a resin slicer's contact tips, for resin printers, where every support has to be attached.",
+      "options": [
+        [
+          "horizontal",
+          "Horizontal (FDM)"
+        ],
+        [
+          "vertical",
+          "Vertical (resin)"
+        ]
+      ],
+      "hasShow": true
+    },
+    {
+      "key": "sf:pinDepth",
+      "label": "Pin depth",
+      "kind": "number",
+      "unit": "mm",
+      "help": "How far each pin sinks into the part, like a resin slicer's contact depth. Resin slicers sink a tip 0-0.2 mm; deeper leaves a bigger mark and is harder to snap off. Default 0.1 mm.",
+      "hasShow": true
+    },
+    {
+      "key": "sf:layerHeight",
+      "label": "Layer height",
+      "kind": "number",
+      "unit": "mm",
+      "help": "Set this to the layer height you slice at. The grip tines are one layer tall so they snap off clean; if this doesn't match your slicer, the tines tear and leave marks. Default 0.2mm.",
+      "hasShow": true
+    },
+    {
+      "key": "_hdr_clearances",
+      "label": "Clearances",
+      "kind": "hdr",
+      "hasShow": true
+    },
+    {
+      "key": "sf:gap",
+      "label": "Support gap",
+      "kind": "number",
+      "unit": "mm",
+      "help": "Clearance between a support top and the part. Bigger = cleaner surface / easier removal; too big stops holding the overhang. Default 0.2mm.",
+      "hasShow": true
+    },
+    {
+      "key": "sf:padStyle",
+      "label": "Bed pad",
+      "kind": "select",
+      "help": "A tilted part rests on an edge and peels off the plate without a pad. Auto: Light, or Sure hold when the part meets the plate on a point or a small round foot. Light: one layer, 0.12mm off the part, peels off like a brim. Sure hold: thicker and tacked into the part, holds harder but is harder to remove.",
+      "options": [
+        [
+          "off",
+          "Off"
+        ],
+        [
+          "auto",
+          "Auto"
+        ],
+        [
+          "light",
+          "Light"
+        ],
+        [
+          "sure",
+          "Sure hold"
+        ]
+      ],
+      "hasShow": true
+    },
+    {
+      "key": "_hdr_sway",
+      "label": "Sway braces",
+      "kind": "hdr",
+      "hasShow": true
+    },
+    {
+      "key": "sf:sway.on",
+      "label": "Sway braces",
+      "kind": "bool",
+      "help": "Stand tapered buttress ribs against the upright sides of a tall part, tied on with tines all the way up, so it doesn't drift or wobble as it grows.",
+      "hasShow": true
+    },
+    {
+      "key": "sf:sway.gripFrom",
+      "label": "Brace grip from",
+      "kind": "number",
+      "unit": "mm",
+      "help": "Height the brace tines start at. 0 = grip the whole height; raise it to tie on only above where the part starts to move.",
+      "hasShow": true
+    },
+    {
+      "key": "sf:sway.tineSpacing",
+      "label": "Brace tine spacing",
+      "kind": "number",
+      "unit": "mm",
+      "help": "Vertical distance between brace tines. Smaller = held tighter, more marks on the side. Default 6mm.",
+      "hasShow": true
+    },
+    {
+      "key": "sf:sway.reach",
+      "label": "Brace depth",
+      "kind": "number",
+      "unit": "%",
+      "help": "How far the brace reaches out at the bed, as a share of its height. Deeper = stiffer, more plastic. Default 15%.",
+      "hasShow": true
+    },
+    {
+      "key": "_hdr_walls",
+      "label": "Walls",
+      "kind": "hdr",
+      "hasShow": true
+    },
+    {
+      "key": "sf:cutout",
+      "label": "Cutouts",
+      "kind": "select",
+      "help": "Cut holes through tall breakaway walls to save filament. The top edge that holds the part, the foot, and the wall's ends stay solid, and every hole has a pointed roof so it prints without bridging. Short walls stay solid.",
+      "options": [
+        [
+          "none",
+          "None"
+        ],
+        [
+          "diamond",
+          "Diamond"
+        ],
+        [
+          "triangle",
+          "Triangle"
+        ],
+        [
+          "arch",
+          "Arch"
+        ],
+        [
+          "lattice",
+          "Lattice"
+        ],
+        [
+          "honeycomb",
+          "Honeycomb"
+        ]
+      ],
+      "hasShow": true
+    },
+    {
+      "key": "sf:coverage",
+      "label": "Wide-face coverage",
+      "kind": "number",
+      "unit": "%",
+      "help": "How densely to line a WIDE overhang face with fins. The middle is the anti-sag default; drag LEFT for fewer fins (a small part can go down to one — the readout warns if a broad face then risks sagging), RIGHT for more support. Narrow parts are unaffected.",
+      "hasShow": true
+    },
+    {
+      "key": "sf:plateOnly",
+      "label": "Plate only",
+      "kind": "bool",
+      "help": "Stand every support on the build plate, never on the part itself. An overhang with part under it is left unsupported, and the readout says how many.",
+      "hasShow": true
+    },
+    {
+      "key": "sf:separateWalls",
+      "label": "Separate walls",
+      "kind": "select",
+      "help": "Keep Full coverage fill walls from crossing other walls or sharing their bases: a resin print cures joined walls into one block that won't break away. Auto turns it on for Vertical (resin) tines and off for Horizontal (FDM), as the site does. Can leave more overhang unsupported; thin ties between tall walls stay, since they snap.",
+      "options": [
+        [
+          "auto",
+          "Auto (on for resin)"
+        ],
+        [
+          "on",
+          "On"
+        ],
+        [
+          "off",
+          "Off"
+        ]
+      ],
+      "hasShow": true
+    },
+    {
+      "key": "sf:longWalls",
+      "label": "Long walls",
+      "kind": "bool",
+      "help": "Full coverage lays rows of long walls along the part's length first, the way you'd draw them by hand, then fills what they miss. Holds more of the overhang and uses more plastic. Untick for short walls under each overhang patch.",
+      "hasShow": true
+    },
+    {
+      "key": "_hdr_check",
+      "label": "Print check",
+      "kind": "hdr"
+    },
+    {
+      "key": "_status",
+      "kind": "sfstatus"
+    },
+    {
+      "key": "_pose",
+      "label": "Orientation",
+      "kind": "sfpose",
+      "hasShow": true
+    },
+    {
+      "key": "_mat",
+      "label": "Material",
+      "kind": "sfmat",
+      "help": "The filament you print the supports in, for the weight under Support plastic."
+    },
+    {
+      "key": "_reach",
+      "label": "Bare beyond",
+      "kind": "sfreach",
+      "help": "Overhangs further than this from a fin, or from the part itself, are shown bright red: they'd sag or fail. Bridging over a few mm works; over 5 mm usually droops."
+    }
+  ],
+  "ctxNote": "FIXTURE_CTX: selection [body_a], lastSketch sk1, sketchOnBody true, two bodies, one extrude cut",
+  "defaults": {
+    "body": [
+      "body_a"
+    ],
+    "_mode": "rotate",
+    "walls": [],
+    "removed": [],
+    "output": "join",
+    "sf:mode": "auto",
+    "sf:threshold": 45,
+    "sf:nozzle": "0.4",
+    "sf:tines": true,
+    "sf:tineDensity": 0,
+    "sf:tineDir": "horizontal",
+    "sf:pinDepth": 0.1,
+    "sf:layerHeight": 0.2,
+    "sf:gap": 0.2,
+    "sf:padStyle": "auto",
+    "sf:sway.on": false,
+    "sf:sway.gripFrom": 0,
+    "sf:sway.tineSpacing": 6,
+    "sf:sway.reach": 15,
+    "sf:cutout": "none",
+    "sf:coverage": 50,
+    "sf:plateOnly": false,
+    "sf:separateWalls": "auto",
+    "sf:longWalls": true
+  },
+  "toParams_defaults": {
+    "body": "body_a",
+    "output": "join",
+    "options": {}
+  },
+  "shown_defaults": [
+    "body",
+    "output",
+    "_mode",
+    "sf:mode",
+    "sf:threshold",
+    "sf:nozzle",
+    "sf:tines",
+    "sf:tineDensity",
+    "sf:tineDir",
+    "sf:layerHeight",
+    "sf:gap",
+    "sf:padStyle",
+    "sf:sway.on",
+    "sf:cutout",
+    "sf:coverage",
+    "sf:plateOnly",
+    "_status",
+    "_pose",
+    "_mat",
+    "_reach"
+  ],
+  "cases": [
+    {
+      "name": "select:output=join",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "rotate",
+        "walls": [],
+        "removed": [],
+        "output": "join",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "0.4",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "auto",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "none",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "auto",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "join",
+        "options": {}
+      },
+      "shown": [
+        "body",
+        "output",
+        "_mode",
+        "sf:mode",
+        "sf:threshold",
+        "sf:nozzle",
+        "sf:tines",
+        "sf:tineDensity",
+        "sf:tineDir",
+        "sf:layerHeight",
+        "sf:gap",
+        "sf:padStyle",
+        "sf:sway.on",
+        "sf:cutout",
+        "sf:coverage",
+        "sf:plateOnly",
+        "_status",
+        "_pose",
+        "_mat",
+        "_reach"
+      ]
+    },
+    {
+      "name": "select:output=separate",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "rotate",
+        "walls": [],
+        "removed": [],
+        "output": "separate",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "0.4",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "auto",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "none",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "auto",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "separate",
+        "options": {}
+      },
+      "shown": [
+        "body",
+        "output",
+        "_mode",
+        "sf:mode",
+        "sf:threshold",
+        "sf:nozzle",
+        "sf:tines",
+        "sf:tineDensity",
+        "sf:tineDir",
+        "sf:layerHeight",
+        "sf:gap",
+        "sf:padStyle",
+        "sf:sway.on",
+        "sf:cutout",
+        "sf:coverage",
+        "sf:plateOnly",
+        "_status",
+        "_pose",
+        "_mat",
+        "_reach"
+      ]
+    },
+    {
+      "name": "select:_mode=rotate",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "rotate",
+        "walls": [],
+        "removed": [],
+        "output": "join",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "0.4",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "auto",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "none",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "auto",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "join",
+        "options": {}
+      },
+      "shown": [
+        "body",
+        "output",
+        "_mode",
+        "sf:mode",
+        "sf:threshold",
+        "sf:nozzle",
+        "sf:tines",
+        "sf:tineDensity",
+        "sf:tineDir",
+        "sf:layerHeight",
+        "sf:gap",
+        "sf:padStyle",
+        "sf:sway.on",
+        "sf:cutout",
+        "sf:coverage",
+        "sf:plateOnly",
+        "_status",
+        "_pose",
+        "_mat",
+        "_reach"
+      ]
+    },
+    {
+      "name": "select:_mode=add",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "add",
+        "walls": [],
+        "removed": [],
+        "output": "join",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "0.4",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "auto",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "none",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "auto",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "join",
+        "options": {}
+      },
+      "shown": [
+        "body",
+        "output",
+        "_mode",
+        "walls",
+        "sf:mode",
+        "sf:threshold",
+        "sf:nozzle",
+        "sf:tines",
+        "sf:tineDensity",
+        "sf:tineDir",
+        "sf:layerHeight",
+        "sf:gap",
+        "sf:padStyle",
+        "sf:sway.on",
+        "sf:cutout",
+        "sf:coverage",
+        "sf:plateOnly",
+        "_status",
+        "_mat",
+        "_reach"
+      ]
+    },
+    {
+      "name": "select:_mode=remove",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "remove",
+        "walls": [],
+        "removed": [],
+        "output": "join",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "0.4",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "auto",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "none",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "auto",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "join",
+        "options": {}
+      },
+      "shown": [
+        "body",
+        "output",
+        "_mode",
+        "removed",
+        "sf:mode",
+        "sf:threshold",
+        "sf:nozzle",
+        "sf:tines",
+        "sf:tineDensity",
+        "sf:tineDir",
+        "sf:layerHeight",
+        "sf:gap",
+        "sf:padStyle",
+        "sf:sway.on",
+        "sf:cutout",
+        "sf:coverage",
+        "sf:plateOnly",
+        "_status",
+        "_mat",
+        "_reach"
+      ]
+    },
+    {
+      "name": "select:sf:mode=auto",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "rotate",
+        "walls": [],
+        "removed": [],
+        "output": "join",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "0.4",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "auto",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "none",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "auto",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "join",
+        "options": {}
+      },
+      "shown": [
+        "body",
+        "output",
+        "_mode",
+        "sf:mode",
+        "sf:threshold",
+        "sf:nozzle",
+        "sf:tines",
+        "sf:tineDensity",
+        "sf:tineDir",
+        "sf:layerHeight",
+        "sf:gap",
+        "sf:padStyle",
+        "sf:sway.on",
+        "sf:cutout",
+        "sf:coverage",
+        "sf:plateOnly",
+        "_status",
+        "_pose",
+        "_mat",
+        "_reach"
+      ]
+    },
+    {
+      "name": "select:sf:mode=full",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "rotate",
+        "walls": [],
+        "removed": [],
+        "output": "join",
+        "sf:mode": "full",
+        "sf:threshold": 45,
+        "sf:nozzle": "0.4",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "auto",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "none",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "auto",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "join",
+        "options": {
+          "mode": "full"
+        }
+      },
+      "shown": [
+        "body",
+        "output",
+        "_mode",
+        "sf:mode",
+        "sf:threshold",
+        "sf:nozzle",
+        "sf:tines",
+        "sf:tineDensity",
+        "sf:tineDir",
+        "sf:layerHeight",
+        "sf:gap",
+        "sf:padStyle",
+        "sf:sway.on",
+        "sf:cutout",
+        "sf:plateOnly",
+        "sf:separateWalls",
+        "sf:longWalls",
+        "_status",
+        "_pose",
+        "_mat",
+        "_reach"
+      ]
+    },
+    {
+      "name": "select:sf:nozzle=0.2",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "rotate",
+        "walls": [],
+        "removed": [],
+        "output": "join",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "0.2",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "auto",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "none",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "auto",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "join",
+        "options": {
+          "nozzle": "0.2"
+        }
+      },
+      "shown": [
+        "body",
+        "output",
+        "_mode",
+        "sf:mode",
+        "sf:threshold",
+        "sf:nozzle",
+        "sf:tines",
+        "sf:tineDensity",
+        "sf:tineDir",
+        "sf:layerHeight",
+        "sf:gap",
+        "sf:padStyle",
+        "sf:sway.on",
+        "sf:cutout",
+        "sf:coverage",
+        "sf:plateOnly",
+        "_status",
+        "_pose",
+        "_mat",
+        "_reach"
+      ]
+    },
+    {
+      "name": "select:sf:nozzle=0.25",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "rotate",
+        "walls": [],
+        "removed": [],
+        "output": "join",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "0.25",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "auto",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "none",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "auto",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "join",
+        "options": {
+          "nozzle": "0.25"
+        }
+      },
+      "shown": [
+        "body",
+        "output",
+        "_mode",
+        "sf:mode",
+        "sf:threshold",
+        "sf:nozzle",
+        "sf:tines",
+        "sf:tineDensity",
+        "sf:tineDir",
+        "sf:layerHeight",
+        "sf:gap",
+        "sf:padStyle",
+        "sf:sway.on",
+        "sf:cutout",
+        "sf:coverage",
+        "sf:plateOnly",
+        "_status",
+        "_pose",
+        "_mat",
+        "_reach"
+      ]
+    },
+    {
+      "name": "select:sf:nozzle=0.4",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "rotate",
+        "walls": [],
+        "removed": [],
+        "output": "join",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "0.4",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "auto",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "none",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "auto",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "join",
+        "options": {}
+      },
+      "shown": [
+        "body",
+        "output",
+        "_mode",
+        "sf:mode",
+        "sf:threshold",
+        "sf:nozzle",
+        "sf:tines",
+        "sf:tineDensity",
+        "sf:tineDir",
+        "sf:layerHeight",
+        "sf:gap",
+        "sf:padStyle",
+        "sf:sway.on",
+        "sf:cutout",
+        "sf:coverage",
+        "sf:plateOnly",
+        "_status",
+        "_pose",
+        "_mat",
+        "_reach"
+      ]
+    },
+    {
+      "name": "select:sf:nozzle=0.6",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "rotate",
+        "walls": [],
+        "removed": [],
+        "output": "join",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "0.6",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "auto",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "none",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "auto",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "join",
+        "options": {
+          "nozzle": "0.6"
+        }
+      },
+      "shown": [
+        "body",
+        "output",
+        "_mode",
+        "sf:mode",
+        "sf:threshold",
+        "sf:nozzle",
+        "sf:tines",
+        "sf:tineDensity",
+        "sf:tineDir",
+        "sf:layerHeight",
+        "sf:gap",
+        "sf:padStyle",
+        "sf:sway.on",
+        "sf:cutout",
+        "sf:coverage",
+        "sf:plateOnly",
+        "_status",
+        "_pose",
+        "_mat",
+        "_reach"
+      ]
+    },
+    {
+      "name": "select:sf:nozzle=0.8",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "rotate",
+        "walls": [],
+        "removed": [],
+        "output": "join",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "0.8",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "auto",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "none",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "auto",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "join",
+        "options": {
+          "nozzle": "0.8"
+        }
+      },
+      "shown": [
+        "body",
+        "output",
+        "_mode",
+        "sf:mode",
+        "sf:threshold",
+        "sf:nozzle",
+        "sf:tines",
+        "sf:tineDensity",
+        "sf:tineDir",
+        "sf:layerHeight",
+        "sf:gap",
+        "sf:padStyle",
+        "sf:sway.on",
+        "sf:cutout",
+        "sf:coverage",
+        "sf:plateOnly",
+        "_status",
+        "_pose",
+        "_mat",
+        "_reach"
+      ]
+    },
+    {
+      "name": "select:sf:nozzle=1.0",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "rotate",
+        "walls": [],
+        "removed": [],
+        "output": "join",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "1.0",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "auto",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "none",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "auto",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "join",
+        "options": {
+          "nozzle": "1.0"
+        }
+      },
+      "shown": [
+        "body",
+        "output",
+        "_mode",
+        "sf:mode",
+        "sf:threshold",
+        "sf:nozzle",
+        "sf:tines",
+        "sf:tineDensity",
+        "sf:tineDir",
+        "sf:layerHeight",
+        "sf:gap",
+        "sf:padStyle",
+        "sf:sway.on",
+        "sf:cutout",
+        "sf:coverage",
+        "sf:plateOnly",
+        "_status",
+        "_pose",
+        "_mat",
+        "_reach"
+      ]
+    },
+    {
+      "name": "select:sf:nozzle=1.2",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "rotate",
+        "walls": [],
+        "removed": [],
+        "output": "join",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "1.2",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "auto",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "none",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "auto",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "join",
+        "options": {
+          "nozzle": "1.2"
+        }
+      },
+      "shown": [
+        "body",
+        "output",
+        "_mode",
+        "sf:mode",
+        "sf:threshold",
+        "sf:nozzle",
+        "sf:tines",
+        "sf:tineDensity",
+        "sf:tineDir",
+        "sf:layerHeight",
+        "sf:gap",
+        "sf:padStyle",
+        "sf:sway.on",
+        "sf:cutout",
+        "sf:coverage",
+        "sf:plateOnly",
+        "_status",
+        "_pose",
+        "_mat",
+        "_reach"
+      ]
+    },
+    {
+      "name": "select:sf:nozzle=1.4",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "rotate",
+        "walls": [],
+        "removed": [],
+        "output": "join",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "1.4",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "auto",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "none",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "auto",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "join",
+        "options": {
+          "nozzle": "1.4"
+        }
+      },
+      "shown": [
+        "body",
+        "output",
+        "_mode",
+        "sf:mode",
+        "sf:threshold",
+        "sf:nozzle",
+        "sf:tines",
+        "sf:tineDensity",
+        "sf:tineDir",
+        "sf:layerHeight",
+        "sf:gap",
+        "sf:padStyle",
+        "sf:sway.on",
+        "sf:cutout",
+        "sf:coverage",
+        "sf:plateOnly",
+        "_status",
+        "_pose",
+        "_mat",
+        "_reach"
+      ]
+    },
+    {
+      "name": "select:sf:nozzle=1.6",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "rotate",
+        "walls": [],
+        "removed": [],
+        "output": "join",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "1.6",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "auto",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "none",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "auto",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "join",
+        "options": {
+          "nozzle": "1.6"
+        }
+      },
+      "shown": [
+        "body",
+        "output",
+        "_mode",
+        "sf:mode",
+        "sf:threshold",
+        "sf:nozzle",
+        "sf:tines",
+        "sf:tineDensity",
+        "sf:tineDir",
+        "sf:layerHeight",
+        "sf:gap",
+        "sf:padStyle",
+        "sf:sway.on",
+        "sf:cutout",
+        "sf:coverage",
+        "sf:plateOnly",
+        "_status",
+        "_pose",
+        "_mat",
+        "_reach"
+      ]
+    },
+    {
+      "name": "select:sf:nozzle=1.8",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "rotate",
+        "walls": [],
+        "removed": [],
+        "output": "join",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "1.8",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "auto",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "none",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "auto",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "join",
+        "options": {
+          "nozzle": "1.8"
+        }
+      },
+      "shown": [
+        "body",
+        "output",
+        "_mode",
+        "sf:mode",
+        "sf:threshold",
+        "sf:nozzle",
+        "sf:tines",
+        "sf:tineDensity",
+        "sf:tineDir",
+        "sf:layerHeight",
+        "sf:gap",
+        "sf:padStyle",
+        "sf:sway.on",
+        "sf:cutout",
+        "sf:coverage",
+        "sf:plateOnly",
+        "_status",
+        "_pose",
+        "_mat",
+        "_reach"
+      ]
+    },
+    {
+      "name": "select:sf:nozzle=2.0",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "rotate",
+        "walls": [],
+        "removed": [],
+        "output": "join",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "2.0",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "auto",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "none",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "auto",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "join",
+        "options": {
+          "nozzle": "2.0"
+        }
+      },
+      "shown": [
+        "body",
+        "output",
+        "_mode",
+        "sf:mode",
+        "sf:threshold",
+        "sf:nozzle",
+        "sf:tines",
+        "sf:tineDensity",
+        "sf:tineDir",
+        "sf:layerHeight",
+        "sf:gap",
+        "sf:padStyle",
+        "sf:sway.on",
+        "sf:cutout",
+        "sf:coverage",
+        "sf:plateOnly",
+        "_status",
+        "_pose",
+        "_mat",
+        "_reach"
+      ]
+    },
+    {
+      "name": "bool:sf:tines=true",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "rotate",
+        "walls": [],
+        "removed": [],
+        "output": "join",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "0.4",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "auto",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "none",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "auto",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "join",
+        "options": {}
+      },
+      "shown": [
+        "body",
+        "output",
+        "_mode",
+        "sf:mode",
+        "sf:threshold",
+        "sf:nozzle",
+        "sf:tines",
+        "sf:tineDensity",
+        "sf:tineDir",
+        "sf:layerHeight",
+        "sf:gap",
+        "sf:padStyle",
+        "sf:sway.on",
+        "sf:cutout",
+        "sf:coverage",
+        "sf:plateOnly",
+        "_status",
+        "_pose",
+        "_mat",
+        "_reach"
+      ]
+    },
+    {
+      "name": "bool:sf:tines=false",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "rotate",
+        "walls": [],
+        "removed": [],
+        "output": "join",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "0.4",
+        "sf:tines": false,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "auto",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "none",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "auto",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "join",
+        "options": {
+          "tines": false
+        }
+      },
+      "shown": [
+        "body",
+        "output",
+        "_mode",
+        "sf:mode",
+        "sf:threshold",
+        "sf:nozzle",
+        "sf:tines",
+        "sf:layerHeight",
+        "sf:gap",
+        "sf:padStyle",
+        "sf:sway.on",
+        "sf:cutout",
+        "sf:coverage",
+        "sf:plateOnly",
+        "_status",
+        "_pose",
+        "_mat",
+        "_reach"
+      ]
+    },
+    {
+      "name": "select:sf:tineDir=horizontal",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "rotate",
+        "walls": [],
+        "removed": [],
+        "output": "join",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "0.4",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "auto",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "none",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "auto",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "join",
+        "options": {}
+      },
+      "shown": [
+        "body",
+        "output",
+        "_mode",
+        "sf:mode",
+        "sf:threshold",
+        "sf:nozzle",
+        "sf:tines",
+        "sf:tineDensity",
+        "sf:tineDir",
+        "sf:layerHeight",
+        "sf:gap",
+        "sf:padStyle",
+        "sf:sway.on",
+        "sf:cutout",
+        "sf:coverage",
+        "sf:plateOnly",
+        "_status",
+        "_pose",
+        "_mat",
+        "_reach"
+      ]
+    },
+    {
+      "name": "select:sf:tineDir=vertical",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "rotate",
+        "walls": [],
+        "removed": [],
+        "output": "join",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "0.4",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "vertical",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "auto",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "none",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "auto",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "join",
+        "options": {
+          "tineDir": "vertical"
+        }
+      },
+      "shown": [
+        "body",
+        "output",
+        "_mode",
+        "sf:mode",
+        "sf:threshold",
+        "sf:nozzle",
+        "sf:tines",
+        "sf:tineDensity",
+        "sf:tineDir",
+        "sf:pinDepth",
+        "sf:layerHeight",
+        "sf:gap",
+        "sf:padStyle",
+        "sf:sway.on",
+        "sf:cutout",
+        "sf:coverage",
+        "sf:plateOnly",
+        "_status",
+        "_pose",
+        "_mat",
+        "_reach"
+      ]
+    },
+    {
+      "name": "select:sf:padStyle=off",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "rotate",
+        "walls": [],
+        "removed": [],
+        "output": "join",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "0.4",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "off",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "none",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "auto",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "join",
+        "options": {
+          "padStyle": "off"
+        }
+      },
+      "shown": [
+        "body",
+        "output",
+        "_mode",
+        "sf:mode",
+        "sf:threshold",
+        "sf:nozzle",
+        "sf:tines",
+        "sf:tineDensity",
+        "sf:tineDir",
+        "sf:layerHeight",
+        "sf:gap",
+        "sf:padStyle",
+        "sf:sway.on",
+        "sf:cutout",
+        "sf:coverage",
+        "sf:plateOnly",
+        "_status",
+        "_pose",
+        "_mat",
+        "_reach"
+      ]
+    },
+    {
+      "name": "select:sf:padStyle=auto",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "rotate",
+        "walls": [],
+        "removed": [],
+        "output": "join",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "0.4",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "auto",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "none",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "auto",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "join",
+        "options": {}
+      },
+      "shown": [
+        "body",
+        "output",
+        "_mode",
+        "sf:mode",
+        "sf:threshold",
+        "sf:nozzle",
+        "sf:tines",
+        "sf:tineDensity",
+        "sf:tineDir",
+        "sf:layerHeight",
+        "sf:gap",
+        "sf:padStyle",
+        "sf:sway.on",
+        "sf:cutout",
+        "sf:coverage",
+        "sf:plateOnly",
+        "_status",
+        "_pose",
+        "_mat",
+        "_reach"
+      ]
+    },
+    {
+      "name": "select:sf:padStyle=light",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "rotate",
+        "walls": [],
+        "removed": [],
+        "output": "join",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "0.4",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "light",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "none",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "auto",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "join",
+        "options": {
+          "padStyle": "light"
+        }
+      },
+      "shown": [
+        "body",
+        "output",
+        "_mode",
+        "sf:mode",
+        "sf:threshold",
+        "sf:nozzle",
+        "sf:tines",
+        "sf:tineDensity",
+        "sf:tineDir",
+        "sf:layerHeight",
+        "sf:gap",
+        "sf:padStyle",
+        "sf:sway.on",
+        "sf:cutout",
+        "sf:coverage",
+        "sf:plateOnly",
+        "_status",
+        "_pose",
+        "_mat",
+        "_reach"
+      ]
+    },
+    {
+      "name": "select:sf:padStyle=sure",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "rotate",
+        "walls": [],
+        "removed": [],
+        "output": "join",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "0.4",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "sure",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "none",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "auto",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "join",
+        "options": {
+          "padStyle": "sure"
+        }
+      },
+      "shown": [
+        "body",
+        "output",
+        "_mode",
+        "sf:mode",
+        "sf:threshold",
+        "sf:nozzle",
+        "sf:tines",
+        "sf:tineDensity",
+        "sf:tineDir",
+        "sf:layerHeight",
+        "sf:gap",
+        "sf:padStyle",
+        "sf:sway.on",
+        "sf:cutout",
+        "sf:coverage",
+        "sf:plateOnly",
+        "_status",
+        "_pose",
+        "_mat",
+        "_reach"
+      ]
+    },
+    {
+      "name": "bool:sf:sway.on=true",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "rotate",
+        "walls": [],
+        "removed": [],
+        "output": "join",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "0.4",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "auto",
+        "sf:sway.on": true,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "none",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "auto",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "join",
+        "options": {
+          "sway.on": true
+        }
+      },
+      "shown": [
+        "body",
+        "output",
+        "_mode",
+        "sf:mode",
+        "sf:threshold",
+        "sf:nozzle",
+        "sf:tines",
+        "sf:tineDensity",
+        "sf:tineDir",
+        "sf:layerHeight",
+        "sf:gap",
+        "sf:padStyle",
+        "sf:sway.on",
+        "sf:sway.gripFrom",
+        "sf:sway.tineSpacing",
+        "sf:sway.reach",
+        "sf:cutout",
+        "sf:coverage",
+        "sf:plateOnly",
+        "_status",
+        "_pose",
+        "_mat",
+        "_reach"
+      ]
+    },
+    {
+      "name": "bool:sf:sway.on=false",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "rotate",
+        "walls": [],
+        "removed": [],
+        "output": "join",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "0.4",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "auto",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "none",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "auto",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "join",
+        "options": {}
+      },
+      "shown": [
+        "body",
+        "output",
+        "_mode",
+        "sf:mode",
+        "sf:threshold",
+        "sf:nozzle",
+        "sf:tines",
+        "sf:tineDensity",
+        "sf:tineDir",
+        "sf:layerHeight",
+        "sf:gap",
+        "sf:padStyle",
+        "sf:sway.on",
+        "sf:cutout",
+        "sf:coverage",
+        "sf:plateOnly",
+        "_status",
+        "_pose",
+        "_mat",
+        "_reach"
+      ]
+    },
+    {
+      "name": "select:sf:cutout=none",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "rotate",
+        "walls": [],
+        "removed": [],
+        "output": "join",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "0.4",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "auto",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "none",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "auto",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "join",
+        "options": {}
+      },
+      "shown": [
+        "body",
+        "output",
+        "_mode",
+        "sf:mode",
+        "sf:threshold",
+        "sf:nozzle",
+        "sf:tines",
+        "sf:tineDensity",
+        "sf:tineDir",
+        "sf:layerHeight",
+        "sf:gap",
+        "sf:padStyle",
+        "sf:sway.on",
+        "sf:cutout",
+        "sf:coverage",
+        "sf:plateOnly",
+        "_status",
+        "_pose",
+        "_mat",
+        "_reach"
+      ]
+    },
+    {
+      "name": "select:sf:cutout=diamond",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "rotate",
+        "walls": [],
+        "removed": [],
+        "output": "join",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "0.4",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "auto",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "diamond",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "auto",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "join",
+        "options": {
+          "cutout": "diamond"
+        }
+      },
+      "shown": [
+        "body",
+        "output",
+        "_mode",
+        "sf:mode",
+        "sf:threshold",
+        "sf:nozzle",
+        "sf:tines",
+        "sf:tineDensity",
+        "sf:tineDir",
+        "sf:layerHeight",
+        "sf:gap",
+        "sf:padStyle",
+        "sf:sway.on",
+        "sf:cutout",
+        "sf:coverage",
+        "sf:plateOnly",
+        "_status",
+        "_pose",
+        "_mat",
+        "_reach"
+      ]
+    },
+    {
+      "name": "select:sf:cutout=triangle",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "rotate",
+        "walls": [],
+        "removed": [],
+        "output": "join",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "0.4",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "auto",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "triangle",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "auto",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "join",
+        "options": {
+          "cutout": "triangle"
+        }
+      },
+      "shown": [
+        "body",
+        "output",
+        "_mode",
+        "sf:mode",
+        "sf:threshold",
+        "sf:nozzle",
+        "sf:tines",
+        "sf:tineDensity",
+        "sf:tineDir",
+        "sf:layerHeight",
+        "sf:gap",
+        "sf:padStyle",
+        "sf:sway.on",
+        "sf:cutout",
+        "sf:coverage",
+        "sf:plateOnly",
+        "_status",
+        "_pose",
+        "_mat",
+        "_reach"
+      ]
+    },
+    {
+      "name": "select:sf:cutout=arch",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "rotate",
+        "walls": [],
+        "removed": [],
+        "output": "join",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "0.4",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "auto",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "arch",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "auto",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "join",
+        "options": {
+          "cutout": "arch"
+        }
+      },
+      "shown": [
+        "body",
+        "output",
+        "_mode",
+        "sf:mode",
+        "sf:threshold",
+        "sf:nozzle",
+        "sf:tines",
+        "sf:tineDensity",
+        "sf:tineDir",
+        "sf:layerHeight",
+        "sf:gap",
+        "sf:padStyle",
+        "sf:sway.on",
+        "sf:cutout",
+        "sf:coverage",
+        "sf:plateOnly",
+        "_status",
+        "_pose",
+        "_mat",
+        "_reach"
+      ]
+    },
+    {
+      "name": "select:sf:cutout=lattice",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "rotate",
+        "walls": [],
+        "removed": [],
+        "output": "join",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "0.4",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "auto",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "lattice",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "auto",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "join",
+        "options": {
+          "cutout": "lattice"
+        }
+      },
+      "shown": [
+        "body",
+        "output",
+        "_mode",
+        "sf:mode",
+        "sf:threshold",
+        "sf:nozzle",
+        "sf:tines",
+        "sf:tineDensity",
+        "sf:tineDir",
+        "sf:layerHeight",
+        "sf:gap",
+        "sf:padStyle",
+        "sf:sway.on",
+        "sf:cutout",
+        "sf:coverage",
+        "sf:plateOnly",
+        "_status",
+        "_pose",
+        "_mat",
+        "_reach"
+      ]
+    },
+    {
+      "name": "select:sf:cutout=honeycomb",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "rotate",
+        "walls": [],
+        "removed": [],
+        "output": "join",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "0.4",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "auto",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "honeycomb",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "auto",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "join",
+        "options": {
+          "cutout": "honeycomb"
+        }
+      },
+      "shown": [
+        "body",
+        "output",
+        "_mode",
+        "sf:mode",
+        "sf:threshold",
+        "sf:nozzle",
+        "sf:tines",
+        "sf:tineDensity",
+        "sf:tineDir",
+        "sf:layerHeight",
+        "sf:gap",
+        "sf:padStyle",
+        "sf:sway.on",
+        "sf:cutout",
+        "sf:coverage",
+        "sf:plateOnly",
+        "_status",
+        "_pose",
+        "_mat",
+        "_reach"
+      ]
+    },
+    {
+      "name": "bool:sf:plateOnly=true",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "rotate",
+        "walls": [],
+        "removed": [],
+        "output": "join",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "0.4",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "auto",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "none",
+        "sf:coverage": 50,
+        "sf:plateOnly": true,
+        "sf:separateWalls": "auto",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "join",
+        "options": {
+          "plateOnly": true
+        }
+      },
+      "shown": [
+        "body",
+        "output",
+        "_mode",
+        "sf:mode",
+        "sf:threshold",
+        "sf:nozzle",
+        "sf:tines",
+        "sf:tineDensity",
+        "sf:tineDir",
+        "sf:layerHeight",
+        "sf:gap",
+        "sf:padStyle",
+        "sf:sway.on",
+        "sf:cutout",
+        "sf:coverage",
+        "sf:plateOnly",
+        "_status",
+        "_pose",
+        "_mat",
+        "_reach"
+      ]
+    },
+    {
+      "name": "bool:sf:plateOnly=false",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "rotate",
+        "walls": [],
+        "removed": [],
+        "output": "join",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "0.4",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "auto",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "none",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "auto",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "join",
+        "options": {}
+      },
+      "shown": [
+        "body",
+        "output",
+        "_mode",
+        "sf:mode",
+        "sf:threshold",
+        "sf:nozzle",
+        "sf:tines",
+        "sf:tineDensity",
+        "sf:tineDir",
+        "sf:layerHeight",
+        "sf:gap",
+        "sf:padStyle",
+        "sf:sway.on",
+        "sf:cutout",
+        "sf:coverage",
+        "sf:plateOnly",
+        "_status",
+        "_pose",
+        "_mat",
+        "_reach"
+      ]
+    },
+    {
+      "name": "select:sf:separateWalls=auto",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "rotate",
+        "walls": [],
+        "removed": [],
+        "output": "join",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "0.4",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "auto",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "none",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "auto",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "join",
+        "options": {}
+      },
+      "shown": [
+        "body",
+        "output",
+        "_mode",
+        "sf:mode",
+        "sf:threshold",
+        "sf:nozzle",
+        "sf:tines",
+        "sf:tineDensity",
+        "sf:tineDir",
+        "sf:layerHeight",
+        "sf:gap",
+        "sf:padStyle",
+        "sf:sway.on",
+        "sf:cutout",
+        "sf:coverage",
+        "sf:plateOnly",
+        "_status",
+        "_pose",
+        "_mat",
+        "_reach"
+      ]
+    },
+    {
+      "name": "select:sf:separateWalls=on",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "rotate",
+        "walls": [],
+        "removed": [],
+        "output": "join",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "0.4",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "auto",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "none",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "on",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "join",
+        "options": {
+          "separateWalls": "on"
+        }
+      },
+      "shown": [
+        "body",
+        "output",
+        "_mode",
+        "sf:mode",
+        "sf:threshold",
+        "sf:nozzle",
+        "sf:tines",
+        "sf:tineDensity",
+        "sf:tineDir",
+        "sf:layerHeight",
+        "sf:gap",
+        "sf:padStyle",
+        "sf:sway.on",
+        "sf:cutout",
+        "sf:coverage",
+        "sf:plateOnly",
+        "_status",
+        "_pose",
+        "_mat",
+        "_reach"
+      ]
+    },
+    {
+      "name": "select:sf:separateWalls=off",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "rotate",
+        "walls": [],
+        "removed": [],
+        "output": "join",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "0.4",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "auto",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "none",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "off",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "join",
+        "options": {
+          "separateWalls": "off"
+        }
+      },
+      "shown": [
+        "body",
+        "output",
+        "_mode",
+        "sf:mode",
+        "sf:threshold",
+        "sf:nozzle",
+        "sf:tines",
+        "sf:tineDensity",
+        "sf:tineDir",
+        "sf:layerHeight",
+        "sf:gap",
+        "sf:padStyle",
+        "sf:sway.on",
+        "sf:cutout",
+        "sf:coverage",
+        "sf:plateOnly",
+        "_status",
+        "_pose",
+        "_mat",
+        "_reach"
+      ]
+    },
+    {
+      "name": "bool:sf:longWalls=true",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "rotate",
+        "walls": [],
+        "removed": [],
+        "output": "join",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "0.4",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "auto",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "none",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "auto",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "join",
+        "options": {}
+      },
+      "shown": [
+        "body",
+        "output",
+        "_mode",
+        "sf:mode",
+        "sf:threshold",
+        "sf:nozzle",
+        "sf:tines",
+        "sf:tineDensity",
+        "sf:tineDir",
+        "sf:layerHeight",
+        "sf:gap",
+        "sf:padStyle",
+        "sf:sway.on",
+        "sf:cutout",
+        "sf:coverage",
+        "sf:plateOnly",
+        "_status",
+        "_pose",
+        "_mat",
+        "_reach"
+      ]
+    },
+    {
+      "name": "bool:sf:longWalls=false",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "rotate",
+        "walls": [],
+        "removed": [],
+        "output": "join",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "0.4",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "auto",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "none",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "auto",
+        "sf:longWalls": false
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "join",
+        "options": {
+          "longWalls": false
+        }
+      },
+      "shown": [
+        "body",
+        "output",
+        "_mode",
+        "sf:mode",
+        "sf:threshold",
+        "sf:nozzle",
+        "sf:tines",
+        "sf:tineDensity",
+        "sf:tineDir",
+        "sf:layerHeight",
+        "sf:gap",
+        "sf:padStyle",
+        "sf:sway.on",
+        "sf:cutout",
+        "sf:coverage",
+        "sf:plateOnly",
+        "_status",
+        "_pose",
+        "_mat",
+        "_reach"
+      ]
+    }
+  ],
+  "onChange": [],
+  "roundTrips": [
+    {
+      "name": "defaults",
+      "params": {
+        "body": "body_a",
+        "output": "join",
+        "options": {}
+      },
+      "fromParams": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "rotate",
+        "walls": [],
+        "removed": [],
+        "output": "join",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "0.4",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "auto",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "none",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "auto",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "join",
+        "options": {}
+      }
+    },
+    {
+      "name": "select:output=separate",
+      "params": {
+        "body": "body_a",
+        "output": "separate",
+        "options": {}
+      },
+      "fromParams": {
+        "body": [
+          "body_a"
+        ],
+        "_mode": "rotate",
+        "walls": [],
+        "removed": [],
+        "output": "separate",
+        "sf:mode": "auto",
+        "sf:threshold": 45,
+        "sf:nozzle": "0.4",
+        "sf:tines": true,
+        "sf:tineDensity": 0,
+        "sf:tineDir": "horizontal",
+        "sf:pinDepth": 0.1,
+        "sf:layerHeight": 0.2,
+        "sf:gap": 0.2,
+        "sf:padStyle": "auto",
+        "sf:sway.on": false,
+        "sf:sway.gripFrom": 0,
+        "sf:sway.tineSpacing": 6,
+        "sf:sway.reach": 15,
+        "sf:cutout": "none",
+        "sf:coverage": 50,
+        "sf:plateOnly": false,
+        "sf:separateWalls": "auto",
+        "sf:longWalls": true
+      },
+      "toParams": {
+        "body": "body_a",
+        "output": "separate",
+        "options": {}
+      }
+    }
+  ]
+}

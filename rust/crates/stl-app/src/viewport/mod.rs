@@ -11,6 +11,8 @@
 //! revision (without a GPU, a prepared revision counts as shown at once).
 
 pub mod camera;
+pub mod gizmo_draw;
+pub mod overhang;
 pub mod overlays;
 pub mod pick;
 pub mod renderer;
@@ -19,6 +21,7 @@ pub mod section;
 pub mod viewcube;
 
 use std::collections::{HashMap, HashSet};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, OnceLock};
 
 use egui::{Color32, Pos2, Rect};
@@ -29,6 +32,8 @@ use crate::engine_link::{BodyView, PlaneView, SketchView};
 use camera::{Camera, DragAction, V3};
 use overlays::{Depth, OverlayItem, SketchOutline, Stroke};
 use renderer::{BodyDraw, BodyUniform, FlatBatch, FrameData, Globals, GpuState, Stats};
+pub use gizmo_draw::{GizmoMode, GizmoShape, Handle};
+pub use overhang::{overhang_faces, OVERHANG_RED, SMALL_AMBER};
 use scene::{FlatVertex, Frame, PreparedMesh};
 
 /// Which mouse buttons do what.
@@ -87,13 +92,26 @@ pub struct PreviewPack {
 struct PreviewEntry {
     id: String,
     mesh: Arc<MeshArrays>,
-    prepared: Arc<PreparedMesh>,
-    /// Built with the preview (on the UI thread, like its display mesh).
-    bvh: Arc<Bvh>,
+    /// The display mesh: built on a worker thread (native; inline on wasm), so `None` for a
+    /// frame or two on a big mesh. Nothing is drawn or boxed until it is there.
+    prepared: Option<Arc<PreparedMesh>>,
+    rx: Option<std::sync::mpsc::Receiver<PreparedMesh>>,
+    /// The picking tree: filled by the same worker right after `prepared`; picks test every
+    /// triangle until then.
+    bvh: Arc<OnceLock<Bvh>>,
     revision: u64,
     color: [f32; 3],
     emissive: f32,
     ghost: bool,
+}
+
+/// A preview whose meshes are still being prepared. It is swapped in, and the bodies it
+/// replaces hidden, in one step when every mesh is ready; until then it is neither drawn nor
+/// picked, and the preview on screen (if any) stays up. `cancel` stops its worker early.
+struct StagedPreview {
+    entries: Vec<PreviewEntry>,
+    hide: HashSet<String>,
+    cancel: Arc<AtomicBool>,
 }
 
 /// One revision of a body's mesh, prepared off the UI thread.
@@ -163,6 +181,10 @@ pub struct FrameTrace {
     /// being built, off the UI thread.
     pub prep_jobs: u32,
     pub trees_building: u32,
+    /// Times the overlays' vertex list was rebuilt (a gizmo drag must not cause any).
+    pub flat_rebuilds: u32,
+    /// Times the gizmo's own vertex list was rebuilt.
+    pub gizmo_rebuilds: u32,
 }
 
 #[derive(Default)]
@@ -269,8 +291,16 @@ pub struct Viewport {
     overlays: Vec<OverlayItem>,
     band: Vec<OverlayItem>,
     brush: Option<OverlayItem>,
+    brush_at: Option<([f64; 3], [f64; 3], f64)>,
     preview: Vec<PreviewEntry>,
     preview_hidden: HashSet<String>,
+    /// The cancel flag of the worker that built `preview` (set when it is replaced or cleared).
+    preview_cancel: Arc<AtomicBool>,
+    preview_staged: Option<StagedPreview>,
+    /// One preview build at a time: a build that waited and was replaced meanwhile never starts.
+    preview_gate: Arc<std::sync::Mutex<()>>,
+    /// How many preview display meshes were started (tests).
+    preview_builds: Arc<AtomicUsize>,
     preview_hover: Option<String>,
     preview_counter: u64,
     section_plane: Option<[f64; 4]>,
@@ -289,6 +319,18 @@ pub struct Viewport {
     /// egui's target format, once [`Viewport::init_gpu`] ran.
     gpu_format: Option<wgpu::TextureFormat>,
     ctx: Option<egui::Context>,
+    /// Per-body on-screen transforms (a gizmo drag): column-major, millimetres.
+    body_transforms: HashMap<String, camera::M4>,
+    /// The transform handles, and their geometry for the camera they were built for.
+    gizmo: Option<GizmoShape>,
+    gizmo_key: Option<(GizmoShape, V3, V3, V3, [u32; 2])>,
+    gizmo_version: u64,
+    gizmo_flat: Arc<Vec<FlatVertex>>,
+    gizmo_batches: Vec<FlatBatch>,
+    /// A handle drag holds the camera still (1.x: `controls.enabled = !dragging`).
+    camera_locked: bool,
+    overhang_cache: Option<overhang::OverhangCache>,
+    overhang_job: Option<overhang::OverhangJob>,
 }
 
 impl Default for Viewport {
@@ -319,8 +361,13 @@ impl Default for Viewport {
             overlays: Vec::new(),
             band: Vec::new(),
             brush: None,
+            brush_at: None,
             preview: Vec::new(),
             preview_hidden: HashSet::new(),
+            preview_cancel: Arc::new(AtomicBool::new(false)),
+            preview_staged: None,
+            preview_gate: Arc::new(std::sync::Mutex::new(())),
+            preview_builds: Arc::new(AtomicUsize::new(0)),
             preview_hover: None,
             preview_counter: 0,
             section_plane: None,
@@ -338,6 +385,15 @@ impl Default for Viewport {
             trace: Arc::default(),
             gpu_format: None,
             ctx: None,
+            body_transforms: HashMap::new(),
+            gizmo: None,
+            gizmo_key: None,
+            gizmo_version: 0,
+            gizmo_flat: Arc::new(Vec::new()),
+            gizmo_batches: Vec::new(),
+            camera_locked: false,
+            overhang_cache: None,
+            overhang_job: None,
         }
     }
 }
@@ -529,6 +585,7 @@ impl Viewport {
         }
         #[cfg(target_arch = "wasm32")]
         let _ = wait;
+        changed |= self.collect_preview(wait);
         self.trace.add(|tr| tr.collect_ms += ms_since(t));
         changed |= self.promote();
         if changed {
@@ -808,8 +865,8 @@ impl Viewport {
         for r in self.bodies.iter().filter(|e| !e.view.hidden).filter_map(|e| e.current()) {
             b = camera::box_union(&b, &r.prepared.bbox);
         }
-        for p in &self.preview {
-            b = camera::box_union(&b, &p.prepared.bbox);
+        for p in self.preview.iter().filter_map(|p| p.prepared.as_ref()) {
+            b = camera::box_union(&b, &p.bbox);
         }
         (!camera::box_is_empty(&b)).then_some(b)
     }
@@ -925,8 +982,22 @@ impl Viewport {
 
     /// `setBrush(b)`: the sculpt brush ring, or `None` to hide it.
     pub fn set_brush(&mut self, brush: Option<([f64; 3], [f64; 3], f64)>) {
+        if self.brush_at == brush {
+            return;
+        }
+        self.brush_at = brush;
         self.brush = brush.map(|(p, n, r)| overlays::brush(p, n, r));
         self.overlays_changed();
+    }
+
+    /// The brush ring shown: (point, normal, radius).
+    pub fn brush(&self) -> Option<([f64; 3], [f64; 3], f64)> {
+        self.brush_at
+    }
+
+    /// The tagged overlays, in the order they were added.
+    pub fn overlay_items(&self) -> &[OverlayItem] {
+        &self.overlays
     }
 
     /// `drawStrokes(strokes)`: replaces the `"strokes"` overlay.
@@ -947,22 +1018,25 @@ impl Viewport {
         self.push(overlays::sketch_lines(&frame.as_frame(), entities, hex(color), opacity, construction, tag));
     }
 
-    /// `overhangFaces(bodyId, thresholdDeg)`: faces pointing down more steeply than the
-    /// threshold, off the bed, in regions of 12 mm² or more.
-    pub fn overhang_faces(&self, body: &str, threshold_deg: f64) -> Vec<u32> {
-        self.body_mesh(body).map(|m| overhang_faces(m, threshold_deg)).unwrap_or_default()
-    }
-
     // ------------------------------------------------------------------ preview
 
     /// `showPreview(pack, { hide })`: the meshes of a tool's result, replacing the bodies they
-    /// stand for.
+    /// stand for. Their display meshes and picking trees are built off the UI thread (native),
+    /// by one worker per preview; the preview appears, and the bodies it replaces go, in one
+    /// step when all its meshes are ready. The preview already on screen stays up meanwhile, and
+    /// a preview replaced before it is ready stops its worker.
     pub fn show_preview(&mut self, pack: &PreviewPack) {
-        self.clear_preview();
-        let mut pi: i64 = -1;
-        self.preview_hidden = pack.meshes.iter().map(|m| m.id.clone()).chain(pack.removed.iter().cloned()).chain(pack.hide.iter().cloned()).collect();
+        let hide: HashSet<String> = pack.meshes.iter().map(|m| m.id.clone()).chain(pack.removed.iter().cloned()).chain(pack.hide.iter().cloned()).collect();
         const PAL: [u32; 8] = [0x7fb0e8, 0xe8a87f, 0x8fd18a, 0xd88fd1, 0xe8d27f, 0x7fe0d6, 0xb39ae8, 0xe87f8f];
-        for m in &pack.meshes {
+        if let Some(old) = self.preview_staged.take() {
+            old.cancel.store(true, Ordering::Relaxed);
+        }
+        let cancel = Arc::new(AtomicBool::new(false));
+        let meshes: Vec<Arc<MeshArrays>> = pack.meshes.iter().map(|m| m.mesh.clone()).collect();
+        let prep = self.prepare_previews(&meshes, &cancel);
+        let mut pi: i64 = -1;
+        let mut entries = Vec::with_capacity(pack.meshes.len());
+        for (m, (prepared, rx, bvh)) in pack.meshes.iter().zip(prep) {
             let tint = pack.colors.get(&m.id).and_then(|c| scene::parse_css_hex(c));
             let existing = self.bodies.iter().position(|b| b.view.id == m.id);
             let color = if let Some(t) = tint {
@@ -975,29 +1049,137 @@ impl Viewport {
             };
             let ghost = pack.ghosts.contains(&m.id);
             self.preview_counter += 1;
-            self.preview.push(PreviewEntry {
+            entries.push(PreviewEntry {
                 id: m.id.clone(),
                 mesh: m.mesh.clone(),
-                prepared: Arc::new(scene::prepare_mesh(&m.mesh)),
-                bvh: Arc::new(Bvh::build(&m.mesh)),
+                prepared,
+                rx,
+                bvh,
                 revision: self.preview_counter,
                 color: scene::linear(color),
                 emissive: if existing.is_some() || tint.is_some() { 0.08 } else { 0.2 },
                 ghost,
             });
         }
+        let staged = StagedPreview { entries, hide, cancel };
+        if staged.entries.iter().all(|e| e.prepared.is_some()) {
+            self.install_preview(staged);
+        } else {
+            self.preview_staged = Some(staged);
+        }
         self.changed();
+    }
+
+    /// Swap a prepared preview in (and the one it replaces out, stopping that one's worker).
+    fn install_preview(&mut self, st: StagedPreview) {
+        self.preview_cancel.store(true, Ordering::Relaxed);
+        self.preview_cancel = st.cancel;
+        self.preview = st.entries;
+        self.preview_hidden = st.hide;
+        self.preview_hover = None;
+        self.changed();
+    }
+
+    /// Display meshes and picking trees for a preview's meshes: on one worker thread, in order
+    /// (native; the display meshes first, then the trees), or inline (wasm has no threads). The
+    /// worker checks `cancel` between stages and asks for a repaint only while it is wanted.
+    #[allow(clippy::type_complexity)]
+    fn prepare_previews(&mut self, meshes: &[Arc<MeshArrays>], cancel: &Arc<AtomicBool>) -> Vec<(Option<Arc<PreparedMesh>>, Option<std::sync::mpsc::Receiver<PreparedMesh>>, Arc<OnceLock<Bvh>>)> {
+        let trees: Vec<Arc<OnceLock<Bvh>>> = meshes.iter().map(|_| Arc::new(OnceLock::new())).collect();
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let (txs, rxs): (Vec<_>, Vec<_>) = meshes.iter().map(|_| std::sync::mpsc::channel::<PreparedMesh>()).unzip();
+            let (meshes_w, ctx, trees_w, cancel_w) = (meshes.to_vec(), self.ctx.clone(), trees.clone(), cancel.clone());
+            let (gate, builds) = (self.preview_gate.clone(), self.preview_builds.clone());
+            let thread = std::thread::spawn(move || {
+                let guard = gate.lock().unwrap_or_else(|e| e.into_inner());
+                for (mesh, tx) in meshes_w.iter().zip(txs) {
+                    if cancel_w.load(Ordering::Relaxed) {
+                        return;
+                    }
+                    builds.fetch_add(1, Ordering::Relaxed);
+                    let sent = tx.send(scene::prepare_mesh(mesh)).is_ok();
+                    drop(tx);
+                    if sent && !cancel_w.load(Ordering::Relaxed) {
+                        if let Some(ctx) = &ctx {
+                            ctx.request_repaint();
+                        }
+                    }
+                }
+                drop(guard);
+                for (mesh, tree) in meshes_w.iter().zip(&trees_w) {
+                    if cancel_w.load(Ordering::Relaxed) {
+                        return;
+                    }
+                    let _ = tree.set(Bvh::build(mesh));
+                }
+            });
+            self.builders.push(thread);
+            rxs.into_iter().zip(trees).map(|(rx, t)| (None, Some(rx), t)).collect()
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            let _ = cancel;
+            meshes
+                .iter()
+                .zip(trees)
+                .map(|(m, t)| {
+                    let _ = t.set(Bvh::build(m));
+                    (Some(Arc::new(scene::prepare_mesh(m))), None, t)
+                })
+                .collect()
+        }
+    }
+
+    /// Pick up the staged preview's meshes prepared in the background (with `wait`, block until
+    /// they are all), and swap it in when it is complete. True when it was swapped in.
+    fn collect_preview(&mut self, wait: bool) -> bool {
+        use std::sync::mpsc::TryRecvError;
+        let Some(st) = self.preview_staged.as_mut() else { return false };
+        for e in st.entries.iter_mut().filter(|e| e.prepared.is_none()) {
+            let Some(rx) = &e.rx else { continue };
+            let got = if wait { rx.recv().map_err(|_| TryRecvError::Disconnected) } else { rx.try_recv() };
+            match got {
+                Ok(p) => {
+                    e.prepared = Some(Arc::new(p));
+                    e.rx = None;
+                }
+                Err(TryRecvError::Disconnected) => e.rx = None,
+                Err(TryRecvError::Empty) => {}
+            }
+        }
+        // a mesh whose worker is gone never arrives; the rest is shown without it
+        if !st.entries.iter().all(|e| e.prepared.is_some() || e.rx.is_none()) {
+            return false;
+        }
+        match self.preview_staged.take() {
+            Some(st) => {
+                self.install_preview(st);
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// How many preview display meshes were started so far (tests: a replaced preview's stops early).
+    #[doc(hidden)]
+    pub fn preview_builds(&self) -> usize {
+        self.preview_builds.load(Ordering::Relaxed)
     }
 
     /// `clearPreview`.
     pub fn clear_preview(&mut self) {
+        self.preview_cancel.store(true, Ordering::Relaxed);
+        if let Some(st) = self.preview_staged.take() {
+            st.cancel.store(true, Ordering::Relaxed);
+        }
         self.preview.clear();
         self.preview_hidden.clear();
         self.preview_hover = None;
         self.changed();
     }
 
-    /// The preview meshes (for `pickPreview`).
+    /// The preview meshes on screen (for `pickPreview`); one still being prepared is not there yet.
     pub fn preview_meshes(&self) -> impl Iterator<Item = (&str, &Arc<MeshArrays>)> {
         self.preview.iter().map(|p| (p.id.as_str(), &p.mesh))
     }
@@ -1078,6 +1260,7 @@ impl Viewport {
         self.batches = batches;
         self.flat_version += 1;
         self.flat_dirty = false;
+        self.trace.add(|tr| tr.flat_rebuilds += 1);
     }
 
     fn globals(&self) -> Globals {
@@ -1134,6 +1317,10 @@ impl Viewport {
                 [0.0; 3]
             };
             let c = scene::linear(body_color(&e.view, i));
+            let (model, normal) = match self.body_transforms.get(id) {
+                Some(m) => (camera::to_f32(m), camera::to_f32(&normal_matrix(m))),
+                None => (renderer::IDENTITY, renderer::IDENTITY),
+            };
             out.push(BodyDraw {
                 key: id.clone(),
                 revision: *rev,
@@ -1143,6 +1330,8 @@ impl Viewport {
                     emissive: [emissive[0], emissive[1], emissive[2], scene::ROUGHNESS],
                     edge: edge(if dim { scene::EDGE_OPACITY_DIM } else { scene::EDGE_OPACITY }),
                     params: [scene::METALNESS, if mesh.flat { 1.0 } else { 0.0 }, 0.0, 0.0],
+                    model,
+                    normal,
                 },
                 visible: !e.view.hidden && !self.preview_hidden.contains(id),
                 transparent: dim,
@@ -1152,24 +1341,27 @@ impl Viewport {
             });
         }
         for p in &self.preview {
+            let Some(prepared) = &p.prepared else { continue };
             let hovered = self.preview_hover.as_ref() == Some(&p.id);
             let em = if hovered { lin_scaled(0xd64545, 0.6) } else { lin_scaled(0x2f6fd1, p.emissive) };
             let e = scene::rgb(0x1f4f8f);
             out.push(BodyDraw {
                 key: format!("\u{0}preview:{}", p.id),
                 revision: p.revision,
-                mesh: p.prepared.clone(),
+                mesh: prepared.clone(),
                 uniform: BodyUniform {
                     color: [p.color[0], p.color[1], p.color[2], if p.ghost { 0.28 } else { 1.0 }],
                     emissive: [em[0], em[1], em[2], 0.6],
                     edge: [e[0] as f32 / 255.0, e[1] as f32 / 255.0, e[2] as f32 / 255.0, 0.6],
-                    params: [scene::METALNESS, if p.prepared.flat { 1.0 } else { 0.0 }, 0.0, 0.0],
+                    params: [scene::METALNESS, if prepared.flat { 1.0 } else { 0.0 }, 0.0, 0.0],
+                    model: renderer::IDENTITY,
+                    normal: renderer::IDENTITY,
                 },
                 visible: true,
                 transparent: p.ghost,
                 edges: !p.ghost,
                 cap: false,
-                depth: dist(&p.prepared.bbox),
+                depth: dist(&prepared.bbox),
             });
         }
         out
@@ -1194,6 +1386,7 @@ impl Viewport {
         }
         self.camera.set_size(w as f64, h as f64);
         let s = ppp.min(2.0);
+        self.rebuild_gizmo([(w * s).round().max(0.0) as u32, (h * s).round().max(0.0) as u32]);
         let size = [(w * s).round().max(0.0) as u32, (h * s).round().max(0.0) as u32];
         if size != self.last_size {
             self.last_size = size;
@@ -1213,6 +1406,9 @@ impl Viewport {
             flat_version: self.flat_version,
             flat: self.flat.clone(),
             batches: self.batches.clone(),
+            gizmo_version: self.gizmo_version,
+            gizmo: self.gizmo_flat.clone(),
+            gizmo_batches: self.gizmo_batches.clone(),
         });
         self.trace.add(|tr| tr.frame_ms += ms_since(t));
         frame
@@ -1259,6 +1455,9 @@ impl Viewport {
     }
 
     fn handle_input(&mut self, ui: &egui::Ui, response: &egui::Response) {
+        if self.camera_locked {
+            return;
+        }
         let delta = response.drag_delta();
         if delta != egui::Vec2::ZERO {
             for b in [egui::PointerButton::Primary, egui::PointerButton::Middle, egui::PointerButton::Secondary] {
@@ -1318,72 +1517,114 @@ fn hex(c: Color32) -> u32 {
     ((c.r() as u32) << 16) | ((c.g() as u32) << 8) | c.b() as u32
 }
 
-/// 1.x `overhangFaces` (Support Fins' overhang rule), on a body's mesh.
-pub fn overhang_faces(m: &MeshArrays, threshold_deg: f64) -> Vec<u32> {
-    let pos = &m.positions;
-    let idx = &m.triangles;
-    let nf = idx.len() / 3;
-    let cut = -((threshold_deg.to_radians()).cos() + 1e-4);
-    let min_z = pos.iter().skip(2).step_by(3).fold(f64::INFINITY, |a, &z| a.min(z as f64));
-    let mut over = vec![false; nf];
-    let mut area = vec![0.0f64; nf];
-    let p = |v: u32, k: usize| pos[v as usize * 3 + k] as f64;
-    for f in 0..nf {
-        let (a, b, c) = (idx[f * 3], idx[f * 3 + 1], idx[f * 3 + 2]);
-        let top = p(a, 2).max(p(b, 2)).max(p(c, 2)) - min_z;
-        if top < 0.35 {
-            continue;
-        }
-        let u = [p(b, 0) - p(a, 0), p(b, 1) - p(a, 1), p(b, 2) - p(a, 2)];
-        let v = [p(c, 0) - p(a, 0), p(c, 1) - p(a, 1), p(c, 2) - p(a, 2)];
-        let n = camera::cross(u, v);
-        let len = camera::length(n);
-        if !(len > 0.0) {
-            continue;
-        }
-        if n[2] / len < cut {
-            over[f] = true;
-            area[f] = len / 2.0;
+/// The normal matrix of a transform: the inverse transpose of its 3x3 part (column-major).
+pub fn normal_matrix(m: &camera::M4) -> camera::M4 {
+    let a = |r: usize, c: usize| m[c][r];
+    let cof = |r: usize, c: usize| {
+        let (r0, r1) = ((r + 1) % 3, (r + 2) % 3);
+        let (c0, c1) = ((c + 1) % 3, (c + 2) % 3);
+        a(r0, c0) * a(r1, c1) - a(r0, c1) * a(r1, c0)
+    };
+    let det = a(0, 0) * cof(0, 0) + a(0, 1) * cof(0, 1) + a(0, 2) * cof(0, 2);
+    let k = if det.abs() > 1e-300 { 1.0 / det } else { 0.0 };
+    let mut n = [[0.0; 4]; 4];
+    for r in 0..3 {
+        for c in 0..3 {
+            // (A^-1)^T = cofactor / det
+            n[c][r] = cof(r, c) * k;
         }
     }
-    let mut parent: Vec<usize> = (0..nf).collect();
-    fn find(parent: &mut [usize], mut x: usize) -> usize {
-        while parent[x] != x {
-            parent[x] = parent[parent[x]];
-            x = parent[x];
-        }
-        x
-    }
-    let mut first_at = vec![usize::MAX; pos.len() / 3];
-    for f in 0..nf {
-        if !over[f] {
-            continue;
-        }
-        for j in 0..3 {
-            let vi = idx[f * 3 + j] as usize;
-            let g = first_at[vi];
-            if g == usize::MAX {
-                first_at[vi] = f;
-            } else {
-                let (ra, rb) = (find(&mut parent, f), find(&mut parent, g));
-                if ra != rb {
-                    parent[ra] = rb;
+    n[3][3] = 1.0;
+    n
+}
+
+impl Viewport {
+    // ------------------------------------------------------------------ gizmo
+
+    /// Draw a body moved by `m` (column-major, millimetres) without touching its mesh: the
+    /// gizmo's instant on-screen motion. `None` puts it back where its mesh has it.
+    pub fn set_body_transform(&mut self, id: &str, m: Option<camera::M4>) {
+        match m {
+            Some(m) => {
+                self.body_transforms.insert(id.to_owned(), m);
+            }
+            None => {
+                if self.body_transforms.remove(id).is_none() {
+                    return;
                 }
             }
         }
+        self.changed();
     }
-    let mut sum: HashMap<usize, f64> = HashMap::new();
-    for f in 0..nf {
-        if over[f] {
-            let r = find(&mut parent, f);
-            *sum.entry(r).or_default() += area[f];
+
+    /// Put every moved body back (gizmo `reset`).
+    pub fn clear_body_transforms(&mut self) {
+        if !self.body_transforms.is_empty() {
+            self.body_transforms.clear();
+            self.changed();
         }
     }
-    (0..nf)
-        .filter(|&f| over[f] && {
-            let r = find(&mut parent, f);
-            sum[&r] >= 12.0
-        })
-        .map(|f| f as u32)
-        .collect()
+
+    pub fn body_transform(&self, id: &str) -> Option<&camera::M4> {
+        self.body_transforms.get(id)
+    }
+
+    /// A body's box as it is on screen (its mesh, before any gizmo transform).
+    pub fn body_box(&self, id: &str) -> Option<Aabb> {
+        self.entry(id).and_then(|e| e.current()).map(|r| r.prepared.bbox)
+    }
+
+    /// Show the transform handles (or `None` to hide them). Cheap to call every frame: the
+    /// handles are rebuilt only when they or the camera change, in their own small buffer.
+    pub fn set_gizmo(&mut self, shape: Option<GizmoShape>) {
+        if self.gizmo == shape {
+            return;
+        }
+        self.gizmo = shape;
+        self.changed();
+    }
+
+    pub fn gizmo(&self) -> Option<&GizmoShape> {
+        self.gizmo.as_ref()
+    }
+
+    /// The handle under a screen position, if the gizmo shows.
+    pub fn gizmo_handle_at(&self, pos: Pos2) -> Option<Handle> {
+        let g = self.gizmo.as_ref()?;
+        let (o, d) = self.ray(pos);
+        gizmo_draw::pick(g, &self.camera, o, d)
+    }
+
+    /// Hold the camera still (a handle is being dragged): mouse drags and the wheel do nothing.
+    pub fn set_camera_locked(&mut self, on: bool) {
+        self.camera_locked = on;
+    }
+
+    pub fn camera_locked(&self) -> bool {
+        self.camera_locked
+    }
+
+    fn rebuild_gizmo(&mut self, size: [u32; 2]) {
+        let Some(g) = &self.gizmo else {
+            if !self.gizmo_flat.is_empty() {
+                self.gizmo_flat = Arc::new(Vec::new());
+                self.gizmo_batches.clear();
+                self.gizmo_key = None;
+                self.gizmo_version += 1;
+                self.dirty = true;
+            }
+            return;
+        };
+        let key = (g.clone(), self.camera.position, self.camera.target, self.camera.up, size);
+        if self.gizmo_key.as_ref() == Some(&key) {
+            return;
+        }
+        let (v, b) = gizmo_draw::build(g, &self.camera);
+        self.gizmo_flat = Arc::new(v);
+        self.gizmo_batches = b;
+        self.gizmo_key = Some(key);
+        self.gizmo_version += 1;
+        self.dirty = true;
+        self.trace.add(|tr| tr.gizmo_rebuilds += 1);
+    }
 }

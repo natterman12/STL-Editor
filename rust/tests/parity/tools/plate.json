@@ -1,0 +1,991 @@
+{
+  "tool": "plate",
+  "label": "Plate Layout",
+  "type": "plate",
+  "icon": "bedsplit",
+  "flags": {
+    "placeOnFace": false,
+    "noLivePreview": false,
+    "gizmo": false,
+    "planeTool": false,
+    "sculpt": false,
+    "paint": false,
+    "wallTool": false
+  },
+  "hint": "Sets the chosen bodies side by side on the print bed, a gap apart, each one sitting on the bed. Turn them with Move afterwards if you want to nudge them",
+  "extra": [
+    {
+      "name": "fromParams:bodies null",
+      "op": "fromParams",
+      "input": {
+        "bodies": null,
+        "printer": "custom",
+        "bed": [
+          100,
+          100,
+          100
+        ]
+      },
+      "result": {
+        "bed": [
+          100,
+          100,
+          100
+        ],
+        "bodies": [],
+        "printer": "custom"
+      }
+    },
+    {
+      "name": "fromParams:bodies missing",
+      "op": "fromParams",
+      "input": {
+        "printer": "bambu_x1"
+      },
+      "result": {
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "printer": "bambu_x1",
+        "bodies": []
+      }
+    },
+    {
+      "name": "toParams:custom printer keeps bed",
+      "op": "toParams",
+      "input": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "custom",
+        "bed": [
+          100,
+          120,
+          90
+        ],
+        "gap": 5,
+        "rotate": false
+      },
+      "result": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "custom",
+        "bed": [
+          100,
+          120,
+          90
+        ],
+        "gap": 5,
+        "rotate": false
+      }
+    }
+  ],
+  "fields": [
+    {
+      "key": "bodies",
+      "label": "Bodies",
+      "kind": "bodies",
+      "multi": true
+    },
+    {
+      "key": "printer",
+      "label": "Printer",
+      "kind": "select",
+      "options": [
+        [
+          "bambu_x1",
+          "Bambu X1C / P1S / P1P / A1 (256)"
+        ],
+        [
+          "bambu_a1mini",
+          "Bambu A1 mini (180)"
+        ],
+        [
+          "bambu_h2d",
+          "Bambu H2D (325×320)"
+        ],
+        [
+          "prusa_mk4",
+          "Prusa MK4 (250×210)"
+        ],
+        [
+          "prusa_xl",
+          "Prusa XL (360)"
+        ],
+        [
+          "voron_350",
+          "Voron 2.4 350"
+        ],
+        [
+          "voron_300",
+          "Voron 2.4 300"
+        ],
+        [
+          "ender3",
+          "Ender 3 (220)"
+        ],
+        [
+          "custom",
+          "Custom size"
+        ]
+      ]
+    },
+    {
+      "key": "bed",
+      "label": "Bed X Y Z",
+      "kind": "vec3",
+      "unit": "mm",
+      "hasShow": true
+    },
+    {
+      "key": "gap",
+      "label": "Gap",
+      "kind": "number",
+      "unit": "mm"
+    },
+    {
+      "key": "rotate",
+      "label": "Allow turning 90°",
+      "kind": "bool"
+    }
+  ],
+  "ctxNote": "FIXTURE_CTX: selection [body_a], lastSketch sk1, sketchOnBody true, two bodies, one extrude cut",
+  "defaults": {
+    "bodies": [
+      "body_a"
+    ],
+    "printer": "bambu_x1",
+    "bed": [
+      256,
+      256,
+      256
+    ],
+    "gap": 5,
+    "rotate": false
+  },
+  "toParams_defaults": {
+    "bodies": [
+      "body_a"
+    ],
+    "printer": "bambu_x1",
+    "gap": 5,
+    "rotate": false
+  },
+  "shown_defaults": [
+    "bodies",
+    "printer",
+    "gap",
+    "rotate"
+  ],
+  "cases": [
+    {
+      "name": "select:printer=bambu_x1",
+      "values": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "bambu_x1",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "gap": 5,
+        "rotate": false
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "bambu_x1",
+        "gap": 5,
+        "rotate": false
+      },
+      "shown": [
+        "bodies",
+        "printer",
+        "gap",
+        "rotate"
+      ]
+    },
+    {
+      "name": "select:printer=bambu_a1mini",
+      "values": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "bambu_a1mini",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "gap": 5,
+        "rotate": false
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "bambu_a1mini",
+        "gap": 5,
+        "rotate": false
+      },
+      "shown": [
+        "bodies",
+        "printer",
+        "gap",
+        "rotate"
+      ]
+    },
+    {
+      "name": "select:printer=bambu_h2d",
+      "values": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "bambu_h2d",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "gap": 5,
+        "rotate": false
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "bambu_h2d",
+        "gap": 5,
+        "rotate": false
+      },
+      "shown": [
+        "bodies",
+        "printer",
+        "gap",
+        "rotate"
+      ]
+    },
+    {
+      "name": "select:printer=prusa_mk4",
+      "values": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "prusa_mk4",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "gap": 5,
+        "rotate": false
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "prusa_mk4",
+        "gap": 5,
+        "rotate": false
+      },
+      "shown": [
+        "bodies",
+        "printer",
+        "gap",
+        "rotate"
+      ]
+    },
+    {
+      "name": "select:printer=prusa_xl",
+      "values": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "prusa_xl",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "gap": 5,
+        "rotate": false
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "prusa_xl",
+        "gap": 5,
+        "rotate": false
+      },
+      "shown": [
+        "bodies",
+        "printer",
+        "gap",
+        "rotate"
+      ]
+    },
+    {
+      "name": "select:printer=voron_350",
+      "values": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "voron_350",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "gap": 5,
+        "rotate": false
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "voron_350",
+        "gap": 5,
+        "rotate": false
+      },
+      "shown": [
+        "bodies",
+        "printer",
+        "gap",
+        "rotate"
+      ]
+    },
+    {
+      "name": "select:printer=voron_300",
+      "values": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "voron_300",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "gap": 5,
+        "rotate": false
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "voron_300",
+        "gap": 5,
+        "rotate": false
+      },
+      "shown": [
+        "bodies",
+        "printer",
+        "gap",
+        "rotate"
+      ]
+    },
+    {
+      "name": "select:printer=ender3",
+      "values": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "ender3",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "gap": 5,
+        "rotate": false
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "ender3",
+        "gap": 5,
+        "rotate": false
+      },
+      "shown": [
+        "bodies",
+        "printer",
+        "gap",
+        "rotate"
+      ]
+    },
+    {
+      "name": "select:printer=custom",
+      "values": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "custom",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "gap": 5,
+        "rotate": false
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "custom",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "gap": 5,
+        "rotate": false
+      },
+      "shown": [
+        "bodies",
+        "printer",
+        "bed",
+        "gap",
+        "rotate"
+      ]
+    },
+    {
+      "name": "bool:rotate=true",
+      "values": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "bambu_x1",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "gap": 5,
+        "rotate": true
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "bambu_x1",
+        "gap": 5,
+        "rotate": true
+      },
+      "shown": [
+        "bodies",
+        "printer",
+        "gap",
+        "rotate"
+      ]
+    },
+    {
+      "name": "bool:rotate=false",
+      "values": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "bambu_x1",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "gap": 5,
+        "rotate": false
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "bambu_x1",
+        "gap": 5,
+        "rotate": false
+      },
+      "shown": [
+        "bodies",
+        "printer",
+        "gap",
+        "rotate"
+      ]
+    }
+  ],
+  "onChange": [],
+  "roundTrips": [
+    {
+      "name": "defaults",
+      "params": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "bambu_x1",
+        "gap": 5,
+        "rotate": false
+      },
+      "fromParams": {
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "bambu_x1",
+        "gap": 5,
+        "rotate": false
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "bambu_x1",
+        "gap": 5,
+        "rotate": false
+      }
+    },
+    {
+      "name": "select:printer=bambu_x1",
+      "params": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "bambu_x1",
+        "gap": 5,
+        "rotate": false
+      },
+      "fromParams": {
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "bambu_x1",
+        "gap": 5,
+        "rotate": false
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "bambu_x1",
+        "gap": 5,
+        "rotate": false
+      }
+    },
+    {
+      "name": "select:printer=bambu_a1mini",
+      "params": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "bambu_a1mini",
+        "gap": 5,
+        "rotate": false
+      },
+      "fromParams": {
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "bambu_a1mini",
+        "gap": 5,
+        "rotate": false
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "bambu_a1mini",
+        "gap": 5,
+        "rotate": false
+      }
+    },
+    {
+      "name": "select:printer=bambu_h2d",
+      "params": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "bambu_h2d",
+        "gap": 5,
+        "rotate": false
+      },
+      "fromParams": {
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "bambu_h2d",
+        "gap": 5,
+        "rotate": false
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "bambu_h2d",
+        "gap": 5,
+        "rotate": false
+      }
+    },
+    {
+      "name": "select:printer=prusa_mk4",
+      "params": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "prusa_mk4",
+        "gap": 5,
+        "rotate": false
+      },
+      "fromParams": {
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "prusa_mk4",
+        "gap": 5,
+        "rotate": false
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "prusa_mk4",
+        "gap": 5,
+        "rotate": false
+      }
+    },
+    {
+      "name": "select:printer=prusa_xl",
+      "params": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "prusa_xl",
+        "gap": 5,
+        "rotate": false
+      },
+      "fromParams": {
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "prusa_xl",
+        "gap": 5,
+        "rotate": false
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "prusa_xl",
+        "gap": 5,
+        "rotate": false
+      }
+    },
+    {
+      "name": "select:printer=voron_350",
+      "params": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "voron_350",
+        "gap": 5,
+        "rotate": false
+      },
+      "fromParams": {
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "voron_350",
+        "gap": 5,
+        "rotate": false
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "voron_350",
+        "gap": 5,
+        "rotate": false
+      }
+    },
+    {
+      "name": "select:printer=voron_300",
+      "params": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "voron_300",
+        "gap": 5,
+        "rotate": false
+      },
+      "fromParams": {
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "voron_300",
+        "gap": 5,
+        "rotate": false
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "voron_300",
+        "gap": 5,
+        "rotate": false
+      }
+    },
+    {
+      "name": "select:printer=ender3",
+      "params": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "ender3",
+        "gap": 5,
+        "rotate": false
+      },
+      "fromParams": {
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "ender3",
+        "gap": 5,
+        "rotate": false
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "ender3",
+        "gap": 5,
+        "rotate": false
+      }
+    },
+    {
+      "name": "select:printer=custom",
+      "params": {
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "custom",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "gap": 5,
+        "rotate": false
+      },
+      "fromParams": {
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "custom",
+        "gap": 5,
+        "rotate": false
+      },
+      "toParams": {
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "printer": "custom",
+        "gap": 5,
+        "rotate": false
+      }
+    }
+  ],
+  "ctxCases": {
+    "nosel": {
+      "defaults": {
+        "bodies": [],
+        "printer": "bambu_x1",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "gap": 5,
+        "rotate": false
+      },
+      "toParams_defaults": {
+        "bodies": [],
+        "printer": "bambu_x1",
+        "gap": 5,
+        "rotate": false
+      },
+      "shown_defaults": [
+        "bodies",
+        "printer",
+        "gap",
+        "rotate"
+      ]
+    },
+    "two": {
+      "defaults": {
+        "bodies": [
+          "body_a",
+          "body_b"
+        ],
+        "printer": "bambu_x1",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "gap": 5,
+        "rotate": false
+      },
+      "toParams_defaults": {
+        "bodies": [
+          "body_a",
+          "body_b"
+        ],
+        "printer": "bambu_x1",
+        "gap": 5,
+        "rotate": false
+      },
+      "shown_defaults": [
+        "bodies",
+        "printer",
+        "gap",
+        "rotate"
+      ]
+    },
+    "nonsolid": {
+      "defaults": {
+        "bodies": [],
+        "printer": "bambu_x1",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "gap": 5,
+        "rotate": false
+      },
+      "toParams_defaults": {
+        "bodies": [],
+        "printer": "bambu_x1",
+        "gap": 5,
+        "rotate": false
+      },
+      "shown_defaults": [
+        "bodies",
+        "printer",
+        "gap",
+        "rotate"
+      ]
+    },
+    "nobbox": {
+      "defaults": {
+        "bodies": [
+          "body_c"
+        ],
+        "printer": "bambu_x1",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "gap": 5,
+        "rotate": false
+      },
+      "toParams_defaults": {
+        "bodies": [
+          "body_c"
+        ],
+        "printer": "bambu_x1",
+        "gap": 5,
+        "rotate": false
+      },
+      "shown_defaults": [
+        "bodies",
+        "printer",
+        "gap",
+        "rotate"
+      ]
+    },
+    "empty": {
+      "defaults": {
+        "bodies": [],
+        "printer": "bambu_x1",
+        "bed": [
+          256,
+          256,
+          256
+        ],
+        "gap": 5,
+        "rotate": false
+      },
+      "toParams_defaults": {
+        "bodies": [],
+        "printer": "bambu_x1",
+        "gap": 5,
+        "rotate": false
+      },
+      "shown_defaults": [
+        "bodies",
+        "printer",
+        "gap",
+        "rotate"
+      ]
+    }
+  }
+}

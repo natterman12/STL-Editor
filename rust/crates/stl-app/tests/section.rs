@@ -150,6 +150,7 @@ fn section_cap_on_dimmed_bodies_not_previews() {
         meshes: vec![PreviewMesh { id: "fin".into(), mesh: cube_mesh() }],
         ..PreviewPack::default()
     });
+    vp.flush(); // the preview's meshes are prepared on a worker thread
     vp.set_section(true);
     let frame = vp.frame_for_size(64.0, 48.0, 1.0);
     let body = frame.bodies.iter().find(|d| d.key == "b1").expect("the body");

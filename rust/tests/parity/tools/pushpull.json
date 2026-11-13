@@ -1,0 +1,187 @@
+{
+  "tool": "pushpull",
+  "label": "Push/Pull",
+  "type": "pushpull",
+  "icon": "pushpull",
+  "flags": {
+    "placeOnFace": false,
+    "noLivePreview": false,
+    "gizmo": false,
+    "planeTool": false,
+    "sculpt": false,
+    "paint": false,
+    "wallTool": false
+  },
+  "hint": "Click a flat face · positive distance pulls it out, negative pushes it in",
+  "extra": [
+    {
+      "name": "toParams:sparse",
+      "op": "toParams",
+      "input": {
+        "distance": 3
+      },
+      "result": {
+        "distance": 3
+      }
+    },
+    {
+      "name": "toParams:picked",
+      "op": "toParams",
+      "input": {
+        "body": "body_a",
+        "face": {
+          "normal": [
+            0,
+            0,
+            1
+          ]
+        },
+        "distance": "=h/2",
+        "_x": 1
+      },
+      "result": {
+        "body": "body_a",
+        "face": {
+          "normal": [
+            0,
+            0,
+            1
+          ]
+        },
+        "distance": "=h/2"
+      }
+    }
+  ],
+  "fields": [
+    {
+      "key": "face",
+      "label": "Flat face",
+      "kind": "pface"
+    },
+    {
+      "key": "distance",
+      "label": "Distance",
+      "kind": "number",
+      "unit": "mm"
+    }
+  ],
+  "ctxNote": "FIXTURE_CTX: selection [body_a], lastSketch sk1, sketchOnBody true, two bodies, one extrude cut",
+  "defaults": {
+    "face": null,
+    "body": null,
+    "distance": 5
+  },
+  "toParams_defaults": {
+    "body": null,
+    "face": null,
+    "distance": 5
+  },
+  "shown_defaults": [
+    "face",
+    "distance"
+  ],
+  "cases": [],
+  "onChange": [],
+  "roundTrips": [
+    {
+      "name": "defaults",
+      "params": {
+        "body": null,
+        "face": null,
+        "distance": 5
+      },
+      "fromParams": {
+        "body": null,
+        "face": null,
+        "distance": 5
+      },
+      "toParams": {
+        "body": null,
+        "face": null,
+        "distance": 5
+      }
+    }
+  ],
+  "ctxCases": {
+    "nosel": {
+      "defaults": {
+        "face": null,
+        "body": null,
+        "distance": 5
+      },
+      "toParams_defaults": {
+        "body": null,
+        "face": null,
+        "distance": 5
+      },
+      "shown_defaults": [
+        "face",
+        "distance"
+      ]
+    },
+    "two": {
+      "defaults": {
+        "face": null,
+        "body": null,
+        "distance": 5
+      },
+      "toParams_defaults": {
+        "body": null,
+        "face": null,
+        "distance": 5
+      },
+      "shown_defaults": [
+        "face",
+        "distance"
+      ]
+    },
+    "nonsolid": {
+      "defaults": {
+        "face": null,
+        "body": null,
+        "distance": 5
+      },
+      "toParams_defaults": {
+        "body": null,
+        "face": null,
+        "distance": 5
+      },
+      "shown_defaults": [
+        "face",
+        "distance"
+      ]
+    },
+    "nobbox": {
+      "defaults": {
+        "face": null,
+        "body": null,
+        "distance": 5
+      },
+      "toParams_defaults": {
+        "body": null,
+        "face": null,
+        "distance": 5
+      },
+      "shown_defaults": [
+        "face",
+        "distance"
+      ]
+    },
+    "empty": {
+      "defaults": {
+        "face": null,
+        "body": null,
+        "distance": 5
+      },
+      "toParams_defaults": {
+        "body": null,
+        "face": null,
+        "distance": 5
+      },
+      "shown_defaults": [
+        "face",
+        "distance"
+      ]
+    }
+  }
+}

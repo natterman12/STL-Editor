@@ -18,6 +18,10 @@ pub mod topbar;
 #[derive(Clone, Debug, PartialEq)]
 pub enum UiEvent {
     OpenTool(String),
+    /// Open a tool with extra starting values (Rotate opens Move with `_gizmo: "rotate"`).
+    OpenToolWith(String, serde_json::Map<String, serde_json::Value>),
+    /// Reopen the tool of a timeline step to edit it (`openTool(key, { editFeature })`).
+    EditFeature(String),
     Select(Vec<String>),
     Hover(Option<String>),
 }

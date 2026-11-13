@@ -1,0 +1,520 @@
+{
+  "tool": "lattice",
+  "label": "Lattice",
+  "type": "lattice",
+  "icon": "hollow",
+  "flags": {
+    "placeOnFace": false,
+    "noLivePreview": true,
+    "gizmo": false,
+    "planeTool": false,
+    "sculpt": false,
+    "paint": false,
+    "wallTool": false
+  },
+  "hint": "Keeps a solid wall and fills the inside with a grid of thin struts, to save plastic",
+  "extra": [
+    {
+      "name": "toParams:no body",
+      "op": "toParams",
+      "input": {
+        "body": [],
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "result": {
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "toParams:picked body",
+      "op": "toParams",
+      "input": {
+        "body": [
+          "body_b"
+        ],
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "result": {
+        "body": "body_b",
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "fromParams:body null",
+      "op": "fromParams",
+      "input": {
+        "body": null,
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "result": {
+        "body": [],
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "fromParams:body empty string",
+      "op": "fromParams",
+      "input": {
+        "body": "",
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "result": {
+        "body": [],
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "fromParams:body zero",
+      "op": "fromParams",
+      "input": {
+        "body": 0,
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "result": {
+        "body": [],
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "fromParams:body name",
+      "op": "fromParams",
+      "input": {
+        "body": "body_b",
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "result": {
+        "body": [
+          "body_b"
+        ],
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "fromParams:body missing",
+      "op": "fromParams",
+      "input": {
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "result": {
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "normal",
+        "body": []
+      }
+    }
+  ],
+  "fields": [
+    {
+      "key": "body",
+      "label": "Body",
+      "kind": "bodies",
+      "multi": false
+    },
+    {
+      "key": "cell",
+      "label": "Cell size",
+      "kind": "number",
+      "unit": "mm"
+    },
+    {
+      "key": "strut",
+      "label": "Strut width",
+      "kind": "number",
+      "unit": "mm"
+    },
+    {
+      "key": "thickness",
+      "label": "Wall",
+      "kind": "number",
+      "unit": "mm"
+    },
+    {
+      "key": "resolution",
+      "label": "Quality",
+      "kind": "select",
+      "options": [
+        [
+          "draft",
+          "Draft"
+        ],
+        [
+          "normal",
+          "Normal"
+        ],
+        [
+          "fine",
+          "Fine"
+        ]
+      ]
+    }
+  ],
+  "ctxNote": "FIXTURE_CTX: selection [body_a], lastSketch sk1, sketchOnBody true, two bodies, one extrude cut",
+  "defaults": {
+    "body": [
+      "body_a"
+    ],
+    "cell": 6,
+    "strut": 1,
+    "thickness": 2,
+    "resolution": "normal"
+  },
+  "toParams_defaults": {
+    "body": "body_a",
+    "cell": 6,
+    "strut": 1,
+    "thickness": 2,
+    "resolution": "normal"
+  },
+  "shown_defaults": [
+    "body",
+    "cell",
+    "strut",
+    "thickness",
+    "resolution"
+  ],
+  "cases": [
+    {
+      "name": "select:resolution=draft",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "draft"
+      },
+      "toParams": {
+        "body": "body_a",
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "draft"
+      },
+      "shown": [
+        "body",
+        "cell",
+        "strut",
+        "thickness",
+        "resolution"
+      ]
+    },
+    {
+      "name": "select:resolution=normal",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "toParams": {
+        "body": "body_a",
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "shown": [
+        "body",
+        "cell",
+        "strut",
+        "thickness",
+        "resolution"
+      ]
+    },
+    {
+      "name": "select:resolution=fine",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "fine"
+      },
+      "toParams": {
+        "body": "body_a",
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "fine"
+      },
+      "shown": [
+        "body",
+        "cell",
+        "strut",
+        "thickness",
+        "resolution"
+      ]
+    }
+  ],
+  "onChange": [],
+  "roundTrips": [
+    {
+      "name": "defaults",
+      "params": {
+        "body": "body_a",
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "fromParams": {
+        "body": [
+          "body_a"
+        ],
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "toParams": {
+        "body": "body_a",
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "select:resolution=draft",
+      "params": {
+        "body": "body_a",
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "draft"
+      },
+      "fromParams": {
+        "body": [
+          "body_a"
+        ],
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "draft"
+      },
+      "toParams": {
+        "body": "body_a",
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "draft"
+      }
+    },
+    {
+      "name": "select:resolution=normal",
+      "params": {
+        "body": "body_a",
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "fromParams": {
+        "body": [
+          "body_a"
+        ],
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "toParams": {
+        "body": "body_a",
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "select:resolution=fine",
+      "params": {
+        "body": "body_a",
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "fine"
+      },
+      "fromParams": {
+        "body": [
+          "body_a"
+        ],
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "fine"
+      },
+      "toParams": {
+        "body": "body_a",
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "fine"
+      }
+    }
+  ],
+  "ctxCases": {
+    "nosel": {
+      "defaults": {
+        "body": [],
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "toParams_defaults": {
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "shown_defaults": [
+        "body",
+        "cell",
+        "strut",
+        "thickness",
+        "resolution"
+      ]
+    },
+    "two": {
+      "defaults": {
+        "body": [
+          "body_a"
+        ],
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "toParams_defaults": {
+        "body": "body_a",
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "shown_defaults": [
+        "body",
+        "cell",
+        "strut",
+        "thickness",
+        "resolution"
+      ]
+    },
+    "nonsolid": {
+      "defaults": {
+        "body": [],
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "toParams_defaults": {
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "shown_defaults": [
+        "body",
+        "cell",
+        "strut",
+        "thickness",
+        "resolution"
+      ]
+    },
+    "nobbox": {
+      "defaults": {
+        "body": [
+          "body_c"
+        ],
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "toParams_defaults": {
+        "body": "body_c",
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "shown_defaults": [
+        "body",
+        "cell",
+        "strut",
+        "thickness",
+        "resolution"
+      ]
+    },
+    "empty": {
+      "defaults": {
+        "body": [],
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "toParams_defaults": {
+        "cell": 6,
+        "strut": 1,
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "shown_defaults": [
+        "body",
+        "cell",
+        "strut",
+        "thickness",
+        "resolution"
+      ]
+    }
+  }
+}

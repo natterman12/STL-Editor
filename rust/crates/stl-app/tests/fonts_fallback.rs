@@ -7,14 +7,26 @@ use egui::{FontFamily, FontId, MissingGlyphPolicy};
 use egui_kittest::kittest::Queryable;
 use egui_kittest::Harness;
 use stl_app::app::StlApp;
+use stl_app::supports;
+use stl_app::tools::{self, FieldKind};
 use stl_app::ui::ThemePref;
+
+/// Consume font-atlas uploads so Drop of [`egui::TexturesDelta`] does not panic.
+fn absorb_textures(out: &mut egui::FullOutput) {
+    out.textures_delta.set.clear();
+    out.textures_delta.free.clear();
+}
 
 /// A context with only the bundled fonts installed, after one frame so they are loaded.
 fn bundled_ctx() -> egui::Context {
     let ctx = egui::Context::default();
     ctx.set_fonts(stl_app::fonts::bundled_definitions());
     ctx.set_missing_glyph_policy(MissingGlyphPolicy::Panic);
-    let _ = ctx.run_ui(egui::RawInput::default(), |_| {});
+    let mut out = ctx.run_ui(egui::RawInput::default(), |_| {});
+    absorb_textures(&mut out);
+    // A second frame finishes atlas packing for the newly installed fonts.
+    let mut out = ctx.run_ui(egui::RawInput::default(), |_| {});
+    absorb_textures(&mut out);
     ctx
 }
 
@@ -43,6 +55,75 @@ fn source_chars() -> std::collections::BTreeMap<char, String> {
             }
         }
     }
+    out
+}
+
+/// Labels, help, hints and messages from the tool registry and Support Fins panel constants.
+fn panel_strings() -> Vec<(&'static str, String)> {
+    let mut out = Vec::new();
+    let push = |out: &mut Vec<(&'static str, String)>, where_: &'static str, s: &str| {
+        if !s.is_empty() {
+            out.push((where_, s.to_owned()));
+        }
+    };
+    for t in tools::tools() {
+        push(&mut out, "tools.label", t.label);
+        if let Some(h) = t.hint {
+            push(&mut out, "tools.hint", h);
+        }
+        if let Some(e) = t.extra {
+            push(&mut out, "tools.extra", e);
+        }
+        for f in &t.fields {
+            push(&mut out, "tools.field.label", f.label);
+            if let Some(h) = f.help {
+                push(&mut out, "tools.field.help", h);
+            }
+            if let Some(p) = f.placeholder {
+                push(&mut out, "tools.field.placeholder", p);
+            }
+            match &f.kind {
+                FieldKind::Number { unit: Some(u) } | FieldKind::Vec3 { unit: Some(u) } => push(&mut out, "tools.unit", u),
+                FieldKind::Select { options, .. } => {
+                    for (val, lab, _) in options {
+                        push(&mut out, "tools.select.value", val);
+                        push(&mut out, "tools.select.label", lab);
+                    }
+                }
+                FieldKind::Text { placeholder: Some(p) } => push(&mut out, "tools.text.placeholder", p.as_str()),
+                _ => {}
+            }
+        }
+    }
+    for (where_, s) in [
+        ("supports.MODE_HELP", supports::MODE_HELP),
+        ("supports.FINS_HINT", supports::FINS_HINT),
+        ("supports.ROTATE_HINT", supports::ROTATE_HINT),
+        ("supports.REMOVE_HINT", supports::REMOVE_HINT),
+        ("supports.CREDIT_TITLE", supports::CREDIT_TITLE),
+        ("supports.NO_OVERHANG_MSG", supports::NO_OVERHANG_MSG),
+        ("supports.BUSY_FINS", supports::BUSY_FINS),
+        ("supports.BUSY_WALLS", supports::BUSY_WALLS),
+        ("supports.LOADING", supports::LOADING),
+        ("supports.LOAD_HELP", supports::LOAD_HELP),
+        ("supports.POSTURE_TIP", supports::POSTURE_TIP),
+        ("supports.SUGGEST_BUSY", supports::SUGGEST_BUSY),
+        ("supports.PICK_PART", supports::PICK_PART),
+    ] {
+        push(&mut out, where_, s);
+    }
+    for (_, label) in supports::MODES {
+        push(&mut out, "supports.MODES", label);
+    }
+    for (_, label, _) in supports::MATERIALS {
+        push(&mut out, "supports.MATERIALS", label);
+    }
+    for (_, label) in supports::walls::ALL_SHAPES {
+        push(&mut out, "supports.ALL_SHAPES", label);
+    }
+    // Close / empty markers used in the tool panel
+    push(&mut out, "panel.close", "×");
+    push(&mut out, "panel.emdash", "—");
     out
 }
 
@@ -123,6 +204,28 @@ fn every_character_in_the_string_table_has_a_bundled_glyph() {
     assert!(missing.is_empty(), "no glyph in the bundled fonts for:\n{}\nadd it to a bundled font or draw it as an icon", missing.join("\n"));
 }
 
+#[test]
+fn every_tool_and_supports_panel_string_has_a_bundled_glyph() {
+    let ctx = bundled_ctx();
+    let strings = panel_strings();
+    assert!(strings.len() > 40, "panel string table too small: {}", strings.len());
+    let mut missing = Vec::new();
+    for (where_, s) in &strings {
+        for c in s.chars().filter(|c| !c.is_ascii()) {
+            for family in [FontFamily::Proportional, FontFamily::Name("bold".into())] {
+                if !has(&ctx, &family, c) {
+                    missing.push(format!("{c} (U+{:04X}) in {where_}: {s:?}, {family:?}", c as u32));
+                }
+            }
+        }
+    }
+    assert!(
+        missing.is_empty(),
+        "no glyph in the bundled fonts for tool/supports panel text:\n{}",
+        missing.join("\n")
+    );
+}
+
 /// The start page, the menus, Keyboard Shortcuts and About, in both themes, on the bundled fonts
 /// alone. egui panics on a character no font has (the policy is `Panic` here), so rendering them
 /// is the check.
@@ -163,6 +266,17 @@ fn render_everything(pref: ThemePref) {
     h.get_by_label("About STL Editor").click();
     h.run_steps(4);
     assert!(h.query_by_label_contains("you can buy me a coffee on Ko-fi").is_some(), "the About dialog shows the heart line");
+
+    // Open a few tool panels so × / Ø / → / ° paint on the bundled fonts.
+    h.key_press(egui::Key::Escape);
+    h.run_steps(2);
+    for key in ["hole", "move", "scale", "thread"] {
+        if h.state_mut().open_tool(key, None) {
+            h.run_steps(4);
+            h.state_mut().tool_cancel();
+            h.run_steps(2);
+        }
+    }
 }
 
 #[test]

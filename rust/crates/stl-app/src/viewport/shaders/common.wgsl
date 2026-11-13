@@ -24,6 +24,9 @@ struct Body {
     edge: vec4<f32>,
     // x: metalness, y: 1 for flat shading
     params: vec4<f32>,
+    // the body's on-screen transform (a gizmo drag; identity otherwise) and its normal matrix
+    model: mat4x4<f32>,
+    normal_m: mat4x4<f32>,
 };
 
 @group(0) @binding(0) var<uniform> g: Globals;

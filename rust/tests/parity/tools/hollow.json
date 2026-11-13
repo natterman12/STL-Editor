@@ -1,0 +1,402 @@
+{
+  "tool": "hollow",
+  "label": "Hollow",
+  "type": "hollow",
+  "icon": "hollow",
+  "flags": {
+    "placeOnFace": false,
+    "noLivePreview": true,
+    "gizmo": false,
+    "planeTool": false,
+    "sculpt": false,
+    "paint": false,
+    "wallTool": false
+  },
+  "hint": "Shells the body inward. Add a hole afterwards to drain resin or save filament",
+  "extra": [
+    {
+      "name": "toParams:no body",
+      "op": "toParams",
+      "input": {
+        "body": [],
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "result": {
+        "thickness": 2,
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "toParams:picked body",
+      "op": "toParams",
+      "input": {
+        "body": [
+          "body_b"
+        ],
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "result": {
+        "body": "body_b",
+        "thickness": 2,
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "fromParams:body null",
+      "op": "fromParams",
+      "input": {
+        "body": null,
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "result": {
+        "body": [],
+        "thickness": 2,
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "fromParams:body empty string",
+      "op": "fromParams",
+      "input": {
+        "body": "",
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "result": {
+        "body": [],
+        "thickness": 2,
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "fromParams:body zero",
+      "op": "fromParams",
+      "input": {
+        "body": 0,
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "result": {
+        "body": [],
+        "thickness": 2,
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "fromParams:body name",
+      "op": "fromParams",
+      "input": {
+        "body": "body_b",
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "result": {
+        "body": [
+          "body_b"
+        ],
+        "thickness": 2,
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "fromParams:body missing",
+      "op": "fromParams",
+      "input": {
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "result": {
+        "thickness": 2,
+        "resolution": "normal",
+        "body": []
+      }
+    }
+  ],
+  "fields": [
+    {
+      "key": "body",
+      "label": "Body",
+      "kind": "bodies",
+      "multi": false
+    },
+    {
+      "key": "thickness",
+      "label": "Wall",
+      "kind": "number",
+      "unit": "mm"
+    },
+    {
+      "key": "resolution",
+      "label": "Quality",
+      "kind": "select",
+      "options": [
+        [
+          "draft",
+          "Draft"
+        ],
+        [
+          "normal",
+          "Normal"
+        ],
+        [
+          "fine",
+          "Fine"
+        ]
+      ]
+    }
+  ],
+  "ctxNote": "FIXTURE_CTX: selection [body_a], lastSketch sk1, sketchOnBody true, two bodies, one extrude cut",
+  "defaults": {
+    "body": [
+      "body_a"
+    ],
+    "thickness": 2,
+    "resolution": "normal"
+  },
+  "toParams_defaults": {
+    "body": "body_a",
+    "thickness": 2,
+    "resolution": "normal"
+  },
+  "shown_defaults": [
+    "body",
+    "thickness",
+    "resolution"
+  ],
+  "cases": [
+    {
+      "name": "select:resolution=draft",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "thickness": 2,
+        "resolution": "draft"
+      },
+      "toParams": {
+        "body": "body_a",
+        "thickness": 2,
+        "resolution": "draft"
+      },
+      "shown": [
+        "body",
+        "thickness",
+        "resolution"
+      ]
+    },
+    {
+      "name": "select:resolution=normal",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "toParams": {
+        "body": "body_a",
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "shown": [
+        "body",
+        "thickness",
+        "resolution"
+      ]
+    },
+    {
+      "name": "select:resolution=fine",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "thickness": 2,
+        "resolution": "fine"
+      },
+      "toParams": {
+        "body": "body_a",
+        "thickness": 2,
+        "resolution": "fine"
+      },
+      "shown": [
+        "body",
+        "thickness",
+        "resolution"
+      ]
+    }
+  ],
+  "onChange": [],
+  "roundTrips": [
+    {
+      "name": "defaults",
+      "params": {
+        "body": "body_a",
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "fromParams": {
+        "body": [
+          "body_a"
+        ],
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "toParams": {
+        "body": "body_a",
+        "thickness": 2,
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "select:resolution=draft",
+      "params": {
+        "body": "body_a",
+        "thickness": 2,
+        "resolution": "draft"
+      },
+      "fromParams": {
+        "body": [
+          "body_a"
+        ],
+        "thickness": 2,
+        "resolution": "draft"
+      },
+      "toParams": {
+        "body": "body_a",
+        "thickness": 2,
+        "resolution": "draft"
+      }
+    },
+    {
+      "name": "select:resolution=normal",
+      "params": {
+        "body": "body_a",
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "fromParams": {
+        "body": [
+          "body_a"
+        ],
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "toParams": {
+        "body": "body_a",
+        "thickness": 2,
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "select:resolution=fine",
+      "params": {
+        "body": "body_a",
+        "thickness": 2,
+        "resolution": "fine"
+      },
+      "fromParams": {
+        "body": [
+          "body_a"
+        ],
+        "thickness": 2,
+        "resolution": "fine"
+      },
+      "toParams": {
+        "body": "body_a",
+        "thickness": 2,
+        "resolution": "fine"
+      }
+    }
+  ],
+  "ctxCases": {
+    "nosel": {
+      "defaults": {
+        "body": [],
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "toParams_defaults": {
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "shown_defaults": [
+        "body",
+        "thickness",
+        "resolution"
+      ]
+    },
+    "two": {
+      "defaults": {
+        "body": [
+          "body_a"
+        ],
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "toParams_defaults": {
+        "body": "body_a",
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "shown_defaults": [
+        "body",
+        "thickness",
+        "resolution"
+      ]
+    },
+    "nonsolid": {
+      "defaults": {
+        "body": [],
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "toParams_defaults": {
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "shown_defaults": [
+        "body",
+        "thickness",
+        "resolution"
+      ]
+    },
+    "nobbox": {
+      "defaults": {
+        "body": [
+          "body_c"
+        ],
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "toParams_defaults": {
+        "body": "body_c",
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "shown_defaults": [
+        "body",
+        "thickness",
+        "resolution"
+      ]
+    },
+    "empty": {
+      "defaults": {
+        "body": [],
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "toParams_defaults": {
+        "thickness": 2,
+        "resolution": "normal"
+      },
+      "shown_defaults": [
+        "body",
+        "thickness",
+        "resolution"
+      ]
+    }
+  }
+}

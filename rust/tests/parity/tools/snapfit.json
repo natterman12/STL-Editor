@@ -1,0 +1,630 @@
+{
+  "tool": "snapfit",
+  "label": "Snap-fit",
+  "type": "snapfit",
+  "icon": "extrude",
+  "flags": {
+    "placeOnFace": false,
+    "noLivePreview": false,
+    "gizmo": false,
+    "planeTool": false,
+    "sculpt": false,
+    "paint": false,
+    "wallTool": false
+  },
+  "hint": "A thin arm standing on a face, with a hook at its tip. Position is the corner of the arm’s foot on that face. Choose the face with On, then set the size. The hook sticks out one arm thickness",
+  "extra": [],
+  "fields": [
+    {
+      "key": "plane",
+      "label": "On",
+      "kind": "plane"
+    },
+    {
+      "key": "x",
+      "label": "Position X",
+      "kind": "number",
+      "unit": "mm"
+    },
+    {
+      "key": "y",
+      "label": "Position Y",
+      "kind": "number",
+      "unit": "mm"
+    },
+    {
+      "key": "length",
+      "label": "Arm length",
+      "kind": "number",
+      "unit": "mm"
+    },
+    {
+      "key": "width",
+      "label": "Arm width",
+      "kind": "number",
+      "unit": "mm"
+    },
+    {
+      "key": "thickness",
+      "label": "Arm thickness",
+      "kind": "number",
+      "unit": "mm"
+    },
+    {
+      "key": "hook_height",
+      "label": "Hook height",
+      "kind": "number",
+      "unit": "mm"
+    },
+    {
+      "key": "operation",
+      "label": "Operation",
+      "kind": "select",
+      "options": [
+        [
+          "new",
+          "New body"
+        ],
+        [
+          "join",
+          "Join"
+        ],
+        [
+          "cut",
+          "Cut"
+        ],
+        [
+          "intersect",
+          "Intersect"
+        ]
+      ]
+    },
+    {
+      "key": "targets",
+      "label": "Bodies",
+      "kind": "bodies",
+      "multi": true,
+      "placeholder": "Auto",
+      "hasShow": true
+    }
+  ],
+  "ctxNote": "FIXTURE_CTX: selection [body_a], lastSketch sk1, sketchOnBody true, two bodies, one extrude cut",
+  "defaults": {
+    "plane": "XY",
+    "x": 10,
+    "y": 10,
+    "length": 12,
+    "width": 6,
+    "thickness": 1.5,
+    "hook_height": 1.5,
+    "operation": "join",
+    "targets": []
+  },
+  "toParams_defaults": {
+    "plane": "XY",
+    "x": 10,
+    "y": 10,
+    "length": 12,
+    "width": 6,
+    "thickness": 1.5,
+    "hook_height": 1.5,
+    "operation": "join",
+    "targets": []
+  },
+  "shown_defaults": [
+    "plane",
+    "x",
+    "y",
+    "length",
+    "width",
+    "thickness",
+    "hook_height",
+    "operation",
+    "targets"
+  ],
+  "cases": [
+    {
+      "name": "select:operation=new",
+      "values": {
+        "plane": "XY",
+        "x": 10,
+        "y": 10,
+        "length": 12,
+        "width": 6,
+        "thickness": 1.5,
+        "hook_height": 1.5,
+        "operation": "new",
+        "targets": []
+      },
+      "toParams": {
+        "plane": "XY",
+        "x": 10,
+        "y": 10,
+        "length": 12,
+        "width": 6,
+        "thickness": 1.5,
+        "hook_height": 1.5,
+        "operation": "new",
+        "targets": []
+      },
+      "shown": [
+        "plane",
+        "x",
+        "y",
+        "length",
+        "width",
+        "thickness",
+        "hook_height",
+        "operation"
+      ]
+    },
+    {
+      "name": "select:operation=join",
+      "values": {
+        "plane": "XY",
+        "x": 10,
+        "y": 10,
+        "length": 12,
+        "width": 6,
+        "thickness": 1.5,
+        "hook_height": 1.5,
+        "operation": "join",
+        "targets": []
+      },
+      "toParams": {
+        "plane": "XY",
+        "x": 10,
+        "y": 10,
+        "length": 12,
+        "width": 6,
+        "thickness": 1.5,
+        "hook_height": 1.5,
+        "operation": "join",
+        "targets": []
+      },
+      "shown": [
+        "plane",
+        "x",
+        "y",
+        "length",
+        "width",
+        "thickness",
+        "hook_height",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:operation=cut",
+      "values": {
+        "plane": "XY",
+        "x": 10,
+        "y": 10,
+        "length": 12,
+        "width": 6,
+        "thickness": 1.5,
+        "hook_height": 1.5,
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "plane": "XY",
+        "x": 10,
+        "y": 10,
+        "length": 12,
+        "width": 6,
+        "thickness": 1.5,
+        "hook_height": 1.5,
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "plane",
+        "x",
+        "y",
+        "length",
+        "width",
+        "thickness",
+        "hook_height",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:operation=intersect",
+      "values": {
+        "plane": "XY",
+        "x": 10,
+        "y": 10,
+        "length": 12,
+        "width": 6,
+        "thickness": 1.5,
+        "hook_height": 1.5,
+        "operation": "intersect",
+        "targets": []
+      },
+      "toParams": {
+        "plane": "XY",
+        "x": 10,
+        "y": 10,
+        "length": 12,
+        "width": 6,
+        "thickness": 1.5,
+        "hook_height": 1.5,
+        "operation": "intersect",
+        "targets": []
+      },
+      "shown": [
+        "plane",
+        "x",
+        "y",
+        "length",
+        "width",
+        "thickness",
+        "hook_height",
+        "operation",
+        "targets"
+      ]
+    }
+  ],
+  "onChange": [],
+  "roundTrips": [
+    {
+      "name": "defaults",
+      "params": {
+        "plane": "XY",
+        "x": 10,
+        "y": 10,
+        "length": 12,
+        "width": 6,
+        "thickness": 1.5,
+        "hook_height": 1.5,
+        "operation": "join",
+        "targets": []
+      },
+      "fromParams": {
+        "plane": "XY",
+        "x": 10,
+        "y": 10,
+        "length": 12,
+        "width": 6,
+        "thickness": 1.5,
+        "hook_height": 1.5,
+        "operation": "join",
+        "targets": []
+      },
+      "toParams": {
+        "plane": "XY",
+        "x": 10,
+        "y": 10,
+        "length": 12,
+        "width": 6,
+        "thickness": 1.5,
+        "hook_height": 1.5,
+        "operation": "join",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:operation=new",
+      "params": {
+        "plane": "XY",
+        "x": 10,
+        "y": 10,
+        "length": 12,
+        "width": 6,
+        "thickness": 1.5,
+        "hook_height": 1.5,
+        "operation": "new",
+        "targets": []
+      },
+      "fromParams": {
+        "plane": "XY",
+        "x": 10,
+        "y": 10,
+        "length": 12,
+        "width": 6,
+        "thickness": 1.5,
+        "hook_height": 1.5,
+        "operation": "new",
+        "targets": []
+      },
+      "toParams": {
+        "plane": "XY",
+        "x": 10,
+        "y": 10,
+        "length": 12,
+        "width": 6,
+        "thickness": 1.5,
+        "hook_height": 1.5,
+        "operation": "new",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:operation=join",
+      "params": {
+        "plane": "XY",
+        "x": 10,
+        "y": 10,
+        "length": 12,
+        "width": 6,
+        "thickness": 1.5,
+        "hook_height": 1.5,
+        "operation": "join",
+        "targets": []
+      },
+      "fromParams": {
+        "plane": "XY",
+        "x": 10,
+        "y": 10,
+        "length": 12,
+        "width": 6,
+        "thickness": 1.5,
+        "hook_height": 1.5,
+        "operation": "join",
+        "targets": []
+      },
+      "toParams": {
+        "plane": "XY",
+        "x": 10,
+        "y": 10,
+        "length": 12,
+        "width": 6,
+        "thickness": 1.5,
+        "hook_height": 1.5,
+        "operation": "join",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:operation=cut",
+      "params": {
+        "plane": "XY",
+        "x": 10,
+        "y": 10,
+        "length": 12,
+        "width": 6,
+        "thickness": 1.5,
+        "hook_height": 1.5,
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "plane": "XY",
+        "x": 10,
+        "y": 10,
+        "length": 12,
+        "width": 6,
+        "thickness": 1.5,
+        "hook_height": 1.5,
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "plane": "XY",
+        "x": 10,
+        "y": 10,
+        "length": 12,
+        "width": 6,
+        "thickness": 1.5,
+        "hook_height": 1.5,
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:operation=intersect",
+      "params": {
+        "plane": "XY",
+        "x": 10,
+        "y": 10,
+        "length": 12,
+        "width": 6,
+        "thickness": 1.5,
+        "hook_height": 1.5,
+        "operation": "intersect",
+        "targets": []
+      },
+      "fromParams": {
+        "plane": "XY",
+        "x": 10,
+        "y": 10,
+        "length": 12,
+        "width": 6,
+        "thickness": 1.5,
+        "hook_height": 1.5,
+        "operation": "intersect",
+        "targets": []
+      },
+      "toParams": {
+        "plane": "XY",
+        "x": 10,
+        "y": 10,
+        "length": 12,
+        "width": 6,
+        "thickness": 1.5,
+        "hook_height": 1.5,
+        "operation": "intersect",
+        "targets": []
+      }
+    }
+  ],
+  "ctxCases": {
+    "nosel": {
+      "defaults": {
+        "plane": "XY",
+        "x": 10,
+        "y": 10,
+        "length": 12,
+        "width": 6,
+        "thickness": 1.5,
+        "hook_height": 1.5,
+        "operation": "join",
+        "targets": []
+      },
+      "toParams_defaults": {
+        "plane": "XY",
+        "x": 10,
+        "y": 10,
+        "length": 12,
+        "width": 6,
+        "thickness": 1.5,
+        "hook_height": 1.5,
+        "operation": "join",
+        "targets": []
+      },
+      "shown_defaults": [
+        "plane",
+        "x",
+        "y",
+        "length",
+        "width",
+        "thickness",
+        "hook_height",
+        "operation",
+        "targets"
+      ]
+    },
+    "two": {
+      "defaults": {
+        "plane": "XY",
+        "x": 10,
+        "y": 10,
+        "length": 12,
+        "width": 6,
+        "thickness": 1.5,
+        "hook_height": 1.5,
+        "operation": "join",
+        "targets": []
+      },
+      "toParams_defaults": {
+        "plane": "XY",
+        "x": 10,
+        "y": 10,
+        "length": 12,
+        "width": 6,
+        "thickness": 1.5,
+        "hook_height": 1.5,
+        "operation": "join",
+        "targets": []
+      },
+      "shown_defaults": [
+        "plane",
+        "x",
+        "y",
+        "length",
+        "width",
+        "thickness",
+        "hook_height",
+        "operation",
+        "targets"
+      ]
+    },
+    "nonsolid": {
+      "defaults": {
+        "plane": "XY",
+        "x": 10,
+        "y": 10,
+        "length": 12,
+        "width": 6,
+        "thickness": 1.5,
+        "hook_height": 1.5,
+        "operation": "join",
+        "targets": []
+      },
+      "toParams_defaults": {
+        "plane": "XY",
+        "x": 10,
+        "y": 10,
+        "length": 12,
+        "width": 6,
+        "thickness": 1.5,
+        "hook_height": 1.5,
+        "operation": "join",
+        "targets": []
+      },
+      "shown_defaults": [
+        "plane",
+        "x",
+        "y",
+        "length",
+        "width",
+        "thickness",
+        "hook_height",
+        "operation",
+        "targets"
+      ]
+    },
+    "nobbox": {
+      "defaults": {
+        "plane": "XY",
+        "x": 10,
+        "y": 10,
+        "length": 12,
+        "width": 6,
+        "thickness": 1.5,
+        "hook_height": 1.5,
+        "operation": "join",
+        "targets": []
+      },
+      "toParams_defaults": {
+        "plane": "XY",
+        "x": 10,
+        "y": 10,
+        "length": 12,
+        "width": 6,
+        "thickness": 1.5,
+        "hook_height": 1.5,
+        "operation": "join",
+        "targets": []
+      },
+      "shown_defaults": [
+        "plane",
+        "x",
+        "y",
+        "length",
+        "width",
+        "thickness",
+        "hook_height",
+        "operation",
+        "targets"
+      ]
+    },
+    "empty": {
+      "defaults": {
+        "plane": "XY",
+        "x": 10,
+        "y": 10,
+        "length": 12,
+        "width": 6,
+        "thickness": 1.5,
+        "hook_height": 1.5,
+        "operation": "join",
+        "targets": []
+      },
+      "toParams_defaults": {
+        "plane": "XY",
+        "x": 10,
+        "y": 10,
+        "length": 12,
+        "width": 6,
+        "thickness": 1.5,
+        "hook_height": 1.5,
+        "operation": "join",
+        "targets": []
+      },
+      "shown_defaults": [
+        "plane",
+        "x",
+        "y",
+        "length",
+        "width",
+        "thickness",
+        "hook_height",
+        "operation",
+        "targets"
+      ]
+    }
+  }
+}

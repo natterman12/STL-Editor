@@ -106,6 +106,27 @@ impl Platform for WebPlatform {
     fn is_web(&self) -> bool {
         true
     }
+
+    fn setting(&self, key: &str) -> Option<String> {
+        let (store, f) = local_storage_fn("getItem")?;
+        f.call1(&store, &JsValue::from_str(key)).ok()?.as_string()
+    }
+
+    fn set_setting(&self, key: &str, value: &str) {
+        if let Some((store, f)) = local_storage_fn("setItem") {
+            let _ = f.call2(&store, &JsValue::from_str(key), &JsValue::from_str(value));
+        }
+    }
+}
+
+/// `localStorage.<name>` without needing web-sys's Storage feature.
+fn local_storage_fn(name: &str) -> Option<(JsValue, js_sys::Function)> {
+    let store = js_sys::Reflect::get(&js_sys::global(), &JsValue::from_str("localStorage")).ok()?;
+    if store.is_undefined() || store.is_null() {
+        return None;
+    }
+    let f = js_sys::Reflect::get(&store, &JsValue::from_str(name)).ok()?.dyn_into::<js_sys::Function>().ok()?;
+    Some((store, f))
 }
 
 fn arm_open(filters: &[(&str, &[&str])], pending: Pending<Option<PickedFile>>) -> Result<(), String> {

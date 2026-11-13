@@ -1,0 +1,284 @@
+{
+  "tool": "offset",
+  "label": "Offset Body",
+  "type": "offset",
+  "icon": "offset",
+  "flags": {
+    "placeOnFace": false,
+    "noLivePreview": true,
+    "gizmo": false,
+    "planeTool": false,
+    "sculpt": false,
+    "paint": false,
+    "wallTool": false
+  },
+  "hint": "Makes the whole body bigger or smaller by the same distance everywhere: for fit adjustments, moulds and clearance. Detailed meshes take a few seconds",
+  "extra": [],
+  "fields": [
+    {
+      "key": "bodies",
+      "label": "Bodies",
+      "kind": "bodies",
+      "multi": true
+    },
+    {
+      "key": "direction",
+      "label": "Direction",
+      "kind": "select",
+      "options": [
+        [
+          "grow",
+          "Grow (thicker)"
+        ],
+        [
+          "shrink",
+          "Shrink (thinner)"
+        ]
+      ]
+    },
+    {
+      "key": "distance",
+      "label": "Distance",
+      "kind": "number",
+      "unit": "mm"
+    }
+  ],
+  "ctxNote": "FIXTURE_CTX: selection [body_a], lastSketch sk1, sketchOnBody true, two bodies, one extrude cut",
+  "defaults": {
+    "bodies": [
+      "body_a"
+    ],
+    "direction": "grow",
+    "distance": 0.2
+  },
+  "toParams_defaults": {
+    "bodies": [
+      "body_a"
+    ],
+    "direction": "grow",
+    "distance": 0.2
+  },
+  "shown_defaults": [
+    "bodies",
+    "direction",
+    "distance"
+  ],
+  "cases": [
+    {
+      "name": "select:direction=grow",
+      "values": {
+        "bodies": [
+          "body_a"
+        ],
+        "direction": "grow",
+        "distance": 0.2
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "direction": "grow",
+        "distance": 0.2
+      },
+      "shown": [
+        "bodies",
+        "direction",
+        "distance"
+      ]
+    },
+    {
+      "name": "select:direction=shrink",
+      "values": {
+        "bodies": [
+          "body_a"
+        ],
+        "direction": "shrink",
+        "distance": 0.2
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "direction": "shrink",
+        "distance": 0.2
+      },
+      "shown": [
+        "bodies",
+        "direction",
+        "distance"
+      ]
+    }
+  ],
+  "onChange": [],
+  "roundTrips": [
+    {
+      "name": "defaults",
+      "params": {
+        "bodies": [
+          "body_a"
+        ],
+        "direction": "grow",
+        "distance": 0.2
+      },
+      "fromParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "direction": "grow",
+        "distance": 0.2
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "direction": "grow",
+        "distance": 0.2
+      }
+    },
+    {
+      "name": "select:direction=grow",
+      "params": {
+        "bodies": [
+          "body_a"
+        ],
+        "direction": "grow",
+        "distance": 0.2
+      },
+      "fromParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "direction": "grow",
+        "distance": 0.2
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "direction": "grow",
+        "distance": 0.2
+      }
+    },
+    {
+      "name": "select:direction=shrink",
+      "params": {
+        "bodies": [
+          "body_a"
+        ],
+        "direction": "shrink",
+        "distance": 0.2
+      },
+      "fromParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "direction": "shrink",
+        "distance": 0.2
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "direction": "shrink",
+        "distance": 0.2
+      }
+    }
+  ],
+  "ctxCases": {
+    "nosel": {
+      "defaults": {
+        "bodies": [],
+        "direction": "grow",
+        "distance": 0.2
+      },
+      "toParams_defaults": {
+        "bodies": [],
+        "direction": "grow",
+        "distance": 0.2
+      },
+      "shown_defaults": [
+        "bodies",
+        "direction",
+        "distance"
+      ]
+    },
+    "two": {
+      "defaults": {
+        "bodies": [
+          "body_a",
+          "body_b"
+        ],
+        "direction": "grow",
+        "distance": 0.2
+      },
+      "toParams_defaults": {
+        "bodies": [
+          "body_a",
+          "body_b"
+        ],
+        "direction": "grow",
+        "distance": 0.2
+      },
+      "shown_defaults": [
+        "bodies",
+        "direction",
+        "distance"
+      ]
+    },
+    "nonsolid": {
+      "defaults": {
+        "bodies": [],
+        "direction": "grow",
+        "distance": 0.2
+      },
+      "toParams_defaults": {
+        "bodies": [],
+        "direction": "grow",
+        "distance": 0.2
+      },
+      "shown_defaults": [
+        "bodies",
+        "direction",
+        "distance"
+      ]
+    },
+    "nobbox": {
+      "defaults": {
+        "bodies": [
+          "body_c"
+        ],
+        "direction": "grow",
+        "distance": 0.2
+      },
+      "toParams_defaults": {
+        "bodies": [
+          "body_c"
+        ],
+        "direction": "grow",
+        "distance": 0.2
+      },
+      "shown_defaults": [
+        "bodies",
+        "direction",
+        "distance"
+      ]
+    },
+    "empty": {
+      "defaults": {
+        "bodies": [],
+        "direction": "grow",
+        "distance": 0.2
+      },
+      "toParams_defaults": {
+        "bodies": [],
+        "direction": "grow",
+        "distance": 0.2
+      },
+      "shown_defaults": [
+        "bodies",
+        "direction",
+        "distance"
+      ]
+    }
+  }
+}

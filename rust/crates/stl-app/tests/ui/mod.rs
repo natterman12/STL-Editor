@@ -1,6 +1,22 @@
 //! App-level egui_kittest tests. The harness lives in [`harness`].
+//!
+//! M4b UI parity (Task 8): `desktop_mirror`, `desktop_place`, `desktop_tools`, `gizmo`,
+//! `sf11`, `sf9`, `sfcov`, `sfpanel`, `touch`, `v110`, `web7`, `web8`.
 
 mod harness;
+
+mod desktop_mirror;
+mod desktop_place;
+mod desktop_tools;
+mod gizmo;
+mod sf11;
+mod sf9;
+mod sfcov;
+mod sfpanel;
+mod touch;
+mod v110;
+mod web7;
+mod web8;
 
 use std::path::Path;
 

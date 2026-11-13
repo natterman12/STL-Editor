@@ -1,0 +1,181 @@
+{
+  "tool": "separate",
+  "label": "Separate",
+  "type": "separate",
+  "icon": "separate",
+  "flags": {
+    "placeOnFace": false,
+    "noLivePreview": false,
+    "gizmo": false,
+    "planeTool": false,
+    "sculpt": false,
+    "paint": false,
+    "wallTool": false
+  },
+  "hint": "Splits a body made of disconnected pieces into one body per piece",
+  "extra": [
+    {
+      "name": "toParams:no body",
+      "op": "toParams",
+      "input": {
+        "body": []
+      },
+      "result": {}
+    },
+    {
+      "name": "toParams:picked body",
+      "op": "toParams",
+      "input": {
+        "body": [
+          "body_b"
+        ]
+      },
+      "result": {
+        "body": "body_b"
+      }
+    },
+    {
+      "name": "fromParams:body null",
+      "op": "fromParams",
+      "input": {
+        "body": null
+      },
+      "result": {
+        "body": []
+      }
+    },
+    {
+      "name": "fromParams:body empty string",
+      "op": "fromParams",
+      "input": {
+        "body": ""
+      },
+      "result": {
+        "body": []
+      }
+    },
+    {
+      "name": "fromParams:body zero",
+      "op": "fromParams",
+      "input": {
+        "body": 0
+      },
+      "result": {
+        "body": []
+      }
+    },
+    {
+      "name": "fromParams:body name",
+      "op": "fromParams",
+      "input": {
+        "body": "body_b"
+      },
+      "result": {
+        "body": [
+          "body_b"
+        ]
+      }
+    },
+    {
+      "name": "fromParams:body missing",
+      "op": "fromParams",
+      "input": {},
+      "result": {
+        "body": []
+      }
+    }
+  ],
+  "fields": [
+    {
+      "key": "body",
+      "label": "Body",
+      "kind": "bodies",
+      "multi": false
+    }
+  ],
+  "ctxNote": "FIXTURE_CTX: selection [body_a], lastSketch sk1, sketchOnBody true, two bodies, one extrude cut",
+  "defaults": {
+    "body": [
+      "body_a"
+    ]
+  },
+  "toParams_defaults": {
+    "body": "body_a"
+  },
+  "shown_defaults": [
+    "body"
+  ],
+  "cases": [],
+  "onChange": [],
+  "roundTrips": [
+    {
+      "name": "defaults",
+      "params": {
+        "body": "body_a"
+      },
+      "fromParams": {
+        "body": [
+          "body_a"
+        ]
+      },
+      "toParams": {
+        "body": "body_a"
+      }
+    }
+  ],
+  "ctxCases": {
+    "nosel": {
+      "defaults": {
+        "body": []
+      },
+      "toParams_defaults": {},
+      "shown_defaults": [
+        "body"
+      ]
+    },
+    "two": {
+      "defaults": {
+        "body": [
+          "body_a"
+        ]
+      },
+      "toParams_defaults": {
+        "body": "body_a"
+      },
+      "shown_defaults": [
+        "body"
+      ]
+    },
+    "nonsolid": {
+      "defaults": {
+        "body": []
+      },
+      "toParams_defaults": {},
+      "shown_defaults": [
+        "body"
+      ]
+    },
+    "nobbox": {
+      "defaults": {
+        "body": [
+          "body_c"
+        ]
+      },
+      "toParams_defaults": {
+        "body": "body_c"
+      },
+      "shown_defaults": [
+        "body"
+      ]
+    },
+    "empty": {
+      "defaults": {
+        "body": []
+      },
+      "toParams_defaults": {},
+      "shown_defaults": [
+        "body"
+      ]
+    }
+  }
+}

@@ -1,0 +1,2383 @@
+{
+  "tool": "pattern",
+  "label": "Pattern",
+  "type": "pattern",
+  "icon": "pattern",
+  "flags": {
+    "placeOnFace": false,
+    "noLivePreview": false,
+    "gizmo": false,
+    "planeTool": false,
+    "sculpt": false,
+    "paint": false,
+    "wallTool": false
+  },
+  "hint": "Features: repeats a cut, hole or extrude (tick them below or click them on the timeline). Bodies: copies whole bodies",
+  "extra": [
+    {
+      "name": "fromParams:axisname empty, direction y",
+      "op": "fromParams",
+      "input": {
+        "source": "bodies",
+        "features": [],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "axisname": "",
+        "direction": [
+          0,
+          1,
+          0
+        ]
+      },
+      "result": {
+        "source": "bodies",
+        "features": [],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "axisname": "y",
+        "direction": [
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "name": "fromParams:axisname missing, direction x",
+      "op": "fromParams",
+      "input": {
+        "source": "bodies",
+        "features": [],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          1,
+          0,
+          0
+        ]
+      },
+      "result": {
+        "source": "bodies",
+        "features": [],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "axisname": "x"
+      }
+    },
+    {
+      "name": "fromParams:axisname missing, direction -z",
+      "op": "fromParams",
+      "input": {
+        "source": "bodies",
+        "features": [],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          0,
+          0,
+          -3
+        ]
+      },
+      "result": {
+        "source": "bodies",
+        "features": [],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          0,
+          0,
+          -3
+        ],
+        "axisname": "z"
+      }
+    },
+    {
+      "name": "fromParams:direction empty list",
+      "op": "fromParams",
+      "input": {
+        "source": "bodies",
+        "features": [],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": []
+      },
+      "result": {
+        "source": "bodies",
+        "features": [],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": []
+      }
+    },
+    {
+      "name": "fromParams:direction null",
+      "op": "fromParams",
+      "input": {
+        "source": "bodies",
+        "features": [],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": null
+      },
+      "result": {
+        "source": "bodies",
+        "features": [],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": null,
+        "axisname": "z"
+      }
+    },
+    {
+      "name": "fromParams:direction short",
+      "op": "fromParams",
+      "input": {
+        "source": "bodies",
+        "features": [],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          0,
+          4
+        ]
+      },
+      "result": {
+        "source": "bodies",
+        "features": [],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          0,
+          4
+        ],
+        "axisname": "y"
+      }
+    },
+    {
+      "name": "fromParams:direction long",
+      "op": "fromParams",
+      "input": {
+        "source": "bodies",
+        "features": [],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          0,
+          0,
+          1,
+          9
+        ]
+      },
+      "result": {
+        "source": "bodies",
+        "features": [],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          0,
+          0,
+          1,
+          9
+        ]
+      }
+    },
+    {
+      "name": "fromParams:direction missing",
+      "op": "fromParams",
+      "input": {
+        "source": "bodies",
+        "features": [],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false
+      },
+      "result": {
+        "source": "bodies",
+        "features": [],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "axisname": "z"
+      }
+    },
+    {
+      "name": "fromParams:axisname 0",
+      "op": "fromParams",
+      "input": {
+        "source": "bodies",
+        "features": [],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "axisname": 0,
+        "direction": [
+          0,
+          1,
+          0
+        ]
+      },
+      "result": {
+        "source": "bodies",
+        "features": [],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "axisname": "y",
+        "direction": [
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "name": "fromParams:source empty",
+      "op": "fromParams",
+      "input": {
+        "source": "",
+        "features": [],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false
+      },
+      "result": {
+        "source": "",
+        "features": [],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "axisname": "z"
+      }
+    },
+    {
+      "name": "fromParams:features null",
+      "op": "fromParams",
+      "input": {
+        "source": "bodies",
+        "features": null,
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false
+      },
+      "result": {
+        "source": "bodies",
+        "features": null,
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "axisname": "z"
+      }
+    },
+    {
+      "name": "fromParams:minimal",
+      "op": "fromParams",
+      "input": {},
+      "result": {
+        "source": "bodies",
+        "features": [],
+        "axisname": "z"
+      }
+    },
+    {
+      "name": "toParams:unknown axisname",
+      "op": "toParams",
+      "input": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "axisname": "w",
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false
+      },
+      "result": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "axisname": "w"
+      }
+    },
+    {
+      "name": "toParams:missing axisname",
+      "op": "toParams",
+      "input": {
+        "source": "bodies",
+        "kind": "linear",
+        "count": 2
+      },
+      "result": {
+        "source": "bodies",
+        "kind": "linear",
+        "count": 2
+      }
+    },
+    {
+      "name": "toParams:expression count",
+      "op": "toParams",
+      "input": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": "=n+1",
+        "axisname": "x",
+        "spacing": "=w/2",
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false
+      },
+      "result": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": "=n+1",
+        "spacing": "=w/2",
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "axisname": "x"
+      }
+    }
+  ],
+  "fields": [
+    {
+      "key": "source",
+      "label": "Pattern",
+      "kind": "select",
+      "options": [
+        [
+          "features",
+          "Features"
+        ],
+        [
+          "bodies",
+          "Bodies"
+        ]
+      ]
+    },
+    {
+      "key": "features",
+      "label": "Features",
+      "kind": "features",
+      "hasShow": true
+    },
+    {
+      "key": "bodies",
+      "label": "Bodies",
+      "kind": "bodies",
+      "multi": true,
+      "hasShow": true
+    },
+    {
+      "key": "kind",
+      "label": "Type",
+      "kind": "select",
+      "options": [
+        [
+          "linear",
+          "Linear"
+        ],
+        [
+          "circular",
+          "Circular"
+        ]
+      ]
+    },
+    {
+      "key": "count",
+      "label": "Count",
+      "kind": "number"
+    },
+    {
+      "key": "axisname",
+      "label": "Direction",
+      "kind": "select",
+      "options": [
+        [
+          "x",
+          "X"
+        ],
+        [
+          "y",
+          "Y"
+        ],
+        [
+          "z",
+          "Z"
+        ]
+      ]
+    },
+    {
+      "key": "spacing",
+      "label": "Spacing",
+      "kind": "number",
+      "unit": "mm",
+      "hasShow": true
+    },
+    {
+      "key": "angle",
+      "label": "Total angle",
+      "kind": "number",
+      "unit": "°",
+      "hasShow": true
+    },
+    {
+      "key": "center",
+      "label": "Axis through",
+      "kind": "vec3",
+      "unit": "mm",
+      "hasShow": true
+    },
+    {
+      "key": "join",
+      "label": "Join copies",
+      "kind": "bool",
+      "hasShow": true
+    }
+  ],
+  "ctxNote": "FIXTURE_CTX: selection [body_a], lastSketch sk1, sketchOnBody true, two bodies, one extrude cut",
+  "defaults": {
+    "source": "bodies",
+    "features": [
+      "f_extrude"
+    ],
+    "bodies": [
+      "body_a"
+    ],
+    "kind": "linear",
+    "count": 3,
+    "axisname": "x",
+    "spacing": 20,
+    "angle": 360,
+    "center": [
+      0,
+      0,
+      0
+    ],
+    "join": false
+  },
+  "toParams_defaults": {
+    "source": "bodies",
+    "features": [
+      "f_extrude"
+    ],
+    "bodies": [
+      "body_a"
+    ],
+    "kind": "linear",
+    "count": 3,
+    "spacing": 20,
+    "angle": 360,
+    "center": [
+      0,
+      0,
+      0
+    ],
+    "join": false,
+    "direction": [
+      1,
+      0,
+      0
+    ],
+    "axis": [
+      1,
+      0,
+      0
+    ],
+    "axisname": "x"
+  },
+  "shown_defaults": [
+    "source",
+    "bodies",
+    "kind",
+    "count",
+    "axisname",
+    "spacing",
+    "join"
+  ],
+  "cases": [
+    {
+      "name": "select:source=features",
+      "values": {
+        "source": "features",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "axisname": "x",
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false
+      },
+      "toParams": {
+        "source": "features",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "axisname": "x"
+      },
+      "shown": [
+        "source",
+        "features",
+        "kind",
+        "count",
+        "axisname",
+        "spacing"
+      ]
+    },
+    {
+      "name": "select:source=bodies",
+      "values": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "axisname": "x",
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false
+      },
+      "toParams": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "axisname": "x"
+      },
+      "shown": [
+        "source",
+        "bodies",
+        "kind",
+        "count",
+        "axisname",
+        "spacing",
+        "join"
+      ]
+    },
+    {
+      "name": "select:kind=linear",
+      "values": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "axisname": "x",
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false
+      },
+      "toParams": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "axisname": "x"
+      },
+      "shown": [
+        "source",
+        "bodies",
+        "kind",
+        "count",
+        "axisname",
+        "spacing",
+        "join"
+      ]
+    },
+    {
+      "name": "select:kind=circular",
+      "values": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "circular",
+        "count": 3,
+        "axisname": "x",
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false
+      },
+      "toParams": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "circular",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "axisname": "x"
+      },
+      "shown": [
+        "source",
+        "bodies",
+        "kind",
+        "count",
+        "axisname",
+        "angle",
+        "center",
+        "join"
+      ]
+    },
+    {
+      "name": "select:axisname=x",
+      "values": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "axisname": "x",
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false
+      },
+      "toParams": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "axisname": "x"
+      },
+      "shown": [
+        "source",
+        "bodies",
+        "kind",
+        "count",
+        "axisname",
+        "spacing",
+        "join"
+      ]
+    },
+    {
+      "name": "select:axisname=y",
+      "values": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "axisname": "y",
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false
+      },
+      "toParams": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          0,
+          1,
+          0
+        ],
+        "axis": [
+          0,
+          1,
+          0
+        ],
+        "axisname": "y"
+      },
+      "shown": [
+        "source",
+        "bodies",
+        "kind",
+        "count",
+        "axisname",
+        "spacing",
+        "join"
+      ]
+    },
+    {
+      "name": "select:axisname=z",
+      "values": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "axisname": "z",
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false
+      },
+      "toParams": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          0,
+          0,
+          1
+        ],
+        "axis": [
+          0,
+          0,
+          1
+        ],
+        "axisname": "z"
+      },
+      "shown": [
+        "source",
+        "bodies",
+        "kind",
+        "count",
+        "axisname",
+        "spacing",
+        "join"
+      ]
+    },
+    {
+      "name": "bool:join=true",
+      "values": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "axisname": "x",
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": true
+      },
+      "toParams": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": true,
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "axisname": "x"
+      },
+      "shown": [
+        "source",
+        "bodies",
+        "kind",
+        "count",
+        "axisname",
+        "spacing",
+        "join"
+      ]
+    },
+    {
+      "name": "bool:join=false",
+      "values": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "axisname": "x",
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false
+      },
+      "toParams": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "axisname": "x"
+      },
+      "shown": [
+        "source",
+        "bodies",
+        "kind",
+        "count",
+        "axisname",
+        "spacing",
+        "join"
+      ]
+    }
+  ],
+  "onChange": [],
+  "roundTrips": [
+    {
+      "name": "defaults",
+      "params": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "axisname": "x"
+      },
+      "fromParams": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "axisname": "x"
+      },
+      "toParams": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "axisname": "x"
+      }
+    },
+    {
+      "name": "select:source=features",
+      "params": {
+        "source": "features",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "axisname": "x"
+      },
+      "fromParams": {
+        "source": "features",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "axisname": "x"
+      },
+      "toParams": {
+        "source": "features",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "axisname": "x"
+      }
+    },
+    {
+      "name": "select:source=bodies",
+      "params": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "axisname": "x"
+      },
+      "fromParams": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "axisname": "x"
+      },
+      "toParams": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "axisname": "x"
+      }
+    },
+    {
+      "name": "select:kind=linear",
+      "params": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "axisname": "x"
+      },
+      "fromParams": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "axisname": "x"
+      },
+      "toParams": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "axisname": "x"
+      }
+    },
+    {
+      "name": "select:kind=circular",
+      "params": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "circular",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "axisname": "x"
+      },
+      "fromParams": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "circular",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "axisname": "x"
+      },
+      "toParams": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "circular",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "axisname": "x"
+      }
+    },
+    {
+      "name": "select:axisname=x",
+      "params": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "axisname": "x"
+      },
+      "fromParams": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "axisname": "x"
+      },
+      "toParams": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "axisname": "x"
+      }
+    },
+    {
+      "name": "select:axisname=y",
+      "params": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          0,
+          1,
+          0
+        ],
+        "axis": [
+          0,
+          1,
+          0
+        ],
+        "axisname": "y"
+      },
+      "fromParams": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          0,
+          1,
+          0
+        ],
+        "axis": [
+          0,
+          1,
+          0
+        ],
+        "axisname": "y"
+      },
+      "toParams": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          0,
+          1,
+          0
+        ],
+        "axis": [
+          0,
+          1,
+          0
+        ],
+        "axisname": "y"
+      }
+    },
+    {
+      "name": "select:axisname=z",
+      "params": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          0,
+          0,
+          1
+        ],
+        "axis": [
+          0,
+          0,
+          1
+        ],
+        "axisname": "z"
+      },
+      "fromParams": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          0,
+          0,
+          1
+        ],
+        "axis": [
+          0,
+          0,
+          1
+        ],
+        "axisname": "z"
+      },
+      "toParams": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          0,
+          0,
+          1
+        ],
+        "axis": [
+          0,
+          0,
+          1
+        ],
+        "axisname": "z"
+      }
+    }
+  ],
+  "ctxCases": {
+    "nosel": {
+      "defaults": {
+        "source": "features",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [],
+        "kind": "linear",
+        "count": 3,
+        "axisname": "x",
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false
+      },
+      "toParams_defaults": {
+        "source": "features",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "axisname": "x"
+      },
+      "shown_defaults": [
+        "source",
+        "features",
+        "kind",
+        "count",
+        "axisname",
+        "spacing"
+      ]
+    },
+    "two": {
+      "defaults": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a",
+          "body_b"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "axisname": "x",
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false
+      },
+      "toParams_defaults": {
+        "source": "bodies",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [
+          "body_a",
+          "body_b"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "axisname": "x"
+      },
+      "shown_defaults": [
+        "source",
+        "bodies",
+        "kind",
+        "count",
+        "axisname",
+        "spacing",
+        "join"
+      ]
+    },
+    "nonsolid": {
+      "defaults": {
+        "source": "features",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [],
+        "kind": "linear",
+        "count": 3,
+        "axisname": "x",
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false
+      },
+      "toParams_defaults": {
+        "source": "features",
+        "features": [
+          "f_extrude"
+        ],
+        "bodies": [],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "axisname": "x"
+      },
+      "shown_defaults": [
+        "source",
+        "features",
+        "kind",
+        "count",
+        "axisname",
+        "spacing"
+      ]
+    },
+    "nobbox": {
+      "defaults": {
+        "source": "bodies",
+        "features": [],
+        "bodies": [
+          "body_c"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "axisname": "x",
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false
+      },
+      "toParams_defaults": {
+        "source": "bodies",
+        "features": [],
+        "bodies": [
+          "body_c"
+        ],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "axisname": "x"
+      },
+      "shown_defaults": [
+        "source",
+        "bodies",
+        "kind",
+        "count",
+        "axisname",
+        "spacing",
+        "join"
+      ]
+    },
+    "empty": {
+      "defaults": {
+        "source": "bodies",
+        "features": [],
+        "bodies": [],
+        "kind": "linear",
+        "count": 3,
+        "axisname": "x",
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false
+      },
+      "toParams_defaults": {
+        "source": "bodies",
+        "features": [],
+        "bodies": [],
+        "kind": "linear",
+        "count": 3,
+        "spacing": 20,
+        "angle": 360,
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "join": false,
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "axis": [
+          1,
+          0,
+          0
+        ],
+        "axisname": "x"
+      },
+      "shown_defaults": [
+        "source",
+        "bodies",
+        "kind",
+        "count",
+        "axisname",
+        "spacing",
+        "join"
+      ]
+    }
+  }
+}

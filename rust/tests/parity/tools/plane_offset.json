@@ -1,0 +1,248 @@
+{
+  "tool": "plane_offset",
+  "label": "Offset Plane",
+  "type": "plane",
+  "icon": "plane",
+  "flags": {
+    "placeOnFace": false,
+    "noLivePreview": false,
+    "gizmo": false,
+    "planeTool": true,
+    "sculpt": false,
+    "paint": false,
+    "wallTool": false
+  },
+  "hint": "Pick a base plane or a flat face, then set the offset",
+  "extra": [],
+  "fields": [
+    {
+      "key": "base",
+      "label": "From",
+      "kind": "plane"
+    },
+    {
+      "key": "distance",
+      "label": "Offset",
+      "kind": "number",
+      "unit": "mm"
+    },
+    {
+      "key": "flip",
+      "label": "Flip normal",
+      "kind": "bool"
+    },
+    {
+      "key": "name",
+      "label": "Name",
+      "kind": "text"
+    }
+  ],
+  "ctxNote": "FIXTURE_CTX: selection [body_a], lastSketch sk1, sketchOnBody true, two bodies, one extrude cut",
+  "defaults": {
+    "mode": "offset",
+    "base": "XY",
+    "distance": 10,
+    "flip": false,
+    "name": ""
+  },
+  "toParams_defaults": {
+    "mode": "offset",
+    "base": "XY",
+    "distance": 10,
+    "flip": false,
+    "name": ""
+  },
+  "shown_defaults": [
+    "base",
+    "distance",
+    "flip",
+    "name"
+  ],
+  "cases": [
+    {
+      "name": "bool:flip=true",
+      "values": {
+        "mode": "offset",
+        "base": "XY",
+        "distance": 10,
+        "flip": true,
+        "name": ""
+      },
+      "toParams": {
+        "mode": "offset",
+        "base": "XY",
+        "distance": 10,
+        "flip": true,
+        "name": ""
+      },
+      "shown": [
+        "base",
+        "distance",
+        "flip",
+        "name"
+      ]
+    },
+    {
+      "name": "bool:flip=false",
+      "values": {
+        "mode": "offset",
+        "base": "XY",
+        "distance": 10,
+        "flip": false,
+        "name": ""
+      },
+      "toParams": {
+        "mode": "offset",
+        "base": "XY",
+        "distance": 10,
+        "flip": false,
+        "name": ""
+      },
+      "shown": [
+        "base",
+        "distance",
+        "flip",
+        "name"
+      ]
+    }
+  ],
+  "onChange": [],
+  "roundTrips": [
+    {
+      "name": "defaults",
+      "params": {
+        "mode": "offset",
+        "base": "XY",
+        "distance": 10,
+        "flip": false,
+        "name": ""
+      },
+      "fromParams": {
+        "mode": "offset",
+        "base": "XY",
+        "distance": 10,
+        "flip": false,
+        "name": ""
+      },
+      "toParams": {
+        "mode": "offset",
+        "base": "XY",
+        "distance": 10,
+        "flip": false,
+        "name": ""
+      }
+    }
+  ],
+  "ctxCases": {
+    "nosel": {
+      "defaults": {
+        "mode": "offset",
+        "base": "XY",
+        "distance": 10,
+        "flip": false,
+        "name": ""
+      },
+      "toParams_defaults": {
+        "mode": "offset",
+        "base": "XY",
+        "distance": 10,
+        "flip": false,
+        "name": ""
+      },
+      "shown_defaults": [
+        "base",
+        "distance",
+        "flip",
+        "name"
+      ]
+    },
+    "two": {
+      "defaults": {
+        "mode": "offset",
+        "base": "XY",
+        "distance": 10,
+        "flip": false,
+        "name": ""
+      },
+      "toParams_defaults": {
+        "mode": "offset",
+        "base": "XY",
+        "distance": 10,
+        "flip": false,
+        "name": ""
+      },
+      "shown_defaults": [
+        "base",
+        "distance",
+        "flip",
+        "name"
+      ]
+    },
+    "nonsolid": {
+      "defaults": {
+        "mode": "offset",
+        "base": "XY",
+        "distance": 10,
+        "flip": false,
+        "name": ""
+      },
+      "toParams_defaults": {
+        "mode": "offset",
+        "base": "XY",
+        "distance": 10,
+        "flip": false,
+        "name": ""
+      },
+      "shown_defaults": [
+        "base",
+        "distance",
+        "flip",
+        "name"
+      ]
+    },
+    "nobbox": {
+      "defaults": {
+        "mode": "offset",
+        "base": "XY",
+        "distance": 10,
+        "flip": false,
+        "name": ""
+      },
+      "toParams_defaults": {
+        "mode": "offset",
+        "base": "XY",
+        "distance": 10,
+        "flip": false,
+        "name": ""
+      },
+      "shown_defaults": [
+        "base",
+        "distance",
+        "flip",
+        "name"
+      ]
+    },
+    "empty": {
+      "defaults": {
+        "mode": "offset",
+        "base": "XY",
+        "distance": 10,
+        "flip": false,
+        "name": ""
+      },
+      "toParams_defaults": {
+        "mode": "offset",
+        "base": "XY",
+        "distance": 10,
+        "flip": false,
+        "name": ""
+      },
+      "shown_defaults": [
+        "base",
+        "distance",
+        "flip",
+        "name"
+      ]
+    }
+  }
+}

@@ -1,0 +1,268 @@
+{
+  "tool": "import",
+  "label": "Imported Mesh",
+  "type": "import",
+  "icon": "import",
+  "flags": {
+    "placeOnFace": false,
+    "noLivePreview": false,
+    "gizmo": false,
+    "planeTool": false,
+    "sculpt": false,
+    "paint": false,
+    "wallTool": false
+  },
+  "hint": "\"On bed at origin\" centres the part and sets it on Z = 0. \"As in file\" keeps its original coordinates (use this to line up parts of an assembly)",
+  "extra": [
+    {
+      "name": "fromParams:place empty",
+      "op": "fromParams",
+      "input": {
+        "place": "",
+        "repair": 0
+      },
+      "result": {
+        "place": "keep",
+        "repair": true
+      }
+    },
+    {
+      "name": "fromParams:place null",
+      "op": "fromParams",
+      "input": {
+        "place": null,
+        "repair": false
+      },
+      "result": {
+        "place": "keep",
+        "repair": false
+      }
+    },
+    {
+      "name": "fromParams:empty",
+      "op": "fromParams",
+      "input": {},
+      "result": {
+        "place": "keep",
+        "repair": true
+      }
+    }
+  ],
+  "fields": [
+    {
+      "key": "place",
+      "label": "Position",
+      "kind": "select",
+      "options": [
+        [
+          "center",
+          "On bed at origin"
+        ],
+        [
+          "keep",
+          "As in file"
+        ]
+      ]
+    },
+    {
+      "key": "repair",
+      "label": "Auto-repair",
+      "kind": "bool"
+    }
+  ],
+  "ctxNote": "FIXTURE_CTX: selection [body_a], lastSketch sk1, sketchOnBody true, two bodies, one extrude cut",
+  "defaults": {
+    "place": "center",
+    "repair": true
+  },
+  "toParams_defaults": {
+    "place": "center",
+    "repair": true
+  },
+  "shown_defaults": [
+    "place",
+    "repair"
+  ],
+  "cases": [
+    {
+      "name": "select:place=center",
+      "values": {
+        "place": "center",
+        "repair": true
+      },
+      "toParams": {
+        "place": "center",
+        "repair": true
+      },
+      "shown": [
+        "place",
+        "repair"
+      ]
+    },
+    {
+      "name": "select:place=keep",
+      "values": {
+        "place": "keep",
+        "repair": true
+      },
+      "toParams": {
+        "place": "keep",
+        "repair": true
+      },
+      "shown": [
+        "place",
+        "repair"
+      ]
+    },
+    {
+      "name": "bool:repair=true",
+      "values": {
+        "place": "center",
+        "repair": true
+      },
+      "toParams": {
+        "place": "center",
+        "repair": true
+      },
+      "shown": [
+        "place",
+        "repair"
+      ]
+    },
+    {
+      "name": "bool:repair=false",
+      "values": {
+        "place": "center",
+        "repair": false
+      },
+      "toParams": {
+        "place": "center",
+        "repair": false
+      },
+      "shown": [
+        "place",
+        "repair"
+      ]
+    }
+  ],
+  "onChange": [],
+  "roundTrips": [
+    {
+      "name": "defaults",
+      "params": {
+        "place": "center",
+        "repair": true
+      },
+      "fromParams": {
+        "place": "center",
+        "repair": true
+      },
+      "toParams": {
+        "place": "center",
+        "repair": true
+      }
+    },
+    {
+      "name": "select:place=center",
+      "params": {
+        "place": "center",
+        "repair": true
+      },
+      "fromParams": {
+        "place": "center",
+        "repair": true
+      },
+      "toParams": {
+        "place": "center",
+        "repair": true
+      }
+    },
+    {
+      "name": "select:place=keep",
+      "params": {
+        "place": "keep",
+        "repair": true
+      },
+      "fromParams": {
+        "place": "keep",
+        "repair": true
+      },
+      "toParams": {
+        "place": "keep",
+        "repair": true
+      }
+    }
+  ],
+  "ctxCases": {
+    "nosel": {
+      "defaults": {
+        "place": "center",
+        "repair": true
+      },
+      "toParams_defaults": {
+        "place": "center",
+        "repair": true
+      },
+      "shown_defaults": [
+        "place",
+        "repair"
+      ]
+    },
+    "two": {
+      "defaults": {
+        "place": "center",
+        "repair": true
+      },
+      "toParams_defaults": {
+        "place": "center",
+        "repair": true
+      },
+      "shown_defaults": [
+        "place",
+        "repair"
+      ]
+    },
+    "nonsolid": {
+      "defaults": {
+        "place": "center",
+        "repair": true
+      },
+      "toParams_defaults": {
+        "place": "center",
+        "repair": true
+      },
+      "shown_defaults": [
+        "place",
+        "repair"
+      ]
+    },
+    "nobbox": {
+      "defaults": {
+        "place": "center",
+        "repair": true
+      },
+      "toParams_defaults": {
+        "place": "center",
+        "repair": true
+      },
+      "shown_defaults": [
+        "place",
+        "repair"
+      ]
+    },
+    "empty": {
+      "defaults": {
+        "place": "center",
+        "repair": true
+      },
+      "toParams_defaults": {
+        "place": "center",
+        "repair": true
+      },
+      "shown_defaults": [
+        "place",
+        "repair"
+      ]
+    }
+  }
+}

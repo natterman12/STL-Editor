@@ -268,6 +268,19 @@ impl Document {
         self.fins = host;
     }
 
+    /// Swap in a real Support Fins engine and run every Support Fins step again: a project that was
+    /// evaluated on the empty host (no engine yet) has errors cached for those steps.
+    pub fn replace_fins_host(&mut self, host: Arc<dyn crate::FinsHost>) {
+        self.fins = host;
+        let has = self.features.iter().any(|f| matches!(f.kind.as_str(), "supportfins" | "supportwall"));
+        if has {
+            self.memo.clear();
+            self.cache.clear();
+            self.results.clear();
+            self.rebuild();
+        }
+    }
+
     pub fn fins_host(&self) -> &Arc<dyn crate::FinsHost> {
         &self.fins
     }

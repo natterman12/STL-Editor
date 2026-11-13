@@ -1,0 +1,1162 @@
+{
+  "tool": "primitive_cylinder",
+  "label": "Cylinder",
+  "type": "primitive",
+  "icon": "cylinder",
+  "flags": {
+    "placeOnFace": true,
+    "noLivePreview": false,
+    "gizmo": false,
+    "planeTool": false,
+    "sculpt": false,
+    "paint": false,
+    "wallTool": false
+  },
+  "hint": "Click a flat face to place it there, or set the position · use Cut to subtract it",
+  "extra": [],
+  "fields": [
+    {
+      "key": "radius",
+      "label": "Radius",
+      "kind": "number",
+      "unit": "mm"
+    },
+    {
+      "key": "height",
+      "label": "Height",
+      "kind": "number",
+      "unit": "mm"
+    },
+    {
+      "key": "plane",
+      "label": "On",
+      "kind": "plane"
+    },
+    {
+      "key": "offset",
+      "label": "Position",
+      "kind": "vec3",
+      "unit": "mm"
+    },
+    {
+      "key": "rotate",
+      "label": "Rotate",
+      "kind": "vec3",
+      "unit": "°"
+    },
+    {
+      "key": "anchor",
+      "label": "Anchor",
+      "kind": "select",
+      "options": [
+        [
+          "base",
+          "Base"
+        ],
+        [
+          "center",
+          "Centre"
+        ]
+      ]
+    },
+    {
+      "key": "operation",
+      "label": "Operation",
+      "kind": "select",
+      "options": [
+        [
+          "new",
+          "New body"
+        ],
+        [
+          "join",
+          "Join"
+        ],
+        [
+          "cut",
+          "Cut"
+        ],
+        [
+          "intersect",
+          "Intersect"
+        ]
+      ]
+    },
+    {
+      "key": "targets",
+      "label": "Bodies",
+      "kind": "bodies",
+      "multi": true,
+      "placeholder": "Auto",
+      "hasShow": true
+    }
+  ],
+  "ctxNote": "FIXTURE_CTX: selection [body_a], lastSketch sk1, sketchOnBody true, two bodies, one extrude cut",
+  "defaults": {
+    "shape": "cylinder",
+    "radius": 10,
+    "height": 20,
+    "plane": "XY",
+    "offset": [
+      0,
+      0,
+      0
+    ],
+    "rotate": [
+      0,
+      0,
+      0
+    ],
+    "anchor": "base",
+    "operation": "new",
+    "targets": [],
+    "body_name": "Cylinder"
+  },
+  "toParams_defaults": {
+    "shape": "cylinder",
+    "radius": 10,
+    "height": 20,
+    "plane": "XY",
+    "offset": [
+      0,
+      0,
+      0
+    ],
+    "rotate": [
+      0,
+      0,
+      0
+    ],
+    "anchor": "base",
+    "operation": "new",
+    "targets": [],
+    "body_name": "Cylinder"
+  },
+  "shown_defaults": [
+    "radius",
+    "height",
+    "plane",
+    "offset",
+    "rotate",
+    "anchor",
+    "operation"
+  ],
+  "cases": [
+    {
+      "name": "select:anchor=base",
+      "values": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Cylinder"
+      },
+      "toParams": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Cylinder"
+      },
+      "shown": [
+        "radius",
+        "height",
+        "plane",
+        "offset",
+        "rotate",
+        "anchor",
+        "operation"
+      ]
+    },
+    {
+      "name": "select:anchor=center",
+      "values": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "center",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Cylinder"
+      },
+      "toParams": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "center",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Cylinder"
+      },
+      "shown": [
+        "radius",
+        "height",
+        "plane",
+        "offset",
+        "rotate",
+        "anchor",
+        "operation"
+      ]
+    },
+    {
+      "name": "select:operation=new",
+      "values": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Cylinder"
+      },
+      "toParams": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Cylinder"
+      },
+      "shown": [
+        "radius",
+        "height",
+        "plane",
+        "offset",
+        "rotate",
+        "anchor",
+        "operation"
+      ]
+    },
+    {
+      "name": "select:operation=join",
+      "values": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "join",
+        "targets": [],
+        "body_name": "Cylinder"
+      },
+      "toParams": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "join",
+        "targets": [],
+        "body_name": "Cylinder"
+      },
+      "shown": [
+        "radius",
+        "height",
+        "plane",
+        "offset",
+        "rotate",
+        "anchor",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:operation=cut",
+      "values": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "cut",
+        "targets": [],
+        "body_name": "Cylinder"
+      },
+      "toParams": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "cut",
+        "targets": [],
+        "body_name": "Cylinder"
+      },
+      "shown": [
+        "radius",
+        "height",
+        "plane",
+        "offset",
+        "rotate",
+        "anchor",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:operation=intersect",
+      "values": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "intersect",
+        "targets": [],
+        "body_name": "Cylinder"
+      },
+      "toParams": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "intersect",
+        "targets": [],
+        "body_name": "Cylinder"
+      },
+      "shown": [
+        "radius",
+        "height",
+        "plane",
+        "offset",
+        "rotate",
+        "anchor",
+        "operation",
+        "targets"
+      ]
+    }
+  ],
+  "onChange": [],
+  "roundTrips": [
+    {
+      "name": "defaults",
+      "params": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Cylinder"
+      },
+      "fromParams": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Cylinder"
+      },
+      "toParams": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Cylinder"
+      }
+    },
+    {
+      "name": "select:anchor=base",
+      "params": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Cylinder"
+      },
+      "fromParams": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Cylinder"
+      },
+      "toParams": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Cylinder"
+      }
+    },
+    {
+      "name": "select:anchor=center",
+      "params": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "center",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Cylinder"
+      },
+      "fromParams": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "center",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Cylinder"
+      },
+      "toParams": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "center",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Cylinder"
+      }
+    },
+    {
+      "name": "select:operation=new",
+      "params": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Cylinder"
+      },
+      "fromParams": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Cylinder"
+      },
+      "toParams": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Cylinder"
+      }
+    },
+    {
+      "name": "select:operation=join",
+      "params": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "join",
+        "targets": [],
+        "body_name": "Cylinder"
+      },
+      "fromParams": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "join",
+        "targets": [],
+        "body_name": "Cylinder"
+      },
+      "toParams": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "join",
+        "targets": [],
+        "body_name": "Cylinder"
+      }
+    },
+    {
+      "name": "select:operation=cut",
+      "params": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "cut",
+        "targets": [],
+        "body_name": "Cylinder"
+      },
+      "fromParams": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "cut",
+        "targets": [],
+        "body_name": "Cylinder"
+      },
+      "toParams": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "cut",
+        "targets": [],
+        "body_name": "Cylinder"
+      }
+    },
+    {
+      "name": "select:operation=intersect",
+      "params": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "intersect",
+        "targets": [],
+        "body_name": "Cylinder"
+      },
+      "fromParams": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "intersect",
+        "targets": [],
+        "body_name": "Cylinder"
+      },
+      "toParams": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "intersect",
+        "targets": [],
+        "body_name": "Cylinder"
+      }
+    }
+  ],
+  "ctxCases": {
+    "nosel": {
+      "defaults": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Cylinder"
+      },
+      "toParams_defaults": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Cylinder"
+      },
+      "shown_defaults": [
+        "radius",
+        "height",
+        "plane",
+        "offset",
+        "rotate",
+        "anchor",
+        "operation"
+      ]
+    },
+    "two": {
+      "defaults": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Cylinder"
+      },
+      "toParams_defaults": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Cylinder"
+      },
+      "shown_defaults": [
+        "radius",
+        "height",
+        "plane",
+        "offset",
+        "rotate",
+        "anchor",
+        "operation"
+      ]
+    },
+    "nonsolid": {
+      "defaults": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Cylinder"
+      },
+      "toParams_defaults": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Cylinder"
+      },
+      "shown_defaults": [
+        "radius",
+        "height",
+        "plane",
+        "offset",
+        "rotate",
+        "anchor",
+        "operation"
+      ]
+    },
+    "nobbox": {
+      "defaults": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Cylinder"
+      },
+      "toParams_defaults": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Cylinder"
+      },
+      "shown_defaults": [
+        "radius",
+        "height",
+        "plane",
+        "offset",
+        "rotate",
+        "anchor",
+        "operation"
+      ]
+    },
+    "empty": {
+      "defaults": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Cylinder"
+      },
+      "toParams_defaults": {
+        "shape": "cylinder",
+        "radius": 10,
+        "height": 20,
+        "plane": "XY",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotate": [
+          0,
+          0,
+          0
+        ],
+        "anchor": "base",
+        "operation": "new",
+        "targets": [],
+        "body_name": "Cylinder"
+      },
+      "shown_defaults": [
+        "radius",
+        "height",
+        "plane",
+        "offset",
+        "rotate",
+        "anchor",
+        "operation"
+      ]
+    }
+  }
+}

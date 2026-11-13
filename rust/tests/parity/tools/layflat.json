@@ -1,0 +1,439 @@
+{
+  "tool": "layflat",
+  "label": "Lay Flat",
+  "type": "layflat",
+  "icon": "layflat",
+  "flags": {
+    "placeOnFace": false,
+    "noLivePreview": false,
+    "gizmo": false,
+    "planeTool": false,
+    "sculpt": false,
+    "paint": false,
+    "wallTool": false
+  },
+  "hint": "Click the face that should sit on the print bed, or let it pick the most stable side",
+  "extra": [
+    {
+      "name": "toParams:auto no body",
+      "op": "toParams",
+      "input": {
+        "how": "auto",
+        "face": null,
+        "body": null,
+        "bodies": []
+      },
+      "result": {
+        "auto": true
+      }
+    },
+    {
+      "name": "toParams:face no normal",
+      "op": "toParams",
+      "input": {
+        "how": "face",
+        "face": {
+          "label": "x"
+        }
+      },
+      "result": {}
+    },
+    {
+      "name": "toParams:face normal",
+      "op": "toParams",
+      "input": {
+        "how": "face",
+        "body": "body_a",
+        "face": {
+          "normal": [
+            0,
+            0,
+            1
+          ],
+          "label": "x"
+        }
+      },
+      "result": {
+        "body": "body_a",
+        "normal": [
+          0,
+          0,
+          1
+        ]
+      }
+    },
+    {
+      "name": "toParams:no face",
+      "op": "toParams",
+      "input": {
+        "how": "face",
+        "body": "body_a",
+        "face": null
+      },
+      "result": {
+        "body": "body_a"
+      }
+    },
+    {
+      "name": "toParams:body null",
+      "op": "toParams",
+      "input": {
+        "how": "face",
+        "body": null,
+        "face": {
+          "normal": [
+            1,
+            0,
+            0
+          ]
+        }
+      },
+      "result": {
+        "body": null,
+        "normal": [
+          1,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "name": "fromParams:auto",
+      "op": "fromParams",
+      "input": {
+        "auto": true,
+        "body": "body_a"
+      },
+      "result": {
+        "how": "auto",
+        "bodies": [
+          "body_a"
+        ],
+        "face": null
+      }
+    },
+    {
+      "name": "fromParams:auto 1",
+      "op": "fromParams",
+      "input": {
+        "auto": 1,
+        "body": "body_a"
+      },
+      "result": {
+        "how": "auto",
+        "bodies": [
+          "body_a"
+        ],
+        "face": null
+      }
+    },
+    {
+      "name": "fromParams:auto no body",
+      "op": "fromParams",
+      "input": {
+        "auto": true
+      },
+      "result": {
+        "how": "auto",
+        "bodies": [
+          null
+        ],
+        "face": null
+      }
+    },
+    {
+      "name": "fromParams:auto false",
+      "op": "fromParams",
+      "input": {
+        "auto": false,
+        "body": "body_a",
+        "normal": [
+          0,
+          0,
+          1
+        ]
+      },
+      "result": {
+        "how": "face",
+        "body": "body_a",
+        "face": {
+          "normal": [
+            0,
+            0,
+            1
+          ],
+          "label": "Picked face"
+        },
+        "bodies": []
+      }
+    },
+    {
+      "name": "fromParams:normal only",
+      "op": "fromParams",
+      "input": {
+        "normal": [
+          0,
+          0,
+          1
+        ]
+      },
+      "result": {
+        "how": "face",
+        "face": {
+          "normal": [
+            0,
+            0,
+            1
+          ],
+          "label": "Picked face"
+        },
+        "bodies": []
+      }
+    },
+    {
+      "name": "fromParams:no normal",
+      "op": "fromParams",
+      "input": {
+        "body": "body_a"
+      },
+      "result": {
+        "how": "face",
+        "body": "body_a",
+        "face": null,
+        "bodies": []
+      }
+    },
+    {
+      "name": "fromParams:normal null",
+      "op": "fromParams",
+      "input": {
+        "body": "body_a",
+        "normal": null
+      },
+      "result": {
+        "how": "face",
+        "body": "body_a",
+        "face": null,
+        "bodies": []
+      }
+    }
+  ],
+  "fields": [
+    {
+      "key": "how",
+      "label": "Method",
+      "kind": "select",
+      "options": [
+        [
+          "face",
+          "Pick a face"
+        ],
+        [
+          "auto",
+          "Most stable side"
+        ]
+      ]
+    },
+    {
+      "key": "face",
+      "label": "Face to put down",
+      "kind": "pface",
+      "anyFace": true,
+      "hasShow": true
+    },
+    {
+      "key": "bodies",
+      "label": "Body",
+      "kind": "bodies",
+      "multi": false,
+      "hasShow": true
+    }
+  ],
+  "ctxNote": "FIXTURE_CTX: selection [body_a], lastSketch sk1, sketchOnBody true, two bodies, one extrude cut",
+  "defaults": {
+    "how": "face",
+    "face": null,
+    "body": null,
+    "bodies": [
+      "body_a"
+    ]
+  },
+  "toParams_defaults": {
+    "body": null
+  },
+  "shown_defaults": [
+    "how",
+    "face"
+  ],
+  "cases": [
+    {
+      "name": "select:how=face",
+      "values": {
+        "how": "face",
+        "face": null,
+        "body": null,
+        "bodies": [
+          "body_a"
+        ]
+      },
+      "toParams": {
+        "body": null
+      },
+      "shown": [
+        "how",
+        "face"
+      ]
+    },
+    {
+      "name": "select:how=auto",
+      "values": {
+        "how": "auto",
+        "face": null,
+        "body": null,
+        "bodies": [
+          "body_a"
+        ]
+      },
+      "toParams": {
+        "auto": true,
+        "body": "body_a"
+      },
+      "shown": [
+        "how",
+        "bodies"
+      ]
+    }
+  ],
+  "onChange": [],
+  "roundTrips": [
+    {
+      "name": "defaults",
+      "params": {
+        "body": null
+      },
+      "fromParams": {
+        "how": "face",
+        "body": null,
+        "face": null,
+        "bodies": []
+      },
+      "toParams": {
+        "body": null
+      }
+    },
+    {
+      "name": "select:how=face",
+      "params": {
+        "body": null
+      },
+      "fromParams": {
+        "how": "face",
+        "body": null,
+        "face": null,
+        "bodies": []
+      },
+      "toParams": {
+        "body": null
+      }
+    },
+    {
+      "name": "select:how=auto",
+      "params": {
+        "auto": true,
+        "body": "body_a"
+      },
+      "fromParams": {
+        "how": "auto",
+        "bodies": [
+          "body_a"
+        ],
+        "face": null
+      },
+      "toParams": {
+        "auto": true,
+        "body": "body_a"
+      }
+    }
+  ],
+  "ctxCases": {
+    "nosel": {
+      "defaults": {
+        "how": "face",
+        "face": null,
+        "body": null,
+        "bodies": []
+      },
+      "toParams_defaults": {
+        "body": null
+      },
+      "shown_defaults": [
+        "how",
+        "face"
+      ]
+    },
+    "two": {
+      "defaults": {
+        "how": "face",
+        "face": null,
+        "body": null,
+        "bodies": [
+          "body_a"
+        ]
+      },
+      "toParams_defaults": {
+        "body": null
+      },
+      "shown_defaults": [
+        "how",
+        "face"
+      ]
+    },
+    "nonsolid": {
+      "defaults": {
+        "how": "face",
+        "face": null,
+        "body": null,
+        "bodies": []
+      },
+      "toParams_defaults": {
+        "body": null
+      },
+      "shown_defaults": [
+        "how",
+        "face"
+      ]
+    },
+    "nobbox": {
+      "defaults": {
+        "how": "face",
+        "face": null,
+        "body": null,
+        "bodies": [
+          "body_c"
+        ]
+      },
+      "toParams_defaults": {
+        "body": null
+      },
+      "shown_defaults": [
+        "how",
+        "face"
+      ]
+    },
+    "empty": {
+      "defaults": {
+        "how": "face",
+        "face": null,
+        "body": null,
+        "bodies": []
+      },
+      "toParams_defaults": {
+        "body": null
+      },
+      "shown_defaults": [
+        "how",
+        "face"
+      ]
+    }
+  }
+}

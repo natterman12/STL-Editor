@@ -16,11 +16,18 @@ use crate::app::StlApp;
 use crate::engine_link::native::NativeLink;
 use crate::engine_link::{Command, EngineLink, Update};
 use crate::platform::native::NativePlatform;
+use crate::tools::gizmo::{Gizmo, GizmoKind};
 use crate::viewport::{FrameTrace, Viewport};
 
 const ORBIT_S: f64 = 10.0;
 const PAN_S: f64 = 5.0;
 const ZOOM_S: f64 = 5.0;
+/// The gizmo drag row: an X arrow held and swung back and forth on the bench mesh.
+const GIZMO_S: f64 = 5.0;
+/// The open tool row: each tool is opened once and given this long to answer its first preview.
+const OPEN_TOOL_GIVE_UP_S: f64 = 20.0;
+/// A tool that has not asked for a preview by now has none (a pick tool, Import, ...).
+const OPEN_TOOL_NO_PREVIEW_S: f64 = 0.8;
 const IDLE_S: f64 = 5.0;
 const QUICK_S: f64 = 1.0;
 /// Stop the rebuild row if the new mesh has not been drawn by then.
@@ -36,6 +43,7 @@ a 0.2 mm grow only simplifies within 0.08 mm, so the Minkowski sum still sees mo
 This row is Hollow, wall 2 mm, fine quality. Frame times are the frames that kept orbiting until the new mesh was uploaded and drawn. \
 Rayon's pool keeps two physical cores free when the chip has hyperthreads, one physical core free without them, and two processors free where the layout can't be read. \
 On Windows the window thread runs above normal priority and is not pinned. The engine thread and its Rayon workers run below the window. Other threads stay at normal priority.";
+const OPEN_TOOL_NOTE: &str = "Each tool is opened once on the bench mesh (the first body picked) and cancelled when its first preview has landed, or after 0.8 s when it never asks for one (pick tools, Import), or after 20 s. Frame times are the frames in between; `open_tool_tools` lists every tool with its outcome and the milliseconds it took.";
 const IDLE_NOTE: &str = "\
 Idle frames are paints something other than this bench asked for. Not counted: the frame already queued by the last zoom, \
 egui's extra settle frame after an immediate repaint, and the wake this bench schedules so it can leave the idle window. \
@@ -47,6 +55,9 @@ enum Phase {
     Orbit,
     Pan,
     Zoom,
+    GizmoDrag,
+    /// Every tool opened once, the frames until its first preview counted.
+    OpenTool,
     Idle,
     Rebuild,
     /// A few frames after the new mesh is on screen (the old one is freed in the first),
@@ -222,6 +233,8 @@ pub struct BenchApp {
     orbit: ScenarioStat,
     pan: ScenarioStat,
     zoom: ScenarioStat,
+    gizmo_drag: ScenarioStat,
+    open_tool: ScenarioStat,
     idle: ScenarioStat,
     rebuild: ScenarioStat,
     rebuild_sent: bool,
@@ -238,8 +251,27 @@ pub struct BenchApp {
     last_poll_ms: f64,
     last_ui_ms: f64,
     idle_prepared: bool,
+    gizmo: Option<GizmoRun>,
+    /// The handles were put away; one more (uncounted) frame draws the scene without them.
+    gizmo_done: bool,
+    /// Frames left with the instant overhangs on screen, before the drag starts (not counted).
+    overhang_left: u32,
+    overhang_trace: Vec<Value>,
+    gizmo_renders: u64,
+    gizmo_gpu_errors: u64,
+    gizmo_flat_rebuilds: u32,
+    gizmo_note: String,
+    overhang_ms: f64,
+    overhang_faces: usize,
     mesh_path: PathBuf,
     open_sent: bool,
+    /// The open tool row: where it is in the tool list, and each tool's outcome.
+    open_idx: usize,
+    open_cur: Option<(&'static str, Instant, bool)>,
+    open_log: Vec<Value>,
+    /// The longest frame of the tool being opened now (and the frame it was on).
+    open_cur_worst: (f64, u32),
+    open_cur_frame: u32,
 }
 
 impl BenchApp {
@@ -274,6 +306,8 @@ impl BenchApp {
             orbit: ScenarioStat::new(),
             pan: ScenarioStat::new(),
             zoom: ScenarioStat::new(),
+            gizmo_drag: ScenarioStat::new(),
+            open_tool: ScenarioStat::new(),
             idle: ScenarioStat::new(),
             rebuild: ScenarioStat::new(),
             rebuild_sent: false,
@@ -287,8 +321,23 @@ impl BenchApp {
             last_poll_ms: 0.0,
             last_ui_ms: 0.0,
             idle_prepared: false,
+            gizmo: None,
+            gizmo_done: false,
+            overhang_left: 0,
+            overhang_trace: Vec::new(),
+            gizmo_renders: 0,
+            gizmo_gpu_errors: 0,
+            gizmo_flat_rebuilds: 0,
+            gizmo_note: String::new(),
+            overhang_ms: 0.0,
+            overhang_faces: 0,
             mesh_path,
             open_sent: false,
+            open_idx: 0,
+            open_cur: None,
+            open_log: Vec::new(),
+            open_cur_worst: (0.0, 0),
+            open_cur_frame: 0,
         }
     }
 
@@ -313,10 +362,21 @@ impl BenchApp {
             "rebuild_trace": self.trace_json(),
             "after_rebuild": self.after.iter().map(|r| r.to_json()).collect::<Vec<_>>(),
             "mesh": self.mesh_path.display().to_string(),
+            "gizmo_note": self.gizmo_note,
+            "open_tool_tools": self.open_log,
+            "open_tool_note": OPEN_TOOL_NOTE,
+            "gizmo_flat_rebuilds": self.gizmo_flat_rebuilds,
+            "overhang_ms": self.overhang_ms,
+            "overhang_faces": self.overhang_faces,
+            "overhang_frames": self.overhang_trace,
+            "gizmo_renders": self.gizmo_renders,
+            "gizmo_gpu_errors": self.gizmo_gpu_errors,
             "scenarios": {
                 "orbit": self.orbit.to_json(),
                 "pan": self.pan.to_json(),
                 "zoom": self.zoom.to_json(),
+                "gizmo_drag": self.gizmo_drag.to_json(),
+                "open_tool": self.open_tool.to_json(),
                 "idle": self.idle.to_json(),
                 "fillet_rebuild": self.rebuild.to_json(),
             }
@@ -371,6 +431,134 @@ impl BenchApp {
     }
 }
 
+/// The gizmo drag row's state: the Move tool's handles on the first body, the X arrow held.
+struct GizmoRun {
+    gizmo: Gizmo,
+    grab: [f64; 3],
+    unit: f64,
+    started: Instant,
+    uploads_before: u64,
+}
+
+impl BenchApp {
+    /// The tools the open tool row goes through (a few in a quick run).
+    fn open_tool_keys(&self) -> Vec<&'static str> {
+        let keys = crate::tools::tools().iter().map(|d| d.key);
+        if self.quick { keys.take(6).collect() } else { keys.collect() }
+    }
+
+    /// One frame of the open tool row, before the layout draws it: open the next tool, or count
+    /// the frame and see whether this one's first preview has landed.
+    fn open_tool_frame(&mut self, dt_ms: f64) {
+        let keys = self.open_tool_keys();
+        let Some((key, started, saw_wait)) = self.open_cur else {
+            let Some(&key) = keys.get(self.open_idx) else { return };
+            let Some(id) = self.app.bodies.first().map(|b| b.id.clone()) else { return };
+            self.app.shell.selection = vec![id];
+            if let Some(def) = crate::tools::tool(key) {
+                self.app.open_tool_def(def, None, None);
+            }
+            self.open_cur = Some((key, Instant::now(), false));
+            self.open_cur_worst = (0.0, 0);
+            self.open_cur_frame = 0;
+            return;
+        };
+        self.open_tool.record(dt_ms);
+        self.open_cur_frame += 1;
+        if dt_ms > self.open_cur_worst.0 {
+            self.open_cur_worst = (dt_ms, self.open_cur_frame);
+        }
+        let waiting = self.app.tool().is_some_and(|t| t.preview.waiting);
+        let saw_wait = saw_wait || waiting;
+        let elapsed = started.elapsed().as_secs_f64();
+        let outcome = if saw_wait && !waiting {
+            Some("preview")
+        } else if elapsed > OPEN_TOOL_GIVE_UP_S {
+            Some("timeout")
+        } else if !saw_wait && elapsed > OPEN_TOOL_NO_PREVIEW_S && self.app.tool().is_some() {
+            Some("no preview")
+        } else {
+            None
+        };
+        match outcome {
+            Some(o) => {
+                self.open_log.push(json!({ "tool": key, "outcome": o, "ms": elapsed * 1000.0, "longest_frame_ms": self.open_cur_worst.0, "longest_frame_no": self.open_cur_worst.1 }));
+                self.app.tool_cancel();
+                self.open_cur = None;
+                self.open_idx += 1;
+            }
+            None => self.open_cur = Some((key, started, saw_wait)),
+        }
+    }
+
+    /// Before the gizmo row (not counted): time the instant overhangs on the bench mesh, then
+    /// put the Move handles on the part and grab the X arrow.
+    fn gizmo_start(&mut self) {
+        let Some(id) = self.app.bodies.first().map(|b| b.id.clone()) else {
+            self.gizmo_note = "no body".into();
+            return;
+        };
+        let vp = &mut self.app.viewport;
+        let t = Instant::now();
+        self.overhang_faces = vp.show_overhangs(&id, 45.0).len();
+        self.overhang_ms = t.elapsed().as_secs_f64() * 1000.0;
+        self.overhang_left = 5;
+    }
+
+    /// Put the Move handles on the part and grab the X arrow (after the overhang frames).
+    fn gizmo_grab(&mut self) {
+        let Some(id) = self.app.bodies.first().map(|b| b.id.clone()) else { return };
+        let vp = &mut self.app.viewport;
+        let values = serde_json::from_value(json!({
+            "bodies": [id], "_gizmo": "move", "translate": [0, 0, 0], "rotate": [0, 0, 0],
+            "pivot": "center", "bed": true, "copy": false
+        }))
+        .unwrap_or_default();
+        let mut gizmo = Gizmo::new(GizmoKind::Move);
+        gizmo.sync(vp, &values);
+        let Some(c) = vp.gizmo().map(|g| g.position) else {
+            self.gizmo_note = "the handles did not show".into();
+            return;
+        };
+        let unit = crate::viewport::gizmo_draw::handle_unit(vp.camera(), c);
+        let grab = [c[0] + 0.45 * unit, c[1], c[2]];
+        if !gizmo.press(vp, vp.world_to_screen(grab)) {
+            self.gizmo_note = "the X arrow was not under the pointer (seen edge on?)".into();
+            return;
+        }
+        let uploads_before = vp.stats().uploads();
+        self.gizmo_renders = vp.stats().renders();
+        self.gizmo_gpu_errors = vp.stats().gpu_errors();
+        let _ = vp.take_trace();
+        self.gizmo = Some(GizmoRun { gizmo, grab, unit, started: Instant::now(), uploads_before });
+        self.gizmo_note = "Move tool, X arrow held and swung ±0.4 handle units at 0.5 Hz; the part follows through its transform (no mesh upload). The drag is not let go during the row.".into();
+    }
+
+    /// One drag step, before the layout draws it.
+    fn gizmo_frame(&mut self, vp_trace: FrameTrace) {
+        self.gizmo_flat_rebuilds += vp_trace.flat_rebuilds;
+        let Some(run) = self.gizmo.as_mut() else { return };
+        let s = (run.started.elapsed().as_secs_f64() * std::f64::consts::PI).sin();
+        let to = [run.grab[0] + 0.4 * run.unit * s, run.grab[1], run.grab[2]];
+        let vp = &mut self.app.viewport;
+        let pos = vp.world_to_screen(to);
+        let _ = run.gizmo.drag_to(vp, pos, false);
+    }
+
+    fn gizmo_end(&mut self) {
+        if let Some(mut run) = self.gizmo.take() {
+            let vp = &mut self.app.viewport;
+            self.gizmo_renders = vp.stats().renders() - self.gizmo_renders;
+            self.gizmo_gpu_errors = vp.stats().gpu_errors() - self.gizmo_gpu_errors;
+            if vp.stats().uploads() != run.uploads_before {
+                self.gizmo_note.push_str(" A mesh upload happened during the row.");
+            }
+            let _ = run.gizmo.release(vp);
+            run.gizmo.hide(vp);
+        }
+    }
+}
+
 impl eframe::App for BenchApp {
     fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
         let now = Instant::now();
@@ -416,6 +604,32 @@ impl eframe::App for BenchApp {
                 let cam = self.app.viewport.camera();
                 let cursor = [cam.width * 0.5, cam.height * 0.5];
                 self.app.viewport.camera_mut().wheel(40.0, cursor);
+                ui.ctx().request_repaint();
+            }
+            // the frame that draws the scene without the handles: not counted; it asks for the
+            // next frame as the zoom row's last frame does, so Idle starts the same way
+            Phase::GizmoDrag if self.gizmo_done => ui.ctx().request_repaint(),
+            Phase::GizmoDrag if self.overhang_left > 0 => {
+                // the red overhangs on screen: the frames that build and upload them
+                self.overhang_trace.push(json!({ "dt_ms": dt_ms, "frame_ms": vp.frame_ms, "paint_ms": vp.paint_ms, "flat_rebuilds": vp.flat_rebuilds }));
+                self.overhang_left -= 1;
+                // the paint stays three frames; the frame that clears it isn't counted either
+                if self.overhang_left == 1 {
+                    self.app.viewport.clear_overlay("sf-over");
+                }
+                if self.overhang_left == 0 {
+                    self.gizmo_grab();
+                    self.phase_started = Instant::now();
+                }
+                ui.ctx().request_repaint();
+            }
+            Phase::GizmoDrag => {
+                self.gizmo_drag.record(dt_ms);
+                self.gizmo_frame(vp);
+                ui.ctx().request_repaint();
+            }
+            Phase::OpenTool => {
+                self.open_tool_frame(dt_ms);
                 ui.ctx().request_repaint();
             }
             Phase::Idle => {
@@ -468,6 +682,7 @@ impl eframe::App for BenchApp {
                             kind: REBUILD_KIND.into(),
                             params,
                             index: None,
+                            name: None,
                         });
                         self.rebuild_sent = true;
                         self.rebuild_started = Some(Instant::now());
@@ -534,8 +749,29 @@ impl eframe::App for BenchApp {
             }
             Phase::Zoom if self.phase_started.elapsed().as_secs_f64() >= self.phase_secs(ZOOM_S) => {
                 self.zoom.uploads_end = self.app.viewport.stats().uploads();
+                self.gizmo_start();
+                self.phase = Phase::GizmoDrag;
+                self.phase_started = Instant::now();
+                self.last_frame = Instant::now();
+                ui.ctx().request_repaint();
+            }
+            Phase::GizmoDrag if self.gizmo_done => {
+                self.phase = Phase::OpenTool;
+                self.phase_started = Instant::now();
+                self.last_frame = Instant::now();
+            }
+            Phase::OpenTool if self.open_idx >= self.open_tool_keys().len() && self.open_cur.is_none() => {
+                self.open_tool.uploads_end = self.app.viewport.stats().uploads();
                 self.phase = Phase::Idle;
                 self.phase_started = Instant::now();
+                self.last_frame = Instant::now();
+                ui.ctx().request_repaint();
+            }
+            Phase::GizmoDrag if self.phase_started.elapsed().as_secs_f64() >= self.phase_secs(GIZMO_S) => {
+                self.gizmo_drag.uploads_end = self.app.viewport.stats().uploads();
+                self.gizmo_end();
+                self.gizmo_done = true;
+                ui.ctx().request_repaint();
             }
             Phase::Idle if self.phase_started.elapsed().as_secs_f64() >= self.phase_secs(IDLE_S) => {
                 self.idle.uploads_end = self.app.viewport.stats().uploads();

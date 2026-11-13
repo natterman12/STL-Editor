@@ -1,0 +1,345 @@
+{
+  "tool": "plane_angle",
+  "label": "Plane at Angle",
+  "type": "plane",
+  "icon": "plane_angle",
+  "flags": {
+    "placeOnFace": false,
+    "noLivePreview": false,
+    "gizmo": false,
+    "planeTool": true,
+    "sculpt": false,
+    "paint": false,
+    "wallTool": false
+  },
+  "hint": null,
+  "extra": [],
+  "fields": [
+    {
+      "key": "base",
+      "label": "From",
+      "kind": "plane"
+    },
+    {
+      "key": "axis",
+      "label": "Hinge axis",
+      "kind": "select",
+      "options": [
+        [
+          "x",
+          "Plane X"
+        ],
+        [
+          "y",
+          "Plane Y"
+        ]
+      ]
+    },
+    {
+      "key": "angle",
+      "label": "Angle",
+      "kind": "number",
+      "unit": "°"
+    },
+    {
+      "key": "distance",
+      "label": "Offset",
+      "kind": "number",
+      "unit": "mm"
+    },
+    {
+      "key": "name",
+      "label": "Name",
+      "kind": "text"
+    }
+  ],
+  "ctxNote": "FIXTURE_CTX: selection [body_a], lastSketch sk1, sketchOnBody true, two bodies, one extrude cut",
+  "defaults": {
+    "mode": "angle",
+    "base": "XY",
+    "axis": "x",
+    "angle": 45,
+    "distance": 0,
+    "name": ""
+  },
+  "toParams_defaults": {
+    "mode": "angle",
+    "base": "XY",
+    "axis": "x",
+    "angle": 45,
+    "distance": 0,
+    "name": ""
+  },
+  "shown_defaults": [
+    "base",
+    "axis",
+    "angle",
+    "distance",
+    "name"
+  ],
+  "cases": [
+    {
+      "name": "select:axis=x",
+      "values": {
+        "mode": "angle",
+        "base": "XY",
+        "axis": "x",
+        "angle": 45,
+        "distance": 0,
+        "name": ""
+      },
+      "toParams": {
+        "mode": "angle",
+        "base": "XY",
+        "axis": "x",
+        "angle": 45,
+        "distance": 0,
+        "name": ""
+      },
+      "shown": [
+        "base",
+        "axis",
+        "angle",
+        "distance",
+        "name"
+      ]
+    },
+    {
+      "name": "select:axis=y",
+      "values": {
+        "mode": "angle",
+        "base": "XY",
+        "axis": "y",
+        "angle": 45,
+        "distance": 0,
+        "name": ""
+      },
+      "toParams": {
+        "mode": "angle",
+        "base": "XY",
+        "axis": "y",
+        "angle": 45,
+        "distance": 0,
+        "name": ""
+      },
+      "shown": [
+        "base",
+        "axis",
+        "angle",
+        "distance",
+        "name"
+      ]
+    }
+  ],
+  "onChange": [],
+  "roundTrips": [
+    {
+      "name": "defaults",
+      "params": {
+        "mode": "angle",
+        "base": "XY",
+        "axis": "x",
+        "angle": 45,
+        "distance": 0,
+        "name": ""
+      },
+      "fromParams": {
+        "mode": "angle",
+        "base": "XY",
+        "axis": "x",
+        "angle": 45,
+        "distance": 0,
+        "name": ""
+      },
+      "toParams": {
+        "mode": "angle",
+        "base": "XY",
+        "axis": "x",
+        "angle": 45,
+        "distance": 0,
+        "name": ""
+      }
+    },
+    {
+      "name": "select:axis=x",
+      "params": {
+        "mode": "angle",
+        "base": "XY",
+        "axis": "x",
+        "angle": 45,
+        "distance": 0,
+        "name": ""
+      },
+      "fromParams": {
+        "mode": "angle",
+        "base": "XY",
+        "axis": "x",
+        "angle": 45,
+        "distance": 0,
+        "name": ""
+      },
+      "toParams": {
+        "mode": "angle",
+        "base": "XY",
+        "axis": "x",
+        "angle": 45,
+        "distance": 0,
+        "name": ""
+      }
+    },
+    {
+      "name": "select:axis=y",
+      "params": {
+        "mode": "angle",
+        "base": "XY",
+        "axis": "y",
+        "angle": 45,
+        "distance": 0,
+        "name": ""
+      },
+      "fromParams": {
+        "mode": "angle",
+        "base": "XY",
+        "axis": "y",
+        "angle": 45,
+        "distance": 0,
+        "name": ""
+      },
+      "toParams": {
+        "mode": "angle",
+        "base": "XY",
+        "axis": "y",
+        "angle": 45,
+        "distance": 0,
+        "name": ""
+      }
+    }
+  ],
+  "ctxCases": {
+    "nosel": {
+      "defaults": {
+        "mode": "angle",
+        "base": "XY",
+        "axis": "x",
+        "angle": 45,
+        "distance": 0,
+        "name": ""
+      },
+      "toParams_defaults": {
+        "mode": "angle",
+        "base": "XY",
+        "axis": "x",
+        "angle": 45,
+        "distance": 0,
+        "name": ""
+      },
+      "shown_defaults": [
+        "base",
+        "axis",
+        "angle",
+        "distance",
+        "name"
+      ]
+    },
+    "two": {
+      "defaults": {
+        "mode": "angle",
+        "base": "XY",
+        "axis": "x",
+        "angle": 45,
+        "distance": 0,
+        "name": ""
+      },
+      "toParams_defaults": {
+        "mode": "angle",
+        "base": "XY",
+        "axis": "x",
+        "angle": 45,
+        "distance": 0,
+        "name": ""
+      },
+      "shown_defaults": [
+        "base",
+        "axis",
+        "angle",
+        "distance",
+        "name"
+      ]
+    },
+    "nonsolid": {
+      "defaults": {
+        "mode": "angle",
+        "base": "XY",
+        "axis": "x",
+        "angle": 45,
+        "distance": 0,
+        "name": ""
+      },
+      "toParams_defaults": {
+        "mode": "angle",
+        "base": "XY",
+        "axis": "x",
+        "angle": 45,
+        "distance": 0,
+        "name": ""
+      },
+      "shown_defaults": [
+        "base",
+        "axis",
+        "angle",
+        "distance",
+        "name"
+      ]
+    },
+    "nobbox": {
+      "defaults": {
+        "mode": "angle",
+        "base": "XY",
+        "axis": "x",
+        "angle": 45,
+        "distance": 0,
+        "name": ""
+      },
+      "toParams_defaults": {
+        "mode": "angle",
+        "base": "XY",
+        "axis": "x",
+        "angle": 45,
+        "distance": 0,
+        "name": ""
+      },
+      "shown_defaults": [
+        "base",
+        "axis",
+        "angle",
+        "distance",
+        "name"
+      ]
+    },
+    "empty": {
+      "defaults": {
+        "mode": "angle",
+        "base": "XY",
+        "axis": "x",
+        "angle": 45,
+        "distance": 0,
+        "name": ""
+      },
+      "toParams_defaults": {
+        "mode": "angle",
+        "base": "XY",
+        "axis": "x",
+        "angle": 45,
+        "distance": 0,
+        "name": ""
+      },
+      "shown_defaults": [
+        "base",
+        "axis",
+        "angle",
+        "distance",
+        "name"
+      ]
+    }
+  }
+}

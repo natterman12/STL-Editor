@@ -77,7 +77,11 @@ impl Viewport {
         }
         let mut best: Option<(String, f64)> = None;
         for p in &self.preview {
-            if let Some((_, t)) = p.bvh.ray_front(&p.mesh, origin, dir) {
+            let hit = match p.bvh.get() {
+                Some(bvh) => bvh.ray_front(&p.mesh, origin, dir),
+                None => ray_front_direct(&p.mesh, origin, dir, |_| true),
+            };
+            if let Some((_, t)) = hit {
                 if best.as_ref().is_none_or(|(_, bt)| t < *bt) {
                     best = Some((p.id.clone(), t));
                 }
@@ -94,17 +98,35 @@ impl Viewport {
                 continue;
             }
             let Some(r) = e.current() else { continue };
-            let keep = |p: V3| keeps(section, p);
+            // a body the gizmo has moved is picked where it is drawn: the ray goes into the
+            // body's own space, and the answer comes back out
+            let m = self.body_transforms.get(&e.view.id);
+            let nm = m.map(super::normal_matrix);
+            let (o, d) = match (m, &nm) {
+                (Some(m), Some(n)) => {
+                    let rel = camera::sub(origin, [m[3][0], m[3][1], m[3][2]]);
+                    (back(n, rel), back(n, dir))
+                }
+                _ => (origin, dir),
+            };
+            let keep = |p: V3| match m {
+                Some(m) => keeps(section, crate::tools::gizmo::apply(m, p)),
+                None => keeps(section, p),
+            };
             let hit = match r.bvh.get() {
-                Some(bvh) => bvh.ray_front_where(&r.mesh, origin, dir, keep),
-                None => ray_front_direct(&r.mesh, origin, dir, keep),
+                Some(bvh) => bvh.ray_front_where(&r.mesh, o, d, keep),
+                None => ray_front_direct(&r.mesh, o, d, keep),
             };
             let Some((face, t)) = hit else { continue };
             if best.as_ref().is_some_and(|h| t >= h.t) {
                 continue;
             }
             let Some(pts) = tri_points(&r.mesh, face) else { continue };
-            best = Some(BodyHit { id: e.view.id.clone(), face, t, point: along(origin, dir, t), normal: unit_normal(pts) });
+            let mut normal = unit_normal(pts);
+            if let Some(n) = &nm {
+                normal = camera::normalize([0, 1, 2].map(|r| (0..3).map(|c| n[c][r] * normal[c]).sum()));
+            }
+            best = Some(BodyHit { id: e.view.id.clone(), face, t, point: along(origin, dir, t), normal });
         }
         best
     }
@@ -148,6 +170,11 @@ impl BodyHit {
 fn keeps(section: Option<[f64; 4]>, p: V3) -> bool {
     let Some(s) = section else { return true };
     p[0] * s[0] + p[1] * s[1] + p[2] * s[2] + s[3] >= -1e-6
+}
+
+/// `A^-1 v` from the normal matrix `N = (A^-1)^T` (column-major): the transposed lookup.
+fn back(n: &camera::M4, v: V3) -> V3 {
+    [0, 1, 2].map(|r| (0..3).map(|c| n[r][c] * v[c]).sum())
 }
 
 fn along(origin: V3, dir: V3, t: f64) -> V3 {

@@ -49,7 +49,7 @@ fn test_body(id: &str, name: &str, hidden: bool) -> BodyView {
 }
 
 fn item(id: &str, kind: &str, label: &str, active: bool) -> TimelineItem {
-    TimelineItem { id: id.into(), kind: kind.into(), label: label.into(), error: None, suppressed: false, warning: None, active }
+    TimelineItem { id: id.into(), kind: kind.into(), label: label.into(), error: None, suppressed: false, warning: None, active, ..Default::default() }
 }
 
 fn sample_timeline(marker: Option<usize>) -> TimelineView {
@@ -905,7 +905,7 @@ fn timeline_double_click_opens_the_step() {
         harness.step();
     }
     harness.run();
-    assert!(events.borrow().contains(&UiEvent::OpenTool("box".into())));
+    assert!(events.borrow().contains(&UiEvent::EditFeature("f2".into())));
     assert_eq!(harness.state_mut().tl.take_edit_feature().as_deref(), Some("f2"));
 }
 
@@ -1150,6 +1150,7 @@ fn params_undo_and_removing_a_used_parameter_with_the_engine() {
         kind: "primitive".into(),
         params: serde_json::json!({"shape": "box", "size": ["=width", 10.0, "=height*2"]}),
         index: None,
+        name: None,
     });
     let ups = drain(&link);
     let views = last_params(&ups);

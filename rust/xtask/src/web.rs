@@ -103,6 +103,14 @@ fn build() -> Result<PathBuf, String> {
     let web = rust.join("crates/stl-app/web");
     fs::copy(web.join("index.html"), out.join("index.html")).map_err(|e| e.to_string())?;
     fs::copy(web.join("worker.js"), out.join("worker.js")).map_err(|e| e.to_string())?;
+    fs::copy(web.join("coverage_worker.js"), out.join("coverage_worker.js")).map_err(|e| e.to_string())?;
+    // Support Fins' own engine, for the worker to load (rust/crates/stl-app/web/worker.js)
+    let fins = out.join("support-fins");
+    fs::create_dir_all(&fins).map_err(|e| e.to_string())?;
+    let src = rust.join("../web/vendor/support-fins");
+    for f in ["engine.iife.js", "VERSION.json"] {
+        fs::copy(src.join(f), fins.join(f)).map_err(|e| format!("no support-fins/{f}: {e}"))?;
+    }
     Ok(out)
 }
 
@@ -113,7 +121,7 @@ fn patch_start(js: &str) -> Result<String, String> {
     }
     Ok(js.replacen(
         NEEDLE,
-        "if (!globalThis.__STL_ENGINE_WORKER__) { wasm.__wbindgen_start(); }",
+        "if (!globalThis.__STL_ENGINE_WORKER__ && !globalThis.__STL_COVERAGE_WORKER__) { wasm.__wbindgen_start(); }",
         1,
     ))
 }

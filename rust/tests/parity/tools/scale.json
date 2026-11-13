@@ -1,0 +1,2062 @@
+{
+  "tool": "scale",
+  "label": "Scale",
+  "type": "scale",
+  "icon": "scale",
+  "flags": {
+    "placeOnFace": false,
+    "noLivePreview": false,
+    "gizmo": "scale",
+    "planeTool": false,
+    "sculpt": false,
+    "paint": false,
+    "wallTool": false
+  },
+  "hint": "Drag the handles on the part to stretch it (the middle one scales evenly), or type factors and sizes. To size with Uniform on: change one dimension and the others follow",
+  "extra": [
+    {
+      "name": "fromParams:factor 0",
+      "op": "fromParams",
+      "input": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "factor": 0
+      },
+      "result": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "factor": 0,
+        "factor3": [
+          1,
+          1,
+          1
+        ],
+        "size": [
+          10,
+          10,
+          10
+        ]
+      }
+    },
+    {
+      "name": "fromParams:factor null",
+      "op": "fromParams",
+      "input": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "factor": null
+      },
+      "result": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "factor": 1,
+        "factor3": [
+          1,
+          1,
+          1
+        ],
+        "size": [
+          10,
+          10,
+          10
+        ]
+      }
+    },
+    {
+      "name": "fromParams:factor missing",
+      "op": "fromParams",
+      "input": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "fit",
+        "size": [
+          4,
+          5,
+          6
+        ]
+      },
+      "result": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "fit",
+        "size": [
+          4,
+          5,
+          6
+        ],
+        "factor": 1,
+        "factor3": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "name": "fromParams:factor list",
+      "op": "fromParams",
+      "input": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "factor": [
+          2,
+          3,
+          4
+        ],
+        "uniform": false
+      },
+      "result": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "factor": 1,
+        "uniform": false,
+        "factor3": [
+          2,
+          3,
+          4
+        ],
+        "size": [
+          10,
+          10,
+          10
+        ]
+      }
+    },
+    {
+      "name": "fromParams:size null",
+      "op": "fromParams",
+      "input": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "fit",
+        "size": null
+      },
+      "result": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "fit",
+        "size": [
+          10,
+          10,
+          10
+        ],
+        "factor": 1,
+        "factor3": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "name": "fromParams:size empty list",
+      "op": "fromParams",
+      "input": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "fit",
+        "size": []
+      },
+      "result": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "fit",
+        "size": [],
+        "factor": 1,
+        "factor3": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "name": "fromParams:size zero",
+      "op": "fromParams",
+      "input": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "fit",
+        "size": 0
+      },
+      "result": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "fit",
+        "size": [
+          10,
+          10,
+          10
+        ],
+        "factor": 1,
+        "factor3": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "name": "fromParams:factor string",
+      "op": "fromParams",
+      "input": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "factor": "=w"
+      },
+      "result": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "factor": "=w",
+        "factor3": [
+          1,
+          1,
+          1
+        ],
+        "size": [
+          10,
+          10,
+          10
+        ]
+      }
+    },
+    {
+      "name": "toParams:fit uniform axis 0",
+      "op": "toParams",
+      "input": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "fit",
+        "uniform": true,
+        "units": "in_to_mm",
+        "pivot": "base",
+        "factor": 1,
+        "factor3": [
+          1,
+          1,
+          1
+        ],
+        "size": [
+          20,
+          20,
+          10
+        ],
+        "_size0": [
+          40,
+          20,
+          10
+        ]
+      },
+      "result": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "fit",
+        "pivot": "base",
+        "units": "in_to_mm",
+        "uniform": true,
+        "size": [
+          20,
+          20,
+          10
+        ],
+        "axis": 0
+      }
+    },
+    {
+      "name": "toParams:fit uniform axis 2",
+      "op": "toParams",
+      "input": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "fit",
+        "uniform": true,
+        "units": "in_to_mm",
+        "pivot": "base",
+        "factor": 1,
+        "factor3": [
+          1,
+          1,
+          1
+        ],
+        "size": [
+          40,
+          20,
+          30
+        ],
+        "_size0": [
+          40,
+          20,
+          10
+        ]
+      },
+      "result": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "fit",
+        "pivot": "base",
+        "units": "in_to_mm",
+        "uniform": true,
+        "size": [
+          40,
+          20,
+          30
+        ],
+        "axis": 2
+      }
+    },
+    {
+      "name": "toParams:fit uniform all equal",
+      "op": "toParams",
+      "input": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "fit",
+        "uniform": true,
+        "units": "in_to_mm",
+        "pivot": "base",
+        "factor": 1,
+        "factor3": [
+          1,
+          1,
+          1
+        ],
+        "size": [
+          40,
+          20,
+          10
+        ],
+        "_size0": [
+          40,
+          20,
+          10
+        ]
+      },
+      "result": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "fit",
+        "pivot": "base",
+        "units": "in_to_mm",
+        "uniform": true,
+        "size": [
+          40,
+          20,
+          10
+        ],
+        "axis": 0
+      }
+    },
+    {
+      "name": "toParams:fit uniform strings",
+      "op": "toParams",
+      "input": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "fit",
+        "uniform": true,
+        "units": "in_to_mm",
+        "pivot": "base",
+        "factor": 1,
+        "factor3": [
+          1,
+          1,
+          1
+        ],
+        "size": [
+          "20",
+          "10",
+          "10"
+        ],
+        "_size0": [
+          10,
+          10,
+          10
+        ]
+      },
+      "result": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "fit",
+        "pivot": "base",
+        "units": "in_to_mm",
+        "uniform": true,
+        "size": [
+          "20",
+          "10",
+          "10"
+        ],
+        "axis": 0
+      }
+    },
+    {
+      "name": "toParams:fit uniform no size0",
+      "op": "toParams",
+      "input": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "fit",
+        "uniform": true,
+        "units": "in_to_mm",
+        "pivot": "base",
+        "factor": 1,
+        "factor3": [
+          1,
+          1,
+          1
+        ],
+        "size": [
+          20,
+          20,
+          10
+        ]
+      },
+      "result": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "fit",
+        "pivot": "base",
+        "units": "in_to_mm",
+        "uniform": true,
+        "size": [
+          20,
+          20,
+          10
+        ]
+      }
+    },
+    {
+      "name": "toParams:fit not uniform",
+      "op": "toParams",
+      "input": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "fit",
+        "uniform": false,
+        "units": "in_to_mm",
+        "pivot": "base",
+        "factor": 1,
+        "factor3": [
+          1,
+          1,
+          1
+        ],
+        "size": [
+          20,
+          20,
+          10
+        ],
+        "_size0": [
+          40,
+          20,
+          10
+        ]
+      },
+      "result": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "fit",
+        "pivot": "base",
+        "units": "in_to_mm",
+        "uniform": false,
+        "size": [
+          20,
+          20,
+          10
+        ]
+      }
+    },
+    {
+      "name": "toParams:fit text size",
+      "op": "toParams",
+      "input": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "fit",
+        "uniform": true,
+        "units": "in_to_mm",
+        "pivot": "base",
+        "factor": 1,
+        "factor3": [
+          1,
+          1,
+          1
+        ],
+        "size": [
+          "a",
+          20,
+          10
+        ],
+        "_size0": [
+          40,
+          20,
+          10
+        ]
+      },
+      "result": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "fit",
+        "pivot": "base",
+        "units": "in_to_mm",
+        "uniform": true,
+        "size": [
+          "a",
+          20,
+          10
+        ],
+        "axis": -1
+      }
+    },
+    {
+      "name": "toParams:factor uniform",
+      "op": "toParams",
+      "input": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "uniform": true,
+        "units": "in_to_mm",
+        "pivot": "base",
+        "factor": 2,
+        "factor3": [
+          1,
+          2,
+          3
+        ]
+      },
+      "result": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "pivot": "base",
+        "units": "in_to_mm",
+        "uniform": true,
+        "factor": 2
+      }
+    },
+    {
+      "name": "toParams:factor not uniform",
+      "op": "toParams",
+      "input": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "uniform": false,
+        "units": "in_to_mm",
+        "pivot": "base",
+        "factor": 2,
+        "factor3": [
+          1,
+          2,
+          3
+        ]
+      },
+      "result": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "pivot": "base",
+        "units": "in_to_mm",
+        "uniform": false,
+        "factor": [
+          1,
+          2,
+          3
+        ]
+      }
+    },
+    {
+      "name": "toParams:factor expression",
+      "op": "toParams",
+      "input": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "uniform": true,
+        "units": "in_to_mm",
+        "pivot": "base",
+        "factor": "=w/2",
+        "factor3": [
+          1,
+          1,
+          1
+        ]
+      },
+      "result": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "pivot": "base",
+        "units": "in_to_mm",
+        "uniform": true,
+        "factor": "=w/2"
+      }
+    },
+    {
+      "name": "toParams:units",
+      "op": "toParams",
+      "input": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "units",
+        "uniform": true,
+        "units": "cm_to_mm",
+        "pivot": "base",
+        "factor": 1,
+        "factor3": [
+          1,
+          1,
+          1
+        ]
+      },
+      "result": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "units",
+        "pivot": "base",
+        "units": "cm_to_mm",
+        "uniform": true
+      }
+    },
+    {
+      "name": "toParams:sparse",
+      "op": "toParams",
+      "input": {
+        "mode": "factor",
+        "factor": 3
+      },
+      "result": {
+        "mode": "factor"
+      }
+    }
+  ],
+  "fields": [
+    {
+      "key": "bodies",
+      "label": "Bodies",
+      "kind": "bodies",
+      "multi": true
+    },
+    {
+      "key": "mode",
+      "label": "Mode",
+      "kind": "select",
+      "options": [
+        [
+          "factor",
+          "Factor"
+        ],
+        [
+          "fit",
+          "To size"
+        ],
+        [
+          "units",
+          "Units"
+        ]
+      ]
+    },
+    {
+      "key": "factor",
+      "label": "Factor",
+      "kind": "number",
+      "hasShow": true
+    },
+    {
+      "key": "factor3",
+      "label": "Factor X Y Z",
+      "kind": "vec3",
+      "hasShow": true
+    },
+    {
+      "key": "size",
+      "label": "Size X Y Z",
+      "kind": "vec3",
+      "unit": "mm",
+      "hasShow": true
+    },
+    {
+      "key": "uniform",
+      "label": "Uniform",
+      "kind": "bool",
+      "hasShow": true
+    },
+    {
+      "key": "units",
+      "label": "Convert",
+      "kind": "select",
+      "options": [
+        [
+          "in_to_mm",
+          "inch → mm"
+        ],
+        [
+          "mm_to_in",
+          "mm → inch"
+        ],
+        [
+          "cm_to_mm",
+          "cm → mm"
+        ],
+        [
+          "m_to_mm",
+          "m → mm"
+        ]
+      ],
+      "hasShow": true
+    },
+    {
+      "key": "pivot",
+      "label": "Fixed point",
+      "kind": "select",
+      "options": [
+        [
+          "base",
+          "Base"
+        ],
+        [
+          "center",
+          "Centre"
+        ],
+        [
+          "origin",
+          "Origin"
+        ]
+      ]
+    }
+  ],
+  "ctxNote": "FIXTURE_CTX: selection [body_a], lastSketch sk1, sketchOnBody true, two bodies, one extrude cut",
+  "defaults": {
+    "bodies": [
+      "body_a"
+    ],
+    "mode": "factor",
+    "factor": 1,
+    "factor3": [
+      1,
+      1,
+      1
+    ],
+    "size": [
+      40,
+      20,
+      10
+    ],
+    "uniform": true,
+    "units": "in_to_mm",
+    "pivot": "base",
+    "_size0": [
+      40,
+      20,
+      10
+    ]
+  },
+  "toParams_defaults": {
+    "bodies": [
+      "body_a"
+    ],
+    "mode": "factor",
+    "pivot": "base",
+    "units": "in_to_mm",
+    "uniform": true,
+    "factor": 1
+  },
+  "shown_defaults": [
+    "bodies",
+    "mode",
+    "factor",
+    "uniform",
+    "pivot"
+  ],
+  "cases": [
+    {
+      "name": "select:mode=factor",
+      "values": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "factor": 1,
+        "factor3": [
+          1,
+          1,
+          1
+        ],
+        "size": [
+          40,
+          20,
+          10
+        ],
+        "uniform": true,
+        "units": "in_to_mm",
+        "pivot": "base",
+        "_size0": [
+          40,
+          20,
+          10
+        ]
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "pivot": "base",
+        "units": "in_to_mm",
+        "uniform": true,
+        "factor": 1
+      },
+      "shown": [
+        "bodies",
+        "mode",
+        "factor",
+        "uniform",
+        "pivot"
+      ]
+    },
+    {
+      "name": "select:mode=fit",
+      "values": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "fit",
+        "factor": 1,
+        "factor3": [
+          1,
+          1,
+          1
+        ],
+        "size": [
+          40,
+          20,
+          10
+        ],
+        "uniform": true,
+        "units": "in_to_mm",
+        "pivot": "base",
+        "_size0": [
+          40,
+          20,
+          10
+        ]
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "fit",
+        "pivot": "base",
+        "units": "in_to_mm",
+        "uniform": true,
+        "size": [
+          40,
+          20,
+          10
+        ],
+        "axis": 0
+      },
+      "shown": [
+        "bodies",
+        "mode",
+        "size",
+        "uniform",
+        "pivot"
+      ]
+    },
+    {
+      "name": "select:mode=units",
+      "values": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "units",
+        "factor": 1,
+        "factor3": [
+          1,
+          1,
+          1
+        ],
+        "size": [
+          40,
+          20,
+          10
+        ],
+        "uniform": true,
+        "units": "in_to_mm",
+        "pivot": "base",
+        "_size0": [
+          40,
+          20,
+          10
+        ]
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "units",
+        "pivot": "base",
+        "units": "in_to_mm",
+        "uniform": true
+      },
+      "shown": [
+        "bodies",
+        "mode",
+        "units",
+        "pivot"
+      ]
+    },
+    {
+      "name": "bool:uniform=true",
+      "values": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "factor": 1,
+        "factor3": [
+          1,
+          1,
+          1
+        ],
+        "size": [
+          40,
+          20,
+          10
+        ],
+        "uniform": true,
+        "units": "in_to_mm",
+        "pivot": "base",
+        "_size0": [
+          40,
+          20,
+          10
+        ]
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "pivot": "base",
+        "units": "in_to_mm",
+        "uniform": true,
+        "factor": 1
+      },
+      "shown": [
+        "bodies",
+        "mode",
+        "factor",
+        "uniform",
+        "pivot"
+      ]
+    },
+    {
+      "name": "bool:uniform=false",
+      "values": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "factor": 1,
+        "factor3": [
+          1,
+          1,
+          1
+        ],
+        "size": [
+          40,
+          20,
+          10
+        ],
+        "uniform": false,
+        "units": "in_to_mm",
+        "pivot": "base",
+        "_size0": [
+          40,
+          20,
+          10
+        ]
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "pivot": "base",
+        "units": "in_to_mm",
+        "uniform": false,
+        "factor": [
+          1,
+          1,
+          1
+        ]
+      },
+      "shown": [
+        "bodies",
+        "mode",
+        "factor3",
+        "uniform",
+        "pivot"
+      ]
+    },
+    {
+      "name": "select:units=in_to_mm",
+      "values": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "factor": 1,
+        "factor3": [
+          1,
+          1,
+          1
+        ],
+        "size": [
+          40,
+          20,
+          10
+        ],
+        "uniform": true,
+        "units": "in_to_mm",
+        "pivot": "base",
+        "_size0": [
+          40,
+          20,
+          10
+        ]
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "pivot": "base",
+        "units": "in_to_mm",
+        "uniform": true,
+        "factor": 1
+      },
+      "shown": [
+        "bodies",
+        "mode",
+        "factor",
+        "uniform",
+        "pivot"
+      ]
+    },
+    {
+      "name": "select:units=mm_to_in",
+      "values": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "factor": 1,
+        "factor3": [
+          1,
+          1,
+          1
+        ],
+        "size": [
+          40,
+          20,
+          10
+        ],
+        "uniform": true,
+        "units": "mm_to_in",
+        "pivot": "base",
+        "_size0": [
+          40,
+          20,
+          10
+        ]
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "pivot": "base",
+        "units": "mm_to_in",
+        "uniform": true,
+        "factor": 1
+      },
+      "shown": [
+        "bodies",
+        "mode",
+        "factor",
+        "uniform",
+        "pivot"
+      ]
+    },
+    {
+      "name": "select:units=cm_to_mm",
+      "values": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "factor": 1,
+        "factor3": [
+          1,
+          1,
+          1
+        ],
+        "size": [
+          40,
+          20,
+          10
+        ],
+        "uniform": true,
+        "units": "cm_to_mm",
+        "pivot": "base",
+        "_size0": [
+          40,
+          20,
+          10
+        ]
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "pivot": "base",
+        "units": "cm_to_mm",
+        "uniform": true,
+        "factor": 1
+      },
+      "shown": [
+        "bodies",
+        "mode",
+        "factor",
+        "uniform",
+        "pivot"
+      ]
+    },
+    {
+      "name": "select:units=m_to_mm",
+      "values": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "factor": 1,
+        "factor3": [
+          1,
+          1,
+          1
+        ],
+        "size": [
+          40,
+          20,
+          10
+        ],
+        "uniform": true,
+        "units": "m_to_mm",
+        "pivot": "base",
+        "_size0": [
+          40,
+          20,
+          10
+        ]
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "pivot": "base",
+        "units": "m_to_mm",
+        "uniform": true,
+        "factor": 1
+      },
+      "shown": [
+        "bodies",
+        "mode",
+        "factor",
+        "uniform",
+        "pivot"
+      ]
+    },
+    {
+      "name": "select:pivot=base",
+      "values": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "factor": 1,
+        "factor3": [
+          1,
+          1,
+          1
+        ],
+        "size": [
+          40,
+          20,
+          10
+        ],
+        "uniform": true,
+        "units": "in_to_mm",
+        "pivot": "base",
+        "_size0": [
+          40,
+          20,
+          10
+        ]
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "pivot": "base",
+        "units": "in_to_mm",
+        "uniform": true,
+        "factor": 1
+      },
+      "shown": [
+        "bodies",
+        "mode",
+        "factor",
+        "uniform",
+        "pivot"
+      ]
+    },
+    {
+      "name": "select:pivot=center",
+      "values": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "factor": 1,
+        "factor3": [
+          1,
+          1,
+          1
+        ],
+        "size": [
+          40,
+          20,
+          10
+        ],
+        "uniform": true,
+        "units": "in_to_mm",
+        "pivot": "center",
+        "_size0": [
+          40,
+          20,
+          10
+        ]
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "pivot": "center",
+        "units": "in_to_mm",
+        "uniform": true,
+        "factor": 1
+      },
+      "shown": [
+        "bodies",
+        "mode",
+        "factor",
+        "uniform",
+        "pivot"
+      ]
+    },
+    {
+      "name": "select:pivot=origin",
+      "values": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "factor": 1,
+        "factor3": [
+          1,
+          1,
+          1
+        ],
+        "size": [
+          40,
+          20,
+          10
+        ],
+        "uniform": true,
+        "units": "in_to_mm",
+        "pivot": "origin",
+        "_size0": [
+          40,
+          20,
+          10
+        ]
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "pivot": "origin",
+        "units": "in_to_mm",
+        "uniform": true,
+        "factor": 1
+      },
+      "shown": [
+        "bodies",
+        "mode",
+        "factor",
+        "uniform",
+        "pivot"
+      ]
+    }
+  ],
+  "onChange": [],
+  "roundTrips": [
+    {
+      "name": "defaults",
+      "params": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "pivot": "base",
+        "units": "in_to_mm",
+        "uniform": true,
+        "factor": 1
+      },
+      "fromParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "pivot": "base",
+        "units": "in_to_mm",
+        "uniform": true,
+        "factor": 1,
+        "factor3": [
+          1,
+          1,
+          1
+        ],
+        "size": [
+          10,
+          10,
+          10
+        ]
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "pivot": "base",
+        "units": "in_to_mm",
+        "uniform": true,
+        "factor": 1
+      }
+    },
+    {
+      "name": "select:mode=factor",
+      "params": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "pivot": "base",
+        "units": "in_to_mm",
+        "uniform": true,
+        "factor": 1
+      },
+      "fromParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "pivot": "base",
+        "units": "in_to_mm",
+        "uniform": true,
+        "factor": 1,
+        "factor3": [
+          1,
+          1,
+          1
+        ],
+        "size": [
+          10,
+          10,
+          10
+        ]
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "pivot": "base",
+        "units": "in_to_mm",
+        "uniform": true,
+        "factor": 1
+      }
+    },
+    {
+      "name": "select:mode=fit",
+      "params": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "fit",
+        "pivot": "base",
+        "units": "in_to_mm",
+        "uniform": true,
+        "size": [
+          40,
+          20,
+          10
+        ],
+        "axis": 0
+      },
+      "fromParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "fit",
+        "pivot": "base",
+        "units": "in_to_mm",
+        "uniform": true,
+        "size": [
+          40,
+          20,
+          10
+        ],
+        "axis": 0,
+        "factor": 1,
+        "factor3": [
+          1,
+          1,
+          1
+        ]
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "fit",
+        "pivot": "base",
+        "units": "in_to_mm",
+        "uniform": true,
+        "size": [
+          40,
+          20,
+          10
+        ]
+      }
+    },
+    {
+      "name": "select:mode=units",
+      "params": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "units",
+        "pivot": "base",
+        "units": "in_to_mm",
+        "uniform": true
+      },
+      "fromParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "units",
+        "pivot": "base",
+        "units": "in_to_mm",
+        "uniform": true,
+        "factor": 1,
+        "factor3": [
+          1,
+          1,
+          1
+        ],
+        "size": [
+          10,
+          10,
+          10
+        ]
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "units",
+        "pivot": "base",
+        "units": "in_to_mm",
+        "uniform": true
+      }
+    },
+    {
+      "name": "select:units=in_to_mm",
+      "params": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "pivot": "base",
+        "units": "in_to_mm",
+        "uniform": true,
+        "factor": 1
+      },
+      "fromParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "pivot": "base",
+        "units": "in_to_mm",
+        "uniform": true,
+        "factor": 1,
+        "factor3": [
+          1,
+          1,
+          1
+        ],
+        "size": [
+          10,
+          10,
+          10
+        ]
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "pivot": "base",
+        "units": "in_to_mm",
+        "uniform": true,
+        "factor": 1
+      }
+    },
+    {
+      "name": "select:units=mm_to_in",
+      "params": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "pivot": "base",
+        "units": "mm_to_in",
+        "uniform": true,
+        "factor": 1
+      },
+      "fromParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "pivot": "base",
+        "units": "mm_to_in",
+        "uniform": true,
+        "factor": 1,
+        "factor3": [
+          1,
+          1,
+          1
+        ],
+        "size": [
+          10,
+          10,
+          10
+        ]
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "pivot": "base",
+        "units": "mm_to_in",
+        "uniform": true,
+        "factor": 1
+      }
+    },
+    {
+      "name": "select:units=cm_to_mm",
+      "params": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "pivot": "base",
+        "units": "cm_to_mm",
+        "uniform": true,
+        "factor": 1
+      },
+      "fromParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "pivot": "base",
+        "units": "cm_to_mm",
+        "uniform": true,
+        "factor": 1,
+        "factor3": [
+          1,
+          1,
+          1
+        ],
+        "size": [
+          10,
+          10,
+          10
+        ]
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "pivot": "base",
+        "units": "cm_to_mm",
+        "uniform": true,
+        "factor": 1
+      }
+    },
+    {
+      "name": "select:units=m_to_mm",
+      "params": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "pivot": "base",
+        "units": "m_to_mm",
+        "uniform": true,
+        "factor": 1
+      },
+      "fromParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "pivot": "base",
+        "units": "m_to_mm",
+        "uniform": true,
+        "factor": 1,
+        "factor3": [
+          1,
+          1,
+          1
+        ],
+        "size": [
+          10,
+          10,
+          10
+        ]
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "pivot": "base",
+        "units": "m_to_mm",
+        "uniform": true,
+        "factor": 1
+      }
+    },
+    {
+      "name": "select:pivot=base",
+      "params": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "pivot": "base",
+        "units": "in_to_mm",
+        "uniform": true,
+        "factor": 1
+      },
+      "fromParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "pivot": "base",
+        "units": "in_to_mm",
+        "uniform": true,
+        "factor": 1,
+        "factor3": [
+          1,
+          1,
+          1
+        ],
+        "size": [
+          10,
+          10,
+          10
+        ]
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "pivot": "base",
+        "units": "in_to_mm",
+        "uniform": true,
+        "factor": 1
+      }
+    },
+    {
+      "name": "select:pivot=center",
+      "params": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "pivot": "center",
+        "units": "in_to_mm",
+        "uniform": true,
+        "factor": 1
+      },
+      "fromParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "pivot": "center",
+        "units": "in_to_mm",
+        "uniform": true,
+        "factor": 1,
+        "factor3": [
+          1,
+          1,
+          1
+        ],
+        "size": [
+          10,
+          10,
+          10
+        ]
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "pivot": "center",
+        "units": "in_to_mm",
+        "uniform": true,
+        "factor": 1
+      }
+    },
+    {
+      "name": "select:pivot=origin",
+      "params": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "pivot": "origin",
+        "units": "in_to_mm",
+        "uniform": true,
+        "factor": 1
+      },
+      "fromParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "pivot": "origin",
+        "units": "in_to_mm",
+        "uniform": true,
+        "factor": 1,
+        "factor3": [
+          1,
+          1,
+          1
+        ],
+        "size": [
+          10,
+          10,
+          10
+        ]
+      },
+      "toParams": {
+        "bodies": [
+          "body_a"
+        ],
+        "mode": "factor",
+        "pivot": "origin",
+        "units": "in_to_mm",
+        "uniform": true,
+        "factor": 1
+      }
+    }
+  ],
+  "ctxCases": {
+    "nosel": {
+      "defaults": {
+        "bodies": [],
+        "mode": "factor",
+        "factor": 1,
+        "factor3": [
+          1,
+          1,
+          1
+        ],
+        "size": [
+          10,
+          10,
+          10
+        ],
+        "uniform": true,
+        "units": "in_to_mm",
+        "pivot": "base",
+        "_size0": [
+          10,
+          10,
+          10
+        ]
+      },
+      "toParams_defaults": {
+        "bodies": [],
+        "mode": "factor",
+        "pivot": "base",
+        "units": "in_to_mm",
+        "uniform": true,
+        "factor": 1
+      },
+      "shown_defaults": [
+        "bodies",
+        "mode",
+        "factor",
+        "uniform",
+        "pivot"
+      ]
+    },
+    "two": {
+      "defaults": {
+        "bodies": [
+          "body_a",
+          "body_b"
+        ],
+        "mode": "factor",
+        "factor": 1,
+        "factor3": [
+          1,
+          1,
+          1
+        ],
+        "size": [
+          40,
+          20,
+          10
+        ],
+        "uniform": true,
+        "units": "in_to_mm",
+        "pivot": "base",
+        "_size0": [
+          40,
+          20,
+          10
+        ]
+      },
+      "toParams_defaults": {
+        "bodies": [
+          "body_a",
+          "body_b"
+        ],
+        "mode": "factor",
+        "pivot": "base",
+        "units": "in_to_mm",
+        "uniform": true,
+        "factor": 1
+      },
+      "shown_defaults": [
+        "bodies",
+        "mode",
+        "factor",
+        "uniform",
+        "pivot"
+      ]
+    },
+    "nonsolid": {
+      "defaults": {
+        "bodies": [],
+        "mode": "factor",
+        "factor": 1,
+        "factor3": [
+          1,
+          1,
+          1
+        ],
+        "size": [
+          10,
+          10,
+          10
+        ],
+        "uniform": true,
+        "units": "in_to_mm",
+        "pivot": "base",
+        "_size0": [
+          10,
+          10,
+          10
+        ]
+      },
+      "toParams_defaults": {
+        "bodies": [],
+        "mode": "factor",
+        "pivot": "base",
+        "units": "in_to_mm",
+        "uniform": true,
+        "factor": 1
+      },
+      "shown_defaults": [
+        "bodies",
+        "mode",
+        "factor",
+        "uniform",
+        "pivot"
+      ]
+    },
+    "nobbox": {
+      "defaults": {
+        "bodies": [
+          "body_c"
+        ],
+        "mode": "factor",
+        "factor": 1,
+        "factor3": [
+          1,
+          1,
+          1
+        ],
+        "size": [
+          10,
+          10,
+          10
+        ],
+        "uniform": true,
+        "units": "in_to_mm",
+        "pivot": "base",
+        "_size0": [
+          10,
+          10,
+          10
+        ]
+      },
+      "toParams_defaults": {
+        "bodies": [
+          "body_c"
+        ],
+        "mode": "factor",
+        "pivot": "base",
+        "units": "in_to_mm",
+        "uniform": true,
+        "factor": 1
+      },
+      "shown_defaults": [
+        "bodies",
+        "mode",
+        "factor",
+        "uniform",
+        "pivot"
+      ]
+    },
+    "empty": {
+      "defaults": {
+        "bodies": [],
+        "mode": "factor",
+        "factor": 1,
+        "factor3": [
+          1,
+          1,
+          1
+        ],
+        "size": [
+          10,
+          10,
+          10
+        ],
+        "uniform": true,
+        "units": "in_to_mm",
+        "pivot": "base",
+        "_size0": [
+          10,
+          10,
+          10
+        ]
+      },
+      "toParams_defaults": {
+        "bodies": [],
+        "mode": "factor",
+        "pivot": "base",
+        "units": "in_to_mm",
+        "uniform": true,
+        "factor": 1
+      },
+      "shown_defaults": [
+        "bodies",
+        "mode",
+        "factor",
+        "uniform",
+        "pivot"
+      ]
+    }
+  }
+}

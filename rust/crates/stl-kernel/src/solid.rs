@@ -979,11 +979,22 @@ impl Solid {
 
     /// The Minkowski sum of this solid and `o` (1.x `Manifold.minkowski_sum`).
     pub fn minkowski_sum(&self, o: &Solid) -> Solid {
+        // Same triangles as the stock sum. The per-triangle branch runs its
+        // independent batches together; every other branch stays on the stock path.
+        if let Some(m) =
+            crate::minkowski::try_tri_batches(self.0.as_impl(), o.0.as_impl(), false)
+        {
+            return Solid::wrap(Manifold::from_impl(m));
+        }
         Solid::wrap(self.0.minkowski_sum(&o.0))
     }
 
     /// The Minkowski difference of this solid and `o` (1.x `Manifold.minkowski_difference`).
     pub fn minkowski_difference(&self, o: &Solid) -> Solid {
+        if let Some(m) = crate::minkowski::try_tri_batches(self.0.as_impl(), o.0.as_impl(), true)
+        {
+            return Solid::wrap(Manifold::from_impl(m));
+        }
         Solid::wrap(self.0.minkowski_difference(&o.0))
     }
 

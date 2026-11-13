@@ -76,6 +76,8 @@ pub fn upload_span(offset: u64, total: u64) -> std::ops::Range<u64> {
 /// Draw each visible body after the opaque pass. The colour is written sRGB, like the flat
 /// shader, into the viewport's Unorm target.
 pub const CAP_WGSL: &str = r#"
+@group(1) @binding(0) var<uniform> cap_body: Body;
+
 struct CapOut {
     @builtin(position) pos: vec4<f32>,
     @location(0) world: vec3<f32>,
@@ -86,8 +88,9 @@ fn vs_cap(@location(0) p: vec3<f32>, @location(1) n: vec3<f32>) -> CapOut {
     var o: CapOut;
     // the normal is the body's; BackSide cull uses the triangle winding, not this value
     let _n = n.x + n.y + n.z;
-    o.pos = g.view_proj * vec4<f32>(p + vec3<f32>(_n * 0.0), 1.0);
-    o.world = p;
+    let wp = cap_body.model * vec4<f32>(p + vec3<f32>(_n * 0.0), 1.0);
+    o.pos = g.view_proj * wp;
+    o.world = wp.xyz;
     return o;
 }
 

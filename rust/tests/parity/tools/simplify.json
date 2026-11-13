@@ -1,0 +1,542 @@
+{
+  "tool": "simplify",
+  "label": "Simplify",
+  "type": "simplify",
+  "icon": "simplify",
+  "flags": {
+    "placeOnFace": false,
+    "noLivePreview": true,
+    "gizmo": false,
+    "planeTool": false,
+    "sculpt": false,
+    "paint": false,
+    "wallTool": false
+  },
+  "hint": "Reduces the triangle count while keeping the shape",
+  "extra": [
+    {
+      "name": "toParams:no body",
+      "op": "toParams",
+      "input": {
+        "body": [],
+        "percent": 50
+      },
+      "result": {
+        "ratio": 0.5
+      }
+    },
+    {
+      "name": "toParams:picked body",
+      "op": "toParams",
+      "input": {
+        "body": [
+          "body_b"
+        ],
+        "percent": 50
+      },
+      "result": {
+        "body": "body_b",
+        "ratio": 0.5
+      }
+    },
+    {
+      "name": "fromParams:body null",
+      "op": "fromParams",
+      "input": {
+        "body": null,
+        "ratio": 0.5
+      },
+      "result": {
+        "body": [],
+        "percent": 50
+      }
+    },
+    {
+      "name": "fromParams:body empty string",
+      "op": "fromParams",
+      "input": {
+        "body": "",
+        "ratio": 0.5
+      },
+      "result": {
+        "body": [],
+        "percent": 50
+      }
+    },
+    {
+      "name": "fromParams:body zero",
+      "op": "fromParams",
+      "input": {
+        "body": 0,
+        "ratio": 0.5
+      },
+      "result": {
+        "body": [],
+        "percent": 50
+      }
+    },
+    {
+      "name": "fromParams:body name",
+      "op": "fromParams",
+      "input": {
+        "body": "body_b",
+        "ratio": 0.5
+      },
+      "result": {
+        "body": [
+          "body_b"
+        ],
+        "percent": 50
+      }
+    },
+    {
+      "name": "fromParams:body missing",
+      "op": "fromParams",
+      "input": {
+        "ratio": 0.5
+      },
+      "result": {
+        "body": [],
+        "percent": 50
+      }
+    },
+    {
+      "name": "toParams:percent 0",
+      "op": "toParams",
+      "input": {
+        "body": [
+          "body_a"
+        ],
+        "percent": 0
+      },
+      "result": {
+        "body": "body_a",
+        "ratio": 0.001
+      }
+    },
+    {
+      "name": "toParams:percent 0.05",
+      "op": "toParams",
+      "input": {
+        "body": [
+          "body_a"
+        ],
+        "percent": 0.05
+      },
+      "result": {
+        "body": "body_a",
+        "ratio": 0.001
+      }
+    },
+    {
+      "name": "toParams:percent 0.1",
+      "op": "toParams",
+      "input": {
+        "body": [
+          "body_a"
+        ],
+        "percent": 0.1
+      },
+      "result": {
+        "body": "body_a",
+        "ratio": 0.001
+      }
+    },
+    {
+      "name": "toParams:percent 50",
+      "op": "toParams",
+      "input": {
+        "body": [
+          "body_a"
+        ],
+        "percent": 50
+      },
+      "result": {
+        "body": "body_a",
+        "ratio": 0.5
+      }
+    },
+    {
+      "name": "toParams:percent 99.5",
+      "op": "toParams",
+      "input": {
+        "body": [
+          "body_a"
+        ],
+        "percent": 99.5
+      },
+      "result": {
+        "body": "body_a",
+        "ratio": 0.995
+      }
+    },
+    {
+      "name": "toParams:percent 100",
+      "op": "toParams",
+      "input": {
+        "body": [
+          "body_a"
+        ],
+        "percent": 100
+      },
+      "result": {
+        "body": "body_a",
+        "ratio": 1
+      }
+    },
+    {
+      "name": "toParams:percent 250",
+      "op": "toParams",
+      "input": {
+        "body": [
+          "body_a"
+        ],
+        "percent": 250
+      },
+      "result": {
+        "body": "body_a",
+        "ratio": 1
+      }
+    },
+    {
+      "name": "toParams:percent \"=w\"",
+      "op": "toParams",
+      "input": {
+        "body": [
+          "body_a"
+        ],
+        "percent": "=w"
+      },
+      "result": {
+        "body": "body_a",
+        "ratio": null
+      }
+    },
+    {
+      "name": "toParams:percent \"50\"",
+      "op": "toParams",
+      "input": {
+        "body": [
+          "body_a"
+        ],
+        "percent": "50"
+      },
+      "result": {
+        "body": "body_a",
+        "ratio": 0.5
+      }
+    },
+    {
+      "name": "toParams:percent -5",
+      "op": "toParams",
+      "input": {
+        "body": [
+          "body_a"
+        ],
+        "percent": -5
+      },
+      "result": {
+        "body": "body_a",
+        "ratio": 0.001
+      }
+    },
+    {
+      "name": "toParams:percent missing",
+      "op": "toParams",
+      "input": {
+        "body": [
+          "body_a"
+        ]
+      },
+      "result": {
+        "body": "body_a",
+        "ratio": null
+      }
+    },
+    {
+      "name": "fromParams:ratio 0",
+      "op": "fromParams",
+      "input": {
+        "body": "body_a",
+        "ratio": 0
+      },
+      "result": {
+        "body": [
+          "body_a"
+        ],
+        "percent": 50
+      }
+    },
+    {
+      "name": "fromParams:ratio 0.005",
+      "op": "fromParams",
+      "input": {
+        "body": "body_a",
+        "ratio": 0.005
+      },
+      "result": {
+        "body": [
+          "body_a"
+        ],
+        "percent": 1
+      }
+    },
+    {
+      "name": "fromParams:ratio 0.125",
+      "op": "fromParams",
+      "input": {
+        "body": "body_a",
+        "ratio": 0.125
+      },
+      "result": {
+        "body": [
+          "body_a"
+        ],
+        "percent": 13
+      }
+    },
+    {
+      "name": "fromParams:ratio 0.333",
+      "op": "fromParams",
+      "input": {
+        "body": "body_a",
+        "ratio": 0.333
+      },
+      "result": {
+        "body": [
+          "body_a"
+        ],
+        "percent": 33
+      }
+    },
+    {
+      "name": "fromParams:ratio 0.5",
+      "op": "fromParams",
+      "input": {
+        "body": "body_a",
+        "ratio": 0.5
+      },
+      "result": {
+        "body": [
+          "body_a"
+        ],
+        "percent": 50
+      }
+    },
+    {
+      "name": "fromParams:ratio 1",
+      "op": "fromParams",
+      "input": {
+        "body": "body_a",
+        "ratio": 1
+      },
+      "result": {
+        "body": [
+          "body_a"
+        ],
+        "percent": 100
+      }
+    },
+    {
+      "name": "fromParams:ratio \"0.3\"",
+      "op": "fromParams",
+      "input": {
+        "body": "body_a",
+        "ratio": "0.3"
+      },
+      "result": {
+        "body": [
+          "body_a"
+        ],
+        "percent": 30
+      }
+    },
+    {
+      "name": "fromParams:ratio null",
+      "op": "fromParams",
+      "input": {
+        "body": "body_a",
+        "ratio": null
+      },
+      "result": {
+        "body": [
+          "body_a"
+        ],
+        "percent": 50
+      }
+    },
+    {
+      "name": "fromParams:ratio \"abc\"",
+      "op": "fromParams",
+      "input": {
+        "body": "body_a",
+        "ratio": "abc"
+      },
+      "result": {
+        "body": [
+          "body_a"
+        ],
+        "percent": null
+      }
+    },
+    {
+      "name": "fromParams:ratio 2.5",
+      "op": "fromParams",
+      "input": {
+        "body": "body_a",
+        "ratio": 2.5
+      },
+      "result": {
+        "body": [
+          "body_a"
+        ],
+        "percent": 250
+      }
+    },
+    {
+      "name": "fromParams:ratio missing",
+      "op": "fromParams",
+      "input": {
+        "body": "body_a"
+      },
+      "result": {
+        "body": [
+          "body_a"
+        ],
+        "percent": 50
+      }
+    },
+    {
+      "name": "fromParams:empty",
+      "op": "fromParams",
+      "input": {},
+      "result": {
+        "body": [],
+        "percent": 50
+      }
+    }
+  ],
+  "fields": [
+    {
+      "key": "body",
+      "label": "Body",
+      "kind": "bodies",
+      "multi": false
+    },
+    {
+      "key": "percent",
+      "label": "Keep",
+      "kind": "number",
+      "unit": "%"
+    }
+  ],
+  "ctxNote": "FIXTURE_CTX: selection [body_a], lastSketch sk1, sketchOnBody true, two bodies, one extrude cut",
+  "defaults": {
+    "body": [
+      "body_a"
+    ],
+    "percent": 50
+  },
+  "toParams_defaults": {
+    "body": "body_a",
+    "ratio": 0.5
+  },
+  "shown_defaults": [
+    "body",
+    "percent"
+  ],
+  "cases": [],
+  "onChange": [],
+  "roundTrips": [
+    {
+      "name": "defaults",
+      "params": {
+        "body": "body_a",
+        "ratio": 0.5
+      },
+      "fromParams": {
+        "body": [
+          "body_a"
+        ],
+        "percent": 50
+      },
+      "toParams": {
+        "body": "body_a",
+        "ratio": 0.5
+      }
+    }
+  ],
+  "ctxCases": {
+    "nosel": {
+      "defaults": {
+        "body": [],
+        "percent": 50
+      },
+      "toParams_defaults": {
+        "ratio": 0.5
+      },
+      "shown_defaults": [
+        "body",
+        "percent"
+      ]
+    },
+    "two": {
+      "defaults": {
+        "body": [
+          "body_a"
+        ],
+        "percent": 50
+      },
+      "toParams_defaults": {
+        "body": "body_a",
+        "ratio": 0.5
+      },
+      "shown_defaults": [
+        "body",
+        "percent"
+      ]
+    },
+    "nonsolid": {
+      "defaults": {
+        "body": [],
+        "percent": 50
+      },
+      "toParams_defaults": {
+        "ratio": 0.5
+      },
+      "shown_defaults": [
+        "body",
+        "percent"
+      ]
+    },
+    "nobbox": {
+      "defaults": {
+        "body": [
+          "body_c"
+        ],
+        "percent": 50
+      },
+      "toParams_defaults": {
+        "body": "body_c",
+        "ratio": 0.5
+      },
+      "shown_defaults": [
+        "body",
+        "percent"
+      ]
+    },
+    "empty": {
+      "defaults": {
+        "body": [],
+        "percent": 50
+      },
+      "toParams_defaults": {
+        "ratio": 0.5
+      },
+      "shown_defaults": [
+        "body",
+        "percent"
+      ]
+    }
+  }
+}

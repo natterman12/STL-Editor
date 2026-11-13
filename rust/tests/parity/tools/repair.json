@@ -1,0 +1,538 @@
+{
+  "tool": "repair",
+  "label": "Repair",
+  "type": "repair",
+  "icon": "repair",
+  "flags": {
+    "placeOnFace": false,
+    "noLivePreview": true,
+    "gizmo": false,
+    "planeTool": false,
+    "sculpt": false,
+    "paint": false,
+    "wallTool": false
+  },
+  "hint": "Quick fix closes small holes and flips bad triangles. Rebuild remakes the mesh as one watertight solid",
+  "extra": [
+    {
+      "name": "toParams:no body",
+      "op": "toParams",
+      "input": {
+        "body": [],
+        "mode": "auto",
+        "resolution": "normal"
+      },
+      "result": {
+        "mode": "auto",
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "toParams:picked body",
+      "op": "toParams",
+      "input": {
+        "body": [
+          "body_b"
+        ],
+        "mode": "auto",
+        "resolution": "normal"
+      },
+      "result": {
+        "body": "body_b",
+        "mode": "auto",
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "fromParams:body null",
+      "op": "fromParams",
+      "input": {
+        "body": null,
+        "mode": "auto",
+        "resolution": "normal"
+      },
+      "result": {
+        "body": [],
+        "mode": "auto",
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "fromParams:body empty string",
+      "op": "fromParams",
+      "input": {
+        "body": "",
+        "mode": "auto",
+        "resolution": "normal"
+      },
+      "result": {
+        "body": [],
+        "mode": "auto",
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "fromParams:body zero",
+      "op": "fromParams",
+      "input": {
+        "body": 0,
+        "mode": "auto",
+        "resolution": "normal"
+      },
+      "result": {
+        "body": [],
+        "mode": "auto",
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "fromParams:body name",
+      "op": "fromParams",
+      "input": {
+        "body": "body_b",
+        "mode": "auto",
+        "resolution": "normal"
+      },
+      "result": {
+        "body": [
+          "body_b"
+        ],
+        "mode": "auto",
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "fromParams:body missing",
+      "op": "fromParams",
+      "input": {
+        "mode": "auto",
+        "resolution": "normal"
+      },
+      "result": {
+        "mode": "auto",
+        "resolution": "normal",
+        "body": []
+      }
+    }
+  ],
+  "fields": [
+    {
+      "key": "body",
+      "label": "Body",
+      "kind": "bodies",
+      "multi": false
+    },
+    {
+      "key": "mode",
+      "label": "Method",
+      "kind": "select",
+      "options": [
+        [
+          "auto",
+          "Auto"
+        ],
+        [
+          "quick",
+          "Quick fix"
+        ],
+        [
+          "rebuild",
+          "Rebuild"
+        ]
+      ]
+    },
+    {
+      "key": "resolution",
+      "label": "Rebuild detail",
+      "kind": "select",
+      "options": [
+        [
+          "draft",
+          "Low"
+        ],
+        [
+          "normal",
+          "Medium"
+        ],
+        [
+          "fine",
+          "High"
+        ]
+      ],
+      "hasShow": true
+    }
+  ],
+  "ctxNote": "FIXTURE_CTX: selection [body_a], lastSketch sk1, sketchOnBody true, two bodies, one extrude cut",
+  "defaults": {
+    "body": [
+      "body_a"
+    ],
+    "mode": "auto",
+    "resolution": "normal"
+  },
+  "toParams_defaults": {
+    "body": "body_a",
+    "mode": "auto",
+    "resolution": "normal"
+  },
+  "shown_defaults": [
+    "body",
+    "mode",
+    "resolution"
+  ],
+  "cases": [
+    {
+      "name": "select:mode=auto",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "mode": "auto",
+        "resolution": "normal"
+      },
+      "toParams": {
+        "body": "body_a",
+        "mode": "auto",
+        "resolution": "normal"
+      },
+      "shown": [
+        "body",
+        "mode",
+        "resolution"
+      ]
+    },
+    {
+      "name": "select:mode=quick",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "mode": "quick",
+        "resolution": "normal"
+      },
+      "toParams": {
+        "body": "body_a",
+        "mode": "quick",
+        "resolution": "normal"
+      },
+      "shown": [
+        "body",
+        "mode"
+      ]
+    },
+    {
+      "name": "select:mode=rebuild",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "mode": "rebuild",
+        "resolution": "normal"
+      },
+      "toParams": {
+        "body": "body_a",
+        "mode": "rebuild",
+        "resolution": "normal"
+      },
+      "shown": [
+        "body",
+        "mode",
+        "resolution"
+      ]
+    },
+    {
+      "name": "select:resolution=draft",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "mode": "auto",
+        "resolution": "draft"
+      },
+      "toParams": {
+        "body": "body_a",
+        "mode": "auto",
+        "resolution": "draft"
+      },
+      "shown": [
+        "body",
+        "mode",
+        "resolution"
+      ]
+    },
+    {
+      "name": "select:resolution=normal",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "mode": "auto",
+        "resolution": "normal"
+      },
+      "toParams": {
+        "body": "body_a",
+        "mode": "auto",
+        "resolution": "normal"
+      },
+      "shown": [
+        "body",
+        "mode",
+        "resolution"
+      ]
+    },
+    {
+      "name": "select:resolution=fine",
+      "values": {
+        "body": [
+          "body_a"
+        ],
+        "mode": "auto",
+        "resolution": "fine"
+      },
+      "toParams": {
+        "body": "body_a",
+        "mode": "auto",
+        "resolution": "fine"
+      },
+      "shown": [
+        "body",
+        "mode",
+        "resolution"
+      ]
+    }
+  ],
+  "onChange": [],
+  "roundTrips": [
+    {
+      "name": "defaults",
+      "params": {
+        "body": "body_a",
+        "mode": "auto",
+        "resolution": "normal"
+      },
+      "fromParams": {
+        "body": [
+          "body_a"
+        ],
+        "mode": "auto",
+        "resolution": "normal"
+      },
+      "toParams": {
+        "body": "body_a",
+        "mode": "auto",
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "select:mode=auto",
+      "params": {
+        "body": "body_a",
+        "mode": "auto",
+        "resolution": "normal"
+      },
+      "fromParams": {
+        "body": [
+          "body_a"
+        ],
+        "mode": "auto",
+        "resolution": "normal"
+      },
+      "toParams": {
+        "body": "body_a",
+        "mode": "auto",
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "select:mode=quick",
+      "params": {
+        "body": "body_a",
+        "mode": "quick",
+        "resolution": "normal"
+      },
+      "fromParams": {
+        "body": [
+          "body_a"
+        ],
+        "mode": "quick",
+        "resolution": "normal"
+      },
+      "toParams": {
+        "body": "body_a",
+        "mode": "quick",
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "select:mode=rebuild",
+      "params": {
+        "body": "body_a",
+        "mode": "rebuild",
+        "resolution": "normal"
+      },
+      "fromParams": {
+        "body": [
+          "body_a"
+        ],
+        "mode": "rebuild",
+        "resolution": "normal"
+      },
+      "toParams": {
+        "body": "body_a",
+        "mode": "rebuild",
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "select:resolution=draft",
+      "params": {
+        "body": "body_a",
+        "mode": "auto",
+        "resolution": "draft"
+      },
+      "fromParams": {
+        "body": [
+          "body_a"
+        ],
+        "mode": "auto",
+        "resolution": "draft"
+      },
+      "toParams": {
+        "body": "body_a",
+        "mode": "auto",
+        "resolution": "draft"
+      }
+    },
+    {
+      "name": "select:resolution=normal",
+      "params": {
+        "body": "body_a",
+        "mode": "auto",
+        "resolution": "normal"
+      },
+      "fromParams": {
+        "body": [
+          "body_a"
+        ],
+        "mode": "auto",
+        "resolution": "normal"
+      },
+      "toParams": {
+        "body": "body_a",
+        "mode": "auto",
+        "resolution": "normal"
+      }
+    },
+    {
+      "name": "select:resolution=fine",
+      "params": {
+        "body": "body_a",
+        "mode": "auto",
+        "resolution": "fine"
+      },
+      "fromParams": {
+        "body": [
+          "body_a"
+        ],
+        "mode": "auto",
+        "resolution": "fine"
+      },
+      "toParams": {
+        "body": "body_a",
+        "mode": "auto",
+        "resolution": "fine"
+      }
+    }
+  ],
+  "ctxCases": {
+    "nosel": {
+      "defaults": {
+        "body": [],
+        "mode": "auto",
+        "resolution": "normal"
+      },
+      "toParams_defaults": {
+        "mode": "auto",
+        "resolution": "normal"
+      },
+      "shown_defaults": [
+        "body",
+        "mode",
+        "resolution"
+      ]
+    },
+    "two": {
+      "defaults": {
+        "body": [
+          "body_a"
+        ],
+        "mode": "auto",
+        "resolution": "normal"
+      },
+      "toParams_defaults": {
+        "body": "body_a",
+        "mode": "auto",
+        "resolution": "normal"
+      },
+      "shown_defaults": [
+        "body",
+        "mode",
+        "resolution"
+      ]
+    },
+    "nonsolid": {
+      "defaults": {
+        "body": [
+          "body_n"
+        ],
+        "mode": "auto",
+        "resolution": "normal"
+      },
+      "toParams_defaults": {
+        "body": "body_n",
+        "mode": "auto",
+        "resolution": "normal"
+      },
+      "shown_defaults": [
+        "body",
+        "mode",
+        "resolution"
+      ]
+    },
+    "nobbox": {
+      "defaults": {
+        "body": [
+          "body_c"
+        ],
+        "mode": "auto",
+        "resolution": "normal"
+      },
+      "toParams_defaults": {
+        "body": "body_c",
+        "mode": "auto",
+        "resolution": "normal"
+      },
+      "shown_defaults": [
+        "body",
+        "mode",
+        "resolution"
+      ]
+    },
+    "empty": {
+      "defaults": {
+        "body": [],
+        "mode": "auto",
+        "resolution": "normal"
+      },
+      "toParams_defaults": {
+        "mode": "auto",
+        "resolution": "normal"
+      },
+      "shown_defaults": [
+        "body",
+        "mode",
+        "resolution"
+      ]
+    }
+  }
+}

@@ -1,0 +1,215 @@
+{
+  "tool": "plane_3pt",
+  "label": "3-Point Plane",
+  "type": "plane",
+  "icon": "plane_3pt",
+  "flags": {
+    "placeOnFace": false,
+    "noLivePreview": false,
+    "gizmo": false,
+    "planeTool": true,
+    "sculpt": false,
+    "paint": false,
+    "wallTool": false
+  },
+  "hint": "Click three points on the model",
+  "extra": [],
+  "fields": [
+    {
+      "key": "points",
+      "label": "Points",
+      "kind": "points3"
+    },
+    {
+      "key": "flip",
+      "label": "Flip normal",
+      "kind": "bool"
+    },
+    {
+      "key": "name",
+      "label": "Name",
+      "kind": "text"
+    }
+  ],
+  "ctxNote": "FIXTURE_CTX: selection [body_a], lastSketch sk1, sketchOnBody true, two bodies, one extrude cut",
+  "defaults": {
+    "mode": "three_points",
+    "points": [],
+    "flip": false,
+    "name": ""
+  },
+  "toParams_defaults": {
+    "mode": "three_points",
+    "points": [],
+    "flip": false,
+    "name": ""
+  },
+  "shown_defaults": [
+    "points",
+    "flip",
+    "name"
+  ],
+  "cases": [
+    {
+      "name": "bool:flip=true",
+      "values": {
+        "mode": "three_points",
+        "points": [],
+        "flip": true,
+        "name": ""
+      },
+      "toParams": {
+        "mode": "three_points",
+        "points": [],
+        "flip": true,
+        "name": ""
+      },
+      "shown": [
+        "points",
+        "flip",
+        "name"
+      ]
+    },
+    {
+      "name": "bool:flip=false",
+      "values": {
+        "mode": "three_points",
+        "points": [],
+        "flip": false,
+        "name": ""
+      },
+      "toParams": {
+        "mode": "three_points",
+        "points": [],
+        "flip": false,
+        "name": ""
+      },
+      "shown": [
+        "points",
+        "flip",
+        "name"
+      ]
+    }
+  ],
+  "onChange": [],
+  "roundTrips": [
+    {
+      "name": "defaults",
+      "params": {
+        "mode": "three_points",
+        "points": [],
+        "flip": false,
+        "name": ""
+      },
+      "fromParams": {
+        "mode": "three_points",
+        "points": [],
+        "flip": false,
+        "name": ""
+      },
+      "toParams": {
+        "mode": "three_points",
+        "points": [],
+        "flip": false,
+        "name": ""
+      }
+    }
+  ],
+  "ctxCases": {
+    "nosel": {
+      "defaults": {
+        "mode": "three_points",
+        "points": [],
+        "flip": false,
+        "name": ""
+      },
+      "toParams_defaults": {
+        "mode": "three_points",
+        "points": [],
+        "flip": false,
+        "name": ""
+      },
+      "shown_defaults": [
+        "points",
+        "flip",
+        "name"
+      ]
+    },
+    "two": {
+      "defaults": {
+        "mode": "three_points",
+        "points": [],
+        "flip": false,
+        "name": ""
+      },
+      "toParams_defaults": {
+        "mode": "three_points",
+        "points": [],
+        "flip": false,
+        "name": ""
+      },
+      "shown_defaults": [
+        "points",
+        "flip",
+        "name"
+      ]
+    },
+    "nonsolid": {
+      "defaults": {
+        "mode": "three_points",
+        "points": [],
+        "flip": false,
+        "name": ""
+      },
+      "toParams_defaults": {
+        "mode": "three_points",
+        "points": [],
+        "flip": false,
+        "name": ""
+      },
+      "shown_defaults": [
+        "points",
+        "flip",
+        "name"
+      ]
+    },
+    "nobbox": {
+      "defaults": {
+        "mode": "three_points",
+        "points": [],
+        "flip": false,
+        "name": ""
+      },
+      "toParams_defaults": {
+        "mode": "three_points",
+        "points": [],
+        "flip": false,
+        "name": ""
+      },
+      "shown_defaults": [
+        "points",
+        "flip",
+        "name"
+      ]
+    },
+    "empty": {
+      "defaults": {
+        "mode": "three_points",
+        "points": [],
+        "flip": false,
+        "name": ""
+      },
+      "toParams_defaults": {
+        "mode": "three_points",
+        "points": [],
+        "flip": false,
+        "name": ""
+      },
+      "shown_defaults": [
+        "points",
+        "flip",
+        "name"
+      ]
+    }
+  }
+}

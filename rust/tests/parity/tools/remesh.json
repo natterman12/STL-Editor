@@ -1,0 +1,227 @@
+{
+  "tool": "remesh",
+  "label": "Remesh",
+  "type": "remesh",
+  "icon": "remesh",
+  "flags": {
+    "placeOnFace": false,
+    "noLivePreview": true,
+    "gizmo": false,
+    "planeTool": false,
+    "sculpt": false,
+    "paint": false,
+    "wallTool": false
+  },
+  "hint": "Rebuilds the surface with even triangles of this size, so brushes and smoothing work everywhere",
+  "extra": [
+    {
+      "name": "toParams:no body",
+      "op": "toParams",
+      "input": {
+        "body": [],
+        "edge": 1
+      },
+      "result": {
+        "edge": 1
+      }
+    },
+    {
+      "name": "toParams:picked body",
+      "op": "toParams",
+      "input": {
+        "body": [
+          "body_b"
+        ],
+        "edge": 1
+      },
+      "result": {
+        "body": "body_b",
+        "edge": 1
+      }
+    },
+    {
+      "name": "fromParams:body null",
+      "op": "fromParams",
+      "input": {
+        "body": null,
+        "edge": 1
+      },
+      "result": {
+        "body": [],
+        "edge": 1
+      }
+    },
+    {
+      "name": "fromParams:body empty string",
+      "op": "fromParams",
+      "input": {
+        "body": "",
+        "edge": 1
+      },
+      "result": {
+        "body": [],
+        "edge": 1
+      }
+    },
+    {
+      "name": "fromParams:body zero",
+      "op": "fromParams",
+      "input": {
+        "body": 0,
+        "edge": 1
+      },
+      "result": {
+        "body": [],
+        "edge": 1
+      }
+    },
+    {
+      "name": "fromParams:body name",
+      "op": "fromParams",
+      "input": {
+        "body": "body_b",
+        "edge": 1
+      },
+      "result": {
+        "body": [
+          "body_b"
+        ],
+        "edge": 1
+      }
+    },
+    {
+      "name": "fromParams:body missing",
+      "op": "fromParams",
+      "input": {
+        "edge": 1
+      },
+      "result": {
+        "edge": 1,
+        "body": []
+      }
+    }
+  ],
+  "fields": [
+    {
+      "key": "body",
+      "label": "Body",
+      "kind": "bodies",
+      "multi": false
+    },
+    {
+      "key": "edge",
+      "label": "Triangle size",
+      "kind": "number",
+      "unit": "mm"
+    }
+  ],
+  "ctxNote": "FIXTURE_CTX: selection [body_a], lastSketch sk1, sketchOnBody true, two bodies, one extrude cut",
+  "defaults": {
+    "body": [
+      "body_a"
+    ],
+    "edge": 1
+  },
+  "toParams_defaults": {
+    "body": "body_a",
+    "edge": 1
+  },
+  "shown_defaults": [
+    "body",
+    "edge"
+  ],
+  "cases": [],
+  "onChange": [],
+  "roundTrips": [
+    {
+      "name": "defaults",
+      "params": {
+        "body": "body_a",
+        "edge": 1
+      },
+      "fromParams": {
+        "body": [
+          "body_a"
+        ],
+        "edge": 1
+      },
+      "toParams": {
+        "body": "body_a",
+        "edge": 1
+      }
+    }
+  ],
+  "ctxCases": {
+    "nosel": {
+      "defaults": {
+        "body": [],
+        "edge": 1
+      },
+      "toParams_defaults": {
+        "edge": 1
+      },
+      "shown_defaults": [
+        "body",
+        "edge"
+      ]
+    },
+    "two": {
+      "defaults": {
+        "body": [
+          "body_a"
+        ],
+        "edge": 1
+      },
+      "toParams_defaults": {
+        "body": "body_a",
+        "edge": 1
+      },
+      "shown_defaults": [
+        "body",
+        "edge"
+      ]
+    },
+    "nonsolid": {
+      "defaults": {
+        "body": [],
+        "edge": 1
+      },
+      "toParams_defaults": {
+        "edge": 1
+      },
+      "shown_defaults": [
+        "body",
+        "edge"
+      ]
+    },
+    "nobbox": {
+      "defaults": {
+        "body": [
+          "body_c"
+        ],
+        "edge": 1
+      },
+      "toParams_defaults": {
+        "body": "body_c",
+        "edge": 1
+      },
+      "shown_defaults": [
+        "body",
+        "edge"
+      ]
+    },
+    "empty": {
+      "defaults": {
+        "body": [],
+        "edge": 1
+      },
+      "toParams_defaults": {
+        "edge": 1
+      },
+      "shown_defaults": [
+        "body",
+        "edge"
+      ]
+    }
+  }
+}

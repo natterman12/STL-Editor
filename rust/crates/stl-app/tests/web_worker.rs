@@ -28,6 +28,8 @@ fn kinds(updates: &[Update]) -> String {
             Update::Saved { bytes } => format!("saved({})", bytes.len()),
             Update::Exported { name, count, .. } => format!("exported({name}, {count})"),
             Update::Error(t) => format!("error({t})"),
+            Update::Preview { seq, .. } => format!("preview({seq})"),
+            Update::Fins { seq, ask, .. } => format!("fins({seq} {ask})"),
             Update::EngineLost => "engineLost".into(),
         })
         .collect::<Vec<_>>()
@@ -115,7 +117,7 @@ async fn worker_error_sends_engine_lost() {
     let opened = until(&link, 20_000.0, |_l, u| bodies(u).is_some_and(|b| !b.is_empty()) && timeline_len(u).is_some()).await;
     let n_bodies = bodies(&opened).unwrap().len();
     let n_items = timeline_len(&opened).unwrap();
-    link.send(Command::AddFeature { kind: TEST_PANIC_KIND.into(), params: serde_json::json!({}), index: None });
+    link.send(Command::AddFeature { kind: TEST_PANIC_KIND.into(), params: serde_json::json!({}), index: None, name: None });
     let _lost = until(&link, 20_000.0, |_l, u| u.iter().any(|x| matches!(x, Update::EngineLost))).await;
     link.restart();
     let restored = until(&link, 20_000.0, |_l, u| {
@@ -138,6 +140,7 @@ async fn worker_cancel_stops_between_features() {
         kind: "primitive".into(),
         params: serde_json::json!({"shape": "box", "size": [4.0, 10.0, 10.0]}),
         index: None,
+        name: None,
     });
     link.send(Command::Cancel);
     let updates = until(&link, 20_000.0, |_l, u| {
@@ -168,6 +171,7 @@ async fn worker_without_jspi_keeps_the_feature() {
         kind: "primitive".into(),
         params: serde_json::json!({"shape": "box", "size": [4.0, 10.0, 10.0]}),
         index: None,
+        name: None,
     });
     link.send(Command::Cancel);
     let updates = until(&link, 20_000.0, |_l, u| timeline_len(u) == Some(n_items + 1)).await;
@@ -189,7 +193,7 @@ async fn worker_failed_open_keeps_last_project() {
         u.iter().any(|x| matches!(x, Update::Error(text) if text.contains("isn't an STL Editor project")))
     })
     .await;
-    link.send(Command::AddFeature { kind: TEST_PANIC_KIND.into(), params: serde_json::json!({}), index: None });
+    link.send(Command::AddFeature { kind: TEST_PANIC_KIND.into(), params: serde_json::json!({}), index: None, name: None });
     let _lost = until(&link, 20_000.0, |_l, u| u.iter().any(|x| matches!(x, Update::EngineLost))).await;
     link.restart();
     let restored = until(&link, 20_000.0, |_l, u| {

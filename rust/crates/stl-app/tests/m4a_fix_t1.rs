@@ -156,7 +156,7 @@ fn failed_open_keeps_title() {
     r.settle();
     r.assert_title_clean("basic.stlx", "first open");
     // change something so the project is dirty, then fail an open (File > Open asks first)
-    r.link.send(Command::AddFeature { kind: "primitive".into(), params: serde_json::json!({"shape": "box", "size": [3.0, 3.0, 3.0]}), index: None });
+    r.link.send(Command::AddFeature { kind: "primitive".into(), params: serde_json::json!({"shape": "box", "size": [3.0, 3.0, 3.0]}), index: None, name: None });
     r.settle();
     assert!(r.h.state().shell.dirty, "an added step makes the project dirty");
     r.h.state_mut().shell.file_requests.push(UiAction::Open);

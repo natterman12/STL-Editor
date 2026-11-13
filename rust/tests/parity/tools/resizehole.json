@@ -1,0 +1,3071 @@
+{
+  "tool": "resizehole",
+  "label": "Resize Hole",
+  "type": "resizehole",
+  "icon": "resizehole",
+  "flags": {
+    "placeOnFace": false,
+    "noLivePreview": false,
+    "gizmo": false,
+    "planeTool": false,
+    "sculpt": false,
+    "paint": false,
+    "wallTool": false
+  },
+  "hint": "Click the inside wall of a round hole (or the side of a pin). It is measured, then type the diameter you need",
+  "extra": [
+    {
+      "name": "fromParams:picked pin 2.125",
+      "op": "fromParams",
+      "input": {
+        "body": "body_a",
+        "point": [
+          1,
+          2,
+          3
+        ],
+        "diameter": 5,
+        "mode": "resize",
+        "measured": 2.125,
+        "kind": "pin"
+      },
+      "result": {
+        "body": "body_a",
+        "point": [
+          1,
+          2,
+          3
+        ],
+        "diameter": 5,
+        "mode": "resize",
+        "measured": 2.125,
+        "kind": "pin",
+        "size": "custom",
+        "face": {
+          "label": "Pin Ø2.13"
+        }
+      }
+    },
+    {
+      "name": "fromParams:picked hole 2.135",
+      "op": "fromParams",
+      "input": {
+        "body": "body_a",
+        "point": [
+          1,
+          2,
+          3
+        ],
+        "diameter": 5,
+        "mode": "resize",
+        "measured": 2.135,
+        "kind": "hole"
+      },
+      "result": {
+        "body": "body_a",
+        "point": [
+          1,
+          2,
+          3
+        ],
+        "diameter": 5,
+        "mode": "resize",
+        "measured": 2.135,
+        "kind": "hole",
+        "size": "custom",
+        "face": {
+          "label": "Hole Ø2.13"
+        }
+      }
+    },
+    {
+      "name": "fromParams:picked hole 1.005",
+      "op": "fromParams",
+      "input": {
+        "body": "body_a",
+        "point": [
+          1,
+          2,
+          3
+        ],
+        "diameter": 5,
+        "mode": "resize",
+        "measured": 1.005
+      },
+      "result": {
+        "body": "body_a",
+        "point": [
+          1,
+          2,
+          3
+        ],
+        "diameter": 5,
+        "mode": "resize",
+        "measured": 1.005,
+        "size": "custom",
+        "face": {
+          "label": "Hole Ø1.00"
+        }
+      }
+    },
+    {
+      "name": "fromParams:picked hole 0.125",
+      "op": "fromParams",
+      "input": {
+        "body": "body_a",
+        "point": [
+          1,
+          2,
+          3
+        ],
+        "diameter": 5,
+        "mode": "resize",
+        "measured": 0.125,
+        "kind": "hole"
+      },
+      "result": {
+        "body": "body_a",
+        "point": [
+          1,
+          2,
+          3
+        ],
+        "diameter": 5,
+        "mode": "resize",
+        "measured": 0.125,
+        "kind": "hole",
+        "size": "custom",
+        "face": {
+          "label": "Hole Ø0.13"
+        }
+      }
+    },
+    {
+      "name": "fromParams:picked measured 0",
+      "op": "fromParams",
+      "input": {
+        "body": "body_a",
+        "point": [
+          1,
+          2,
+          3
+        ],
+        "diameter": 5,
+        "mode": "resize",
+        "measured": 0,
+        "kind": "pin"
+      },
+      "result": {
+        "body": "body_a",
+        "point": [
+          1,
+          2,
+          3
+        ],
+        "diameter": 5,
+        "mode": "resize",
+        "measured": 0,
+        "kind": "pin",
+        "size": "custom",
+        "face": {
+          "label": "Picked"
+        }
+      }
+    },
+    {
+      "name": "fromParams:picked measured string",
+      "op": "fromParams",
+      "input": {
+        "body": "body_a",
+        "point": [
+          1,
+          2,
+          3
+        ],
+        "diameter": 5,
+        "mode": "resize",
+        "measured": "2.125",
+        "kind": "pin"
+      },
+      "result": {
+        "body": "body_a",
+        "point": [
+          1,
+          2,
+          3
+        ],
+        "diameter": 5,
+        "mode": "resize",
+        "measured": "2.125",
+        "kind": "pin",
+        "size": "custom",
+        "face": {
+          "label": "Pin Ø2.13"
+        }
+      }
+    },
+    {
+      "name": "fromParams:picked measured text",
+      "op": "fromParams",
+      "input": {
+        "body": "body_a",
+        "point": [
+          1,
+          2,
+          3
+        ],
+        "diameter": 5,
+        "mode": "resize",
+        "measured": "abc",
+        "kind": "hole"
+      },
+      "result": {
+        "body": "body_a",
+        "point": [
+          1,
+          2,
+          3
+        ],
+        "diameter": 5,
+        "mode": "resize",
+        "measured": "abc",
+        "kind": "hole",
+        "size": "custom",
+        "face": {
+          "label": "Hole ØNaN"
+        }
+      }
+    },
+    {
+      "name": "fromParams:picked measured null",
+      "op": "fromParams",
+      "input": {
+        "body": "body_a",
+        "point": [
+          1,
+          2,
+          3
+        ],
+        "diameter": 5,
+        "mode": "resize",
+        "measured": null,
+        "kind": "pin"
+      },
+      "result": {
+        "body": "body_a",
+        "point": [
+          1,
+          2,
+          3
+        ],
+        "diameter": 5,
+        "mode": "resize",
+        "measured": null,
+        "kind": "pin",
+        "size": "custom",
+        "face": {
+          "label": "Picked"
+        }
+      }
+    },
+    {
+      "name": "fromParams:picked measured missing",
+      "op": "fromParams",
+      "input": {
+        "body": "body_a",
+        "point": [
+          1,
+          2,
+          3
+        ],
+        "diameter": 5,
+        "mode": "resize",
+        "kind": "pin"
+      },
+      "result": {
+        "body": "body_a",
+        "point": [
+          1,
+          2,
+          3
+        ],
+        "diameter": 5,
+        "mode": "resize",
+        "kind": "pin",
+        "size": "custom",
+        "face": {
+          "label": "Picked"
+        }
+      }
+    },
+    {
+      "name": "fromParams:picked big 1234.5",
+      "op": "fromParams",
+      "input": {
+        "body": "body_a",
+        "point": [
+          1,
+          2,
+          3
+        ],
+        "diameter": 5,
+        "mode": "resize",
+        "measured": 1234.5
+      },
+      "result": {
+        "body": "body_a",
+        "point": [
+          1,
+          2,
+          3
+        ],
+        "diameter": 5,
+        "mode": "resize",
+        "measured": 1234.5,
+        "size": "custom",
+        "face": {
+          "label": "Hole Ø1234.50"
+        }
+      }
+    },
+    {
+      "name": "fromParams:picked other kind",
+      "op": "fromParams",
+      "input": {
+        "body": "body_a",
+        "point": [
+          1,
+          2,
+          3
+        ],
+        "diameter": 5,
+        "mode": "resize",
+        "measured": 8,
+        "kind": "weird"
+      },
+      "result": {
+        "body": "body_a",
+        "point": [
+          1,
+          2,
+          3
+        ],
+        "diameter": 5,
+        "mode": "resize",
+        "measured": 8,
+        "kind": "weird",
+        "size": "custom",
+        "face": {
+          "label": "Hole Ø8.00"
+        }
+      }
+    },
+    {
+      "name": "fromParams:point null",
+      "op": "fromParams",
+      "input": {
+        "body": "body_a",
+        "point": null,
+        "diameter": 5,
+        "mode": "fill",
+        "measured": 3
+      },
+      "result": {
+        "body": "body_a",
+        "point": null,
+        "diameter": 5,
+        "mode": "fill",
+        "measured": 3,
+        "size": "custom",
+        "face": null
+      }
+    },
+    {
+      "name": "fromParams:point missing",
+      "op": "fromParams",
+      "input": {
+        "body": "body_a",
+        "diameter": 5,
+        "mode": "fill"
+      },
+      "result": {
+        "body": "body_a",
+        "diameter": 5,
+        "mode": "fill",
+        "size": "custom",
+        "face": null
+      }
+    },
+    {
+      "name": "fromParams:point empty list",
+      "op": "fromParams",
+      "input": {
+        "body": "body_a",
+        "point": [],
+        "diameter": 5,
+        "mode": "resize",
+        "measured": 3
+      },
+      "result": {
+        "body": "body_a",
+        "point": [],
+        "diameter": 5,
+        "mode": "resize",
+        "measured": 3,
+        "size": "custom",
+        "face": {
+          "label": "Hole Ø3.00"
+        }
+      }
+    },
+    {
+      "name": "fromParams:point zero",
+      "op": "fromParams",
+      "input": {
+        "body": "body_a",
+        "point": 0,
+        "diameter": 5,
+        "mode": "resize",
+        "measured": 3
+      },
+      "result": {
+        "body": "body_a",
+        "point": 0,
+        "diameter": 5,
+        "mode": "resize",
+        "measured": 3,
+        "size": "custom",
+        "face": null
+      }
+    },
+    {
+      "name": "toParams:keeps measured and kind",
+      "op": "toParams",
+      "input": {
+        "face": {
+          "label": "Pin Ø2.13"
+        },
+        "body": "body_a",
+        "point": [
+          1,
+          2,
+          3
+        ],
+        "mode": "resize",
+        "size": "custom",
+        "diameter": 5,
+        "measured": 2.125,
+        "kind": "pin"
+      },
+      "result": {
+        "body": "body_a",
+        "point": [
+          1,
+          2,
+          3
+        ],
+        "diameter": 5,
+        "mode": "resize",
+        "measured": 2.125,
+        "kind": "pin"
+      }
+    },
+    {
+      "name": "toParams:nothing picked",
+      "op": "toParams",
+      "input": {
+        "mode": "resize",
+        "size": "m3",
+        "diameter": 3.4
+      },
+      "result": {
+        "diameter": 3.4,
+        "mode": "resize"
+      }
+    },
+    {
+      "name": "onchange:diameter",
+      "op": "onChange",
+      "input": {
+        "trigger": "diameter",
+        "values": {
+          "size": "m3",
+          "diameter": 4
+        }
+      },
+      "result": {
+        "size": "custom",
+        "_sized": true
+      }
+    },
+    {
+      "name": "onchange:mode",
+      "op": "onChange",
+      "input": {
+        "trigger": "mode",
+        "values": {
+          "mode": "fill"
+        }
+      },
+      "result": null
+    },
+    {
+      "name": "onchange:size unknown",
+      "op": "onChange",
+      "input": {
+        "trigger": "size",
+        "values": {
+          "size": "nope"
+        }
+      },
+      "result": null
+    }
+  ],
+  "fields": [
+    {
+      "key": "face",
+      "label": "Hole or pin",
+      "kind": "cylface"
+    },
+    {
+      "key": "mode",
+      "label": "Change",
+      "kind": "select",
+      "options": [
+        [
+          "resize",
+          "New diameter"
+        ],
+        [
+          "fill",
+          "Fill the hole"
+        ]
+      ]
+    },
+    {
+      "key": "size",
+      "label": "Size",
+      "kind": "select",
+      "options": [
+        [
+          "custom",
+          "Custom"
+        ],
+        [
+          "m16",
+          "M1.6 screw clearance (1.8)"
+        ],
+        [
+          "m2",
+          "M2 screw clearance (2.4)"
+        ],
+        [
+          "m25",
+          "M2.5 screw clearance (2.9)"
+        ],
+        [
+          "m3",
+          "M3 screw clearance (3.4)"
+        ],
+        [
+          "m4",
+          "M4 screw clearance (4.5)"
+        ],
+        [
+          "m5",
+          "M5 screw clearance (5.5)"
+        ],
+        [
+          "m6",
+          "M6 screw clearance (6.6)"
+        ],
+        [
+          "m2tap",
+          "M2 self-tapping into plastic (1.7)"
+        ],
+        [
+          "m25tap",
+          "M2.5 self-tapping into plastic (2.1)"
+        ],
+        [
+          "m3tap",
+          "M3 self-tapping into plastic (2.6)"
+        ],
+        [
+          "m2ins",
+          "M2 heat-set insert (3.2)"
+        ],
+        [
+          "m3ins",
+          "M3 heat-set insert (4.0)"
+        ],
+        [
+          "m4ins",
+          "M4 heat-set insert (5.6)"
+        ],
+        [
+          "i4",
+          "#4 screw clearance (3.26)"
+        ],
+        [
+          "i6",
+          "#6 screw clearance (3.8)"
+        ],
+        [
+          "i8",
+          "#8 screw clearance (4.5)"
+        ],
+        [
+          "i10",
+          "#10 screw clearance (5.11)"
+        ],
+        [
+          "i14",
+          "1/4\" screw clearance (6.76)"
+        ],
+        [
+          "i4ins",
+          "#4-40 heat-set insert (4.09)"
+        ],
+        [
+          "i6ins",
+          "#6-32 heat-set insert (5.11)"
+        ],
+        [
+          "mag6",
+          "6 mm magnet (6.2)"
+        ],
+        [
+          "mag8",
+          "8 mm magnet (8.2)"
+        ],
+        [
+          "mag10",
+          "10 mm magnet (10.2)"
+        ],
+        [
+          "fil",
+          "1.75 mm filament pin (1.9)"
+        ],
+        [
+          "b608",
+          "608 bearing seat (22.1)"
+        ]
+      ],
+      "hasShow": true
+    },
+    {
+      "key": "diameter",
+      "label": "Diameter",
+      "kind": "number",
+      "unit": "mm",
+      "hasShow": true
+    }
+  ],
+  "ctxNote": "FIXTURE_CTX: selection [body_a], lastSketch sk1, sketchOnBody true, two bodies, one extrude cut",
+  "defaults": {
+    "face": null,
+    "body": null,
+    "point": null,
+    "mode": "resize",
+    "size": "custom",
+    "diameter": 5
+  },
+  "toParams_defaults": {
+    "body": null,
+    "point": null,
+    "diameter": 5,
+    "mode": "resize"
+  },
+  "shown_defaults": [
+    "face",
+    "mode",
+    "size",
+    "diameter"
+  ],
+  "cases": [
+    {
+      "name": "select:mode=resize",
+      "values": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "custom",
+        "diameter": 5
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "select:mode=fill",
+      "values": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "fill",
+        "size": "custom",
+        "diameter": 5
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "fill"
+      },
+      "shown": [
+        "face",
+        "mode"
+      ]
+    },
+    {
+      "name": "select:size=custom",
+      "values": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "custom",
+        "diameter": 5
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "select:size=m16",
+      "values": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "m16",
+        "diameter": 5
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "select:size=m2",
+      "values": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "m2",
+        "diameter": 5
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "select:size=m25",
+      "values": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "m25",
+        "diameter": 5
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "select:size=m3",
+      "values": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "m3",
+        "diameter": 5
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "select:size=m4",
+      "values": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "m4",
+        "diameter": 5
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "select:size=m5",
+      "values": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "m5",
+        "diameter": 5
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "select:size=m6",
+      "values": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "m6",
+        "diameter": 5
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "select:size=m2tap",
+      "values": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "m2tap",
+        "diameter": 5
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "select:size=m25tap",
+      "values": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "m25tap",
+        "diameter": 5
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "select:size=m3tap",
+      "values": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "m3tap",
+        "diameter": 5
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "select:size=m2ins",
+      "values": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "m2ins",
+        "diameter": 5
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "select:size=m3ins",
+      "values": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "m3ins",
+        "diameter": 5
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "select:size=m4ins",
+      "values": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "m4ins",
+        "diameter": 5
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "select:size=i4",
+      "values": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "i4",
+        "diameter": 5
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "select:size=i6",
+      "values": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "i6",
+        "diameter": 5
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "select:size=i8",
+      "values": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "i8",
+        "diameter": 5
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "select:size=i10",
+      "values": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "i10",
+        "diameter": 5
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "select:size=i14",
+      "values": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "i14",
+        "diameter": 5
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "select:size=i4ins",
+      "values": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "i4ins",
+        "diameter": 5
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "select:size=i6ins",
+      "values": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "i6ins",
+        "diameter": 5
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "select:size=mag6",
+      "values": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "mag6",
+        "diameter": 5
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "select:size=mag8",
+      "values": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "mag8",
+        "diameter": 5
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "select:size=mag10",
+      "values": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "mag10",
+        "diameter": 5
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "select:size=fil",
+      "values": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "fil",
+        "diameter": 5
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "select:size=b608",
+      "values": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "b608",
+        "diameter": 5
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    }
+  ],
+  "onChange": [
+    {
+      "name": "onchange:size=custom",
+      "trigger": "size",
+      "values_before": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "custom",
+        "diameter": 5
+      },
+      "patch": null,
+      "values_after": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "custom",
+        "diameter": 5
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "onchange:size=m16",
+      "trigger": "size",
+      "values_before": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "m16",
+        "diameter": 5
+      },
+      "patch": {
+        "diameter": 1.8,
+        "_sized": true
+      },
+      "values_after": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "m16",
+        "diameter": 1.8,
+        "_sized": true
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 1.8,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "onchange:size=m2",
+      "trigger": "size",
+      "values_before": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "m2",
+        "diameter": 5
+      },
+      "patch": {
+        "diameter": 2.4,
+        "_sized": true
+      },
+      "values_after": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "m2",
+        "diameter": 2.4,
+        "_sized": true
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 2.4,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "onchange:size=m25",
+      "trigger": "size",
+      "values_before": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "m25",
+        "diameter": 5
+      },
+      "patch": {
+        "diameter": 2.9,
+        "_sized": true
+      },
+      "values_after": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "m25",
+        "diameter": 2.9,
+        "_sized": true
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 2.9,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "onchange:size=m3",
+      "trigger": "size",
+      "values_before": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "m3",
+        "diameter": 5
+      },
+      "patch": {
+        "diameter": 3.4,
+        "_sized": true
+      },
+      "values_after": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "m3",
+        "diameter": 3.4,
+        "_sized": true
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 3.4,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "onchange:size=m4",
+      "trigger": "size",
+      "values_before": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "m4",
+        "diameter": 5
+      },
+      "patch": {
+        "diameter": 4.5,
+        "_sized": true
+      },
+      "values_after": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "m4",
+        "diameter": 4.5,
+        "_sized": true
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 4.5,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "onchange:size=m5",
+      "trigger": "size",
+      "values_before": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "m5",
+        "diameter": 5
+      },
+      "patch": {
+        "diameter": 5.5,
+        "_sized": true
+      },
+      "values_after": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "m5",
+        "diameter": 5.5,
+        "_sized": true
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5.5,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "onchange:size=m6",
+      "trigger": "size",
+      "values_before": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "m6",
+        "diameter": 5
+      },
+      "patch": {
+        "diameter": 6.6,
+        "_sized": true
+      },
+      "values_after": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "m6",
+        "diameter": 6.6,
+        "_sized": true
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 6.6,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "onchange:size=m2tap",
+      "trigger": "size",
+      "values_before": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "m2tap",
+        "diameter": 5
+      },
+      "patch": {
+        "diameter": 1.7,
+        "_sized": true
+      },
+      "values_after": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "m2tap",
+        "diameter": 1.7,
+        "_sized": true
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 1.7,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "onchange:size=m25tap",
+      "trigger": "size",
+      "values_before": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "m25tap",
+        "diameter": 5
+      },
+      "patch": {
+        "diameter": 2.1,
+        "_sized": true
+      },
+      "values_after": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "m25tap",
+        "diameter": 2.1,
+        "_sized": true
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 2.1,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "onchange:size=m3tap",
+      "trigger": "size",
+      "values_before": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "m3tap",
+        "diameter": 5
+      },
+      "patch": {
+        "diameter": 2.6,
+        "_sized": true
+      },
+      "values_after": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "m3tap",
+        "diameter": 2.6,
+        "_sized": true
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 2.6,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "onchange:size=m2ins",
+      "trigger": "size",
+      "values_before": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "m2ins",
+        "diameter": 5
+      },
+      "patch": {
+        "diameter": 3.2,
+        "_sized": true
+      },
+      "values_after": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "m2ins",
+        "diameter": 3.2,
+        "_sized": true
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 3.2,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "onchange:size=m3ins",
+      "trigger": "size",
+      "values_before": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "m3ins",
+        "diameter": 5
+      },
+      "patch": {
+        "diameter": 4,
+        "_sized": true
+      },
+      "values_after": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "m3ins",
+        "diameter": 4,
+        "_sized": true
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 4,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "onchange:size=m4ins",
+      "trigger": "size",
+      "values_before": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "m4ins",
+        "diameter": 5
+      },
+      "patch": {
+        "diameter": 5.6,
+        "_sized": true
+      },
+      "values_after": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "m4ins",
+        "diameter": 5.6,
+        "_sized": true
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5.6,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "onchange:size=i4",
+      "trigger": "size",
+      "values_before": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "i4",
+        "diameter": 5
+      },
+      "patch": {
+        "diameter": 3.26,
+        "_sized": true
+      },
+      "values_after": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "i4",
+        "diameter": 3.26,
+        "_sized": true
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 3.26,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "onchange:size=i6",
+      "trigger": "size",
+      "values_before": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "i6",
+        "diameter": 5
+      },
+      "patch": {
+        "diameter": 3.8,
+        "_sized": true
+      },
+      "values_after": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "i6",
+        "diameter": 3.8,
+        "_sized": true
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 3.8,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "onchange:size=i8",
+      "trigger": "size",
+      "values_before": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "i8",
+        "diameter": 5
+      },
+      "patch": {
+        "diameter": 4.5,
+        "_sized": true
+      },
+      "values_after": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "i8",
+        "diameter": 4.5,
+        "_sized": true
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 4.5,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "onchange:size=i10",
+      "trigger": "size",
+      "values_before": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "i10",
+        "diameter": 5
+      },
+      "patch": {
+        "diameter": 5.11,
+        "_sized": true
+      },
+      "values_after": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "i10",
+        "diameter": 5.11,
+        "_sized": true
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5.11,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "onchange:size=i14",
+      "trigger": "size",
+      "values_before": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "i14",
+        "diameter": 5
+      },
+      "patch": {
+        "diameter": 6.76,
+        "_sized": true
+      },
+      "values_after": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "i14",
+        "diameter": 6.76,
+        "_sized": true
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 6.76,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "onchange:size=i4ins",
+      "trigger": "size",
+      "values_before": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "i4ins",
+        "diameter": 5
+      },
+      "patch": {
+        "diameter": 4.09,
+        "_sized": true
+      },
+      "values_after": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "i4ins",
+        "diameter": 4.09,
+        "_sized": true
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 4.09,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "onchange:size=i6ins",
+      "trigger": "size",
+      "values_before": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "i6ins",
+        "diameter": 5
+      },
+      "patch": {
+        "diameter": 5.11,
+        "_sized": true
+      },
+      "values_after": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "i6ins",
+        "diameter": 5.11,
+        "_sized": true
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5.11,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "onchange:size=mag6",
+      "trigger": "size",
+      "values_before": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "mag6",
+        "diameter": 5
+      },
+      "patch": {
+        "diameter": 6.2,
+        "_sized": true
+      },
+      "values_after": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "mag6",
+        "diameter": 6.2,
+        "_sized": true
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 6.2,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "onchange:size=mag8",
+      "trigger": "size",
+      "values_before": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "mag8",
+        "diameter": 5
+      },
+      "patch": {
+        "diameter": 8.2,
+        "_sized": true
+      },
+      "values_after": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "mag8",
+        "diameter": 8.2,
+        "_sized": true
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 8.2,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "onchange:size=mag10",
+      "trigger": "size",
+      "values_before": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "mag10",
+        "diameter": 5
+      },
+      "patch": {
+        "diameter": 10.2,
+        "_sized": true
+      },
+      "values_after": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "mag10",
+        "diameter": 10.2,
+        "_sized": true
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 10.2,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "onchange:size=fil",
+      "trigger": "size",
+      "values_before": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "fil",
+        "diameter": 5
+      },
+      "patch": {
+        "diameter": 1.9,
+        "_sized": true
+      },
+      "values_after": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "fil",
+        "diameter": 1.9,
+        "_sized": true
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 1.9,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    {
+      "name": "onchange:size=b608",
+      "trigger": "size",
+      "values_before": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "b608",
+        "diameter": 5
+      },
+      "patch": {
+        "diameter": 22.1,
+        "_sized": true
+      },
+      "values_after": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "b608",
+        "diameter": 22.1,
+        "_sized": true
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 22.1,
+        "mode": "resize"
+      },
+      "shown": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    }
+  ],
+  "roundTrips": [
+    {
+      "name": "defaults",
+      "params": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "fromParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize",
+        "size": "custom",
+        "face": null
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      }
+    },
+    {
+      "name": "select:mode=resize",
+      "params": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "fromParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize",
+        "size": "custom",
+        "face": null
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      }
+    },
+    {
+      "name": "select:mode=fill",
+      "params": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "fill"
+      },
+      "fromParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "fill",
+        "size": "custom",
+        "face": null
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "fill"
+      }
+    },
+    {
+      "name": "select:size=custom",
+      "params": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "fromParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize",
+        "size": "custom",
+        "face": null
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      }
+    },
+    {
+      "name": "select:size=m16",
+      "params": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "fromParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize",
+        "size": "custom",
+        "face": null
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      }
+    },
+    {
+      "name": "select:size=m2",
+      "params": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "fromParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize",
+        "size": "custom",
+        "face": null
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      }
+    },
+    {
+      "name": "select:size=m25",
+      "params": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "fromParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize",
+        "size": "custom",
+        "face": null
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      }
+    },
+    {
+      "name": "select:size=m3",
+      "params": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "fromParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize",
+        "size": "custom",
+        "face": null
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      }
+    },
+    {
+      "name": "select:size=m4",
+      "params": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "fromParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize",
+        "size": "custom",
+        "face": null
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      }
+    },
+    {
+      "name": "select:size=m5",
+      "params": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "fromParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize",
+        "size": "custom",
+        "face": null
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      }
+    },
+    {
+      "name": "select:size=m6",
+      "params": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "fromParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize",
+        "size": "custom",
+        "face": null
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      }
+    },
+    {
+      "name": "select:size=m2tap",
+      "params": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "fromParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize",
+        "size": "custom",
+        "face": null
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      }
+    },
+    {
+      "name": "select:size=m25tap",
+      "params": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "fromParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize",
+        "size": "custom",
+        "face": null
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      }
+    },
+    {
+      "name": "select:size=m3tap",
+      "params": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "fromParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize",
+        "size": "custom",
+        "face": null
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      }
+    },
+    {
+      "name": "select:size=m2ins",
+      "params": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "fromParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize",
+        "size": "custom",
+        "face": null
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      }
+    },
+    {
+      "name": "select:size=m3ins",
+      "params": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "fromParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize",
+        "size": "custom",
+        "face": null
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      }
+    },
+    {
+      "name": "select:size=m4ins",
+      "params": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "fromParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize",
+        "size": "custom",
+        "face": null
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      }
+    },
+    {
+      "name": "select:size=i4",
+      "params": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "fromParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize",
+        "size": "custom",
+        "face": null
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      }
+    },
+    {
+      "name": "select:size=i6",
+      "params": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "fromParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize",
+        "size": "custom",
+        "face": null
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      }
+    },
+    {
+      "name": "select:size=i8",
+      "params": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "fromParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize",
+        "size": "custom",
+        "face": null
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      }
+    },
+    {
+      "name": "select:size=i10",
+      "params": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "fromParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize",
+        "size": "custom",
+        "face": null
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      }
+    },
+    {
+      "name": "select:size=i14",
+      "params": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "fromParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize",
+        "size": "custom",
+        "face": null
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      }
+    },
+    {
+      "name": "select:size=i4ins",
+      "params": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "fromParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize",
+        "size": "custom",
+        "face": null
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      }
+    },
+    {
+      "name": "select:size=i6ins",
+      "params": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "fromParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize",
+        "size": "custom",
+        "face": null
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      }
+    },
+    {
+      "name": "select:size=mag6",
+      "params": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "fromParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize",
+        "size": "custom",
+        "face": null
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      }
+    },
+    {
+      "name": "select:size=mag8",
+      "params": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "fromParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize",
+        "size": "custom",
+        "face": null
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      }
+    },
+    {
+      "name": "select:size=mag10",
+      "params": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "fromParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize",
+        "size": "custom",
+        "face": null
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      }
+    },
+    {
+      "name": "select:size=fil",
+      "params": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "fromParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize",
+        "size": "custom",
+        "face": null
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      }
+    },
+    {
+      "name": "select:size=b608",
+      "params": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "fromParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize",
+        "size": "custom",
+        "face": null
+      },
+      "toParams": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      }
+    }
+  ],
+  "ctxCases": {
+    "nosel": {
+      "defaults": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "custom",
+        "diameter": 5
+      },
+      "toParams_defaults": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "shown_defaults": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    "two": {
+      "defaults": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "custom",
+        "diameter": 5
+      },
+      "toParams_defaults": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "shown_defaults": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    "nonsolid": {
+      "defaults": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "custom",
+        "diameter": 5
+      },
+      "toParams_defaults": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "shown_defaults": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    "nobbox": {
+      "defaults": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "custom",
+        "diameter": 5
+      },
+      "toParams_defaults": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "shown_defaults": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    },
+    "empty": {
+      "defaults": {
+        "face": null,
+        "body": null,
+        "point": null,
+        "mode": "resize",
+        "size": "custom",
+        "diameter": 5
+      },
+      "toParams_defaults": {
+        "body": null,
+        "point": null,
+        "diameter": 5,
+        "mode": "resize"
+      },
+      "shown_defaults": [
+        "face",
+        "mode",
+        "size",
+        "diameter"
+      ]
+    }
+  }
+}

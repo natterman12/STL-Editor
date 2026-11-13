@@ -3,7 +3,8 @@
 //! Each dialog runs on its own short-lived thread, so the window keeps drawing while it is open;
 //! the answer lands in a [`Pending`] that the UI polls.
 
-use std::sync::Arc;
+use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use super::{Pending, PickedFile, Platform, SaveOutcome};
@@ -11,16 +12,79 @@ use super::{Pending, PickedFile, Platform, SaveOutcome};
 pub struct NativePlatform {
     /// Called when a dialog has answered, to wake the UI (`Context::request_repaint`).
     wake: Option<Arc<dyn Fn() + Send + Sync>>,
+    settings: Settings,
+}
+
+/// The small remembered settings: read from the file once, written back whole through a temp file
+/// and a rename, so a crash can't leave half a file behind.
+struct Settings {
+    path: Option<PathBuf>,
+    cache: Mutex<Option<serde_json::Map<String, serde_json::Value>>>,
+}
+
+/// Makes every temp file name different (together with the process id).
+static TMP_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+impl Settings {
+    fn new(path: Option<PathBuf>) -> Self {
+        Settings { path, cache: Mutex::new(None) }
+    }
+
+    fn with<R>(&self, f: impl FnOnce(&mut serde_json::Map<String, serde_json::Value>) -> R) -> Option<R> {
+        let path = self.path.as_ref()?;
+        let mut g = self.cache.lock().unwrap_or_else(|e| e.into_inner());
+        let map = g.get_or_insert_with(|| read_settings(path));
+        Some(f(map))
+    }
+
+    fn get(&self, key: &str) -> Option<String> {
+        self.with(|m| m.get(key).and_then(|v| v.as_str()).map(str::to_owned)).flatten()
+    }
+
+    /// Read, change, write and rename under one lock, so two writers can't put an older copy back.
+    fn set(&self, key: &str, value: &str) {
+        let Some(path) = self.path.clone() else { return };
+        let mut g = self.cache.lock().unwrap_or_else(|e| e.into_inner());
+        let map = g.get_or_insert_with(|| read_settings(&path));
+        map.insert(key.to_owned(), serde_json::Value::String(value.to_owned()));
+        let text = serde_json::Value::Object(map.clone()).to_string();
+        if let Some(dir) = path.parent() {
+            let _ = std::fs::create_dir_all(dir);
+        }
+        let n = TMP_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let tmp = path.with_extension(format!("json.{}.{n}.tmp", std::process::id()));
+        if std::fs::write(&tmp, text).is_ok() && std::fs::rename(&tmp, &path).is_err() {
+            let _ = std::fs::remove_file(&tmp);
+        }
+    }
+}
+
+/// The settings file as an object. A file that exists but can't be read as one is copied to
+/// `.bak` before anything is written over it.
+fn read_settings(path: &std::path::Path) -> serde_json::Map<String, serde_json::Value> {
+    let Ok(bytes) = std::fs::read(path) else { return serde_json::Map::new() };
+    match serde_json::from_slice::<serde_json::Value>(&bytes) {
+        Ok(serde_json::Value::Object(m)) => m,
+        _ => {
+            let _ = std::fs::write(path.with_extension("json.bak"), &bytes);
+            serde_json::Map::new()
+        }
+    }
 }
 
 impl NativePlatform {
     pub fn new() -> Self {
-        NativePlatform { wake: None }
+        NativePlatform { wake: None, settings: Settings::new(settings_file()) }
     }
 
     /// `f` runs on the dialog's thread after the answer is stored.
     pub fn with_waker(f: impl Fn() + Send + Sync + 'static) -> Self {
-        NativePlatform { wake: Some(Arc::new(f)) }
+        NativePlatform { wake: Some(Arc::new(f)), settings: Settings::new(settings_file()) }
+    }
+
+    /// Keep the remembered settings in `path` (tests; the app uses the default place).
+    pub fn with_settings_file(path: PathBuf) -> Self {
+        NativePlatform { wake: None, settings: Settings::new(Some(path)) }
     }
 
     fn wake_handle(&self) -> Option<Arc<dyn Fn() + Send + Sync>> {
@@ -150,4 +214,20 @@ impl Platform for NativePlatform {
     fn is_web(&self) -> bool {
         false
     }
+
+    fn setting(&self, key: &str) -> Option<String> {
+        self.settings.get(key)
+    }
+
+    fn set_setting(&self, key: &str, value: &str) {
+        self.settings.set(key, value);
+    }
+}
+
+/// Where the small remembered settings live (beside, not inside, 1.x's `settings.json`).
+fn settings_file() -> Option<std::path::PathBuf> {
+    let base = std::env::var_os("APPDATA").or_else(|| std::env::var_os("XDG_CONFIG_HOME")).map(std::path::PathBuf::from).or_else(|| {
+        std::env::var_os("HOME").map(|h| std::path::PathBuf::from(h).join(".config"))
+    })?;
+    Some(base.join("STL Editor").join("ui-settings.json"))
 }

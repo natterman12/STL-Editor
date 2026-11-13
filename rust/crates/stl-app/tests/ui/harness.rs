@@ -1,7 +1,7 @@
 //! `app_harness`: start `StlApp` with a fake `Platform` and a real `NativeLink`, load a
 //! project, and wait until the engine is idle.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -18,6 +18,8 @@ pub struct FakePlatform {
     pub picks: Arc<Mutex<Vec<Option<PickedFile>>>>,
     pub saved: Arc<Mutex<Vec<(String, Vec<u8>)>>>,
     pub opens: Arc<Mutex<Vec<Vec<String>>>>,
+    /// The small remembered settings (what the browser keeps in `localStorage`).
+    pub settings: Arc<Mutex<std::collections::BTreeMap<String, String>>>,
 }
 
 impl Platform for FakePlatform {
@@ -42,11 +44,19 @@ impl Platform for FakePlatform {
     fn is_web(&self) -> bool {
         false
     }
+
+    fn setting(&self, key: &str) -> Option<String> {
+        self.settings.lock().unwrap().get(key).cloned()
+    }
+
+    fn set_setting(&self, key: &str, value: &str) {
+        self.settings.lock().unwrap().insert(key.to_owned(), value.to_owned());
+    }
 }
 
 /// `EngineLink` that shares a `NativeLink` so the harness can call [`NativeLink::is_busy`].
-struct SharedLink {
-    inner: Arc<NativeLink>,
+pub struct SharedLink {
+    pub inner: Arc<NativeLink>,
 }
 
 impl EngineLink for SharedLink {
@@ -61,11 +71,33 @@ impl EngineLink for SharedLink {
     }
 }
 
+pub fn repo() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..")
+}
+
+pub fn fixture_stl(name: &str) -> PathBuf {
+    repo().join("tests/ui/fixtures").join(name)
+}
+
+pub fn project(name: &str) -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/projects").join(name)
+}
+
 /// Starts the app with a fake platform and a real native engine link. When `project` is set,
 /// opens that file and steps until [`NativeLink::is_busy`] is false and every update has been
 /// applied (no pending updates left in the link).
 pub fn app_harness(project: Option<&Path>) -> Harness<'static, StlApp> {
-    let platform = FakePlatform::default();
+    app_harness_ex(project, egui::vec2(1280.0, 800.0)).0
+}
+
+/// Like [`app_harness`], but returns the shared engine link so callers can [`settle`] again
+/// after sending more commands.
+pub fn app_harness_ex(project: Option<&Path>, size: egui::Vec2) -> (Harness<'static, StlApp>, Arc<NativeLink>) {
+    app_harness_with(project, size, FakePlatform::default())
+}
+
+/// [`app_harness_ex`] on a platform the caller keeps a handle to (its settings, saved files).
+pub fn app_harness_with(project: Option<&Path>, size: egui::Vec2, platform: FakePlatform) -> (Harness<'static, StlApp>, Arc<NativeLink>) {
     let link = Arc::new(NativeLink::new());
     let ctx = egui::Context::default();
     let app = StlApp::new(&ctx, Box::new(platform), Box::new(SharedLink { inner: link.clone() }));
@@ -77,7 +109,7 @@ pub fn app_harness(project: Option<&Path>) -> Harness<'static, StlApp> {
     }
 
     let mut init = false;
-    let mut h = Harness::builder().with_size(egui::vec2(1280.0, 800.0)).with_accessibility_check(false).build_ui_state(
+    let mut h = Harness::builder().with_size(size).with_accessibility_check(false).build_ui_state(
         move |ui, app: &mut StlApp| {
             if !init {
                 init = true;
@@ -90,11 +122,61 @@ pub fn app_harness(project: Option<&Path>) -> Harness<'static, StlApp> {
     );
 
     settle(&mut h, &link);
-    h
+    (h, link)
+}
+
+/// Empty project (start page), then settle.
+pub fn empty_harness() -> (Harness<'static, StlApp>, Arc<NativeLink>) {
+    app_harness_ex(None, egui::vec2(1280.0, 800.0))
+}
+
+/// Import an STL through the real engine and wait until a body appears.
+pub fn import_stl(h: &mut Harness<'static, StlApp>, link: &NativeLink, path: &Path) {
+    let bytes = std::fs::read(path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+    let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("part.stl").to_owned();
+    h.state_mut().link.send(Command::Import { name, bytes });
+    settle(h, link);
+    assert!(!h.state().bodies.is_empty(), "import produced no body ({})", path.display());
+}
+
+/// Select the first body (if any).
+pub fn select_first_body(h: &mut Harness<'static, StlApp>) {
+    if let Some(id) = h.state().bodies.first().map(|b| b.id.clone()) {
+        h.state_mut().shell.selection = vec![id];
+    }
+}
+
+/// Open a tool and step a few frames so the panel paints.
+pub fn open_tool(h: &mut Harness<'static, StlApp>, key: &str) -> bool {
+    let ok = h.state_mut().open_tool(key, None);
+    h.run_steps(4);
+    ok
+}
+
+/// Wait until Support Fins schema is installed (and the tool panel opens if waiting).
+pub fn wait_support_open(h: &mut Harness<'static, StlApp>, link: &NativeLink, key: &str) {
+    let end = Instant::now() + Duration::from_secs(60);
+    if !stl_app::supports::is_installed() {
+        let _ = h.state_mut().open_tool(key, None);
+    } else if h.state().tool().is_none() {
+        let _ = h.state_mut().open_tool(key, None);
+    }
+    while Instant::now() < end {
+        settle(h, link);
+        h.run_steps(2);
+        if stl_app::supports::is_installed() && h.state().tool().is_some_and(|t| t.def.key == key) {
+            return;
+        }
+        if !stl_app::supports::is_installed() {
+            let _ = h.state_mut().open_tool(key, None);
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    panic!("Support tool {key} never opened (installed={})", stl_app::supports::is_installed());
 }
 
 /// Step the harness until the engine is idle and a follow-up poll finds nothing new.
-fn settle(h: &mut Harness<'static, StlApp>, link: &NativeLink) {
+pub fn settle(h: &mut Harness<'static, StlApp>, link: &NativeLink) {
     let end = Instant::now() + Duration::from_secs(120);
     loop {
         h.run_steps(1);
@@ -114,4 +196,34 @@ fn settle(h: &mut Harness<'static, StlApp>, link: &NativeLink) {
         assert!(Instant::now() < end, "engine never went idle");
         std::thread::sleep(Duration::from_millis(5));
     }
+}
+
+/// Step until `ready` is true (the engine's answers arrive on their own time).
+pub fn wait_for(h: &mut Harness<'static, StlApp>, link: &NativeLink, what: &str, ready: impl Fn(&mut Harness<'static, StlApp>) -> bool) {
+    let end = Instant::now() + Duration::from_secs(90);
+    loop {
+        settle(h, link);
+        h.run_steps(2);
+        if ready(h) {
+            return;
+        }
+        assert!(Instant::now() < end, "timed out waiting for {what}");
+        std::thread::sleep(Duration::from_millis(30));
+    }
+}
+
+/// The volume of a closed mesh (mm³), from signed tetrahedra.
+pub fn mesh_volume(m: &stl_kernel::MeshArrays) -> f64 {
+    let p = |i: u32| {
+        let k = i as usize * 3;
+        [m.positions[k] as f64, m.positions[k + 1] as f64, m.positions[k + 2] as f64]
+    };
+    m.triangles
+        .chunks(3)
+        .map(|t| {
+            let (a, b, c) = (p(t[0]), p(t[1]), p(t[2]));
+            (a[0] * (b[1] * c[2] - b[2] * c[1]) - a[1] * (b[0] * c[2] - b[2] * c[0]) + a[2] * (b[0] * c[1] - b[1] * c[0])) / 6.0
+        })
+        .sum::<f64>()
+        .abs()
 }

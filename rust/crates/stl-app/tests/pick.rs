@@ -321,6 +321,7 @@ fn pick_preview_returns_its_id() {
         ],
         ..PreviewPack::default()
     });
+    vp.flush(); // prepared on a worker thread
     assert_eq!(vp.pick_preview(egui::pos2(400.0, 300.0)).as_deref(), Some("near"));
     vp.clear_preview();
     assert!(vp.pick_preview(egui::pos2(400.0, 300.0)).is_none());

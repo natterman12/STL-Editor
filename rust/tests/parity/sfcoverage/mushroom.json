@@ -1,0 +1,15 @@
+{
+  "bare_at": [
+    [
+      40,
+      40,
+      20
+    ]
+  ],
+  "held": 0,
+  "total": 3356.298487060393,
+  "reach": 5,
+  "gap": 0.2,
+  "threshold_deg": 45,
+  "stl": "mushroom.stl"
+}

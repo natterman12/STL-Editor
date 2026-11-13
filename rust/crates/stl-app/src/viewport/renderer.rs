@@ -43,12 +43,25 @@ pub struct Globals {
 
 /// Matches `Body` in `shaders/common.wgsl`.
 #[repr(C)]
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BodyUniform {
     pub color: [f32; 4],
     pub emissive: [f32; 4],
     pub edge: [f32; 4],
     pub params: [f32; 4],
+    /// Where the body is drawn: identity, or a gizmo drag's transform (column-major). Moving a
+    /// body this way needs no new mesh upload.
+    pub model: [[f32; 4]; 4],
+    /// The inverse transpose of `model`'s 3x3 part, for the normals.
+    pub normal: [[f32; 4]; 4],
+}
+
+pub const IDENTITY: [[f32; 4]; 4] = [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]];
+
+impl Default for BodyUniform {
+    fn default() -> Self {
+        BodyUniform { color: [0.0; 4], emissive: [0.0; 4], edge: [0.0; 4], params: [0.0; 4], model: IDENTITY, normal: IDENTITY }
+    }
 }
 
 /// A body (or a preview mesh) to draw this frame.
@@ -94,6 +107,11 @@ pub struct FrameData {
     pub flat: Arc<Vec<FlatVertex>>,
     /// Sorted by `order`.
     pub batches: Vec<FlatBatch>,
+    /// The transform handles (drawn last, over everything): their own small buffer, rebuilt
+    /// when the gizmo or the camera moves without touching the overlays' buffer.
+    pub gizmo_version: u64,
+    pub gizmo: Arc<Vec<FlatVertex>>,
+    pub gizmo_batches: Vec<FlatBatch>,
 }
 
 /// Counters the tests and `uibench` read.
@@ -196,6 +214,8 @@ pub struct GpuState {
     /// A revision still being copied. The previous [`GpuBody`] stays on screen until this finishes.
     pending: HashMap<String, PendingUpload>,
     flat: Option<(u64, wgpu::Buffer, u64)>,
+    /// The gizmo's vertex buffer: (version, buffer, capacity).
+    gizmo: Option<(u64, wgpu::Buffer, u64)>,
     targets: Option<Targets>,
     last: Option<(u64, [u32; 2])>,
     max_dim: u32,
@@ -646,6 +666,7 @@ impl GpuState {
             bodies: HashMap::new(),
             pending: HashMap::new(),
             flat: None,
+            gizmo: None,
             targets: None,
             last: None,
             max_dim: device.limits().max_texture_dimension_2d,
@@ -666,6 +687,7 @@ impl GpuState {
         self.targets = None;
         self.last = None;
         self.flat = None;
+        self.gizmo = None;
         self.pending.clear();
         self.stats.gpu_errors.fetch_add(1, Ordering::Relaxed);
     }
@@ -832,6 +854,25 @@ impl GpuState {
                 self.flat = Some((frame.flat_version, buf, cap));
             }
         }
+        if frame.gizmo.is_empty() {
+            // nothing to keep
+        } else if self.gizmo.as_ref().is_none_or(|f| f.0 != frame.gizmo_version) {
+            let bytes = as_bytes(&frame.gizmo[..]);
+            if let Some((v, buf, _)) = self.gizmo.as_mut().filter(|f| f.2 >= bytes.len() as u64) {
+                queue.write_buffer(buf, 0, &bytes[..bytes.len() / 4 * 4]);
+                *v = frame.gizmo_version;
+            } else {
+                let cap = (bytes.len() as u64).max(1024).next_power_of_two();
+                let buf = device.create_buffer(&wgpu::BufferDescriptor {
+                    label: Some("viewport gizmo"),
+                    size: cap,
+                    usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                    mapped_at_creation: false,
+                });
+                queue.write_buffer(&buf, 0, bytes);
+                self.gizmo = Some((frame.gizmo_version, buf, cap));
+            }
+        }
         queue.write_buffer(&self.globals, 0, as_bytes(std::slice::from_ref(&frame.globals)));
         for d in &frame.bodies {
             if let Some(g) = self.bodies.get(&d.key) {
@@ -916,6 +957,14 @@ impl GpuState {
         }
         // 4. planes, overlays, axes, sketches, markers... by renderOrder
         draw_batches(&mut pass, &|o| o >= 0);
+        // 5. the transform handles (three's renderOrder Infinity, no depth test)
+        if let (false, Some((_, buf, _))) = (frame.gizmo.is_empty(), self.gizmo.as_ref()) {
+            for bt in frame.gizmo_batches.iter().filter(|b| !b.range.is_empty()) {
+                pass.set_pipeline(&self.pipelines.flat[&(bt.lines, bt.depth)]);
+                pass.set_vertex_buffer(0, buf.slice(..));
+                pass.draw(bt.range.clone(), 0..1);
+            }
+        }
         drop(pass);
         self.last = Some((frame.id, size));
         self.stats.renders.fetch_add(1, Ordering::Relaxed);

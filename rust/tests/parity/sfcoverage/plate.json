@@ -1,0 +1,16 @@
+{
+  "bare_at": [
+    [
+      30,
+      20,
+      10
+    ]
+  ],
+  "held": 0,
+  "total": 2683.2815729997174,
+  "reach": 5,
+  "gap": 0.2,
+  "threshold_deg": 45,
+  "stl": "plate.stl",
+  "orient": "lift_y"
+}

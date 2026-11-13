@@ -1,0 +1,467 @@
+{
+  "tool": "revolve",
+  "label": "Revolve",
+  "type": "revolve",
+  "icon": "revolve",
+  "flags": {
+    "placeOnFace": false,
+    "noLivePreview": false,
+    "gizmo": false,
+    "planeTool": false,
+    "sculpt": false,
+    "paint": false,
+    "wallTool": false
+  },
+  "hint": "Revolves the sketch profile about the sketch X or Y axis, or a construction line in the sketch",
+  "extra": [],
+  "fields": [
+    {
+      "key": "sketch",
+      "label": "Sketch",
+      "kind": "sketch"
+    },
+    {
+      "key": "regions",
+      "label": "Profiles",
+      "kind": "regions"
+    },
+    {
+      "key": "axis",
+      "label": "Axis",
+      "kind": "axisline"
+    },
+    {
+      "key": "angle",
+      "label": "Angle",
+      "kind": "number",
+      "unit": "°"
+    },
+    {
+      "key": "operation",
+      "label": "Operation",
+      "kind": "select",
+      "options": [
+        [
+          "new",
+          "New body"
+        ],
+        [
+          "join",
+          "Join"
+        ],
+        [
+          "cut",
+          "Cut"
+        ],
+        [
+          "intersect",
+          "Intersect"
+        ]
+      ]
+    },
+    {
+      "key": "targets",
+      "label": "Bodies",
+      "kind": "bodies",
+      "multi": true,
+      "placeholder": "Auto",
+      "hasShow": true
+    }
+  ],
+  "ctxNote": "FIXTURE_CTX: selection [body_a], lastSketch sk1, sketchOnBody true, two bodies, one extrude cut",
+  "defaults": {
+    "sketch": "sk1",
+    "regions": [],
+    "axis": "y",
+    "angle": 360,
+    "operation": "new",
+    "targets": []
+  },
+  "toParams_defaults": {
+    "sketch": "sk1",
+    "regions": [],
+    "axis": "y",
+    "angle": 360,
+    "operation": "new",
+    "targets": []
+  },
+  "shown_defaults": [
+    "sketch",
+    "regions",
+    "axis",
+    "angle",
+    "operation"
+  ],
+  "cases": [
+    {
+      "name": "select:operation=new",
+      "values": {
+        "sketch": "sk1",
+        "regions": [],
+        "axis": "y",
+        "angle": 360,
+        "operation": "new",
+        "targets": []
+      },
+      "toParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "axis": "y",
+        "angle": 360,
+        "operation": "new",
+        "targets": []
+      },
+      "shown": [
+        "sketch",
+        "regions",
+        "axis",
+        "angle",
+        "operation"
+      ]
+    },
+    {
+      "name": "select:operation=join",
+      "values": {
+        "sketch": "sk1",
+        "regions": [],
+        "axis": "y",
+        "angle": 360,
+        "operation": "join",
+        "targets": []
+      },
+      "toParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "axis": "y",
+        "angle": 360,
+        "operation": "join",
+        "targets": []
+      },
+      "shown": [
+        "sketch",
+        "regions",
+        "axis",
+        "angle",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:operation=cut",
+      "values": {
+        "sketch": "sk1",
+        "regions": [],
+        "axis": "y",
+        "angle": 360,
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "axis": "y",
+        "angle": 360,
+        "operation": "cut",
+        "targets": []
+      },
+      "shown": [
+        "sketch",
+        "regions",
+        "axis",
+        "angle",
+        "operation",
+        "targets"
+      ]
+    },
+    {
+      "name": "select:operation=intersect",
+      "values": {
+        "sketch": "sk1",
+        "regions": [],
+        "axis": "y",
+        "angle": 360,
+        "operation": "intersect",
+        "targets": []
+      },
+      "toParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "axis": "y",
+        "angle": 360,
+        "operation": "intersect",
+        "targets": []
+      },
+      "shown": [
+        "sketch",
+        "regions",
+        "axis",
+        "angle",
+        "operation",
+        "targets"
+      ]
+    }
+  ],
+  "onChange": [],
+  "roundTrips": [
+    {
+      "name": "defaults",
+      "params": {
+        "sketch": "sk1",
+        "regions": [],
+        "axis": "y",
+        "angle": 360,
+        "operation": "new",
+        "targets": []
+      },
+      "fromParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "axis": "y",
+        "angle": 360,
+        "operation": "new",
+        "targets": []
+      },
+      "toParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "axis": "y",
+        "angle": 360,
+        "operation": "new",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:operation=new",
+      "params": {
+        "sketch": "sk1",
+        "regions": [],
+        "axis": "y",
+        "angle": 360,
+        "operation": "new",
+        "targets": []
+      },
+      "fromParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "axis": "y",
+        "angle": 360,
+        "operation": "new",
+        "targets": []
+      },
+      "toParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "axis": "y",
+        "angle": 360,
+        "operation": "new",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:operation=join",
+      "params": {
+        "sketch": "sk1",
+        "regions": [],
+        "axis": "y",
+        "angle": 360,
+        "operation": "join",
+        "targets": []
+      },
+      "fromParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "axis": "y",
+        "angle": 360,
+        "operation": "join",
+        "targets": []
+      },
+      "toParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "axis": "y",
+        "angle": 360,
+        "operation": "join",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:operation=cut",
+      "params": {
+        "sketch": "sk1",
+        "regions": [],
+        "axis": "y",
+        "angle": 360,
+        "operation": "cut",
+        "targets": []
+      },
+      "fromParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "axis": "y",
+        "angle": 360,
+        "operation": "cut",
+        "targets": []
+      },
+      "toParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "axis": "y",
+        "angle": 360,
+        "operation": "cut",
+        "targets": []
+      }
+    },
+    {
+      "name": "select:operation=intersect",
+      "params": {
+        "sketch": "sk1",
+        "regions": [],
+        "axis": "y",
+        "angle": 360,
+        "operation": "intersect",
+        "targets": []
+      },
+      "fromParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "axis": "y",
+        "angle": 360,
+        "operation": "intersect",
+        "targets": []
+      },
+      "toParams": {
+        "sketch": "sk1",
+        "regions": [],
+        "axis": "y",
+        "angle": 360,
+        "operation": "intersect",
+        "targets": []
+      }
+    }
+  ],
+  "ctxCases": {
+    "nosel": {
+      "defaults": {
+        "sketch": "sk1",
+        "regions": [],
+        "axis": "y",
+        "angle": 360,
+        "operation": "new",
+        "targets": []
+      },
+      "toParams_defaults": {
+        "sketch": "sk1",
+        "regions": [],
+        "axis": "y",
+        "angle": 360,
+        "operation": "new",
+        "targets": []
+      },
+      "shown_defaults": [
+        "sketch",
+        "regions",
+        "axis",
+        "angle",
+        "operation"
+      ]
+    },
+    "two": {
+      "defaults": {
+        "sketch": "sk1",
+        "regions": [],
+        "axis": "y",
+        "angle": 360,
+        "operation": "new",
+        "targets": []
+      },
+      "toParams_defaults": {
+        "sketch": "sk1",
+        "regions": [],
+        "axis": "y",
+        "angle": 360,
+        "operation": "new",
+        "targets": []
+      },
+      "shown_defaults": [
+        "sketch",
+        "regions",
+        "axis",
+        "angle",
+        "operation"
+      ]
+    },
+    "nonsolid": {
+      "defaults": {
+        "sketch": "sk1",
+        "regions": [],
+        "axis": "y",
+        "angle": 360,
+        "operation": "new",
+        "targets": []
+      },
+      "toParams_defaults": {
+        "sketch": "sk1",
+        "regions": [],
+        "axis": "y",
+        "angle": 360,
+        "operation": "new",
+        "targets": []
+      },
+      "shown_defaults": [
+        "sketch",
+        "regions",
+        "axis",
+        "angle",
+        "operation"
+      ]
+    },
+    "nobbox": {
+      "defaults": {
+        "sketch": "sk1",
+        "regions": [],
+        "axis": "y",
+        "angle": 360,
+        "operation": "new",
+        "targets": []
+      },
+      "toParams_defaults": {
+        "sketch": "sk1",
+        "regions": [],
+        "axis": "y",
+        "angle": 360,
+        "operation": "new",
+        "targets": []
+      },
+      "shown_defaults": [
+        "sketch",
+        "regions",
+        "axis",
+        "angle",
+        "operation"
+      ]
+    },
+    "empty": {
+      "defaults": {
+        "regions": [],
+        "axis": "y",
+        "angle": 360,
+        "operation": "new",
+        "targets": []
+      },
+      "toParams_defaults": {
+        "regions": [],
+        "axis": "y",
+        "angle": 360,
+        "operation": "new",
+        "targets": []
+      },
+      "shown_defaults": [
+        "sketch",
+        "regions",
+        "axis",
+        "angle",
+        "operation"
+      ]
+    }
+  }
+}

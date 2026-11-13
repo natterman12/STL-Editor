@@ -632,6 +632,7 @@ fn overlay_preview() {
         meshes: vec![PreviewMesh { id: "b1".into(), mesh: cube_mesh() }, PreviewMesh { id: "new".into(), mesh: cube_mesh() }],
         ..PreviewPack::default()
     });
+    vp.flush(); // the preview's meshes are prepared on a worker thread
     let f = vp.frame_for_size(64.0, 48.0, 1.0);
     let body = f.bodies.iter().find(|d| d.key == "b1").unwrap();
     assert!(!body.visible, "the body the preview stands for is hidden");
