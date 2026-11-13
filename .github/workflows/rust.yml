@@ -315,7 +315,9 @@ jobs:
           export CHROMEDRIVER="$(command -v chromedriver)"
           cargo test -p stl-app --target wasm32-unknown-unknown
 
-      - name: Headless check of the running web app
+      # The runner has no GPU, so WebGPU can't start there: check the WebGL2 path on SwiftShader.
+      # The WebGPU check (xtask web --check) runs on a machine with a GPU.
+      - name: Headless check of the running web app (WebGL2, software)
         env:
           CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
-        run: cargo run -p xtask -- web --check
+        run: cargo run -p xtask -- web --check --webgl2
