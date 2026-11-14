@@ -36,6 +36,10 @@ pub struct NativeLink {
     preview_gate: Arc<AtomicU64>,
     /// The newest preview `seq` sent.
     preview_last: AtomicU64,
+    /// A queued `Solve` older than this is skipped, the same way as a preview.
+    solve_gate: Arc<AtomicU64>,
+    /// The newest solve `seq` sent.
+    solve_last: AtomicU64,
 }
 
 impl NativeLink {
@@ -46,7 +50,8 @@ impl NativeLink {
         let pending = Arc::new(AtomicUsize::new(0));
         let wake: Arc<Mutex<Option<Box<dyn Fn() + Send>>>> = Arc::new(Mutex::new(None));
         let preview_gate = Arc::new(AtomicU64::new(0));
-        let (u, c, p, w, g) = (updates.clone(), cancel.clone(), pending.clone(), wake.clone(), preview_gate.clone());
+        let solve_gate = Arc::new(AtomicU64::new(0));
+        let (u, c, p, w, g, sg) = (updates.clone(), cancel.clone(), pending.clone(), wake.clone(), preview_gate.clone(), solve_gate.clone());
         std::thread::Builder::new()
             .name("stl-engine".into())
             .spawn(move || {
@@ -68,6 +73,7 @@ impl NativeLink {
                 while let Ok(job) = rx.recv() {
                     match job {
                         Job::Run(Command::Preview { seq, .. }) if seq < g.load(Ordering::SeqCst) => {}
+                        Job::Run(Command::Solve { seq, .. }) if seq < sg.load(Ordering::SeqCst) => {}
                         Job::Run(cmd) => worker.handle(cmd),
                         Job::Restart => worker.restart(),
                     }
@@ -75,7 +81,17 @@ impl NativeLink {
                 }
             })
             .expect("the engine thread starts");
-        NativeLink { jobs, updates, cancel, pending, wake, preview_gate, preview_last: AtomicU64::new(0) }
+        NativeLink {
+            jobs,
+            updates,
+            cancel,
+            pending,
+            wake,
+            preview_gate,
+            preview_last: AtomicU64::new(0),
+            solve_gate,
+            solve_last: AtomicU64::new(0),
+        }
     }
 
     /// `f` runs on the engine thread whenever new updates are waiting (for `Context::request_repaint`).
@@ -117,6 +133,15 @@ impl EngineLink for NativeLink {
                 if let Command::Preview { seq, .. } = &c {
                     self.preview_last.store(*seq, Ordering::SeqCst);
                     self.preview_gate.store(*seq, Ordering::SeqCst);
+                }
+                self.queue(Job::Run(c));
+            }
+            Command::Solve { seq, .. } if seq < self.solve_last.load(Ordering::SeqCst) => {}
+            // a queued solve older than the newest one is skipped; the one already running finishes
+            c @ Command::Solve { .. } => {
+                if let Command::Solve { seq, .. } = &c {
+                    self.solve_last.store(*seq, Ordering::SeqCst);
+                    self.solve_gate.store(*seq, Ordering::SeqCst);
                 }
                 self.queue(Job::Run(c));
             }

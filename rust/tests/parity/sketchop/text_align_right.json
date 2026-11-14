@@ -1,0 +1,172 @@
+{
+  "op": "text",
+  "data": {
+    "seed": "g",
+    "entities": [],
+    "text": "Hi",
+    "font": "DejaVu Sans",
+    "size": 10,
+    "bold": false,
+    "italic": false,
+    "spacing": 0,
+    "x": 0,
+    "y": 0,
+    "align": "right",
+    "anchor": "baseline",
+    "angle": 0
+  },
+  "result": {
+    "ok": true,
+    "entities": [
+      {
+        "id": "eg1",
+        "type": "polyline",
+        "closed": true,
+        "group": "tg",
+        "text": {
+          "text": "Hi",
+          "font": "DejaVu Sans",
+          "size": 10,
+          "bold": false,
+          "italic": false,
+          "spacing": 0,
+          "align": "right",
+          "angle": 0,
+          "x": 0,
+          "y": 0,
+          "anchor": "baseline"
+        },
+        "pts": [
+          [
+            -8.3789,
+            0
+          ],
+          [
+            -8.3789,
+            7.29
+          ],
+          [
+            -7.3926,
+            7.29
+          ],
+          [
+            -7.3926,
+            4.3018
+          ],
+          [
+            -3.8086,
+            4.3018
+          ],
+          [
+            -3.8086,
+            7.29
+          ],
+          [
+            -2.8223,
+            7.29
+          ],
+          [
+            -2.8223,
+            0
+          ],
+          [
+            -3.8086,
+            0
+          ],
+          [
+            -3.8086,
+            3.4717
+          ],
+          [
+            -7.3926,
+            3.4717
+          ],
+          [
+            -7.3926,
+            0
+          ]
+        ]
+      },
+      {
+        "id": "eg2",
+        "type": "polyline",
+        "closed": true,
+        "group": "tg",
+        "text": {
+          "text": "Hi",
+          "font": "DejaVu Sans",
+          "size": 10,
+          "bold": false,
+          "italic": false,
+          "spacing": 0,
+          "align": "right",
+          "angle": 0,
+          "x": 0,
+          "y": 0,
+          "anchor": "baseline"
+        },
+        "pts": [
+          [
+            -0.8984,
+            0
+          ],
+          [
+            -0.8984,
+            5.4688
+          ],
+          [
+            0,
+            5.4688
+          ],
+          [
+            0,
+            0
+          ]
+        ]
+      },
+      {
+        "id": "eg3",
+        "type": "polyline",
+        "closed": true,
+        "group": "tg",
+        "text": {
+          "text": "Hi",
+          "font": "DejaVu Sans",
+          "size": 10,
+          "bold": false,
+          "italic": false,
+          "spacing": 0,
+          "align": "right",
+          "angle": 0,
+          "x": 0,
+          "y": 0,
+          "anchor": "baseline"
+        },
+        "pts": [
+          [
+            -0.8984,
+            6.46
+          ],
+          [
+            -0.8984,
+            7.5977
+          ],
+          [
+            0,
+            7.5977
+          ],
+          [
+            0,
+            6.46
+          ]
+        ]
+      }
+    ],
+    "added": [
+      "eg1",
+      "eg2",
+      "eg3"
+    ],
+    "group": "tg"
+  }
+}

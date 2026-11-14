@@ -7,6 +7,7 @@ pub mod engine_link;
 pub mod fonts;
 pub mod icons;
 pub mod platform;
+pub mod sketch;
 pub mod supports;
 pub mod theme;
 pub mod tools;

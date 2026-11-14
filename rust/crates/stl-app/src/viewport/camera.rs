@@ -374,6 +374,12 @@ impl Camera {
         self.fly.is_some()
     }
 
+    /// Stop a flight where the camera is. A pointer press, drag or wheel does this: the move
+    /// does not run on to the goal.
+    pub fn cancel_flight(&mut self) {
+        self.fly = None;
+    }
+
     /// Advance a flight to `now`; true while it still runs.
     pub fn animate(&mut self, now: f64) -> bool {
         self.now = now;

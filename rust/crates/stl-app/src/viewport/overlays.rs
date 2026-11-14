@@ -236,19 +236,28 @@ fn on_frame(frame: &Frame, p: [f64; 2]) -> V3 {
     camera::add(o, camera::add(camera::scale(x, p[0]), camera::scale(y, p[1])))
 }
 
-/// `addRegions`: filled sketch regions (outer ring, then holes) at opacity 0.4.
+/// `addRegions`: filled sketch regions (outer ring, then holes) at opacity 0.4, render order 12.
 pub fn regions(frame: &Frame, faces: &[Vec<Vec<[f64; 2]>>], tag: &str) -> Vec<OverlayItem> {
-    let c = rgba(0x2f8cff, 0.4);
+    region_meshes(frame, faces, tag, rgba(0x2f8cff, 0.4), 12)
+}
+
+/// The same faces as [`regions`] in `color` at `alpha`. Render order 8 matches 1.x `_fill`
+/// (`renderOrder` 8), which sits under sketch strokes (order 10).
+pub fn regions_tinted(frame: &Frame, faces: &[Vec<Vec<[f64; 2]>>], tag: &str, color: u32, alpha: f32) -> Vec<OverlayItem> {
+    region_meshes(frame, faces, tag, rgba(color, alpha), 8)
+}
+
+fn region_meshes(frame: &Frame, faces: &[Vec<Vec<[f64; 2]>>], tag: &str, color: [u8; 4], order: i32) -> Vec<OverlayItem> {
     faces
         .iter()
         .filter(|rings| !rings.is_empty())
         .map(|rings| {
-            let mut it = OverlayItem::new(tag, 12, Depth::Off);
+            let mut it = OverlayItem::new(tag, order, Depth::Off);
             let flat: Vec<[f64; 2]> = rings.iter().flatten().copied().collect();
             for t in stl_kernel::triangulate(rings) {
                 for i in t {
                     if let Some(p) = flat.get(i as usize) {
-                        it.tris.push(FlatVertex::new(on_frame(frame, *p), c));
+                        it.tris.push(FlatVertex::new(on_frame(frame, *p), color));
                     }
                 }
             }

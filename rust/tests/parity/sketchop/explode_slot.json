@@ -1,0 +1,71 @@
+{
+  "op": "explode",
+  "data": {
+    "seed": "g",
+    "entities": [
+      {
+        "id": "s",
+        "type": "slot",
+        "x1": 0,
+        "y1": 0,
+        "x2": 20,
+        "y2": 0,
+        "r": 3
+      }
+    ],
+    "ids": [
+      "s"
+    ]
+  },
+  "result": {
+    "ok": true,
+    "entities": [
+      {
+        "construction": false,
+        "id": "s_0",
+        "type": "line",
+        "p1": [
+          0,
+          3
+        ],
+        "p2": [
+          20,
+          3
+        ]
+      },
+      {
+        "construction": false,
+        "id": "s_1",
+        "type": "line",
+        "p1": [
+          20,
+          -3
+        ],
+        "p2": [
+          0,
+          -3
+        ]
+      },
+      {
+        "construction": false,
+        "id": "s_2",
+        "type": "arc",
+        "cx": 20,
+        "cy": 0,
+        "r": 3,
+        "a0": -90,
+        "a1": 90
+      },
+      {
+        "construction": false,
+        "id": "s_3",
+        "type": "arc",
+        "cx": 0,
+        "cy": 0,
+        "r": 3,
+        "a0": 90,
+        "a1": 270
+      }
+    ]
+  }
+}

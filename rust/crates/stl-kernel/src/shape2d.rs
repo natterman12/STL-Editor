@@ -110,6 +110,14 @@ impl Shape2d {
         Shape2d::from_cross_section(&self.to_cross_section().offset(delta)).on_clipper_grid()
     }
 
+    /// Grow (positive) or shrink (negative) the shape by `delta` with round corners of
+    /// `circular_segments` on a full circle. Matches 1.x
+    /// `CrossSection.offset(delta, JoinType.Round, 2, circular_segments)`.
+    pub fn offset_round_segments(&self, delta: f64, circular_segments: i32) -> Shape2d {
+        Shape2d::from_cross_section(&self.to_cross_section().offset_with_params(delta, 1, 2.0, circular_segments))
+            .on_clipper_grid()
+    }
+
     /// Grow (positive) or shrink (negative) the shape by `delta` with mitred corners up to
     /// `miter_limit` times `|delta|` (1.x `CrossSection.offset(delta, JoinType.Miter, miter_limit, 0)`).
     pub fn offset_miter(&self, delta: f64, miter_limit: f64) -> Shape2d {

@@ -14,6 +14,7 @@ use crate::ui::keys::{self, KeyAction, KeyState};
 use crate::ui::{browser, busy, params, ribbon, status, timeline, toasts, topbar};
 use crate::ui::{Shell, ThemePref, UiAction, UiEvent};
 use crate::viewport::Viewport;
+use crate::sketch::session::SketchMode;
 use crate::tools::panel::OpenTool;
 use crate::tools::gizmo::Gizmo;
 use crate::tools::sculpt::Sculpt;
@@ -79,6 +80,10 @@ pub struct StlApp {
     sculpt: Sculpt,
     /// Support Fins, coverage and Draw Walls (`app_wiring.rs`).
     sf: wiring::Sf,
+    /// The open sketch (milestone 4c): `begin_sketch` / `enter_sketch` open it, Finish and Cancel close it.
+    sketch: Option<SketchMode>,
+    /// What the sketch keeps beside it: engine sequence, the text dialog, the import dialog.
+    sk: wiring::Sk,
 }
 
 /// A short fingerprint of the history, to tell whether it changed since the last save.
@@ -211,6 +216,8 @@ impl StlApp {
             gizmo: None,
             sculpt: Sculpt::new(),
             sf: Default::default(),
+            sketch: None,
+            sk: Default::default(),
         }
     }
 
@@ -287,6 +294,7 @@ impl StlApp {
                     self.timeline_view = t;
                     self.pending_marker = None;
                     self.after_timeline();
+                    self.sketch_after_timeline();
                 }
                 Update::Params(p) => self.param_views = p,
                 Update::Planes(p) => {
@@ -294,7 +302,7 @@ impl StlApp {
                     self.planes = p;
                 }
                 Update::Sketches(s) => {
-                    self.viewport.sync_sketches(&s, None);
+                    self.viewport.sync_sketches(&s, self.sketch.as_ref().and_then(|m| m.s.feature_id.as_deref()));
                     self.sketches = s;
                 }
                 Update::Message { level, text } => {
@@ -304,6 +312,11 @@ impl StlApp {
                 Update::Progress { done, total, label } => self.busy.set_progress(done, total, &label),
                 Update::Busy(on) => self.busy.set_busy(on),
                 Update::Error(e) => {
+                    // a refused Finish leaves the sketch open (1.x stops it only after the add or edit worked)
+                    if let Some(m) = self.sketch.as_mut() {
+                        m.finishing = None;
+                        m.solve_lost();
+                    }
                     // the error belongs to one command: a turn, a handle's add or edit, or OK
                     if !self.pose_failed(&e) && !self.accept_failed(&e) {
                         self.commit_failed(&e);
@@ -311,7 +324,14 @@ impl StlApp {
                     self.toasts.push(Level::Error, e);
                 }
                 Update::Fins { seq, ask, result } => self.on_fins(seq, &ask, result),
-                Update::EngineLost => self.engine_lost = true,
+                Update::SketchOp { seq, result } => self.on_sketch_op(seq, result),
+                Update::Solved { seq, entities, ok, error } => self.on_solved(seq, entities, ok, error),
+                Update::EngineLost => {
+                    self.engine_lost = true;
+                    if let Some(m) = self.sketch.as_mut() {
+                        m.solve_lost();
+                    }
+                }
                 Update::Preview { seq, pack, msg, error, warn, result } => self.on_preview(seq, pack, msg, error, warn, result),
                 // TASK 9 (files.rs): Saved { bytes } and Exported { name, bytes, count } go to the
                 // platform's save dialog.
@@ -420,7 +440,7 @@ impl StlApp {
             // `sketcher.active`, `walls.*` and the sketch's length boxes: the sketcher and the
             // Support Fins wall editor arrive in 4c / 4b, so these stay false until then
             dyn_field_focused: false,
-            sketcher_active: false,
+            sketcher_active: self.sketch.is_some(),
             walls_active: self.walls_on(),
             walls_pending: self.walls_pending(),
             tool_open: self.tool.is_some() || self.shell.active_tool.is_some(),
@@ -463,7 +483,7 @@ impl StlApp {
                     KeyAction::PanelCancel => self.tool_cancel(),
                     KeyAction::PanelOk => self.tool_ok(),
                     KeyAction::Walls(_) | KeyAction::Gizmo { .. } => self.tool_key(&a),
-                    // the sketcher's keys are 4c
+                    KeyAction::Sketcher(press) => self.sketch_key(press),
                     _ => {}
                 }
             }
@@ -536,6 +556,10 @@ impl StlApp {
 
     /// `openTool(key, { values })`. False when there is no such tool.
     pub fn open_tool(&mut self, key: &str, values: Option<Values>) -> bool {
+        if key == "sketch" {
+            self.begin_sketch(None);
+            return true;
+        }
         if matches!(key, "supportfins" | "supportwall") {
             // Support Fins' settings are read from its engine first (once)
             self.open_support(key, None, values);
@@ -553,6 +577,11 @@ impl StlApp {
     /// `openTool(key, { editFeature })`: reopen the tool of a timeline step.
     pub fn edit_feature(&mut self, id: &str) -> bool {
         let Some(item) = self.timeline_view.items.iter().find(|i| i.id == id).cloned() else { return false };
+        if item.kind == "sketch" {
+            self.close_tool(false);
+            self.enter_sketch(None, Some(&item));
+            return true;
+        }
         let Some(key) = crate::tools::panel::tool_key_for(&item.kind, &item.params) else { return false };
         if matches!(key.as_str(), "supportfins" | "supportwall") {
             self.open_support(&key, Some(item.id), None);
@@ -620,6 +649,9 @@ impl StlApp {
         let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection, self.shell.inch);
         if self.committing {
             return; // the first OK is still on its way
+        }
+        if self.tool.as_ref().is_some_and(|t| t.def.key == "sketch") {
+            return self.sketch_prompt_ok(); // Start: no step is added, the sketch opens
         }
         let Some(t) = self.tool.as_mut() else { return };
         if !t.valid() {
@@ -719,6 +751,10 @@ impl StlApp {
             t.msg = Some(crate::tools::preview::ToolMsg::new(if *l == Level::Error { crate::tools::preview::MsgKind::Err } else { crate::tools::preview::MsgKind::Info }, m.clone()));
         }
         pk::apply_face(&mut self.viewport, &out);
+        // the plane prompt: a picked plane starts the sketch (`onPlane`)
+        if out.changed && self.tool.as_ref().is_some_and(|t| t.def.key == "sketch") {
+            return self.sketch_prompt_ok();
+        }
         // Support Fins: a part that already has supports opens those instead of a second set
         if let Some(bid) = out.reopen_supports.clone() {
             let key = self.tool.as_ref().filter(|t| t.edit_id.is_none()).map(|t| t.def.key);
@@ -849,6 +885,16 @@ impl StlApp {
     // ------------------------------------------------------------------ actions
 
     fn send(&mut self, c: Command) {
+        // inside a sketch Undo is the sketch's own (`undoLocal`); the document's history waits
+        if matches!(c, Command::Undo | Command::Redo) && self.sketch.is_some() {
+            if matches!(c, Command::Undo) {
+                if let Some(m) = self.sketch.as_mut() {
+                    m.s.undo_local();
+                }
+                self.sketch_apply(vec![crate::sketch::SketchEffect::Changed]);
+            }
+            return;
+        }
         // 1.x: Undo and Redo close the open tool first (a rolled-back edit session is put back)
         if matches!(c, Command::Undo | Command::Redo) && self.tool.is_some() {
             self.close_tool(false);
@@ -856,8 +902,20 @@ impl StlApp {
         self.link.send(c);
     }
 
+    /// The ribbon's tab: the sketch tab while a sketch is open (the model tab comes back by itself).
+    pub fn ribbon_tab(&self) -> &str {
+        if self.sketch.is_some() {
+            ribbon::SKETCH_TAB
+        } else {
+            &self.shell.tab
+        }
+    }
+
     /// A ribbon / search / dropdown tool was chosen (`App.onRibbon`).
     pub fn on_ribbon(&mut self, key: &str, anchor: Pos2) {
+        if self.sketch.is_some() {
+            return self.sketch_ribbon(key);
+        }
         match key {
             "import" => self.shell.file_requests.push(UiAction::Insert),
             "export" => self.open_export_menu(anchor),
@@ -1008,12 +1066,7 @@ impl StlApp {
                 let on = self.viewport.section_enabled();
                 self.viewport.set_section_enabled(!on);
             }
-            "units.mm" | "units.in" => {
-                self.shell.inch = id == "units.in";
-                // TASK 8 toasts: 1.x says "Showing inches. Models are still saved in millimetres."
-                let text = if self.shell.inch { "Showing inches. Models are still saved in millimetres." } else { "Showing millimetres." };
-                self.toasts.push(Level::Info, text.to_owned());
-            }
+            "units.mm" | "units.in" => self.set_units_inch(id == "units.in"),
             "theme.light" => self.set_theme(ctx, ThemePref::Light),
             "theme.dark" => self.set_theme(ctx, ThemePref::Dark),
             "theme.system" => self.set_theme(ctx, ThemePref::System),
@@ -1053,8 +1106,8 @@ impl StlApp {
         self.shell.query.clear();
         self.shell.menu = None;
         ctx.memory_mut(|m| m.surrender_focus(Id::unique(topbar::SEARCH_ID)));
-        if let Some(c) = ribbon::all_commands().into_iter().find(|c| c.k == key) {
-            if let Some(tab) = c.tab {
+        if let Some(c) = ribbon::all_commands_in(self.sketch.is_some()).into_iter().find(|c| c.k == key) {
+            if let Some(tab) = c.tab.filter(|_| self.sketch.is_none()) {
                 let here = ribbon::def(&self.shell.tab).groups.iter().any(|g| g.tools().iter().any(|x| x.key == key));
                 if tab != self.shell.tab && !here {
                     self.shell.tab = tab.to_owned();
@@ -1065,14 +1118,14 @@ impl StlApp {
     }
 
     fn update_search_menu(&mut self, rect: Rect) {
-        let results = ribbon::search(&self.shell.query);
+        let results = ribbon::search_in(&self.shell.query, self.sketch.is_some());
         if self.shell.query.trim().is_empty() {
             if self.shell.menu.as_ref().is_some_and(|m| m.tag == "search") {
                 self.shell.menu = None;
             }
             return;
         }
-        let tab_name = |t: &str| ribbon::TABS.iter().find(|x| x.0 == t).map(|x| x.1.to_owned());
+        let tab_name = |t: &str| if t == ribbon::SKETCH_TAB { Some("Sketch".to_owned()) } else { ribbon::TABS.iter().find(|x| x.0 == t).map(|x| x.1.to_owned()) };
         let items: Vec<MenuItem> = if results.is_empty() {
             vec![MenuItem::item("none", "No matching tools").disabled(true)]
         } else {
@@ -1091,10 +1144,14 @@ impl StlApp {
     fn dispatch_pick(&mut self, ctx: &egui::Context, p: ribbon::Pick) {
         use ribbon::Pick;
         match p {
-            Pick::Tab(k) => self.shell.tab = k.to_owned(),
+            Pick::Tab(k) => {
+                if self.sketch.is_none() {
+                    self.shell.tab = k.to_owned();
+                }
+            }
             Pick::Tool(k) => self.on_ribbon(k, Pos2::new(200.0, 140.0)),
             Pick::Drop(id, r) => {
-                let d = ribbon::def(&self.shell.tab);
+                let d = ribbon::def(self.ribbon_tab());
                 for g in &d.groups {
                     for item in &g.items {
                         if let ribbon::Item::Drop { id: did, items, .. } = item {
@@ -1109,7 +1166,7 @@ impl StlApp {
             Pick::More(r) => {
                 let mut rows = Vec::new();
                 if let Some(f) = &self.last_fit {
-                    for (label, tools) in ribbon::folded_groups(&self.shell.tab, f) {
+                    for (label, tools) in ribbon::folded_groups(self.ribbon_tab(), f) {
                         rows.push(MenuItem::Hdr(label.to_owned()));
                         rows.extend(tools.iter().map(|x| MenuItem::item(format!("tool:{}", x.key), x.label).icon(x.icon)));
                     }
@@ -1117,7 +1174,7 @@ impl StlApp {
                 self.shell.menu = Some(OpenMenu::new("more", rows, r.left_bottom() + Vec2::new(0.0, 2.0)).keep(r));
             }
             Pick::GroupMenu(gi, r) => {
-                let d = ribbon::def(&self.shell.tab);
+                let d = ribbon::def(self.ribbon_tab());
                 if let Some(g) = d.groups.get(gi) {
                     let rows = g.tools().iter().map(|x| MenuItem::item(format!("tool:{}", x.key), x.label).icon(x.icon)).collect();
                     self.shell.menu = Some(OpenMenu::new("group", rows, r.left_bottom() + Vec2::new(0.0, 2.0)).keep(r));
@@ -1185,7 +1242,7 @@ impl StlApp {
             self.update_search_menu(tb_out.search_rect);
         }
         if let Some(k) = tb_out.search_key {
-            let n = ribbon::search(&self.shell.query).len();
+            let n = ribbon::search_in(&self.shell.query, self.sketch.is_some()).len();
             match k {
                 egui::Key::ArrowDown | egui::Key::ArrowUp if n > 0 => {
                     if !self.shell.menu.as_ref().is_some_and(|m| m.tag == "search") {
@@ -1197,7 +1254,7 @@ impl StlApp {
                     }
                 }
                 egui::Key::Enter => {
-                    if let Some(c) = ribbon::search(&self.shell.query).get(self.shell.search_hot) {
+                    if let Some(c) = ribbon::search_in(&self.shell.query, self.sketch.is_some()).get(self.shell.search_hot) {
                         let key = c.k.clone();
                         self.run_search_command(&ctx, &key, tb_out.search_rect.left_bottom());
                     }
@@ -1213,8 +1270,13 @@ impl StlApp {
 
         // ---- ribbon
         let mut rb_pick = None;
-        egui::Panel::top("ribbon").exact_size(ribbon::height(&self.shell.tab)).frame(Frame::NONE).show_separator_line(false).show(ui, |ui| {
-            let st = ribbon::RibbonState { tab: &self.shell.tab, active: self.shell.active_tool.as_deref(), drop_last: &self.shell.drop_last, web: self.platform.is_web() };
+        let rb_tab = self.ribbon_tab().to_owned();
+        let rb_active: Option<String> = match &self.sketch {
+            Some(m) => Some(m.s.tool.clone()),
+            None => self.shell.active_tool.clone(),
+        };
+        egui::Panel::top("ribbon").exact_size(ribbon::height(&rb_tab)).frame(Frame::NONE).show_separator_line(false).show(ui, |ui| {
+            let st = ribbon::RibbonState { tab: &rb_tab, active: rb_active.as_deref(), drop_last: &self.shell.drop_last, web: self.platform.is_web() };
             let (p, fit) = ribbon::show(ui, &tk, &st);
             rb_pick = p;
             self.last_fit = Some(fit);
@@ -1230,13 +1292,16 @@ impl StlApp {
         egui::CentralPanel::default().frame(Frame::NONE).show(ui, |ui| {
             let avail = ui.available_size();
             if !self.start_view_done && avail.x >= 1.0 && avail.y >= 1.0 {
-                // 1.x flies there during load; 2.0 starts in place, so the first picture is it
+                // the size first; the opening flight to iso starts after `show` (below)
                 self.start_view_done = true;
                 self.viewport.set_view_size(avail.x, avail.y);
-                self.viewport.set_view("iso");
-                self.viewport.camera_mut().finish_flight();
             }
             let vr = self.viewport.show(ui);
+            if !self.sk.fly_started {
+                // the first frame after the viewport shows: the opening fly-in (`start()` in 1.x)
+                self.sk.fly_started = true;
+                self.viewport.start_fly_in();
+            }
             let ws = vr.response.rect;
             if vr.section_clicked {
                 let on = self.viewport.section_enabled();
@@ -1248,6 +1313,9 @@ impl StlApp {
             if let Some(g) = self.gizmo.as_mut() {
                 consumed |= g.consume_click();
             }
+            self.sketch_pointer(ui, &vr.response);
+            self.sketch_frame(ui);
+            consumed |= self.sketch.is_some();
             if vr.response.clicked() && !consumed {
                 if let Some(pos) = vr.response.interact_pointer_pos() {
                     if !self.sf_click(pos) {
@@ -1256,7 +1324,7 @@ impl StlApp {
                 }
             }
             self.overlays(&ctx, &tk, ws, &mut commands, &mut events);
-            let empty = self.timeline_view.items.is_empty() && self.shell.active_tool.is_none();
+            let empty = self.timeline_view.items.is_empty() && self.shell.active_tool.is_none() && self.sketch.is_none();
             if empty {
                 start_pick = start::show(&ctx, &tk, ws, &self.shell.recent);
             }
@@ -1303,6 +1371,10 @@ impl StlApp {
             if tag == wiring::RESTART_TAG {
                 if res == DialogResult::Yes {
                     self.restart_now(&ctx);
+                }
+            } else if tag == wiring::SK_OFFSET_TAG {
+                if let DialogResult::Text(t) = res {
+                    self.sketch_offset_answer(&t);
                 }
             } else if tag == DISCARD_TAG {
                 if let Some(what) = self.pending_discard.take().filter(|_| res == DialogResult::Yes) {
@@ -1386,7 +1458,7 @@ impl StlApp {
         // browser: 240 wide, 8px from the top left, leaves room for the history bar
         Area::new(Id::unique("browser-panel")).order(Order::Middle).fixed_pos(ws.min + Vec2::new(8.0, 8.0)).show(ctx, |ui| {
             panel_frame().inner_margin(Margin::symmetric(9, 6)).show(ui, |ui| {
-                // 238 wide in all (220 + the 9 px margins and the 1 px borders). Not inside a
+                // 240 wide in all, like `#browser` (220 + the 9 px margins + the 1 px borders). Not inside a
                 // `ui.horizontal`: that gives its content one row of height and clips the tree.
                 ui.set_width(220.0);
                 ui.set_max_height((ws.height() - 60.0).max(40.0));
@@ -1405,6 +1477,7 @@ impl StlApp {
         });
 
         self.tool_panel(ctx, tk, ws);
+        self.sketch_overlays(ctx, tk, ws);
 
         // history bar along the bottom
         let bar = Rect::from_min_max(Pos2::new(ws.min.x + 8.0, ws.max.y - 8.0 - 36.0), Pos2::new(ws.max.x - 8.0, ws.max.y - 8.0));
@@ -1419,7 +1492,7 @@ impl StlApp {
                 let mut tl_ui = ui.new_child(egui::UiBuilder::new().max_rect(tl_rect));
                 // TASK 8 call site: history bar
                 self.timeline.features_pick = self.tool.as_ref().is_some_and(|t| t.shown_fields().any(|f| matches!(f.kind, crate::tools::FieldKind::Features)));
-                timeline::show(&mut tl_ui, ctx, tk, &mut self.timeline, &self.timeline_view, self.shell.active_tool.is_some(), false, commands, events);
+                timeline::show(&mut tl_ui, ctx, tk, &mut self.timeline, &self.timeline_view, self.shell.active_tool.is_some(), self.sketch.is_some(), commands, events);
                 // clicking a step puts its name (and any error) in the status line (app.js:2124)
                 if let Some(m) = self.timeline.take_status() {
                     self.status_text = m;
@@ -1435,6 +1508,15 @@ impl StlApp {
                 }
                 self.timeline.take_edit_feature(); // the tool opens through the OpenTool event (4b)
                 let mut st_ui = ui.new_child(egui::UiBuilder::new().max_rect(st_rect));
+                // sketch mode: pointer position and definition (sketcher.js showStatus), repainted on change
+                let inch = self.shell.inch;
+                if let Some(m) = self.sketch.as_mut() {
+                    let t = m.status_line(inch);
+                    if t != m.last_status {
+                        m.last_status = t.clone();
+                        self.status_text = t;
+                    }
+                }
                 // TASK 8 call site: status line
                 status::show(&mut st_ui, tk, &self.status_text);
             });
@@ -1445,7 +1527,9 @@ impl StlApp {
             let pos = Pos2::new(ws.center().x, ws.max.y - 54.0);
             Area::new(Id::unique("hint")).order(Order::Middle).interactable(false).pivot(Align2::CENTER_BOTTOM).fixed_pos(pos).show(ctx, |ui| {
                 Frame::new().fill(tk.float).stroke(Stroke::new(1.0, tk.line)).corner_radius(CornerRadius::same(14)).shadow(tk.shadow).inner_margin(Margin::symmetric(12, 5)).show(ui, |ui| {
-                    ui.set_max_width(ws.width() * 0.6);
+                    // 1.x: `left: 50%` makes the shrink-to-fit width at most half the viewport,
+                    // padding and border included (that binds before `max-width: 60%`).
+                    ui.set_max_width((ws.width() * 0.5 - 26.0).max(40.0));
                     ui.label(RichText::new(self.shell.hint.as_str()).size(12.0).color(tk.strong));
                 });
             });

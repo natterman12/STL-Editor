@@ -1,0 +1,43 @@
+{
+  "op": "offset",
+  "data": {
+    "seed": "g",
+    "entities": [
+      {
+        "id": "r",
+        "type": "rect",
+        "x": 0,
+        "y": 0,
+        "w": 20,
+        "h": 10
+      }
+    ],
+    "ids": [
+      "r"
+    ],
+    "distance": 2
+  },
+  "result": {
+    "ok": true,
+    "entities": [
+      {
+        "id": "r",
+        "type": "rect",
+        "x": 0,
+        "y": 0,
+        "w": 20,
+        "h": 10
+      },
+      {
+        "id": "eg1",
+        "type": "rect",
+        "x": -2,
+        "y": -2,
+        "w": 24,
+        "h": 14,
+        "construction": false,
+        "fillet": 0
+      }
+    ]
+  }
+}

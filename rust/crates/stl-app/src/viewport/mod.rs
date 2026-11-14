@@ -15,6 +15,7 @@ pub mod gizmo_draw;
 pub mod overhang;
 pub mod overlays;
 pub mod pick;
+pub mod preview_prep;
 pub mod renderer;
 pub mod scene;
 pub mod section;
@@ -336,6 +337,13 @@ pub struct Viewport {
     camera_locked: bool,
     overhang_cache: Option<overhang::OverhangCache>,
     overhang_job: Option<overhang::OverhangJob>,
+    /// `_buildPlaneGrid`: sheet, grid and axes, built when the sketch opens.
+    sketch_sheet: Vec<FlatVertex>,
+    sketch_grid_lines: Vec<FlatVertex>,
+    sketch_axes: Vec<FlatVertex>,
+    /// wasm: the preview still being prepared a slice at a time.
+    #[cfg(target_arch = "wasm32")]
+    preview_batch: Option<preview_prep::Batch>,
 }
 
 impl Default for Viewport {
@@ -400,6 +408,11 @@ impl Default for Viewport {
             camera_locked: false,
             overhang_cache: None,
             overhang_job: None,
+            sketch_sheet: Vec::new(),
+            sketch_grid_lines: Vec::new(),
+            sketch_axes: Vec::new(),
+            #[cfg(target_arch = "wasm32")]
+            preview_batch: None,
         }
     }
 }
@@ -838,6 +851,17 @@ impl Viewport {
         self.fit(camera::empty_box());
     }
 
+    /// The start-up flight: `setView('iso')` over 320 ms, as `app.js` does after the first
+    /// refresh (`loadSettings` then `refresh`, then `this.viewer.setView('iso')`).
+    ///
+    /// Call it once from `StlApp::update` in `app.rs`, on the first frame after `viewport.show`
+    /// has run (that sets the camera clock). An empty window flies too; the launch-file
+    /// `set_view("iso")` is a later flight, not this one. A pointer press, drag or wheel stops
+    /// it where it is ([`Camera::cancel_flight`](camera::Camera::cancel_flight)).
+    pub fn start_fly_in(&mut self) {
+        self.set_view("iso");
+    }
+
     /// `setView(name)`: top, bottom, front, back, right, left, iso or fit.
     pub fn set_view(&mut self, name: &str) {
         if name == "fit" {
@@ -853,7 +877,7 @@ impl Viewport {
         }
     }
 
-    /// `lookAtPlane(frame, radius)`.
+    /// `lookAtPlane(frame, radius)`. Entering a sketch calls this (`sketcher.start`).
     pub fn look_at_plane(&mut self, frame: &PlaneFrame, radius: Option<f64>) {
         if self.boxes_pending() {
             self.pending_views.push(ViewRequest::LookAt(*frame, radius));
@@ -862,6 +886,32 @@ impl Viewport {
         let scene = self.scene_box();
         self.camera.look_at_plane(frame.origin, frame.y, frame.normal, radius, scene);
         self.changed();
+    }
+
+    /// `_buildPlaneGrid`: the sketch plane's grid, axes and sheet. `None` removes it.
+    /// The size follows the scene box at the moment it is set, as `sketcher.js` builds it once
+    /// in `start`.
+    pub fn set_sketch_plane_grid(&mut self, frame: Option<PlaneFrame>) {
+        match frame {
+            Some(f) => {
+                let diag = self.scene_box().map(|b| camera::box_diagonal(&b));
+                let (sheet, lines, axes) = scene::sketch_plane_grid(&f.as_frame(), diag);
+                self.sketch_sheet = sheet;
+                self.sketch_grid_lines = lines;
+                self.sketch_axes = axes;
+            }
+            None => {
+                self.sketch_sheet.clear();
+                self.sketch_grid_lines.clear();
+                self.sketch_axes.clear();
+            }
+        }
+        self.overlays_changed();
+    }
+
+    /// The sketch plane grid is showing.
+    pub fn sketch_plane_grid_visible(&self) -> bool {
+        !self.sketch_sheet.is_empty()
     }
 
     /// `sceneBox`: shown bodies (the revision on screen) and preview meshes, `None` when there
@@ -1019,6 +1069,13 @@ impl Viewport {
         self.overlays_changed();
     }
 
+    /// [`Self::add_regions`] in `color` at `alpha` (the colour's own alpha is ignored), drawn
+    /// under sketch strokes. 1.x sketch fill is `0xf6c7a8` at 0.38 and does not follow the theme.
+    pub fn add_regions_tinted(&mut self, frame: &PlaneFrame, faces: &[Vec<Vec<[f64; 2]>>], tag: &str, color: Color32, alpha: f32) {
+        self.overlays.extend(overlays::regions_tinted(&frame.as_frame(), faces, tag, hex(color), alpha));
+        self.overlays_changed();
+    }
+
     /// `sketchLines(frame, entities, color, opacity, construction)` as a tagged overlay.
     pub fn add_sketch_lines(&mut self, frame: &PlaneFrame, entities: &[SketchOutline], color: Color32, opacity: f32, construction: bool, tag: &str) {
         self.push(overlays::sketch_lines(&frame.as_frame(), entities, hex(color), opacity, construction, tag));
@@ -1137,14 +1194,13 @@ impl Viewport {
         #[cfg(target_arch = "wasm32")]
         {
             let _ = cancel;
-            meshes
-                .iter()
-                .zip(trees)
-                .map(|(m, t)| {
-                    let _ = t.set(Bvh::build(m));
-                    (Some(Arc::new(scene::prepare_mesh(m))), None, t)
-                })
-                .collect()
+            // Not on this turn: a 500,000-triangle preview would freeze the page. Slices run
+            // from [`collect_preview`](Self::collect_preview), 4 ms a frame, like the overhangs.
+            self.preview_batch = Some(preview_prep::Batch::new(meshes.to_vec(), trees.clone(), self.preview_builds.clone()));
+            if let Some(c) = &self.ctx {
+                c.request_repaint();
+            }
+            trees.into_iter().map(|t| (None, None, t)).collect()
         }
     }
 
@@ -1152,6 +1208,10 @@ impl Viewport {
     /// they are all), and swap it in when it is complete. True when it was swapped in.
     fn collect_preview(&mut self, wait: bool) -> bool {
         use std::sync::mpsc::TryRecvError;
+        #[cfg(target_arch = "wasm32")]
+        if !self.poll_preview_batch(wait) {
+            return false;
+        }
         let Some(st) = self.preview_staged.as_mut() else { return false };
         for e in st.entries.iter_mut().filter(|e| e.prepared.is_none()) {
             let Some(rx) = &e.rx else { continue };
@@ -1184,8 +1244,35 @@ impl Viewport {
         self.preview_builds.load(Ordering::Relaxed)
     }
 
+    /// One slice of a wasm preview (or the rest of it, when `wait`). False while it still runs.
+    #[cfg(target_arch = "wasm32")]
+    fn poll_preview_batch(&mut self, wait: bool) -> bool {
+        if self.preview_batch.is_none() {
+            return true;
+        }
+        let budget = if wait { None } else { Some(preview_prep::SLICE) };
+        let ready = self.preview_batch.as_mut().and_then(|b| b.poll(budget));
+        let Some(ready) = ready else {
+            if let Some(c) = &self.ctx {
+                c.request_repaint();
+            }
+            return false;
+        };
+        self.preview_batch = None;
+        if let Some(st) = self.preview_staged.as_mut() {
+            for (e, p) in st.entries.iter_mut().zip(ready) {
+                e.prepared = Some(Arc::new(p));
+            }
+        }
+        true
+    }
+
     /// `clearPreview`.
     pub fn clear_preview(&mut self) {
+        #[cfg(target_arch = "wasm32")]
+        {
+            self.preview_batch = None;
+        }
         self.preview_cancel.store(true, Ordering::Relaxed);
         if let Some(st) = self.preview_staged.take() {
             st.cancel.store(true, Ordering::Relaxed);
@@ -1253,6 +1340,15 @@ impl Viewport {
             items.push((2, Depth::Test, t, l));
         }
         items.push((5, Depth::Off, Vec::new(), scene::axis_lines(s)));
+        if !self.sketch_sheet.is_empty() {
+            items.push((1, Depth::Test, self.sketch_sheet.clone(), Vec::new()));
+        }
+        if !self.sketch_grid_lines.is_empty() {
+            items.push((1, Depth::Test, Vec::new(), self.sketch_grid_lines.clone()));
+        }
+        if !self.sketch_axes.is_empty() {
+            items.push((9, Depth::Off, Vec::new(), self.sketch_axes.clone()));
+        }
         for sk in self.sketches.iter().filter(|s| !s.hidden && Some(&s.id) != self.active_sketch.as_ref()) {
             let it = overlays::sketch_lines(&sk.frame, &sk.outlines, scene::SKETCH_COL, 0.9, true, "");
             items.push((it.order, it.depth, it.tris, it.lines));
@@ -1448,6 +1544,10 @@ impl Viewport {
         if self.camera.is_flying() && self.camera.animate(now) {
             ui.ctx().request_repaint();
         }
+        #[cfg(target_arch = "wasm32")]
+        if self.preview_batch.is_some() {
+            ui.ctx().request_repaint();
+        }
         if self.stats.upload_pending.load(std::sync::atomic::Ordering::Relaxed) {
             ui.ctx().request_repaint();
         }
@@ -1474,6 +1574,11 @@ impl Viewport {
     fn handle_input(&mut self, ui: &egui::Ui, response: &egui::Response) {
         if self.camera_locked {
             return;
+        }
+        // A click stops the start-up flight here, before this frame's step. A drag and the
+        // wheel do it in `Camera::rotate` / `pan` / `wheel`, which run next, still before `animate`.
+        if (response.hovered() || response.dragged()) && ui.input(|i| i.pointer.any_pressed()) {
+            self.camera.cancel_flight();
         }
         let delta = response.drag_delta();
         if delta != egui::Vec2::ZERO {
@@ -1591,8 +1696,9 @@ impl Viewport {
         self.entry(id).and_then(|e| e.current()).map(|r| r.prepared.bbox)
     }
 
-    /// Show the transform handles (or `None` to hide them). Cheap to call every frame: the
-    /// handles are rebuilt only when they or the camera change, in their own small buffer.
+    /// Show the transform handles, or `None` to hide them (`gizmo.hide()` when a tool closes
+    /// and when a sketch opens). Cheap to call every frame: the handles are rebuilt only when
+    /// they or the camera change, in their own small buffer.
     pub fn set_gizmo(&mut self, shape: Option<GizmoShape>) {
         if self.gizmo == shape {
             return;

@@ -134,7 +134,61 @@ fn desktop_tools_hole_countersink_on_a_picked_face() {
     assert!(v1 < v0 - 1.0, "the holes take material away: {v0:.0} -> {v1:.0}");
 }
 
-/// Stays parked: the second half of 1.x's script edits an Extrude of a sketch, which needs sketch mode.
+/// Sketch + Extrude on a body face, then edit the Extrude distance from the timeline.
+/// 1.x `desktop_tools.js` "edit extrude via timeline" opens a timeline step and OKs a param
+/// change (it edits a hole diameter in the script). Here we cover the Extrude distance edit
+/// path: sketch on the box top so Extrude defaults to join (datum XY would be `new` and leave
+/// `bodies[0]` at 24000 while 8→12 stayed inside the box).
 #[test]
-#[ignore = "4c: timeline edit of a sketch + Extrude needs sketch mode (milestone 4c)"]
-fn desktop_tools_timeline_edit_extrude() {}
+fn desktop_tools_timeline_edit_extrude() {
+    use super::harness::{empty_harness, enter_sketch_plane, finish_sketch_settle, mesh_volume, sketch_add_rect};
+    let (mut h, link) = empty_harness();
+    h.state_mut().link.send(Command::AddFeature {
+        kind: "primitive".into(),
+        params: json!({"shape": "box", "length": 40, "width": 30, "height": 20, "plane": "XY", "offset": [0, 0, 0], "rotate": [0, 0, 0], "anchor": "base", "operation": "new", "targets": []}),
+        index: None,
+        name: Some("Box".into()),
+    });
+    settle(&mut h, &link);
+    let bid = h.state().bodies[0].id.clone();
+    enter_sketch_plane(
+        &mut h,
+        &link,
+        json!({
+            "origin": [0.0, 0.0, 20.0],
+            "normal": [0.0, 0.0, 1.0],
+            "xdir": [1.0, 0.0, 0.0],
+            "label": "Top",
+            "body": bid,
+        }),
+    );
+    sketch_add_rect(&mut h, "r0", -10.0, -8.0, 20.0, 16.0);
+    finish_sketch_settle(&mut h, &link, true);
+    let t = h.state().tool().expect("Extrude opens");
+    assert_eq!(t.def.key, "extrude");
+    assert_eq!(t.values.get("operation"), Some(&json!("join")), "sketch on body → join");
+    h.state_mut().tool_set_value("distance", json!(8.0));
+    h.state_mut().tool_ok();
+    settle(&mut h, &link);
+    let eid = h.state().timeline_view.items.iter().find(|i| i.kind == "extrude").map(|i| i.id.clone()).expect("extrude");
+    let v0 = mesh_volume(&h.state().bodies[0].mesh);
+
+    assert!(h.state_mut().edit_feature(&eid));
+    settle(&mut h, &link);
+    assert_eq!(h.state().tool().map(|t| t.def.key), Some("extrude"));
+    assert_eq!(h.state().tool().and_then(|t| t.values.get("distance").cloned()), Some(json!(8.0)));
+    h.state_mut().tool_set_value("distance", json!(12.0));
+    h.run_steps(4);
+    h.state_mut().tool_ok();
+    settle(&mut h, &link);
+    let ex = h.state().timeline_view.items.iter().find(|i| i.id == eid).unwrap();
+    assert_eq!(ex.params["distance"], json!(12.0), "1.x timeline edit writes the new distance");
+    assert_eq!(ex.error, None);
+    let v1 = mesh_volume(&h.state().bodies[0].mesh);
+    // Join from the top face: 20×16 rect, height 8→12 grows volume by 20*16*4.
+    assert!(
+        (v1 - v0).abs() > 1.0,
+        "editing Extrude distance changes the solid volume; got {v0} -> {v1} (params distance={})",
+        ex.params["distance"]
+    );
+}

@@ -48,6 +48,16 @@ pub enum Command {
     /// suggestions). Never changes the document and shows no Busy overlay; the answer is
     /// [`Update::Fins`] with the same `seq`.
     Fins { seq: u64, ask: FinsAsk },
+    /// 1.x `post('sketch_op', {op, ...data})`: trim, offset, mirror, explode, project, refs, text, faces.
+    SketchOp { seq: u64, op: String, data: serde_json::Value },
+    /// Solve a sketch off the UI thread (`stl_sketch::solver::solve`); only the newest `seq` counts.
+    Solve {
+        seq: u64,
+        entities: Vec<stl_sketch::entities::Entity>,
+        constraints: Vec<stl_sketch::solver::Constraint>,
+        locks: Vec<stl_sketch::solver::Lock>,
+        fixed: Vec<stl_sketch::entities::Entity>,
+    },
     Cancel,
 }
 
@@ -97,6 +107,10 @@ pub enum Update {
     Preview { seq: u64, pack: PreviewPack, msg: Option<String>, error: Option<String>, warn: bool, result: serde_json::Value },
     /// The answer to [`Command::Fins`]: `ask` is `"info"`, `"strength"` or `"suggest"`.
     Fins { seq: u64, ask: String, result: Result<serde_json::Value, String> },
+    /// The answer to [`Command::SketchOp`]: the route's JSON, or its error text.
+    SketchOp { seq: u64, result: Result<serde_json::Value, String> },
+    /// The answer to [`Command::Solve`] (`SolveReport`'s fields).
+    Solved { seq: u64, entities: Vec<stl_sketch::entities::Entity>, ok: bool, error: f64 },
     EngineLost,
 }
 

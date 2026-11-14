@@ -1,0 +1,95 @@
+{
+  "op": "trim",
+  "data": {
+    "seed": "g",
+    "entities": [
+      {
+        "id": "arc",
+        "type": "arc",
+        "cx": 0,
+        "cy": 0,
+        "r": 10,
+        "a0": 0,
+        "a1": 180
+      },
+      {
+        "id": "b",
+        "type": "line",
+        "p1": [
+          5,
+          -15
+        ],
+        "p2": [
+          5,
+          15
+        ]
+      },
+      {
+        "id": "c",
+        "type": "line",
+        "p1": [
+          -5,
+          -15
+        ],
+        "p2": [
+          -5,
+          15
+        ]
+      }
+    ],
+    "id": "arc",
+    "point": [
+      0,
+      10
+    ]
+  },
+  "result": {
+    "ok": true,
+    "entities": [
+      {
+        "cx": 0,
+        "cy": 0,
+        "r": 10,
+        "construction": false,
+        "id": "arca",
+        "type": "arc",
+        "a0": 0,
+        "a1": 60
+      },
+      {
+        "cx": 0,
+        "cy": 0,
+        "r": 10,
+        "construction": false,
+        "id": "arcb",
+        "type": "arc",
+        "a0": 120,
+        "a1": 180
+      },
+      {
+        "id": "b",
+        "type": "line",
+        "p1": [
+          5,
+          -15
+        ],
+        "p2": [
+          5,
+          15
+        ]
+      },
+      {
+        "id": "c",
+        "type": "line",
+        "p1": [
+          -5,
+          -15
+        ],
+        "p2": [
+          -5,
+          15
+        ]
+      }
+    ]
+  }
+}

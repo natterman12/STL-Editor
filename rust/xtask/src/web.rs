@@ -1,4 +1,4 @@
-//! `cargo run -p xtask -- web [--serve] [--check [--webgl2]]`
+//! `cargo run -p xtask -- web [--serve] [--check [--webgl2]] [--measure-preview]`
 //!
 //! Builds the wasm app into `<CARGO_TARGET_DIR>/web/` with wasm-bindgen 0.2.130 (the same CLI
 //! the headless Chrome tests use) and, with `--serve`, serves it on localhost. `--check` opens
@@ -23,11 +23,18 @@ pub fn run(args: impl Iterator<Item = String>) -> Result<(), String> {
     let serve = args.iter().any(|a| a == "--serve");
     let check = args.iter().any(|a| a == "--check");
     let webgl2 = args.iter().any(|a| a == "--webgl2");
+    let measure = args.iter().any(|a| a == "--measure-preview");
     if webgl2 && !check {
         return Err("--webgl2 goes with --check".into());
     }
-    let out = build()?;
+    if measure && (check || serve) {
+        return Err("--measure-preview is on its own".into());
+    }
+    let out = build(measure)?;
     println!("web: built {}", out.display());
+    if measure {
+        return measure_preview(&out);
+    }
     if check {
         return headless_check(&out, webgl2);
     }
@@ -52,7 +59,7 @@ fn target_dir() -> PathBuf {
     }
 }
 
-fn build() -> Result<PathBuf, String> {
+fn build(measure: bool) -> Result<PathBuf, String> {
     let rust = rust_dir();
     let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".into());
     let mut flags = std::env::var("RUSTFLAGS").unwrap_or_default();
@@ -62,6 +69,13 @@ fn build() -> Result<PathBuf, String> {
             flags.push(' ');
         }
         flags.push_str("-C codegen-units=1");
+    }
+    // The preview-measurement exports stay out of a release wasm. This cfg is the switch.
+    if measure && !flags.contains("stl_preview_measure") {
+        if !flags.is_empty() {
+            flags.push(' ');
+        }
+        flags.push_str("--cfg stl_preview_measure");
     }
     let status = Command::new(&cargo)
         .args(["build", "-p", "stl-app", "--target", "wasm32-unknown-unknown", "--release"])
@@ -448,6 +462,194 @@ fn respond(sock: &mut TcpStream, status: &str, content_type: &str, body: &[u8]) 
     );
     sock.write_all(head.as_bytes()).map_err(|e| e.to_string())?;
     sock.write_all(body).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+const MEASURE_HTML: &str = r#"<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>preview measure</title></head>
+<body>
+<script type="module">
+const pass = function (fn) { return fn; };
+if (typeof WebAssembly.Suspending !== "function") WebAssembly.Suspending = pass;
+if (typeof WebAssembly.promising !== "function") WebAssembly.promising = pass;
+const init = async () => {
+  const mod = await import("./stl-app.js");
+  await mod.default();
+  return mod;
+};
+const report = async (text) => {
+  await fetch("/__report", { method: "POST", body: text });
+};
+const watch = () => {
+  const tasks = [];
+  let obs = null;
+  try {
+    obs = new PerformanceObserver((list) => {
+      for (const e of list.getEntries()) tasks.push(e.duration);
+    });
+    obs.observe({ type: "longtask", buffered: false });
+  } catch (e) {}
+  return {
+    max: () => tasks.reduce((m, d) => Math.max(m, d), 0),
+    stop: () => { if (obs) obs.disconnect(); },
+  };
+};
+// The same strip `bench_mesh` builds, as the bytes an engine result would hand the page.
+function strip(tris) {
+  const nvert = tris + 2;
+  const pos = new Float32Array(nvert * 3);
+  for (let i = 0; i < nvert; i++) {
+    pos[i * 3] = i;
+    pos[i * 3 + 1] = (i % 2) ? 1 : 0;
+    pos[i * 3 + 2] = 0;
+  }
+  const tri = new Uint32Array(tris * 3);
+  for (let t = 0; t < tris; t++) {
+    const i = t;
+    if (t % 2 === 0) {
+      tri[t * 3] = i; tri[t * 3 + 1] = i + 1; tri[t * 3 + 2] = i + 2;
+    } else {
+      tri[t * 3] = i; tri[t * 3 + 1] = i + 2; tri[t * 3 + 2] = i + 1;
+    }
+  }
+  return { pos: new Uint8Array(pos.buffer), tri: new Uint8Array(tri.buffer) };
+}
+try {
+  const mod = await init();
+  await new Promise((r) => setTimeout(r, 300));
+  const alloc = mod.stl_preview_measure_alloc();
+  if (alloc !== "ok") throw new Error(alloc);
+  await new Promise((r) => setTimeout(r, 200));
+  const before = watch();
+  const t0 = performance.now();
+  const blocking = mod.stl_preview_measure_blocking();
+  const beforeCall = performance.now() - t0;
+  await new Promise((r) => setTimeout(r, 50));
+  before.stop();
+  if (blocking !== "ok") throw new Error(blocking);
+  const begun = mod.stl_preview_measure_begin();
+  if (begun !== "ok") throw new Error(begun);
+  const after = watch();
+  let status = "pending";
+  let slices = 0;
+  let maxSlice = 0;
+  let deadline = performance.now() + 120000;
+  while (status === "pending") {
+    if (performance.now() > deadline) throw new Error("slices did not finish in 120s");
+    const s0 = performance.now();
+    status = mod.stl_preview_measure_slice();
+    maxSlice = Math.max(maxSlice, performance.now() - s0);
+    slices++;
+    await new Promise((r) => requestAnimationFrame(r));
+  }
+  await new Promise((r) => setTimeout(r, 50));
+  after.stop();
+  if (status !== "done") throw new Error(status);
+  // Shader compile is not part of a preview pause.
+  const gpu = await mod.stl_preview_measure_gpu();
+  if (gpu !== "ok") throw new Error(gpu);
+  const bytes = strip(500000);
+  const appBlockWatch = watch();
+  const b0 = performance.now();
+  const appBlocking = mod.stl_preview_measure_app_blocking(bytes.pos, bytes.tri);
+  const appBlockingMs = performance.now() - b0;
+  await new Promise((r) => setTimeout(r, 50));
+  appBlockWatch.stop();
+  if (String(appBlocking).startsWith("error:")) throw new Error(appBlocking);
+  const appWatch = watch();
+  status = "pending";
+  let frames = 0;
+  let maxFrame = 0;
+  let appDetail = "";
+  deadline = performance.now() + 180000;
+  while (status === "pending" || status === "upload") {
+    if (performance.now() > deadline) throw new Error("app frames did not finish in 180s");
+    const s0 = performance.now();
+    status = frames === 0
+      ? mod.stl_preview_measure_app_begin(bytes.pos, bytes.tri)
+      : mod.stl_preview_measure_app_frame();
+    maxFrame = Math.max(maxFrame, performance.now() - s0);
+    frames++;
+    appDetail = status;
+    if (String(status).startsWith("error:")) throw new Error(status);
+    await new Promise((r) => requestAnimationFrame(r));
+  }
+  await new Promise((r) => setTimeout(r, 50));
+  appWatch.stop();
+  await report([
+    "before_call_ms=" + beforeCall.toFixed(1),
+    "before_longtask_ms=" + before.max().toFixed(1),
+    "after_max_slice_ms=" + maxSlice.toFixed(1),
+    "after_longtask_ms=" + after.max().toFixed(1),
+    "slices=" + slices,
+    "app_blocking_ms=" + appBlockingMs.toFixed(1),
+    "app_blocking_longtask_ms=" + appBlockWatch.max().toFixed(1),
+    "app_blocking_detail=" + appBlocking,
+    "app_max_frame_ms=" + maxFrame.toFixed(1),
+    "app_longtask_ms=" + appWatch.max().toFixed(1),
+    "app_frames=" + frames,
+    "app_detail=" + appDetail,
+  ].join(" "));
+} catch (e) {
+  await report("error:" + (e && e.message ? e.message : e));
+}
+</script>
+</body>
+</html>
+"#;
+
+/// A 500,000-triangle preview in headless Chrome. Prints the old prep-only pauses and the
+/// main-thread pauses of receiving that preview, preparing it and uploading it.
+fn measure_preview(root: &Path) -> Result<(), String> {
+    fs::write(root.join("measure.html"), MEASURE_HTML).map_err(|e| e.to_string())?;
+    let fixtures = fixture_dir()?;
+    let report = Arc::new(Mutex::new(None));
+    let running = Arc::new(AtomicBool::new(true));
+    let addr = serve_on(root, &fixtures, &report, &running, "127.0.0.1:0")?;
+    let url = format!("http://{addr}/measure.html");
+    println!("web: measuring a 500,000-triangle preview at {url}");
+    let chrome = find_chrome()?;
+    let profile = std::env::temp_dir().join("stl-editor-web-measure");
+    let _ = fs::create_dir_all(&profile);
+    let mut child = Command::new(&chrome)
+        .args(["--enable-unsafe-webgpu", "--enable-features=WebGPU"])
+        .args([
+            "--headless=new",
+            "--window-size=1280,800",
+            "--no-first-run",
+            "--disable-extensions",
+            "--no-sandbox",
+            &format!("--user-data-dir={}", profile.display()),
+            &url,
+        ])
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .spawn()
+        .map_err(|e| format!("could not start {}: {e}", chrome.display()))?;
+    let deadline = Instant::now() + Duration::from_secs(300);
+    let mut got = None;
+    while Instant::now() < deadline {
+        if let Some(text) = report.lock().map_err(|e| e.to_string())?.clone() {
+            got = Some(text);
+            break;
+        }
+        if let Some(status) = child.try_wait().map_err(|e| e.to_string())? {
+            running.store(false, Ordering::SeqCst);
+            return Err(format!("chrome exited ({status}) before the preview measurement"));
+        }
+        thread::sleep(Duration::from_millis(200));
+    }
+    let _ = child.kill();
+    let _ = child.wait();
+    running.store(false, Ordering::SeqCst);
+    let Some(text) = got else {
+        return Err("headless Chrome did not report a preview measurement within 300s".into());
+    };
+    println!("web: measure-preview {text}");
+    if let Some(err) = text.strip_prefix("error:") {
+        return Err(format!("the page reported: {err}"));
+    }
     Ok(())
 }
 

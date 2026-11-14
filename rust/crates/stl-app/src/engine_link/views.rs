@@ -85,7 +85,12 @@ impl Views {
                 .to_string();
             out.push(SketchView {
                 id: id.clone(),
-                name: if s.name.is_empty() { feature_name(doc, id) } else { s.name.clone() },
+                // routes.js `fname`: the step's own name ("Sketch1") wins over the state's default
+                name: match doc.features.iter().find(|f| f.id == *id).and_then(|f| f.name.clone()).filter(|n| !n.is_empty()) {
+                    Some(n) => n,
+                    None if s.name.is_empty() => feature_name(doc, id),
+                    None => s.name.clone(),
+                },
                 plane,
                 hidden: hidden.contains(id),
                 frame: [s.frame.o, s.frame.x, s.frame.y, s.frame.n],

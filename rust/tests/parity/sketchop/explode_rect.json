@@ -1,0 +1,76 @@
+{
+  "op": "explode",
+  "data": {
+    "seed": "g",
+    "entities": [
+      {
+        "id": "r",
+        "type": "rect",
+        "x": 1,
+        "y": 2,
+        "w": 12,
+        "h": 8
+      }
+    ],
+    "ids": [
+      "r"
+    ]
+  },
+  "result": {
+    "ok": true,
+    "entities": [
+      {
+        "construction": false,
+        "id": "r_0",
+        "type": "line",
+        "p1": [
+          1,
+          2
+        ],
+        "p2": [
+          13,
+          2
+        ]
+      },
+      {
+        "construction": false,
+        "id": "r_1",
+        "type": "line",
+        "p1": [
+          13,
+          2
+        ],
+        "p2": [
+          13,
+          10
+        ]
+      },
+      {
+        "construction": false,
+        "id": "r_2",
+        "type": "line",
+        "p1": [
+          13,
+          10
+        ],
+        "p2": [
+          1,
+          10
+        ]
+      },
+      {
+        "construction": false,
+        "id": "r_3",
+        "type": "line",
+        "p1": [
+          1,
+          10
+        ],
+        "p2": [
+          1,
+          2
+        ]
+      }
+    ]
+  }
+}

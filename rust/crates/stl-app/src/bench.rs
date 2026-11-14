@@ -28,6 +28,10 @@ const GIZMO_S: f64 = 5.0;
 const OPEN_TOOL_GIVE_UP_S: f64 = 20.0;
 /// A tool that has not asked for a preview by now has none (a pick tool, Import, ...).
 const OPEN_TOOL_NO_PREVIEW_S: f64 = 0.8;
+/// Enter sketch on the bench mesh (look-at + grid); frames until the sketch is open and settled.
+const ENTER_SKETCH_S: f64 = 3.0;
+/// Drag a point in a 200-entity / 100-constraint sketch.
+const SKETCH_DRAG_S: f64 = 5.0;
 const IDLE_S: f64 = 5.0;
 const QUICK_S: f64 = 1.0;
 /// Stop the rebuild row if the new mesh has not been drawn by then.
@@ -58,6 +62,10 @@ enum Phase {
     GizmoDrag,
     /// Every tool opened once, the frames until its first preview counted.
     OpenTool,
+    /// Enter a sketch on the bench mesh (look-at the plane + build the grid).
+    EnterSketch,
+    /// Drag a free point in a 200-entity / 100-constraint sketch.
+    SketchDrag,
     Idle,
     Rebuild,
     /// A few frames after the new mesh is on screen (the old one is freed in the first),
@@ -235,7 +243,12 @@ pub struct BenchApp {
     zoom: ScenarioStat,
     gizmo_drag: ScenarioStat,
     open_tool: ScenarioStat,
+    enter_sketch: ScenarioStat,
+    sketch_drag: ScenarioStat,
     idle: ScenarioStat,
+    /// Sketch-drag: world point being swung, and whether the heavy sketch was built.
+    sketch_drag_pt: [f64; 3],
+    sketch_ready: bool,
     rebuild: ScenarioStat,
     rebuild_sent: bool,
     rebuild_uploads_before: u64,
@@ -308,7 +321,11 @@ impl BenchApp {
             zoom: ScenarioStat::new(),
             gizmo_drag: ScenarioStat::new(),
             open_tool: ScenarioStat::new(),
+            enter_sketch: ScenarioStat::new(),
+            sketch_drag: ScenarioStat::new(),
             idle: ScenarioStat::new(),
+            sketch_drag_pt: [0.0; 3],
+            sketch_ready: false,
             rebuild: ScenarioStat::new(),
             rebuild_sent: false,
             rebuild_uploads_before: 0,
@@ -377,6 +394,8 @@ impl BenchApp {
                 "zoom": self.zoom.to_json(),
                 "gizmo_drag": self.gizmo_drag.to_json(),
                 "open_tool": self.open_tool.to_json(),
+                "enter_sketch": self.enter_sketch.to_json(),
+                "sketch_drag": self.sketch_drag.to_json(),
                 "idle": self.idle.to_json(),
                 "fillet_rebuild": self.rebuild.to_json(),
             }
@@ -557,6 +576,58 @@ impl BenchApp {
             run.gizmo.hide(vp);
         }
     }
+
+    /// Enter a sketch on XY and fill it with 200 lines + 100 length constraints (off-thread solve).
+    fn begin_heavy_sketch(&mut self) {
+        use serde_json::json;
+        if self.app.sketch().is_some() {
+            return;
+        }
+        self.app.enter_sketch(Some(json!("XY")), None);
+        let Some(m) = self.app.sketch_mode_mut() else { return };
+        let mut ents = Vec::with_capacity(201);
+        let mut cons = Vec::with_capacity(100);
+        for i in 0..200 {
+            let x = (i % 20) as f64 * 2.0;
+            let y = (i / 20) as f64 * 2.0;
+            ents.push(serde_json::from_value(json!({
+                "id": format!("L{i}"), "type": "line", "p1": [x, y], "p2": [x + 1.5, y]
+            })).unwrap());
+            if i < 100 {
+                cons.push(serde_json::from_value(json!({
+                    "id": format!("d{i}"),
+                    "type": "distance",
+                    "a": {"e": format!("L{i}"), "k": "p1"},
+                    "b": {"e": format!("L{i}"), "k": "p2"},
+                    "value": 1.5,
+                    "off": 2.0,
+                    "slide": 0.0
+                })).unwrap());
+            }
+        }
+        ents.push(serde_json::from_value(json!({
+            "id": "Pdrag", "type": "point", "x": 5.0, "y": 5.0
+        })).unwrap());
+        m.s.entities = ents;
+        m.s.constraints = cons;
+        self.sketch_drag_pt = m.s.to_3([5.0, 5.0]);
+        // Drop the sketch borrow before touching the viewport again.
+        let session = m.s.clone();
+        let _ = m;
+        crate::sketch::view::build_grid(&mut self.app.viewport, &session);
+    }
+
+    fn sketch_drag_frame(&mut self) {
+        let Some(m) = self.app.sketch_mode_mut() else { return };
+        let t = self.phase_started.elapsed().as_secs_f64();
+        let uv = [5.0 + 3.0 * (t * std::f64::consts::PI).sin(), 5.0 + 2.0 * (t * std::f64::consts::PI * 0.7).cos()];
+        if let Some(crate::sketch::Entity::Point(p)) = m.s.entities.iter_mut().find(|e| e.id() == Some("Pdrag")) {
+            p.x = uv[0];
+            p.y = uv[1];
+        }
+        self.sketch_drag_pt = m.s.to_3(uv);
+        let _ = self.app.viewport.world_to_screen(self.sketch_drag_pt);
+    }
 }
 
 impl eframe::App for BenchApp {
@@ -630,6 +701,19 @@ impl eframe::App for BenchApp {
             }
             Phase::OpenTool => {
                 self.open_tool_frame(dt_ms);
+                ui.ctx().request_repaint();
+            }
+            Phase::EnterSketch => {
+                self.enter_sketch.record(dt_ms);
+                if !self.sketch_ready {
+                    self.begin_heavy_sketch();
+                    self.sketch_ready = true;
+                }
+                ui.ctx().request_repaint();
+            }
+            Phase::SketchDrag => {
+                self.sketch_drag.record(dt_ms);
+                self.sketch_drag_frame();
                 ui.ctx().request_repaint();
             }
             Phase::Idle => {
@@ -762,6 +846,22 @@ impl eframe::App for BenchApp {
             }
             Phase::OpenTool if self.open_idx >= self.open_tool_keys().len() && self.open_cur.is_none() => {
                 self.open_tool.uploads_end = self.app.viewport.stats().uploads();
+                self.phase = Phase::EnterSketch;
+                self.phase_started = Instant::now();
+                self.last_frame = Instant::now();
+                self.sketch_ready = false;
+                ui.ctx().request_repaint();
+            }
+            Phase::EnterSketch if self.phase_started.elapsed().as_secs_f64() >= self.phase_secs(ENTER_SKETCH_S) => {
+                self.enter_sketch.uploads_end = self.app.viewport.stats().uploads();
+                self.phase = Phase::SketchDrag;
+                self.phase_started = Instant::now();
+                self.last_frame = Instant::now();
+                ui.ctx().request_repaint();
+            }
+            Phase::SketchDrag if self.phase_started.elapsed().as_secs_f64() >= self.phase_secs(SKETCH_DRAG_S) => {
+                self.sketch_drag.uploads_end = self.app.viewport.stats().uploads();
+                self.app.cancel_sketch();
                 self.phase = Phase::Idle;
                 self.phase_started = Instant::now();
                 self.last_frame = Instant::now();

@@ -47,3 +47,6 @@ dev/out/
 rust/target-*/
 rust/crates/*/target/
 rust/rust/
+
+# Noto source downloads for dev/fonts/rebuild_symbols.py (keep them outside the repo; see dev/fonts/README.md)
+dev/fonts/noto-src/

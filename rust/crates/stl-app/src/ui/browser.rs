@@ -76,6 +76,22 @@ fn fmt_triangles(n: usize) -> String {
     }
 }
 
+/// `.panel-title` and `.tnode.folder` are `font-weight: 600`. egui's `strong()` only
+/// changes the colour, so the weight is the bold family (Selawik Bold stands in for Semibold).
+fn bold(text: impl Into<String>, color: Color32, size: f32) -> RichText {
+    RichText::new(text).color(color).size(size).font(egui::FontId::new(size, egui::FontFamily::Name("bold".into())))
+}
+
+/// `.tnode .nm { flex: 1 }` pushes `.tag` to the right, 8 px in from the row's edge.
+fn row_tag(ui: &mut Ui, text: &str, color: Color32, bad: bool) {
+    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+        ui.spacing_mut().item_spacing.x = 0.0;
+        ui.add_space(8.0);
+        let label = if bad { bold(text, color, 10.5) } else { RichText::new(text).color(color).size(10.5) };
+        ui.label(label);
+    });
+}
+
 fn eye_btn(ui: &mut Ui, ctx: &Context, tokens: &Tokens, salt: &str, hidden: bool, tip_show: &str, tip_hide: &str) -> bool {
     let eye_name = if hidden { "eye_off" } else { "eye" };
     let tip = if hidden { tip_show } else { tip_hide };
@@ -103,9 +119,16 @@ fn body_row(
 ) {
     let indent = 8.0 + 14.0 * 2.0;
     let solid = b.solid;
-
-    ui.horizontal(|ui| {
-        ui.add_space(indent);
+    // `.tnode.selected` paints the whole row, not a chip behind the name.
+    let width = ui.available_width();
+    egui::Frame::new().fill(if selected { tokens.sel } else { Color32::TRANSPARENT }).show(ui, |ui| {
+        ui.set_width(width);
+        ui.spacing_mut().button_padding = egui::vec2(0.0, 0.0);
+        ui.horizontal(|ui| {
+            ui.set_min_width(width);
+            // padding-left is the indent; the 6 px is `.tnode { gap: 6px }` before the eye
+            ui.spacing_mut().item_spacing.x = 6.0;
+            ui.add_space(if indent > 6.0 { indent - 6.0 } else { 0.0 });
 
         let (show_tip, hide_tip) = (format!("Show {}", b.name), format!("Hide {}", b.name));
         if eye_btn(ui, ctx, tokens, &format!("browser_eye_{}", b.id), b.hidden, &show_tip, &hide_tip) {
@@ -143,16 +166,17 @@ fn body_row(
         let tag_colour = if solid { tokens.muted } else { tokens.warn };
         let response = ui
             .push_id(format!("browser_body_{}", b.id), |ui| {
-                let r = ui.add(
+                ui.add(
                     egui::Button::new(RichText::new(&b.name).color(if selected { tokens.sel_text } else { tokens.text }))
-                        .fill(if selected { tokens.sel } else { Color32::TRANSPARENT })
-                        .stroke(egui::Stroke::NONE),
-                );
-                ui.label(RichText::new(tag).color(tag_colour).size(10.5));
-                r
+                        .fill(Color32::TRANSPARENT)
+                        .stroke(egui::Stroke::NONE)
+                        .frame(false),
+                )
             })
             .inner
             .on_hover_text(&b.name);
+        // 1.x `.tnode .tag` keeps `--muted`, and `.tag.bad` keeps `--warn`, on a selected row.
+        row_tag(ui, &tag, tag_colour, !solid);
         response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, &b.name));
 
         if response.clicked() {
@@ -196,6 +220,7 @@ fn body_row(
                 ui.close();
             }
         });
+        });
     });
 }
 
@@ -213,7 +238,7 @@ pub fn show(
     let sketches = view.sketches;
     let params = view.params;
     ui.horizontal(|ui| {
-        ui.label(RichText::new("Browser").strong().color(tokens.strong).size(12.0));
+        ui.label(bold("Browser", tokens.strong, 12.0));
         let n = view.bodies.len();
         let count = if n == 0 {
             String::new()
@@ -227,11 +252,14 @@ pub fn show(
     ui.add_space(4.0);
 
     egui::ScrollArea::vertical().show(ui, |ui| {
+        let row_w = ui.available_width();
         ui.horizontal(|ui| {
+            ui.set_min_width(row_w);
             ui.add_space(8.0);
-            ui.label(RichText::new(view.doc_name).strong().color(tokens.label).size(12.0));
+            ui.label(bold(view.doc_name, tokens.label, 12.0));
         });
         ui.horizontal(|ui| {
+            ui.set_min_width(row_w);
             ui.add_space(8.0);
             if eye_btn(
                 ui,
@@ -244,12 +272,13 @@ pub fn show(
             ) {
                 state.origin_toggle = Some(!view.origin_visible);
             }
-            ui.label(RichText::new("Origin").color(tokens.label).strong());
+            ui.label(bold("Origin", tokens.label, 12.0));
         });
         ui.horizontal(|ui| {
+            ui.set_min_width(row_w);
             ui.add_space(8.0 + 14.0);
-            ui.label(RichText::new("Bodies").strong().color(tokens.label));
-            ui.label(RichText::new(view.bodies.len().to_string()).color(tokens.muted).size(10.5));
+            ui.label(bold("Bodies", tokens.label, 12.0));
+            row_tag(ui, &view.bodies.len().to_string(), tokens.muted, false);
         });
         for (index, b) in view.bodies.iter().enumerate() {
             let selected = view.selection.contains(&b.id);
@@ -258,8 +287,9 @@ pub fn show(
 
         if !planes.is_empty() {
             ui.horizontal(|ui| {
+                ui.set_min_width(row_w);
                 ui.add_space(8.0 + 14.0);
-                ui.label(RichText::new("Planes").strong().color(tokens.label));
+                ui.label(bold("Planes", tokens.label, 12.0));
             });
             for p in planes {
                 ui.horizontal(|ui| {
@@ -280,11 +310,10 @@ pub fn show(
 
         if !params.is_empty() {
             ui.horizontal(|ui| {
+                ui.set_min_width(row_w);
                 ui.add_space(8.0 + 14.0);
-                let r = ui.add(
-                    egui::Label::new(RichText::new("Parameters").strong().color(tokens.label)).sense(egui::Sense::click()),
-                );
-                ui.label(RichText::new(params.len().to_string()).color(tokens.muted).size(10.5));
+                let r = ui.add(egui::Label::new(bold("Parameters", tokens.label, 12.0)).sense(egui::Sense::click()));
+                row_tag(ui, &params.len().to_string(), tokens.muted, false);
                 if r.clicked() {
                     state.open_params = true;
                 }
@@ -311,8 +340,9 @@ pub fn show(
 
         if !sketches.is_empty() {
             ui.horizontal(|ui| {
+                ui.set_min_width(row_w);
                 ui.add_space(8.0 + 14.0);
-                ui.label(RichText::new("Sketches").strong().color(tokens.label));
+                ui.label(bold("Sketches", tokens.label, 12.0));
             });
             for s in sketches {
                 ui.horizontal(|ui| {
@@ -326,6 +356,8 @@ pub fn show(
                         });
                     }
                     ui.label(RichText::new(&s.name).color(tokens.text));
+                    // `<span class="tag">${k.entities.length}</span>`: how many shapes it holds
+                    row_tag(ui, &s.outlines.len().to_string(), tokens.muted, false);
                 });
             }
         }

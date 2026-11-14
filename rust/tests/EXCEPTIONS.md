@@ -321,11 +321,18 @@ Nathan answered all of these on 2026-11-13: six accepted, one to measure in 4c, 
 - **Accepted (2026-11-13): Scale's starting size is worked out from the mesh's single-precision positions.** 1.x uses
   double precision, so on an exact tie in the third decimal the starting size can differ by
   0.001 mm.
-- **On the web, a large tool preview is prepared on the page's own thread** (the web build has
-  no threads for it). On the desktop it is prepared in the background. For a 500,000-triangle
-  preview this is estimated at 0.3 to 1 s, during which the page doesn't respond. Not measured
-  in a browser yet. **Nathan (2026-11-13): measure it in a real browser in 4c; if it is over
-  about 0.3 s, fix it (for example in slices, like the red overhangs).**
+- **Fixed (2026-11-13, measured again 2026-11-14): on the web, a large tool preview is prepared in 4 ms slices per frame,**
+  the same way as the red overhangs. Measured in headless Chrome (`cargo run -p xtask -- web --measure-preview`,
+  a 500,000-triangle mesh). On 2026-11-13 one shot on the main thread was 483 ms (the call itself 482.5 ms),
+  and after slicing the longest stretch was 246 ms over 41 slices. Remeasured 2026-11-14. Prep only
+  (creased normals and the picking tree, the mesh built inside the page, no receive and no upload):
+  one shot 269.2 ms (long task 269 ms); sliced, the longest stretch was 134.2 ms over 22 slices
+  (long task 134 ms). The same run then timed the app path: copying in the engine's bytes, preparing
+  the preview and uploading it to the GPU. One shot was 529.9 ms (long task 538 ms, 18 chunks of 2 MB).
+  Sliced, the longest frame was 134.5 ms over 37 frames (long task 134 ms, 18 chunks). That remaining
+  stretch is `Bvh::build`, which stays one call (`stl-mesh` is out of scope). 134.5 ms is under the
+  0.3 s bar, with about 165 ms of margin, so the tree was left whole. On the desktop the preview is
+  still prepared on a worker thread.
 - **Fixed (2026-11-13, 487b865): the Diameter readout of a picked cylinder face** was always
   in millimetres, also in inch mode. It now follows the unit setting like 1.x (`U.str`).
 - **Accepted (2026-11-13): the outline of a picked flat face** (Lay Flat, Push/Pull) is chained from the face's
@@ -336,4 +343,30 @@ Nathan answered all of these on 2026-11-13: six accepted, one to measure in 4c, 
   egui's spinner; the focus glow is two strokes.
 - **Accepted (2026-11-13): two UI checks wait for later milestones:** the browser drawer of `touch` (2.0's browser
   panel floats and has no drawer; milestone 5) and the sketch and Extrude timeline edit of
-  `desktop_tools` (needs sketch mode; milestone 4c).
+  `desktop_tools` (done in milestone 4c).
+
+## Sketch mode (milestone 4c)
+
+- **Pending Nathan's OK: solving runs off the screen's thread when it is slow.** 1.x solves a
+  sketch in the page on every change. In 2.0 the solver took 44.2 ms (p50) and 47.0 ms (p99) on a
+  200-shape, 100-relation sketch (release, 100 runs), which is too long for a 16.7 ms frame. So 2.0
+  solves at once while the last solve took under 4 ms, and otherwise on the engine thread (the Web
+  Worker on the web), keeping only the newest answer. Small sketches behave exactly as in 1.x.
+- **Pending Nathan's OK: dragging a shape that is not fully defined can end a little differently.**
+  1.x solves each drag step from the copy taken when the drag began; 2.0 solves from the last
+  solved position, so where an under-defined shape ends up can depend on the path of the pointer.
+  Fully defined shapes end in the same place.
+- **Pending Nathan's OK: open-chain Offset follows 1.x desktop, not 1.x web.** 1.x web gives
+  1.4999999999999998 for a point that 1.x desktop (GEOS) and 2.0 put at exactly 1.5 (golden case
+  `offset_open`). The golden test allows this one case to differ by at most 1e-12.
+- **Pending Nathan's OK: Trim on an arc or circle cuts where the true curve meets the line, as 1.x
+  web does.** 1.x desktop cut the 50-segment polygon of the arc, so the cut angles came out
+  59.9853954° and 120.0146046° instead of 60° and 120° (about 2.5 µm off at radius 10). Construction
+  shapes no longer cut a trim, also as 1.x web.
+- **Pending Nathan's OK: profile points are no longer nudged by rounding when they already sit on
+  the 0.00001 mm grid.** 1.x desktop gave 13.000000000000002 where 1.x web and 2.0 give 13
+  (`faces_nested`).
+- **Pending Nathan's OK: the text font list has no "More: fonts on this computer…" or "Add a font
+  file…".** 2.0 offers the bundled fonts only for now.
+- **Pending Nathan's OK: bundled symbol glyphs.** The bundled fonts had no ⌀ and some relation
+  symbols; 2.0 adds them from Noto (SIL Open Font License) so labels show the same symbols as 1.x.

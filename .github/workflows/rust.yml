@@ -154,6 +154,7 @@ jobs:
           node dev/parity/js/remesh_golden.mjs --check
           node dev/parity/js/step_golden.mjs --check
           node dev/parity/js/tools_golden.mjs --check
+          node dev/parity/js/sketchop_golden.mjs --check
 
       - name: Use the GNU host
         shell: bash
@@ -244,6 +245,15 @@ jobs:
 
       - name: Tools golden (2.0 registry)
         run: ${{ runner.os == 'Linux' && 'xvfb-run -a ' || '' }}cargo test -p stl-app --test tools_golden
+
+      # Task 6 adds crates/stl-app/tests/sketchop_golden.rs; skip until that file exists.
+      - name: SketchOp golden (2.0 route)
+        run: |
+          if [ -f crates/stl-app/tests/sketchop_golden.rs ]; then
+            ${{ runner.os == 'Linux' && 'xvfb-run -a ' || '' }}cargo test -p stl-app --test sketchop_golden
+          else
+            echo "sketchop_golden.rs not present yet (M4c Task 6); skipping"
+          fi
 
       - name: Upload Windows exe
         if: runner.os == 'Windows'

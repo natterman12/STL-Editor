@@ -1,0 +1,62 @@
+{
+  "op": "mirror",
+  "data": {
+    "seed": "g",
+    "entities": [
+      {
+        "id": "c",
+        "type": "circle",
+        "cx": 8,
+        "cy": 4,
+        "r": 3
+      },
+      {
+        "id": "ax",
+        "type": "line",
+        "p1": [
+          0,
+          -10
+        ],
+        "p2": [
+          0,
+          10
+        ]
+      }
+    ],
+    "ids": [
+      "c"
+    ],
+    "axis": "ax"
+  },
+  "result": {
+    "ok": true,
+    "entities": [
+      {
+        "id": "c",
+        "type": "circle",
+        "cx": 8,
+        "cy": 4,
+        "r": 3
+      },
+      {
+        "id": "ax",
+        "type": "line",
+        "p1": [
+          0,
+          -10
+        ],
+        "p2": [
+          0,
+          10
+        ]
+      },
+      {
+        "id": "eg1",
+        "type": "circle",
+        "cx": -8,
+        "cy": 4,
+        "r": 3
+      }
+    ]
+  }
+}

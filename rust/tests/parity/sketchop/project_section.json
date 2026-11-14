@@ -1,0 +1,65 @@
+{
+  "op": "project",
+  "data": {
+    "seed": "g",
+    "entities": [],
+    "frame": [
+      [
+        20,
+        10,
+        10
+      ],
+      [
+        1,
+        0,
+        0
+      ],
+      [
+        0,
+        1,
+        0
+      ],
+      [
+        0,
+        0,
+        1
+      ]
+    ],
+    "mode": "section",
+    "construction": false,
+    "tolerance": 0.02,
+    "offset": 0
+  },
+  "result": {
+    "ok": true,
+    "entities": [
+      {
+        "id": "eg1",
+        "type": "polyline",
+        "closed": true,
+        "pts": [
+          [
+            20,
+            10
+          ],
+          [
+            -20,
+            10
+          ],
+          [
+            -20,
+            -10
+          ],
+          [
+            20,
+            -10
+          ]
+        ],
+        "projected": true
+      }
+    ],
+    "added": [
+      "eg1"
+    ]
+  }
+}

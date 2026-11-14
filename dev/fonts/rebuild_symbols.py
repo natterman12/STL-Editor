@@ -1,28 +1,18 @@
 #!/usr/bin/env python3
 """Rebuild rust/crates/stl-app/assets/fonts/symbols.ttf.
 
-The bundled fallback is a tiny SIL OFL subset renamed "STL Editor Symbols":
-  U+2192 →  rightwards arrow   (from Noto Sans Math)
-  U+2033 ″  double prime       (from Noto Sans Math)
-  U+2665 ♥  black heart        (from Noto Sans Symbols 2)
-  U+26A0 ⚠  warning sign       (from Noto Sans Symbols 2)
-  U+2713 ✓  check mark         (from Noto Sans Symbols 2)
-  U+2714 ✔  heavy check mark   (from Noto Sans Symbols 2)
+The bundled fallback is a tiny SIL OFL subset renamed "STL Editor Symbols" (16 marks):
+  Noto Sans Math:       U+2033 ″  U+2192 →  U+2212 −  U+2225 ∥  U+2299 ⊙  U+22A5 ⊥  U+2300 ⌀  U+25CE ◎
+  Noto Sans Symbols 2:  U+2665 ♥  U+26A0 ⚠  U+2713 ✓  U+2714 ✔  U+2715 ✕  U+2717 ✗  U+1F512 🔒
+  Noto Sans Symbols:    U+232F ⌯
 
-Coverage check (Noto Sans / Noto Sans Symbols / Noto Sans Math / Noto Emoji):
-  - Noto Sans Math has → and ″ (and ♥ ✓, but not ⚠ ✔).
-  - Noto Sans Symbols 2 has ♥ ⚠ ✓ ✔ (not → ″).
-  - Together they cover all six; no other Noto face is required.
-
-Download the two source Regular TTFs from Google Fonts (ofl/notosansmath and
-ofl/notosanssymbols2) or the matching notofonts GitHub release assets into a
-folder outside the repo, then:
+Download the three source Regular TTFs (Google Fonts ofl/notosansmath, ofl/notosanssymbols2,
+ofl/notosanssymbols, or the matching notofonts releases) into a folder outside the repo, then:
 
   py -3.14 dev/fonts/rebuild_symbols.py --source-dir PATH
 
 Requires fontTools (pip install fonttools).
 """
-
 from __future__ import annotations
 
 import argparse
@@ -30,15 +20,17 @@ import sys
 from pathlib import Path
 
 from fontTools import subset
+from fontTools.pens.recordingPen import DecomposingRecordingPen
 from fontTools.pens.ttGlyphPen import TTGlyphPen
 from fontTools.ttLib import TTFont
 
-ARROW_PRIME = [0x2192, 0x2033]
-MARKS = [0x2665, 0x26A0, 0x2713, 0x2714]
-ALL = ARROW_PRIME + MARKS
-
-MATH_FILE = "NotoSansMath-Regular.ttf"
-SYMBOLS2_FILE = "NotoSansSymbols2-Regular.ttf"
+# (source file, code points taken from it). The first is the base font the others merge into.
+SOURCES = [
+    ("NotoSansSymbols2-Regular.ttf", [0x2665, 0x26A0, 0x2713, 0x2714, 0x2715, 0x2717, 0x1F512]),
+    ("NotoSansMath-Regular.ttf", [0x2033, 0x2192, 0x2212, 0x2225, 0x2299, 0x22A5, 0x2300, 0x25CE]),
+    ("NotoSansSymbols-Regular.ttf", [0x232F]),
+]
+ALL = [cp for _, cps in SOURCES for cp in cps]
 
 DROP = [
     "GSUB",
@@ -102,43 +94,42 @@ def rename_family(font: TTFont) -> None:
             rec.string = "STLEditorSymbols"
         elif rec.nameID == 3:
             rec.string = (
-                "STL Editor Symbols: subset of Noto Sans Math + Noto Sans Symbols 2"
+                "STL Editor Symbols: subset of Noto Sans Math + Noto Sans Symbols 2 + Noto Sans Symbols"
             )
 
 
-def build(math_path: Path, symbols2_path: Path, out_path: Path, work: Path) -> None:
+def build(sources: list[tuple[Path, list[int]]], out_path: Path, work: Path) -> None:
     work.mkdir(parents=True, exist_ok=True)
-    out_math = work / "math_part.ttf"
-    out_sym = work / "sym_part.ttf"
-    subset_font(math_path, out_math, ARROW_PRIME)
-    subset_font(symbols2_path, out_sym, MARKS)
-
-    base = TTFont(str(out_sym))
-    donor = TTFont(str(out_math))
+    parts = []
+    for i, (path, cps) in enumerate(sources):
+        part = work / f"part{i}.ttf"
+        subset_font(path, part, cps)
+        parts.append((TTFont(str(part)), cps))
+    base, _ = parts[0]
     for tag in DROP:
         if tag in base:
             del base[tag]
-        if tag in donor:
-            del donor[tag]
-
-    donor_cmap = donor.getBestCmap()
-    donor_gs = donor.getGlyphSet()
     unicode_cmaps = [t for t in base["cmap"].tables if hasattr(t, "cmap")]
     if not unicode_cmaps:
-        raise SystemExit("symbols2 subset has no cmap table")
+        raise SystemExit("base subset has no cmap table")
 
     added: list[str] = []
-    for cp in ARROW_PRIME:
-        src_name = donor_cmap[cp]
-        # Keep the source glyph name (arrowright / second) — short and stable.
-        dst_name = src_name
-        pen = TTGlyphPen(None)
-        donor_gs[src_name].draw(pen)
-        base["glyf"][dst_name] = pen.glyph()
-        base["hmtx"][dst_name] = donor["hmtx"][src_name]
-        for t in unicode_cmaps:
-            t.cmap[cp] = dst_name
-        added.append(dst_name)
+    for donor, cps in parts[1:]:
+        donor_cmap = donor.getBestCmap()
+        donor_gs = donor.getGlyphSet()
+        for cp in cps:
+            src_name = donor_cmap[cp]
+            dst_name = src_name if src_name not in base.getGlyphOrder() else f"u{cp:04X}"
+            # composites (Math's parallel is two copies of one bar) are drawn as plain outlines
+            rec = DecomposingRecordingPen(donor_gs)
+            donor_gs[src_name].draw(rec)
+            pen = TTGlyphPen(None)
+            rec.replay(pen)
+            base["glyf"][dst_name] = pen.glyph()
+            base["hmtx"][dst_name] = donor["hmtx"][src_name]
+            for t in unicode_cmaps:
+                t.cmap[cp] = dst_name
+            added.append(dst_name)
 
     order = [g for g in base.getGlyphOrder() if g != ".notdef"]
     for name in added:
@@ -161,12 +152,12 @@ def build(math_path: Path, symbols2_path: Path, out_path: Path, work: Path) -> N
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description=__doc__)
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument(
         "--source-dir",
         type=Path,
         required=True,
-        help=f"Folder with {MATH_FILE} and {SYMBOLS2_FILE} (outside the repo)",
+        help="Folder with the three Noto source TTFs (outside the repo)",
     )
     ap.add_argument(
         "--out",
@@ -175,16 +166,14 @@ def main() -> int:
         help=f"Output TTF (default: {REPO_OUT})",
     )
     args = ap.parse_args()
-    math_path = args.source_dir / MATH_FILE
-    symbols2_path = args.source_dir / SYMBOLS2_FILE
-    for p in (math_path, symbols2_path):
+    sources = [(args.source_dir / name, cps) for name, cps in SOURCES]
+    for p, _ in sources:
         if not p.is_file() or p.stat().st_size < 10_000:
             print(f"missing or too small: {p}", file=sys.stderr)
             return 1
     work = args.source_dir / "work"
-    build(math_path, symbols2_path, args.out, work)
+    build(sources, args.out, work)
     return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

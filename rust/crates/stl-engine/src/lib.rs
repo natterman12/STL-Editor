@@ -8,6 +8,7 @@ pub mod fins_host;
 pub mod labels;
 pub mod params;
 pub mod registry;
+pub mod sketch_op;
 pub mod state;
 pub mod stlx;
 

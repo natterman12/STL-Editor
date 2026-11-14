@@ -2,19 +2,29 @@
 //!
 //! M4b UI parity (Task 8): `desktop_mirror`, `desktop_place`, `desktop_tools`, `gizmo`,
 //! `sf11`, `sf9`, `sfcov`, `sfpanel`, `touch`, `v110`, `web7`, `web8`.
+//! M4c skeletons (Task 0, ignored until Task 8): `desktop_flow`, `desktop_new`,
+//! `desktop_sketch2`, `desktop_v11`, `skdim`, `skdim2`, `tap`, `web2`.
 
 mod harness;
 
+mod desktop_flow;
 mod desktop_mirror;
+mod desktop_new;
 mod desktop_place;
+mod desktop_sketch2;
 mod desktop_tools;
+mod desktop_v11;
 mod gizmo;
 mod sf11;
 mod sf9;
 mod sfcov;
 mod sfpanel;
+mod skdim;
+mod skdim2;
+mod tap;
 mod touch;
 mod v110;
+mod web2;
 mod web7;
 mod web8;
 

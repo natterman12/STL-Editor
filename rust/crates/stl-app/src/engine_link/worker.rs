@@ -99,6 +99,24 @@ impl Worker {
             }
             return;
         }
+        if let Command::SketchOp { seq, op, data } = c {
+            // Quiet, like 1.x `post('sketch_op', …, {quiet: true})`: no Busy overlay, no refresh.
+            let run = catch_unwind(AssertUnwindSafe(|| self.answer_sketch(seq, &op, &data)));
+            if run.is_err() {
+                self.lost = true;
+                self.send(Update::EngineLost);
+            }
+            return;
+        }
+        if let Command::Solve { seq, entities, constraints, locks, fixed } = c {
+            // Quiet, like SketchOp: a solve does not change the document, so no Busy overlay and no refresh.
+            let run = catch_unwind(AssertUnwindSafe(|| self.answer_solve(seq, &entities, &constraints, &locks, &fixed)));
+            if run.is_err() {
+                self.lost = true;
+                self.send(Update::EngineLost);
+            }
+            return;
+        }
         self.send(Update::Busy(true));
         let run = catch_unwind(AssertUnwindSafe(|| self.run(c)));
         self.cancel.store(false, Ordering::SeqCst);
@@ -203,6 +221,25 @@ impl Worker {
         self.send(Update::Preview { seq, pack, msg, error: None, warn, result });
     }
 
+    /// The answer to `Command::SketchOp`. The document is not changed.
+    fn answer_sketch(&self, seq: u64, op: &str, data: &serde_json::Value) {
+        let result = self.doc.sketch_op(op, data).map_err(|e| e.0);
+        self.send(Update::SketchOp { seq, result });
+    }
+
+    /// The answer to `Command::Solve`. The document is not changed.
+    fn answer_solve(
+        &self,
+        seq: u64,
+        entities: &[stl_sketch::entities::Entity],
+        constraints: &[stl_sketch::solver::Constraint],
+        locks: &[stl_sketch::solver::Lock],
+        fixed: &[stl_sketch::entities::Entity],
+    ) {
+        let r = stl_sketch::solver::solve(entities, constraints, locks, fixed);
+        self.send(Update::Solved { seq, entities: r.entities, ok: r.ok, error: r.error });
+    }
+
     fn fail(&self, e: FeatureError) {
         if e.0 == "Cancelled." {
             self.send(Update::Message { level: Level::Info, text: e.0 });
@@ -298,6 +335,14 @@ impl Worker {
                 let opts = ExportOptions { uuid_seed: seed(&title, &date), step_title: title.clone(), step_date: date };
                 let (bytes, count) = self.doc.export_bytes(format, Some(&ids), &opts)?;
                 self.send(Update::Exported { name: format!("{title}.{}", format.ext()), bytes, count });
+                Ok(())
+            }
+            Command::SketchOp { seq, op, data } => {
+                self.answer_sketch(seq, &op, &data);
+                Ok(())
+            }
+            Command::Solve { seq, entities, constraints, locks, fixed } => {
+                self.answer_solve(seq, &entities, &constraints, &locks, &fixed);
                 Ok(())
             }
             Command::Cancel | Command::ClearPreview | Command::Preview { .. } | Command::Fins { .. } => Ok(()),

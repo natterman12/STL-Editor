@@ -19,6 +19,16 @@ pub const HOV_STRENGTH: f32 = 0.16;
 pub const FACE_HL: u32 = 0x2f8cff;
 pub const PLANE_COL: u32 = 0xe8763a;
 pub const SKETCH_COL: u32 = 0xd9480f;
+/// Active sketch stroke, `colDef()` in `sketcher.js` (`--def-full`).
+pub const SKETCH_DEF_DARK: u32 = 0xe9ecef;
+pub const SKETCH_DEF_LIGHT: u32 = 0x1d2433;
+/// `COL_UNDER`, `COL_BAD`, `COL_SEL`, `COL_HOVER`, `COL_PREV`, `COL_EDGE` in `sketcher.js`.
+pub const SKETCH_UNDER: u32 = 0x1c6fd6;
+pub const SKETCH_BAD: u32 = 0xe03131;
+pub const SKETCH_SEL: u32 = 0x0ca678;
+pub const SKETCH_HOVER: u32 = 0x38c99a;
+pub const SKETCH_PREVIEW: u32 = 0xe8590c;
+pub const SKETCH_EDGE: u32 = 0xf76707;
 pub const BASE_XY: u32 = 0x3b82f6;
 pub const BASE_XZ: u32 = 0x22a35a;
 pub const BASE_YZ: u32 = 0xe25555;
@@ -336,4 +346,157 @@ pub fn plane_mesh(frame: &Frame, size: f64, color: u32, fill_alpha: f32) -> (Vec
     let lc = rgba(color, 0.7);
     let lines = [0, 1, 1, 2, 2, 3, 3, 0].iter().map(|&i| FlatVertex::new(q[i], lc)).collect();
     (tris, lines)
+}
+
+/// `_buildPlaneGrid` (`sketcher.js`): sheet, grid lines (minor then major) and the two axes.
+/// `scene_diagonal` is `sceneBox().getSize().length()`; empty is 100, otherwise at least 40.
+/// Returns (sheet triangles, grid lines, axis lines).
+pub fn sketch_plane_grid(frame: &Frame, scene_diagonal: Option<f64>) -> (Vec<FlatVertex>, Vec<FlatVertex>, Vec<FlatVertex>) {
+    let r = match scene_diagonal {
+        Some(d) if d.is_finite() && d > 0.0 => d.max(40.0),
+        _ => 100.0,
+    };
+    let step = if r > 400.0 { 10.0 } else if r > 80.0 { 5.0 } else { 1.0 };
+    let half = (r / step).ceil() * step;
+    let [o, x, y, _] = *frame;
+    let at = |u: f64, v: f64| camera::add(o, camera::add(camera::scale(x, u), camera::scale(y, v)));
+    let count = (2.0 * half / step).round() as i32;
+    let mut lines = Vec::new();
+    let mut major = Vec::new();
+    let minor_c = rgba(0xc58a68, 0.16);
+    let major_c = rgba(0xc58a68, 0.32);
+    for i in 0..=count {
+        let v = -half + i as f64 * step;
+        let dest_major = (v / step).round() as i32 % 5 == 0;
+        let (buf, c) = if dest_major { (&mut major, major_c) } else { (&mut lines, minor_c) };
+        buf.push(FlatVertex::new(at(-half, v), c));
+        buf.push(FlatVertex::new(at(half, v), c));
+        buf.push(FlatVertex::new(at(v, -half), c));
+        buf.push(FlatVertex::new(at(v, half), c));
+    }
+    lines.extend(major);
+    let mut axes = Vec::new();
+    let red = rgba(0xe25555, 1.0);
+    let green = rgba(0x22a35a, 1.0);
+    axes.push(FlatVertex::new(at(-half, 0.0), red));
+    axes.push(FlatVertex::new(at(half, 0.0), red));
+    axes.push(FlatVertex::new(at(0.0, -half), green));
+    axes.push(FlatVertex::new(at(0.0, half), green));
+    let sheet_c = rgba(0xfff1e8, 0.18);
+    let q = [at(-half, -half), at(half, -half), at(half, half), at(-half, half)];
+    let sheet = [0, 1, 2, 0, 2, 3].into_iter().map(|i| FlatVertex::new(q[i], sheet_c)).collect();
+    (sheet, lines, axes)
+}
+
+/// `toCreasedNormals`, a slice at a time. [`creased_normals`] is the same work in one go;
+/// `tests/flyin.rs` checks the two agree.
+pub struct CreaseBuild {
+    ntri: usize,
+    crease_dot: f64,
+    phase: u8,
+    next: usize,
+    normals: Vec<V3>,
+    group_of: Vec<u32>,
+    groups: HashMap<(i32, i32, i32), u32>,
+    start: Vec<u32>,
+    faces: Vec<u32>,
+    out: Vec<LitVertex>,
+}
+
+impl CreaseBuild {
+    pub fn new(m: &MeshArrays, crease_deg: f64) -> Self {
+        let ntri = m.triangles.len() / 3;
+        CreaseBuild {
+            ntri,
+            crease_dot: crease_deg.to_radians().cos(),
+            phase: 0,
+            next: 0,
+            normals: Vec::with_capacity(ntri),
+            group_of: Vec::with_capacity(ntri * 3),
+            groups: HashMap::with_capacity(m.positions.len() / 3),
+            start: Vec::new(),
+            faces: Vec::new(),
+            out: Vec::new(),
+        }
+    }
+
+    /// Work until `budget` is used (`None`: to the end). The vertices when it has finished.
+    pub fn step(&mut self, m: &MeshArrays, budget: Option<std::time::Duration>) -> Option<Vec<LitVertex>> {
+        let t0 = web_time::Instant::now();
+        let mut checks = 0u32;
+        let mult = (1.0 + 1e-10) * 1e2;
+        let hash = |p: V3| -> (i32, i32, i32) { ((p[0] * mult) as i32, (p[1] * mult) as i32, (p[2] * mult) as i32) };
+        loop {
+            if let Some(b) = budget {
+                checks += 1;
+                if checks % 1024 == 0 && t0.elapsed() >= b {
+                    return None;
+                }
+            }
+            match self.phase {
+                0 => {
+                    if self.next >= self.ntri {
+                        self.phase = 1;
+                        continue;
+                    }
+                    let t = self.next;
+                    self.next += 1;
+                    let p = [0, 1, 2].map(|j| corner(m, m.triangles[t * 3 + j]));
+                    self.normals.push(face_normal(p[0], p[1], p[2]));
+                    for q in p {
+                        let n = self.groups.len() as u32;
+                        self.group_of.push(*self.groups.entry(hash(q)).or_insert(n));
+                    }
+                }
+                1 => {
+                    let ng = self.groups.len();
+                    let mut start = vec![0u32; ng + 1];
+                    for &g in &self.group_of {
+                        start[g as usize + 1] += 1;
+                    }
+                    for i in 0..ng {
+                        start[i + 1] += start[i];
+                    }
+                    let mut fill = start.clone();
+                    let mut faces = vec![0u32; self.group_of.len()];
+                    for (c, &g) in self.group_of.iter().enumerate() {
+                        faces[fill[g as usize] as usize] = (c / 3) as u32;
+                        fill[g as usize] += 1;
+                    }
+                    self.start = start;
+                    self.faces = faces;
+                    self.groups.clear();
+                    self.phase = 2;
+                    self.next = 0;
+                    if budget.is_some_and(|b| t0.elapsed() >= b) {
+                        return None;
+                    }
+                }
+                _ => {
+                    if self.next >= self.ntri {
+                        return Some(std::mem::take(&mut self.out));
+                    }
+                    let t = self.next;
+                    self.next += 1;
+                    let n = self.normals[t];
+                    for j in 0..3 {
+                        let g = self.group_of[t * 3 + j] as usize;
+                        let mut sum = [0.0; 3];
+                        for &f in &self.faces[self.start[g] as usize..self.start[g + 1] as usize] {
+                            let o = self.normals[f as usize];
+                            if camera::dot(n, o) > self.crease_dot {
+                                sum = camera::add(sum, o);
+                            }
+                        }
+                        let s = camera::normalize(sum);
+                        let p = corner(m, m.triangles[t * 3 + j]);
+                        self.out.push(LitVertex {
+                            pos: [p[0] as f32, p[1] as f32, p[2] as f32],
+                            normal: [s[0] as f32, s[1] as f32, s[2] as f32],
+                        });
+                    }
+                }
+            }
+        }
+    }
 }

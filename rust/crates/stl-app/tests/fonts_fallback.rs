@@ -58,6 +58,61 @@ fn source_chars() -> std::collections::BTreeMap<char, String> {
     out
 }
 
+/// Sketch labels, hints, toasts and panel text collected from `sketch/*.rs` constants and
+/// the relation / dimension glyphs 1.x shows (⌀ ƒ • ⊙ ∥ ⊥ ◎ ⌯ 🔒 and °).
+fn sketch_strings() -> Vec<(&'static str, String)> {
+    let mut out = Vec::new();
+    let push = |out: &mut Vec<(&'static str, String)>, where_: &'static str, s: &str| {
+        if !s.is_empty() {
+            out.push((where_, s.to_owned()));
+        }
+    };
+    for (k, label, hint) in stl_app::sketch::relations::CTOOLS {
+        push(&mut out, "sketch.CTOOLS.label", label);
+        push(&mut out, "sketch.CTOOLS.hint", hint);
+        let _ = k;
+    }
+    for key in [
+        "select", "line", "arc3", "trim", "sk_mirror", "sk_corner", "sk_useedge", "rect", "rect_center", "circle", "polygon", "slot", "text",
+    ] {
+        let h = stl_app::sketch::draw::hint_for(key);
+        if !h.is_empty() {
+            push(&mut out, "sketch.draw.hint_for", h);
+        }
+        let h2 = stl_app::sketch::session::tool_hint(key);
+        if !h2.is_empty() {
+            push(&mut out, "sketch.session.tool_hint", &h2);
+        }
+    }
+    for (where_, s) in [
+        ("sketch.panel.FINISH_LABEL", stl_app::sketch::panel::FINISH_LABEL),
+        ("sketch.session.UNKEPT", stl_app::sketch::session::UNKEPT),
+        // U+232F ⌯ (conical taper) is the symmetric mark in relations/dims; not U+233F.
+        ("sketch.glyphs", "⌀ƒ•⊙∥⊥◎\u{232F}🔒°×—✓−✕✗"),
+        ("sketch.drawable.sample", "⌀ 12 · ƒ w · • coincident · ⊙ on · ∥ // · ⊥ _| · ◎ o · \u{232F} S · 🔒 F"),
+    ] {
+        push(&mut out, where_, s);
+    }
+    // Every non-ASCII character literally present in sketch source (string/char literals).
+    let sketch_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/sketch");
+    let mut stack = vec![sketch_dir];
+    while let Some(dir) = stack.pop() {
+        for e in std::fs::read_dir(&dir).into_iter().flatten().flatten() {
+            let p = e.path();
+            if p.is_dir() {
+                stack.push(p);
+            } else if p.extension().is_some_and(|x| x == "rs") {
+                let text = std::fs::read_to_string(&p).unwrap_or_default();
+                let sample: String = code_chars(&text).into_iter().collect();
+                if !sample.is_empty() {
+                    push(&mut out, "sketch.src", &sample);
+                }
+            }
+        }
+    }
+    out
+}
+
 /// Labels, help, hints and messages from the tool registry and Support Fins panel constants.
 fn panel_strings() -> Vec<(&'static str, String)> {
     let mut out = Vec::new();
@@ -222,6 +277,33 @@ fn every_tool_and_supports_panel_string_has_a_bundled_glyph() {
     assert!(
         missing.is_empty(),
         "no glyph in the bundled fonts for tool/supports panel text:\n{}",
+        missing.join("\n")
+    );
+}
+
+#[test]
+fn every_sketch_label_hint_toast_and_panel_string_has_a_bundled_glyph() {
+    let ctx = bundled_ctx();
+    let strings = sketch_strings();
+    assert!(strings.len() > 20, "sketch string table too small: {}", strings.len());
+    // The 1.x sketch marks must be present (Selawik has ƒ •; symbols.ttf has the rest).
+    for c in "⌀ƒ•⊙∥⊥◎\u{232F}🔒°−✕✗".chars() {
+        assert!(has(&ctx, &FontFamily::Proportional, c), "bundled fonts lack sketch glyph {c} (U+{:04X})", c as u32);
+        assert!(has(&ctx, &FontFamily::Name("bold".into()), c), "bold family lacks sketch glyph {c}");
+    }
+    let mut missing = Vec::new();
+    for (where_, s) in &strings {
+        for c in s.chars().filter(|c| !c.is_ascii()) {
+            for family in [FontFamily::Proportional, FontFamily::Name("bold".into())] {
+                if !has(&ctx, &family, c) {
+                    missing.push(format!("{c} (U+{:04X}) in {where_}: {s:?}, {family:?}", c as u32));
+                }
+            }
+        }
+    }
+    assert!(
+        missing.is_empty(),
+        "no glyph in the bundled fonts for sketch UI text:\n{}",
         missing.join("\n")
     );
 }

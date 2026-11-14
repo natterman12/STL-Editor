@@ -33,6 +33,32 @@ fn param(prim: &Entity, pt: P2) -> f64 {
     }
 }
 
+/// 1.x web `crossings` for an arc or circle: where the exact circle meets each segment of the
+/// path `other`, as angles in degrees (the arc's range is checked by the caller). Same formulas
+/// and order as `web/engine/sketch2d.js`, so the angles agree bit for bit.
+fn circle_crossings(cx: f64, cy: f64, r: f64, other: &[P2], out: &mut Vec<f64>) {
+    for w in other.windows(2) {
+        let (a, b) = (w[0], w[1]);
+        let (dx, dy, fx, fy) = (b[0] - a[0], b[1] - a[1], a[0] - cx, a[1] - cy);
+        let qa = dx * dx + dy * dy;
+        let qb = 2.0 * (fx * dx + fy * dy);
+        let qc = fx * fx + fy * fy - r * r;
+        let disc = qb * qb - 4.0 * qa * qc;
+        if disc < 0.0 || qa < 1e-18 {
+            continue;
+        }
+        for s in [-1.0, 1.0] {
+            let t = (-qb + s * disc.sqrt()) / (2.0 * qa);
+            if (-1e-9..=1.0 + 1e-9).contains(&t) {
+                out.push((a[1] + t * dy - cy).atan2(a[0] + t * dx - cx) * 180.0 / std::f64::consts::PI);
+            }
+            if disc == 0.0 {
+                break;
+            }
+        }
+    }
+}
+
 fn round_to(x: f64, digits: i32) -> f64 {
     let k = 10f64.powi(digits);
     (x * k).round_ties_even() / k
@@ -49,7 +75,8 @@ fn sorted_set(mut v: Vec<f64>) -> Vec<f64> {
 pub fn trim(entities: &[Entity], eid: &str, point: P2) -> Result<Vec<Entity>, SketchError> {
     let nothing = || SketchError::new("Nothing to trim there.");
     let target = entities.iter().find(|e| e.id() == Some(eid)).ok_or_else(nothing)?;
-    let others: Vec<&Entity> = entities.iter().filter(|e| e.id() != Some(eid)).collect();
+    // construction lines don't cut (1.x web; 1.x desktop let them)
+    let others: Vec<&Entity> = entities.iter().filter(|e| e.id() != Some(eid) && !e.construction()).collect();
     let prims = explode(target);
     if prims.is_empty() {
         return Err(nothing());
@@ -70,8 +97,14 @@ pub fn trim(entities: &[Entity], eid: &str, point: P2) -> Result<Vec<Entity>, Sk
     let mut cuts: Vec<f64> = vec![];
     for o in others.iter().copied().chain(rest.iter()) {
         let Some(go) = geom(o) else { continue };
-        for q in intersection_points(&g, &go) {
-            cuts.push(param(&prim, q));
+        match &prim {
+            Entity::Arc(a) => circle_crossings(a.cx, a.cy, a.r, &go, &mut cuts),
+            Entity::Circle(c) => circle_crossings(c.cx, c.cy, c.r, &go, &mut cuts),
+            _ => {
+                for q in intersection_points(&g, &go) {
+                    cuts.push(param(&prim, q));
+                }
+            }
         }
     }
     let tp = param(&prim, point);

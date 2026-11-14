@@ -171,10 +171,12 @@ pub(crate) fn set_construction(e: &mut Entity, v: bool) {
     }
 }
 
-/// Snap to a 1e-5 grid (1.x `_q`; Python rounds halves to even).
+/// Snap to a 1e-5 grid (1.x `_q`; Python rounds halves to even). The grid index is divided
+/// by 1e5 instead of multiplied by 1e-5 (as 1.x desktop does), so values already on the grid
+/// come back unchanged (13, not 13.000000000000002), as in 1.x web, which never moves points.
 fn quantize(p: P2) -> P2 {
     let tol = 1e-5;
-    [(p[0] / tol).round_ties_even() * tol, (p[1] / tol).round_ties_even() * tol]
+    [(p[0] / tol).round_ties_even() / 1e5, (p[1] / tol).round_ties_even() / 1e5]
 }
 
 fn wanted(e: &Entity, only: Option<&[String]>) -> bool {

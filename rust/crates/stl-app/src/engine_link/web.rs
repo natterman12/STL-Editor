@@ -148,6 +148,20 @@ fn plain_update(update: &Update) -> Value {
             ("text".into(), Value::String(text.clone())),
         ])),
         Update::EngineLost => Value::Object(Map::from_iter([("t".into(), Value::String("engineLost".into()))])),
+        // Task 6 wires the web worker; this is the update as it would be sent.
+        Update::Solved { seq, entities, ok, error } => Value::Object(Map::from_iter([
+            ("t".into(), Value::String("solved".into())),
+            ("seq".into(), Value::from(*seq)),
+            ("entities".into(), serde_json::to_value(entities).unwrap_or_default()),
+            ("ok".into(), Value::Bool(*ok)),
+            ("error".into(), Value::from(*error)),
+        ])),
+        Update::SketchOp { seq, result } => Value::Object(Map::from_iter([
+            ("t".into(), Value::String("sketchOp".into())),
+            ("seq".into(), Value::from(*seq)),
+            ("ok".into(), Value::Bool(result.is_ok())),
+            ("data".into(), match result { Ok(v) => v.clone(), Err(e) => Value::String(e.clone()) }),
+        ])),
         Update::Fins { seq, ask, result } => {
             let (ok, data) = match result {
                 Ok(v) => (true, v.clone()),
@@ -457,6 +471,18 @@ fn decode_command(data: &JsValue) -> Result<Command, String> {
             edit_id: opt_string(&get(data, "editId")),
         }),
         "clearPreview" => Ok(Command::ClearPreview),
+        "sketchOp" => Ok(Command::SketchOp {
+            seq: get(data, "seq").as_f64().unwrap_or(0.0) as u64,
+            op: req_string(data, "op")?,
+            data: json_field(data, "data"),
+        }),
+        "solve" => Ok(Command::Solve {
+            seq: get(data, "seq").as_f64().unwrap_or(0.0) as u64,
+            entities: decode_entities(&json_field(data, "entities"))?,
+            constraints: decode_constraints(&json_field(data, "constraints"))?,
+            locks: decode_locks(&json_field(data, "locks"))?,
+            fixed: decode_entities(&json_field(data, "fixed"))?,
+        }),
         "fins" => {
             let ask = match req_string(data, "ask")?.as_str() {
                 "info" => FinsAsk::Info,
@@ -478,6 +504,28 @@ fn decode_command(data: &JsValue) -> Result<Command, String> {
         }),
         other => Err(format!("The engine got a message it doesn't understand ({other}).")),
     }
+}
+
+fn decode_entities(v: &Value) -> Result<Vec<stl_sketch::entities::Entity>, String> {
+    match v {
+        Value::Null => Ok(Vec::new()),
+        Value::Array(a) => stl_sketch::entities::parse_entities(a),
+        _ => Err("The engine got a message it doesn't understand (solve entities).".into()),
+    }
+}
+
+fn decode_constraints(v: &Value) -> Result<Vec<stl_sketch::solver::Constraint>, String> {
+    if v.is_null() {
+        return Ok(Vec::new());
+    }
+    serde_json::from_value(v.clone()).map_err(|e| e.to_string())
+}
+
+fn decode_locks(v: &Value) -> Result<Vec<stl_sketch::solver::Lock>, String> {
+    if v.is_null() {
+        return Ok(Vec::new());
+    }
+    serde_json::from_value(v.clone()).map_err(|e| e.to_string())
 }
 
 fn export_format(s: &str) -> Result<ExportFormat, String> {
@@ -523,6 +571,8 @@ fn encode_command(c: &Command) -> JsValue {
         Command::Preview { .. } => "preview",
         Command::ClearPreview => "clearPreview",
         Command::Fins { .. } => "fins",
+        Command::SketchOp { .. } => "sketchOp",
+        Command::Solve { .. } => "solve",
     };
     m.insert("t".into(), Value::String(tag.into()));
     if let Command::Open { name, .. } | Command::Import { name, .. } = c {
@@ -546,6 +596,18 @@ fn encode_command(c: &Command) -> JsValue {
             m.insert("kind".into(), Value::String(kind.clone()));
             m.insert("params".into(), params.clone());
             m.insert("editId".into(), edit_id.clone().map(Value::String).unwrap_or(Value::Null));
+        }
+        Command::Solve { seq, entities, constraints, locks, fixed } => {
+            m.insert("seq".into(), Value::from(*seq));
+            m.insert("entities".into(), serde_json::to_value(entities).unwrap_or_default());
+            m.insert("constraints".into(), serde_json::to_value(constraints).unwrap_or_default());
+            m.insert("locks".into(), serde_json::to_value(locks).unwrap_or_default());
+            m.insert("fixed".into(), serde_json::to_value(fixed).unwrap_or_default());
+        }
+        Command::SketchOp { seq, op, data } => {
+            m.insert("seq".into(), Value::from(*seq));
+            m.insert("op".into(), Value::String(op.clone()));
+            m.insert("data".into(), data.clone());
         }
         Command::Fins { seq, ask } => {
             m.insert("seq".into(), Value::from(*seq));
@@ -809,8 +871,10 @@ fn post_cmd(inner: &Rc<RefCell<Inner>>, c: &Command) {
     let pending = match c {
         Command::Open { name, bytes } if name.to_lowercase().ends_with(".stlx") => Pending::Project(bytes.clone()),
         Command::Open { .. } => Pending::Clear,
-        // a preview sends no Busy: it is not one of the commands the worker counts
-        Command::Preview { .. } | Command::ClearPreview | Command::Fins { .. } => return post_js(inner, &encode_command(c)),
+        // Preview, fins, sketch ops and solves send no Busy: the worker does not count them.
+        Command::Preview { .. } | Command::ClearPreview | Command::Fins { .. } | Command::SketchOp { .. } | Command::Solve { .. } => {
+            return post_js(inner, &encode_command(c))
+        }
         _ => Pending::Other,
     };
     inner.borrow_mut().sent.push_back(pending);
@@ -993,6 +1057,23 @@ fn decode_update(data: &JsValue) -> Option<Update> {
             error: opt_string(&get(data, "error")),
             warn: get(data, "warn").as_bool().unwrap_or(false),
             result: json_field(data, "result"),
+        },
+        "sketchOp" => {
+            let data_v = json_field(data, "data");
+            Update::SketchOp {
+                seq: get(data, "seq").as_f64().unwrap_or(0.0) as u64,
+                result: if get(data, "ok").as_bool().unwrap_or(false) {
+                    Ok(data_v)
+                } else {
+                    Err(data_v.as_str().unwrap_or("The sketch operation failed.").to_owned())
+                },
+            }
+        }
+        "solved" => Update::Solved {
+            seq: get(data, "seq").as_f64().unwrap_or(0.0) as u64,
+            entities: decode_entities(&json_field(data, "entities")).unwrap_or_default(),
+            ok: get(data, "ok").as_bool().unwrap_or(false),
+            error: get(data, "error").as_f64().unwrap_or(0.0),
         },
         "fins" => {
             let data_v = json_field(data, "data");

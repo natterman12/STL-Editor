@@ -1,3 +1,4 @@
+#![allow(unexpected_cfgs)]
 //! The GPU side: one buffer set per body, uploaded only when the body's revision changes; a
 //! large upload is copied a few megabytes at a time so one frame stays short. The scene is
 //! rendered into the viewport's own 4x MSAA target (with depth), then copied into egui's pass.
@@ -1190,4 +1191,47 @@ impl Headless {
     pub fn bodies_on_gpu(&self) -> usize {
         self.render_state.renderer.read().callback_resources.get::<GpuState>().map_or(0, |g| g.bodies_on_gpu())
     }
+}
+
+/// A device for `xtask web --measure-preview`. Compiled only with `--cfg stl_preview_measure`.
+#[cfg(all(target_arch = "wasm32", stl_preview_measure))]
+pub struct MeasureGpu {
+    pub device: wgpu::Device,
+    pub queue: wgpu::Queue,
+    pub state: GpuState,
+}
+
+/// Open WebGPU and compile the viewport shaders. Call this outside the timed stretch.
+#[cfg(all(target_arch = "wasm32", stl_preview_measure))]
+pub async fn measure_open_gpu() -> Result<MeasureGpu, String> {
+    let mut desc = wgpu::InstanceDescriptor::new_without_display_handle();
+    desc.backends = wgpu::Backends::BROWSER_WEBGPU;
+    let instance = wgpu::Instance::new(desc);
+    let adapter = instance
+        .request_adapter(&wgpu::RequestAdapterOptions::default())
+        .await
+        .map_err(|e| format!("no WebGPU adapter: {e:?}"))?;
+    let (device, queue) = adapter
+        .request_device(&wgpu::DeviceDescriptor {
+            label: Some("preview measure"),
+            required_limits: adapter.limits(),
+            ..Default::default()
+        })
+        .await
+        .map_err(|e| format!("no WebGPU device: {e:?}"))?;
+    let state = GpuState::new(&device, COLOR_FORMAT, Arc::new(Stats::default()));
+    Ok(MeasureGpu { device, queue, state })
+}
+
+/// Copy one upload chunk and encode the frame. `Ok(true)` when another chunk remains.
+#[cfg(all(target_arch = "wasm32", stl_preview_measure))]
+pub fn measure_upload_frame(gpu: &mut MeasureGpu, frame: &FrameData) -> Result<bool, String> {
+    let (rendered, cmd) = gpu.state.render(&gpu.device, &gpu.queue, frame);
+    if let Some(cmd) = cmd {
+        gpu.queue.submit(std::iter::once(cmd));
+    }
+    if rendered.error {
+        return Err("gpu error during preview upload".into());
+    }
+    Ok(rendered.more)
 }

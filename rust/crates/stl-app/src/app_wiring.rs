@@ -800,7 +800,7 @@ impl StlApp {
 
     /// The sketch editor arrives in 4c; its handles must not show while it is active.
     fn sketcher_active(&self) -> bool {
-        false
+        self.sketch.is_some()
     }
 
     // ------------------------------------------------------------------ Move / Scale: let go = done
@@ -1418,4 +1418,734 @@ impl StlApp {
     pub fn wall_drawer(&self) -> &WallDrawer {
         &self.sf.drawer
     }
+}
+
+// ====================================================================== sketch mode (4c)
+//
+// `app.js` `beginSketch`, `enterSketch`, `finishSketch`, `cancelSketch`, the sketch branch of
+// `onRibbon` and the sketcher's event handling, on top of `crate::sketch`.
+
+use crate::sketch::session::{self as sk_session, Env, SketchMode};
+use crate::sketch::{self, SketchDialog, SketchEffect, SketchInput, SketchSession};
+use crate::viewport::{MouseMode, PlaneFrame};
+
+/// "Click a flat face of a body, a construction plane, or one of the origin planes (XY, XZ, YZ)." (app.js:1500)
+pub const PLANE_PROMPT_INFO: &str = "Click a flat face of a body, a construction plane, or one of the origin planes (XY, XZ, YZ).";
+
+/// What the sketch keeps beside `SketchMode` on the app.
+#[derive(Default)]
+pub(super) struct Sk {
+    /// Sequence for `Command::SketchOp`.
+    pub seq: u64,
+    /// The step ids that existed when Finish was pressed (to find the new one).
+    pub known: Vec<String>,
+    pub text: sketch::text::TextDialogState,
+    /// An open file dialog for Import SVG / DXF.
+    pub import: Option<crate::platform::Pending<Option<crate::platform::PickedFile>>>,
+    /// The Offset prompt is open.
+    pub offset_open: bool,
+    /// The "Over defined" question is open for this dimension.
+    pub over: Option<sketch::Constraint>,
+    /// The Project outline dialog is open.
+    pub project: Option<sketch::project::ProjectForm>,
+    /// `Viewport::start_fly_in` has been called.
+    pub fly_started: bool,
+    /// The grid snap step set by the units (`setUnits`: 1/16 in or 1 mm); `None` until then (1 mm).
+    pub snap_step: Option<f64>,
+}
+
+impl StlApp {
+    pub fn sketch(&self) -> Option<&SketchSession> {
+        self.sketch.as_ref().map(|m| &m.s)
+    }
+
+    /// The whole open sketch (tests read what the panel and the solver say).
+    pub fn sketch_mode(&self) -> Option<&SketchMode> {
+        self.sketch.as_ref()
+    }
+
+    pub fn sketch_mode_mut(&mut self) -> Option<&mut SketchMode> {
+        self.sketch.as_mut()
+    }
+
+    fn sk_params(&self) -> BTreeMap<String, f64> {
+        self.param_views.iter().filter_map(|p| p.value.map(|v| (p.name.clone(), v))).collect()
+    }
+
+    /// Run `f` on the open sketch with the viewport, units and parameters a tool needs.
+    fn sk_call<R>(&mut self, f: impl FnOnce(&mut SketchMode, &Env) -> R) -> Option<R> {
+        let params = self.sk_params();
+        let inch = self.shell.inch;
+        let m = self.sketch.as_mut()?;
+        let env = Env { vp: &self.viewport, inch, params: &params };
+        Some(f(m, &env))
+    }
+
+    /// `beginSketch(planeRef)`: no plane asks for one in the tool panel.
+    pub fn begin_sketch(&mut self, plane: Option<Value>) {
+        self.close_tool(false);
+        if self.sketch.is_some() {
+            return;
+        }
+        match plane {
+            Some(p) => self.enter_sketch(Some(p), None),
+            None => {
+                self.open_tool_def(crate::tools::sketch_prompt(), None, None);
+                if let Some(t) = self.tool.as_mut() {
+                    t.ok_label = "Start".into();
+                    t.msg = Some(ToolMsg::new(MsgKind::Info, PLANE_PROMPT_INFO));
+                }
+                self.viewport.set_base_planes_visible(true);
+            }
+        }
+    }
+
+    /// Start (or a picked plane) in the plane prompt: enter the sketch on the plane picked.
+    pub(super) fn sketch_prompt_ok(&mut self) {
+        let Some(plane) = self.tool.as_ref().filter(|t| t.def.key == "sketch").and_then(|t| t.values.get("plane").cloned()).filter(|p| !p.is_null()) else { return };
+        self.close_tool(false);
+        self.enter_sketch(Some(plane), None);
+    }
+
+    /// `enterSketch({plane, feature})`: a feature is a sketch step opened for editing.
+    pub fn enter_sketch(&mut self, plane: Option<Value>, feature: Option<&crate::engine_link::TimelineItem>) {
+        if self.sketch.is_some() {
+            return;
+        }
+        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection, self.shell.inch);
+        let mut saved: Vec<stl_sketch::entities::Entity> = Vec::new();
+        let (frame, plane_ref, entities, constraints, name) = match feature {
+            Some(f) => {
+                let from_view = self.sketches.iter().find(|s| s.id == f.id).map(|s| PlaneFrame { origin: s.frame[0], x: s.frame[1], y: s.frame[2], normal: s.frame[3] });
+                let plane_ref = f.params.get("plane").cloned().unwrap_or(Value::Null);
+                let frame = from_view.or_else(|| crate::tools::fields::plane::frame_of(&plane_ref, &ctx));
+                let list: Vec<Value> = f.params.get("refs").and_then(Value::as_array).cloned().unwrap_or_default();
+                saved = stl_sketch::entities::parse_entities(&list.into_iter().filter(|v| v.is_object()).collect::<Vec<_>>()).unwrap_or_default();
+                let ents: Vec<Value> = f.params.get("entities").and_then(Value::as_array).cloned().unwrap_or_default();
+                let entities = stl_sketch::entities::parse_entities(&ents).unwrap_or_default();
+                let constraints: Vec<sketch::Constraint> = f.params.get("constraints").and_then(|c| serde_json::from_value(c.clone()).ok()).unwrap_or_default();
+                (frame, plane_ref, entities, constraints, Some(f.label.clone()))
+            }
+            None => {
+                let p = plane.unwrap_or(Value::Null);
+                (crate::tools::fields::plane::frame_of(&p, &ctx), p, Vec::new(), Vec::new(), None)
+            }
+        };
+        let Some(frame) = frame else {
+            self.toasts.push(Level::Error, "Could not use that plane.".to_owned());
+            return;
+        };
+        let prev = self.marker_now();
+        if let Some(f) = feature {
+            if let Some(idx) = self.timeline_view.items.iter().position(|i| i.id == f.id) {
+                self.link.send(Command::Rollback(Some(idx)));
+                self.pending_marker = Some(Some(idx));
+            }
+        }
+        let refs: Vec<sketch::RefEnt> = saved.iter().cloned().map(|ent| sketch::RefEnt { ent, missing: false }).collect();
+        let s = SketchSession::new(frame, plane_ref, feature.map(|f| f.id.clone()), name, entities, constraints, refs, None);
+        let mut m = SketchMode::new(s, prev, saved);
+        // the part's edges on (or through, or under) the plane, to dimension from
+        self.sk.seq += 1;
+        m.refs_seq = Some(self.sk.seq);
+        let fr = [frame.origin, frame.x, frame.y, frame.normal];
+        self.link.send(Command::SketchOp { seq: self.sk.seq, op: "refs".into(), data: json!({ "op": "refs", "frame": fr, "entities": [] }) });
+        self.shell.selection.clear();
+        self.viewport.set_selection(&[]);
+        self.viewport.set_hover(None);
+        self.viewport.set_mouse_mode(MouseMode::Sketch);
+        self.viewport.look_at_plane(&frame, None);
+        self.viewport.set_base_planes_visible(false);
+        self.viewport.sync_sketches(&self.sketches, feature.map(|f| f.id.as_str()));
+        self.viewport.set_viewcube_inset(crate::tools::panel::VIEWCUBE_INSET);
+        sketch::view::build_grid(&mut self.viewport, &m.s);
+        // the panel's Grid snap starts on, at the units' step (1 mm, or 1/16 in after `setUnits('in')`)
+        let step = self.sk.snap_step.unwrap_or(1.0);
+        m.panel.set_snap(true, step);
+        self.shell.hint = m.hint.clone();
+        self.shell.hud = None;
+        self.gizmo = None;
+        self.sketch = Some(m);
+    }
+
+    /// `setUnits(m)`: show inches or millimetres; the sketch's grid snap follows (1/16 in or
+    /// 1 mm), and a toast says what changed.
+    pub fn set_units_inch(&mut self, inch: bool) {
+        self.shell.inch = inch;
+        let step = if inch { 25.4 / 16.0 } else { 1.0 };
+        self.sk.snap_step = Some(step);
+        if let Some(m) = self.sketch.as_mut() {
+            m.panel.set_snap_step(step);
+        }
+        let text = if inch { "Showing inches. Models are still saved in millimetres." } else { "Showing millimetres." };
+        self.toasts.push(Level::Info, text.to_owned());
+    }
+
+    /// `setTool(key)` of the sketcher.
+    pub fn sketch_set_tool(&mut self, key: &str) {
+        if let Some(fx) = self.sk_call(|m, env| m.set_tool(key, env)) {
+            self.sketch_apply(fx);
+        }
+    }
+
+    /// What the tool in use and the panel asked for.
+    pub fn sketch_apply(&mut self, effects: Vec<SketchEffect>) {
+        for e in effects {
+            match e {
+                SketchEffect::Hint(h) => {
+                    if let Some(m) = self.sketch.as_mut() {
+                        m.hint = h.clone();
+                    }
+                    self.shell.hint = h;
+                }
+                SketchEffect::Hud(h) => {
+                    if let Some(m) = self.sketch.as_mut() {
+                        m.hud = h.clone();
+                    }
+                    self.shell.hud = h;
+                }
+                SketchEffect::Toast(l, t) => self.toasts.push(l, t),
+                SketchEffect::SketchOp { op, data } => {
+                    self.sk.seq += 1;
+                    let seq = self.sk.seq;
+                    if let Some(m) = self.sketch.as_mut() {
+                        m.op = Some((seq, op.clone()));
+                    }
+                    self.link.send(Command::SketchOp { seq, op, data });
+                }
+                SketchEffect::Changed => {
+                    if let Some(c) = self.sketch.as_mut().and_then(|m| m.changed()) {
+                        self.link.send(c);
+                    }
+                    self.sketch_drain_toast();
+                }
+                SketchEffect::Dialog(d) => self.sketch_dialog(d),
+                SketchEffect::Finish { extrude } => self.finish_sketch(extrude),
+                SketchEffect::Cancel => self.cancel_sketch(),
+            }
+        }
+    }
+
+    /// A toast the solver left ("Some constraints could not be kept.").
+    fn sketch_drain_toast(&mut self) {
+        if let Some(t) = self.sketch.as_mut().and_then(|m| m.toast.take()) {
+            self.toasts.push(Level::Warning, t);
+        }
+    }
+
+    fn sketch_dialog(&mut self, d: SketchDialog) {
+        let inch = self.shell.inch;
+        let Some(m) = self.sketch.as_mut() else { return };
+        match d {
+            SketchDialog::DimValue(i) => {
+                if let Some(c) = m.s.constraints.get(i) {
+                    let ents = sketch::solve::all_ents(&m.s);
+                    let text = sketch::dims::expr_of_dim(c).map(str::to_owned).unwrap_or_else(|| sketch::dims::dim_text(c, &ents, inch, true));
+                    m.s.sel_c = Some(i);
+                    m.panel.modify = Some(sketch::panel::Modify { idx: i, text, fresh: true });
+                }
+            }
+            SketchDialog::Modify(id) => {
+                let idx = m
+                    .s
+                    .constraints
+                    .iter()
+                    .position(|c| c.id.as_ref().is_some_and(|v| v.as_str().map(str::to_owned).unwrap_or_else(|| v.to_string()) == id))
+                    .or_else(|| id.parse::<usize>().ok());
+                if let Some(i) = idx {
+                    self.sketch_dialog(SketchDialog::DimValue(i));
+                }
+            }
+            SketchDialog::Project => self.sketch_project(),
+            SketchDialog::OverDefined(c) => self.sk.over = Some(*c),
+            SketchDialog::Text { group } => {
+                if group.is_none() {
+                    // 1.x:273 `this.setTool('select')` before the dialog opens
+                    self.sketch_set_tool("select");
+                }
+                let Some(m) = self.sketch.as_mut() else { return };
+                match group.and_then(|_| sketch::text::selected_text(&m.s)) {
+                    Some((g, meta)) => sketch::text::open_edit(&mut self.sk.text, &g, &meta, inch),
+                    None => sketch::text::open_new(&mut self.sk.text, sketch::text::take_pending_uv().unwrap_or([0.0, 0.0]), inch),
+                }
+            }
+            SketchDialog::Offset => self.sketch_offset(),
+        }
+    }
+
+    /// `sketchProject()`: no solid bodies is a warning; else the Project outline dialog.
+    fn sketch_project(&mut self) {
+        let bodies: Vec<(String, String)> = self.bodies.iter().filter(|b| !b.hidden && b.solid).map(|b| (b.id.clone(), b.name.clone())).collect();
+        if bodies.is_empty() {
+            self.toasts.push(Level::Warning, "There are no solid bodies to project.".to_owned());
+            return;
+        }
+        // 1.x pre-selects `sk.bodyId`, which nothing ever sets: "All visible bodies"
+        self.sk.project = Some(sketch::project::ProjectForm::new(bodies, self.shell.inch));
+    }
+
+    /// `sketchOffset()`: ask the distance (the shapes must be selected first).
+    fn sketch_offset(&mut self) {
+        let Some(m) = self.sketch.as_ref() else { return };
+        if m.s.sel.is_empty() {
+            self.toasts.push(Level::Warning, "Select the shapes to offset first (Select tool, Shift-click for more).".to_owned());
+            return;
+        }
+        self.shell.dialogs.open_prompt(SK_OFFSET_TAG, "Offset distance (mm, negative = inward)", "2");
+    }
+
+    /// The answer of the Offset prompt.
+    pub(super) fn sketch_offset_answer(&mut self, text: &str) {
+        let d = crate::tools::fields::number::parse_num_text(text);
+        let Some(m) = self.sketch.as_ref() else { return };
+        let entities: Vec<Value> = m.s.entities.iter().filter_map(|e| serde_json::to_value(e).ok()).collect();
+        let ids: Vec<&String> = m.s.sel.iter().collect();
+        let data = json!({ "op": "offset", "entities": entities, "ids": ids, "distance": d, "seed": m.s.seed });
+        self.sketch_apply(vec![SketchEffect::SketchOp { op: "offset".into(), data }]);
+    }
+
+    /// A tool's answer to `sketch_op`, or the part-edge `refs`.
+    pub(super) fn on_sketch_op(&mut self, seq: u64, result: Result<Value, String>) {
+        let Some(m) = self.sketch.as_mut() else { return };
+        if m.refs_seq == Some(seq) {
+            m.refs_seq = None;
+            // a refused `refs` is silent: the sketch just has no part edges to measure from (`catch { refs = [] }`)
+            let Ok(v) = result else { return };
+            let (fresh, kind) = sk_session::refs_of(&v);
+            m.set_refs(&fresh, kind);
+            let toast = sketch::relations::missing_toast(&m.s);
+            let cmd = m.changed();
+            if let Some(c) = cmd {
+                self.link.send(c);
+            }
+            if let Some(t) = toast {
+                self.sketch_apply(vec![t]);
+            }
+            return;
+        }
+        let Some((want, op)) = m.op.clone() else { return };
+        if want != seq {
+            return; // the tool that asked has changed since
+        }
+        m.op = None;
+        match result {
+            Err(e) => self.toasts.push(Level::Error, e),
+            Ok(v) if op == "project" => {
+                // the Project dialog has no tool to take the answer
+                let fx = self.sketch.as_mut().map(|m| sketch::project::apply_result(&mut m.s, &v)).unwrap_or_default();
+                self.sketch_apply(fx);
+            }
+            Ok(v) => {
+                let before = self.sketch.as_ref().map(|m| m.s.history.len()).unwrap_or(0);
+                let mut fx = self.sk_call(|m, env| m.op_result(&op, &v, env)).unwrap_or_default();
+                // a one-shot op (Offset from the ribbon) has no tool to take the answer: replace the shapes
+                let took = self.sketch.as_ref().map(|m| m.s.history.len() != before).unwrap_or(true);
+                if !took && matches!(op.as_str(), "offset" | "mirror" | "trim" | "explode") {
+                    if let Some(list) = v.get("entities").and_then(Value::as_array) {
+                        if let Ok(ents) = stl_sketch::entities::parse_entities(list) {
+                            if let Some(m) = self.sketch.as_mut() {
+                                fx.extend(sketch_replace_entities(&mut m.s, ents));
+                            }
+                        }
+                    }
+                }
+                self.sketch_apply(fx);
+                if op == "text" {
+                    self.sketch_set_tool("select");
+                }
+            }
+        }
+    }
+
+    /// `Update::Solved`.
+    pub(super) fn on_solved(&mut self, seq: u64, entities: Vec<stl_sketch::entities::Entity>, ok: bool, error: f64) {
+        if let Some(c) = self.sketch.as_mut().and_then(|m| m.solved(seq, entities, ok, error)) {
+            self.link.send(c);
+        }
+        self.sketch_drain_toast();
+    }
+
+    /// `finishSketch(thenExtrude)`: send the step; the sketch closes when the engine has it.
+    pub fn finish_sketch(&mut self, extrude: bool) {
+        let Some(m) = self.sketch.as_mut() else { return };
+        if m.finishing.is_some() {
+            return;
+        }
+        let params = m.s.step_params();
+        let empty = m.s.entities.is_empty();
+        match m.s.feature_id.clone() {
+            Some(id) => self.link.send(Command::EditFeature { id, params, rollback_after: Some(m.prev_rollback) }),
+            None => {
+                if empty {
+                    self.toasts.push(Level::Warning, "The sketch is empty.".to_owned());
+                }
+                self.link.send(Command::AddFeature { kind: "sketch".into(), params, index: None, name: None });
+            }
+        }
+        m.finishing = Some(extrude);
+        self.sk.known = self.timeline_view.items.iter().map(|i| i.id.clone()).collect();
+    }
+
+    /// The engine took the step (a refusal would have cleared `finishing` first).
+    pub(super) fn sketch_after_timeline(&mut self) {
+        let Some(m) = self.sketch.as_ref() else { return };
+        let Some(extrude) = m.finishing else { return };
+        let sid = match &m.s.feature_id {
+            Some(id) => Some(id.clone()),
+            None => self.timeline_view.items.iter().find(|i| !self.sk.known.contains(&i.id)).map(|i| i.id.clone()),
+        };
+        let Some(sid) = sid else { return };
+        let profile = sk_session::has_profile(&m.s.entities);
+        self.leave_sketch();
+        if extrude && profile {
+            let mut v = Values::new();
+            v.insert("sketch".into(), json!(sid));
+            self.open_tool("extrude", Some(v));
+        }
+    }
+
+    /// `cancelSketch()`: an edited step gets its rollback back; nothing else changes.
+    pub fn cancel_sketch(&mut self) {
+        let Some(m) = self.sketch.as_ref() else { return };
+        let (was_edit, prev) = (m.s.feature_id.is_some(), m.prev_rollback);
+        self.leave_sketch();
+        if was_edit {
+            self.link.send(Command::Rollback(prev));
+            self.pending_marker = Some(prev);
+        }
+    }
+
+    /// Everything that goes when the sketch closes.
+    fn leave_sketch(&mut self) {
+        self.sketch = None;
+        self.sk.text = Default::default();
+        self.sk.over = None;
+        self.sk.project = None;
+        self.viewport.set_mouse_mode(MouseMode::Model);
+        sketch::view::clear(&mut self.viewport);
+        self.viewport.sync_sketches(&self.sketches, None);
+        self.viewport.set_viewcube_inset(0.0);
+        self.shell.hint.clear();
+        self.shell.hud = None;
+        sketch::dims::set_pending(Default::default());
+    }
+
+    /// The sketch branch of `onRibbon(k)`.
+    pub(super) fn sketch_ribbon(&mut self, k: &str) {
+        if k == "sk_project" {
+            return self.sketch_project();
+        }
+        if sk_session::is_tool_key(k) {
+            return self.sketch_set_tool(k);
+        }
+        match k {
+            "sk_offset" => self.sketch_offset(),
+            "sk_import" => self.sketch_import(),
+            "construction" => {
+                let fx = self.sketch.as_mut().map(|m| sketch::keys::toggle_construction(&mut m.s)).unwrap_or_default();
+                self.sketch_apply(fx);
+            }
+            "sk_delete" => {
+                let fx = self.sketch.as_mut().map(|m| sketch::keys::delete_selected(&mut m.s)).unwrap_or_default();
+                self.sketch_apply(fx);
+            }
+            "look" => {
+                if let Some(f) = self.sketch.as_ref().map(|m| m.s.frame) {
+                    self.viewport.look_at_plane(&f, None);
+                }
+            }
+            "finish" => self.finish_sketch(false),
+            "finish_extrude" => self.finish_sketch(true),
+            "sk_cancel" => self.cancel_sketch(),
+            _ => {}
+        }
+    }
+
+    /// `sketchImport()`: pick an SVG or DXF; its shapes join the sketch. Parked until Task 6's
+    /// `import::import_file` lands.
+    fn sketch_import(&mut self) {
+        self.sk.import = Some(self.platform.open_file(&[("Vector drawings", &["svg", "dxf"])]));
+    }
+
+    /// A key of the sketcher (`KeyAction::Sketcher`).
+    pub(super) fn sketch_key(&mut self, press: keys::KeyPress) {
+        if self.sketch_modal_open() {
+            return;
+        }
+        if let Some((_, fx)) = self.sk_call(|m, env| sketch::keys::on_key(m, env, press.key, press.mods)) {
+            self.sketch_apply(fx);
+        }
+    }
+
+    /// 1.x `modal()`: while the over-defined question, the Project dialog or the text dialog is
+    /// open, the sketch tools get no pointer or key input (the dialog takes Esc/Enter itself).
+    pub(super) fn sketch_modal_open(&self) -> bool {
+        self.sk.over.is_some() || self.sk.project.is_some() || self.sk.text.open
+    }
+
+    /// Pointer and text events over the viewport while a sketch is open.
+    pub(super) fn sketch_pointer(&mut self, ui: &egui::Ui, resp: &egui::Response) {
+        if self.sketch.is_none() {
+            return;
+        }
+        if self.sketch_modal_open() {
+            if let Some(m) = self.sketch.as_mut() {
+                m.down = false;
+            }
+            return;
+        }
+        let events: Vec<egui::Event> = ui.input(|i| i.events.clone());
+        let mods = ui.input(|i| i.modifiers);
+        let typing = ui.ctx().egui_wants_keyboard_input();
+        let pointer = ui.input(|i| i.pointer.clone());
+        let opts = ui.ctx().options(|o| o.input_options.clone());
+        let hovered = resp.hovered();
+        let mut inputs: Vec<SketchInput> = Vec::new();
+        {
+            let vp = &self.viewport;
+            let Some(m) = self.sketch.as_mut() else { return };
+            for ev in &events {
+                match ev {
+                    egui::Event::PointerMoved(pos) if hovered || m.down => {
+                        if let Some(p) = vp.ray_to_plane(*pos, &m.s.frame) {
+                            inputs.push(SketchInput::Move { uv: m.s.to_uv(p), pos: *pos, mods });
+                        }
+                    }
+                    egui::Event::PointerButton { button: egui::PointerButton::Primary, pressed, pos, .. } => {
+                        if *pressed {
+                            if !hovered {
+                                continue;
+                            }
+                            m.down = true;
+                        } else {
+                            if !m.down {
+                                continue;
+                            }
+                            m.down = false;
+                        }
+                        let _ = pos;
+                        if let Some(i) = sketch::touch::input(ev, vp, &m.s, &mut m.touch, mods, &pointer, &opts) {
+                            inputs.push(i);
+                        }
+                    }
+                    egui::Event::Touch { .. } if hovered || m.down => {
+                        if let Some(i) = sketch::touch::input(ev, vp, &m.s, &mut m.touch, mods, &pointer, &opts) {
+                            inputs.push(i);
+                        }
+                    }
+                    egui::Event::Text(t) if !typing => {
+                        let typed: String = t.chars().filter(|c| c.is_ascii_digit() || matches!(c, '.' | '-' | '/' | ',')).collect();
+                        if !typed.is_empty() && m.s.tool != "select" {
+                            inputs.push(SketchInput::Typed(typed));
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+        for i in inputs {
+            if let Some((_, fx)) = self.sk_call(|m, env| m.input(&i, env)) {
+                self.sketch_apply(fx);
+            }
+        }
+    }
+
+    /// Draw the sketch's own parts each frame: the shapes when changed, relation glyphs, dimensions.
+    pub(super) fn sketch_frame(&mut self, ui: &egui::Ui) {
+        let inch = self.shell.inch;
+        let params = self.sk_params();
+        let mut fx = Vec::new();
+        if let Some(m) = self.sketch.as_mut() {
+            if m.dirty {
+                m.dirty = false;
+                sketch::view::redraw(&mut self.viewport, m);
+            }
+            fx.extend(sketch::relations::paint(ui, &mut m.s, &self.viewport, inch));
+            fx.extend(sketch::dims::paint(ui, &mut m.s, &self.viewport, inch, &params));
+        }
+        // an import chosen in the file dialog
+        if let Some(p) = self.sk.import.as_ref().and_then(|p| p.take()) {
+            self.sk.import = None;
+            if let Some(f) = p {
+                fx.extend(self.sketch_import_file(f));
+            }
+        }
+        self.sketch_apply(fx);
+        if self.sketch.as_ref().is_some_and(|m| m.dirty) {
+            ui.ctx().request_repaint();
+        }
+    }
+
+    /// The panel, the dimension box and the text dialog.
+    pub(super) fn sketch_overlays(&mut self, ctx: &egui::Context, tk: &Tokens, ws: Rect) {
+        let inch = self.shell.inch;
+        let params = self.sk_params();
+        let mut fx = Vec::new();
+        let (mut finish, mut cancel) = (false, false);
+        let mut toasts = Vec::new();
+        if let Some(m) = self.sketch.as_mut() {
+            let out = sketch::panel::show(ctx, tk, m, ws, inch);
+            finish = out.finish;
+            cancel = out.cancel;
+            fx.extend(out.effects);
+            toasts.extend(out.toasts);
+            if let Some((g, _)) = out.edit_text {
+                fx.push(SketchEffect::Dialog(SketchDialog::Text { group: Some(g) }));
+            }
+            let anchor = m.panel.modify.as_ref().and_then(|md| sketch::dims::label_screen(&m.s, &self.viewport, md.idx));
+            let (e2, t2) = sketch::panel::modify_box(ctx, tk, m, ws, inch, &params, anchor);
+            fx.extend(e2);
+            toasts.extend(t2);
+        }
+        for (l, t) in toasts {
+            self.toasts.push(l, t);
+        }
+        // the text dialog, over a scrim
+        if self.sk.text.open {
+            Area::new(Id::new("sk-text-scrim")).order(Order::Foreground).fixed_pos(ctx.content_rect().min).show(ctx, |ui| {
+                let (r, _) = ui.allocate_exact_size(ctx.content_rect().size(), Sense::click_and_drag());
+                ui.painter().rect_filled(r, 0.0, tk.scrim);
+            });
+            let mut eff = None;
+            Area::new(Id::new("sk-text-card")).order(Order::Tooltip).anchor(Align2::CENTER_CENTER, Vec2::ZERO).show(ctx, |ui| {
+                Frame::new().fill(tk.panel).stroke(Stroke::new(1.0, tk.line)).corner_radius(CornerRadius::same(9)).shadow(tk.shadow_lg).inner_margin(Margin { left: 20, right: 20, top: 18, bottom: 14 }).show(ui, |ui| {
+                    ui.set_max_width(420.0);
+                    if let Some(m) = self.sketch.as_mut() {
+                        eff = sketch::text::dialog(ui, tk, &mut m.s, &mut self.sk.text);
+                    }
+                });
+            });
+            fx.extend(eff);
+        }
+        fx.extend(self.sketch_modals(ctx, tk));
+        self.sketch_apply(fx);
+        if finish {
+            self.finish_sketch(false);
+        } else if cancel {
+            self.cancel_sketch();
+        }
+    }
+
+    /// "Over defined" and "Project outline", over a scrim (1.x `modal`).
+    fn sketch_modals(&mut self, ctx: &egui::Context, tk: &Tokens) -> Vec<SketchEffect> {
+        let mut fx = Vec::new();
+        if self.sk.over.is_none() && self.sk.project.is_none() {
+            return fx;
+        }
+        Area::new(Id::new("sk-modal-scrim")).order(Order::Foreground).fixed_pos(ctx.content_rect().min).show(ctx, |ui| {
+            let (r, _) = ui.allocate_exact_size(ctx.content_rect().size(), Sense::click_and_drag());
+            ui.painter().rect_filled(r, 0.0, tk.scrim);
+        });
+        let card = |ui: &mut egui::Ui, add: &mut dyn FnMut(&mut egui::Ui)| {
+            Frame::new().fill(tk.panel).stroke(Stroke::new(1.0, tk.line)).corner_radius(CornerRadius::same(9)).shadow(tk.shadow_lg).inner_margin(Margin { left: 20, right: 20, top: 18, bottom: 14 }).show(ui, |ui| {
+                ui.set_max_width(420.0);
+                add(ui);
+            });
+        };
+        if self.sk.over.is_some() {
+            let mut ans: Option<bool> = None;
+            Area::new(Id::new("sk-over-card")).order(Order::Tooltip).anchor(Align2::CENTER_CENTER, Vec2::ZERO).show(ctx, |ui| {
+                card(ui, &mut |ui| {
+                    ui.label(RichText::new("Over defined").font(egui::FontId::new(15.0, egui::FontFamily::Name("bold".into()))).color(tk.strong));
+                    ui.add_space(8.0);
+                    ui.add(egui::Label::new(RichText::new("The sketch's other dimensions and relations already set this size, so another dimension can't drive it.").size(12.0).color(tk.text)).wrap());
+                    ui.add_space(6.0);
+                    ui.horizontal_wrapped(|ui| {
+                        ui.spacing_mut().item_spacing.x = 0.0;
+                        ui.label(RichText::new("Add it as a ").size(12.0).color(tk.text));
+                        ui.label(RichText::new("reference").size(12.0).strong().color(tk.strong));
+                        ui.label(RichText::new(" dimension? It shows the size in brackets and updates by itself, but doesn't change anything.").size(12.0).color(tk.text));
+                    });
+                    ui.add_space(10.0);
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        ui.spacing_mut().item_spacing.x = 8.0;
+                        if crate::tools::panel::ctl_button(ui, tk, "Add as reference", true).clicked() {
+                            ans = Some(true);
+                        }
+                        if crate::tools::panel::ctl_button(ui, tk, "Cancel", false).clicked() {
+                            ans = Some(false);
+                        }
+                    });
+                });
+            });
+            if ans.is_none() {
+                if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter)) {
+                    ans = Some(true);
+                } else if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape)) {
+                    ans = Some(false);
+                }
+            }
+            if let Some(yes) = ans {
+                if let Some(c) = self.sk.over.take() {
+                    if let (true, Some(m)) = (yes, self.sketch.as_mut()) {
+                        fx.extend(sketch::dims::add_reference(&mut m.s, c));
+                    }
+                }
+            }
+        }
+        if let Some(mut form) = self.sk.project.take() {
+            let mut ans = None;
+            Area::new(Id::new("sk-project-card")).order(Order::Tooltip).anchor(Align2::CENTER_CENTER, Vec2::ZERO).show(ctx, |ui| {
+                card(ui, &mut |ui| ans = sketch::project::dialog(ui, tk, &mut form));
+            });
+            match ans {
+                None => self.sk.project = Some(form),
+                Some(sketch::project::ProjectAnswer::Cancel) => {}
+                Some(sketch::project::ProjectAnswer::Project) => {
+                    if let Some(m) = self.sketch.as_ref() {
+                        let body = (!form.body.is_empty()).then_some(form.body.as_str());
+                        fx.push(sketch::project::project_request(&m.s, &form.mode, body, form.offset_mm(), form.construction));
+                    }
+                }
+            }
+        }
+        fx
+    }
+
+    /// Entities of a picked SVG or DXF (`importEntities`): new ids, selected.
+    fn sketch_import_file(&mut self, f: crate::platform::PickedFile) -> Vec<SketchEffect> {
+        match sketch::import::import_file(&f.name, &f.bytes) {
+            Err(e) => vec![SketchEffect::Toast(Level::Error, e)],
+            Ok(list) => {
+                let Some(m) = self.sketch.as_mut() else { return Vec::new() };
+                m.s.push();
+                m.s.sel.clear();
+                for mut e in list {
+                    let id = m.s.new_id();
+                    sketch_set_entity_id(&mut e, id.clone());
+                    m.s.entities.push(e);
+                    m.s.sel.insert(id);
+                }
+                vec![SketchEffect::Changed]
+            }
+        }
+    }
+}
+
+pub const SK_OFFSET_TAG: &str = "sk-offset";
+
+fn sketch_set_entity_id(e: &mut stl_sketch::entities::Entity, id: String) {
+    use stl_sketch::entities::Entity::*;
+    match e {
+        Line(x) => x.id = Some(id),
+        Arc(x) => x.id = Some(id),
+        Circle(x) => x.id = Some(id),
+        Rect(x) => x.id = Some(id),
+        Polygon(x) => x.id = Some(id),
+        Slot(x) => x.id = Some(id),
+        Polyline(x) => x.id = Some(id),
+        Point(x) => x.id = Some(id),
+    }
+}
+
+/// `replaceEntities(ents)`: new shapes; relations that lose a shape go; the selection keeps what is left.
+fn sketch_replace_entities(s: &mut SketchSession, ents: Vec<stl_sketch::entities::Entity>) -> Vec<SketchEffect> {
+    s.push();
+    s.entities = ents;
+    let all = sketch::solve::all_ents(s);
+    let w = stl_sketch::solver::World::new(&all);
+    s.constraints.retain(|c| stl_sketch::solver::refs_exist(c, &w));
+    let ids: std::collections::BTreeSet<String> = s.entities.iter().filter_map(|e| e.id().map(str::to_owned)).collect();
+    s.sel.retain(|i| ids.contains(i));
+    vec![SketchEffect::Changed]
 }

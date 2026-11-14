@@ -330,6 +330,8 @@ pub fn format_table(report: &Value) -> Result<String, String> {
     let fillet = scenario(report, "fillet_rebuild")?;
     // Open each tool once and wait for its first preview (`scenarios.open_tool` in `src/bench.rs`).
     let open_tool = scenario(report, "open_tool").ok();
+    let enter_sketch = scenario(report, "enter_sketch").ok();
+    let sketch_drag = scenario(report, "sketch_drag").ok();
 
     let mut out = String::new();
     out.push_str(&format!("\n### {date}{note}\n\n"));
@@ -362,6 +364,14 @@ pub fn format_table(report: &Value) -> Result<String, String> {
     out.push('\n');
     if let Some(o) = open_tool {
         out.push_str(&row("open tool", o));
+        out.push('\n');
+    }
+    if let Some(s) = enter_sketch {
+        out.push_str(&row("enter sketch", s));
+        out.push('\n');
+    }
+    if let Some(s) = sketch_drag {
+        out.push_str(&row("sketch drag", s));
         out.push('\n');
     }
     out.push_str(&row("idle 5 s", idle));
@@ -438,6 +448,8 @@ mod tests {
                 "pan": {"frames": 5, "median_ms": 1.1, "p99_ms": 2.1, "longest_ms": 3.1, "idle_frames": 0, "uploads": 1},
                 "zoom": {"frames": 5, "median_ms": 1.2, "p99_ms": 2.2, "longest_ms": 3.2, "idle_frames": 0, "uploads": 1},
                 "gizmo_drag": {"frames": 8, "median_ms": 1.3, "p99_ms": 2.3, "longest_ms": 3.3, "idle_frames": 0, "uploads": 1},
+                "enter_sketch": {"frames": 12, "median_ms": 1.4, "p99_ms": 2.4, "longest_ms": 3.4, "idle_frames": 0, "uploads": 1},
+                "sketch_drag": {"frames": 20, "median_ms": 1.5, "p99_ms": 2.5, "longest_ms": 3.5, "idle_frames": 0, "uploads": 1},
                 "idle": {"frames": 1, "median_ms": 0.0, "p99_ms": 0.0, "longest_ms": 0.0, "idle_frames": 1, "uploads": 1},
                 "fillet_rebuild": {"frames": 4, "median_ms": 5.0, "p99_ms": 6.0, "longest_ms": 7.0, "idle_frames": 0, "uploads": 2},
             }
@@ -446,6 +458,8 @@ mod tests {
         assert!(t.contains("### 2026-11-12 (quick)"));
         assert!(t.contains("| orbit 10 s | 10 |"));
         assert!(t.contains("| gizmo drag | 8 |"));
+        assert!(t.contains("| enter sketch | 12 |"));
+        assert!(t.contains("| sketch drag | 20 |"));
         assert!(t.contains("| hollow rebuild | 4 |"));
         assert!(t.contains("42.50"));
         assert!(t.contains("_note_"));

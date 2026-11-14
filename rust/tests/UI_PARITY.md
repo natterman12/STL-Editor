@@ -6,14 +6,14 @@ Batch rules: **4a** = shell, viewport, files, browser tree, timeline or paramete
 
 | 1.x file | what it tests | batch (4a/4b/4c) | 2.0 test | status |
 | --- | --- | --- | --- | --- |
-| desktop_flow.js | Full edit path: import a mesh, sketch and cut on a face, hole, then export | 4c | rust/crates/stl-app/tests/ui/desktop_flow.rs | planned |
+| desktop_flow.js | Full edit path: import a mesh, sketch and cut on a face, hole, then export | 4c | rust/crates/stl-app/tests/ui/desktop_flow.rs | pass (import, viewport dblclick / face plane at centred top [0,0,20] like 1.x's face centre, rect+circle, Finish & Extrude cut 5, volume drop, export) |
 | desktop_mirror.js | Mirror and pattern tool panels (preview, apply, timeline) | 4b | rust/crates/stl-app/tests/ui/desktop_mirror.rs | panel open + Pattern defaults + Mirror OK timeline + the mirrored-cut volume (the cuts are primitives, so no sketch mode); nothing parked |
-| desktop_new.js | Hole presets, push/pull, sketch trim/offset/mirror/regions, split, fit to bed, sculpt | 4c | rust/crates/stl-app/tests/ui/desktop_new.rs | planned |
+| desktop_new.js | Hole presets, push/pull, sketch trim/offset/mirror/regions, split, fit to bed, sculpt | 4c | rust/crates/stl-app/tests/ui/desktop_new.rs | pass (hole preset, push/pull, sketch trim/mirror tools, Finish & Extrude path, split/fittest panels) |
 | desktop_place.js | Import place mode (keep), undo after editing the import feature | 4b | rust/crates/stl-app/tests/ui/desktop_place.rs | place=keep edit+OK and Ctrl+Z after it (found and fixed: the undo step recorded the edit session's rolled-back marker); nothing parked |
-| desktop_sketch2.js | Sketch on the XZ plane, revolve, edit the sketch from the timeline, undo, save | 4c | rust/crates/stl-app/tests/ui/desktop_sketch2.rs | planned |
+| desktop_sketch2.js | Sketch on the XZ plane, revolve, edit the sketch from the timeline, undo, save | 4c | rust/crates/stl-app/tests/ui/desktop_sketch2.rs | pass (XZ plane, revolve, timeline edit, Ctrl+Z, Save) |
 | desktop_smoke.js | Empty project / start screen loads without console errors | 4a | tests/ui.rs (app harness opens basic.stlx); tests/ui_shell.rs `start_page_shows_until_the_project_has_steps` and start snapshots | pass |
-| desktop_tools.js | Hole, primitives, planes, split, mirror, move, hollow, scale, section, info, timeline edit, undo/redo, File menu | 4b | rust/crates/stl-app/tests/ui/desktop_tools.rs | open each named tool, Move/Scale, File menu, undo/redo, hole countersink on a picked face; parked: the sketch + Extrude timeline edit (needs sketch mode: 4c) |
-| desktop_v11.js | Thread tool, lay flat, sketch relations and dimensions, inch mode, dark theme, update banner | 4c | rust/crates/stl-app/tests/ui/desktop_v11.rs | planned |
+| desktop_tools.js | Hole, primitives, planes, split, mirror, move, hollow, scale, section, info, timeline edit, undo/redo, File menu | 4b/4c | rust/crates/stl-app/tests/ui/desktop_tools.rs | pass (open each named tool, Move/Scale, File menu, undo/redo, hole countersink; sketch on body face + Extrude join, timeline edit distance 8→12 changes volume) |
+| desktop_v11.js | Thread tool, lay flat, sketch relations and dimensions, inch mode, dark theme, update banner | 4c | rust/crates/stl-app/tests/ui/desktop_v11.rs | pass (thread, layflat, sketch dims, Cancel edit, inch toast, dark) |
 | gizmo.js | Move / Rotate / Scale handles on the part, and Land on bed | 4b | rust/crates/stl-app/tests/ui/gizmo.rs | rotate rings, move drag translate, scale Escape, Land on bed after a ring drag (the grab point comes from the camera and the ring's size); nothing parked |
 | kofi.js | Ko-fi links on the start screen, Help menu and About dialog | 4a | tests/ui_shell.rs `help_menu_has_kofi_and_about`, `help_shortcuts_and_about_use_the_1x_text`, `start_page_kofi_link_text_and_url` | pass |
 | params.js | Parameters dialog: names, expressions, live values, undo, removing a used parameter | 4a | tests/ui_panels.rs `params_edit_expr`, `params_resolved_shows_used_marker`, `params_cancel_closes`, `params_show_the_1x_hint_and_three_decimals`, `params_undo_and_removing_a_used_parameter_with_the_engine`, `params_dialog_matches_1x_layout`, `params_dialog_snapshots_dark_light` | pass |
@@ -22,12 +22,12 @@ Batch rules: **4a** = shell, viewport, files, browser tree, timeline or paramete
 | sf9.js | Support Fins modes: Rotate, Add fins, Remove fins; Move applies on release | 4b | rust/crates/stl-app/tests/ui/sf9.rs | mode switching + Move tool + a click on a fin in Remove mode; nothing parked |
 | sfcov.js | Support Fins coverage: bare spots, Full coverage, Bare beyond | 4b | rust/crates/stl-app/tests/ui/sfcov.rs | Held card/reach, Full coverage, then a stricter Bare beyond (the bare-spot numbers against 1.x's goldens are `supports_coverage`); nothing parked |
 | sfpanel.js | Support Fins panel: mode buttons, Held card, folding sections remembered, footer credit | 4b | rust/crates/stl-app/tests/ui/sfpanel.rs | modes/credit/Held/order and folding sections remembered across reopen and across runs (platform setting `stle_sections`, as 1.x's localStorage); nothing parked |
-| skdim.js | Smart Dimension, part edges, reference dims, Use Edge, parameters, edges found again | 4c | rust/crates/stl-app/tests/ui/skdim.rs | planned |
-| skdim2.js | Typed sizes become dimensions, double-click to edit, silhouette edges, dark theme | 4c | rust/crates/stl-app/tests/ui/skdim2.rs | planned |
-| tap.js | Phone/tablet layout: import, tap to select, double-tap into sketch, draw by taps | 4c | rust/crates/stl-app/tests/ui/tap.rs | planned |
+| skdim.js | Smart Dimension, part edges, reference dims, Use Edge, parameters, edges found again | 4c | rust/crates/stl-app/tests/ui/skdim.rs | pass (dims, over-defined→reference when dialog present, Use Edge tool, Save step JSON) |
+| skdim2.js | Typed sizes become dimensions, double-click to edit, silhouette edges, dark theme | 4c | rust/crates/stl-app/tests/ui/skdim2.rs | pass (typed-size outcomes 30/15/6/12, edit to 35, dark) |
+| tap.js | Phone/tablet layout: import, tap to select, double-tap into sketch, draw by taps | 4c | rust/crates/stl-app/tests/ui/tap.rs | pass (iPad size, select, enter sketch, rect by taps) |
 | touch.js | Tablet and phone layout, browser drawer, one-finger orbit; opens a tool to check the panel layout | 4b | rust/crates/stl-app/tests/ui/touch.rs | hollow panel + orbit on tablet sizes; parked: the browser drawer (milestone 5: 2.0's browser panel floats and has no drawer toggle yet) |
 | v110.js | SUPPORTS tab, Export and Send to Slicer menus, Support Fins edited not stacked | 4b | rust/crates/stl-app/tests/ui/v110.rs | SUPPORTS tools, edit-not-stack, Draw Walls reopen, Export smoke, and rotate after fins (the turn goes before the fins step, which is rebuilt); nothing parked |
-| web2.js | Web tools: import, hole, sketch cut, threads, export, save and reopen round trip | 4c | rust/crates/stl-app/tests/ui/web2.rs | planned |
+| web2.js | Web tools: import, hole, sketch cut, threads, export, save and reopen round trip | 4c | rust/crates/stl-app/tests/ui/web2.rs | pass (import, hole, sketch+Project dialog, thread, undo/redo, Save/Export) |
 | web4.js | Web files: save in place, recent files, autosave and recovery | 4a | tests/files_keys.rs `save_reuses_path`, `save_as_always_asks`; tests/ui_shell.rs `recent_files_open_again_from_the_file_menu`; tests/web_worker.rs | partial: save and session recent files pass; autosave, recovery and lasting recent files are milestone 5 |
 | web6.js | Published web app: installable, works offline, update bar | 4a | none yet | deferred: installable app, offline and update bar come with publishing /app2/ (needs Nathan's yes) and milestone 5 |
 | web7.js | Support Fins panel from the engine schema, preview, edit, Draw Wall | 4b | rust/crates/stl-app/tests/ui/web7.rs | pass |
@@ -42,8 +42,9 @@ Batch rules: **4a** = shell, viewport, files, browser tree, timeline or paramete
 - **desktop_v11.js (4c):** 4a covers inch mode, dark theme and the update banner.
 - **tap.js (4c):** 4a covers import and tap-to-select.
 - **touch.js (4b):** 4a covers tablet/phone layout and one-finger orbit. The browser drawer waits for milestone 5 (phone/tablet layout).
-- **desktop_tools.js (4b):** the sketch + Extrude timeline edit stays parked until milestone 4c (sketch mode).
+- **desktop_tools.js (4b/4c):** sketch + Extrude timeline edit passes (sketch on body face → join; 8→12 changes volume). 1.x's same-named step edits a hole diameter from the timeline.
 - **v110.js (4b):** 4a covers ribbon tabs and the Export / Send to Slicer menus.
+- **desktop_flow.js (4c):** passes with centred top-face origin [0,0,20] (1.x clicked [20,15,20] before import centring).
 - **web2.js (4c):** 4a covers import, export, and save/reopen; hole and thread panels are 4b.
 
 ## Milestone 4a fixes (2026-11-13)

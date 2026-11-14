@@ -218,6 +218,70 @@ pub fn wait_for(h: &mut Harness<'static, StlApp>, link: &NativeLink, what: &str,
     }
 }
 
+/// Primary click at a screen position (after the viewport has flushed).
+pub fn click_at(h: &mut Harness<'static, StlApp>, at: egui::Pos2) {
+    use egui::{Event, PointerButton};
+    h.event(Event::PointerMoved(at));
+    h.step();
+    h.event(Event::PointerButton { pos: at, button: PointerButton::Primary, pressed: true, modifiers: Default::default() });
+    h.step();
+    h.event(Event::PointerButton { pos: at, button: PointerButton::Primary, pressed: false, modifiers: Default::default() });
+    h.run_steps(2);
+}
+
+/// Double-click at a screen position.
+pub fn dblclick_at(h: &mut Harness<'static, StlApp>, at: egui::Pos2) {
+    use egui::{Event, PointerButton};
+    for _ in 0..2 {
+        h.event(Event::PointerMoved(at));
+        h.step();
+        h.event(Event::PointerButton { pos: at, button: PointerButton::Primary, pressed: true, modifiers: Default::default() });
+        h.step();
+        h.event(Event::PointerButton { pos: at, button: PointerButton::Primary, pressed: false, modifiers: Default::default() });
+        h.step();
+    }
+    h.run_steps(2);
+}
+
+/// Screen position of a sketch-plane UV point (needs an open sketch and a flushed viewport).
+pub fn sketch_uv_screen(h: &Harness<'static, StlApp>, uv: [f64; 2]) -> egui::Pos2 {
+    let s = h.state().sketch().expect("a sketch is open");
+    h.state().viewport.world_to_screen(s.to_3(uv))
+}
+
+/// Click a sketch-plane UV after flushing the viewport.
+pub fn sketch_click_uv(h: &mut Harness<'static, StlApp>, uv: [f64; 2]) {
+    h.state_mut().viewport.flush();
+    h.run_steps(1);
+    let at = sketch_uv_screen(h, uv);
+    click_at(h, at);
+}
+
+/// Enter a sketch on an origin plane (or face JSON) and wait for the ribbon.
+pub fn enter_sketch_plane(h: &mut Harness<'static, StlApp>, link: &NativeLink, plane: serde_json::Value) {
+    h.state_mut().enter_sketch(Some(plane), None);
+    settle(h, link);
+    h.state_mut().viewport.flush();
+    h.run_steps(2);
+    assert!(h.state().sketch().is_some(), "sketch opened");
+}
+
+/// Add a closed centre rectangle to the open sketch (entities only; no pointer path).
+pub fn sketch_add_rect(h: &mut Harness<'static, StlApp>, id: &str, x: f64, y: f64, w: f64, hgt: f64) {
+    let m = h.state_mut().sketch_mode_mut().expect("sketch open");
+    m.s.push();
+    m.s.entities.push(serde_json::from_value(serde_json::json!({
+        "id": id, "type": "rect", "x": x, "y": y, "w": w, "h": hgt
+    })).unwrap());
+}
+
+/// Finish the sketch (and optionally open Extrude); settle until the sketch closes.
+pub fn finish_sketch_settle(h: &mut Harness<'static, StlApp>, link: &NativeLink, extrude: bool) {
+    h.state_mut().finish_sketch(extrude);
+    settle(h, link);
+    wait_for(h, link, "sketch to close", |h| h.state().sketch().is_none());
+}
+
 /// The volume of a closed mesh (mm³), from signed tetrahedra.
 pub fn mesh_volume(m: &stl_kernel::MeshArrays) -> f64 {
     let p = |i: u32| {
