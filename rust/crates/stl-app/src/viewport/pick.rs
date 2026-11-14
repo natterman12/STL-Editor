@@ -10,6 +10,9 @@ use stl_mesh::bvh::{ray_front_direct, ray_triangle, tri_points};
 use super::camera::{self, V3};
 use super::{PlaneFrame, Viewport};
 
+/// The most triangles a preview mesh is tested with directly (no tree yet) in [`Viewport::pick_preview`].
+pub const DIRECT_PICK_MAX_TRIS: usize = 50_000;
+
 /// What a click landed on. `face` is the triangle index, as three.js `faceIndex`.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Hit {
@@ -69,7 +72,9 @@ impl Viewport {
         Some(camera::add(origin, camera::scale(dir, t)))
     }
 
-    /// `pickPreview`: the preview mesh under the pointer, nearest front face.
+    /// `pickPreview`: the preview mesh under the pointer, nearest front face. A big preview mesh
+    /// whose tree isn't built yet is skipped for that short while: testing all its triangles on
+    /// every pointer move would stall the screen. Small ones (fins) are tested directly.
     pub fn pick_preview(&self, pos: Pos2) -> Option<String> {
         let (origin, dir) = self.ray(pos);
         if camera::dot(dir, dir) == 0.0 {
@@ -79,7 +84,13 @@ impl Viewport {
         for p in &self.preview {
             let hit = match p.bvh.get() {
                 Some(bvh) => bvh.ray_front(&p.mesh, origin, dir),
-                None => ray_front_direct(&p.mesh, origin, dir, |_| true),
+                None if p.mesh.triangles.len() / 3 <= DIRECT_PICK_MAX_TRIS => ray_front_direct(&p.mesh, origin, dir, |_| true),
+                None => {
+                    if let Some(c) = &self.ctx {
+                        c.request_repaint(); // look again once the tree is there
+                    }
+                    None
+                }
             };
             if let Some((_, t)) = hit {
                 if best.as_ref().is_none_or(|(_, bt)| t < *bt) {

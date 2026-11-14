@@ -326,8 +326,8 @@ Nathan answered all of these on 2026-11-13: six accepted, one to measure in 4c, 
   preview this is estimated at 0.3 to 1 s, during which the page doesn't respond. Not measured
   in a browser yet. **Nathan (2026-11-13): measure it in a real browser in 4c; if it is over
   about 0.3 s, fix it (for example in slices, like the red overhangs).**
-- **Not accepted, to fix (Nathan, 2026-11-13): the Diameter readout of a picked cylinder face
-  is always in millimetres,** also in inch mode. It must follow the unit setting like 1.x.
+- **Fixed (2026-11-13, 487b865): the Diameter readout of a picked cylinder face** was always
+  in millimetres, also in inch mode. It now follows the unit setting like 1.x (`U.str`).
 - **Accepted (2026-11-13): the outline of a picked flat face** (Lay Flat, Push/Pull) is chained from the face's
   boundary edges. 1.x's `faceOutline` also simplifies and orders the rings, so the drawn
   outline can have more points; the picked face and its params are the same.

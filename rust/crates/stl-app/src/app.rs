@@ -630,6 +630,13 @@ impl StlApp {
             t.msg = Some(ToolMsg::new(MsgKind::Err, e));
             return;
         }
+        if t.accepting.is_some() {
+            // a handle's Add is still on its way: OK goes out as an edit of that step once it is
+            // in (`after_timeline`), not as a second Add, and the Add's answer isn't taken as OK's
+            t.ok_after_add = true;
+            t.msg = Some(ToolMsg::new(MsgKind::Busy, format!("{}…", t.def.label)));
+            return;
+        }
         let p = t.params(&ctx);
         let kind = t.def.kind.to_owned();
         match t.edit_id.clone() {
@@ -769,8 +776,14 @@ impl StlApp {
     fn on_preview(&mut self, seq: u64, pack: crate::viewport::PreviewPack, msg: Option<String>, error: Option<String>, warn: bool, result: serde_json::Value) {
         use crate::tools::preview::{MsgKind, ToolMsg};
         {
-            let Some(t) = self.tool.as_ref() else { return };
-            if !t.preview.accepts(seq) || t.dragging {
+            let Some(t) = self.tool.as_mut() else { return };
+            if !t.preview.accepts(seq) {
+                return;
+            }
+            if t.dragging {
+                // no longer waiting for it (no "Building…" left up); asked for again on let-go
+                t.preview.done();
+                t.preview_dropped = true;
                 return;
             }
         }
@@ -778,8 +791,15 @@ impl StlApp {
         // put back first when one lands)
         if let Some(g) = self.gizmo.as_mut() {
             if !g.accept_preview(&mut self.viewport) {
+                if let Some(t) = self.tool.as_mut() {
+                    t.preview.done();
+                    t.preview_dropped = true;
+                }
                 return;
             }
+        }
+        if let Some(t) = self.tool.as_mut() {
+            t.preview_dropped = false;
         }
         let Some(t) = self.tool.as_mut() else { return };
         t.preview.done();

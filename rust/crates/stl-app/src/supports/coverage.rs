@@ -883,8 +883,15 @@ impl CoverageJob {
     }
 
     /// Start a check for `seq` (must equal current [`Self::generation`]).
-    #[cfg(not(target_arch = "wasm32"))]
     pub fn start(&self, seq: u64, input: CoverageInput) {
+        self.start_with(seq, Box::new(move || input));
+    }
+
+    /// [`Self::start`] with the input made by `make`: on the desktop it runs on the worker thread,
+    /// so copying a large part's mesh doesn't hold up the screen (and a check that is already
+    /// out of date never copies it).
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn start_with(&self, seq: u64, make: Box<dyn FnOnce() -> CoverageInput + Send>) {
         *self.slot.lock().expect("slot") = None;
         let generation = self.generation.clone();
         let slot = self.slot.clone();
@@ -910,6 +917,10 @@ impl CoverageJob {
                 seq,
             };
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                if !cancel.alive() {
+                    return None;
+                }
+                let input = make();
                 compute_cancellable(&input, Some(&cancel))
             }));
             {
@@ -930,11 +941,12 @@ impl CoverageJob {
         });
     }
 
+    /// The web build has no threads here: the input is made at once and posted to the Web Worker.
     #[cfg(target_arch = "wasm32")]
-    pub fn start(&self, seq: u64, input: CoverageInput) {
+    pub fn start_with(&self, seq: u64, make: Box<dyn FnOnce() -> CoverageInput + Send>) {
         *self.slot.lock().expect("slot") = None;
         self.web
-            .start(self.generation.clone(), self.slot.clone(), seq, input);
+            .start(self.generation.clone(), self.slot.clone(), seq, make());
     }
 
     /// Thread running coverage (desktop only), after [`Self::start`].

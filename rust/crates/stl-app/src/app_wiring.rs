@@ -558,17 +558,21 @@ impl StlApp {
             // no overhangs in this pose: nothing to check
             Cover { none: false, busy: false, error: None, total: 0.0, held: 0.0, spots: Vec::new() }
         } else {
-            let fins: Vec<Vec<f32>> = self.sf.fin_meshes.iter().map(|m| soup_of(m)).collect();
-            let input = CoverageInput {
-                positions: mesh.positions.clone(),
-                triangles: mesh.triangles.clone(),
-                over_faces: over,
-                fins,
-                gap: if gap > 0.0 { gap } else { 0.2 },
-                reach,
-                max_sub: 250_000,
-            };
-            self.sf.cover.start(seq, input);
+            // the meshes are shared (Arc); their copies for the check are made on the worker
+            let fin_meshes = self.sf.fin_meshes.clone();
+            let gap = if gap > 0.0 { gap } else { 0.2 };
+            self.sf.cover.start_with(
+                seq,
+                Box::new(move || CoverageInput {
+                    positions: mesh.positions.clone(),
+                    triangles: mesh.triangles.clone(),
+                    over_faces: over,
+                    fins: fin_meshes.iter().map(|m| soup_of(m)).collect(),
+                    gap,
+                    reach,
+                    max_sub: 250_000,
+                }),
+            );
             Cover { none: false, busy: true, error: None, total: 0.0, held: 0.0, spots: Vec::new() }
         };
         if let Some(s) = self.tool.as_mut().and_then(|t| t.sf.as_mut()) {
@@ -761,6 +765,14 @@ impl StlApp {
                     GizmoDrop::Pose(m) => self.pose_drop(m),
                     GizmoDrop::Nothing => {}
                 }
+                // a preview dropped while the handle was held is asked for again, unless this
+                // drop already brings one (an Add or Edit on its way, or a preview due)
+                let edit_wait = self.sf.edit_wait;
+                if let Some(t) = self.tool.as_mut() {
+                    if std::mem::take(&mut t.preview_dropped) && t.accepting.is_none() && !edit_wait && !t.preview.pending() && !t.preview.waiting {
+                        t.schedule_preview(0);
+                    }
+                }
                 true
             }
         }
@@ -852,6 +864,8 @@ impl StlApp {
         if !adding && !waiting {
             return false;
         }
+        // an OK that waited for this Add doesn't go out: the tool stays open and says why
+        t.ok_after_add = false;
         self.sf.insert_note = None;
         // a drop that came while this one was on its way still goes out (1.x do/while)
         let again = std::mem::take(&mut t.accept_again);
@@ -884,6 +898,7 @@ impl StlApp {
         let items: Vec<String> = self.timeline_view.items.iter().map(|i| i.id.clone()).collect();
         let mut again = false;
         let mut roll = None;
+        let mut ok_now = false;
         if let Some(t) = self.tool.as_mut() {
             if let Some(before) = t.accepting.clone() {
                 if let Some(idx) = items.iter().position(|id| !before.contains(id)) {
@@ -891,6 +906,7 @@ impl StlApp {
                     t.prev_rollback = t.prev_rollback.map(|m| m + 1);
                     t.accepting = None;
                     again = std::mem::take(&mut t.accept_again);
+                    ok_now = std::mem::take(&mut t.ok_after_add);
                     roll = Some(idx);
                     t.schedule_preview(0);
                 }
@@ -916,6 +932,10 @@ impl StlApp {
             }
         }
         self.pose_landed(&items);
+        // OK that waited for the handle's Add: it goes out now, as an edit of the step just added
+        if ok_now {
+            self.tool_ok();
+        }
     }
 
     // ------------------------------------------------------------------ Support Fins: turning

@@ -95,6 +95,12 @@ pub struct OpenTool {
     pub accepting: Option<Vec<String>>,
     /// A second drop came while the first was still being added (`_acceptAgain`).
     pub accept_again: bool,
+    /// The newest preview arrived while a handle was held and was dropped: it is asked for again
+    /// when the handle is let go, unless the drop brings a preview of its own.
+    pub preview_dropped: bool,
+    /// OK was pressed while a handle's Add was still on its way: OK goes out once that step is
+    /// in (as an edit of it), instead of adding a second step.
+    pub ok_after_add: bool,
 }
 
 /// A `bodies` field with a `placeholder` ("Auto", "Auto (bodies it touches)", "The part you draw
@@ -137,6 +143,8 @@ impl OpenTool {
             accepted: false,
             accepting: None,
             accept_again: false,
+            preview_dropped: false,
+            ok_after_add: false,
         }
     }
 

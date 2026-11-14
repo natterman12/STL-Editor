@@ -924,6 +924,82 @@ fn a_failed_first_add_does_not_stick_the_tool() {
     assert_eq!(rec.adds("move").len(), 2, "the next drop adds the step");
 }
 
+/// OK pressed while a handle's Add is still on its way: no second Add, and the Add's answer is
+/// not taken as OK's. OK goes out as an edit of the new step, and the tool closes on that one.
+#[test]
+fn ok_during_a_handles_add_waits_for_it() {
+    let rec = Rec::default();
+    let (mut h, grab, to) = move_scene(&rec);
+    pointer(&mut h, grab, None);
+    pointer(&mut h, grab, Some(true));
+    pointer(&mut h, to, None);
+    pointer(&mut h, to, Some(false));
+    h.run_steps(2);
+    assert_eq!(rec.adds("move").len(), 1);
+    assert!(h.state().tool().unwrap().accepting.is_some(), "the Add is on its way");
+    h.state_mut().tool_ok();
+    h.run_steps(1);
+    assert_eq!(rec.adds("move").len(), 1, "OK doesn't add a second step: {:?}", rec.commands());
+    // the Add lands: the tool stays open, and OK goes out as an edit of that step
+    let added = rec.adds("move")[0].clone();
+    rec.push(timeline(vec![step_item("f9", "move", added.clone())]));
+    h.run_steps(2);
+    assert!(h.state().tool().is_some(), "the Add's answer is not OK's");
+    let edits = rec.commands().into_iter().filter(|c| matches!(c, Command::EditFeature { id, rollback_after: Some(_), .. } if id == "f9")).count();
+    assert_eq!(edits, 1, "OK is sent as an edit of the new step: {:?}", rec.commands());
+    assert_eq!(rec.adds("move").len(), 1);
+    // the engine takes OK: now the tool closes
+    rec.push(timeline(vec![step_item("f9", "move", added)]));
+    h.run_steps(2);
+    assert!(h.state().tool().is_none(), "closed once OK was taken");
+}
+
+/// OK that waited for a handle's Add that then fails: nothing goes out, the tool stays open.
+#[test]
+fn ok_waiting_for_a_failed_add_keeps_the_tool_open() {
+    let rec = Rec::default();
+    let (mut h, grab, to) = move_scene(&rec);
+    pointer(&mut h, grab, None);
+    pointer(&mut h, grab, Some(true));
+    pointer(&mut h, to, None);
+    pointer(&mut h, to, Some(false));
+    h.run_steps(2);
+    h.state_mut().tool_ok();
+    rec.push(Update::Error("Nothing to move.".into()));
+    rec.push(timeline(vec![]));
+    h.run_steps(2);
+    let t = h.state().tool().expect("still open");
+    assert!(!t.ok_after_add);
+    assert!(format!("{:?}", t.msg).contains("Nothing to move."), "{:?}", t.msg);
+    assert!(!rec.commands().iter().any(|c| matches!(c, Command::EditFeature { .. })));
+    assert_eq!(rec.adds("move").len(), 1);
+}
+
+/// A preview that lands while a handle is held is dropped, and the tool doesn't keep waiting
+/// for it (no "Building…" left up); letting go sends what comes next.
+#[test]
+fn a_preview_dropped_during_a_drag_is_not_waited_for() {
+    let rec = Rec::default();
+    let (mut h, grab, to) = move_scene(&rec);
+    pointer(&mut h, grab, None);
+    pointer(&mut h, grab, Some(true));
+    pointer(&mut h, to, None);
+    // a preview asked for while the handle is held
+    h.state_mut().run_preview_now(web_time::Instant::now());
+    let seq = rec.previews().last().expect("a preview was asked for").0;
+    assert!(h.state().tool().unwrap().preview.waiting);
+    rec.push(Update::Preview { seq, pack: PreviewPack::default(), msg: None, error: None, warn: false, result: Value::Null });
+    h.run_steps(2);
+    let t = h.state().tool().unwrap();
+    assert!(!t.preview.waiting, "not waiting for a preview that was dropped");
+    assert!(t.preview_dropped);
+    pointer(&mut h, to, Some(false));
+    h.run_steps(2);
+    let t = h.state().tool().unwrap();
+    assert!(!t.preview_dropped, "handled on let-go");
+    assert_eq!(rec.adds("move").len(), 1, "the drop's Add brings the next preview");
+}
+
 /// A Move put before the part's supports says the supports are rebuilt (1.x `addFeatureSmart`).
 #[test]
 fn a_move_before_the_supports_says_so() {

@@ -299,6 +299,9 @@ pub struct Viewport {
     preview_staged: Option<StagedPreview>,
     /// One preview build at a time: a build that waited and was replaced meanwhile never starts.
     preview_gate: Arc<std::sync::Mutex<()>>,
+    /// One preview picking-tree build at a time. It is a separate gate from `preview_gate`, so the
+    /// next preview's display meshes don't wait for the last one's trees.
+    preview_tree_gate: Arc<std::sync::Mutex<()>>,
     /// How many preview display meshes were started (tests).
     preview_builds: Arc<AtomicUsize>,
     preview_hover: Option<String>,
@@ -367,6 +370,7 @@ impl Default for Viewport {
             preview_cancel: Arc::new(AtomicBool::new(false)),
             preview_staged: None,
             preview_gate: Arc::new(std::sync::Mutex::new(())),
+            preview_tree_gate: Arc::new(std::sync::Mutex::new(())),
             preview_builds: Arc::new(AtomicUsize::new(0)),
             preview_hover: None,
             preview_counter: 0,
@@ -1071,7 +1075,16 @@ impl Viewport {
     }
 
     /// Swap a prepared preview in (and the one it replaces out, stopping that one's worker).
-    fn install_preview(&mut self, st: StagedPreview) {
+    fn install_preview(&mut self, mut st: StagedPreview) {
+        // a mesh whose worker stopped without it (it panicked) is left out, and the body it
+        // stands for stays on screen instead of vanishing
+        let lost: Vec<String> = st.entries.iter().filter(|e| e.prepared.is_none()).map(|e| e.id.clone()).collect();
+        if !lost.is_empty() {
+            st.entries.retain(|e| e.prepared.is_some());
+            for id in &lost {
+                st.hide.remove(id);
+            }
+        }
         self.preview_cancel.store(true, Ordering::Relaxed);
         self.preview_cancel = st.cancel;
         self.preview = st.entries;
@@ -1090,7 +1103,7 @@ impl Viewport {
         {
             let (txs, rxs): (Vec<_>, Vec<_>) = meshes.iter().map(|_| std::sync::mpsc::channel::<PreparedMesh>()).unzip();
             let (meshes_w, ctx, trees_w, cancel_w) = (meshes.to_vec(), self.ctx.clone(), trees.clone(), cancel.clone());
-            let (gate, builds) = (self.preview_gate.clone(), self.preview_builds.clone());
+            let (gate, tree_gate, builds) = (self.preview_gate.clone(), self.preview_tree_gate.clone(), self.preview_builds.clone());
             let thread = std::thread::spawn(move || {
                 let guard = gate.lock().unwrap_or_else(|e| e.into_inner());
                 for (mesh, tx) in meshes_w.iter().zip(txs) {
@@ -1107,6 +1120,8 @@ impl Viewport {
                     }
                 }
                 drop(guard);
+                // the trees one preview at a time too; a preview replaced while it waited skips them
+                let _trees = tree_gate.lock().unwrap_or_else(|e| e.into_inner());
                 for (mesh, tree) in meshes_w.iter().zip(&trees_w) {
                     if cancel_w.load(Ordering::Relaxed) {
                         return;
