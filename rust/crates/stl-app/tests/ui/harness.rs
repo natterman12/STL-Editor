@@ -3,6 +3,10 @@
 // Shared by several test files (ui, projects, fins_in_app); each uses only some helpers.
 #![allow(dead_code)]
 
+// keeps every test binary that uses this harness out of the real 2.0 folders
+#[path = "../support/test_env.rs"]
+mod test_env;
+
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};

@@ -38,6 +38,9 @@ pub struct Browser {
     pub origin_toggle: Option<bool>,
     /// Clicking the Parameters folder (app opens the params panel).
     pub open_params: bool,
+    /// Narrow windows only: the browser drawer is open (1.x `html.browser-open`). Starts closed;
+    /// it keeps its value if the window is widened and narrowed again, as in 1.x.
+    pub drawer_open: bool,
 }
 
 impl Browser {
@@ -426,4 +429,117 @@ pub fn show(
             state.colour_id = None;
         }
     }
+}
+
+/// `@media (max-width: 760px), (max-height: 520px)` in 1.x's `app.css`: below these the browser
+/// is a drawer. Phones in portrait and landscape; tablets keep the floating panel.
+pub const NARROW_MAX_WIDTH: f32 = 760.0;
+pub const NARROW_MAX_HEIGHT: f32 = 520.0;
+/// `#browser { width: min(280px, 85vw) }` on a narrow window.
+const DRAWER_MAX_WIDTH: f32 = 280.0;
+/// `transition: transform .18s ease`.
+const DRAWER_SECS: f32 = 0.18;
+/// `.panel` padding (9 px each side) and border (1 px each side) around the content.
+const PANEL_CHROME_X: f32 = 20.0;
+
+/// CSS `ease`, `cubic-bezier(.25, .1, .25, 1)`: the progress (0..=1) for a linear time `t` (0..=1).
+pub fn css_ease(t: f32) -> f32 {
+    const BEZIER: (f32, f32, f32, f32) = (0.25, 0.1, 0.25, 1.0);
+    let (x1, y1, x2, y2) = BEZIER;
+    let coord = |u: f32, a: f32, b: f32| 3.0 * (1.0 - u).powi(2) * u * a + 3.0 * (1.0 - u) * u * u * b + u * u * u;
+    let t = t.clamp(0.0, 1.0);
+    // solve x(u) = t by bisection; x is monotonic for these control points
+    let (mut lo, mut hi) = (0.0f32, 1.0f32);
+    for _ in 0..24 {
+        let mid = 0.5 * (lo + hi);
+        if coord(mid, x1, x2) < t {
+            lo = mid;
+        } else {
+            hi = mid;
+        }
+    }
+    coord(0.5 * (lo + hi), y1, y2)
+}
+
+/// Is a window of this size (points) narrow enough for the drawer?
+pub fn is_narrow(window: egui::Vec2) -> bool {
+    window.x <= NARROW_MAX_WIDTH || window.y <= NARROW_MAX_HEIGHT
+}
+
+/// The drawer's outer width: `min(280px, 85vw)`.
+pub fn drawer_outer_width(window_width: f32) -> f32 {
+    DRAWER_MAX_WIDTH.min(window_width * 0.85)
+}
+
+/// The browser over the model (1.x `#browser`, and `#browser-toggle` on narrow windows).
+///
+/// Wide windows: the floating panel, 240 wide, 8 px from the top left of the viewport `ws`.
+/// Narrow windows: a drawer that slides in from the left over everything else, opened by the
+/// button over the model (labelled "Bodies", "Close" while open) as 1.x's `setupDrawer`. The button
+/// is the only way to close it, as in 1.x.
+pub fn show_panel(
+    ctx: &Context,
+    tokens: &Tokens,
+    ws: egui::Rect,
+    state: &mut Browser,
+    view: BrowserView<'_>,
+    commands: &mut Vec<Command>,
+    events: &mut Vec<UiEvent>,
+) {
+    use egui::{Area, Frame, Id, Margin, Order, Pos2, Stroke, Vec2};
+    let frame = || {
+        Frame::new()
+            .fill(tokens.panel)
+            .stroke(Stroke::new(1.0, tokens.line))
+            .corner_radius(egui::CornerRadius::same(tokens.radius as u8))
+            .shadow(tokens.shadow)
+    };
+    let max_h = (ws.height() - 60.0).max(40.0);
+    let window = ctx.content_rect().size();
+
+    if !is_narrow(window) {
+        // 240 wide in all, like `#browser` (220 + the 9 px margins + the 1 px borders). Not inside a
+        // `ui.horizontal`: that gives its content one row of height and clips the tree.
+        Area::new(Id::unique("browser-panel")).order(Order::Middle).fixed_pos(ws.min + Vec2::new(8.0, 8.0)).show(ctx, |ui| {
+            frame().inner_margin(Margin::symmetric(9, 6)).show(ui, |ui| {
+                ui.set_width(220.0);
+                ui.set_max_height(max_h);
+                show(ui, ctx, tokens, state, view, commands, events);
+            });
+        });
+        return;
+    }
+
+    let outer = drawer_outer_width(window.x);
+    // the button sits at the top left; when open it moves to the drawer's right edge
+    let toggle_x = if state.drawer_open { outer + 16.0 } else { 8.0 };
+    let t = ctx.animate_bool_with_time(Id::unique("browser-drawer-slide"), state.drawer_open, DRAWER_SECS);
+    let eased = css_ease(t);
+    if t > 0.0 {
+        // closed it sits `-100% - 16px` to the left, off the window; the slide is CSS `ease`
+        let x = ws.min.x + 8.0 - (1.0 - eased) * (outer + 16.0);
+        Area::new(Id::unique("browser-panel")).order(Order::Foreground).fixed_pos(Pos2::new(x, ws.min.y + 8.0)).show(ctx, |ui| {
+            frame().inner_margin(Margin::symmetric(9, 6)).show(ui, |ui| {
+                ui.set_width(outer - PANEL_CHROME_X);
+                ui.set_max_height(max_h);
+                show(ui, ctx, tokens, state, view, commands, events);
+            });
+        });
+    }
+    Area::new(Id::unique("browser-toggle")).order(Order::Foreground).fixed_pos(Pos2::new(ws.min.x + toggle_x, ws.min.y + 8.0)).show(ctx, |ui| {
+        // `#browser-toggle`: 12 px text, 5 px 10 px padding, panel fill, line border, shadow. Foreground, not
+        // 1.x's z-index 6: 2.0's tool panel is not a bottom sheet on phones yet and would cover it.
+        frame().show(ui, |ui| {
+            ui.spacing_mut().button_padding = egui::vec2(10.0, 5.0);
+            let label = if state.drawer_open { "Close" } else { "Bodies" };
+            let text = RichText::new(label).size(12.0).color(tokens.text);
+            let button = egui::Button::new(text)
+                .fill(tokens.panel)
+                .stroke(Stroke::NONE)
+                .corner_radius(egui::CornerRadius::same(tokens.radius as u8));
+            if ui.add(button).clicked() {
+                state.drawer_open = !state.drawer_open;
+            }
+        });
+    });
 }

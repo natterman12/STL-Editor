@@ -17,6 +17,8 @@ boa_engine = { version = "=0.22.0", default-features = false }
 rustls = { version = "0.23.31", default-features = false, features = ["std", "tls12"] }
 rustls-rustcrypto = "=0.1.0-pre.0"
 webpki-roots = "1.0.12"
+# The app updater checks the downloaded exe against the release's sha256 digest.
+sha2 = "0.10"
 
 # The webview host, Windows and Linux only. macOS uses Boa until milestone 4 adds the
 # main-thread hook WKWebView needs (wry's macOS backend also builds C through objc2's

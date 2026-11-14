@@ -3,92 +3,63 @@
 //! Each dialog runs on its own short-lived thread, so the window keeps drawing while it is open;
 //! the answer lands in a [`Pending`] that the UI polls.
 
-use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
+
+use stl_platform::settings::{keys, Settings};
 
 use super::{Pending, PickedFile, Platform, SaveOutcome};
 
 pub struct NativePlatform {
     /// Called when a dialog has answered, to wake the UI (`Context::request_repaint`).
     wake: Option<Arc<dyn Fn() + Send + Sync>>,
+    /// `settings.json` in 2.0's own config folder (never 1.x's), merged key by key.
     settings: Settings,
-}
-
-/// The small remembered settings: read from the file once, written back whole through a temp file
-/// and a rename, so a crash can't leave half a file behind.
-struct Settings {
-    path: Option<PathBuf>,
-    cache: Mutex<Option<serde_json::Map<String, serde_json::Value>>>,
-}
-
-/// Makes every temp file name different (together with the process id).
-static TMP_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-
-impl Settings {
-    fn new(path: Option<PathBuf>) -> Self {
-        Settings { path, cache: Mutex::new(None) }
-    }
-
-    fn with<R>(&self, f: impl FnOnce(&mut serde_json::Map<String, serde_json::Value>) -> R) -> Option<R> {
-        let path = self.path.as_ref()?;
-        let mut g = self.cache.lock().unwrap_or_else(|e| e.into_inner());
-        let map = g.get_or_insert_with(|| read_settings(path));
-        Some(f(map))
-    }
-
-    fn get(&self, key: &str) -> Option<String> {
-        self.with(|m| m.get(key).and_then(|v| v.as_str()).map(str::to_owned)).flatten()
-    }
-
-    /// Read, change, write and rename under one lock, so two writers can't put an older copy back.
-    fn set(&self, key: &str, value: &str) {
-        let Some(path) = self.path.clone() else { return };
-        let mut g = self.cache.lock().unwrap_or_else(|e| e.into_inner());
-        let map = g.get_or_insert_with(|| read_settings(&path));
-        map.insert(key.to_owned(), serde_json::Value::String(value.to_owned()));
-        let text = serde_json::Value::Object(map.clone()).to_string();
-        if let Some(dir) = path.parent() {
-            let _ = std::fs::create_dir_all(dir);
-        }
-        let n = TMP_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let tmp = path.with_extension(format!("json.{}.{n}.tmp", std::process::id()));
-        if std::fs::write(&tmp, text).is_ok() && std::fs::rename(&tmp, &path).is_err() {
-            let _ = std::fs::remove_file(&tmp);
-        }
-    }
-}
-
-/// The settings file as an object. A file that exists but can't be read as one is copied to
-/// `.bak` before anything is written over it.
-fn read_settings(path: &std::path::Path) -> serde_json::Map<String, serde_json::Value> {
-    let Ok(bytes) = std::fs::read(path) else { return serde_json::Map::new() };
-    match serde_json::from_slice::<serde_json::Value>(&bytes) {
-        Ok(serde_json::Value::Object(m)) => m,
-        _ => {
-            let _ = std::fs::write(path.with_extension("json.bak"), &bytes);
-            serde_json::Map::new()
-        }
-    }
 }
 
 impl NativePlatform {
     pub fn new() -> Self {
-        NativePlatform { wake: None, settings: Settings::new(settings_file()) }
+        NativePlatform { wake: None, settings: Settings::open(&stl_platform::paths::config_dir()) }
     }
 
     /// `f` runs on the dialog's thread after the answer is stored.
     pub fn with_waker(f: impl Fn() + Send + Sync + 'static) -> Self {
-        NativePlatform { wake: Some(Arc::new(f)), settings: Settings::new(settings_file()) }
+        NativePlatform { wake: Some(Arc::new(f)), settings: Settings::open(&stl_platform::paths::config_dir()) }
     }
 
-    /// Keep the remembered settings in `path` (tests; the app uses the default place).
-    pub fn with_settings_file(path: PathBuf) -> Self {
-        NativePlatform { wake: None, settings: Settings::new(Some(path)) }
+    /// Keep the remembered settings in `<dir>/settings.json` (tests; the app uses
+    /// [`stl_platform::paths::config_dir`]).
+    pub fn with_config_dir(dir: &Path) -> Self {
+        NativePlatform { wake: None, settings: Settings::open(dir) }
     }
 
     fn wake_handle(&self) -> Option<Arc<dyn Fn() + Send + Sync>> {
         self.wake.clone()
+    }
+
+    /// Where the open and save dialogs start (1.x `last_dir`): the remembered folder, if it
+    /// still exists.
+    pub fn dialog_dir(&self) -> Option<PathBuf> {
+        dialog_dir(&self.settings)
+    }
+
+    /// Remember the folder of a file the user just picked (1.x `last_dir`).
+    pub fn remember_dir(&self, picked: &Path) {
+        remember_dir(&self.settings, picked);
+    }
+}
+
+fn dialog_dir(settings: &Settings) -> Option<PathBuf> {
+    let d = PathBuf::from(settings.get(keys::LAST_DIR)?.as_str()?);
+    d.is_dir().then_some(d)
+}
+
+fn remember_dir(settings: &Settings, picked: &Path) {
+    if let Some(dir) = picked.parent().filter(|d| !d.as_os_str().is_empty()) {
+        if let Err(e) = settings.set(keys::LAST_DIR, serde_json::Value::String(dir.to_string_lossy().into_owned())) {
+            eprintln!("Couldn't save settings: {e}");
+        }
     }
 }
 
@@ -145,12 +116,17 @@ impl Platform for NativePlatform {
         let filters: Vec<(String, Vec<String>)> =
             filters.iter().map(|(n, e)| (n.to_string(), e.iter().map(|s| s.to_string()).collect())).collect();
         let wake = self.wake_handle();
+        let settings = self.settings.clone();
         std::thread::spawn(move || {
             let mut dialog = rfd::FileDialog::new();
+            if let Some(dir) = dialog_dir(&settings) {
+                dialog = dialog.set_directory(dir);
+            }
             for (name, exts) in &filters {
                 dialog = dialog.add_filter(name.as_str(), exts);
             }
             let picked = dialog.pick_file().and_then(|path| {
+                remember_dir(&settings, &path);
                 let bytes = std::fs::read(&path).ok()?;
                 let name = path.file_name()?.to_string_lossy().into_owned();
                 Some((PickedFile { name, bytes }, Some(path.to_string_lossy().into_owned())))
@@ -186,14 +162,19 @@ impl Platform for NativePlatform {
         let out = pending.clone();
         let suggested = suggested.to_string();
         let wake = self.wake_handle();
+        let settings = self.settings.clone();
         std::thread::spawn(move || {
             let mut dialog = rfd::FileDialog::new().set_file_name(suggested.as_str());
+            if let Some(dir) = dialog_dir(&settings) {
+                dialog = dialog.set_directory(dir);
+            }
             if let Some(ext) = std::path::Path::new(&suggested).extension().and_then(|e| e.to_str()) {
                 dialog = dialog.add_filter(ext.to_uppercase(), &[ext]);
             }
             let result = match dialog.save_file() {
                 None => Ok(SaveOutcome::Cancelled),
                 Some(path) => {
+                    remember_dir(&settings, &path);
                     let path = if suggested.to_ascii_lowercase().ends_with(".stlx") { with_project_ext(path) } else { path };
                     write_file(&path, &bytes).map(|_| SaveOutcome::Done(Some(path.to_string_lossy().into_owned())))
                 }
@@ -216,18 +197,70 @@ impl Platform for NativePlatform {
     }
 
     fn setting(&self, key: &str) -> Option<String> {
-        self.settings.get(key)
+        self.settings.get(key).and_then(|v| v.as_str().map(str::to_owned))
     }
 
     fn set_setting(&self, key: &str, value: &str) {
-        self.settings.set(key, value);
+        self.set_setting_json(key, serde_json::Value::String(value.to_owned()));
+    }
+
+    fn setting_json(&self, key: &str) -> Option<serde_json::Value> {
+        self.settings.get(key)
+    }
+
+    fn set_setting_json(&self, key: &str, value: serde_json::Value) {
+        if let Err(e) = self.settings.set(key, value) {
+            eprintln!("Couldn't save settings: {e}");
+        }
+    }
+
+    fn read_path(&self, path: &str) -> Pending<Result<PickedFile, String>> {
+        let pending = Pending::new();
+        let out = pending.clone();
+        let path = path.to_owned();
+        let wake = self.wake_handle();
+        std::thread::spawn(move || {
+            out.set(read_file(&path));
+            if let Some(w) = wake {
+                w();
+            }
+        });
+        pending
     }
 }
 
-/// Where the small remembered settings live (beside, not inside, 1.x's `settings.json`).
-fn settings_file() -> Option<std::path::PathBuf> {
-    let base = std::env::var_os("APPDATA").or_else(|| std::env::var_os("XDG_CONFIG_HOME")).map(std::path::PathBuf::from).or_else(|| {
-        std::env::var_os("HOME").map(|h| std::path::PathBuf::from(h).join(".config"))
-    })?;
-    Some(base.join("STL Editor").join("ui-settings.json"))
+/// Python's `repr` of a path string, as 1.x shows it in an error.
+fn py_repr(s: &str) -> String {
+    let quote = if s.contains('\'') && !s.contains('"') { '"' } else { '\'' };
+    let mut r = String::from(quote);
+    for c in s.chars() {
+        match c {
+            '\\' => r.push_str("\\\\"),
+            c if c == quote => {
+                r.push('\\');
+                r.push(c);
+            }
+            c => r.push(c),
+        }
+    }
+    r.push(quote);
+    r
 }
+
+/// Open Recent: the file's bytes. A file that is gone gives 1.x's message word for word (the
+/// error 1.x's `Document.open` shows: `FileNotFoundError: [Errno 2] No such file or directory: '<path>'`).
+fn read_file(path: &str) -> Result<PickedFile, String> {
+    match std::fs::read(path) {
+        Ok(bytes) => {
+            let name = Path::new(path).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| path.to_owned());
+            Ok(PickedFile { name, bytes })
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            Err(format!("{}{}", MISSING_FILE_PREFIX, py_repr(path)))
+        }
+        Err(e) => Err(format!("Couldn't open the file: {e}")),
+    }
+}
+
+/// What a missing recent file's error starts with (1.x: `FileNotFoundError` from `open()`).
+pub const MISSING_FILE_PREFIX: &str = "FileNotFoundError: [Errno 2] No such file or directory: ";

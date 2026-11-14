@@ -10,6 +10,7 @@ Results from `cargo run --release -p xtask -- uibench` on Nathan's PC. Each run 
 | pan 5 s | Middle/right-drag pan for five seconds |
 | zoom 5 s | Cursor-centred zoom for five seconds |
 | gizmo drag | Move-tool handle drag on the bench mesh (`scenarios.gizmo_drag` in `src/bench.rs`) |
+| autosave | The bench project autosaves (into a temp folder) while an orbit keeps going for at least five seconds; no frame may go over 16.7 ms (`src/bench.rs`, milestone 5) |
 | open tool | Open each tool once on the bench mesh and wait for its first preview (`scenarios.open_tool` in `src/bench.rs`). A tool that never asks for a preview is cancelled after 0.8 s, and one that has not answered after 20 s is given up on; a quick run does the first six tools. The frames counted are the ones in between; the report lists every tool with its outcome (`open_tool_tools`) |
 | enter sketch | Enter a sketch on the bench mesh (look-at + grid); frames until settled (`scenarios.enter_sketch`) |
 | sketch drag | Drag a free point in a 200-entity / 100-constraint sketch; every frame target under 16.7 ms (`scenarios.sketch_drag`) |
@@ -559,3 +560,87 @@ _Open tool: 41 tools opened, 21 answered a preview; slowest first previews: thin
 | idle 5 s | 1 | 0.83 | 0.83 | 0.83 | 1 | 1 |
 | hollow rebuild | 1615 | 4.16 | 4.63 | 5.73 | 0 | 2 |
 | launch to first frame | — | 585.04 | — | — | — | — |
+
+### 2026-11-14
+
+_stl-engine has no Fillet. Release engine times on this 504k-triangle mesh: simplify 50% 376 ms; hollow draft 636 ms; hollow normal 1.43 s; hollow fine 4.16 s; remesh edge 2 mm 3.09 s (down to 5k triangles); remesh edge 1 mm 2.35 s. Offset 0.2 mm took about 200–360 s in earlier full runs, and offset 5 mm was still running at 45 s: a 0.2 mm grow only simplifies within 0.08 mm, so the Minkowski sum still sees most of the triangles. This row is Hollow, wall 2 mm, fine quality. Frame times are the frames that kept orbiting until the new mesh was uploaded and drawn. Rayon's pool keeps two physical cores free when the chip has hyperthreads, one physical core free without them, and two processors free where the layout can't be read. On Windows the window thread runs above normal priority and is not pinned. The engine thread and its Rayon workers run below the window. Other threads stay at normal priority._
+
+_Idle frames are paints something other than this bench asked for. Not counted: the frame already queued by the last zoom, egui's extra settle frame after an immediate repaint, and the wake this bench schedules so it can leave the idle window. Toasts are dismissed and any camera flight is finished as idle starts._
+
+_This run: hollow took 6532 ms from the command until the new mesh was uploaded and drawn. Frame times on that row are the orbiting frames in between._
+
+_Slowest rebuild frame: 8.23 ms. The frame before it spent 0.01 ms on engine updates, 0.39 ms on the rest of the layout, 0.06 ms in the viewport's paint callback (upload and render), 0.56 ms on egui's own paint, and 7.21 ms waiting (the swapchain, the submit, and until the window thread ran again)._
+
+_Autosave: the copy landed 34 ms after the command; no frame went over 16.7 ms (longest 5.17 ms)._
+
+_Open tool: 41 tools opened, 21 answered a preview; slowest first previews: thincheck 920 ms, hinge 200 ms, thread 171 ms; longest frames: sculpt 8.1 ms (frame 30), extrude 8.0 ms (frame 74), thincheck 6.7 ms (frame 157)._
+
+| Scenario | frames | median ms | p99 ms | longest ms | idle frames | uploads |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| orbit 10 s | 2401 | 4.16 | 4.63 | 5.54 | 0 | 1 |
+| pan 5 s | 1200 | 4.17 | 4.52 | 6.71 | 0 | 1 |
+| zoom 5 s | 1200 | 4.17 | 4.60 | 4.93 | 0 | 1 |
+| gizmo drag | 1200 | 4.16 | 4.54 | 5.83 | 0 | 1 |
+| autosave | 1200 | 4.17 | 4.64 | 5.17 | 0 | 1 |
+| open tool | 4313 | 4.17 | 4.86 | 8.11 | 0 | 1 |
+| enter sketch | 717 | 4.12 | 5.70 | 11.20 | 0 | 1 |
+| sketch drag | 1199 | 4.14 | 5.35 | 7.89 | 0 | 1 |
+| idle 5 s | 1 | 0.78 | 0.78 | 0.78 | 1 | 1 |
+| hollow rebuild | 1570 | 4.18 | 4.72 | 8.23 | 0 | 2 |
+| launch to first frame | — | 608.66 | — | — | — | — |
+
+### 2026-11-14
+
+_stl-engine has no Fillet. Release engine times on this 504k-triangle mesh: simplify 50% 376 ms; hollow draft 636 ms; hollow normal 1.43 s; hollow fine 4.16 s; remesh edge 2 mm 3.09 s (down to 5k triangles); remesh edge 1 mm 2.35 s. Offset 0.2 mm took about 200–360 s in earlier full runs, and offset 5 mm was still running at 45 s: a 0.2 mm grow only simplifies within 0.08 mm, so the Minkowski sum still sees most of the triangles. This row is Hollow, wall 2 mm, fine quality. Frame times are the frames that kept orbiting until the new mesh was uploaded and drawn. Rayon's pool keeps two physical cores free when the chip has hyperthreads, one physical core free without them, and two processors free where the layout can't be read. On Windows the window thread runs above normal priority and is not pinned. The engine thread and its Rayon workers run below the window. Other threads stay at normal priority._
+
+_Idle frames are paints something other than this bench asked for. Not counted: the frame already queued by the last zoom, egui's extra settle frame after an immediate repaint, and the wake this bench schedules so it can leave the idle window. Toasts are dismissed and any camera flight is finished as idle starts._
+
+_This run: hollow took 6525 ms from the command until the new mesh was uploaded and drawn. Frame times on that row are the orbiting frames in between._
+
+_Slowest rebuild frame: 8.37 ms. The frame before it spent 0.01 ms on engine updates, 0.35 ms on the rest of the layout, 0.07 ms in the viewport's paint callback (upload and render), 0.60 ms on egui's own paint, and 7.35 ms waiting (the swapchain, the submit, and until the window thread ran again)._
+
+_Autosave: the copy landed 43 ms after the command; no frame went over 16.7 ms (longest 7.77 ms)._
+
+_Open tool: 41 tools opened, 21 answered a preview; slowest first previews: thincheck 904 ms, hinge 217 ms, thread 192 ms; longest frames: hinge 8.2 ms (frame 26), mirror 6.1 ms (frame 9), snapfit 5.9 ms (frame 18)._
+
+| Scenario | frames | median ms | p99 ms | longest ms | idle frames | uploads |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| orbit 10 s | 2400 | 4.17 | 4.61 | 7.61 | 0 | 1 |
+| pan 5 s | 1201 | 4.17 | 4.63 | 5.21 | 0 | 1 |
+| zoom 5 s | 1200 | 4.17 | 4.67 | 8.43 | 0 | 1 |
+| gizmo drag | 1200 | 4.17 | 4.75 | 6.24 | 0 | 1 |
+| autosave | 1200 | 4.17 | 4.68 | 7.77 | 0 | 1 |
+| open tool | 4325 | 4.17 | 4.92 | 8.24 | 0 | 1 |
+| enter sketch | 716 | 4.15 | 5.10 | 14.89 | 0 | 1 |
+| sketch drag | 1200 | 4.14 | 5.04 | 7.63 | 0 | 1 |
+| idle 5 s | 1 | 0.74 | 0.74 | 0.74 | 1 | 1 |
+| hollow rebuild | 1568 | 4.17 | 4.71 | 8.37 | 0 | 2 |
+| launch to first frame | — | 620.72 | — | — | — | — |
+
+### 2026-11-14
+
+_stl-engine has no Fillet. Release engine times on this 504k-triangle mesh: simplify 50% 376 ms; hollow draft 636 ms; hollow normal 1.43 s; hollow fine 4.16 s; remesh edge 2 mm 3.09 s (down to 5k triangles); remesh edge 1 mm 2.35 s. Offset 0.2 mm took about 200–360 s in earlier full runs, and offset 5 mm was still running at 45 s: a 0.2 mm grow only simplifies within 0.08 mm, so the Minkowski sum still sees most of the triangles. This row is Hollow, wall 2 mm, fine quality. Frame times are the frames that kept orbiting until the new mesh was uploaded and drawn. Rayon's pool keeps two physical cores free when the chip has hyperthreads, one physical core free without them, and two processors free where the layout can't be read. On Windows the window thread runs above normal priority and is not pinned. The engine thread and its Rayon workers run below the window. Other threads stay at normal priority._
+
+_Idle frames are paints something other than this bench asked for. Not counted: the frame already queued by the last zoom, egui's extra settle frame after an immediate repaint, and the wake this bench schedules so it can leave the idle window. Toasts are dismissed and any camera flight is finished as idle starts._
+
+_This run: hollow took 6948 ms from the command until the new mesh was uploaded and drawn. Frame times on that row are the orbiting frames in between._
+
+_Slowest rebuild frame: 6.15 ms. The frame before it spent 0.01 ms on engine updates, 0.42 ms on the rest of the layout, 0.10 ms in the viewport's paint callback (upload and render), 2.30 ms on egui's own paint, and 3.32 ms waiting (the swapchain, the submit, and until the window thread ran again)._
+
+_Autosave: the copy landed 34 ms after the command; no frame went over 16.7 ms (longest 8.14 ms)._
+
+_Open tool: 41 tools opened, 21 answered a preview; slowest first previews: thincheck 917 ms, hinge 196 ms, thread 171 ms; longest frames: lattice 7.3 ms (frame 42), thincheck 6.1 ms (frame 163), hinge 6.0 ms (frame 17)._
+
+| Scenario | frames | median ms | p99 ms | longest ms | idle frames | uploads |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| orbit 10 s | 2401 | 4.17 | 4.56 | 5.43 | 0 | 1 |
+| pan 5 s | 1200 | 4.17 | 4.58 | 6.79 | 0 | 1 |
+| zoom 5 s | 1200 | 4.17 | 4.50 | 6.00 | 0 | 1 |
+| gizmo drag | 1200 | 4.17 | 4.52 | 5.12 | 0 | 1 |
+| autosave | 1200 | 4.17 | 4.62 | 8.14 | 0 | 1 |
+| open tool | 4314 | 4.17 | 4.90 | 7.33 | 0 | 1 |
+| enter sketch | 710 | 4.13 | 5.55 | 11.47 | 0 | 1 |
+| sketch drag | 1192 | 4.13 | 5.05 | 7.99 | 0 | 1 |
+| idle 5 s | 1 | 0.81 | 0.81 | 0.81 | 1 | 1 |
+| hollow rebuild | 1671 | 4.17 | 4.68 | 6.15 | 0 | 2 |
+| launch to first frame | — | 603.44 | — | — | — | — |

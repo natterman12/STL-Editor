@@ -22,6 +22,9 @@ use crate::viewport::{FrameTrace, Viewport};
 const ORBIT_S: f64 = 10.0;
 const PAN_S: f64 = 5.0;
 const ZOOM_S: f64 = 5.0;
+/// The autosave row: the bench project is autosaved (off the UI thread, into a temp folder)
+/// while the view orbits.
+const AUTOSAVE_S: f64 = 5.0;
 /// The gizmo drag row: an X arrow held and swung back and forth on the bench mesh.
 const GIZMO_S: f64 = 5.0;
 /// The open tool row: each tool is opened once and given this long to answer its first preview.
@@ -48,6 +51,7 @@ This row is Hollow, wall 2 mm, fine quality. Frame times are the frames that kep
 Rayon's pool keeps two physical cores free when the chip has hyperthreads, one physical core free without them, and two processors free where the layout can't be read. \
 On Windows the window thread runs above normal priority and is not pinned. The engine thread and its Rayon workers run below the window. Other threads stay at normal priority.";
 const OPEN_TOOL_NOTE: &str = "Each tool is opened once on the bench mesh (the first body picked) and cancelled when its first preview has landed, or after 0.8 s when it never asks for one (pick tools, Import), or after 20 s. Frame times are the frames in between; `open_tool_tools` lists every tool with its outcome and the milliseconds it took.";
+const AUTOSAVE_NOTE: &str = "The bench project (the imported 504k-triangle mesh and its project) is autosaved into a temp folder while the view orbits: the first copy is the biggest one the app ever writes. The engine thread writes it; the window only queues the command and reads the answer. Frame times are the orbiting frames until the copy has landed (at least five seconds).";
 const IDLE_NOTE: &str = "\
 Idle frames are paints something other than this bench asked for. Not counted: the frame already queued by the last zoom, \
 egui's extra settle frame after an immediate repaint, and the wake this bench schedules so it can leave the idle window. \
@@ -59,6 +63,8 @@ enum Phase {
     Orbit,
     Pan,
     Zoom,
+    /// The bench project autosaving (the engine thread writes the copy) during an orbit.
+    Autosave,
     GizmoDrag,
     /// Every tool opened once, the frames until its first preview counted.
     OpenTool,
@@ -241,6 +247,16 @@ pub struct BenchApp {
     orbit: ScenarioStat,
     pan: ScenarioStat,
     zoom: ScenarioStat,
+    autosave: ScenarioStat,
+    /// Where the autosave row's copy goes: a folder of its own under the temp folder, never the
+    /// real autosave folders. Removed when the bench ends.
+    autosave_root: PathBuf,
+    autosave_sent: bool,
+    /// How long the copy took to land (command sent until the engine said so), in ms.
+    autosave_ms: f64,
+    /// The engine said the copy was written.
+    autosave_written: bool,
+    autosave_started: Option<Instant>,
     gizmo_drag: ScenarioStat,
     open_tool: ScenarioStat,
     enter_sketch: ScenarioStat,
@@ -319,6 +335,12 @@ impl BenchApp {
             orbit: ScenarioStat::new(),
             pan: ScenarioStat::new(),
             zoom: ScenarioStat::new(),
+            autosave: ScenarioStat::new(),
+            autosave_root: std::env::temp_dir().join(format!("stl-uibench-autosave-{}", std::process::id())),
+            autosave_sent: false,
+            autosave_ms: 0.0,
+            autosave_written: false,
+            autosave_started: None,
             gizmo_drag: ScenarioStat::new(),
             open_tool: ScenarioStat::new(),
             enter_sketch: ScenarioStat::new(),
@@ -380,6 +402,9 @@ impl BenchApp {
             "after_rebuild": self.after.iter().map(|r| r.to_json()).collect::<Vec<_>>(),
             "mesh": self.mesh_path.display().to_string(),
             "gizmo_note": self.gizmo_note,
+            "autosave_ms": self.autosave_ms,
+            "autosave_written": self.autosave_written,
+            "autosave_note": AUTOSAVE_NOTE,
             "open_tool_tools": self.open_log,
             "open_tool_note": OPEN_TOOL_NOTE,
             "gizmo_flat_rebuilds": self.gizmo_flat_rebuilds,
@@ -392,6 +417,7 @@ impl BenchApp {
                 "orbit": self.orbit.to_json(),
                 "pan": self.pan.to_json(),
                 "zoom": self.zoom.to_json(),
+                "autosave": self.autosave.to_json(),
                 "gizmo_drag": self.gizmo_drag.to_json(),
                 "open_tool": self.open_tool.to_json(),
                 "enter_sketch": self.enter_sketch.to_json(),
@@ -665,6 +691,11 @@ impl eframe::App for BenchApp {
                 self.app.viewport.camera_mut().rotate(6.0, 2.0);
                 ui.ctx().request_repaint();
             }
+            Phase::Autosave => {
+                self.autosave.record(dt_ms);
+                self.app.viewport.camera_mut().rotate(6.0, 2.0);
+                ui.ctx().request_repaint();
+            }
             Phase::Pan => {
                 self.pan.record(dt_ms);
                 self.app.viewport.camera_mut().pan(4.0, -3.0);
@@ -833,10 +864,36 @@ impl eframe::App for BenchApp {
             }
             Phase::Zoom if self.phase_started.elapsed().as_secs_f64() >= self.phase_secs(ZOOM_S) => {
                 self.zoom.uploads_end = self.app.viewport.stats().uploads();
-                self.gizmo_start();
-                self.phase = Phase::GizmoDrag;
+                self.phase = Phase::Autosave;
                 self.phase_started = Instant::now();
                 self.last_frame = Instant::now();
+                self.autosave_sent = false;
+                ui.ctx().request_repaint();
+            }
+            Phase::Autosave => {
+                if !self.autosave_sent {
+                    self.autosave_sent = true;
+                    self.link.set_autosave_root(self.autosave_root.clone());
+                    self.link.send(Command::Autosave { path: None, title: Some("bench".into()) });
+                    self.autosave_started = Some(Instant::now());
+                }
+                self.autosave_written = autosave_copy_exists(&self.autosave_root);
+                if self.autosave_written && self.autosave_ms == 0.0 {
+                    self.autosave_ms = self.autosave_started.map_or(0.0, |t| t.elapsed().as_secs_f64() * 1000.0);
+                }
+                let long_enough = self.phase_started.elapsed().as_secs_f64() >= self.phase_secs(AUTOSAVE_S);
+                let gave_up = self.phase_started.elapsed().as_secs_f64() > 60.0;
+                if (long_enough && !self.link.is_busy()) || gave_up {
+                    self.autosave.uploads_end = self.app.viewport.stats().uploads();
+                    if !self.autosave_written {
+                        eprintln!("uibench: the autosave copy was not written under {}", self.autosave_root.display());
+                    }
+                    let _ = std::fs::remove_dir_all(&self.autosave_root);
+                    self.gizmo_start();
+                    self.phase = Phase::GizmoDrag;
+                    self.phase_started = Instant::now();
+                    self.last_frame = Instant::now();
+                }
                 ui.ctx().request_repaint();
             }
             Phase::GizmoDrag if self.gizmo_done => {
@@ -915,6 +972,11 @@ impl eframe::App for BenchApp {
             _ => {}
         }
     }
+}
+
+/// Has an autosave copy (a session folder with a `document.json`) landed under `root`?
+fn autosave_copy_exists(root: &Path) -> bool {
+    std::fs::read_dir(root).into_iter().flatten().flatten().any(|e| e.path().join("document.json").is_file())
 }
 
 fn chrono_date() -> String {

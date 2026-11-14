@@ -13,7 +13,7 @@ mod webview;
 
 pub use boa::BoaHost;
 pub use update::{
-    check_update, choose_engine, digest, finish_update_check, published_url, reset_fins_state, EngineInfo, FinsState,
+    check_update, choose_engine, digest, engines_dir, finish_update_check, published_url, reset_fins_state, EngineInfo, FinsState,
     Settings,
 };
 #[cfg(any(windows, target_os = "linux"))]

@@ -1,6 +1,10 @@
 //! Task 5 of milestone 4c: relations, dimensions and solving. The 1.x values below were computed
 //! with `web/js/dims.js` and `web/js/constraints.js` in Node (numbers are compared to 1e-9).
 
+// keeps this test binary out of the real 2.0 folders (STLEDITOR2_CONFIG_DIR)
+#[path = "support/test_env.rs"]
+mod test_env;
+
 use std::collections::BTreeMap;
 
 use serde_json::{json, Value};

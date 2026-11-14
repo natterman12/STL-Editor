@@ -70,6 +70,11 @@ pub struct TextDialogState {
     pub bufs: Bufs,
     pub last_font: String,
     pub inch: bool,
+    /// The font list, loaded when the dialog first draws (kept for the session, so the
+    /// computer's fonts are asked for once, as 1.x).
+    pub fonts: Option<FontList>,
+    /// The open "Add a font file…" picker.
+    pub font_pick: Option<crate::platform::Pending<Option<(crate::platform::PickedFile, Option<String>)>>>,
 }
 
 pub fn tool_for(key: &str) -> Option<Box<dyn SketchTool>> {
@@ -200,9 +205,70 @@ pub fn validate_for_commit(state: &TextDialogState) -> Result<(), &'static str> 
 }
 
 /// Draw the text modal in the sketch tool panel. Returns an effect when the user commits or cancels.
+/// Without a platform the font list can't add font files; the app calls [`dialog_with`].
 pub fn dialog(ui: &mut Ui, tk: &Tokens, s: &SketchSession, state: &mut TextDialogState) -> Option<SketchEffect> {
+    dialog_inner(ui, tk, s, state, None)
+}
+
+/// [`dialog`] with the platform: "Add a font file…" opens a file picker and remembers the font
+/// in settings.
+pub fn dialog_with(ui: &mut Ui, tk: &Tokens, s: &SketchSession, state: &mut TextDialogState, platform: &dyn crate::platform::Platform) -> Option<SketchEffect> {
+    dialog_inner(ui, tk, s, state, Some(platform))
+}
+
+/// The font box chose `value`: a family, or [`LOCAL`] / [`FILE`] (1.x `fs.onchange`). Returns a
+/// toast to show, if any.
+pub fn choose_font(state: &mut TextDialogState, value: &str, platform: Option<&dyn crate::platform::Platform>) -> Option<SketchEffect> {
+    match value {
+        #[cfg(not(target_arch = "wasm32"))]
+        LOCAL => {
+            let fonts = state.fonts.get_or_insert_with(|| platform.map_or_else(FontList::bundled_only, FontList::load));
+            state.form.font = fonts.load_system().unwrap_or_else(default_font_name);
+        }
+        FILE => {
+            if let Some(p) = platform {
+                state.font_pick = Some(p.open_file_path(&[("Fonts", &["ttf", "otf"])]));
+            }
+        }
+        f => state.form.font = f.to_string(),
+    }
+    None
+}
+
+/// A picked font file arrived: add it (1.x `addFontFiles`). Picks its family, or the default
+/// with a warning when the file isn't a font.
+pub fn font_file_picked(state: &mut TextDialogState, file: &crate::platform::PickedFile, path: Option<&str>, platform: &dyn crate::platform::Platform) -> Option<SketchEffect> {
+    let fonts = state.fonts.get_or_insert_with(|| FontList::load(platform));
+    match fonts.add_file(platform, &file.name, &file.bytes, path) {
+        Ok(added) => {
+            state.form.font = added.first().cloned().unwrap_or_else(default_font_name);
+            Some(SketchEffect::Toast(crate::engine_link::Level::Info, added_message(&added)))
+        }
+        Err(e) => {
+            state.form.font = default_font_name();
+            Some(SketchEffect::Toast(crate::engine_link::Level::Warning, e))
+        }
+    }
+}
+
+fn dialog_inner(ui: &mut Ui, tk: &Tokens, s: &SketchSession, state: &mut TextDialogState, platform: Option<&dyn crate::platform::Platform>) -> Option<SketchEffect> {
     if !state.open {
         return None;
+    }
+    if state.fonts.is_none() {
+        state.fonts = Some(platform.map_or_else(FontList::bundled_only, FontList::load));
+    }
+    let mut picked_toast = None;
+    if let (Some(pending), Some(p)) = (state.font_pick.clone(), platform) {
+        match pending.take() {
+            Some(answer) => {
+                state.font_pick = None;
+                if let Some((file, path)) = answer {
+                    picked_toast = font_file_picked(state, &file, path.as_deref(), p);
+                }
+            }
+            None => ui.ctx().request_repaint(),
+        }
     }
     let _env = FieldEnv { tk, inch: state.inch, params: &Default::default() };
     let editing = state.edit_group.is_some();
@@ -234,18 +300,18 @@ pub fn dialog(ui: &mut Ui, tk: &Tokens, s: &SketchSession, state: &mut TextDialo
             None::<()>
         });
         fields::row_raw(ui, tk, "Font", None, false, |ui, w| {
-            let families = font_choices();
+            let entries = state.fonts.as_ref().map(FontList::entries).unwrap_or_default();
             let shown = state.form.font.clone();
             let mut chosen = None;
             fields::framed_combo(ui, tk, ("sk-text", "font"), w, &shown, |ui| {
-                for f in &families {
-                    if ui.selectable_label(state.form.font == *f, f.as_str()).clicked() {
-                        chosen = Some(f.clone());
+                for (value, label) in &entries {
+                    if ui.selectable_label(state.form.font == *value, label.as_str()).clicked() {
+                        chosen = Some(value.clone());
                     }
                 }
             });
-            if let Some(f) = chosen {
-                state.form.font = f;
+            if let Some(v) = chosen {
+                choose_font(state, &v, platform);
             }
             None::<()>
         });
@@ -360,7 +426,7 @@ pub fn dialog(ui: &mut Ui, tk: &Tokens, s: &SketchSession, state: &mut TextDialo
             }
         }
     });
-    effect
+    effect.or(picked_toast)
 }
 
 fn align_label(v: &str) -> String {
@@ -371,41 +437,376 @@ fn align_label(v: &str) -> String {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-fn font_choices() -> Vec<String> {
-    let mut seen = std::collections::BTreeSet::new();
-    let mut out = Vec::new();
-    for f in stl_sketch::text::list_fonts() {
-        if seen.insert(f.family.clone()) {
-            out.push(f.family);
-        }
-    }
-    if out.is_empty() {
-        bundled_fonts()
-    } else {
-        out
-    }
-}
-
-#[cfg(target_arch = "wasm32")]
-fn font_choices() -> Vec<String> {
-    bundled_fonts()
-}
-
 fn bundled_fonts() -> Vec<String> {
-    vec!["DejaVu Sans".into(), "DejaVu Serif".into(), "DejaVu Sans Mono".into()]
+    BUNDLED.iter().map(|s| s.to_string()).collect()
 }
 
-fn default_font_name() -> String {
+/// The text fonts every edition has (1.x web `BUNDLED_FONTS`; the engine draws them itself).
+pub const BUNDLED: [&str; 3] = ["DejaVu Sans", "DejaVu Serif", "DejaVu Sans Mono"];
+
+/// The text dialog's default font: on the desktop the first of Arial, Segoe UI, DejaVu Sans,
+/// Liberation Sans this computer has (1.x `MT.default_font()`); else DejaVu Sans (1.x web
+/// `F.default`).
+pub fn default_font_name() -> String {
     #[cfg(not(target_arch = "wasm32"))]
     {
+        let fonts = stl_sketch::text::list_fonts();
         for want in ["Arial", "Segoe UI", "DejaVu Sans", "Liberation Sans"] {
-            if stl_sketch::text::list_fonts().iter().any(|f| f.family == want) {
+            if fonts.iter().any(|f| f.family == want) {
                 return want.into();
             }
         }
     }
-    "DejaVu Sans".into()
+    BUNDLED[0].into()
+}
+
+// ------------------------------------------------------------------------ the font list
+
+/// The font list entry that adds the computer's own fonts (desktop only), word for word 1.x.
+pub const MORE_FONTS: &str = "More: fonts on this computer…";
+/// The font list entry that adds fonts from a file (desktop and web), word for word 1.x.
+pub const ADD_FONT_FILE: &str = "Add a font file…";
+/// Value of the [`MORE_FONTS`] entry in [`FontList::entries`] (1.x `__local__`).
+pub const LOCAL: &str = "__local__";
+/// Value of the [`ADD_FONT_FILE`] entry in [`FontList::entries`] (1.x `__file__`).
+pub const FILE: &str = "__file__";
+/// The setting that remembers added fonts. 1.x kept them in the browser's IndexedDB `fonts`
+/// store and had no settings key.
+pub const FONTS_KEY: &str = "text_fonts";
+/// 1.x `font_info`'s message, without ".woff" (2.0 reads .ttf and .otf only).
+pub const BAD_FONT: &str = "That file isn\u{2019}t a font STL Editor can read (use .ttf or .otf).";
+
+/// 1.x's toast after adding font files: `Added ${added.join(', ')}`.
+pub fn added_message(families: &[String]) -> String {
+    format!("Added {}", families.join(", "))
+}
+
+/// Where a font that isn't bundled comes from.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum FontSource {
+    /// A file on this computer (a system font, or an added file on the desktop).
+    Path(String),
+    /// The bytes of an added file (the web edition has no path).
+    Bytes(Vec<u8>),
+}
+
+/// One added font file: family, style (1.x codes: "", "b", "i", "bi") and where it is.
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct Added {
+    family: String,
+    style: String,
+    source: FontSource,
+}
+
+/// The text dialog's font list (1.x `post('fonts')` with `canAskLocal` / `canAddFile`): the
+/// bundled fonts, then the added ones, then this computer's fonts once asked for.
+#[derive(Clone, Debug, Default)]
+pub struct FontList {
+    added: Vec<Added>,
+    /// (family, file) once "More: fonts on this computer…" was chosen.
+    system: Option<Vec<(String, std::path::PathBuf)>>,
+    web: bool,
+    /// "Add a font file…" is offered (there is a platform to pick the file and remember it).
+    can_add: bool,
+}
+
+impl FontList {
+    /// The list with the fonts remembered in settings. A remembered file that has gone is left out.
+    pub fn load(p: &dyn crate::platform::Platform) -> FontList {
+        let mut added: Vec<Added> = Vec::new();
+        for v in p.setting_json(FONTS_KEY).and_then(|v| v.as_array().cloned()).unwrap_or_default() {
+            let Some(family) = v.get("family").and_then(Value::as_str).filter(|f| !f.is_empty()) else { continue };
+            let style = v.get("style").and_then(Value::as_str).unwrap_or("").to_string();
+            let source = if let Some(path) = v.get("path").and_then(Value::as_str) {
+                #[cfg(not(target_arch = "wasm32"))]
+                if !std::path::Path::new(path).is_file() {
+                    continue;
+                }
+                FontSource::Path(path.to_string())
+            } else if let Some(bytes) = v.get("data").and_then(Value::as_str).and_then(base64_decode) {
+                FontSource::Bytes(bytes)
+            } else {
+                continue;
+            };
+            if !added.iter().any(|a| a.family == family && a.style == style) {
+                added.push(Added { family: family.to_string(), style, source });
+            }
+        }
+        FontList { added, system: None, web: p.is_web(), can_add: true }
+    }
+
+    /// Without a platform: the bundled fonts, and (desktop) the computer's fonts on request.
+    pub fn bundled_only() -> FontList {
+        FontList { web: cfg!(target_arch = "wasm32"), ..FontList::default() }
+    }
+
+    /// 1.x `canAskLocal`: the desktop, and the computer's fonts aren't in the list yet.
+    pub fn can_ask_local(&self) -> bool {
+        !self.web && self.system.is_none()
+    }
+
+    /// 1.x `canAddFile`.
+    pub fn can_add_file(&self) -> bool {
+        self.can_add
+    }
+
+    /// Families in list order, as 1.x's `fonts` route: the bundled ones, then the added ones
+    /// (sorted), then the computer's (sorted); each family once.
+    pub fn families(&self) -> Vec<String> {
+        let mut out = bundled_fonts();
+        let mut added: Vec<&str> = self.added.iter().map(|a| a.family.as_str()).collect();
+        added.sort_by_key(|a| a.to_lowercase());
+        let mut local: Vec<&str> = self.system.iter().flatten().map(|(f, _)| f.as_str()).collect();
+        local.sort_by_key(|a| a.to_lowercase());
+        for f in added.into_iter().chain(local) {
+            if !out.iter().any(|o| o == f) {
+                out.push(f.to_string());
+            }
+        }
+        out
+    }
+
+    /// (value, label) for the font box: the families, then [`MORE_FONTS`] and [`ADD_FONT_FILE`]
+    /// when they apply (values [`LOCAL`] and [`FILE`]).
+    pub fn entries(&self) -> Vec<(String, String)> {
+        let mut out: Vec<(String, String)> = self.families().into_iter().map(|f| (f.clone(), f)).collect();
+        if self.can_ask_local() {
+            out.push((LOCAL.into(), MORE_FONTS.into()));
+        }
+        if self.can_add_file() {
+            out.push((FILE.into(), ADD_FONT_FILE.into()));
+        }
+        out
+    }
+
+    /// The computer's fonts join the list. Returns the family to pick: Arial when there is
+    /// one (1.x `fams.includes('Arial') ? 'Arial' : null`).
+    pub fn set_system(&mut self, fonts: Vec<(String, std::path::PathBuf)>) -> Option<String> {
+        let arial = fonts.iter().any(|(f, _)| f == "Arial");
+        self.system = Some(fonts);
+        arial.then(|| "Arial".to_string())
+    }
+
+    /// "More: fonts on this computer…": list them now (desktop).
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn load_system(&mut self) -> Option<String> {
+        self.set_system(system_fonts())
+    }
+
+    /// Read a font file the person picked, add it and remember it in settings. Returns the
+    /// families added (for [`added_message`]); [`BAD_FONT`] when it isn't a readable font.
+    pub fn add_file(&mut self, p: &dyn crate::platform::Platform, _name: &str, bytes: &[u8], path: Option<&str>) -> Result<Vec<String>, String> {
+        let (family, style) = font_info(bytes)?;
+        let source = match path.filter(|s| !s.is_empty()) {
+            Some(path) => FontSource::Path(path.to_string()),
+            None => FontSource::Bytes(bytes.to_vec()),
+        };
+        self.added.retain(|a| !(a.family == family && a.style == style));
+        self.added.push(Added { family: family.clone(), style, source });
+        p.set_setting_json(FONTS_KEY, self.saved());
+        Ok(vec![family])
+    }
+
+    fn saved(&self) -> Value {
+        Value::Array(
+            self.added
+                .iter()
+                .map(|a| match &a.source {
+                    FontSource::Path(path) => json!({"family": a.family, "style": a.style, "path": path}),
+                    FontSource::Bytes(b) => json!({"family": a.family, "style": a.style, "data": base64_encode(b)}),
+                })
+                .collect(),
+        )
+    }
+
+    /// Where the engine finds a family that isn't bundled, with 1.x's style fallback
+    /// (`fileFontData`: the wanted style, then Bold or Regular, then Regular, then any).
+    /// `None` for the bundled fonts and for families not in the list.
+    pub fn font_source(&self, family: &str, bold: bool, italic: bool) -> Option<FontSource> {
+        if BUNDLED.contains(&family) {
+            return None;
+        }
+        let styles: Vec<&Added> = self.added.iter().filter(|a| a.family == family).collect();
+        if !styles.is_empty() {
+            let want = format!("{}{}", if bold { "b" } else { "" }, if italic { "i" } else { "" });
+            let pick = [want.as_str(), if bold { "b" } else { "" }, ""]
+                .iter()
+                .find_map(|w| styles.iter().find(|a| a.style == *w))
+                .or(styles.first())?;
+            return Some(pick.source.clone());
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some((_, regular)) = self.system.iter().flatten().find(|(f, _)| f == family) {
+            // another style of a listed family: from the computer's full list, as 1.x `_font_path`
+            let all = stl_sketch::text::list_fonts();
+            let styled = (bold || italic)
+                .then(|| all.iter().any(|i| i.family == family))
+                .filter(|&has| has)
+                .and_then(|_| stl_sketch::text::fonts::font_path_among(&all, Some(family), bold, italic).ok());
+            return Some(FontSource::Path(styled.unwrap_or_else(|| regular.clone()).to_string_lossy().into_owned()));
+        }
+        None
+    }
+
+    /// The bytes of [`FontList::font_source`] (a path is read now).
+    pub fn font_bytes(&self, family: &str, bold: bool, italic: bool) -> Option<Vec<u8>> {
+        match self.font_source(family, bold, italic)? {
+            FontSource::Bytes(b) => Some(b),
+            #[cfg(not(target_arch = "wasm32"))]
+            FontSource::Path(p) => std::fs::read(p).ok(),
+            #[cfg(target_arch = "wasm32")]
+            FontSource::Path(_) => None,
+        }
+    }
+}
+
+/// This computer's outline fonts as (family, file), one per family (its Regular style when it
+/// has one): the folders 1.x searched (`%WINDIR%\Fonts`, the per-user
+/// `%LOCALAPPDATA%\Microsoft\Windows\Fonts`, the Linux and Mac font folders).
+#[cfg(not(target_arch = "wasm32"))]
+pub fn system_fonts() -> Vec<(String, std::path::PathBuf)> {
+    one_per_family(stl_sketch::text::list_fonts())
+}
+
+/// [`system_fonts`] in these folders only.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn system_fonts_in(dirs: &[std::path::PathBuf]) -> Vec<(String, std::path::PathBuf)> {
+    one_per_family(stl_sketch::text::fonts::list_fonts_in(dirs))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn one_per_family(fonts: Vec<stl_sketch::text::FontInfo>) -> Vec<(String, std::path::PathBuf)> {
+    let mut out: Vec<(String, std::path::PathBuf)> = Vec::new();
+    for f in &fonts {
+        if out.iter().any(|(fam, _)| *fam == f.family) {
+            continue;
+        }
+        let path = stl_sketch::text::fonts::font_path_among(&fonts, Some(&f.family), false, false).unwrap_or_else(|_| f.path.clone());
+        out.push((f.family.clone(), path));
+    }
+    out
+}
+
+/// Family and style code ("", "b", "i", "bi") of a .ttf / .otf file, as 1.x `font_info`
+/// (family: typographic, else font family; style from the subfamily name). [`BAD_FONT`] when
+/// the sketch text can't read it.
+pub fn font_info(bytes: &[u8]) -> Result<(String, String), String> {
+    let bad = || BAD_FONT.to_string();
+    let names = sfnt_names(bytes).ok_or_else(bad)?;
+    // the glyph reader the sketch text uses must accept it too
+    stl_sketch::text::text_contours(bytes, "A", 10.0, &stl_sketch::text::TextOpts::default()).map_err(|_| bad())?;
+    let pick = |ids: &[u16]| ids.iter().find_map(|id| best_name(&names, *id));
+    let family = pick(&[16, 1]).unwrap_or_else(|| "Font".into());
+    let sub = pick(&[17, 2]).unwrap_or_else(|| "Regular".into()).to_lowercase();
+    let mut style = String::new();
+    if ["bold", "black", "heavy"].iter().any(|w| sub.contains(w)) {
+        style.push('b');
+    }
+    if sub.contains("italic") || sub.contains("oblique") {
+        style.push('i');
+    }
+    Ok((family, style))
+}
+
+/// (platform, encoding, language, name id, text) of every name record of an outline font
+/// (TrueType `glyf` or CFF). `None` when the file isn't one.
+fn sfnt_names(d: &[u8]) -> Option<Vec<(u16, u16, u16, u16, String)>> {
+    // every offset comes from the file: checked sums, so a crafted file can't overflow (wasm32)
+    let span = |o: usize, n: usize| d.get(o..o.checked_add(n)?);
+    let u16_at = |o: usize| span(o, 2).map(|b| u16::from_be_bytes([b[0], b[1]]));
+    let u32_at = |o: usize| span(o, 4).map(|b| u32::from_be_bytes([b[0], b[1], b[2], b[3]]));
+    let add = |a: usize, b: usize| a.checked_add(b);
+    let mul = |a: usize, b: usize| a.checked_mul(b);
+    let mut base = 0usize;
+    if span(0, 4)? == b"ttcf" {
+        base = usize::try_from(u32_at(12)?).ok()?;
+    }
+    let tag = span(base, 4)?;
+    if tag != [0, 1, 0, 0] && tag != b"OTTO" && tag != b"true" {
+        return None;
+    }
+    let count = u16_at(add(base, 4)?)? as usize;
+    let mut name = None;
+    let mut outlines = false;
+    for i in 0..count {
+        let r = add(add(base, 12)?, mul(16, i)?)?;
+        let t = span(r, 4)?;
+        let off = usize::try_from(u32_at(add(r, 8)?)?).ok()?;
+        let len = usize::try_from(u32_at(add(r, 12)?)?).ok()?;
+        span(off, len)?;
+        match t {
+            b"name" => name = Some(off),
+            b"glyf" | b"CFF " | b"CFF2" => outlines = true,
+            _ => {}
+        }
+    }
+    let n = name.filter(|_| outlines)?;
+    let records = u16_at(add(n, 2)?)? as usize;
+    let strings = add(n, u16_at(add(n, 4)?)? as usize)?;
+    let mut out = Vec::new();
+    for i in 0..records {
+        let r = add(add(n, 6)?, mul(12, i)?)?;
+        let (plat, enc, lang, id) = (u16_at(r)?, u16_at(add(r, 2)?)?, u16_at(add(r, 4)?)?, u16_at(add(r, 6)?)?);
+        let (len, off) = (u16_at(add(r, 8)?)? as usize, u16_at(add(r, 10)?)? as usize);
+        let Some(raw) = add(strings, off).and_then(|o| span(o, len)) else { continue };
+        let text = match plat {
+            0 | 3 => {
+                let units: Vec<u16> = raw.chunks_exact(2).map(|c| u16::from_be_bytes([c[0], c[1]])).collect();
+                String::from_utf16(&units).ok()
+            }
+            1 if enc == 0 => Some(raw.iter().map(|&b| if b < 128 { b as char } else { '\u{FFFD}' }).collect()),
+            _ => None,
+        };
+        if let Some(t) = text.filter(|t| !t.trim().is_empty()) {
+            out.push((plat, enc, lang, id, t));
+        }
+    }
+    Some(out)
+}
+
+/// The name stl-sketch's font listing would pick: Windows English Unicode, then Windows
+/// English, then Mac English, then any.
+fn best_name(names: &[(u16, u16, u16, u16, String)], id: u16) -> Option<String> {
+    let of_id = || names.iter().filter(move |n| n.3 == id);
+    of_id()
+        .find(|n| n.0 == 3 && n.1 == 1 && n.2 == 0x409)
+        .or_else(|| of_id().find(|n| n.0 == 3 && n.2 == 0x409))
+        .or_else(|| of_id().find(|n| n.0 == 1 && n.2 == 0))
+        .or_else(|| of_id().last())
+        .map(|n| n.4.clone())
+}
+
+const B64: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+fn base64_encode(b: &[u8]) -> String {
+    let mut out = String::with_capacity(b.len().div_ceil(3) * 4);
+    for c in b.chunks(3) {
+        let n = (c[0] as u32) << 16 | (*c.get(1).unwrap_or(&0) as u32) << 8 | *c.get(2).unwrap_or(&0) as u32;
+        for k in 0..4 {
+            if k <= c.len() {
+                out.push(B64[(n >> (18 - 6 * k) & 63) as usize] as char);
+            } else {
+                out.push('=');
+            }
+        }
+    }
+    out
+}
+
+fn base64_decode(s: &str) -> Option<Vec<u8>> {
+    let s = s.trim_end_matches('=');
+    let mut out = Vec::with_capacity(s.len() * 3 / 4);
+    let (mut acc, mut bits) = (0u32, 0u32);
+    for ch in s.bytes() {
+        let v = B64.iter().position(|&c| c == ch)? as u32;
+        acc = acc << 6 | v;
+        bits += 6;
+        if bits >= 8 {
+            bits -= 8;
+            out.push((acc >> bits & 0xff) as u8);
+        }
+    }
+    Some(out)
 }
 
 struct TextTool;

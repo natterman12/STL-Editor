@@ -1,4 +1,5 @@
 mod bench;
+mod install;
 mod pure;
 mod uibench;
 mod web;
@@ -57,6 +58,13 @@ fn main() -> ExitCode {
                 ExitCode::FAILURE
             }
         },
+        Some("install" | "uninstall") => match install::run(std::env::args().skip(1)) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("{e}");
+                ExitCode::FAILURE
+            }
+        },
         Some("web") => match web::run(std::env::args().skip(2)) {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
@@ -72,7 +80,7 @@ fn main() -> ExitCode {
             }
         },
         _ => {
-            eprintln!("usage: cargo run -p xtask -- pure-rust | cargo run --release -p xtask -- bench | cargo run --release -p xtask -- uibench [--quick] | cargo run -p xtask -- web [--serve | --check [--webgl2] | --measure-preview]");
+            eprintln!("usage: cargo run -p xtask -- pure-rust | cargo run --release -p xtask -- bench | cargo run --release -p xtask -- uibench [--quick] | cargo run -p xtask -- install [--exe <path>] | cargo run -p xtask -- uninstall [--purge] | cargo run -p xtask -- web [--serve | --check [--webgl2] | --measure-preview]");
             ExitCode::FAILURE
         }
     }

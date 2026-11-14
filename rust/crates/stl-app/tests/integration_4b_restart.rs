@@ -2,6 +2,10 @@
 //! (1.x `aboutSupportFins`). Its own file: the engine's schema is installed once per process.
 #![cfg(not(target_arch = "wasm32"))]
 
+// keeps this test binary out of the real 2.0 folders (STLEDITOR2_CONFIG_DIR)
+#[path = "support/test_env.rs"]
+mod test_env;
+
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 

@@ -3,6 +3,10 @@
 //! Cancel, Ctrl+Z, the sketch ribbon, the tool search and the gizmo.
 #![cfg(not(target_arch = "wasm32"))]
 
+// keeps this test binary out of the real 2.0 folders (STLEDITOR2_CONFIG_DIR)
+#[path = "support/test_env.rs"]
+mod test_env;
+
 use std::sync::{Arc, Mutex};
 
 use egui::Pos2;

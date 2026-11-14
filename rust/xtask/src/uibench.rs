@@ -287,6 +287,26 @@ fn open_tool_note(report: &Value) -> Option<String> {
     Some(s)
 }
 
+/// What the autosave row did: whether the copy landed, how long it took, and the verdict on
+/// the one-frame (16.7 ms) limit.
+fn autosave_note(report: &Value) -> Option<String> {
+    let a = report.pointer("/scenarios/autosave").filter(|a| a.get("frames").and_then(|f| f.as_u64()).unwrap_or(0) > 0)?;
+    let written = report.get("autosave_written").and_then(|w| w.as_bool()).unwrap_or(false);
+    let longest = num(a, "longest_ms");
+    let mut s = if written {
+        format!("Autosave: the copy landed {:.0} ms after the command", num(report, "autosave_ms"))
+    } else {
+        "Autosave: the copy was NOT written".to_string()
+    };
+    if longest > 16.7 {
+        s.push_str(&format!("; the longest frame while it wrote took {longest:.2} ms, over the 16.7 ms limit"));
+    } else {
+        s.push_str(&format!("; no frame went over 16.7 ms (longest {longest:.2} ms)"));
+    }
+    s.push('.');
+    Some(s)
+}
+
 fn scenario<'a>(report: &'a Value, key: &str) -> Result<&'a Value, String> {
     let path = format!("/scenarios/{key}");
     report.pointer(&path).ok_or_else(|| format!("bench JSON missing scenarios.{key}"))
@@ -326,6 +346,8 @@ pub fn format_table(report: &Value) -> Result<String, String> {
     let pan = scenario(report, "pan")?;
     let zoom = scenario(report, "zoom")?;
     let gizmo = scenario(report, "gizmo_drag")?;
+    // The bench project autosaving during an orbit (`scenarios.autosave` in `src/bench.rs`).
+    let autosave = scenario(report, "autosave").ok();
     let idle = scenario(report, "idle")?;
     let fillet = scenario(report, "fillet_rebuild")?;
     // Open each tool once and wait for its first preview (`scenarios.open_tool` in `src/bench.rs`).
@@ -349,6 +371,9 @@ pub fn format_table(report: &Value) -> Result<String, String> {
     if let Some(n) = slowest_note(report) {
         out.push_str(&format!("_{n}_\n\n"));
     }
+    if let Some(n) = autosave_note(report) {
+        out.push_str(&format!("_{n}_\n\n"));
+    }
     if let Some(n) = open_tool_note(report) {
         out.push_str(&format!("_{n}_\n\n"));
     }
@@ -362,6 +387,10 @@ pub fn format_table(report: &Value) -> Result<String, String> {
     out.push('\n');
     out.push_str(&row("gizmo drag", gizmo));
     out.push('\n');
+    if let Some(a) = autosave {
+        out.push_str(&row("autosave", a));
+        out.push('\n');
+    }
     if let Some(o) = open_tool {
         out.push_str(&row("open tool", o));
         out.push('\n');
@@ -466,6 +495,25 @@ mod tests {
         assert!(t.contains("_idle note_"));
         assert!(t.contains("4164 ms"));
         assert!(!t.contains("Slowest rebuild frame"));
+    }
+
+    #[test]
+    fn format_table_has_the_autosave_row() {
+        let s = json!({"frames": 3, "median_ms": 1.0, "p99_ms": 1.0, "longest_ms": 1.0, "idle_frames": 0, "uploads": 1});
+        let report = json!({
+            "date": "2026-11-14",
+            "autosave_written": true,
+            "autosave_ms": 850.0,
+            "scenarios": {"orbit": s, "pan": s, "zoom": s, "gizmo_drag": s, "autosave": {"frames": 300, "median_ms": 4.0, "p99_ms": 8.0, "longest_ms": 12.5, "idle_frames": 0, "uploads": 1}, "idle": s, "fillet_rebuild": s},
+        });
+        let t = format_table(&report).unwrap();
+        assert!(t.contains("| autosave | 300 | 4.00 | 8.00 | 12.50 | 0 | 1 |"), "{t}");
+        assert!(t.contains("the copy landed 850 ms after the command; no frame went over 16.7 ms (longest 12.50 ms)."), "{t}");
+        assert!(t.find("| autosave").unwrap() < t.find("| idle 5 s").unwrap());
+        // a slow frame is called out, and a copy that never landed is said so
+        let slow = json!({"autosave_written": false, "scenarios": {"orbit": s, "pan": s, "zoom": s, "gizmo_drag": s, "autosave": {"frames": 9, "median_ms": 4.0, "p99_ms": 20.0, "longest_ms": 20.0, "idle_frames": 0, "uploads": 1}, "idle": s, "fillet_rebuild": s}});
+        let t = format_table(&slow).unwrap();
+        assert!(t.contains("the copy was NOT written; the longest frame while it wrote took 20.00 ms, over the 16.7 ms limit."), "{t}");
     }
 
     #[test]

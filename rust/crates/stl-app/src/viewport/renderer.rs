@@ -8,8 +8,9 @@
 //! A validation or out-of-memory error drops that buffer, the size-bound targets and any
 //! half-copied upload, and keeps every finished body buffer (the device is still fine). A lost
 //! device is never touched again; when egui hands the callback a new device (a fresh
-//! `callback_resources` without a [`GpuState`]), a new state is made there and every body is
-//! uploaded again from the prepared meshes the UI keeps.
+//! `callback_resources` without a [`GpuState`]), or the viewport makes one itself
+//! ([`super::Viewport::new_device_after_loss`]), a new state is made there and every body is
+//! uploaded again from the prepared meshes the UI keeps. The project is never touched.
 
 use std::collections::HashMap;
 use std::ops::Range;
@@ -1122,6 +1123,16 @@ pub fn block_on<F: std::future::Future>(f: F) -> F::Output {
     }
 }
 
+/// A new GPU device without a window: a new instance and adapter too, since after a driver
+/// reset the old adapter may be gone. `None` when the machine has no usable GPU adapter.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn new_render_state() -> Option<egui_wgpu::RenderState> {
+    let setup = egui_wgpu::WgpuSetup::without_display_handle();
+    let instance = block_on(setup.new_instance());
+    let config = egui_wgpu::WgpuConfiguration { wgpu_setup: setup, ..Default::default() };
+    block_on(egui_wgpu::RenderState::create(&config, &instance, None, egui_wgpu::RendererOptions::default())).ok()
+}
+
 /// A GPU device without a window, for tests, `uibench` and screenshots.
 #[cfg(not(target_arch = "wasm32"))]
 pub struct Headless {
@@ -1132,12 +1143,36 @@ pub struct Headless {
 impl Headless {
     /// `None` when the machine has no usable GPU adapter.
     pub fn new() -> Option<Self> {
-        let setup = egui_wgpu::WgpuSetup::without_display_handle();
-        let instance = block_on(setup.new_instance());
-        let config = egui_wgpu::WgpuConfiguration { wgpu_setup: setup, ..Default::default() };
-        let render_state =
-            block_on(egui_wgpu::RenderState::create(&config, &instance, None, egui_wgpu::RendererOptions::default())).ok()?;
-        Some(Headless { render_state })
+        Some(Headless { render_state: new_render_state()? })
+    }
+
+    /// Test hook: the device goes away now, as after a graphics driver reset. The device-lost
+    /// callback runs at once; the next frames draw nothing until [`Headless::recover`].
+    pub fn force_device_loss(&self) {
+        self.render_state.device.destroy();
+        let _ = self.render_state.device.poll(wgpu::PollType::Poll);
+    }
+
+    /// The device this renderer draws on was lost.
+    pub fn is_lost(&self) -> bool {
+        self.render_state.renderer.read().callback_resources.get::<GpuState>().is_some_and(|g| g.is_lost())
+    }
+
+    /// After a lost device: the viewport makes a new device and sets itself up there
+    /// ([`super::Viewport::new_device_after_loss`]), and this renderer draws on it from now on.
+    /// The next frames upload every body again from the meshes the viewport kept. False when
+    /// the device is fine or no new device could be made (try again on a later frame).
+    pub fn recover(&mut self, vp: &mut super::Viewport) -> bool {
+        if !self.is_lost() {
+            return false;
+        }
+        match vp.new_device_after_loss() {
+            Some(rs) => {
+                self.render_state = rs;
+                true
+            }
+            None => false,
+        }
     }
 
     /// Render the viewport at `w` x `h` pixels (as if shown in a `w` x `h` point rectangle at

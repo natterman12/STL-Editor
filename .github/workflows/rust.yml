@@ -335,3 +335,157 @@ jobs:
         env:
           CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
         run: cargo run -p xtask -- web --check --webgl2
+
+  # M5 Task 0: test-build artefacts on every push, kept as workflow artefacts. Nothing is
+  # attached to a release and no tag is made (spec 2.5).
+  artefacts:
+    name: Artefacts (${{ matrix.label }})
+    if: github.event_name == 'push'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { label: Windows exe, os: windows-latest, kind: windows }
+          - { label: macOS app, os: macos-latest, kind: mac }
+          - { label: Linux AppImage, os: ubuntu-latest, kind: linux }
+          - { label: web build, os: ubuntu-latest, kind: web }
+    defaults:
+      run:
+        shell: bash
+        working-directory: rust
+    steps:
+      - name: Keep line endings as committed
+        run: git config --global core.autocrlf false
+        working-directory: .
+
+      - uses: actions/checkout@v7
+
+      - name: Use the GNU host on Windows
+        if: matrix.kind == 'windows'
+        run: rustup set default-host x86_64-pc-windows-gnu
+
+      - name: Install the pinned toolchain
+        run: |
+          rustup toolchain install --profile minimal
+          rustup show
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
+      - name: Install eframe / wgpu system libraries (Linux)
+        if: matrix.kind == 'linux' || matrix.kind == 'web'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libxkbcommon-dev \
+            libwayland-dev \
+            libx11-dev \
+            libxcursor-dev \
+            libxrandr-dev \
+            libxi-dev \
+            libgl1-mesa-dev \
+            pkg-config \
+            libwebkit2gtk-4.1-dev
+        working-directory: .
+
+      # Release build of the desktop app (Windows, macOS, Linux).
+      - name: Build stl-app (release)
+        if: matrix.kind != 'web'
+        run: cargo build -p stl-app --release
+
+      # The Windows exe is uploaded as it is.
+      - name: Upload Windows exe
+        if: matrix.kind == 'windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: stl-editor-2-windows-exe
+          path: rust/target/release/stl-app.exe
+          if-no-files-found: error
+
+      # macOS: a minimal .app bundle around the release binary, zipped with ditto (keeps the
+      # bundle's symlinks and attributes).
+      - name: Make the macOS app bundle
+        if: matrix.kind == 'mac'
+        run: |
+          app="dist/STL Editor 2.app"
+          mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
+          cp target/release/stl-app "$app/Contents/MacOS/stl-app"
+          cat > "$app/Contents/Info.plist" <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleName</key><string>STL Editor 2</string>
+            <key>CFBundleDisplayName</key><string>STL Editor 2</string>
+            <key>CFBundleIdentifier</key><string>com.natterman12.stl-editor-2.test</string>
+            <key>CFBundleExecutable</key><string>stl-app</string>
+            <key>CFBundlePackageType</key><string>APPL</string>
+            <key>CFBundleShortVersionString</key><string>2.0.0-test</string>
+            <key>LSMinimumSystemVersion</key><string>11.0</string>
+            <key>NSHighResolutionCapable</key><true/>
+          </dict>
+          </plist>
+          PLIST
+          ditto -c -k --keepParent "$app" dist/STL-Editor-2-macOS.app.zip
+
+      - name: Upload macOS app
+        if: matrix.kind == 'mac'
+        uses: actions/upload-artifact@v4
+        with:
+          name: stl-editor-2-macos-app
+          path: rust/dist/STL-Editor-2-macOS.app.zip
+          if-no-files-found: error
+
+      # Linux: an AppDir with AppRun, a desktop entry and the icon, packed by appimagetool.
+      # APPIMAGE_EXTRACT_AND_RUN lets appimagetool run without FUSE on the runner.
+      - name: Make the Linux AppImage
+        if: matrix.kind == 'linux'
+        run: |
+          appdir=dist/STL_Editor_2.AppDir
+          mkdir -p "$appdir/usr/bin"
+          cp target/release/stl-app "$appdir/usr/bin/stl-app"
+          cp ../web/icon-512.png "$appdir/stl-editor-2.png"
+          cat > "$appdir/stl-editor-2.desktop" <<'DESKTOP'
+          [Desktop Entry]
+          Type=Application
+          Name=STL Editor 2
+          Exec=stl-app
+          Icon=stl-editor-2
+          Categories=Graphics;3DGraphics;
+          DESKTOP
+          printf '#!/bin/sh\nexec "$(dirname "$0")/usr/bin/stl-app" "$@"\n' > "$appdir/AppRun"
+          chmod +x "$appdir/AppRun"
+          curl -fsSL -o appimagetool https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool
+          ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 ./appimagetool "$appdir" dist/STL-Editor-2-x86_64.AppImage
+
+      - name: Upload Linux AppImage
+        if: matrix.kind == 'linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: stl-editor-2-linux-appimage
+          path: rust/dist/STL-Editor-2-x86_64.AppImage
+          if-no-files-found: error
+
+      # Web edition: the same build as the web job above, staged with its page and worker.
+      - name: Install wasm-bindgen-cli
+        if: matrix.kind == 'web'
+        run: cargo install wasm-bindgen-cli --version 0.2.130 --locked
+
+      - name: Build the web app
+        if: matrix.kind == 'web'
+        run: |
+          cargo run -p xtask -- web
+          mkdir -p dist/web
+          cp -r crates/stl-app/web/. dist/web/
+          cp -r target/web/. dist/web/
+
+      - name: Upload web build
+        if: matrix.kind == 'web'
+        uses: actions/upload-artifact@v4
+        with:
+          name: stl-editor-2-web
+          path: rust/dist/web/
+          if-no-files-found: error

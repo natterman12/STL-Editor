@@ -96,6 +96,15 @@ pub trait Platform {
         None
     }
     fn set_setting(&self, _key: &str, _value: &str) {}
+    /// A remembered setting of any JSON type. Default: nothing is remembered.
+    fn setting_json(&self, _key: &str) -> Option<serde_json::Value> {
+        None
+    }
+    fn set_setting_json(&self, _key: &str, _value: serde_json::Value) {}
+    /// Read a file by path (Open Recent). Default (web): not possible.
+    fn read_path(&self, _path: &str) -> Pending<Result<PickedFile, String>> {
+        Pending::ready(Err("Opening a file by its path is not possible here.".into()))
+    }
 }
 
 /// Returns nothing; for tests and the empty window.

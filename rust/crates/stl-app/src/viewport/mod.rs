@@ -446,6 +446,17 @@ impl Viewport {
         self.dirty = true;
     }
 
+    /// The device was lost (a graphics driver reset): make a new device, set the GPU side up
+    /// on it, and hand it to the host to draw with. Every body is uploaded again at the next
+    /// frame from the meshes the viewport keeps; the project is not touched. `None` when no
+    /// device could be made. Native only (a browser's WebGPU device belongs to the page).
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn new_device_after_loss(&mut self) -> Option<egui_wgpu::RenderState> {
+        let rs = renderer::new_render_state()?;
+        self.init_gpu(&rs);
+        Some(rs)
+    }
+
     pub fn has_gpu(&self) -> bool {
         self.gpu_format.is_some()
     }

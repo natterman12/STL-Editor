@@ -397,11 +397,14 @@ impl StlApp {
     /// 1.x `post('restart')`: start STL Editor again and close this one. Desktop only (the web
     /// edition gets new engines without a restart).
     ///
-    /// 1.x keeps unsaved work for Recover Unsaved Work; 2.0 has no autosave until milestone 5, so
-    /// unsaved changes are asked about first.
+    /// 1.x keeps unsaved work for Recover Unsaved Work and restarts without asking. So does this
+    /// when autosave is on: the newest copy is written and kept, and the new window offers it.
+    /// Without autosave (tests, the empty window) unsaved changes are asked about first.
     #[doc(hidden)]
     pub fn restart_app(&mut self, ctx: &egui::Context) {
-        if self.shell.dirty {
+        if self.shell.dirty && self.recover.is_some() {
+            self.link.send(self.autosave_command());
+        } else if self.shell.dirty {
             self.shell.dialogs.open_confirm(RESTART_TAG, "You have unsaved changes. Restart without saving them?");
             return;
         }
@@ -2009,7 +2012,7 @@ impl StlApp {
                 Frame::new().fill(tk.panel).stroke(Stroke::new(1.0, tk.line)).corner_radius(CornerRadius::same(9)).shadow(tk.shadow_lg).inner_margin(Margin { left: 20, right: 20, top: 18, bottom: 14 }).show(ui, |ui| {
                     ui.set_max_width(420.0);
                     if let Some(m) = self.sketch.as_mut() {
-                        eff = sketch::text::dialog(ui, tk, &mut m.s, &mut self.sk.text);
+                        eff = sketch::text::dialog_with(ui, tk, &mut m.s, &mut self.sk.text, &*self.platform);
                     }
                 });
             });

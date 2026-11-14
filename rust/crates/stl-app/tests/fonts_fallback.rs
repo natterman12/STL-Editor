@@ -3,6 +3,13 @@
 //! the test harness turns that into a panic (the CI crash on "Support STL Editor ♥").
 #![cfg(not(target_arch = "wasm32"))]
 
+// keeps this test binary out of the real 2.0 folders (STLEDITOR2_CONFIG_DIR)
+#[path = "support/test_env.rs"]
+mod test_env;
+
+#[path = "../../stl-platform/tests/support/fake_releases.rs"]
+mod fake_releases;
+
 use egui::{FontFamily, FontId, MissingGlyphPolicy};
 use egui_kittest::kittest::Queryable;
 use egui_kittest::Harness;
@@ -369,4 +376,195 @@ fn start_page_menus_and_about_render_on_the_bundled_fonts_dark() {
 #[test]
 fn start_page_menus_and_about_render_on_the_bundled_fonts_light() {
     render_everything(ThemePref::Light);
+}
+
+// ---------------------------------------------------------------- milestone 5: the new dialogs
+
+/// What 2.0's Recover dialog and update banner print, written out: every character must be in the
+/// bundled fonts (1.x's curly apostrophes and the "·" and "…" among them).
+fn m5_strings() -> Vec<(&'static str, String)> {
+    use stl_app::{recover, updates};
+    let mut out: Vec<(&'static str, String)> = vec![
+        ("recover.RECOVERED_TOAST", recover::RECOVERED_TOAST.into()),
+        ("recover.NOTHING_TO_RECOVER", recover::NOTHING_TO_RECOVER.into()),
+        ("recover.REPLACE_CONFIRM", recover::REPLACE_CONFIRM.into()),
+        ("recover.RECOVERING_MSG", recover::RECOVERING_MSG.into()),
+        ("recover.desktop", "STL Editor didn’t close normally last time. This work was saved automatically:".into()),
+        ("recover.web", "This work wasn’t saved before STL Editor was last closed. A copy was kept in this browser:".into()),
+        ("recover.row", "3 steps · autosaved 14 Nov 2026, 12:00".into()),
+        ("updates.CHECKING", updates::CHECKING.into()),
+        ("updates.CHECKS_OFF", updates::CHECKS_OFF.into()),
+        ("updates.DOWNLOADING", updates::DOWNLOADING.into()),
+        ("updates.RESTARTING", updates::RESTARTING.into()),
+        ("updates.INSTALL_LINE", updates::INSTALL_LINE.into()),
+        ("updates.DOWNLOAD_LINE", updates::DOWNLOAD_LINE.into()),
+        ("updates.OTHER_WINDOWS", updates::OTHER_WINDOWS.into()),
+        ("updates.SETTINGS_TITLE", updates::SETTINGS_TITLE.into()),
+        ("updates.SETTINGS_CHECK", updates::SETTINGS_CHECK.into()),
+        ("updates.SETTINGS_NOTE", updates::SETTINGS_NOTE.into()),
+        ("updates.available_title", updates::available_title("2.0.1")),
+        ("updates.latest_text", updates::latest_text("2.0.0")),
+        ("drawer.open", "Bodies".into()),
+        ("drawer.close", "Close".into()),
+        ("help.recover", "Recover Unsaved Work…".into()),
+    ];
+    for item in updates::help_menu_items(false) {
+        out.push(("updates.help_menu_items", item.1.into()));
+    }
+    for b in [
+        updates::BannerButton::Skip,
+        updates::BannerButton::Later,
+        updates::BannerButton::WhatsNew,
+        updates::BannerButton::UpdateNow,
+        updates::BannerButton::Download,
+        updates::BannerButton::Cancel,
+        updates::BannerButton::Close,
+        updates::BannerButton::DownloadInstead,
+    ] {
+        out.push(("updates.BannerButton", b.label().into()));
+    }
+    out
+}
+
+#[test]
+fn every_recover_update_and_drawer_string_has_a_bundled_glyph() {
+    let ctx = bundled_ctx();
+    let strings = m5_strings();
+    let mut missing = Vec::new();
+    for (where_, s) in &strings {
+        for c in s.chars().filter(|c| !c.is_ascii()) {
+            for family in [FontFamily::Proportional, FontFamily::Name("bold".into())] {
+                if !has(&ctx, &family, c) {
+                    missing.push(format!("{c} (U+{:04X}) in {where_}: {s:?}, {family:?}", c as u32));
+                }
+            }
+        }
+    }
+    assert!(missing.is_empty(), "no glyph in the bundled fonts for the Recover / update / drawer text:\n{}", missing.join("\n"));
+}
+
+/// A Recover store with fixed copies (one with a title that needs the bundled fonts' non-ASCII).
+struct Copies;
+
+impl stl_app::recover::RecoverStore for Copies {
+    fn list(&self) -> stl_app::platform::Pending<Vec<stl_app::recover::RecoverEntry>> {
+        let e = |id: &str, title: &str, steps| stl_app::recover::RecoverEntry {
+            id: id.into(),
+            title: title.into(),
+            path: Some(format!("C:\\parts\\{title}.stlx")),
+            saved: 1_700_000_000.0,
+            steps,
+        };
+        stl_app::platform::Pending::ready(vec![e("a", "Bracket – Ø8 × 20", 3), e("b", "Lid", 1)])
+    }
+    fn load(&self, _id: &str) -> stl_app::platform::Pending<Result<Vec<u8>, String>> {
+        stl_app::platform::Pending::ready(Ok(vec![1, 2, 3]))
+    }
+    fn discard(&self, _id: &str) {}
+}
+
+struct Dialogs {
+    recover: stl_app::recover::Recover,
+    updates: stl_app::updates::Updates,
+    platform: stl_app::platform::native::NativePlatform,
+}
+
+/// The Recover dialog (desktop and web wording, and its replace question), the update banner in
+/// both of its forms, the Update Settings dialog and the phone drawer's button, drawn on the
+/// bundled fonts alone. egui panics on a character no font has, so drawing them is the check.
+#[test]
+fn recover_update_and_drawer_dialogs_render_on_the_bundled_fonts() {
+    use fake_releases::{FakeReleases, Faults};
+    use stl_app::platform::native::NativePlatform;
+    use stl_app::recover::Recover;
+    use stl_app::updates::{BannerButton, Updates};
+
+    let cfg = std::env::temp_dir().join(format!("stle2-fonts-m5-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&cfg);
+    let release = serde_json::json!([{ "tag_name": "v2.0.1", "draft": false, "body": "What changed", "assets": [{
+        "name": stl_platform::update::ASSET_NAME, "size": 10,
+        "browser_download_url": format!("https://github.com/natterman12/STL-Editor/releases/download/v2.0.1/{}", stl_platform::update::ASSET_NAME) }] }]);
+    let srv = FakeReleases::start(release, vec![], Faults::default());
+    let api = format!("{}/releases", srv.base_url());
+    let exe = cfg.join("stl-editor-2.exe");
+    std::fs::create_dir_all(&cfg).unwrap();
+    std::fs::write(&exe, b"x").unwrap();
+    let mut recover = Recover::new(Box::new(Copies), false);
+    recover.start();
+    let mut st = Dialogs {
+        recover,
+        updates: Updates::custom(&api, "2.0.0", Some(exe), cfg.join("windows")),
+        platform: NativePlatform::with_config_dir(&cfg),
+    };
+    st.updates.check_now(&st.platform, 1_800_000_000.0);
+
+    let mut init = false;
+    let mut h = Harness::builder().with_size(egui::vec2(1000.0, 700.0)).with_accessibility_check(false).build_ui_state(
+        move |ui, st: &mut Dialogs| {
+            if !init {
+                init = true;
+                ui.ctx().set_fonts(stl_app::fonts::bundled_definitions());
+                ui.ctx().set_missing_glyph_policy(MissingGlyphPolicy::Panic);
+            }
+            let tk = stl_app::theme::tokens(false);
+            stl_app::theme::apply(ui.ctx(), &tk);
+            st.recover.show(ui.ctx(), &tk, true);
+            st.updates.show(ui.ctx(), &tk, &st.platform, 1_800_000_000.0);
+        },
+        st,
+    );
+    let end = std::time::Instant::now() + std::time::Duration::from_secs(20);
+    while h.query_by_label("STL Editor 2.0.1 is available").is_none() || h.query_by_label("Recover unsaved work?").is_none() {
+        assert!(std::time::Instant::now() < end, "the dialogs never showed");
+        h.run_steps(2);
+        std::thread::sleep(std::time::Duration::from_millis(15));
+    }
+    h.get_by_label_contains("Bracket – Ø8 × 20");
+    // the replace question (the open project has unsaved work), then the banner's other forms
+    h.get_all_by_label("Recover").next().unwrap().click();
+    h.run_steps(4);
+    h.get_by_label("Replace the current unsaved work with the recovered project?");
+    h.get_by_label("Cancel").click();
+    h.run_steps(3);
+    // "Later" is on both the dialog and the banner: either is fine
+    h.get_all_by_label("Later").next().unwrap().click();
+    h.run_steps(3);
+    let ui = h.state_mut();
+    ui.updates.open_settings(&ui.platform);
+    h.run_steps(4);
+    h.get_by_label("Check for new versions once a day");
+    let ui = h.state_mut();
+    let _ = ui.updates.press(BannerButton::Skip, &ui.platform);
+    h.run_steps(3);
+
+    // the web wording of the dialog
+    let mut recover = Recover::new(Box::new(Copies), true);
+    recover.start();
+    h.state_mut().recover = recover;
+    h.run_steps(4);
+    h.get_by_label("This work wasn’t saved before STL Editor was last closed. A copy was kept in this browser:");
+
+    // the phone drawer: the button over the model, "Bodies" and, open, "Close"
+    let mut init = false;
+    let mut app = StlApp::empty(&egui::Context::default());
+    app.browser.drawer_open = false;
+    let mut p = Harness::builder().with_size(egui::vec2(390.0, 844.0)).with_accessibility_check(false).build_ui_state(
+        move |ui, app: &mut StlApp| {
+            if !init {
+                init = true;
+                ui.ctx().set_fonts(stl_app::fonts::bundled_definitions());
+                ui.ctx().set_missing_glyph_policy(MissingGlyphPolicy::Panic);
+                app.set_theme(ui.ctx(), ThemePref::Light);
+            }
+            app.layout(ui);
+        },
+        app,
+    );
+    p.run_steps(4);
+    assert!(p.query_all_by_label("Bodies").count() > 0, "the drawer button over the model says Bodies");
+    p.state_mut().browser.drawer_open = true;
+    p.run_steps(12);
+    assert!(p.query_all_by_label("Close").count() > 0, "and Close while the drawer is open");
+    p.state_mut().browser.drawer_open = false;
+    p.run_steps(12);
 }

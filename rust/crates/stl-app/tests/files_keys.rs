@@ -1,6 +1,10 @@
 //! Files, shortcuts and drag and drop (milestone 4a, task 9).
 #![cfg(not(target_arch = "wasm32"))]
 
+// keeps this test binary out of the real 2.0 folders (STLEDITOR2_CONFIG_DIR)
+#[path = "support/test_env.rs"]
+mod test_env;
+
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};

@@ -22,6 +22,10 @@
 //! Use from a test file with `#[path = "support/gpu.rs"] mod gpu;`.
 #![allow(dead_code)]
 
+// Keeps every test process out of the real 2.0 settings folder (runs before main).
+#[path = "test_env.rs"]
+mod test_env;
+
 use std::path::PathBuf;
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread::ThreadId;

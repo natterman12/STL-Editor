@@ -29,12 +29,14 @@ pub enum NetError {
     Status(u16, String),
     Timeout,
     Io(String),
+    /// The caller's URL check (see [`https_get_checked`]) refused this URL or a redirect to it.
+    Refused(String),
 }
 
 impl std::fmt::Display for NetError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            NetError::Url(s) | NetError::Dns(s) | NetError::Connect(s) | NetError::Tls(s) | NetError::Protocol(s) | NetError::Io(s) => {
+            NetError::Url(s) | NetError::Dns(s) | NetError::Connect(s) | NetError::Tls(s) | NetError::Protocol(s) | NetError::Io(s) | NetError::Refused(s) => {
                 write!(f, "{s}")
             }
             NetError::Status(code, reason) => write!(f, "HTTP {code} {reason}"),
@@ -53,12 +55,24 @@ struct Url {
 }
 
 /// Fetch `url` and return the response body. Redirects (up to five) are followed.
-/// `timeout` bounds the connection and each read.
+/// `timeout` bounds the connection and each read. Bodies over 32 MB are refused.
 pub fn https_get(url: &str, timeout: Duration) -> Result<Vec<u8>, NetError> {
+    https_get_limited(url, timeout, MAX_BODY)
+}
+
+/// [`https_get`] with its own body limit (the app updater downloads a whole exe).
+pub fn https_get_limited(url: &str, timeout: Duration, max_body: usize) -> Result<Vec<u8>, NetError> {
+    https_get_checked(url, timeout, max_body, &|_| Ok(()))
+}
+
+/// [`https_get_limited`] that asks `allow` about every URL before connecting to it: the first
+/// one and each redirect. A refusal ends the request with [`NetError::Refused`].
+pub fn https_get_checked(url: &str, timeout: Duration, max_body: usize, allow: &dyn Fn(&str) -> Result<(), String>) -> Result<Vec<u8>, NetError> {
     let mut current = url.to_string();
     for _ in 0..5 {
+        allow(&current).map_err(NetError::Refused)?;
         let parsed = parse_url(&current)?;
-        let (code, headers, body) = exchange(&parsed, timeout)?;
+        let (code, headers, body) = exchange(&parsed, timeout, max_body)?;
         if matches!(code, 301 | 302 | 303 | 307 | 308) {
             let loc = header_value(&headers, "location")
                 .ok_or_else(|| NetError::Protocol("redirect with no location".into()))?;
@@ -142,7 +156,7 @@ fn tls_config() -> Arc<ClientConfig> {
     .clone()
 }
 
-fn exchange(url: &Url, timeout: Duration) -> Result<(u16, Vec<(String, String)>, Vec<u8>), NetError> {
+fn exchange(url: &Url, timeout: Duration, max: usize) -> Result<(u16, Vec<(String, String)>, Vec<u8>), NetError> {
     let addr = format!("{}:{}", url.host, url.port);
     let mut last = NetError::Dns(format!("no address for {addr}"));
     let mut sock = None;
@@ -164,10 +178,10 @@ fn exchange(url: &Url, timeout: Duration) -> Result<(u16, Vec<(String, String)>,
             .to_owned();
         let conn = ClientConnection::new(tls_config(), name).map_err(|e| NetError::Tls(e.to_string()))?;
         let mut tls = StreamOwned::new(conn, sock);
-        http_roundtrip(&mut tls, url)
+        http_roundtrip(&mut tls, url, max)
     } else {
         let mut sock = sock;
-        http_roundtrip(&mut sock, url)
+        http_roundtrip(&mut sock, url, max)
     }
 }
 
@@ -176,7 +190,7 @@ fn host_header(url: &Url) -> String {
     if url.port == default { url.host.clone() } else { format!("{}:{}", url.host, url.port) }
 }
 
-fn http_roundtrip(stream: &mut (impl Read + Write), url: &Url) -> Result<(u16, Vec<(String, String)>, Vec<u8>), NetError> {
+fn http_roundtrip(stream: &mut (impl Read + Write), url: &Url, max: usize) -> Result<(u16, Vec<(String, String)>, Vec<u8>), NetError> {
     let req = format!(
         "GET {path} HTTP/1.1\r\nHost: {host}\r\nUser-Agent: STL-Editor/{ver}\r\nAccept: */*\r\nConnection: close\r\n\r\n",
         path = url.path,
@@ -206,11 +220,11 @@ fn http_roundtrip(stream: &mut (impl Read + Write), url: &Url) -> Result<(u16, V
     }
     let rest = &raw[split + 4..];
     let body = if header_value(&headers, "transfer-encoding").is_some_and(|v| v.to_ascii_lowercase().contains("chunked")) {
-        read_chunked(stream, rest)?
+        read_chunked(stream, rest, max)?
     } else if let Some(n) = header_value(&headers, "content-length").and_then(|v| v.parse::<usize>().ok()) {
-        read_counted(stream, rest, n)?
+        read_counted(stream, rest, n, max)?
     } else {
-        read_until_close(stream, rest)?
+        read_until_close(stream, rest, max)?
     };
     Ok((code, headers, body))
 }
@@ -232,8 +246,8 @@ fn read_headers(stream: &mut impl Read) -> Result<Vec<u8>, NetError> {
     Ok(buf)
 }
 
-fn read_counted(stream: &mut impl Read, already: &[u8], len: usize) -> Result<Vec<u8>, NetError> {
-    if len > MAX_BODY {
+fn read_counted(stream: &mut impl Read, already: &[u8], len: usize, max: usize) -> Result<Vec<u8>, NetError> {
+    if len > max {
         return Err(NetError::Protocol("response too large".into()));
     }
     let mut buf = already.to_vec();
@@ -246,17 +260,17 @@ fn read_counted(stream: &mut impl Read, already: &[u8], len: usize) -> Result<Ve
     Ok(buf)
 }
 
-fn read_until_close(stream: &mut impl Read, already: &[u8]) -> Result<Vec<u8>, NetError> {
+fn read_until_close(stream: &mut impl Read, already: &[u8], max: usize) -> Result<Vec<u8>, NetError> {
     let mut buf = already.to_vec();
     while read_some(stream, &mut buf)? != 0 {
-        if buf.len() > MAX_BODY {
+        if buf.len() > max {
             return Err(NetError::Protocol("response too large".into()));
         }
     }
     Ok(buf)
 }
 
-fn read_chunked(stream: &mut impl Read, already: &[u8]) -> Result<Vec<u8>, NetError> {
+fn read_chunked(stream: &mut impl Read, already: &[u8], max: usize) -> Result<Vec<u8>, NetError> {
     let mut buf = already.to_vec();
     let mut out = Vec::new();
     loop {
@@ -282,7 +296,7 @@ fn read_chunked(stream: &mut impl Read, already: &[u8]) -> Result<Vec<u8>, NetEr
         }
         out.extend_from_slice(&buf[..size]);
         buf.drain(..size + 2);
-        if out.len() > MAX_BODY {
+        if out.len() > max {
             return Err(NetError::Protocol("response too large".into()));
         }
     }

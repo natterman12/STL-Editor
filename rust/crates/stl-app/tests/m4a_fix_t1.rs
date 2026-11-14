@@ -1,6 +1,10 @@
 //! 4a fix, task 1: the title after every open path, swatches, the Parameters list, About credits.
 #![cfg(not(target_arch = "wasm32"))]
 
+// keeps this test binary out of the real 2.0 folders (STLEDITOR2_CONFIG_DIR)
+#[path = "support/test_env.rs"]
+mod test_env;
+
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 

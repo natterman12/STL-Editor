@@ -312,24 +312,21 @@ fn stored_last(settings: &Settings) -> i64 {
 }
 
 fn read_last(dir: &Path) -> Option<i64> {
-    let v: Value = serde_json::from_slice(&fs::read(dir.join("settings.json")).ok()?).ok()?;
-    let n = v.get("supportfins_last")?;
+    let n = crate::settings::Settings::open(dir).get("supportfins_last")?;
     n.as_i64().or_else(|| n.as_f64().map(|f| f as i64))
 }
 
+/// Merged into `settings.json` key by key, like every other setting (two windows, and the app's
+/// own keys, are never overwritten).
 fn write_last(dir: &Path, t: i64) {
-    let path = dir.join("settings.json");
-    let mut map = fs::read(&path).ok().and_then(|b| serde_json::from_slice::<Value>(&b).ok()).unwrap_or_else(|| Value::Object(Default::default()));
-    let Some(obj) = map.as_object_mut() else { return };
-    obj.insert("supportfins_last".into(), Value::from(t));
-    if fs::create_dir_all(dir).is_err() {
-        return;
-    }
-    let bytes = serde_json::to_vec(&map).unwrap_or_default();
-    let tmp = dir.join("settings.json.tmp");
-    if fs::write(&tmp, bytes).is_ok() {
-        let _ = replace_file(&tmp, &path);
-    }
+    let _ = crate::settings::Settings::open(dir).set("supportfins_last", Value::from(t));
+}
+
+/// Where downloaded Support Fins engines go and are read from: `config_dir()/support-fins`
+/// (2.0's own folder, never 1.x's). Pass it as the `user_dir` of [`choose_engine`]; the bundled
+/// engine stays the fallback.
+pub fn engines_dir() -> PathBuf {
+    crate::paths::config_dir().join("support-fins")
 }
 
 fn install(user_dir: &Path, engine: &[u8], version_json: &[u8]) -> std::io::Result<()> {

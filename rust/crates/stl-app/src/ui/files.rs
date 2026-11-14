@@ -7,6 +7,11 @@
 use crate::engine_link::{Command, EngineLink, ExportFormat, Level, Update};
 use crate::platform::{Pending, PickedFile, Platform, SaveOutcome};
 
+/// `settings.json` key of the Recent list (1.x `recent`).
+pub const RECENT_KEY: &str = "recent";
+/// What a missing file's error starts with (see `platform::native::MISSING_FILE_PREFIX`).
+const MISSING: &str = "FileNotFoundError:";
+
 /// What the open dialog lists (`.stlx` and the mesh formats), as in the 1.x open dialog.
 pub const OPEN_FILTERS: &[(&str, &[&str])] =
     &[("STL Editor project or mesh", &["stlx", "stl", "obj", "3mf", "ply", "off", "glb", "gltf"])];
@@ -43,6 +48,18 @@ pub struct FileOutcome {
 enum Waiting {
     Open(Pending<Option<(PickedFile, Option<String>)>>),
     Import(Pending<Option<(PickedFile, Option<String>)>>),
+    /// File > Recent on desktop: the file is being read from this path.
+    Recent(String, Pending<Result<PickedFile, String>>),
+}
+
+/// One entry of the Recent list. On desktop it is a path (remembered in `settings.json`, read
+/// from disk when opened); on the web there is no path, so the session keeps the bytes.
+#[derive(Clone)]
+struct RecentFile {
+    /// The path, or the file name when the platform has no paths.
+    key: String,
+    /// Only without a path.
+    bytes: Option<Vec<u8>>,
 }
 
 struct Opening {
@@ -53,6 +70,8 @@ struct Opening {
     project_path: Option<String>,
     /// The file to put in Recent once it opens.
     recent: Option<PickedFile>,
+    /// Where it came from (any file that has a path, projects or meshes), for Recent.
+    recent_path: Option<String>,
     /// The engine has answered (bodies or an error); the command is over at its next `Busy(false)`.
     seen: bool,
     failed: bool,
@@ -92,13 +111,13 @@ pub struct Files {
     /// The engine is between a `Busy(true)` and its `Busy(false)`.
     engine_busy: bool,
     fit_after_bodies: bool,
-    /// Files opened or saved in this session, newest first (at most [`RECENT_MAX`]). The platform
-    /// has no way to read a path back, so the bytes are kept for File > Recent.
-    recent: Vec<PickedFile>,
+    /// Files opened or saved, newest first (at most [`RECENT_MAX`]). With a path they last
+    /// across restarts (`settings.json`); without one (web) only for this session, from bytes.
+    recent: Vec<RecentFile>,
 }
 
-/// How many recent files are kept (1.x shows the last six).
-pub const RECENT_MAX: usize = 6;
+/// How many recent files are kept (1.x `_remember` keeps ten; the menu shows the first six).
+pub const RECENT_MAX: usize = 10;
 
 fn is_project(name: &str) -> bool {
     name.to_ascii_lowercase().ends_with(".stlx")
@@ -116,30 +135,74 @@ impl Files {
         Self::default()
     }
 
-    /// The names of this session's recent files, newest first.
+    /// What the menu and the start view open from, newest first: paths on desktop, file names
+    /// where the platform has no paths (hand one back to [`Files::open_recent`]).
+    pub fn recent_keys(&self) -> Vec<String> {
+        self.recent.iter().map(|f| f.key.clone()).collect()
+    }
+
+    /// The file names of the recent files, newest first.
     pub fn recent_names(&self) -> Vec<String> {
-        self.recent.iter().map(|f| f.name.clone()).collect()
+        self.recent.iter().map(|f| f.key.rsplit(['/', '\\']).next().unwrap_or(&f.key).to_owned()).collect()
     }
 
-    fn remember(&mut self, name: &str, bytes: &[u8]) {
-        self.recent.retain(|f| f.name != name);
-        self.recent.insert(0, PickedFile { name: name.to_string(), bytes: bytes.to_vec() });
+    /// Read the remembered list (call once at start-up).
+    pub fn load_recent(&mut self, platform: &dyn Platform) {
+        let Some(serde_json::Value::Array(list)) = platform.setting_json(RECENT_KEY) else { return };
+        self.recent = list
+            .iter()
+            .filter_map(|v| v.as_str())
+            .filter(|p| !p.is_empty())
+            .take(RECENT_MAX)
+            .map(|p| RecentFile { key: p.to_owned(), bytes: None })
+            .collect();
+    }
+
+    fn save_recent(&self, platform: &dyn Platform) {
+        // only paths last; a web session's list (names and bytes) is not stored
+        let paths: Vec<_> = self.recent.iter().filter(|f| f.bytes.is_none()).map(|f| serde_json::Value::String(f.key.clone())).collect();
+        platform.set_setting_json(RECENT_KEY, serde_json::Value::Array(paths));
+    }
+
+    /// Put a file first in Recent (1.x `_remember`): by its path when there is one, else by name
+    /// with its bytes.
+    fn remember(&mut self, platform: &dyn Platform, name: &str, path: Option<&str>, bytes: &[u8]) {
+        let entry = match path {
+            Some(p) => RecentFile { key: p.to_owned(), bytes: None },
+            None => RecentFile { key: name.to_owned(), bytes: Some(bytes.to_vec()) },
+        };
+        self.recent.retain(|f| f.key != entry.key);
+        self.recent.insert(0, entry);
         self.recent.truncate(RECENT_MAX);
+        self.save_recent(platform);
     }
 
-    /// File > Recent: open a file from this session's list again. False when it isn't there.
-    pub fn open_recent(&mut self, link: &dyn EngineLink, name: &str) -> bool {
-        let Some(f) = self.recent.iter().find(|f| f.name == name).cloned() else { return false };
-        self.opening = Some(Opening { title: Some(f.name.clone()), project_name: Some(stem(&f.name)), project_path: None, recent: Some(f.clone()), seen: false, failed: false, ahead: usize::from(self.engine_busy) });
-        link.send(Command::Open { name: f.name, bytes: f.bytes });
+    /// File > Recent. A path is read from disk (the answer comes through [`Files::poll`]; a file
+    /// that is gone is dropped from the list there); a name is opened from the session's bytes.
+    /// False when it isn't in the list.
+    pub fn open_recent(&mut self, platform: &dyn Platform, link: &dyn EngineLink, key: &str) -> bool {
+        let Some(f) = self.recent.iter().find(|f| f.key == key).cloned() else { return false };
+        match f.bytes {
+            Some(bytes) => {
+                let file = PickedFile { name: f.key, bytes };
+                self.open_bytes(link, file, None);
+            }
+            None => self.waiting.push(Waiting::Recent(f.key.clone(), platform.read_path(&f.key))),
+        }
         true
     }
 
     /// File > New: an empty project replaces the document (the engine has no separate "new").
     pub fn new_document(&mut self, link: &dyn EngineLink) {
         let bytes = stl_engine::stlx::to_bytes(&stl_engine::Document::new(stl_engine::Registry::builtin())).unwrap_or_default();
-        self.opening = Some(Opening { title: None, project_name: None, project_path: None, recent: None, seen: false, failed: false, ahead: usize::from(self.engine_busy) });
+        self.opening = Some(Opening { title: None, project_name: None, project_path: None, recent: None, recent_path: None, seen: false, failed: false, ahead: usize::from(self.engine_busy) });
         link.send(Command::Open { name: "Untitled.stlx".to_string(), bytes });
+    }
+
+    /// Where the open project lives on disk (desktop). `None` for a new project, a mesh, and on
+    /// the web.
+    pub fn project_path(&self) -> Option<&str> {
+        self.project_path.as_deref()
     }
 
     /// True while a dialog is open or a file is being written.
@@ -174,6 +237,22 @@ impl Files {
             let (pending, import) = match &w {
                 Waiting::Open(p) => (p.clone(), false),
                 Waiting::Import(p) => (p.clone(), true),
+                Waiting::Recent(path, p) => {
+                    let (path, p) = (path.clone(), p.clone());
+                    match p.take() {
+                        None => still.push(w),
+                        Some(Ok(file)) => self.open_bytes(link, file, Some(path.clone())),
+                        Some(Err(e)) => {
+                            // a moved or deleted file: say so, and take it off the list
+                            if e.starts_with(MISSING) {
+                                self.recent.retain(|f| f.key != *path);
+                                self.save_recent(platform);
+                            }
+                            out.messages.push((Level::Error, e));
+                        }
+                    }
+                    continue;
+                }
             };
             match pending.take() {
                 None => still.push(w),
@@ -234,7 +313,8 @@ impl Files {
                         self.title = o.title;
                         self.project_path = o.project_path;
                         if let Some(f) = o.recent {
-                            self.remember(&f.name, &f.bytes);
+                            let path = self.project_path.clone().or(o.recent_path);
+                            self.remember(platform, &f.name, path.as_deref(), &f.bytes);
                         }
                         out.view_iso = true;
                     }
@@ -258,7 +338,9 @@ impl Files {
                         self.project_path = path;
                     }
                     if let Some(f) = &s.recent {
-                        self.remember(&f.name, &f.bytes);
+                        // a project saved over its known path (`Done(None)`) stays under that path
+                        let at = if s.project { self.project_path.clone() } else { None };
+                        self.remember(platform, &f.name, at.as_deref(), &f.bytes);
                     }
                     out.saved |= s.project;
                     out.messages.push((Level::Success, s.done));
@@ -290,8 +372,9 @@ impl Files {
         self.opening = Some(Opening {
             title: Some(file.name.clone()),
             project_name: Some(stem(&file.name)),
-            project_path: path.filter(|_| is_project(&file.name)),
+            project_path: path.clone().filter(|_| is_project(&file.name)),
             recent: Some(file.clone()),
+            recent_path: path,
             seen: false,
             failed: false,
             ahead: usize::from(self.engine_busy),

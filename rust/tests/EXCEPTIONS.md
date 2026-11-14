@@ -280,8 +280,8 @@ Nathan answered all of these (2026-11-12, 2026-11-13 and 2026-11-14).
 - **Accepted (2026-11-12): Open Recent without a path until milestone 5. Recent files last only for this session,** and come back from the bytes in memory, so a
   Save after Open Recent asks where to save. Recent files that survive a restart, and the
   settings, are milestone 5.
-- **Moved to milestone 5 (Nathan, 2026-11-14): the Help menu has no Check for Updates or Update Settings yet.** They need the update
-  check, which is milestone 5. About Support Fins arrived in milestone 4b.
+- **Done in milestone 5: the Help menu has Check for Updates… and Update Settings… (desktop only).** Earlier milestones had neither; the update
+  check arrived in milestone 5. About Support Fins arrived in milestone 4b.
 - **Accepted (2026-11-12): plain-text Help and About layout.** The version comes from the 2.0
   build, the Ko-fi link sits below the text instead of inside it, and the heart isn't
   coloured.
@@ -301,7 +301,7 @@ Nathan answered all of these (2026-11-12, 2026-11-13 and 2026-11-14).
 - **Accepted (2026-11-14): ten constraint icons** (`c_coincident` to `c_symmetric`) are text glyphs in 1.x's
   `icons.js`. The icon renderer has no text support, so 2.0 draws them as paths that look
   close but not identical.
-- **Moved to milestone 5 (Nathan, 2026-11-14): if the graphics device is lost** (a driver reset), the view goes blank until the app is
+- **Still open after milestone 5 (pending Nathan's OK): if the graphics device is lost** (a driver reset), the view goes blank until the app is
   restarted; nothing crashes and the project is kept. eframe 0.37 doesn't create a new
   device on its own. A browser tab in 1.x reloads its WebGL context instead.
 
@@ -364,7 +364,46 @@ Nathan answered all of these on 2026-11-13: six accepted, one to measure in 4c, 
 - **Accepted (2026-11-14): profile points are no longer nudged by rounding when they already sit on
   the 0.00001 mm grid.** 1.x desktop gave 13.000000000000002 where 1.x web and 2.0 give 13
   (`faces_nested`).
-- **Moved to milestone 5 (Nathan, 2026-11-14): the text font list has no "More: fonts on this computer…" or "Add a font
-  file…".** 2.0 offers the bundled fonts only for now.
+- **Pending Nathan's OK (milestone 5): the desktop text font list starts with the bundled fonts and any added fonts; "More: fonts on this computer…" adds the system fonts.** 1.x desktop listed every system font at once and had neither entry (both were web-only). Font files are .ttf or .otf only (2.0 can't read .woff), so the bad-file message says "(use .ttf or .otf)" where 1.x says "(use .ttf, .otf or .woff)".
 - **Accepted (2026-11-14): bundled symbol glyphs.** The bundled fonts had no ⌀ and some relation
   symbols; 2.0 adds them from Noto (SIL Open Font License) so labels show the same symbols as 1.x.
+
+## Platform: settings, autosave, updates, install (milestone 5)
+
+All pending Nathan's OK (2026-11-14) unless marked otherwise.
+
+- **2.0's own folders and storage.** Settings in `%APPDATA%\STL Editor 2\settings.json`, autosave and the log in
+  `%LOCALAPPDATA%\STL Editor 2`, web settings under `stle2_` keys and autosave in IndexedDB `stle2`. 1.x's folders,
+  `ui-settings.json` and `stle_*` keys are never read or written. 1.x's settings and recent files are not migrated.
+- **A corrupt `settings.json` is kept as `settings.json.bad`.** 1.x just started from defaults.
+- **Settings are merged key by key under a lock file (`settings.lock`)**, so two 2.0 windows don't undo each other.
+- **A recent file that was moved or deleted is dropped from the list.** 1.x kept it after the error. The error text is
+  1.x's (`FileNotFoundError: [Errno 2] No such file or directory: '<path>'`). Recent files on the web edition last for
+  the session only.
+- **The log** (`log.txt`) records panics only; 1.x's log was a copy of the console.
+- **Autosave messages 1.x didn't have** (1.x only printed failures to the console): "Couldn't save an autosave copy: …",
+  "Couldn't save an autosave copy: the project can't be written.", "Couldn't keep an autosave copy in this browser: …",
+  "Couldn't recover that copy: …". The Recover dialog shows the time as `autosaved YYYY-MM-DD HH:MM` (1.x used the
+  browser's locale format) and the file path as a tooltip.
+- **Closing a window with unsaved changes keeps its autosave copy for Recover** (as 1.x); Restart with autosave on no
+  longer asks first: it writes the copy and the new window offers it.
+- **The updater looks only at `v2.*` releases with the asset `STL-Editor-2-Windows.exe`**, from the full release list
+  (not `/latest`), comparing versions by semver (pre-releases count). Every download redirect must stay on GitHub's
+  hosts, the size must match and a listed `sha256:` digest must match; there is no fallback to a checksum line in the
+  release notes. A new setting `update_checking` stops two windows checking at the same moment.
+- **Update now** is offered only for the installed Windows exe (other copies get "Download"), refuses while another 2.0
+  window is open ("Close the other STL Editor 2.0 windows first, then press Update now again."), shows "Downloading
+  update…" with no percentage, and keeps `stl-editor-2.old.exe` until the new build draws its first frame. New messages:
+  the wrong-size, not-from-GitHub, download-error and rollback messages, and "Download the new version and use it instead
+  of this copy."
+- **Update Settings is an on/off switch** ("Check for new versions once a day"). 1.x asked for a repository name
+  (`update_repo`), which 2.0 doesn't need.
+- **Milestone 6 item: 1.x's update check must never offer a 2.x release.** 1.x reads `releases/latest`; once a 2.0
+  release is published, 1.x must skip `v2.*` tags (spec 2.7 decision 1). Not built in milestone 5.
+- **The title and About say "STL Editor 2.0 (test build <date> <commit>)"**; the date is the UTC build date.
+- **The phone drawer's button sits above the tool panel** (1.x puts it below), because 2.0's tool panel isn't yet a
+  bottom sheet on phones.
+- **Parked: recovering from a graphics driver reset works in the test renderer only.** eframe 0.37 owns the window's
+  device, so the real window needs a restart after a reset.
+- **Parked: system fonts and added font files draw as DejaVu Sans** until the engine can take supplied font data. Added
+  fonts on the web edition are kept in `localStorage` (size limit) rather than IndexedDB.

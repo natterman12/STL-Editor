@@ -108,15 +108,32 @@ impl Platform for WebPlatform {
     }
 
     fn setting(&self, key: &str) -> Option<String> {
-        let (store, f) = local_storage_fn("getItem")?;
-        f.call1(&store, &JsValue::from_str(key)).ok()?.as_string()
+        self.setting_json(key).and_then(|v| v.as_str().map(str::to_owned))
     }
 
     fn set_setting(&self, key: &str, value: &str) {
+        self.set_setting_json(key, serde_json::Value::String(value.to_owned()));
+    }
+
+    /// Stored as JSON text in `localStorage` under a `stle2_` key, so the 1.x web edition's
+    /// `stle_*` / `stle.*` keys on the same site are never read or written.
+    fn setting_json(&self, key: &str) -> Option<serde_json::Value> {
+        let (store, f) = local_storage_fn("getItem")?;
+        let text = f.call1(&store, &JsValue::from_str(&storage_key(key))).ok()?.as_string()?;
+        serde_json::from_str(&text).ok()
+    }
+
+    fn set_setting_json(&self, key: &str, value: serde_json::Value) {
         if let Some((store, f)) = local_storage_fn("setItem") {
-            let _ = f.call2(&store, &JsValue::from_str(key), &JsValue::from_str(value));
+            let _ = f.call2(&store, &JsValue::from_str(&storage_key(key)), &JsValue::from_str(&value.to_string()));
         }
     }
+}
+
+/// The `localStorage` key for a setting: `stle2_` + the name (a leading `stle_`, 1.x's prefix,
+/// is dropped so `stle_sf_material` is stored as `stle2_sf_material`).
+pub fn storage_key(key: &str) -> String {
+    format!("stle2_{}", key.strip_prefix("stle_").unwrap_or(key))
 }
 
 /// `localStorage.<name>` without needing web-sys's Storage feature.

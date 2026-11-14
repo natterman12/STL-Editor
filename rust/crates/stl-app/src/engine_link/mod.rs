@@ -59,6 +59,10 @@ pub enum Command {
         fixed: Vec<stl_sketch::entities::Entity>,
     },
     Cancel,
+    /// The worker writes an autosave if the document changed since the last one. `path` is where
+    /// the open project lives on disk (desktop; `None` for a new project and on the web) and
+    /// `title` its name; both go into the copy so Recover Unsaved Work can say what it was.
+    Autosave { path: Option<String>, title: Option<String> },
 }
 
 /// What the Support Fins panel asks the engine (1.x `supportfins/info`, `/strength`, `/suggest`).
@@ -111,6 +115,8 @@ pub enum Update {
     SketchOp { seq: u64, result: Result<serde_json::Value, String> },
     /// The answer to [`Command::Solve`] (`SolveReport`'s fields).
     Solved { seq: u64, entities: Vec<stl_sketch::entities::Entity>, ok: bool, error: f64 },
+    /// The answer to [`Command::Autosave`] (only when something was written or failed).
+    Autosaved { ok: bool, error: Option<String> },
     EngineLost,
 }
 

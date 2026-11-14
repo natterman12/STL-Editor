@@ -4,7 +4,8 @@
 
 use crate::engine_link::{Command, EngineLink, Level, NullLink, ParamView, PlaneView, SketchView, TimelineView, Update};
 use crate::engine_link::BodyView;
-use crate::platform::{NullPlatform, Platform};
+use crate::platform::{NullPlatform, PickedFile, Platform};
+use crate::recover::{self, Recover, RecoverAction, Recovered};
 use crate::theme::{self, Tokens};
 use crate::ui::dialogs::{self, DialogResult};
 use crate::ui::menu::{self, MenuItem, MenuResult, OpenMenu};
@@ -59,6 +60,29 @@ pub struct StlApp {
     clean_sig: String,
     /// New / Open Recent waiting for the answer to "Discard unsaved changes?".
     pending_discard: Option<UiAction>,
+    /// Autosave and Recover Unsaved Work; `None` until [`StlApp::enable_autosave`], so tests and
+    /// the empty window never read or write the autosave folders.
+    recover: Option<Recover>,
+    /// When the autosave command was last sent (every 60 s, as 1.x).
+    last_autosave: web_time::Instant,
+    /// A recovered project is on its way to the engine: when it opens it counts as unsaved work.
+    recovering: bool,
+    /// The update check, banner and settings (desktop). `None` until [`StlApp::enable_autosave`],
+    /// so test windows never take a window lock.
+    #[cfg(not(target_arch = "wasm32"))]
+    updates: Option<crate::updates::Updates>,
+    /// The start-up update check waits a few seconds (1.x: 6 s).
+    #[cfg(not(target_arch = "wasm32"))]
+    update_start: Option<web_time::Instant>,
+    /// Update now is done: the new exe, when the restart was asked for, and whether the autosave
+    /// answered.
+    #[cfg(not(target_arch = "wasm32"))]
+    restart: Option<(std::path::PathBuf, web_time::Instant, bool)>,
+    /// The busy note for Check for Updates (the engine's own overlay is `busy`).
+    #[cfg(not(target_arch = "wasm32"))]
+    update_busy: busy::Busy,
+    /// The first frame has been drawn (the old exe of an update is deleted after it).
+    first_frame_done: bool,
     /// A file from the command line, until its bodies arrive. `true` is an insert (fit the view);
     /// `false` is a project (isometric view).
     launch_file: Option<bool>,
@@ -157,11 +181,12 @@ pub fn about_text(web: bool) -> String {
 STL Editor is free and made in spare time. If it saves you time, you can buy me a coffee on Ko-fi ♥";
     let credits: String = CREDITS.iter().map(|(what, lic)| format!("
 {what} ({lic})")).collect();
+    let (date, commit) = (crate::build_info::build_date(), crate::build_info::commit());
     let edition = if web {
         format!("Web edition {version}
 CAD-style editing for STL, 3MF and OBJ meshes, running entirely in your browser: your files never leave your computer.")
     } else {
-        format!("Version {version}
+        format!("Version {version} (test build {date} {commit})
 CAD-style editing for STL, 3MF and OBJ meshes.")
     };
     let gpl = if web { "
@@ -179,6 +204,9 @@ impl StlApp {
     pub fn new(ctx: &egui::Context, platform: Box<dyn Platform>, link: Box<dyn EngineLink>) -> Self {
         let dark = true;
         let tokens = theme::tokens(dark);
+        // the Recent list lasts across restarts (desktop: paths in settings.json)
+        let mut files = Files::new();
+        files.load_recent(&*platform);
         crate::fonts::install(ctx);
         theme::apply(ctx, &tokens);
         StlApp {
@@ -201,11 +229,23 @@ impl StlApp {
             params_open: false,
             toasts: Default::default(),
             busy: Default::default(),
-            files: Files::new(),
+            files,
             dialog_result: None,
             last_fit: None,
             clean_sig: history_sig(&TimelineView::default()),
             pending_discard: None,
+            recover: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            updates: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            update_start: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            restart: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            update_busy: Default::default(),
+            first_frame_done: false,
+            last_autosave: web_time::Instant::now(),
+            recovering: false,
             launch_file: None,
             start_view_done: false,
             tool: None,
@@ -251,6 +291,108 @@ impl StlApp {
         }
     }
 
+    /// Turn autosave and Recover Unsaved Work on (the real window does this once at start-up; the
+    /// empty window and tests don't, so they never touch the autosave folders). Offers what an
+    /// earlier session left behind.
+    pub fn enable_autosave(&mut self) {
+        #[cfg(not(target_arch = "wasm32"))]
+        let mut r = Recover::desktop();
+        #[cfg(target_arch = "wasm32")]
+        let mut r = Recover::web();
+        r.start();
+        self.recover = Some(r);
+        self.last_autosave = web_time::Instant::now();
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            self.updates = Some(crate::updates::Updates::new());
+            self.update_start = Some(web_time::Instant::now());
+        }
+    }
+
+    /// The update check: the start-up check after a few seconds, the banner and settings dialog,
+    /// and what Update now asks of the window.
+    #[cfg(not(target_arch = "wasm32"))]
+    fn updates_frame(&mut self, ctx: &egui::Context, tk: &Tokens) {
+        use crate::updates::{now_secs, UpdateAction};
+        let Some(u) = self.updates.as_mut() else { return };
+        if let Some(t) = self.update_start {
+            let wait = std::time::Duration::from_secs(6);
+            if t.elapsed() >= wait {
+                self.update_start = None;
+                u.start_background(&*self.platform, now_secs());
+            } else {
+                ctx.request_repaint_after(wait - t.elapsed());
+            }
+        }
+        let action = u.show(ctx, tk, &*self.platform, now_secs());
+        let note = u.busy_note();
+        if u.is_busy() {
+            ctx.request_repaint_after(std::time::Duration::from_millis(100));
+        }
+        self.update_busy.set_busy(note.is_some());
+        if let Some(n) = note {
+            self.update_busy.label = n.to_string();
+        }
+        match action {
+            Some(UpdateAction::Toast { text, warn }) => self.toasts.push(if warn { Level::Warning } else { Level::Info }, text),
+            Some(UpdateAction::OpenUrl(url)) => ctx.open_url(egui::OpenUrl::new_tab(url)),
+            // the copy of unsaved work is written first and kept: the new window offers it
+            Some(UpdateAction::Restart { exe }) => {
+                if self.shell.dirty {
+                    self.link.send(self.autosave_command());
+                }
+                self.restart = Some((exe, web_time::Instant::now(), !self.shell.dirty));
+            }
+            None => {}
+        }
+        if let Some((exe, since, answered)) = self.restart.clone() {
+            if answered || since.elapsed() >= std::time::Duration::from_millis(1500) {
+                self.restart = None;
+                // Closing the window drops the engine link, which keeps unsaved work for Recover.
+                match wiring::restart_helper(&exe, std::process::id()).spawn() {
+                    Ok(_) => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
+                    Err(e) => self.toasts.push(Level::Error, format!("Couldn't restart STL Editor: {e}")),
+                }
+            } else {
+                ctx.request_repaint_after(std::time::Duration::from_millis(50));
+            }
+        }
+    }
+
+    /// The autosave command with what the copy should say about the open project.
+    fn autosave_command(&self) -> Command {
+        Command::Autosave { path: self.files.project_path().map(str::to_string), title: self.files.project_name.clone() }
+    }
+
+    /// Every 60 s the engine is asked to write an autosave copy (it does so off this thread, and
+    /// only when something changed).
+    fn autosave_tick(&mut self, ctx: &egui::Context) {
+        if self.recover.is_none() {
+            return;
+        }
+        let every = std::time::Duration::from_secs(60);
+        if self.last_autosave.elapsed() >= every {
+            self.last_autosave = web_time::Instant::now();
+            self.link.send(self.autosave_command());
+        }
+        ctx.request_repaint_after(every.saturating_sub(self.last_autosave.elapsed()));
+    }
+
+    /// A project came back from Recover Unsaved Work: open it like File > Open, and keep it marked
+    /// unsaved (see `recovering`).
+    fn open_recovered(&mut self, r: Recovered) {
+        self.close_tool(false);
+        self.shell.active_tool = None;
+        self.shell.selection.clear();
+        self.viewport.set_selection(&[]);
+        self.viewport.set_section_enabled(false);
+        self.recovering = true;
+        // the file it was saved as, or `<title>.stlx` for work that never was
+        let name = r.path.as_deref().and_then(|p| std::path::Path::new(p).file_name()).map_or(r.name, |n| n.to_string_lossy().into_owned());
+        self.files.open_bytes(&*self.link, PickedFile { name, bytes: r.bytes }, r.path);
+        self.toasts.push(Level::Info, recover::RECOVERED_TOAST.to_string());
+    }
+
     /// The empty window: no engine, no files.
     pub fn empty(ctx: &egui::Context) -> Self {
         Self::new(ctx, Box::new(NullPlatform), Box::new(NullLink))
@@ -282,7 +424,13 @@ impl StlApp {
         any |= self.files.busy() || !out.messages.is_empty();
         // clean once the file is written (not when the engine hands over the bytes), or when a
         // project, a new document or a recent file just arrived
-        let mark_clean = out.saved || out.view_iso;
+        let mut mark_clean = out.saved || out.view_iso;
+        // a recovered project that has just opened is unsaved work, not a clean project
+        let recovered_open = self.recovering && out.view_iso;
+        if recovered_open {
+            self.recovering = false;
+            mark_clean = out.saved;
+        }
         self.apply_file_outcome(out);
         for u in updates {
             match u {
@@ -312,6 +460,7 @@ impl StlApp {
                 Update::Progress { done, total, label } => self.busy.set_progress(done, total, &label),
                 Update::Busy(on) => self.busy.set_busy(on),
                 Update::Error(e) => {
+                    self.recovering = false;
                     // a refused Finish leaves the sketch open (1.x stops it only after the add or edit worked)
                     if let Some(m) = self.sketch.as_mut() {
                         m.finishing = None;
@@ -336,10 +485,26 @@ impl StlApp {
                 // TASK 9 (files.rs): Saved { bytes } and Exported { name, bytes, count } go to the
                 // platform's save dialog.
                 Update::Saved { .. } | Update::Exported { .. } => {}
+                Update::Autosaved { ok: true, .. } => {
+                    #[cfg(not(target_arch = "wasm32"))]
+                    if let Some(r) = self.restart.as_mut() {
+                        r.2 = true;
+                    }
+                }
+                Update::Autosaved { ok: false, error } => {
+                    #[cfg(not(target_arch = "wasm32"))]
+                    if let Some(r) = self.restart.as_mut() {
+                        r.2 = true;
+                    }
+                    self.toasts.push(Level::Error, error.unwrap_or_else(|| "Couldn't save an autosave copy.".to_string()));
+                }
             }
         }
         if mark_clean {
             self.clean_sig = history_sig(&self.timeline_view);
+        }
+        if recovered_open {
+            self.clean_sig = "recovered".to_string();
         }
         self.shell.dirty = history_sig(&self.timeline_view) != self.clean_sig;
         if self.launch_file.is_some() && !self.bodies.is_empty() {
@@ -401,7 +566,13 @@ impl StlApp {
                     self.shell.dialogs.open_alert_rows("shortcuts", HELP_TITLE, HELP_ROWS);
                     None
                 }
-                // Recover Unsaved Work belongs to milestone 5 (autosave)
+                // 1.x `checkRecovery(true)`: lists the copies, or says there is nothing
+                UiAction::Recover => {
+                    if let Some(r) = self.recover.as_mut() {
+                        r.open_manual();
+                    }
+                    None
+                }
                 _ => None,
             };
             if let Some((a, ids)) = act {
@@ -425,8 +596,8 @@ impl StlApp {
         self.viewport.set_section_enabled(false);
         match what {
             UiAction::OpenRecent(name) => {
-                if !self.files.open_recent(&*self.link, &name) {
-                    self.toasts.push(Level::Error, format!("{name} is no longer in this session's recent files."));
+                if !self.files.open_recent(&*self.platform, &*self.link, &name) {
+                    self.toasts.push(Level::Error, "That file is no longer in the recent list.".to_string());
                 }
             }
             _ => self.files.new_document(&*self.link),
@@ -1012,6 +1183,7 @@ impl StlApp {
                 if web {
                     v.extend([it("help.guide", "User Guide"), it("help.desktop", "Get the Desktop App"), it("help.issue", "Report a Problem")]);
                 }
+                v.extend(crate::updates::help_menu_items(web).into_iter().map(|(id, label)| it(id, label)));
                 v.extend([it("help.recover", "Recover Unsaved Work…"), it("help.kofi", "Support STL Editor ♥"), it("help.about", "About STL Editor")]);
                 v
             }
@@ -1087,6 +1259,18 @@ impl StlApp {
             "help.desktop" => ctx.open_url(egui::OpenUrl::new_tab(DESKTOP_URL)),
             "help.issue" => ctx.open_url(egui::OpenUrl::new_tab(ISSUES_URL)),
             "help.recover" => a(self, UiAction::Recover),
+            #[cfg(not(target_arch = "wasm32"))]
+            "help.check_updates" => {
+                if let Some(u) = self.updates.as_mut() {
+                    u.check_now(&*self.platform, crate::updates::now_secs());
+                }
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            "help.update_settings" => {
+                if let Some(u) = self.updates.as_mut() {
+                    u.open_settings(&*self.platform);
+                }
+            }
             "help.kofi" => ctx.open_url(egui::OpenUrl::new_tab(KOFI)),
             "help.about" => {
                 let web = self.platform.is_web();
@@ -1095,7 +1279,7 @@ impl StlApp {
                     links.push(("source on GitHub".to_owned(), "https://github.com/natterman12/STL-Editor".to_owned()));
                 }
                 links.push(("Buy me a coffee on Ko-fi".to_owned(), KOFI.to_owned()));
-                self.shell.dialogs.open_alert("about", "STL Editor", &about_text(web), links);
+                self.shell.dialogs.open_alert("about", &crate::build_info::title(), &about_text(web), links);
             }
             _ => {}
         }
@@ -1192,11 +1376,12 @@ impl StlApp {
         if self.poll() {
             ctx.request_repaint();
         }
+        self.autosave_tick(&ctx);
         let drop = self.files.handle_drop(&ctx, &*self.link);
         self.shell.dragging_files = self.files.dragging;
         self.apply_file_outcome(drop);
         self.shell.doc_name = self.files.title.clone().unwrap_or_else(|| "Untitled".to_owned());
-        self.shell.recent = self.files.recent_names();
+        self.shell.recent = self.files.recent_keys();
         self.run_keys(&ctx);
         self.run_previews(web_time::Instant::now());
         if let Some(t) = &self.tool {
@@ -1359,6 +1544,14 @@ impl StlApp {
                 MenuResult::Pick(tag, id) => self.on_menu_pick(&ctx, &tag, &id, anchor),
             }
         }
+        #[cfg(not(target_arch = "wasm32"))]
+        self.updates_frame(&ctx, &tk);
+        let recovery = self.recover.as_mut().and_then(|r| r.show(&ctx, &tk, self.shell.dirty));
+        match recovery {
+            Some(RecoverAction::Open(r)) => self.open_recovered(r),
+            Some(RecoverAction::Message { text, warn }) => self.toasts.push(if warn { Level::Warning } else { Level::Info }, text),
+            None => {}
+        }
         if let Some(url) = dialogs::show(&ctx, &tk, &mut self.shell.dialogs) {
             if url == wiring::RESTART_URL {
                 self.restart_app(&ctx);
@@ -1392,11 +1585,21 @@ impl StlApp {
         toasts::show(&ctx, &tk, &mut self.toasts);
         let mut busy_cmds = Vec::new();
         busy::show(&ctx, &tk, &mut self.busy, &mut busy_cmds);
+        #[cfg(not(target_arch = "wasm32"))]
+        busy::show(&ctx, &tk, &mut self.update_busy, &mut Vec::new());
         for c in busy_cmds {
             self.send(c);
         }
         if self.engine_lost {
             self.engine_lost_dialog(&ctx, &tk);
+        }
+        if !self.first_frame_done {
+            self.first_frame_done = true;
+            // an update's old exe is deleted once the new one has drawn a frame
+            #[cfg(not(target_arch = "wasm32"))]
+            if self.updates.is_some() {
+                crate::updates::finish_swap_after_first_frame();
+            }
         }
     }
 
@@ -1456,25 +1659,16 @@ impl StlApp {
         let panel_frame = || Frame::new().fill(tk.panel).stroke(Stroke::new(1.0, tk.line)).corner_radius(CornerRadius::same(tk.radius as u8)).shadow(tk.shadow);
 
         // browser: 240 wide, 8px from the top left, leaves room for the history bar
-        Area::new(Id::unique("browser-panel")).order(Order::Middle).fixed_pos(ws.min + Vec2::new(8.0, 8.0)).show(ctx, |ui| {
-            panel_frame().inner_margin(Margin::symmetric(9, 6)).show(ui, |ui| {
-                // 240 wide in all, like `#browser` (220 + the 9 px margins + the 1 px borders). Not inside a
-                // `ui.horizontal`: that gives its content one row of height and clips the tree.
-                ui.set_width(220.0);
-                ui.set_max_height((ws.height() - 60.0).max(40.0));
-                // TASK 8 call site: browser tree
-                let view = browser::BrowserView { doc_name: &self.shell.doc_name, bodies: &self.bodies, selection: &self.shell.selection, planes: &self.planes, sketches: &self.sketches, params: &self.param_views, origin_visible: self.viewport.base_planes_visible() };
-                browser::show(ui, ctx, tk, &mut self.browser, view, commands, events);
-                // the Origin eye turns the three base planes on and off (app.js:2435)
-                if let Some(v) = self.browser.take_origin_toggle() {
-                    self.viewport.set_base_planes_visible(v);
-                }
-                if self.browser.take_open_params() {
-                    self.params_open = true;
-                    self.params.set_open(true);
-                }
-            });
-        });
+        let view = browser::BrowserView { doc_name: &self.shell.doc_name, bodies: &self.bodies, selection: &self.shell.selection, planes: &self.planes, sketches: &self.sketches, params: &self.param_views, origin_visible: self.viewport.base_planes_visible() };
+        browser::show_panel(ctx, tk, ws, &mut self.browser, view, commands, events);
+        // the Origin eye turns the three base planes on and off (app.js:2435)
+        if let Some(v) = self.browser.take_origin_toggle() {
+            self.viewport.set_base_planes_visible(v);
+        }
+        if self.browser.take_open_params() {
+            self.params_open = true;
+            self.params.set_open(true);
+        }
 
         self.tool_panel(ctx, tk, ws);
         self.sketch_overlays(ctx, tk, ws);
@@ -1567,5 +1761,13 @@ impl StlApp {
 impl eframe::App for StlApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         self.layout(ui);
+    }
+
+    /// The window is closing: write the newest autosave copy, so that unsaved work is kept for
+    /// Recover Unsaved Work (the engine link removes the folder only when nothing is unsaved).
+    fn on_exit(&mut self) {
+        if self.recover.is_some() && self.shell.dirty {
+            self.link.send(self.autosave_command());
+        }
     }
 }

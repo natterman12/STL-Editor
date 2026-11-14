@@ -76,7 +76,26 @@ pub fn engine_worker() {
         }
         emit(update);
     });
-    ENGINE.with(|e| *e.borrow_mut() = Some(EngineWorker::new(sink, cancel)));
+    let mut engine = EngineWorker::new(sink, cancel);
+    engine.set_autosave_out(Box::new(emit_autosave));
+    ENGINE.with(|e| *e.borrow_mut() = Some(engine));
+}
+
+/// The autosave copy (or its removal), for the page to keep in IndexedDB.
+fn emit_autosave(out: worker::AutosaveOut) {
+    match out {
+        worker::AutosaveOut::Copy { bytes, title, steps, key: _ } => {
+            let msg = js_from_json(&Value::Object(Map::from_iter([
+                ("t".into(), Value::String("autosaveCopy".into())),
+                ("title".into(), Value::String(title)),
+                ("steps".into(), Value::from(steps)),
+            ])));
+            let buf = bytes_to_buffer(&bytes);
+            set(&msg, "bytes", buf.as_ref());
+            post_transfer(&msg, &Array::of1(buf.as_ref()));
+        }
+        worker::AutosaveOut::Clear => post(&js_from_json(&Value::Object(Map::from_iter([("t".into(), Value::String("autosaveClear".into()))])))),
+    }
 }
 
 /// One message from the page. Returns `{hadMesh, detached}` for the buffers this call transferred.
@@ -146,6 +165,11 @@ fn plain_update(update: &Update) -> Value {
         Update::Error(text) => Value::Object(Map::from_iter([
             ("t".into(), Value::String("error".into())),
             ("text".into(), Value::String(text.clone())),
+        ])),
+        Update::Autosaved { ok, error } => Value::Object(Map::from_iter([
+            ("t".into(), Value::String("autosaved".into())),
+            ("ok".into(), Value::Bool(*ok)),
+            ("error".into(), error.clone().map(Value::String).unwrap_or(Value::Null)),
         ])),
         Update::EngineLost => Value::Object(Map::from_iter([("t".into(), Value::String("engineLost".into()))])),
         // Task 6 wires the web worker; this is the update as it would be sent.
@@ -497,6 +521,7 @@ fn decode_command(data: &JsValue) -> Result<Command, String> {
             Ok(Command::Fins { seq: get(data, "seq").as_f64().unwrap_or(0.0) as u64, ask })
         }
         "save" => Ok(Command::Save),
+        "autosave" => Ok(Command::Autosave { path: opt_string(&get(data, "path")), title: opt_string(&get(data, "title")) }),
         "export" => Ok(Command::Export {
             format: export_format(&req_string(data, "format")?)?,
             ids: opt_ids(&json_field(data, "ids")),
@@ -573,12 +598,17 @@ fn encode_command(c: &Command) -> JsValue {
         Command::Fins { .. } => "fins",
         Command::SketchOp { .. } => "sketchOp",
         Command::Solve { .. } => "solve",
+        Command::Autosave { .. } => "autosave",
     };
     m.insert("t".into(), Value::String(tag.into()));
     if let Command::Open { name, .. } | Command::Import { name, .. } = c {
         m.insert("name".into(), Value::String(name.clone()));
     }
     match c {
+        Command::Autosave { path, title } => {
+            m.insert("path".into(), path.clone().map(Value::String).unwrap_or(Value::Null));
+            m.insert("title".into(), title.clone().map(Value::String).unwrap_or(Value::Null));
+        }
         Command::AddFeature { kind, params, index, name } => {
             m.insert("name".into(), name.clone().map(Value::String).unwrap_or(Value::Null));
             m.insert("kind".into(), Value::String(kind.clone()));
@@ -756,6 +786,10 @@ impl WebLink {
             onerror: None,
         }));
         attach(&inner);
+        // This tab owns an autosave session while it is open; a tab that is hidden or closing
+        // saves what it has (1.x does the same on `visibilitychange`).
+        crate::web::store::hold_session_lock();
+        watch_visibility(&inner);
         Ok(WebLink { inner })
     }
 
@@ -778,6 +812,23 @@ impl Drop for WebLink {
     fn drop(&mut self) {
         self.inner.borrow().js.terminate();
     }
+}
+
+/// The page is being hidden: write the autosave copy now.
+fn watch_visibility(inner: &Rc<RefCell<Inner>>) {
+    let Some(doc) = web_sys::window().and_then(|w| w.document()) else { return };
+    let weak = Rc::downgrade(inner);
+    let handler = Closure::wrap(Box::new(move || {
+        let Some(inner) = weak.upgrade() else { return };
+        if web_sys::window().and_then(|w| w.document()).is_some_and(|d| d.hidden()) {
+            let ready = inner.borrow().ready && !inner.borrow().lost;
+            if ready {
+                post_cmd(&inner, &Command::Autosave { path: None, title: None });
+            }
+        }
+    }) as Box<dyn FnMut()>);
+    let _ = doc.add_event_listener_with_callback("visibilitychange", handler.as_ref().unchecked_ref());
+    handler.forget();
 }
 
 fn attach(inner: &Rc<RefCell<Inner>>) {
@@ -812,6 +863,12 @@ fn on_message(inner: &Rc<RefCell<Inner>>, data: JsValue) {
             inner.borrow_mut().ready = true;
             flush(inner);
         }
+        "autosaveCopy" => keep_autosave_copy(inner, &data),
+        "autosaveClear" => {
+            wasm_bindgen_futures::spawn_local(async {
+                let _ = crate::web::store::clear_copy().await;
+            });
+        }
         "meshDetached" => {
             inner.borrow_mut().mesh_detached = Some(get(&data, "ok").as_bool().unwrap_or(false));
         }
@@ -832,6 +889,23 @@ fn on_message(inner: &Rc<RefCell<Inner>>, data: JsValue) {
             }
         }
     }
+}
+
+/// The worker made an autosave copy: keep it in this browser, then tell the app how it went.
+fn keep_autosave_copy(inner: &Rc<RefCell<Inner>>, data: &JsValue) {
+    let title = opt_string(&get(data, "title")).unwrap_or_else(|| "Untitled".into());
+    let steps = num_usize(&get(data, "steps"));
+    let bytes = bytes_field(data, "bytes");
+    let saved = js_sys::Date::now() / 1000.0;
+    let inner = inner.clone();
+    wasm_bindgen_futures::spawn_local(async move {
+        let update = match crate::web::store::put_copy(&title, steps, saved, &bytes).await {
+            Ok(()) => Update::Autosaved { ok: true, error: None },
+            Err(e) => Update::Autosaved { ok: false, error: Some(format!("Couldn't keep an autosave copy in this browser: {e}")) },
+        };
+        inner.borrow_mut().updates.push(update);
+        poke(&inner);
+    });
 }
 
 fn poke(inner: &Rc<RefCell<Inner>>) {
@@ -872,7 +946,8 @@ fn post_cmd(inner: &Rc<RefCell<Inner>>, c: &Command) {
         Command::Open { name, bytes } if name.to_lowercase().ends_with(".stlx") => Pending::Project(bytes.clone()),
         Command::Open { .. } => Pending::Clear,
         // Preview, fins, sketch ops and solves send no Busy: the worker does not count them.
-        Command::Preview { .. } | Command::ClearPreview | Command::Fins { .. } | Command::SketchOp { .. } | Command::Solve { .. } => {
+        // An autosave is quiet too: no Busy comes back for it.
+        Command::Preview { .. } | Command::ClearPreview | Command::Fins { .. } | Command::SketchOp { .. } | Command::Solve { .. } | Command::Autosave { .. } => {
             return post_js(inner, &encode_command(c))
         }
         _ => Pending::Other,

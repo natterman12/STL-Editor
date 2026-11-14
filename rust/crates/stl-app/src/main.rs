@@ -1,8 +1,31 @@
 #[cfg(not(target_arch = "wasm32"))]
 use stl_app::app::StlApp;
 
+/// 1.x `log.txt`: panics (and anything else written here) go to `data_dir()/log.txt`, because
+/// a window started from a shortcut has no console. Best effort: no log is better than no window.
+#[cfg(not(target_arch = "wasm32"))]
+fn init_log() {
+    use std::io::Write;
+    let path = stl_platform::settings::log_file();
+    if let Some(dir) = path.parent() {
+        let _ = std::fs::create_dir_all(dir);
+    }
+    // keep it small: start again once it passes 1 MB
+    if std::fs::metadata(&path).is_ok_and(|m| m.len() > 1_000_000) {
+        let _ = std::fs::remove_file(&path);
+    }
+    let previous = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(&path) {
+            let _ = writeln!(f, "{info}");
+        }
+        previous(info);
+    }));
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 fn main() -> eframe::Result {
+    init_log();
     // Before eframe or the engine starts a thread. On Windows this thread runs above normal.
     // The engine thread builds Rayon's pool and runs below this one. See `engine_link::native`.
     stl_app::engine_link::native::reserve_core_for_the_window();
@@ -22,13 +45,13 @@ fn main() -> eframe::Result {
     }
 
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_title("STL Editor").with_inner_size([1280.0, 800.0]),
+        viewport: egui::ViewportBuilder::default().with_title(stl_app::build_info::title()).with_inner_size([1280.0, 800.0]),
         ..Default::default()
     };
     // `stl-app <file>`: a .stlx is opened, any other mesh is inserted.
     let launch_file = args.into_iter().find(|a| !a.starts_with('-'));
     eframe::run_native(
-        "STL Editor",
+        &stl_app::build_info::title(),
         options,
         Box::new(move |cc| {
             // The GPU device comes up before the engine thread, so driver threads are not
@@ -48,6 +71,7 @@ fn main() -> eframe::Result {
                 Box::new(link),
             );
             app.viewport = viewport;
+            app.enable_autosave();
             if let Some(path) = launch_file {
                 app.open_launch_file(std::path::Path::new(&path));
             }
@@ -437,6 +461,7 @@ mod web_main {
                             }
                         };
                         let mut app = StlApp::new(&cc.egui_ctx, Box::new(WebPlatform::new()), link);
+                        app.enable_autosave();
                         if let Some(rs) = cc.wgpu_render_state.as_ref() {
                             app.viewport.init_gpu(rs);
                         }

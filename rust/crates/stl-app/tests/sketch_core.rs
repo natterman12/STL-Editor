@@ -1,5 +1,9 @@
 //! Task 1 of milestone 4c: the fixed sketch interfaces (session, ids, undo, frame maths, geometry).
 
+// keeps this test binary out of the real 2.0 folders (STLEDITOR2_CONFIG_DIR)
+#[path = "support/test_env.rs"]
+mod test_env;
+
 use std::time::Instant;
 
 use serde_json::{json, Value};

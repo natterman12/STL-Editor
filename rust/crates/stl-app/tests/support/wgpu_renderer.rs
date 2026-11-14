@@ -4,6 +4,10 @@
 //! Use from a test file with `#[path = "support/wgpu_renderer.rs"] mod wgpu_renderer;`.
 #![allow(dead_code)]
 
+// Keeps every test process out of the real 2.0 settings folder (runs before main).
+#[path = "test_env.rs"]
+mod test_env;
+
 use std::iter;
 
 use egui::TexturesDelta;

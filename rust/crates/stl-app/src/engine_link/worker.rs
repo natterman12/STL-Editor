@@ -2,9 +2,12 @@
 //! link (a Web Worker). No threads and no native-only APIs in here: the links run `Worker`
 //! on their own thread and carry its updates to the UI.
 
+use std::collections::BTreeSet;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+
+use web_time::{SystemTime, UNIX_EPOCH};
 
 use serde_json::{json, Map, Value};
 use stl_engine::stlx;
@@ -40,6 +43,46 @@ pub struct Worker {
     lost: bool,
     /// The Support Fins engine, started the first time something asks for it.
     fins: Option<Arc<dyn FinsHost>>,
+    /// The autosave copy of this window's unsaved work.
+    autosave: Autosave,
+    /// The name of the project file last opened, for the title of an autosave copy.
+    name: Option<String>,
+}
+
+/// What a web worker hands the page to keep in the browser's storage.
+#[derive(Clone, Debug, PartialEq)]
+pub enum AutosaveOut {
+    /// The project as `.stlx` bytes (with the keys Recover reads), its title, step count and the
+    /// snapshot key (equal keys are the same project).
+    Copy { bytes: Vec<u8>, title: String, steps: usize, key: String },
+    /// Saved or opened another project: nothing to recover from this tab any more.
+    Clear,
+}
+
+/// Autosave state of one window. Desktop: a folder under `data_dir()/autosave`, written here on the
+/// worker thread. Web: the page keeps the copy (this side only makes the bytes).
+#[derive(Default)]
+struct Autosave {
+    /// The snapshot written last, so an unchanged project is not written again.
+    last: Option<String>,
+    /// Sources already in the folder, so only new ones are copied again.
+    written: BTreeSet<String>,
+    /// Where the project lives on disk and what it is called, as the app last said.
+    path: Option<String>,
+    title: Option<String>,
+    #[cfg(not(target_arch = "wasm32"))]
+    root: Option<std::path::PathBuf>,
+    #[cfg(not(target_arch = "wasm32"))]
+    saver: Option<stl_platform::autosave::Autosaver>,
+    #[cfg(target_arch = "wasm32")]
+    out: Option<Box<dyn Fn(AutosaveOut)>>,
+}
+
+impl Drop for Worker {
+    /// The window closed cleanly: its autosave folder goes with it.
+    fn drop(&mut self) {
+        self.end_autosave();
+    }
 }
 
 fn is_project(name: &str) -> bool {
@@ -50,7 +93,17 @@ impl Worker {
     /// `cancel` is set by the link when the user presses Cancel; the worker clears it when the
     /// command it stopped has ended.
     pub fn new(sink: Sink, cancel: Arc<AtomicBool>) -> Worker {
-        let mut w = Worker { sink, cancel, doc: Document::new(Registry::builtin()), views: Views::new(), saved: None, lost: false, fins: None };
+        let mut w = Worker {
+            sink,
+            cancel,
+            doc: Document::new(Registry::builtin()),
+            views: Views::new(),
+            saved: None,
+            lost: false,
+            fins: None,
+            autosave: Autosave::default(),
+            name: None,
+        };
         w.hook();
         w
     }
@@ -80,6 +133,16 @@ impl Worker {
     pub fn handle(&mut self, c: Command) {
         if self.lost || matches!(c, Command::Cancel | Command::ClearPreview) {
             return; // Cancel is a flag the link sets while the command runs
+        }
+        if let Command::Autosave { path, title } = c {
+            // Quiet like a preview: no Busy overlay and no refresh, once a minute.
+            self.autosave.path = path;
+            self.autosave.title = title.filter(|t| !t.is_empty());
+            if catch_unwind(AssertUnwindSafe(|| self.autosave_now(false))).is_err() {
+                self.lost = true;
+                self.send(Update::EngineLost);
+            }
+            return;
         }
         if let Command::Fins { seq, ask } = c {
             let run = catch_unwind(AssertUnwindSafe(|| self.fins_ask(seq, ask)));
@@ -133,6 +196,8 @@ impl Worker {
         self.send(Update::Busy(true));
         self.doc = Document::new(Registry::builtin());
         self.views.clear();
+        // the copy on disk is the newest there is: keep it, and write again at the next change
+        self.autosave.last = None;
         let saved = self.saved.clone();
         let opened = saved.and_then(|b| stlx::from_bytes(&b, Registry::builtin()).ok());
         if let Some(d) = opened {
@@ -321,6 +386,7 @@ impl Worker {
                 let bytes = stlx::to_bytes(&self.doc).map_err(|e| FeatureError(e.0))?;
                 self.saved = Some(bytes.clone());
                 self.doc.dirty = false;
+                self.clear_autosave();
                 self.send(Update::Saved { bytes });
                 Ok(())
             }
@@ -340,6 +406,7 @@ impl Worker {
                 self.answer_solve(seq, &entities, &constraints, &locks, &fixed);
                 Ok(())
             }
+            Command::Autosave { .. } => Ok(()), // answered in `handle`, before it gets here
             Command::Cancel | Command::ClearPreview | Command::Preview { .. } | Command::Fins { .. } => Ok(()),
         }
     }
@@ -365,12 +432,25 @@ impl Worker {
         if is_project(name) {
             // The file is evaluated while it loads, so this can't be cancelled and reports its
             // progress afterwards (it needs a hook in stlx::from_bytes to do better).
-            let doc = stlx::from_bytes(&bytes, Registry::builtin()).map_err(|e| FeatureError(e.0))?;
+            let mut doc = stlx::from_bytes(&bytes, Registry::builtin()).map_err(|e| FeatureError(e.0))?;
+            // Recover opens an autosave copy as a project that is not saved yet.
+            let recovered = doc.extra.remove("recovered") == Some(Value::Bool(true));
+            if recovered {
+                if let Some(Value::String(t)) = doc.extra.remove("title") {
+                    doc.title = Some(t);
+                }
+                for k in ["path", "saved", "count"] {
+                    doc.extra.remove(k);
+                }
+                doc.dirty = true;
+            }
             self.doc = doc;
             self.views.clear();
             self.hook();
             self.fins_for_loaded();
-            self.saved = Some(bytes);
+            self.name = Some(file_stem(name));
+            self.clear_autosave();
+            self.saved = if recovered { None } else { Some(bytes) };
             let end = self.doc.rollback.map_or(self.doc.features.len(), |r| r.min(self.doc.features.len()));
             for (i, f) in self.doc.features[..end].iter().enumerate() {
                 let label = f.name.clone().unwrap_or_else(|| stl_engine::labels::label(&f.kind).to_string());
@@ -387,6 +467,8 @@ impl Worker {
                 self.views.clear();
                 self.saved = None;
                 self.doc.dirty = false;
+                self.name = Some(file_stem(name));
+                self.clear_autosave();
                 Ok(())
             }
             Err(e) => {
@@ -395,6 +477,138 @@ impl Worker {
                 Err(e)
             }
         }
+    }
+
+    /// Write the autosave copy if the project has unsaved changes that the last copy lacks (or
+    /// `force`). Quiet: it only answers `Update::Autosaved` when it wrote or failed.
+    fn autosave_now(&mut self, force: bool) {
+        if self.doc.features.is_empty() || (!self.doc.dirty && !force) {
+            return;
+        }
+        let Ok(mut json) = stlx::document_json(&self.doc) else {
+            self.send(Update::Autosaved { ok: false, error: Some("Couldn't save an autosave copy: the project can't be written.".into()) });
+            return;
+        };
+        let snap = serde_json::to_string(&json).unwrap_or_default();
+        if !force && self.autosave.last.as_deref() == Some(snap.as_str()) {
+            return; // nothing changed since the last copy
+        }
+        let title = self.autosave.title.clone().or_else(|| self.doc.title.clone()).or_else(|| self.name.clone()).unwrap_or_else(|| "Untitled".to_string());
+        let steps = self.doc.features.len();
+        let saved = SystemTime::now().duration_since(UNIX_EPOCH).map_or(0.0, |d| d.as_secs_f64());
+        if let Value::Object(m) = &mut json {
+            // 1.x's autosave fields; `recovered` and `title` tell the worker that opens the copy
+            m.insert("title".into(), json!(title));
+            m.insert("path".into(), self.autosave.path.clone().map_or(Value::Null, Value::String));
+            m.insert("saved".into(), json!(saved));
+            m.insert("count".into(), json!(steps));
+            m.insert("recovered".into(), json!(true));
+        }
+        self.write_autosave(json, snap, title, steps);
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn write_autosave(&mut self, json: Value, snap: String, _title: String, _steps: usize) {
+        use stl_platform::autosave::{Autosaver, Source};
+        let result = (|| -> Result<(), String> {
+            if self.autosave.saver.is_none() {
+                let root = self.autosave.root.clone().unwrap_or_else(|| stl_platform::paths::data_dir().join("autosave"));
+                self.autosave.saver = Some(Autosaver::begin(&root).map_err(|e| e.to_string())?);
+            }
+            let used: Vec<String> = json.get("sources").and_then(Value::as_object).map(|m| m.keys().cloned().collect()).unwrap_or_default();
+            let fresh: Vec<Source> = used
+                .iter()
+                .filter(|id| !self.autosave.written.contains(*id))
+                .filter_map(|id| self.doc.sources.get(id).map(|s| Source { id: id.clone(), name: s.name.clone(), ext: s.ext.clone(), data: s.data.clone() }))
+                .collect();
+            let saver = self.autosave.saver.as_ref().ok_or("no autosave folder")?;
+            saver.write(&json, &fresh).map_err(|e| e.to_string())?;
+            self.autosave.written.extend(fresh.into_iter().map(|s| s.id));
+            Ok(())
+        })();
+        match result {
+            Ok(()) => {
+                self.autosave.last = Some(snap);
+                self.send(Update::Autosaved { ok: true, error: None });
+            }
+            Err(e) => self.send(Update::Autosaved { ok: false, error: Some(format!("Couldn't save an autosave copy: {e}")) }),
+        }
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn write_autosave(&mut self, json: Value, snap: String, title: String, steps: usize) {
+        let Some(out) = &self.autosave.out else { return };
+        let sources: Vec<(String, String, String, Vec<u8>)> = json
+            .get("sources")
+            .and_then(Value::as_object)
+            .into_iter()
+            .flatten()
+            .filter_map(|(id, _)| self.doc.sources.get(id).map(|s| (id.clone(), s.name.clone(), s.ext.clone(), s.data.clone())))
+            .collect();
+        match stlx::parts_to_bytes(&json, &sources) {
+            Ok(bytes) => {
+                self.autosave.last = Some(snap.clone());
+                out(AutosaveOut::Copy { bytes, title, steps, key: snap });
+            }
+            Err(e) => self.send(Update::Autosaved { ok: false, error: Some(format!("Couldn't save an autosave copy: {}", e.0)) }),
+        }
+    }
+
+    /// Saved, or another project opened: the copy of the old one is not needed any more.
+    fn clear_autosave(&mut self) {
+        self.autosave.last = None;
+        self.autosave.written.clear();
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(s) = &self.autosave.saver {
+            s.clear();
+        }
+        #[cfg(target_arch = "wasm32")]
+        if let Some(out) = &self.autosave.out {
+            out(AutosaveOut::Clear);
+        }
+        // a recovered project is not saved yet: write it again straight away, as 1.x does
+        if self.doc.dirty {
+            self.autosave_now(true);
+        }
+    }
+
+    /// Desktop: where the autosave folders go (default `data_dir()/autosave`). Set before the
+    /// first `Command::Autosave`.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn set_autosave_root(&mut self, root: std::path::PathBuf) {
+        self.autosave.root = Some(root);
+    }
+
+    /// Desktop: this window's autosave folder name, once it has written a copy.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn autosave_id(&self) -> Option<String> {
+        self.autosave.saver.as_ref().map(|s| s.id().to_string())
+    }
+
+    /// Web: where the copy goes (the page keeps it in IndexedDB).
+    #[cfg(target_arch = "wasm32")]
+    pub fn set_autosave_out(&mut self, out: Box<dyn Fn(AutosaveOut)>) {
+        self.autosave.out = Some(out);
+    }
+
+    /// The window closes. With nothing unsaved this window's autosave folder is removed; with
+    /// unsaved work the newest copy is written and kept (only the lock is let go), so the next
+    /// start can offer it in Recover Unsaved Work. 1.x keeps it the same way when it restarts.
+    /// Nothing happens if no autosave was ever started in this window.
+    pub fn end_autosave(&mut self) {
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(s) = self.autosave.saver.take() {
+            if !self.doc.features.is_empty() && self.doc.dirty && !self.lost {
+                // put it back for the write, which needs it; a failed write leaves the older copy
+                self.autosave.saver = Some(s);
+                let _ = catch_unwind(AssertUnwindSafe(|| self.autosave_now(true)));
+                drop(self.autosave.saver.take());
+            } else {
+                s.end();
+            }
+        }
+        self.autosave.last = None;
+        self.autosave.written.clear();
     }
 
     /// A feature's warning or note, as a message.
@@ -420,6 +634,12 @@ impl Worker {
         let sk = self.views.sketches(&self.doc);
         self.send(Update::Sketches(sk));
     }
+}
+
+/// `Bracket.stlx` is `Bracket`.
+fn file_stem(name: &str) -> String {
+    let base = name.rsplit(['/', '\\']).next().unwrap_or(name);
+    base.rsplit_once('.').map_or(base, |(stem, _)| stem).to_string()
 }
 
 fn object(v: Value) -> Map<String, Value> {
@@ -479,10 +699,8 @@ fn make_fins_host() -> Arc<dyn FinsHost> {
             break;
         }
     }
-    let user = std::env::var_os("APPDATA")
-        .or_else(|| std::env::var_os("XDG_CONFIG_HOME"))
-        .map(|p| PathBuf::from(p).join("STL Editor").join("support-fins"))
-        .unwrap_or_default();
+    // 2.0's own folder; 1.x's `STL Editor` folder is never read or written
+    let user = stl_platform::paths::config_dir().join("support-fins");
     let bundled = bundled.unwrap_or_default();
     match stl_platform::fins::choose_engine(&bundled, &user) {
         Ok(info) => stl_platform::fins::start_fins_host(&info.path),

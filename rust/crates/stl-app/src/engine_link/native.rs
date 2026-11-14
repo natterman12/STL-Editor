@@ -22,6 +22,10 @@ use super::{Command, EngineLink, Update};
 enum Job {
     Run(Command),
     Restart,
+    /// Clean exit: remove this window's autosave folder, then answer.
+    EndSession(Sender<()>),
+    /// A test reads the autosave folder's name, or sets where autosave goes.
+    AutosaveRoot(std::path::PathBuf),
 }
 
 pub struct NativeLink {
@@ -40,6 +44,8 @@ pub struct NativeLink {
     solve_gate: Arc<AtomicU64>,
     /// The newest solve `seq` sent.
     solve_last: AtomicU64,
+    /// The engine thread has an autosave folder (set after an autosave wrote one).
+    has_session: Arc<AtomicBool>,
 }
 
 impl NativeLink {
@@ -51,7 +57,8 @@ impl NativeLink {
         let wake: Arc<Mutex<Option<Box<dyn Fn() + Send>>>> = Arc::new(Mutex::new(None));
         let preview_gate = Arc::new(AtomicU64::new(0));
         let solve_gate = Arc::new(AtomicU64::new(0));
-        let (u, c, p, w, g, sg) = (updates.clone(), cancel.clone(), pending.clone(), wake.clone(), preview_gate.clone(), solve_gate.clone());
+        let has_session = Arc::new(AtomicBool::new(false));
+        let (u, c, p, w, g, sg, hs) = (updates.clone(), cancel.clone(), pending.clone(), wake.clone(), preview_gate.clone(), solve_gate.clone(), has_session.clone());
         std::thread::Builder::new()
             .name("stl-engine".into())
             .spawn(move || {
@@ -74,8 +81,20 @@ impl NativeLink {
                     match job {
                         Job::Run(Command::Preview { seq, .. }) if seq < g.load(Ordering::SeqCst) => {}
                         Job::Run(Command::Solve { seq, .. }) if seq < sg.load(Ordering::SeqCst) => {}
-                        Job::Run(cmd) => worker.handle(cmd),
+                        Job::Run(cmd) => {
+                            let autosave = matches!(cmd, Command::Autosave { .. });
+                            worker.handle(cmd);
+                            if autosave {
+                                hs.store(worker.autosave_id().is_some(), Ordering::SeqCst);
+                            }
+                        }
                         Job::Restart => worker.restart(),
+                        Job::EndSession(done) => {
+                            worker.end_autosave();
+                            hs.store(false, Ordering::SeqCst);
+                            let _ = done.send(());
+                        }
+                        Job::AutosaveRoot(root) => worker.set_autosave_root(root),
                     }
                     p.fetch_sub(1, Ordering::SeqCst);
                 }
@@ -91,6 +110,7 @@ impl NativeLink {
             preview_last: AtomicU64::new(0),
             solve_gate,
             solve_last: AtomicU64::new(0),
+            has_session,
         }
     }
 
@@ -104,10 +124,35 @@ impl NativeLink {
         self.pending.load(Ordering::SeqCst) > 0
     }
 
+    /// Clean exit: removes this window's autosave folder (on the engine thread) and waits for it,
+    /// at most `wait`. Call it when the app closes without unsaved work to keep; a window that
+    /// is killed instead leaves its folder for Recover Unsaved Work.
+    pub fn end_session(&self, wait: std::time::Duration) {
+        let (tx, rx) = channel::<()>();
+        self.queue(Job::EndSession(tx));
+        let _ = rx.recv_timeout(wait);
+    }
+
+    /// Put this window's autosave folders under `root` instead of `data_dir()/autosave`
+    /// (tests). Before the first `Command::Autosave { .. }`.
+    pub fn set_autosave_root(&self, root: std::path::PathBuf) {
+        self.queue(Job::AutosaveRoot(root));
+    }
+
     fn queue(&self, job: Job) {
         self.pending.fetch_add(1, Ordering::SeqCst);
         if self.jobs.send(job).is_err() {
             self.pending.fetch_sub(1, Ordering::SeqCst);
+        }
+    }
+}
+
+impl Drop for NativeLink {
+    /// The app closed cleanly: this window's autosave folder is removed (a window that is killed
+    /// or crashes leaves it for Recover Unsaved Work). Waits a moment at most.
+    fn drop(&mut self) {
+        if self.has_session.load(Ordering::SeqCst) {
+            self.end_session(std::time::Duration::from_secs(3));
         }
     }
 }
