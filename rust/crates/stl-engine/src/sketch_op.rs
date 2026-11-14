@@ -397,7 +397,13 @@ fn op_text(entities: &[Entity], data: &Value, seed: &str) -> Result<Value, Geome
     let x0 = num_or(data, "x", 0.0);
     let y0 = num_or(data, "y", 0.0);
     let opts = TextOpts { spacing, align: align.to_string(), line_gap: 1.2 };
-    let font = font_bytes(family, bold, italic);
+    // 1.x web `fontData`: the app sends a font that isn't bundled (a system font or an added
+    // file) with the request; without it, the bundled DejaVu fonts
+    let supplied = data.get("fontData").and_then(Value::as_str).and_then(base64_decode);
+    let font: &[u8] = match &supplied {
+        Some(b) => b,
+        None => font_bytes(family, bold, italic),
+    };
     let cont = text_contours(font, text, size, &opts).map_err(sketch_err)?;
     if cont.is_empty() {
         return Err(FeatureError(NO_TEXT.into()));
@@ -518,6 +524,24 @@ fn js_to_fixed(n: f64, digits: u32) -> f64 {
     rounded / scale
 }
 
+/// Standard base64 (the app's `fontData`); `None` on a character outside the alphabet.
+fn base64_decode(s: &str) -> Option<Vec<u8>> {
+    const B64: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let s = s.trim_end_matches('=');
+    let mut out = Vec::with_capacity(s.len() * 3 / 4);
+    let (mut acc, mut bits) = (0u32, 0u32);
+    for ch in s.bytes() {
+        let v = B64.iter().position(|&c| c == ch)? as u32;
+        acc = acc << 6 | v;
+        bits += 6;
+        if bits >= 8 {
+            bits -= 8;
+            out.push((acc >> bits & 0xff) as u8);
+        }
+    }
+    Some(out)
+}
+
 /// The web edition's DejaVu files (`sketchop_golden.mjs` font loader).
 fn font_bytes(family: &str, bold: bool, italic: bool) -> &'static [u8] {
     match family {
@@ -541,6 +565,58 @@ fn font_bytes(family: &str, bold: bool, italic: bool) -> &'static [u8] {
             (false, true) => include_bytes!("../../../../web/fonts/DejaVuSans-Oblique.ttf"),
             (false, false) => include_bytes!("../../../../web/fonts/DejaVuSans.ttf"),
         },
+    }
+}
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod font_data {
+    use serde_json::{json, Value};
+
+    use super::*;
+
+    fn b64(b: &[u8]) -> String {
+        const B64: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        let mut out = String::new();
+        for c in b.chunks(3) {
+            let n = (c[0] as u32) << 16 | (*c.get(1).unwrap_or(&0) as u32) << 8 | *c.get(2).unwrap_or(&0) as u32;
+            for k in 0..4 {
+                out.push(if k <= c.len() { B64[(n >> (18 - 6 * k) & 63) as usize] as char } else { '=' });
+            }
+        }
+        out
+    }
+
+    fn pts(v: &Value) -> Vec<Value> {
+        v["entities"].as_array().unwrap().iter().map(|e| e["pts"].clone()).collect()
+    }
+
+    /// A font that isn't bundled is drawn from the bytes the app supplies (1.x web `fontData`),
+    /// and an unknown family without them is still DejaVu Sans.
+    #[test]
+    fn supplied_font_is_used() {
+        let base = json!({"op": "text", "text": "Ag", "size": 10, "seed": "s"});
+        let with = |extra: Value| {
+            let mut d = base.clone();
+            for (k, v) in extra.as_object().unwrap() {
+                d[k] = v.clone();
+            }
+            op_text(&[], &d, "s").unwrap()
+        };
+        let serif = with(json!({"font": "DejaVu Serif"}));
+        let supplied = with(json!({"font": "My Font", "fontData": b64(font_bytes("DejaVu Serif", false, false))}));
+        assert_eq!(pts(&supplied), pts(&serif), "drawn from the supplied bytes");
+        assert_eq!(supplied["entities"][0]["text"]["font"], json!("My Font"), "the step keeps the family name");
+        assert!(supplied["entities"][0]["text"].get("fontData").is_none(), "the bytes are not saved");
+        let unknown = with(json!({"font": "My Font"}));
+        let sans = with(json!({"font": "DejaVu Sans"}));
+        assert_eq!(pts(&unknown), pts(&sans), "no bytes: DejaVu Sans, as before");
+        assert_ne!(pts(&serif), pts(&sans));
+    }
+
+    #[test]
+    fn bad_font_data_says_why() {
+        let d = json!({"op": "text", "text": "A", "size": 10, "font": "X", "fontData": b64(b"not a font at all")});
+        assert!(op_text(&[], &d, "s").is_err());
     }
 }
 

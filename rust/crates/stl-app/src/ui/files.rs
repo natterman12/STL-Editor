@@ -9,8 +9,9 @@ use crate::platform::{Pending, PickedFile, Platform, SaveOutcome};
 
 /// `settings.json` key of the Recent list (1.x `recent`).
 pub const RECENT_KEY: &str = "recent";
-/// What a missing file's error starts with (see `platform::native::MISSING_FILE_PREFIX`).
-const MISSING: &str = "FileNotFoundError:";
+/// What a missing file's message starts with (`platform::native::MISSING_FILE_PREFIX`; the
+/// native module isn't in the web build, so the text is repeated here).
+const MISSING: &str = "That file isn\u{2019}t there any more (";
 
 /// What the open dialog lists (`.stlx` and the mesh formats), as in the 1.x open dialog.
 pub const OPEN_FILTERS: &[(&str, &[&str])] =

@@ -124,6 +124,45 @@ fn system_fonts_listed() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// An added font is drawn in that font (Nathan, 2026-11-14: it drew as DejaVu Sans): the text
+/// request carries the font's bytes (1.x web `fontData`) and the engine uses them. A bundled
+/// font sends no bytes. Desktop (a file on disk) and web (bytes kept in settings).
+#[test]
+fn added_font_is_drawn_in_that_font() {
+    use stl_engine::document::Document;
+    use stl_engine::registry::Registry;
+    let pts = |data: &Value| -> Vec<Value> {
+        let doc = Document::new(Registry::builtin());
+        let out = doc.sketch_op("text", data).expect("text");
+        out["entities"].as_array().unwrap().iter().map(|e| e["pts"].clone()).collect()
+    };
+    for web in [false, true] {
+        let dir = temp_dir(if web { "drawn_web" } else { "drawn_desktop" });
+        let font_file = dir.join("selawk.ttf");
+        std::fs::copy(selawik_path(), &font_file).unwrap();
+        let p = FilePlatform::new(&dir.join("settings.json"), web);
+        let mut fl = FontList::load(&p);
+        let path = (!web).then(|| font_file.to_str().unwrap().to_string());
+        fl.add_file(&p, "selawk.ttf", &selawik(), path.as_deref()).unwrap();
+
+        let mut form = text::TextForm { text: "Ag".into(), font: "Selawik".into(), ..Default::default() };
+        let s = stl_app::sketch::SketchSession::new(
+            stl_app::viewport::PlaneFrame { origin: [0.0; 3], x: [1.0, 0.0, 0.0], y: [0.0, 1.0, 0.0], normal: [0.0, 0.0, 1.0] },
+            Value::from("XY"), None, None, vec![], vec![], vec![], None,
+        );
+        let mut data = text::sketch_op_data(&s, &form, None);
+        text::add_font_data(&mut data, &fl, &form);
+        assert!(data.get("fontData").and_then(Value::as_str).is_some_and(|d| !d.is_empty()), "web={web}: the font's bytes go with the request");
+        let selawik_pts = pts(&data);
+
+        form.font = "DejaVu Sans".into();
+        let mut sans = text::sketch_op_data(&s, &form, None);
+        text::add_font_data(&mut sans, &fl, &form);
+        assert!(sans.get("fontData").is_none(), "a bundled font sends no bytes");
+        assert_ne!(selawik_pts, pts(&sans), "web={web}: drawn in Selawik, not DejaVu Sans");
+    }
+}
+
 #[test]
 fn font_file_added_and_remembered() {
     let dir = temp_dir("added");
@@ -177,6 +216,85 @@ fn font_file_added_and_remembered() {
         assert_eq!(fl.font_bytes("Selawik", false, false).as_deref(), Some(&selawik()[..]));
         assert_eq!(fl.font_bytes("Selawik", true, false).as_deref(), Some(&bold[..]));
     }
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// The web edition keeps added font files in IndexedDB, not `localStorage` (Nathan,
+/// 2026-11-14): the settings hold the family, style and blob key only; the bytes come back a
+/// moment later (`poll`); a blob that has gone drops the font from the list.
+#[test]
+fn web_fonts_kept_as_blobs() {
+    use std::collections::HashMap;
+    use std::sync::Arc;
+    struct BlobPlatform {
+        inner: FilePlatform,
+        blobs: Arc<Mutex<HashMap<String, Vec<u8>>>>,
+        pending: Arc<Mutex<Vec<(String, Pending<Option<Vec<u8>>>)>>>,
+    }
+    impl Platform for BlobPlatform {
+        fn open_file(&self, f: &[(&str, &[&str])]) -> Pending<Option<PickedFile>> {
+            self.inner.open_file(f)
+        }
+        fn save_file(&self, s: &str, b: Vec<u8>) -> Pending<Result<bool, String>> {
+            self.inner.save_file(s, b)
+        }
+        fn now_iso_utc(&self) -> String {
+            String::new()
+        }
+        fn is_web(&self) -> bool {
+            true
+        }
+        fn setting_json(&self, key: &str) -> Option<Value> {
+            self.inner.setting_json(key)
+        }
+        fn set_setting_json(&self, key: &str, value: Value) {
+            self.inner.set_setting_json(key, value)
+        }
+        fn put_blob(&self, key: &str, bytes: &[u8]) -> bool {
+            self.blobs.lock().unwrap().insert(key.into(), bytes.to_vec());
+            true
+        }
+        fn get_blob(&self, key: &str) -> Option<Pending<Option<Vec<u8>>>> {
+            // answered later, as IndexedDB is
+            let p = Pending::new();
+            self.pending.lock().unwrap().push((key.into(), p.clone()));
+            Some(p)
+        }
+    }
+    let answer_all = |bp: &BlobPlatform| {
+        for (k, p) in bp.pending.lock().unwrap().drain(..) {
+            p.set(bp.blobs.lock().unwrap().get(&k).cloned());
+        }
+    };
+    let dir = temp_dir("blobs");
+    let blobs = Arc::new(Mutex::new(HashMap::new()));
+    let mk = || BlobPlatform { inner: FilePlatform::new(&dir.join("web.json"), true), blobs: blobs.clone(), pending: Arc::new(Mutex::new(Vec::new())) };
+
+    let p = mk();
+    let mut fl = FontList::load(&p);
+    fl.add_file(&p, "selawk.ttf", &selawik(), None).unwrap();
+    let saved = p.setting_json("text_fonts").unwrap();
+    assert_eq!(saved[0]["blob"], Value::from("font:Selawik|"), "{saved}");
+    assert!(saved[0].get("data").is_none(), "no font bytes in the settings: {saved}");
+    assert_eq!(fl.font_bytes("Selawik", false, false).as_deref(), Some(&selawik()[..]), "usable at once");
+
+    // a restart: listed at once, bytes once the blob store answers
+    let p = mk();
+    let mut fl = FontList::load(&p);
+    assert!(fl.families().iter().any(|f| f == "Selawik"));
+    assert_eq!(fl.font_bytes("Selawik", false, false), None, "still loading");
+    assert!(!fl.poll());
+    answer_all(&p);
+    assert!(fl.poll());
+    assert_eq!(fl.font_bytes("Selawik", false, false).as_deref(), Some(&selawik()[..]));
+
+    // the browser's storage was cleared: the font leaves the list
+    blobs.lock().unwrap().clear();
+    let p = mk();
+    let mut fl = FontList::load(&p);
+    answer_all(&p);
+    fl.poll();
+    assert!(!fl.families().iter().any(|f| f == "Selawik"));
     let _ = std::fs::remove_dir_all(&dir);
 }
 

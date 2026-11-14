@@ -117,6 +117,15 @@ pub fn sketch_op_data(s: &SketchSession, form: &TextForm, group: Option<&str>) -
     data
 }
 
+/// 1.x web `sketch_op` with `fontData`: a font that isn't bundled (a system font or an added
+/// file) goes to the engine with the request, as base64, so the text is drawn in that font.
+/// Bundled fonts and fonts not in the list are left to the engine (it draws DejaVu Sans).
+pub fn add_font_data(data: &mut Value, fonts: &FontList, form: &TextForm) {
+    if let Some(bytes) = fonts.font_bytes(&form.font, form.bold, form.italic) {
+        data["fontData"] = json!(base64_encode(&bytes));
+    }
+}
+
 /// Open a new text placement at `uv` (millimetres on the sketch plane).
 pub fn open_new(state: &mut TextDialogState, uv: [f64; 2], inch: bool) {
     let mut form = TextForm::default();
@@ -257,6 +266,12 @@ fn dialog_inner(ui: &mut Ui, tk: &Tokens, s: &SketchSession, state: &mut TextDia
     }
     if state.fonts.is_none() {
         state.fonts = Some(platform.map_or_else(FontList::bundled_only, FontList::load));
+    }
+    // added fonts kept in the browser's IndexedDB arrive a moment after the list is loaded
+    if let Some(fonts) = state.fonts.as_mut() {
+        if fonts.poll() {
+            ui.ctx().request_repaint();
+        }
     }
     let mut picked_toast = None;
     if let (Some(pending), Some(p)) = (state.font_pick.clone(), platform) {
@@ -421,7 +436,10 @@ fn dialog_inner(ui: &mut Ui, tk: &Tokens, s: &SketchSession, state: &mut TextDia
                 state.last_font = state.form.font.clone();
                 state.open = false;
                 let group = state.edit_group.as_deref();
-                let data = sketch_op_data(s, &state.form, group);
+                let mut data = sketch_op_data(s, &state.form, group);
+                if let Some(fonts) = state.fonts.as_ref() {
+                    add_font_data(&mut data, fonts, &state.form);
+                }
                 effect = Some(SketchEffect::SketchOp { op: "text".into(), data });
             }
         }
@@ -488,6 +506,24 @@ pub enum FontSource {
     Path(String),
     /// The bytes of an added file (the web edition has no path).
     Bytes(Vec<u8>),
+    /// An added file kept with [`crate::platform::Platform::put_blob`] (web: IndexedDB) whose
+    /// bytes are still loading; it becomes [`FontSource::Bytes`] once they arrive.
+    Stored(String),
+}
+
+/// The IndexedDB key of an added font file (1.x kept them in its `fonts` store by family).
+fn blob_key(family: &str, style: &str) -> String {
+    format!("font:{family}|{style}")
+}
+
+/// Blob loads in flight: (family, style, answer).
+#[derive(Clone, Default)]
+struct BlobLoads(Vec<(String, String, crate::platform::Pending<Option<Vec<u8>>>)>);
+
+impl std::fmt::Debug for BlobLoads {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "BlobLoads({})", self.0.len())
+    }
 }
 
 /// One added font file: family, style (1.x codes: "", "b", "i", "bi") and where it is.
@@ -508,16 +544,26 @@ pub struct FontList {
     web: bool,
     /// "Add a font file…" is offered (there is a platform to pick the file and remember it).
     can_add: bool,
+    /// (family, style) of added files whose bytes are kept as blobs, not in the settings.
+    in_blobs: std::collections::BTreeSet<(String, String)>,
+    loads: BlobLoads,
 }
 
 impl FontList {
     /// The list with the fonts remembered in settings. A remembered file that has gone is left out.
     pub fn load(p: &dyn crate::platform::Platform) -> FontList {
         let mut added: Vec<Added> = Vec::new();
+        let (mut in_blobs, mut loads) = (std::collections::BTreeSet::new(), BlobLoads::default());
         for v in p.setting_json(FONTS_KEY).and_then(|v| v.as_array().cloned()).unwrap_or_default() {
             let Some(family) = v.get("family").and_then(Value::as_str).filter(|f| !f.is_empty()) else { continue };
             let style = v.get("style").and_then(Value::as_str).unwrap_or("").to_string();
-            let source = if let Some(path) = v.get("path").and_then(Value::as_str) {
+            let source = if let Some(key) = v.get("blob").and_then(Value::as_str) {
+                // web: the bytes are in IndexedDB; they load in the background (see `poll`)
+                let Some(pending) = p.get_blob(key) else { continue };
+                in_blobs.insert((family.to_string(), style.clone()));
+                loads.0.push((family.to_string(), style.clone(), pending));
+                FontSource::Stored(key.to_string())
+            } else if let Some(path) = v.get("path").and_then(Value::as_str) {
                 #[cfg(not(target_arch = "wasm32"))]
                 if !std::path::Path::new(path).is_file() {
                     continue;
@@ -532,7 +578,36 @@ impl FontList {
                 added.push(Added { family: family.to_string(), style, source });
             }
         }
-        FontList { added, system: None, web: p.is_web(), can_add: true }
+        FontList { added, system: None, web: p.is_web(), can_add: true, in_blobs, loads }
+    }
+
+    /// Pick up added fonts whose bytes have arrived from the blob store (call each frame the
+    /// text dialog is open). One that never arrives (the browser's storage was cleared) is
+    /// dropped from the list. True when something changed.
+    pub fn poll(&mut self) -> bool {
+        let mut changed = false;
+        let mut still = Vec::new();
+        for (family, style, pending) in std::mem::take(&mut self.loads.0) {
+            match pending.take() {
+                None => still.push((family, style, pending)),
+                Some(answer) => {
+                    changed = true;
+                    match answer {
+                        Some(bytes) => {
+                            if let Some(a) = self.added.iter_mut().find(|a| a.family == family && a.style == style) {
+                                a.source = FontSource::Bytes(bytes);
+                            }
+                        }
+                        None => {
+                            self.added.retain(|a| !(a.family == family && a.style == style));
+                            self.in_blobs.remove(&(family, style));
+                        }
+                    }
+                }
+            }
+        }
+        self.loads.0 = still;
+        changed
     }
 
     /// Without a platform: the bundled fonts, and (desktop) the computer's fonts on request.
@@ -602,6 +677,12 @@ impl FontList {
             None => FontSource::Bytes(bytes.to_vec()),
         };
         self.added.retain(|a| !(a.family == family && a.style == style));
+        // web: the bytes go to the blob store (IndexedDB), not the settings (localStorage)
+        if let FontSource::Bytes(b) = &source {
+            if p.put_blob(&blob_key(&family, &style), b) {
+                self.in_blobs.insert((family.clone(), style.clone()));
+            }
+        }
         self.added.push(Added { family: family.clone(), style, source });
         p.set_setting_json(FONTS_KEY, self.saved());
         Ok(vec![family])
@@ -611,9 +692,14 @@ impl FontList {
         Value::Array(
             self.added
                 .iter()
-                .map(|a| match &a.source {
-                    FontSource::Path(path) => json!({"family": a.family, "style": a.style, "path": path}),
-                    FontSource::Bytes(b) => json!({"family": a.family, "style": a.style, "data": base64_encode(b)}),
+                .map(|a| {
+                    let in_blob = self.in_blobs.contains(&(a.family.clone(), a.style.clone()));
+                    match &a.source {
+                        FontSource::Path(path) => json!({"family": a.family, "style": a.style, "path": path}),
+                        FontSource::Stored(key) => json!({"family": a.family, "style": a.style, "blob": key}),
+                        FontSource::Bytes(_) if in_blob => json!({"family": a.family, "style": a.style, "blob": blob_key(&a.family, &a.style)}),
+                        FontSource::Bytes(b) => json!({"family": a.family, "style": a.style, "data": base64_encode(b)}),
+                    }
                 })
                 .collect(),
         )
@@ -652,6 +738,8 @@ impl FontList {
     pub fn font_bytes(&self, family: &str, bold: bool, italic: bool) -> Option<Vec<u8>> {
         match self.font_source(family, bold, italic)? {
             FontSource::Bytes(b) => Some(b),
+            FontSource::Stored(_) => None, // still loading from the blob store
+
             #[cfg(not(target_arch = "wasm32"))]
             FontSource::Path(p) => std::fs::read(p).ok(),
             #[cfg(target_arch = "wasm32")]

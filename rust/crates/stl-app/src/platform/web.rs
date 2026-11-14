@@ -128,6 +128,16 @@ impl Platform for WebPlatform {
             let _ = f.call2(&store, &JsValue::from_str(&storage_key(key)), &JsValue::from_str(&value.to_string()));
         }
     }
+
+    /// In IndexedDB `stle2` (store `blobs`), not `localStorage`.
+    fn put_blob(&self, key: &str, bytes: &[u8]) -> bool {
+        crate::web::store::put_blob(key, bytes);
+        true
+    }
+
+    fn get_blob(&self, key: &str) -> Option<crate::platform::Pending<Option<Vec<u8>>>> {
+        Some(crate::web::store::get_blob(key))
+    }
 }
 
 /// The `localStorage` key for a setting: `stle2_` + the name (a leading `stle_`, 1.x's prefix,

@@ -229,38 +229,23 @@ impl Platform for NativePlatform {
     }
 }
 
-/// Python's `repr` of a path string, as 1.x shows it in an error.
-fn py_repr(s: &str) -> String {
-    let quote = if s.contains('\'') && !s.contains('"') { '"' } else { '\'' };
-    let mut r = String::from(quote);
-    for c in s.chars() {
-        match c {
-            '\\' => r.push_str("\\\\"),
-            c if c == quote => {
-                r.push('\\');
-                r.push(c);
-            }
-            c => r.push(c),
-        }
-    }
-    r.push(quote);
-    r
-}
-
-/// Open Recent: the file's bytes. A file that is gone gives 1.x's message word for word (the
-/// error 1.x's `Document.open` shows: `FileNotFoundError: [Errno 2] No such file or directory: '<path>'`).
+/// Open Recent: the file's bytes. A file that is gone says so in plain words (Nathan,
+/// 2026-11-14; 1.x showed Python's `FileNotFoundError: [Errno 2] …`), and the list drops it.
 fn read_file(path: &str) -> Result<PickedFile, String> {
     match std::fs::read(path) {
         Ok(bytes) => {
             let name = Path::new(path).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| path.to_owned());
             Ok(PickedFile { name, bytes })
         }
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            Err(format!("{}{}", MISSING_FILE_PREFIX, py_repr(path)))
-        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Err(missing_file_message(path)),
         Err(e) => Err(format!("Couldn't open the file: {e}")),
     }
 }
 
-/// What a missing recent file's error starts with (1.x: `FileNotFoundError` from `open()`).
-pub const MISSING_FILE_PREFIX: &str = "FileNotFoundError: [Errno 2] No such file or directory: ";
+/// What a missing recent file's message starts with (the list drops a file whose open fails so).
+pub const MISSING_FILE_PREFIX: &str = "That file isn\u{2019}t there any more (";
+
+/// "That file isn't there any more (<path>). It was taken off the Recent list."
+pub fn missing_file_message(path: &str) -> String {
+    format!("{MISSING_FILE_PREFIX}{path}). It was taken off the Recent list.")
+}

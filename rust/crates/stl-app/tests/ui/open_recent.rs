@@ -6,9 +6,9 @@
 //! - The File menu lists the recent files by file name (its tooltip is the full path): the first
 //!   6 of a list that keeps 10, newest first, no duplicates; opening a file moves it to the top.
 //! - The empty-start screen lists the same files under a "Recent" label; a click opens one.
-//! - A file that was moved or deleted: 1.x shows the error of the open that failed, word for
-//!   word `FileNotFoundError: [Errno 2] No such file or directory: '<path>'`, and 2.0 drops it
-//!   from the list (spec 2.2). The wording is 1.x's, pending Nathan's OK in `EXCEPTIONS.md`.
+//! - A file that was moved or deleted: 2.0 says "That file isn't there any more (<path>). It was
+//!   taken off the Recent list." and drops it (Nathan, 2026-11-14; 1.x showed Python's
+//!   `FileNotFoundError: [Errno 2] …` and kept the file listed).
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -127,10 +127,10 @@ fn missing_recent_dropped() {
     std::fs::remove_file(&gone).unwrap();
 
     h.get_by_label("gone.stlx").click();
-    wait_for(&mut h, &link, "the missing-file message", |h| h.query_all_by_label_contains("FileNotFoundError: [Errno 2] No such file or directory: ").count() > 0);
-    // 1.x's text, with the path as Python writes it
-    let py_path = format!("'{}'", gone.replace('\\', "\\\\"));
-    assert!(h.query_all_by_label_contains(&py_path).count() > 0, "the path, as Python writes it: {py_path}");
+    wait_for(&mut h, &link, "the missing-file message", |h| h.query_all_by_label_contains("That file isn\u{2019}t there any more (").count() > 0);
+    // plain words, with the path and what happened to the list
+    let want = format!("That file isn\u{2019}t there any more ({gone}). It was taken off the Recent list.");
+    assert!(h.query_all_by_label_contains(&want).count() > 0, "the message: {want}");
     assert!(h.state().bodies.is_empty(), "nothing was opened");
     // dropped from the list, the screen and the stored file
     h.run_steps(3);

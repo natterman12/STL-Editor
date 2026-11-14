@@ -370,40 +370,44 @@ Nathan answered all of these on 2026-11-13: six accepted, one to measure in 4c, 
 
 ## Platform: settings, autosave, updates, install (milestone 5)
 
-All pending Nathan's OK (2026-11-14) unless marked otherwise.
+Nathan answered these on 2026-11-14: accepted unless marked otherwise.
 
-- **2.0's own folders and storage.** Settings in `%APPDATA%\STL Editor 2\settings.json`, autosave and the log in
+- **Accepted (2026-11-14): 2.0's own folders and storage.** Settings in `%APPDATA%\STL Editor 2\settings.json`, autosave and the log in
   `%LOCALAPPDATA%\STL Editor 2`, web settings under `stle2_` keys and autosave in IndexedDB `stle2`. 1.x's folders,
   `ui-settings.json` and `stle_*` keys are never read or written. 1.x's settings and recent files are not migrated.
-- **A corrupt `settings.json` is kept as `settings.json.bad`.** 1.x just started from defaults.
-- **Settings are merged key by key under a lock file (`settings.lock`)**, so two 2.0 windows don't undo each other.
-- **A recent file that was moved or deleted is dropped from the list.** 1.x kept it after the error. The error text is
-  1.x's (`FileNotFoundError: [Errno 2] No such file or directory: '<path>'`). Recent files on the web edition last for
-  the session only.
-- **The log** (`log.txt`) records panics only; 1.x's log was a copy of the console.
-- **Autosave messages 1.x didn't have** (1.x only printed failures to the console): "Couldn't save an autosave copy: …",
+- **Accepted (2026-11-14): A corrupt `settings.json` is kept as `settings.json.bad`.** 1.x just started from defaults.
+- **Accepted (2026-11-14): Settings are merged key by key under a lock file (`settings.lock`)**, so two 2.0 windows don't undo each other.
+- **Fixed (2026-11-14): a recent file that was moved or deleted** is dropped from the list and 2.0 says "That file isn't there any more (<path>). It was taken off the Recent list." (1.x showed Python's `FileNotFoundError: [Errno 2] No such file or directory: '<path>'` and kept it listed). Recent files on the web edition last for the session only.
+- **Accepted (2026-11-14): The log** (`log.txt`) records panics only; 1.x's log was a copy of the console.
+- **Accepted (2026-11-14): Autosave messages 1.x didn't have** (1.x only printed failures to the console): "Couldn't save an autosave copy: …",
   "Couldn't save an autosave copy: the project can't be written.", "Couldn't keep an autosave copy in this browser: …",
   "Couldn't recover that copy: …". The Recover dialog shows the time as `autosaved YYYY-MM-DD HH:MM` (1.x used the
   browser's locale format) and the file path as a tooltip.
-- **Closing a window with unsaved changes keeps its autosave copy for Recover** (as 1.x); Restart with autosave on no
+- **Accepted (2026-11-14): Closing a window with unsaved changes keeps its autosave copy for Recover** (as 1.x); Restart with autosave on no
   longer asks first: it writes the copy and the new window offers it.
-- **The updater looks only at `v2.*` releases with the asset `STL-Editor-2-Windows.exe`**, from the full release list
+- **Accepted (2026-11-14): The updater looks only at `v2.*` releases with the asset `STL-Editor-2-Windows.exe`**, from the full release list
   (not `/latest`), comparing versions by semver (pre-releases count). Every download redirect must stay on GitHub's
   hosts, the size must match and a listed `sha256:` digest must match; there is no fallback to a checksum line in the
   release notes. A new setting `update_checking` stops two windows checking at the same moment.
-- **Update now** is offered only for the installed Windows exe (other copies get "Download"), refuses while another 2.0
+- **Accepted (2026-11-14): Update now** is offered only for the installed Windows exe (other copies get "Download"), refuses while another 2.0
   window is open ("Close the other STL Editor 2.0 windows first, then press Update now again."), shows "Downloading
   update…" with no percentage, and keeps `stl-editor-2.old.exe` until the new build draws its first frame. New messages:
   the wrong-size, not-from-GitHub, download-error and rollback messages, and "Download the new version and use it instead
   of this copy."
-- **Update Settings is an on/off switch** ("Check for new versions once a day"). 1.x asked for a repository name
+- **Accepted (2026-11-14): Update Settings is an on/off switch** ("Check for new versions once a day"). 1.x asked for a repository name
   (`update_repo`), which 2.0 doesn't need.
-- **Milestone 6 item: 1.x's update check must never offer a 2.x release.** 1.x reads `releases/latest`; once a 2.0
+- **Milestone 6 (Nathan, 2026-11-14): 1.x's update check must never offer a 2.x release.** 1.x reads `releases/latest`; once a 2.0
   release is published, 1.x must skip `v2.*` tags (spec 2.7 decision 1). Not built in milestone 5.
-- **The title and About say "STL Editor 2.0 (test build <date> <commit>)"**; the date is the UTC build date.
-- **The phone drawer's button sits above the tool panel** (1.x puts it below), because 2.0's tool panel isn't yet a
+- **Accepted (2026-11-14): The title and About say "STL Editor 2.0 (test build <date> <commit>)"**; the date is the UTC build date.
+- **Accepted (2026-11-14): The phone drawer's button sits above the tool panel** (1.x puts it below), because 2.0's tool panel isn't yet a
   bottom sheet on phones.
-- **Parked: recovering from a graphics driver reset works in the test renderer only.** eframe 0.37 owns the window's
+- **Milestone 6 (Nathan, 2026-11-14): recovering from a graphics driver reset works in the test renderer only.** eframe 0.37 owns the window's
   device, so the real window needs a restart after a reset.
-- **Parked: system fonts and added font files draw as DejaVu Sans** until the engine can take supplied font data. Added
-  fonts on the web edition are kept in `localStorage` (size limit) rather than IndexedDB.
+- **Fixed (2026-11-14): system fonts and added font files draw in their own font.** The text request carries the font's bytes (1.x web `fontData`) and the engine uses them, on desktop and web. On the web, added font files are kept in IndexedDB `stle2` (store `blobs`), not `localStorage`; ones saved the old way still load.
+
+## Finishing 2.0 (milestone 6)
+
+- **Asked for by Nathan (2026-11-14): after Sketch or Look At, orbiting turns around the middle of the parts.** 1.x `lookAtPlane`
+  sets the orbit target to the point on the plane, so orbiting swings around the face. 2.0 puts the camera exactly where 1.x does
+  and only moves the target back along the same line to the parts' middle (the view itself is unchanged). On a close-up where the
+  middle would be behind the camera, the point on the plane is kept.

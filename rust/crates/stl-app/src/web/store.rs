@@ -79,6 +79,12 @@ return globalThis.__stle2Store = {
     return b ? b.bytes : undefined;
   },
   discard: id => dropCopy(id),
+  // other blobs (added font files), keyed apart from the autosave copies ('autosave:<id>')
+  putBlob: (id, bytes) => tx('blobs', 'readwrite', s => s.put({ id, bytes })),
+  async getBlob(id) {
+    const b = await tx('blobs', 'readonly', s => s.get(id));
+    return b ? b.bytes : undefined;
+  },
 };
 "#;
 
@@ -122,6 +128,30 @@ pub async fn put_copy(title: &str, steps: usize, saved: f64, bytes: &[u8]) -> Re
 /// This tab saved or opened another project: its copy is not needed.
 pub async fn clear_copy() -> Result<(), String> {
     call("clear", &[]).await.map(|_| ())
+}
+
+/// Keep a blob (an added font file) in IndexedDB `stle2`, store `blobs`.
+pub fn put_blob(key: &str, bytes: &[u8]) {
+    let u = Uint8Array::new_with_length(bytes.len() as u32);
+    u.copy_from(bytes);
+    let key = key.to_string();
+    wasm_bindgen_futures::spawn_local(async move {
+        let _ = call("putBlob", &[JsValue::from_str(&key), u.into()]).await;
+    });
+}
+
+/// A blob kept with [`put_blob`] (`None` when it isn't there or storage is off).
+pub fn get_blob(key: &str) -> Pending<Option<Vec<u8>>> {
+    let (key, out) = (key.to_string(), Pending::new());
+    let answer = out.clone();
+    wasm_bindgen_futures::spawn_local(async move {
+        let r = match call("getBlob", &[JsValue::from_str(&key)]).await {
+            Ok(v) if !v.is_undefined() && !v.is_null() => Some(Uint8Array::new(&v).to_vec()),
+            _ => None,
+        };
+        answer.set(r);
+    });
+    out
 }
 
 /// The browser's copy-keeping for Recover.

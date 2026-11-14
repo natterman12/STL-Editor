@@ -90,6 +90,18 @@ fn start_app(name: &str) -> (Harness<'static, StlApp>, Arc<NativeLink>) {
     (h, link)
 }
 
+/// Closes the window cleanly and waits until its engine has finished with the autosave folder,
+/// so the next test never meets a late write or delete (CI's slower runners outlast the 3 s a
+/// dropped link waits).
+fn close(h: Harness<'static, StlApp>, link: Arc<NativeLink>) {
+    drop(h);
+    link.end_session(Duration::from_secs(60));
+    let end = std::time::Instant::now() + Duration::from_secs(60);
+    while link.is_busy() && std::time::Instant::now() < end {
+        std::thread::sleep(Duration::from_millis(5));
+    }
+}
+
 /// Waits for the Recover dialog's list to arrive (the folder is read off the UI thread).
 fn wait_dialog(h: &mut Harness<'static, StlApp>, link: &NativeLink) {
     wait_for(h, link, "the Recover dialog", |h| h.query_by_label("Recover unsaved work?").is_some());
@@ -126,6 +138,7 @@ fn recover_dialog_lists_sessions() {
     // the loaded copy is discarded: opening it wrote a new one for this window
     settle(&mut h, &link);
     assert!(sessions() <= 1, "the old copy is gone");
+    close(h, link);
 }
 
 #[test]
@@ -157,6 +170,7 @@ fn recover_later_discard_and_help_menu() {
     help_recover(&mut h);
     wait_for(&mut h, &link, "the nothing-to-recover toast", |h| h.query_all_by_label_contains("There is no unsaved work to recover.").count() > 0);
     assert!(h.query_by_label("Recover unsaved work?").is_none());
+    close(h, link);
 }
 
 #[test]
@@ -168,4 +182,5 @@ fn a_clean_start_shows_no_dialog() {
     h.run_steps(6);
     assert!(h.query_by_label("Recover unsaved work?").is_none(), "nothing to offer, nothing shown");
     assert!(h.query_by_label("There is no unsaved work to recover.").is_none(), "and no message at start-up");
+    close(h, link);
 }

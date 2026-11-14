@@ -148,8 +148,8 @@ fn missing_recent_dropped() {
     assert!(files.open_recent(&platform, &link, &gone_s));
     let messages = poll_until_idle(&mut files, &platform, &link, &[]);
 
-    // 1.x's message (Python's FileNotFoundError, as its Open shows it), word for word
-    let want = format!("FileNotFoundError: [Errno 2] No such file or directory: '{}'", gone_s.replace('\\', "\\\\"));
+    // plain words with the path (Nathan, 2026-11-14; 1.x showed Python's FileNotFoundError)
+    let want = format!("That file isn\u{2019}t there any more ({gone_s}). It was taken off the Recent list.");
     assert_eq!(messages, vec![(Level::Error, want)]);
     assert!(opened(&link).is_empty(), "nothing was opened");
     // dropped from the list, in memory and in settings.json; the other file stays

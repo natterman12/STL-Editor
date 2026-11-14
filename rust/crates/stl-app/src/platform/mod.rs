@@ -96,6 +96,16 @@ pub trait Platform {
         None
     }
     fn set_setting(&self, _key: &str, _value: &str) {}
+    /// Keep a larger blob (an added font file) out of the settings: the web edition puts it in
+    /// IndexedDB `stle2`, whose limit is far above `localStorage`'s. False: not supported here
+    /// (the caller keeps it another way).
+    fn put_blob(&self, _key: &str, _bytes: &[u8]) -> bool {
+        false
+    }
+    /// A blob kept with [`Platform::put_blob`]; `None` when blobs aren't supported here.
+    fn get_blob(&self, _key: &str) -> Option<Pending<Option<Vec<u8>>>> {
+        None
+    }
     /// A remembered setting of any JSON type. Default: nothing is remembered.
     fn setting_json(&self, _key: &str) -> Option<serde_json::Value> {
         None

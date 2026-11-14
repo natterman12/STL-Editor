@@ -346,16 +346,27 @@ impl Camera {
     }
 
     /// `lookAtPlane(frame, radius)`: look straight at a plane, its y axis up.
+    ///
+    /// The camera sits where 1.x puts it (the scene's centre dropped onto the plane, `dist` out
+    /// along the normal), but the orbit target is the scene's centre itself, not the point on the
+    /// plane, so orbiting afterwards turns around the part (Nathan, 2026-11-14; 1.x turns around
+    /// the plane point). The centre lies on the same line, so the view is unchanged.
     pub fn look_at_plane(&mut self, origin: V3, y: V3, normal: V3, radius: Option<f64>, scene: Option<Aabb>) {
         let scene = scene.filter(|b| !box_is_empty(b));
         let r = radius.unwrap_or_else(|| scene.map(|b| box_diagonal(&b) / 2.0).unwrap_or(60.0));
-        let mut c = origin;
+        let (mut c, mut target) = (origin, origin);
         if let Some(b) = scene {
             let bc = box_center(&b);
             c = sub(bc, scale(normal, dot(normal, sub(bc, origin))));
+            target = bc;
         }
         let dist = r / self.half_fov().sin();
-        self.fly_to(c, add(c, scale(normal, dist)), y);
+        let pos = add(c, scale(normal, dist));
+        // a close-up (a small `radius` on a big part) could put the centre behind the camera
+        if dot(sub(pos, target), normal) < dist * 0.05 {
+            target = c;
+        }
+        self.fly_to(target, pos, y);
     }
 
     fn fly_to(&mut self, target: V3, pos: V3, up: V3) {
