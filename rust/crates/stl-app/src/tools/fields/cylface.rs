@@ -29,6 +29,11 @@ pub fn fmt_mm(x: f64) -> String {
     format!("{r}")
 }
 
+/// `U.str(mm)`: the length in the display unit with its suffix ("5 mm", "0.1969 in").
+pub fn u_str(mm: f64, inch: bool) -> String {
+    format!("{} {}", super::number::fmt_len(mm, None, inch), super::number::unit_name(inch))
+}
+
 /// A click on a body: measure the round feature under it. No cylinder there: the engine's
 /// message as an error line.
 pub fn feed_pick(f: &Field, values: &mut Values, hit: &Hit, ctx: &Ctx) -> PickOut {
@@ -45,7 +50,8 @@ pub fn feed_pick(f: &Field, values: &mut Values, hit: &Hit, ctx: &Ctx) -> PickOu
     let what = if pin { "Pin" } else { "Hole" };
     let diameter = ((2.0 * cyl.radius) * 1e3).round() / 1e3;
     let length = ((cyl.z1 - cyl.z0) * 1e3).round() / 1e3;
-    values.insert(f.key.to_owned(), serde_json::json!({ "label": format!("{what} Ø{} mm × {} mm deep", fmt_mm(diameter), fmt_mm(length)) }));
+    // app.js: `${what} Ø${U.str(cyl.diameter)} × ${U.str(cyl.length)} deep`
+    values.insert(f.key.to_owned(), serde_json::json!({ "label": format!("{what} Ø{} × {} deep", u_str(diameter, ctx.inch), u_str(length, ctx.inch)) }));
     values.insert("body".to_owned(), Value::from(id.clone()));
     values.insert("point".to_owned(), pt4(*point));
     values.insert("measured".to_owned(), Value::from(diameter));
@@ -60,7 +66,7 @@ pub fn feed_pick(f: &Field, values: &mut Values, hit: &Hit, ctx: &Ctx) -> PickOu
     out.highlight = Some((id.clone(), tris));
     out.message = Some((
         Level::Info,
-        format!("Measured {} Ø{} mm. Type the new diameter{}.", what.to_lowercase(), fmt_mm(diameter), if pin { "" } else { " or choose Fill" }),
+        format!("Measured {} Ø{}. Type the new diameter{}.", what.to_lowercase(), u_str(diameter, ctx.inch), if pin { "" } else { " or choose Fill" }),
     ));
     out.advance = true;
     out

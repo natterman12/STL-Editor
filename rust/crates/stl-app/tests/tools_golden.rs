@@ -56,6 +56,7 @@ fn fixture_ctx<'a>(
         selection,
         last_sketch: Some("sk1"),
         sketch_on_body: true,
+        inch: false,
     }
 }
 
@@ -151,6 +152,7 @@ impl World {
             selection: &self.selection,
             last_sketch: self.last_sketch,
             sketch_on_body: self.sketch_on_body,
+            inch: false,
         }
     }
 }

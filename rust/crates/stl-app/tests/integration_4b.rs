@@ -286,6 +286,19 @@ fn a_late_preview_during_a_drag_is_dropped() {
     pointer(&mut h, to, Some(false));
 }
 
+/// 1.x stacks the tool panel (z-index 5) above the viewport hint (z-index 3), so a long hint
+/// runs under the panel, not over its footer (the Support Fins credit was covered).
+#[test]
+fn the_tool_panel_stays_above_the_hint() {
+    let rec = Rec::default();
+    let mut h = scene(&rec);
+    assert!(h.state_mut().open_tool("sculpt", None));
+    h.run_steps(3);
+    let panel = egui::LayerId::new(egui::Order::Middle, egui::Id::new("tool-panel"));
+    let top = h.ctx.memory(|m| m.areas().top_layer_id(egui::Order::Middle));
+    assert_eq!(top, Some(panel), "the panel is drawn above the hint");
+}
+
 // ------------------------------------------------------------------ 3. Sculpt
 
 #[test]

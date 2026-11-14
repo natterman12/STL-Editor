@@ -255,7 +255,7 @@ impl StlApp {
     }
 
     fn open_support_now(&mut self, key: &str, edit: Option<String>, values: Option<Values>) {
-        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection);
+        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection, self.shell.inch);
         let tool_key = key.to_owned();
         if edit.is_none() {
             // a part that already has supports: open those again instead of stacking a second set
@@ -322,7 +322,7 @@ impl StlApp {
     }
 
     fn open_sf_session(&mut self, def: &'static ToolDef) {
-        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection);
+        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection, self.shell.inch);
         let mut s = Session::open(def.key, &ctx);
         s.material = strength::material_key(&self.platform.setting(MATERIAL_KEY).unwrap_or_default()).to_owned();
         if let Some(text) = self.platform.setting(supports::panel::SECTIONS_KEY).or_else(|| self.sf.sections.clone()) {
@@ -795,7 +795,7 @@ impl StlApp {
 
     /// `autoAccept`: letting go of a handle adds the step the first time, then edits it.
     pub(super) fn auto_accept(&mut self) {
-        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection);
+        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection, self.shell.inch);
         let ids: Vec<String> = self.timeline_view.items.iter().map(|i| i.id.clone()).collect();
         let Some(t) = self.tool.as_mut() else { return };
         if !t.valid() {

@@ -23,6 +23,8 @@ pub struct Ctx<'a> {
     pub selection: &'a [String],
     pub last_sketch: Option<&'a str>,
     pub sketch_on_body: bool,
+    /// Inch display mode (`U.mode === 'in'`): text a pick writes, like a hole's label, follows it.
+    pub inch: bool,
 }
 
 pub enum FieldKind {

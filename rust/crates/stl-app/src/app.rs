@@ -87,7 +87,7 @@ fn arr_empty(v: Option<&serde_json::Value>) -> bool {
 }
 
 /// `ctx()` (app.js:581): what a tool's defaults and rules look at.
-pub fn make_ctx<'a>(bodies: &'a [BodyView], planes: &'a [PlaneView], sketches: &'a [SketchView], features: &'a [crate::engine_link::TimelineItem], selection: &'a [String]) -> Ctx<'a> {
+pub fn make_ctx<'a>(bodies: &'a [BodyView], planes: &'a [PlaneView], sketches: &'a [SketchView], features: &'a [crate::engine_link::TimelineItem], selection: &'a [String], inch: bool) -> Ctx<'a> {
     let last = features.iter().rev().find(|f| f.kind == "sketch" && f.active);
     let sk = last.and_then(|f| sketches.iter().find(|s| s.id == f.id));
     Ctx {
@@ -98,6 +98,7 @@ pub fn make_ctx<'a>(bodies: &'a [BodyView], planes: &'a [PlaneView], sketches: &
         selection,
         last_sketch: sk.map(|s| s.id.as_str()),
         sketch_on_body: last.is_some_and(|f| f.params.get("plane").and_then(|p| p.as_object()).is_some_and(|o| o.contains_key("body"))),
+        inch,
     }
 }
 
@@ -504,7 +505,7 @@ impl StlApp {
 
     /// `setValue(key, val)` on the open tool: `onChange` runs and a preview is scheduled.
     pub fn tool_set_value(&mut self, key: &str, val: serde_json::Value) {
-        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection);
+        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection, self.shell.inch);
         if let Some(t) = self.tool.as_mut() {
             t.set_value(key, val, &ctx);
         }
@@ -512,7 +513,7 @@ impl StlApp {
 
     /// Several values at once (the gizmo's `translate` / `rotate` / `size`); one preview follows.
     pub fn tool_set_values(&mut self, patch: Values) {
-        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection);
+        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection, self.shell.inch);
         if let Some(t) = self.tool.as_mut() {
             t.set_values(patch, &ctx);
         }
@@ -565,7 +566,7 @@ impl StlApp {
     /// Open any `ToolDef`, also one built at run time (`edit`: the step's id and params).
     pub fn open_tool_def(&mut self, def: &'static ToolDef, edit: Option<(String, serde_json::Value)>, values: Option<Values>) {
         self.close_tool(false);
-        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection);
+        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection, self.shell.inch);
         let mut v = match &edit {
             Some((_, p)) => (def.from_params)(p.clone()),
             None => (def.defaults)(&ctx),
@@ -616,7 +617,7 @@ impl StlApp {
     pub fn tool_ok(&mut self) {
         use crate::tools::preview::{MsgKind, ToolMsg};
         let params: BTreeMap<String, f64> = self.param_views.iter().filter_map(|p| p.value.map(|v| (p.name.clone(), v))).collect();
-        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection);
+        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection, self.shell.inch);
         if self.committing {
             return; // the first OK is still on its way
         }
@@ -664,7 +665,7 @@ impl StlApp {
 
     /// `runPreview()` at once (the Preview button, the delay passing).
     pub fn run_preview_now(&mut self, now: web_time::Instant) {
-        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection);
+        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection, self.shell.inch);
         let Some(t) = self.tool.as_mut() else { return };
         self.preview_seq += 1;
         let seq = self.preview_seq;
@@ -693,7 +694,7 @@ impl StlApp {
         }
         let planes = self.viewport.base_planes_visible() || !self.planes.is_empty();
         let Some(hit) = self.viewport.pick(pos, true, planes) else { return };
-        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection);
+        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection, self.shell.inch);
         let Some(t) = self.tool.as_mut() else { return };
         let out = pk::feed(t.def, t.active_field.as_deref(), &mut t.values, &hit, &ctx);
         if !out.used {
@@ -728,7 +729,7 @@ impl StlApp {
     /// `renderOverlayForTool`: what the fields want drawn, redrawn only when the values change.
     fn tool_marks(&mut self) {
         use crate::tools::fields::bodies as pk;
-        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection);
+        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection, self.shell.inch);
         let Some(t) = self.tool.as_mut() else { return };
         let sig = format!("{:?}|{:?}|{}", t.values, t.active_field, self.bodies.len() + self.planes.len() + self.sketches.len());
         if t.marks_sig == sig {
@@ -742,7 +743,7 @@ impl StlApp {
     /// Draw the tool panel and act on its buttons.
     fn tool_panel(&mut self, egui_ctx: &egui::Context, tk: &Tokens, ws: Rect) {
         let params: BTreeMap<String, f64> = self.param_views.iter().filter_map(|p| p.value.map(|v| (p.name.clone(), v))).collect();
-        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection);
+        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection, self.shell.inch);
         let Some(t) = self.tool.as_mut() else { return };
         let env = crate::tools::panel::PanelEnv { tk, inch: self.shell.inch, params: &params, ctx: &ctx, ws };
         let out = t.show(egui_ctx, &env);
@@ -1428,6 +1429,11 @@ impl StlApp {
                     ui.label(RichText::new(self.shell.hint.as_str()).size(12.0).color(tk.strong));
                 });
             });
+            // 1.x stacks the tool panel (z-index 5) above the hint (z-index 3): a long hint runs
+            // under the panel instead of over its footer
+            if self.tool.is_some() {
+                ctx.move_to_top(egui::LayerId::new(Order::Middle, Id::new("tool-panel")));
+            }
         }
         // HUD (1.x leaves it empty; the sketch HUD is 4c)
         if let Some(h) = &self.shell.hud {

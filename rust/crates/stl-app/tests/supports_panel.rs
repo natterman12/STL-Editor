@@ -77,7 +77,7 @@ fn body(id: &str, hidden: bool) -> BodyView {
 }
 
 fn project<'a>(bodies: &'a [BodyView], features: &'a [TimelineItem], selection: &'a [String]) -> Ctx<'a> {
-    Ctx { bodies, planes: &[], sketches: &[], features, selection, last_sketch: Some("sk1"), sketch_on_body: true }
+    Ctx { bodies, planes: &[], sketches: &[], features, selection, last_sketch: Some("sk1"), sketch_on_body: true, inch: false }
 }
 
 fn fixture() -> (Vec<BodyView>, Vec<String>) {

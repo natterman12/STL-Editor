@@ -1218,7 +1218,7 @@ pub fn suggest_ask(tool: &str, values: &Values) -> Result<strength::SuggestReque
 }
 
 fn empty_ctx() -> Ctx<'static> {
-    Ctx { bodies: &[], planes: &[], sketches: &[], features: &[], selection: &[], last_sketch: None, sketch_on_body: false }
+    Ctx { bodies: &[], planes: &[], sketches: &[], features: &[], selection: &[], last_sketch: None, sketch_on_body: false, inch: false }
 }
 
 pub fn status_of(values: &Values, cover: Option<&Cover>, plastic: Option<&Plastic>, material: &str, reach: f64, with_cover: bool) -> Status {

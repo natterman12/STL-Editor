@@ -453,7 +453,7 @@ fn tool_panel_snapshots_dark_light() {
                     }
                     let tk = theme::tokens(st.dark);
                     ui.painter().rect_filled(ui.max_rect(), 0.0, tk.bg);
-                    let ctx = Ctx { bodies: &[], planes: &[], sketches: &[], features: &[], selection: &[], last_sketch: None, sketch_on_body: false };
+                    let ctx = Ctx { bodies: &[], planes: &[], sketches: &[], features: &[], selection: &[], last_sketch: None, sketch_on_body: false, inch: false };
                     let params = BTreeMap::new();
                     let ws = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(330.0, 560.0));
                     let env = PanelEnv { tk: &tk, inch: false, params: &params, ctx: &ctx, ws };
@@ -461,7 +461,7 @@ fn tool_panel_snapshots_dark_light() {
                     st.tool.show(&c, &env);
                 },
                 {
-                    let mut tool = OpenTool::new(test_tool(false), defaults(&Ctx { bodies: &[], planes: &[], sketches: &[], features: &[], selection: &[], last_sketch: None, sketch_on_body: false }), None, None);
+                    let mut tool = OpenTool::new(test_tool(false), defaults(&Ctx { bodies: &[], planes: &[], sketches: &[], features: &[], selection: &[], last_sketch: None, sketch_on_body: false, inch: false }), None, None);
                     tool.values.insert("width".into(), json!("=w/2"));
                     Ui { tool, dark, fonts: false }
                 },

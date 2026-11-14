@@ -73,7 +73,7 @@ impl Scene {
         Scene { bodies: vec![body("b1", "Box", cube())], planes: Vec::new(), sketches: Vec::new(), features: Vec::new() }
     }
     fn ctx(&self) -> Ctx<'_> {
-        Ctx { bodies: &self.bodies, planes: &self.planes, sketches: &self.sketches, features: &self.features, selection: &[], last_sketch: None, sketch_on_body: false }
+        Ctx { bodies: &self.bodies, planes: &self.planes, sketches: &self.sketches, features: &self.features, selection: &[], last_sketch: None, sketch_on_body: false, inch: false }
     }
 }
 
@@ -410,6 +410,15 @@ fn pick_cylface() {
     v.insert("diameter".into(), json!(6.0));
     cylface::feed_pick(&f, &mut v, &hit_body(0, [5., 0., 10.], [1., 0., 0.]), &sc.ctx());
     assert_eq!(v["diameter"], json!(6.0));
+    // inch mode: the label and message use inches (U.str); the values stay in millimetres
+    let mut v = Values::new();
+    let mut c = sc.ctx();
+    c.inch = true;
+    let out = cylface::feed_pick(&f, &mut v, &hit_body(0, [5., 0., 10.], [1., 0., 0.]), &c);
+    assert_eq!(v["face"]["label"], json!("Pin Ø0.3937 in × 0.7874 in deep"));
+    assert_eq!(out.message, Some((Level::Info, "Measured pin Ø0.3937 in. Type the new diameter.".to_owned())));
+    assert_eq!(v["measured"], json!(10.0));
+    assert_eq!(v["diameter"], json!(10.0));
     // a flat wall is not round
     let sc = Scene::new();
     let out = cylface::feed_pick(&f, &mut Values::new(), &hit_body(2, [3., 3., 10.], [0., 0., 1.]), &sc.ctx());
