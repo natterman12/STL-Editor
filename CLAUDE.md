@@ -100,11 +100,7 @@ the portable build, or `git pull`s a git checkout (`stleditor/updates.py`).
 
 ## Ideas not built yet
 
-- Support Fins: a "Fill gaps" button that adds walls under bare spots; click a bare spot to drop
-  a fin there; a warning before export when overhangs are bare (the coverage check,
-  `web/js/sfcoverage.js`, already finds them).
 - Sketches tied to part edges follow a moved edge only when the sketch is next opened, not when
   a parameter change moves it.
-- Fillet / chamfer on mesh edges; sketch fillet, spline and ellipse; SVG / DXF import; loft,
-  sweep; plate layout and colour 3MF; code signing.
+- Fillet / chamfer on mesh edges; sketch spline and ellipse; colour 3MF; code signing.
 - Port the web edition's isotropic remesher to the desktop (too slow in pure Python).

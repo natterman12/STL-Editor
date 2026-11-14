@@ -696,6 +696,40 @@ fn a_move_goes_before_the_supports_of_the_part() {
     assert_eq!(last, Some(None));
 }
 
+/// A step added in the middle of the history is one undo step, as 1.x (Nathan, 2026-11-14):
+/// one Ctrl+Z takes it out and leaves the timeline and the marker as they were.
+#[test]
+fn a_step_added_mid_history_is_one_undo() {
+    let ids = |log: &Arc<Mutex<Vec<Update>>>| last_timeline(log).items.iter().map(|i| i.id.clone()).collect::<Vec<_>>();
+    // (a) added at a position (before the part's supports), marker at the end
+    let (mut w, log) = manual_worker();
+    for s in [10.0, 12.0, 14.0] {
+        w.handle(box_cmd(s));
+    }
+    let (before, marker) = (ids(&log), last_timeline(&log).marker);
+    w.handle(add("primitive", json!({"shape": "box", "size": [5.0, 5.0, 5.0]}), Some(1), None));
+    assert_eq!(ids(&log).len(), 4);
+    assert_eq!(ids(&log)[0], before[0], "it went in at position 1");
+    assert_ne!(ids(&log)[1], before[1]);
+    w.handle(Command::Undo);
+    assert_eq!(ids(&log), before, "one undo takes it out");
+    assert_eq!(last_timeline(&log).marker, marker, "and the marker is where it was");
+
+    // (b) added while the marker is rolled back to the middle
+    let (mut w, log) = manual_worker();
+    for s in [10.0, 12.0, 14.0] {
+        w.handle(box_cmd(s));
+    }
+    w.handle(Command::Rollback(Some(1)));
+    let (before, marker) = (ids(&log), last_timeline(&log).marker);
+    w.handle(add("primitive", json!({"shape": "box", "size": [5.0, 5.0, 5.0]}), None, None));
+    assert_eq!(ids(&log).len(), 4);
+    assert_eq!(&ids(&log)[2..], &before[1..], "it went in at the marker, before the later steps");
+    w.handle(Command::Undo);
+    assert_eq!(ids(&log), before, "one undo takes it out");
+    assert_eq!(last_timeline(&log).marker, marker, "and the marker is where it was");
+}
+
 #[test]
 fn a_project_with_support_fins_steps_is_built_with_the_engine() {
     let (mut w, log) = manual_worker();

@@ -411,6 +411,39 @@ fn auto_constrain_horizontal_and_coincident() {
 // ---------------------------------------------------------------- modify
 
 #[test]
+fn drag_solves_from_where_it_began() {
+    // a 10 mm line pinned at the origin: dragging its free end is under-defined (it can swing),
+    // so solving from the last step would make the end depend on the pointer's path (1.x
+    // `dragMove` solves every step from `d.base`; Nathan, 2026-11-14)
+    let mods = egui::Modifiers::NONE;
+    let run = |path: &[[f64; 2]]| -> Vec<Entity> {
+        let line = ent(json!({"id": "l", "type": "line", "p1": [0, 0], "p2": [10, 0]}));
+        let mut h = H::new("select", vec![line.clone()]);
+        h.s.constraints = serde_json::from_value(json!([
+            {"id": "c1", "type": "coincident", "a": {"e": "l", "k": "p1"}, "b": {"e": "_o", "k": "p"}},
+            {"id": "c2", "type": "length", "a": {"e": "l"}, "value": 10},
+        ]))
+        .unwrap();
+        let p0 = h.pos([10.0, 0.0]);
+        assert!(h.send(SketchInput::Down { uv: [10.0, 0.0], pos: p0, mods }));
+        for &uv in path {
+            let pos = h.pos(uv);
+            h.send(SketchInput::Move { uv, pos, mods });
+            assert_eq!(h.s.solve_from.as_ref(), Some(&vec![line.clone()]), "every step solves from the drag-start copy");
+            stl_app::sketch::solve::solve_all(&mut h.s);
+        }
+        let last = *path.last().unwrap();
+        let pos = h.pos(last);
+        h.send(SketchInput::Up { uv: last, pos });
+        assert!(h.s.solve_from.is_none(), "cleared when the drag ends");
+        h.s.entities.clone()
+    };
+    let direct = run(&[[0.0, 12.0]]);
+    let roundabout = run(&[[-8.0, -6.0], [-9.0, 4.0], [5.0, 9.0], [0.0, 12.0]]);
+    assert_eq!(direct, roundabout, "the same end point gives the same shape, whatever the path");
+}
+
+#[test]
 fn drag_point_resolves() {
     let line = ent(json!({"id": "l", "type": "line", "p1": [0, 0], "p2": [10, 0]}));
     let mut h = H::new("select", vec![line]);

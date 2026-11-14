@@ -577,6 +577,8 @@ mod golden {
     /// 2.0 follows 1.x desktop (GEOS), which is exactly 1.5; 1.x web `offsetOpen` is
     /// 1.4999999999999998 (float noise in its mitre formula). See `rust/tests/EXCEPTIONS.md`.
     const OFFSET_OPEN_ABS_TOL: f64 = 1e-12;
+    /// Last-bit differences between platform maths libraries (sin, cos), in mm.
+    const PLATFORM_ABS_TOL: f64 = 1e-12;
 
     fn numbers_match(x: f64, y: f64, tol: f64) -> bool {
         if x == y || (x - y).abs() == 0.0 {
@@ -658,7 +660,9 @@ mod golden {
         for name in &names {
             let case: Value = serde_json::from_str(&fs::read_to_string(dir.join(format!("{name}.json"))).unwrap()).unwrap();
             let got = document_for(name).sketch_op(case["op"].as_str().unwrap(), &case["data"]).unwrap_or_else(|e| panic!("{name}: {e}"));
-            let tol = if name == "offset_open" { OFFSET_OPEN_ABS_TOL } else { 0.0 };
+            // 1e-12 mm everywhere: sin/cos round their last bit differently in each platform's
+            // maths library (Linux glibc gave -8.660254037844384 where Windows and Node give ...386)
+            let tol = if name == "offset_open" { OFFSET_OPEN_ABS_TOL.max(PLATFORM_ABS_TOL) } else { PLATFORM_ABS_TOL };
             let mut found = Vec::new();
             all_diffs(&norm(&got), &norm(&case["result"]), name, tol, &mut found);
             if !found.is_empty() {

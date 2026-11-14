@@ -296,6 +296,8 @@ impl SelectTool {
             if cx.s.history.len() > 100 {
                 cx.s.history.remove(0);
             }
+            // every step of this drag solves from the shapes as they were when it began
+            cx.s.solve_from = Some(d.base.clone());
         }
         let lock = |k: &str, at: P2| Lock { e: d.r.e.clone(), k: Some(k.into()), at: Some(at.to_vec()), path: None, value: None };
         let locks = if let Some(k) = d.r.k.as_deref() {
@@ -317,6 +319,7 @@ impl SelectTool {
     pub fn drag_end(&mut self, cx: &mut ToolCx) -> bool {
         let Some(d) = self.drag.take() else { return false };
         cx.s.locks.clear();
+        cx.s.solve_from = None;
         if d.moved {
             cx.out.push(SketchEffect::Changed);
         }

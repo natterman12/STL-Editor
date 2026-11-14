@@ -255,8 +255,7 @@ programming error, the same practice as batch 1's `"Plane size must be a number.
 
 ## The app: shell and viewport (milestone 4a)
 
-Nathan accepted four of these on 2026-11-12; they are marked "Accepted". The rest are still
-pending Nathan's OK.
+Nathan answered all of these (2026-11-12, 2026-11-13 and 2026-11-14).
 
 - **Accepted (2026-11-12): `x11-dl` is on the Linux pure-Rust allow-list.** It is winit's X11
   backend. Its build script asks `pkg-config` for the X11 library folders, and no feature drops
@@ -265,29 +264,28 @@ pending Nathan's OK.
 - **Accepted (2026-11-12). New text: "The engine stopped unexpectedly. Your last saved project is safe."** with a
   **Restart** button, shown when the engine thread or Web Worker dies. 1.x has no engine
   that can die on its own. Restart reopens the last opened or saved project.
-- **The busy overlay has a Cancel button.** 1.x's busy overlay (`index.html` `#busy`) has
+- **Accepted (2026-11-14): the busy overlay has a Cancel button.** 1.x's busy overlay (`index.html` `#busy`) has
   none. Cancel stops the running rebuild at the next step and leaves the project exactly as
   it was before the command (undo history included); the status line then says "Cancelled."
-- **Opening a `.stlx` can't be cancelled,** and its progress shows only once the file is
+- **Accepted (2026-11-14): opening a `.stlx` can't be cancelled,** and its progress shows only once the file is
   loaded, because the project loader rebuilds every step inside the load. Opening a mesh file
   can be cancelled.
-- **On the web, Cancel needs JS Promise Integration (JSPI)** to stop a rebuild that is already
+- **Accepted (2026-11-14): on the web, Cancel needs JS Promise Integration (JSPI)** to stop a rebuild that is already
   running (Chrome and Edge 137+, Firefox 153+, Safari 27+). On a browser without JSPI the app
   still works, but a running rebuild finishes first and Cancel takes effect between commands.
-- **The rollback marker can be dragged.** 1.x shows a resize cursor on the marker but has no
+- **Accepted (2026-11-14): the rollback marker can be dragged.** 1.x shows a resize cursor on the marker but has no
   drag; you roll back from the menu or the step buttons. 2.0 also rolls back to where the
   marker is dropped.
-- **Adding a step in the middle of the history takes two undos,** because it is added at the
-  end and then moved. 1.x adds it in place, in one undo step.
+- **Fixed (2026-11-14): adding a step in the middle of the history is one undo step, as 1.x.** One Ctrl+Z took it out but left the marker rolled back to where it went in; `Document::add_feature_at` now records the marker as it was (test `a_step_added_mid_history_is_one_undo`).
 - **Accepted (2026-11-12): Open Recent without a path until milestone 5. Recent files last only for this session,** and come back from the bytes in memory, so a
   Save after Open Recent asks where to save. Recent files that survive a restart, and the
   settings, are milestone 5.
-- **The Help menu has no Check for Updates or Update Settings yet.** They need the update
+- **Moved to milestone 5 (Nathan, 2026-11-14): the Help menu has no Check for Updates or Update Settings yet.** They need the update
   check, which is milestone 5. About Support Fins arrived in milestone 4b.
 - **Accepted (2026-11-12): plain-text Help and About layout.** The version comes from the 2.0
   build, the Ko-fi link sits below the text instead of inside it, and the heart isn't
   coloured.
-- **About credits list what 2.0 uses** (egui and eframe, wgpu, the manifold-rust port, the
+- **Accepted (2026-11-14): About credits list what 2.0 uses** (egui and eframe, wgpu, the manifold-rust port, the
   Selawik font and the other Rust crates, each with its licence) instead of 1.x's Python
   libraries. 1.x's thanks and Ko-fi text are kept. Nathan asked for this on 2026-11-12.
 - **Accepted (2026-11-13): a dropped `.stlx` is refused** with "Use File › Open for projects.", as in 1.x. The fixes
@@ -300,10 +298,10 @@ pending Nathan's OK.
 - **Accepted (2026-11-13): the web check for WebGL2 runs on SwiftShader** (Chrome's software WebGL2), because
   `--disable-features=WebGPU` alone leaves WebGPU on in Chrome 157. Hardware WebGL2 is not
   covered by the check. Nathan: enough for now.
-- **Ten constraint icons** (`c_coincident` to `c_symmetric`) are text glyphs in 1.x's
+- **Accepted (2026-11-14): ten constraint icons** (`c_coincident` to `c_symmetric`) are text glyphs in 1.x's
   `icons.js`. The icon renderer has no text support, so 2.0 draws them as paths that look
   close but not identical.
-- **If the graphics device is lost** (a driver reset), the view goes blank until the app is
+- **Moved to milestone 5 (Nathan, 2026-11-14): if the graphics device is lost** (a driver reset), the view goes blank until the app is
   restarted; nothing crashes and the project is kept. eframe 0.37 doesn't create a new
   device on its own. A browser tab in 1.x reloads its WebGL context instead.
 
@@ -347,26 +345,26 @@ Nathan answered all of these on 2026-11-13: six accepted, one to measure in 4c, 
 
 ## Sketch mode (milestone 4c)
 
-- **Pending Nathan's OK: solving runs off the screen's thread when it is slow.** 1.x solves a
+- **Accepted (2026-11-14): solving runs off the screen's thread when it is slow.** 1.x solves a
   sketch in the page on every change. In 2.0 the solver took 44.2 ms (p50) and 47.0 ms (p99) on a
   200-shape, 100-relation sketch (release, 100 runs), which is too long for a 16.7 ms frame. So 2.0
   solves at once while the last solve took under 4 ms, and otherwise on the engine thread (the Web
   Worker on the web), keeping only the newest answer. Small sketches behave exactly as in 1.x.
-- **Pending Nathan's OK: dragging a shape that is not fully defined can end a little differently.**
+- **Fixed (2026-11-14): dragging a shape that is not fully defined could end a little differently.** 2.0 now solves each drag step from the drag-start copy, as 1.x (`SketchSession::solve_from`; test `drag_solves_from_where_it_began`).
   1.x solves each drag step from the copy taken when the drag began; 2.0 solves from the last
   solved position, so where an under-defined shape ends up can depend on the path of the pointer.
   Fully defined shapes end in the same place.
-- **Pending Nathan's OK: open-chain Offset follows 1.x desktop, not 1.x web.** 1.x web gives
+- **Accepted (2026-11-14): open-chain Offset follows 1.x desktop, not 1.x web.** 1.x web gives
   1.4999999999999998 for a point that 1.x desktop (GEOS) and 2.0 put at exactly 1.5 (golden case
   `offset_open`). The golden test allows this one case to differ by at most 1e-12.
-- **Pending Nathan's OK: Trim on an arc or circle cuts where the true curve meets the line, as 1.x
+- **Accepted (2026-11-14): Trim on an arc or circle cuts where the true curve meets the line, as 1.x
   web does.** 1.x desktop cut the 50-segment polygon of the arc, so the cut angles came out
   59.9853954° and 120.0146046° instead of 60° and 120° (about 2.5 µm off at radius 10). Construction
   shapes no longer cut a trim, also as 1.x web.
-- **Pending Nathan's OK: profile points are no longer nudged by rounding when they already sit on
+- **Accepted (2026-11-14): profile points are no longer nudged by rounding when they already sit on
   the 0.00001 mm grid.** 1.x desktop gave 13.000000000000002 where 1.x web and 2.0 give 13
   (`faces_nested`).
-- **Pending Nathan's OK: the text font list has no "More: fonts on this computer…" or "Add a font
+- **Moved to milestone 5 (Nathan, 2026-11-14): the text font list has no "More: fonts on this computer…" or "Add a font
   file…".** 2.0 offers the bundled fonts only for now.
-- **Pending Nathan's OK: bundled symbol glyphs.** The bundled fonts had no ⌀ and some relation
+- **Accepted (2026-11-14): bundled symbol glyphs.** The bundled fonts had no ⌀ and some relation
   symbols; 2.0 adds them from Noto (SIL Open Font License) so labels show the same symbols as 1.x.

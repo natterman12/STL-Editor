@@ -89,7 +89,7 @@ pub fn fixed_ids(s: &SketchSession) -> BTreeSet<String> {
 /// Solve with the session's locks and write the result back (`solveAll`), then analyse.
 pub fn solve_all(s: &mut SketchSession) -> SolveState {
     let fixed = fixed_ents(s);
-    let r = solve(&s.entities, &s.constraints, &s.locks, &fixed);
+    let r = solve(s.solve_from.as_ref().unwrap_or(&s.entities), &s.constraints, &s.locks, &fixed);
     s.entities = r.entities;
     state_of(s, &fixed)
 }
@@ -98,7 +98,7 @@ pub fn solve_all(s: &mut SketchSession) -> SolveState {
 pub fn request(s: &SketchSession, seq: u64) -> Command {
     Command::Solve {
         seq,
-        entities: s.entities.clone(),
+        entities: s.solve_from.clone().unwrap_or_else(|| s.entities.clone()),
         constraints: s.constraints.clone(),
         locks: s.locks.clone(),
         fixed: fixed_ents(s),

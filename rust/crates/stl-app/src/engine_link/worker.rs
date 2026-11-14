@@ -279,12 +279,7 @@ impl Worker {
                     match index.filter(|&i| i < active) {
                         // 1.x addFeatureSmart: roll back to the place, add, and put the marker back
                         // where it was, one step further along
-                        Some(at) => {
-                            d.set_rollback(Some(at));
-                            let id = d.add_feature(&kind, params, name)?;
-                            d.set_rollback(before.map(|b| b + 1));
-                            Ok(id)
-                        }
+                        Some(at) => d.add_feature_at(at, &kind, params, name),
                         None => d.add_feature(&kind, params, name),
                     }
                 })?;

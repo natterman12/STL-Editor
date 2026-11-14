@@ -633,6 +633,32 @@ impl Document {
         Ok(id)
     }
 
+    /// Add a feature at timeline position `at` (1.x `addFeatureSmart`): roll back to it, add,
+    /// and put the marker back where it was, one step further along. Undo takes it out in one
+    /// step and puts the marker back where it was before (not at the temporary rollback).
+    pub fn add_feature_at(
+        &mut self,
+        at: usize,
+        kind: &str,
+        params: Map<String, Value>,
+        name: Option<String>,
+    ) -> Result<String, FeatureError> {
+        let before = self.rollback;
+        self.set_rollback(Some(at));
+        let id = match self.add_feature(kind, params, name) {
+            Ok(id) => id,
+            Err(e) => {
+                self.set_rollback(before);
+                return Err(e);
+            }
+        };
+        if let Some(snap) = self.undo.last_mut() {
+            snap.rollback = before;
+        }
+        self.set_rollback(before.map(|b| b + 1));
+        Ok(id)
+    }
+
     /// Evaluate a feature without committing it: a new one (`edit_id` is `None`), or the
     /// feature `edit_id` with these params. Gives the state it would leave, and the result.
     pub fn preview(

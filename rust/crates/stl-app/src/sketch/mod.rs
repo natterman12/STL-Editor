@@ -55,6 +55,10 @@ pub struct SketchSession {
     pub seed: String,
     /// Drag and typed-value locks for the next solve (sketcher.js `solveAll(locks)`).
     pub locks: Vec<stl_sketch::solver::Lock>,
+    /// While a drag is on: the shapes as they were when it began. Every drag step solves from
+    /// this copy, as 1.x's `dragMove` solves from `d.base`, so where a loose shape ends up
+    /// doesn't depend on the pointer's path.
+    pub solve_from: Option<Vec<Entity>>,
     /// The next solve follows a typed-field edit: if the relations can't be kept, say so
     /// (`updateEntity`'s "Some constraints could not be kept.").
     pub warn_unkept: bool,
@@ -108,6 +112,7 @@ impl SketchSession {
             history: Vec::new(),
             seed: base36(ms),
             locks: Vec::new(),
+            solve_from: None,
             warn_unkept: false,
             next_id: 1,
         }
