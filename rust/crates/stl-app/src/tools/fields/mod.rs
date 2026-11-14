@@ -71,7 +71,7 @@ pub fn row_raw<R>(ui: &mut Ui, tk: &Tokens, label: &str, help: Option<&str>, wid
         if wide {
             let r = ctl(ui, FORM_W);
             if let Some(h) = help {
-                ui.interact(ui.min_rect(), ui.id().with("help"), Sense::hover()).on_hover_text(h);
+                ui.interact(ui.min_rect(), ui.scope_id().with("help"), Sense::hover()).on_hover_text(h);
             }
             return r;
         }
@@ -206,7 +206,7 @@ pub fn input_box(ui: &mut Ui, tk: &Tokens, buf: &mut String, id: egui::Id, width
         v.override_text_color = Some(colour);
         let resp = ui.add_sized(
             [width, 24.0],
-            egui::TextEdit::singleline(buf).id(id).font(font).margin(egui::Margin::symmetric(5, 4)).text_color(colour).vertical_align(Align::Center),
+            egui::TextEdit::singleline(buf).id(id).font(font).margin(egui::Margin::symmetric(5, 4)).text_color(colour).align(egui::Align2::LEFT_CENTER),
         );
         if focused {
             // :focus { border-color: accent; box-shadow: 0 0 0 2px accent-soft }
@@ -222,7 +222,7 @@ pub fn input_box(ui: &mut Ui, tk: &Tokens, buf: &mut String, id: egui::Id, width
 /// A text box over `shown`: a change fires when the box loses focus (1.x's `change` event, which
 /// is also what Enter does). Returns the typed text when it should be taken.
 pub fn text_commit(ui: &mut Ui, tk: &Tokens, bufs: &mut Bufs, key: &str, shown: &str, width: f32, font: egui::FontId, colour: Color32, tip: Option<String>) -> Option<String> {
-    let id = egui::Id::new(("tool-field", key));
+    let id = egui::Id::unique(("tool-field", key));
     let focused = ui.memory(|m| m.has_focus(id));
     let buf = bufs.entry(key.to_owned()).or_default();
     if !focused {

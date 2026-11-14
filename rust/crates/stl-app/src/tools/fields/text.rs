@@ -22,7 +22,7 @@ pub fn show(ui: &mut egui::Ui, env: &FieldEnv, f: &Field, placeholder: Option<&s
     row(ui, env, f, false, |ui, w| {
         let typed = text_commit(ui, tk, bufs, f.key, &shown, w, input_font(), tk.text, None);
         // the placeholder, drawn over an empty box that isn't being typed in
-        let id = egui::Id::new(("tool-field", f.key));
+        let id = egui::Id::unique(("tool-field", f.key));
         let empty = bufs.get(f.key).map_or(shown.is_empty(), |b| b.is_empty());
         if empty && !ui.memory(|m| m.has_focus(id)) {
             let r = ui.min_rect();

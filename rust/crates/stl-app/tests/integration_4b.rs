@@ -9,7 +9,6 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use egui::{Event, PointerButton, Pos2};
-use egui_kittest::kittest::Queryable;
 use egui_kittest::Harness;
 use serde_json::{json, Value};
 use stl_app::app::StlApp;
@@ -17,7 +16,7 @@ use stl_app::engine_link::{BodyView, Command, EngineLink, TimelineItem, Timeline
 use stl_app::platform::NullPlatform;
 use stl_app::supports;
 use stl_app::tools::gizmo::GizmoKind;
-use stl_app::ui::{ribbon, ThemePref, UiEvent};
+use stl_app::ui::ThemePref;
 use stl_app::viewport::camera;
 use stl_app::viewport::gizmo_draw::handle_unit;
 use stl_app::viewport::{PreviewMesh, PreviewPack};
@@ -294,7 +293,7 @@ fn the_tool_panel_stays_above_the_hint() {
     let mut h = scene(&rec);
     assert!(h.state_mut().open_tool("sculpt", None));
     h.run_steps(3);
-    let panel = egui::LayerId::new(egui::Order::Middle, egui::Id::new("tool-panel"));
+    let panel = egui::LayerId::new(egui::Order::Middle, egui::Id::unique("tool-panel"));
     let top = h.ctx.memory(|m| m.areas().top_layer_id(egui::Order::Middle));
     assert_eq!(top, Some(panel), "the panel is drawn above the hint");
 }

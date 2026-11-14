@@ -1452,7 +1452,7 @@ impl StlApp {
             // 1.x stacks the tool panel (z-index 5) above the hint (z-index 3): a long hint runs
             // under the panel instead of over its footer
             if self.tool.is_some() {
-                ctx.move_to_top(egui::LayerId::new(Order::Middle, Id::new("tool-panel")));
+                ctx.move_to_top(egui::LayerId::new(Order::Middle, Id::unique("tool-panel")));
             }
         }
         // HUD (1.x leaves it empty; the sketch HUD is 4c)

@@ -335,7 +335,7 @@ pub fn plane_label(v: Option<&Value>, ctx: &Ctx) -> String {
 pub fn show(ui: &mut Ui, tk: &Tokens, f: &Field, values: &mut Values, active: &mut Option<String>, ctx: &Ctx) -> ShowOut {
     let label = plane_label(values.get(f.key), ctx);
     let chips: Vec<String> = if label.is_empty() { vec![] } else { vec![label] };
-    let b = sel_box(ui, tk, egui::Id::new(("pick", f.key)), active.as_deref() == Some(f.key), &chips, "Click a plane or flat face");
+    let b = sel_box(ui, tk, egui::Id::unique(("pick", f.key)), active.as_deref() == Some(f.key), &chips, "Click a plane or flat face");
     let mut out = ShowOut::default();
     handle_box(&b, f.key, active, &mut out, |_| {
         values.insert(f.key.to_owned(), Value::Null);

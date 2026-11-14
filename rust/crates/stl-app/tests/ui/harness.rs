@@ -1,5 +1,7 @@
 //! `app_harness`: start `StlApp` with a fake `Platform` and a real `NativeLink`, load a
 //! project, and wait until the engine is idle.
+// Shared by several test files (ui, projects, fins_in_app); each uses only some helpers.
+#![allow(dead_code)]
 
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -189,6 +191,10 @@ pub fn settle(h: &mut Harness<'static, StlApp>, link: &NativeLink) {
                 let before = h.state().bodies.len();
                 h.run_steps(1);
                 if !link.is_busy() && h.state().bodies.len() == before {
+                    // the viewport prepares bodies on worker threads: wait until they are on
+                    // screen and pickable (a slow CI machine can otherwise pick nothing)
+                    h.state_mut().viewport.flush();
+                    h.run_steps(1);
                     return;
                 }
             }

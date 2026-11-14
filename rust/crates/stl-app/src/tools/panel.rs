@@ -291,7 +291,7 @@ impl OpenTool {
         let mut out = PanelOut::default();
         let pos = egui::pos2(env.ws.max.x - INSET - PANEL_W, env.ws.min.y + INSET);
         let max_h = (env.ws.height() - 60.0).max(120.0);
-        Area::new(Id::new("tool-panel")).order(Order::Middle).fixed_pos(pos).show(egui_ctx, |ui| {
+        Area::new(Id::unique("tool-panel")).order(Order::Middle).fixed_pos(pos).show(egui_ctx, |ui| {
             Frame::new().fill(tk.panel).stroke(Stroke::new(1.0, tk.line)).corner_radius(CornerRadius::same(tk.radius as u8)).shadow(tk.shadow).show(ui, |ui| {
                 ui.set_width(PANEL_W - 2.0);
                 ui.spacing_mut().item_spacing = Vec2::new(0.0, 0.0);
@@ -332,14 +332,14 @@ impl OpenTool {
         let title = self.title();
         let galley = ui.painter().layout(title.clone(), font, tk.strong, (close.min.x - 7.0 - x).max(10.0));
         ui.painter().galley(egui::pos2(x, cy - galley.size().y / 2.0), galley, tk.strong);
-        let resp = ui.interact(close, Id::new("tool-close"), Sense::click());
+        let resp = ui.interact(close, Id::unique("tool-close"), Sense::click());
         resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, "Close"));
         if resp.hovered() {
             ui.painter().rect_filled(close, CornerRadius::same(4), tk.hover);
         }
         ui.painter().text(close.center(), Align2::CENTER_CENTER, "×", egui::FontId::proportional(17.0), if resp.hovered() { tk.strong } else { tk.muted });
         resp.on_hover_text("Cancel (Esc)");
-        if ui.interact(close, Id::new("tool-close"), Sense::click()).clicked() {
+        if ui.interact(close, Id::unique("tool-close"), Sense::click()).clicked() {
             out.cancel = true;
         }
         ui.painter().hline(rect.x_range(), rect.max.y, Stroke::new(1.0, tk.divider));
@@ -484,7 +484,7 @@ impl OpenTool {
             let g = ui.painter().layout(text.clone(), egui::FontId::proportional(10.5), tk.muted, room);
             let r = Rect::from_min_size(egui::pos2(inner.min.x, inner.center().y - g.size().y / 2.0), g.size());
             ui.painter().galley(r.min, g, tk.muted);
-            ui.interact(r, Id::new("tool-credit"), Sense::hover()).on_hover_text(tip);
+            ui.interact(r, Id::unique("tool-credit"), Sense::hover()).on_hover_text(tip);
         }
     }
 }

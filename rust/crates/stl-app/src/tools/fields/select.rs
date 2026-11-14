@@ -77,7 +77,7 @@ pub fn show(
     let seg = groups.is_empty() && seg_fits(ui, &pairs, false);
     row(ui, env, f, false, |ui, w| {
         if seg {
-            pick = seg_strip(ui, tk, ui.id().with(("seg", f.key)), w, &pairs, &cur);
+            pick = seg_strip(ui, tk, ui.scope_id().with(("seg", f.key)), w, &pairs, &cur);
         } else {
             let mut all: Vec<(String, String)> = pairs.clone();
             for (_, items) in &groups {

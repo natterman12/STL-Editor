@@ -1512,7 +1512,7 @@ fn fold_header(ui: &mut egui::Ui, tk: &Tokens, label: &str, open: bool, badge: O
     let (r, _) = ui.allocate_exact_size(egui::vec2(fields::FORM_W, 28.0), Sense::hover());
     // `width: calc(100% + 20px); margin: 8px -10px 2px`: it runs to both panel edges
     let full = Rect::from_min_max(egui::pos2(r.min.x - 10.0, r.min.y), egui::pos2(r.max.x + 10.0, r.max.y));
-    let resp = ui.interact(full, ui.id().with(("fold", label)), Sense::click());
+    let resp = ui.interact(full, ui.scope_id().with(("fold", label)), Sense::click());
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, label));
     let hot = resp.hovered();
     if hot {
@@ -1591,7 +1591,7 @@ fn draw_field(ui: &mut egui::Ui, tk: &Tokens, session: &mut Session, spec: &Fiel
             };
             let chips: Vec<String> = ids.iter().map(|id| session.body_names.get(id).cloned().unwrap_or_else(|| id.clone())).collect();
             let ph = spec.placeholder.unwrap_or("Click a body");
-            let b = fields::row_raw(ui, tk, spec.label, spec.help, false, |ui, _| fields::bodies::sel_box(ui, tk, egui::Id::new(("sf-pick", spec.key)), session.body_active, &chips, ph));
+            let b = fields::row_raw(ui, tk, spec.label, spec.help, false, |ui, _| fields::bodies::sel_box(ui, tk, egui::Id::unique(("sf-pick", spec.key)), session.body_active, &chips, ph));
             if let Some(i) = b.removed {
                 let rest: Vec<Value> = ids.iter().enumerate().filter(|(j, _)| *j != i).map(|(_, s)| Value::from(s.clone())).collect();
                 session.body_active = true;
@@ -1617,7 +1617,7 @@ fn draw_walls(ui: &mut egui::Ui, tk: &Tokens, session: &mut Session, spec: &Fiel
     let pick = fields::row_raw(ui, tk, "Draw", Some(hint), false, |ui, w| {
         let mut pick = None;
         if fits {
-            pick = fields::seg_strip(ui, tk, ui.id().with("wshape"), w, &pairs, &cur);
+            pick = fields::seg_strip(ui, tk, ui.scope_id().with("wshape"), w, &pairs, &cur);
         } else {
             let text = pairs.iter().find(|(k, _)| *k == cur).map(|(_, l)| l.clone()).unwrap_or_default();
             fields::framed_combo(ui, tk, "wshape-sel", w, &text, |ui| {
@@ -1672,7 +1672,7 @@ fn draw_modes(ui: &mut egui::Ui, tk: &Tokens, session: &mut Session, wall_hint: 
     let cur = mode_of(&session.values).to_string();
     let pairs: Vec<(String, String)> = MODES.iter().map(|(k, l)| ((*k).to_string(), (*l).to_string())).collect();
     // `.field.wide.nolabel`: the strip takes the whole row, the help is the hover text
-    let pick = fields::row_raw(ui, tk, "", Some(MODE_HELP), true, |ui, w| fields::seg_strip(ui, tk, ui.id().with("mode"), w, &pairs, &cur));
+    let pick = fields::row_raw(ui, tk, "", Some(MODE_HELP), true, |ui, w| fields::seg_strip(ui, tk, ui.scope_id().with("mode"), w, &pairs, &cur));
     if let Some(k) = pick {
         if k != cur {
             let fx = set_mode(&mut session.values, &k, wall_hint);
@@ -1690,7 +1690,7 @@ fn draw_select(ui: &mut egui::Ui, tk: &Tokens, session: &mut Session, spec: &Fie
     let picked = fields::row_raw(ui, tk, spec.label, spec.help, spec.nolabel, |ui, w| {
         let mut picked = None;
         if seg {
-            picked = fields::seg_strip(ui, tk, ui.id().with(("sfseg", spec.key)), w, &pairs, &cur);
+            picked = fields::seg_strip(ui, tk, ui.scope_id().with(("sfseg", spec.key)), w, &pairs, &cur);
         } else {
             fields::framed_combo(ui, tk, ("sf", spec.key), w, text, |ui| {
                 for (k, l) in spec.options {
@@ -1815,7 +1815,7 @@ fn cards_row(ui: &mut egui::Ui, tk: &Tokens, cards: &[&strength::Card]) {
         let x = top.x + i as f32 * (cw + 6.0);
         let r = Rect::from_min_size(egui::pos2(x, top.y), egui::vec2(cw, h));
         ui.painter().set(bg, Shape::Rect(egui::epaint::RectShape::new(r, 6.0, tk.input, Stroke::new(1.0, tk.input_line), egui::StrokeKind::Inside)));
-        let resp = ui.interact(r, ui.id().with(("sfcard", i)), Sense::hover());
+        let resp = ui.interact(r, ui.scope_id().with(("sfcard", i)), Sense::hover());
         if !cards[i].tip.is_empty() {
             resp.on_hover_text(cards[i].tip.clone());
         }

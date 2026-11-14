@@ -245,7 +245,7 @@ pub fn show(ui: &mut Ui, tk: &Tokens, f: &Field, values: &mut Values, active: &m
     let ids = ids_of(values.get(f.key));
     let chips: Vec<String> = ids.iter().map(|id| body_name(ctx, id)).collect();
     let ph = f.placeholder.unwrap_or(if multi { "Click bodies" } else { "Click a body" });
-    let b = sel_box(ui, tk, Id::new(("pick", f.key)), active.as_deref() == Some(f.key), &chips, ph);
+    let b = sel_box(ui, tk, Id::unique(("pick", f.key)), active.as_deref() == Some(f.key), &chips, ph);
     let mut out = ShowOut::default();
     handle_box(&b, f.key, active, &mut out, |i| {
         let rest: Vec<Value> = ids.iter().enumerate().filter(|(j, _)| *j != i).map(|(_, s)| Value::from(s.clone())).collect();

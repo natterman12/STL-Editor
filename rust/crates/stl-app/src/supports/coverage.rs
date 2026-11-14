@@ -668,7 +668,7 @@ pub fn compute_cancellable(input: &CoverageInput, cancel: Option<&ComputeCancel>
     let link = h * 2.2;
     let mut g = Grid::new(link);
     let mut parent: Vec<usize> = (0..bare_c.len()).collect();
-    let mut find = |mut x: usize, parent: &mut [usize]| -> usize {
+    let find = |mut x: usize, parent: &mut [usize]| -> usize {
         while parent[x] != x {
             parent[x] = parent[parent[x]];
             x = parent[x];

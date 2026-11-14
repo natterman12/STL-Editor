@@ -42,7 +42,7 @@ fn frame(values: &Values, ctx: &Ctx) -> Option<PlaneFrame> {
 pub fn show(ui: &mut Ui, tk: &Tokens, f: &Field, values: &mut Values, active: &mut Option<String>, _ctx: &Ctx) -> ShowOut {
     let n = points(values, f.key).len();
     let chips = if n > 0 { vec![label(n)] } else { vec![] };
-    let b = sel_box(ui, tk, egui::Id::new(("pick", f.key)), active.as_deref() == Some(f.key), &chips, "All (click to pick)");
+    let b = sel_box(ui, tk, egui::Id::unique(("pick", f.key)), active.as_deref() == Some(f.key), &chips, "All (click to pick)");
     let mut out = ShowOut::default();
     handle_box(&b, f.key, active, &mut out, |_| {
         values.insert(f.key.to_owned(), Value::Array(vec![]));

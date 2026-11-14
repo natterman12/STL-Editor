@@ -298,9 +298,11 @@ pub struct Viewport {
     preview_cancel: Arc<AtomicBool>,
     preview_staged: Option<StagedPreview>,
     /// One preview build at a time: a build that waited and was replaced meanwhile never starts.
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))] // the web build prepares previews inline
     preview_gate: Arc<std::sync::Mutex<()>>,
     /// One preview picking-tree build at a time. It is a separate gate from `preview_gate`, so the
     /// next preview's display meshes don't wait for the last one's trees.
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     preview_tree_gate: Arc<std::sync::Mutex<()>>,
     /// How many preview display meshes were started (tests).
     preview_builds: Arc<AtomicUsize>,

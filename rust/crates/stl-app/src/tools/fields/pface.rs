@@ -13,7 +13,7 @@ use crate::viewport::pick::Hit;
 
 pub fn show(ui: &mut Ui, tk: &Tokens, f: &Field, values: &mut Values, active: &mut Option<String>, _ctx: &Ctx) -> ShowOut {
     let chips: Vec<String> = values.get(f.key).and_then(|v| v.get("label")).and_then(Value::as_str).map(|s| vec![s.to_owned()]).unwrap_or_default();
-    let b = sel_box(ui, tk, egui::Id::new(("pick", f.key)), active.as_deref() == Some(f.key), &chips, "Click a flat face");
+    let b = sel_box(ui, tk, egui::Id::unique(("pick", f.key)), active.as_deref() == Some(f.key), &chips, "Click a flat face");
     let mut out = ShowOut::default();
     handle_box(&b, f.key, active, &mut out, |_| {
         values.insert(f.key.to_owned(), Value::Array(vec![]));
