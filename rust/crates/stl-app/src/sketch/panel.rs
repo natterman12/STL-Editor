@@ -4,7 +4,7 @@
 
 use std::collections::{BTreeMap, HashMap};
 
-use egui::{Align, Area, Color32, CornerRadius, Frame, Id, Key, Layout, Margin, Order, Rect, RichText, Sense, Stroke, TextEdit, Ui, Vec2, WidgetInfo, WidgetType};
+use egui::{Align, Area, Color32, CornerRadius, Frame, Id, Key, Layout, Margin, Order, Rect, RichText, Sense, Stroke, Ui, Vec2, WidgetInfo};
 use serde_json::{json, Value};
 
 use super::geom::{describe, label as entity_label};
@@ -82,7 +82,7 @@ pub const FINISH_LABEL: &str = "Finish Sketch";
 /// A one-line text field whose text is kept while it has focus; returns the text when it was
 /// committed (Enter or leaving the field) and differs from `cur`.
 fn text_field(ui: &mut Ui, tk: &Tokens, st: &mut PanelState, key: &str, label: &str, cur: &str, width: f32) -> Option<String> {
-    let id = Id::new(("skp", key));
+    let id = Id::unique(("skp", key));
     let focused = ui.memory(|m| m.has_focus(id));
     let mut buf = if focused { st.bufs.get(key).cloned().unwrap_or_else(|| cur.to_owned()) } else { cur.to_owned() };
     let r = crate::tools::fields::input_box(ui, tk, &mut buf, id, width, egui::FontId::proportional(12.0), tk.text);
@@ -129,7 +129,7 @@ fn def_line(ui: &mut Ui, tk: &Tokens, m: &SketchMode) {
         return;
     }
     let (rect, resp) = ui.allocate_exact_size(Vec2::new(FORM_W, 16.0), Sense::hover());
-    resp.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, text.clone()));
+    resp.widget_info(|| WidgetInfo::labeled(egui::Role::Label, true, text.clone()));
     let c = def_colour(tk, m.state.def);
     ui.painter().circle_filled(egui::pos2(rect.min.x + 4.5, rect.center().y), 4.5, c);
     let tc = if m.state.def == Def::Over { c } else { tk.text };
@@ -253,7 +253,7 @@ pub fn show(ctx: &egui::Context, tk: &Tokens, m: &mut SketchMode, ws: Rect, inch
     let mut out = PanelOut::default();
     let pos = egui::pos2(ws.max.x - INSET - PANEL_W, ws.min.y + INSET);
     let max_h = (ws.height() - 60.0).max(120.0);
-    Area::new(Id::new("tool-panel")).order(Order::Middle).fixed_pos(pos).show(ctx, |ui| {
+    Area::new(Id::unique("tool-panel")).order(Order::Middle).fixed_pos(pos).show(ctx, |ui| {
         Frame::new().fill(tk.panel).stroke(Stroke::new(1.0, tk.line)).corner_radius(CornerRadius::same(tk.radius as u8)).shadow(tk.shadow).show(ui, |ui| {
             ui.set_width(PANEL_W - 2.0);
             ui.spacing_mut().item_spacing = Vec2::ZERO;
@@ -280,8 +280,8 @@ fn title_row(ui: &mut Ui, ctx: &egui::Context, tk: &Tokens, s: &SketchSession, o
     let galley = ui.painter().layout_no_wrap(t.to_owned(), font, tk.strong);
     ui.painter().galley(egui::pos2(rect.min.x + 34.0, cy - galley.size().y / 2.0), galley, tk.strong);
     let close = Rect::from_center_size(egui::pos2(rect.max.x - 19.0, cy), Vec2::splat(22.0));
-    let resp = ui.interact(close, Id::new("sketch-close"), Sense::click());
-    resp.widget_info(|| WidgetInfo::labeled(WidgetType::Button, true, "Close"));
+    let resp = ui.interact(close, Id::unique("sketch-close"), Sense::click());
+    resp.widget_info(|| WidgetInfo::labeled(egui::Role::Button, true, "Close"));
     if resp.hovered() {
         ui.painter().rect_filled(close, CornerRadius::same(4), tk.hover);
     }
@@ -469,7 +469,7 @@ fn list_frame(ui: &mut Ui, tk: &Tokens, add: impl FnOnce(&mut Ui)) {
 /// One `.ent` row: left text, right muted text; returns the row's response.
 fn ent_row(ui: &mut Ui, tk: &Tokens, selected: bool, left: &str, right: &str, name: &str) -> egui::Response {
     let (rect, resp) = ui.allocate_exact_size(Vec2::new(FORM_W - 2.0, 22.0), Sense::click());
-    resp.widget_info(|| WidgetInfo::labeled(WidgetType::Button, true, name));
+    resp.widget_info(|| WidgetInfo::labeled(egui::Role::Button, true, name));
     if selected {
         ui.painter().rect_filled(rect, 0.0, tk.ent_sel);
     } else if resp.hovered() {
@@ -537,7 +537,7 @@ fn relations_list(ui: &mut Ui, tk: &Tokens, m: &mut SketchMode, inch: bool, out:
     list_frame(ui, tk, |ui| {
         for (i, d, auto, sel) in &rows {
             let (rect, resp) = ui.allocate_exact_size(Vec2::new(FORM_W - 2.0, 22.0), Sense::click());
-            resp.widget_info(|| WidgetInfo::labeled(WidgetType::Button, true, d.clone()));
+            resp.widget_info(|| WidgetInfo::labeled(egui::Role::Button, true, d.clone()));
             if *sel {
                 ui.painter().rect_filled(rect, 0.0, tk.ent_sel);
             } else if resp.hovered() {
@@ -550,8 +550,8 @@ fn relations_list(ui: &mut Ui, tk: &Tokens, m: &mut SketchMode, inch: bool, out:
                 ui.painter().text(egui::pos2(rect.min.x + 14.0 + w, rect.center().y), egui::Align2::LEFT_CENTER, "auto", egui::FontId::proportional(11.0), tk.muted);
             }
             let x = Rect::from_center_size(egui::pos2(rect.max.x - 14.0, rect.center().y), Vec2::splat(18.0));
-            let xr = ui.interact(x, Id::new(("sk-cdel", *i)), Sense::click());
-            xr.widget_info(|| WidgetInfo::labeled(WidgetType::Button, true, format!("Remove {d}")));
+            let xr = ui.interact(x, Id::unique(("sk-cdel", *i)), Sense::click());
+            xr.widget_info(|| WidgetInfo::labeled(egui::Role::Button, true, format!("Remove {d}")));
             ui.painter().text(x.center(), egui::Align2::CENTER_CENTER, "✕", egui::FontId::proportional(11.0), tk.muted);
             if xr.on_hover_text("Remove").clicked() {
                 delete = Some(*i);
@@ -582,9 +582,9 @@ pub fn modify_box(ctx: &egui::Context, tk: &Tokens, m: &mut SketchMode, ws: Rect
     };
     let is_ang = c.kind.contains("angle");
     let (mut apply, mut cancel) = (false, false);
-    let id = Id::new("sk-modify-input");
+    let id = Id::unique("sk-modify-input");
     // 1.x: centred over the dimension's label, 12 px above it (`translate(-50%, calc(-100% - 12px))`)
-    let area = Area::new(Id::new("sk-modify")).order(Order::Foreground);
+    let area = Area::new(Id::unique("sk-modify")).order(Order::Foreground);
     let area = match anchor {
         Some(p) => area.pivot(egui::Align2::CENTER_BOTTOM).fixed_pos(egui::pos2(p.x, p.y - 12.0)),
         None => area.fixed_pos(egui::pos2(ws.center().x - 90.0, ws.min.y + 60.0)),
@@ -605,12 +605,12 @@ pub fn modify_box(ctx: &egui::Context, tk: &Tokens, m: &mut SketchMode, ws: Rect
                 }
                 ui.label(RichText::new(if is_ang { "°" } else { unit_name(inch) }).size(11.0).color(tk.muted));
                 let ok = ui.button("✓");
-                ok.widget_info(|| WidgetInfo::labeled(WidgetType::Button, true, "Apply"));
+                ok.widget_info(|| WidgetInfo::labeled(egui::Role::Button, true, "Apply"));
                 if ok.on_hover_text("Apply (Enter)").clicked() {
                     apply = true;
                 }
                 let x = ui.button("✗");
-                x.widget_info(|| WidgetInfo::labeled(WidgetType::Button, true, "Leave it"));
+                x.widget_info(|| WidgetInfo::labeled(egui::Role::Button, true, "Leave it"));
                 if x.on_hover_text("Leave it (Esc)").clicked() {
                     cancel = true;
                 }

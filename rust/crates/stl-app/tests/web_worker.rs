@@ -31,6 +31,8 @@ fn kinds(updates: &[Update]) -> String {
             Update::Preview { seq, .. } => format!("preview({seq})"),
             Update::Fins { seq, ask, .. } => format!("fins({seq} {ask})"),
             Update::EngineLost => "engineLost".into(),
+            Update::SketchOp { seq, result } => format!("sketchOp({seq} {})", if result.is_ok() { "ok" } else { "err" }),
+            Update::Solved { seq, ok, .. } => format!("solved({seq} {ok})"),
         })
         .collect::<Vec<_>>()
         .join(", ")

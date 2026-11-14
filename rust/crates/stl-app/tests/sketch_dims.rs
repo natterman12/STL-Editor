@@ -622,7 +622,7 @@ fn analyze_timing() {
             drop(analyze(&ents, &cons, &fixed));
             drop(unsatisfied(&ents, &cons, &fixed));
         })),
-        ("is_redundant (placing a dimension)", Box::new(|| drop(is_redundant(&ents, &cons, &extra, &fixed)))),
+        ("is_redundant (placing a dimension)", Box::new(|| { let _ = is_redundant(&ents, &cons, &extra, &fixed); })),
     ];
     for (label, job) in &jobs {
         let mut times = Vec::new();

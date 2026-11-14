@@ -1442,8 +1442,6 @@ pub(super) struct Sk {
     pub text: sketch::text::TextDialogState,
     /// An open file dialog for Import SVG / DXF.
     pub import: Option<crate::platform::Pending<Option<crate::platform::PickedFile>>>,
-    /// The Offset prompt is open.
-    pub offset_open: bool,
     /// The "Over defined" question is open for this dimension.
     pub over: Option<sketch::Constraint>,
     /// The Project outline dialog is open.
@@ -2002,12 +2000,12 @@ impl StlApp {
         }
         // the text dialog, over a scrim
         if self.sk.text.open {
-            Area::new(Id::new("sk-text-scrim")).order(Order::Foreground).fixed_pos(ctx.content_rect().min).show(ctx, |ui| {
+            Area::new(Id::unique("sk-text-scrim")).order(Order::Foreground).fixed_pos(ctx.content_rect().min).show(ctx, |ui| {
                 let (r, _) = ui.allocate_exact_size(ctx.content_rect().size(), Sense::click_and_drag());
                 ui.painter().rect_filled(r, 0.0, tk.scrim);
             });
             let mut eff = None;
-            Area::new(Id::new("sk-text-card")).order(Order::Tooltip).anchor(Align2::CENTER_CENTER, Vec2::ZERO).show(ctx, |ui| {
+            Area::new(Id::unique("sk-text-card")).order(Order::Tooltip).anchor(Align2::CENTER_CENTER, Vec2::ZERO).show(ctx, |ui| {
                 Frame::new().fill(tk.panel).stroke(Stroke::new(1.0, tk.line)).corner_radius(CornerRadius::same(9)).shadow(tk.shadow_lg).inner_margin(Margin { left: 20, right: 20, top: 18, bottom: 14 }).show(ui, |ui| {
                     ui.set_max_width(420.0);
                     if let Some(m) = self.sketch.as_mut() {
@@ -2032,7 +2030,7 @@ impl StlApp {
         if self.sk.over.is_none() && self.sk.project.is_none() {
             return fx;
         }
-        Area::new(Id::new("sk-modal-scrim")).order(Order::Foreground).fixed_pos(ctx.content_rect().min).show(ctx, |ui| {
+        Area::new(Id::unique("sk-modal-scrim")).order(Order::Foreground).fixed_pos(ctx.content_rect().min).show(ctx, |ui| {
             let (r, _) = ui.allocate_exact_size(ctx.content_rect().size(), Sense::click_and_drag());
             ui.painter().rect_filled(r, 0.0, tk.scrim);
         });
@@ -2044,7 +2042,7 @@ impl StlApp {
         };
         if self.sk.over.is_some() {
             let mut ans: Option<bool> = None;
-            Area::new(Id::new("sk-over-card")).order(Order::Tooltip).anchor(Align2::CENTER_CENTER, Vec2::ZERO).show(ctx, |ui| {
+            Area::new(Id::unique("sk-over-card")).order(Order::Tooltip).anchor(Align2::CENTER_CENTER, Vec2::ZERO).show(ctx, |ui| {
                 card(ui, &mut |ui| {
                     ui.label(RichText::new("Over defined").font(egui::FontId::new(15.0, egui::FontFamily::Name("bold".into()))).color(tk.strong));
                     ui.add_space(8.0);
@@ -2085,7 +2083,7 @@ impl StlApp {
         }
         if let Some(mut form) = self.sk.project.take() {
             let mut ans = None;
-            Area::new(Id::new("sk-project-card")).order(Order::Tooltip).anchor(Align2::CENTER_CENTER, Vec2::ZERO).show(ctx, |ui| {
+            Area::new(Id::unique("sk-project-card")).order(Order::Tooltip).anchor(Align2::CENTER_CENTER, Vec2::ZERO).show(ctx, |ui| {
                 card(ui, &mut |ui| ans = sketch::project::dialog(ui, tk, &mut form));
             });
             match ans {

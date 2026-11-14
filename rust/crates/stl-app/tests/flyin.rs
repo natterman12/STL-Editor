@@ -3,6 +3,8 @@
 //! 1.x `viewer.js` `_flyTo`: 320 ms, eased with `1 - (1 - k)^3`, from the start pose
 //! `(160, -220, 150)` looking at the origin. An empty scene's iso view sits `60 / sin(halfFov) * 1.05`
 //! along `(1, -1, 0.85)`. A pointer press, drag or wheel calls [`Camera::cancel_flight`].
+//! Desktop only: `preview_prep::bench_mesh` is left out of the web build.
+#![cfg(not(target_arch = "wasm32"))]
 
 use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, OnceLock};
