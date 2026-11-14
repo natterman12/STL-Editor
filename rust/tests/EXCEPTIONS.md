@@ -309,30 +309,31 @@ pending Nathan's OK.
 
 ## Tools and Support Fins (milestone 4b)
 
-All pending Nathan's OK.
+Nathan answered all of these on 2026-11-13: six accepted, one to measure in 4c, one to fix.
 
-- **Restart now (About Support Fins) asks first when there are unsaved changes:** "Restart
+- **Accepted (2026-11-13): Restart now (About Support Fins) asks first when there are unsaved changes:** "Restart
   without saving them?". 1.x keeps an autosave copy for Recover Unsaved Work and restarts
   without asking; 2.0 has no autosave until milestone 5. Like 1.x, the new copy waits for the
   old one to close and reopens nothing.
-- **On the web, the instant red overhangs are worked out in 4 ms slices per frame,** so on a
+- **Accepted (2026-11-13): on the web, the instant red overhangs are worked out in 4 ms slices per frame,** so on a
   very large part they can appear over a few frames instead of at once. The faces drawn are
   the same. On the desktop they are worked out on another thread.
-- **Scale's starting size is worked out from the mesh's single-precision positions.** 1.x uses
+- **Accepted (2026-11-13): Scale's starting size is worked out from the mesh's single-precision positions.** 1.x uses
   double precision, so on an exact tie in the third decimal the starting size can differ by
   0.001 mm.
 - **On the web, a large tool preview is prepared on the page's own thread** (the web build has
   no threads for it). On the desktop it is prepared in the background. For a 500,000-triangle
   preview this is estimated at 0.3 to 1 s, during which the page doesn't respond. Not measured
-  in a browser yet.
-- **The Diameter readout of a picked cylinder face is always in millimetres,** also in inch
-  mode.
-- **The outline of a picked flat face** (Lay Flat, Push/Pull) is chained from the face's
+  in a browser yet. **Nathan (2026-11-13): measure it in a real browser in 4c; if it is over
+  about 0.3 s, fix it (for example in slices, like the red overhangs).**
+- **Not accepted, to fix (Nathan, 2026-11-13): the Diameter readout of a picked cylinder face
+  is always in millimetres,** also in inch mode. It must follow the unit setting like 1.x.
+- **Accepted (2026-11-13): the outline of a picked flat face** (Lay Flat, Push/Pull) is chained from the face's
   boundary edges. 1.x's `faceOutline` also simplifies and orders the rings, so the drawn
   outline can have more points; the picked face and its params are the same.
-- **Look differences egui forces:** a select is egui's drop-down, not the system one (grouped
+- **Accepted (2026-11-13): look differences egui forces:** a select is egui's drop-down, not the system one (grouped
   options keep 1.x's group headings); dashed selection boxes are solid; the busy note uses
   egui's spinner; the focus glow is two strokes.
-- **Two UI checks wait for later milestones:** the browser drawer of `touch` (2.0's browser
+- **Accepted (2026-11-13): two UI checks wait for later milestones:** the browser drawer of `touch` (2.0's browser
   panel floats and has no drawer; milestone 5) and the sketch and Extrude timeline edit of
   `desktop_tools` (needs sketch mode; milestone 4c).
