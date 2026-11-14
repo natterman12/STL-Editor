@@ -33,6 +33,7 @@ fn kinds(updates: &[Update]) -> String {
             Update::EngineLost => "engineLost".into(),
             Update::SketchOp { seq, result } => format!("sketchOp({seq} {})", if result.is_ok() { "ok" } else { "err" }),
             Update::Solved { seq, ok, .. } => format!("solved({seq} {ok})"),
+            Update::Autosaved { ok, .. } => format!("autosaved({ok})"),
         })
         .collect::<Vec<_>>()
         .join(", ")
