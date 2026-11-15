@@ -470,6 +470,10 @@ fn cube_harness() -> (Harness<'static>, Rc<RefCell<Viewport>>, V3) {
         shown.borrow_mut().show(ui);
     });
     h.run_steps(3);
+    // the cube is prepared on a worker thread: wait until it is pickable (a slow CI machine
+    // could otherwise pick nothing)
+    vp.borrow_mut().flush();
+    h.run_steps(1);
     // a point on the top face, off the view axis
     (h, vp, [6.0, 4.0, 20.0])
 }
