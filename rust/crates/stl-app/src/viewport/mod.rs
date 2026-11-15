@@ -521,10 +521,15 @@ impl Viewport {
         renderer::render_state_lost(rs)
     }
 
-    /// The window's device refuses uploads (a loss some drivers never report). Native only.
+    /// The window's device refuses uploads (a loss some drivers never report). Once it does,
+    /// [`Viewport::device_lost`] says so from then on. Native only.
     #[cfg(not(target_arch = "wasm32"))]
     pub fn device_refuses_uploads(&self) -> bool {
-        self.gpu_rs.as_ref().is_some_and(renderer::render_state_refuses_uploads)
+        let refused = self.gpu_rs.as_ref().is_some_and(renderer::render_state_refuses_uploads);
+        if refused {
+            self.stats.device_lost.store(true, std::sync::atomic::Ordering::Relaxed);
+        }
+        refused
     }
 
     /// True the first time it is asked after [`Viewport::device_lost`] became true.
