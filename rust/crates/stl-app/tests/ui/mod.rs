@@ -35,6 +35,11 @@ mod split_face;
 mod measure_info;
 mod handoff;
 mod no_silent_buttons;
+mod hole_place;
+mod highlights;
+mod measure_triangle;
+mod tool_picking;
+mod tree_select;
 
 use std::path::Path;
 

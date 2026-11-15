@@ -13,6 +13,7 @@ use serde_json::{Map, Value};
 use stl_engine::params::resolve_deep;
 
 use super::fields::bool::truthy;
+use super::gizmo::{Gizmo, GizmoBody};
 use super::fields::number::{expr_title, is_expr, num_value, parse_num};
 use super::fields::{self, Bufs, FieldEnv, FORM_W};
 use super::preview::{MsgKind, PreviewState, ToolMsg};
@@ -410,13 +411,20 @@ impl OpenTool {
                 edits.push(e);
             }
             ui.add_space(6.0);
+            if def.key == "thread" && f.key == "offset" {
+                // the From rows under Position: distances from part edges or sketch lines
+                if fields::place_refs::show_thread_from(ui, tk, &mut self.values, env.ctx, "plane", &mut self.active_field) {
+                    self.preview.schedule(super::preview::DELAY_MS, def.flags.no_live_preview);
+                    out.changed = true;
+                }
+            }
         }
         if def.extra == Some("dropToBed") {
             ui.horizontal_top(|ui| {
                 ui.add_space(fields::LABEL_W + fields::GAP);
                 // `.ctl` shrinks its buttons to the column and wraps their text
                 let bw = (fields::CTL_W - 4.0) / 2.0;
-                if ctl_button_w(ui, tk, "Drop to bed", bw).clicked() {
+                if ctl_button_w(ui, tk, "Drop to plate", bw).clicked() {
                     if let Some(tr) = drop_to_bed(&self.values, env.ctx) {
                         edits.push(fields::Edit { key: "translate".into(), value: tr });
                     }
@@ -462,6 +470,10 @@ impl OpenTool {
             out.changed = true;
         }
         for e in edits {
+            if def.key == "thread" && e.key == "offset" {
+                // typing a position replaces the edge distances
+                self.values.remove(fields::place_refs::POSITION_REFS);
+            }
             self.set_value(&e.key, e.value, env.ctx);
         }
     }
@@ -565,16 +577,18 @@ fn r4(x: f64) -> f64 {
 }
 
 fn drop_to_bed(values: &Values, ctx: &Ctx) -> Option<Value> {
-    let bs = picked_boxes(values, ctx);
-    if bs.is_empty() {
-        return None;
-    }
-    let landed = values.get("bed").is_some_and(truthy)
-        && values.get("rotate").and_then(Value::as_array).is_some_and(|a| a.iter().any(|x| parse_num(x).abs() > 1e-9));
-    let zmin = bs.iter().map(|b| b.0[2]).fold(f64::INFINITY, f64::min);
+    let ids: Vec<&str> = values.get("bodies").and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_str).collect()).unwrap_or_default();
+    let bodies: Vec<GizmoBody> = ctx
+        .bodies
+        .iter()
+        .filter(|b| ids.contains(&b.id.as_str()))
+        .filter_map(|b| bbox(b).map(|(min, max)| GizmoBody { id: b.id.clone(), bbox: stl_kernel::Aabb { min, max }, mesh: b.mesh.clone() }))
+        .collect();
+    // turns included: the turned part's lowest point goes onto the plate
+    let z = Gizmo::drop_to_plate(&bodies, values)?[2];
     let mut tr: Vec<Value> = values.get("translate").and_then(Value::as_array).cloned().unwrap_or_else(|| vec![Value::from(0); 3]);
     tr.resize(3, Value::from(0));
-    tr[2] = num_value(if landed { 0.0 } else { r4(-zmin) });
+    tr[2] = num_value(r4(z));
     Some(Value::Array(tr))
 }
 

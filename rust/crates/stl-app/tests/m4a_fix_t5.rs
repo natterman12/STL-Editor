@@ -5,16 +5,11 @@
 //! that puts the camera 60 / sin(halfFov) * 1.05 from the origin along (1, -1, 0.85), so the
 //! 200 mm grid runs off both sides of the view and the X, Y and Z axes show around the origin.
 //!
-//! Section cap: 1.x's cut face (`viewer.js` `o.back`) is the body's back faces in a flat
-//! `#d06060`, with no pattern of its own. The fine "hatch" seen on it in 1.x is the floor grid:
-//! three draws the (transparent) grid after the opaque bodies with a normal depth test, so it
-//! shows wherever the back faces under the cut lie on the grid's plane (a part standing on the
-//! bed) or below it (a part crossing the bed). A part floating above the bed shows a plain cut
-//! face; with the grid off every cut face is plain.
+//! Section cap (milestone 7): the cut face is the body's colour, 25 % darker, and the grid never
+//! shows on it. (1.x painted it `#d06060` and let the floor grid show on it as a fine "hatch";
+//! that is gone: the grid is drawn first, under every body and cut face.)
 //!
-//! Grid through a body: where a part dips below the bed, the grid lies in front of it and shows
-//! over it, blended at the grid's own opacity (at most 0.9 dark / 0.6 light, the major lines'),
-//! never more; a part standing on the bed shows no grid.
+//! Grid through a body: the grid never shows over a body, even the part below the bed.
 //!
 //! Native only: the GPU these tests use does not exist on wasm32.
 #![cfg(not(target_arch = "wasm32"))]
@@ -255,11 +250,11 @@ fn mask(img: &image::RgbaImage, inside: impl Fn(u32, u32) -> bool) -> Vec<(u32, 
     out
 }
 
-/// Pixels well inside the cut face (`#d06060`).
+/// Pixels well inside the cut face (`#9aa7b4` x 0.75).
 fn cap_mask(img: &image::RgbaImage) -> Vec<(u32, u32)> {
     mask(img, |x, y| {
         let [r, g, b, _] = img.get_pixel(x, y).0;
-        (r as i32 - 0xd0).abs() <= 3 && (g as i32 - 0x60).abs() <= 3 && (b as i32 - 0x60).abs() <= 3
+        (r as i32 - 115).abs() <= 4 && (g as i32 - 125).abs() <= 4 && (b as i32 - 135).abs() <= 4
     })
 }
 
@@ -304,11 +299,6 @@ fn grid_changes(dark: bool, mask: &[(u32, u32)], off: &image::RgbaImage, on: &im
     out
 }
 
-/// The grid's strongest opacity (its major lines').
-fn grid_opacity(dark: bool) -> f64 {
-    grid_major(dark)[0].1
-}
-
 /// Cap pixels (found with the grid off) and what the grid does to them.
 fn grid_over_cap(gpu: &Headless, dark: bool, body: &BodyView, cut: f64, name: Option<&str>) -> (usize, GridChange) {
     let off = picture(gpu, cut_view(gpu, dark, body, Some(cut), false), dark, 320.0, 240.0, None);
@@ -317,46 +307,36 @@ fn grid_over_cap(gpu: &Headless, dark: bool, body: &BodyView, cut: f64, name: Op
     (mask.len(), grid_changes(dark, &mask, &off, &on))
 }
 
-/// The grid shows on `n` pixels, as a blend toward its colours no stronger than its opacity.
-fn assert_grid_like_1x(name: &str, what: &str, dark: bool, n: usize, c: &GridChange) {
-    assert!(c.changed >= 20, "{name}: the grid shows on only {} of {n} pixels ({what})", c.changed);
-    assert!(c.toward_grid, "{name}: the grid changes pixels past its own colours ({what})");
-    let most = grid_opacity(dark) + 0.05;
-    assert!(c.median > 0.05 && c.median <= most, "{name}: the grid's median blend is {:.2}, want 0.05..{most:.2} ({what})", c.median);
+/// The cut face has `n` pixels and the grid changes none of them.
+fn assert_no_grid(name: &str, what: &str, n: usize, c: &GridChange) {
+    assert!(n >= 200, "{name}: only {n} cut-face pixels ({what})");
+    assert_eq!(c.changed, 0, "{name}: the grid shows on {} of {n} cut-face pixels ({what})", c.changed);
 }
 
-fn section_cap_shows_grid(name: &str, dark: bool) {
+fn section_cap_has_no_grid(name: &str, dark: bool) {
     let Some(gpu) = gpu::headless() else {
         eprintln!("no GPU adapter: skipped");
         return;
     };
-    // standing on the bed: the cut face's floor (the bottom's back side) is on the grid's
-    // plane, and the grid shows on it as 1.x's "hatch"
+    // standing on the bed, crossing it, cut below it, floating above it: never a grid line
     let (cap, c) = grid_over_cap(&gpu, dark, &block("b1", 0.0, 20.0), 10.0, Some(name));
-    assert!(cap >= 200, "{name}: only {cap} cap pixels on the block on the bed");
-    assert_grid_like_1x(name, "block on the bed", dark, cap, &c);
-    // crossing the bed: the back faces under the cut face are below the grid
+    assert_no_grid(name, "block on the bed", cap, &c);
     let (cap, c) = grid_over_cap(&gpu, dark, &block("b1", -10.0, 10.0), 5.0, None);
-    assert!(cap >= 200, "{name}: only {cap} cap pixels on the block crossing the bed");
-    assert_grid_like_1x(name, "block crossing the bed", dark, cap, &c);
-    // cut below the bed: the grid is between the camera and the cut face
+    assert_no_grid(name, "block crossing the bed", cap, &c);
     let (cap, c) = grid_over_cap(&gpu, dark, &block("b1", -20.0, 10.0), -5.0, None);
-    assert!(cap >= 200, "{name}: only {cap} cap pixels below the bed");
-    assert_grid_like_1x(name, "cut below the bed", dark, cap, &c);
-    // floating above the bed: the grid is behind the part, and the cut face is plain
+    assert_no_grid(name, "cut below the bed", cap, &c);
     let (cap, c) = grid_over_cap(&gpu, dark, &block("b1", 5.0, 25.0), 15.0, None);
-    assert!(cap >= 200, "{name}: only {cap} cap pixels above the bed");
-    assert_eq!(c.changed, 0, "{name}: the grid behind a part above the bed shows on {} of {cap} cap pixels", c.changed);
+    assert_no_grid(name, "block above the bed", cap, &c);
 }
 
 #[test]
-fn section_cap_shows_grid_dark() {
-    section_cap_shows_grid("section_cap_shows_grid_dark", true);
+fn section_cap_has_no_grid_dark() {
+    section_cap_has_no_grid("section_cap_no_grid_dark", true);
 }
 
 #[test]
-fn section_cap_shows_grid_light() {
-    section_cap_shows_grid("section_cap_shows_grid_light", false);
+fn section_cap_has_no_grid_light() {
+    section_cap_has_no_grid("section_cap_no_grid_light", false);
 }
 
 // ---------------------------------------------------------------------- grid through a body
@@ -383,16 +363,14 @@ fn grid_through_body_case(name: &str, dark: bool) {
         eprintln!("no GPU adapter: skipped");
         return;
     };
-    // standing on the bed: the grid is under the part and does not show on it (a pixel or two
-    // may blend along the bottom edge, where the part meets the bed)
+    // standing on the bed, or crossing it: the grid is drawn under the part and never shows on
+    // it (a pixel or two may blend along the bottom edge, where the part meets the bed)
     let (body, c) = grid_through_body(&gpu, dark, 0.0, 20.0, None);
     assert!(body >= 500, "{name}: only {body} body pixels on the bed");
     assert!(c.changed * 1000 < body, "{name}: the grid shows through {} of {body} pixels of a part on the bed", c.changed);
-    // crossing the bed: the grid shows over the part below the bed, at its own opacity only
     let (body, c) = grid_through_body(&gpu, dark, -10.0, 10.0, Some(name));
     assert!(body >= 500, "{name}: only {body} body pixels crossing the bed");
-    assert!(c.changed * 2 < body, "{name}: the grid shows over {} of {body} pixels, more than the part below the bed", c.changed);
-    assert_grid_like_1x(name, "part crossing the bed", dark, body, &c);
+    assert!(c.changed * 1000 < body, "{name}: the grid shows over {} of {body} pixels of a part crossing the bed", c.changed);
 }
 
 #[test]

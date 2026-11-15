@@ -108,8 +108,25 @@ pub fn hollow(s: &Solid, thickness: f64, pitch: Option<f64>, cavity_only: bool) 
     }
     let cavity = field_to_solid(&field32, origin, pitch, 0.0)?;
     let cavity = cavity.simplify(pitch * 0.1); // more and the cavity drifts by up to 0.1 mm
+    let cavity = squared(s, cavity, thickness, pitch);
     let r = if cavity_only { cavity } else { s.difference(&cavity) };
     Ok(r)
+}
+
+/// The cavity with its corners squared onto the part's flat faces (spec 2.7). If the snapped
+/// surface is not a solid the voxel cavity is kept.
+fn squared(outer: &Solid, cavity: Solid, thickness: f64, pitch: f64) -> Solid {
+    let mut m = cavity.to_mesh();
+    let before = m.positions.clone();
+    super::square::square_inner(&mut m, &outer.to_mesh(), thickness, pitch);
+    if m.positions == before {
+        return cavity; // no flat faces to square (a sphere): exactly the voxel cavity
+    }
+    match Solid::from_mesh(&m) {
+        // the snapped faces are flat now: merge them (a hair of tolerance, nothing drifts)
+        Ok(s) if !s.is_empty() && s.volume() > 0.0 => s.simplify(pitch * 0.01),
+        _ => cavity,
+    }
 }
 
 /// numpy `linalg.norm` of a float32 vector (`sqrt(dot(x, x))` in float32), as a float.

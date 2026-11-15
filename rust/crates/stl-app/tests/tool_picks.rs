@@ -693,8 +693,8 @@ fn rotate_opens_move_gizmo() {
     assert!(ribbon::search("rotate").iter().any(|c| c.k == "rotate"));
 }
 
-/// 1.x `validTool` and `advanceField` skip a `bodies` field that has any placeholder
-/// ("Auto (bodies it touches)", "The part you draw on"), not only the exact word "Auto".
+/// 1.x `validTool` skips a `bodies` field that has any placeholder ("Auto (bodies it touches)",
+/// "The part you draw on"): it may stay empty. Spec 2.11 changes `advanceField`: it now lands on it.
 #[test]
 fn any_placeholder_makes_a_bodies_field_optional() {
     for ph in ["Auto", "Auto (bodies it touches)", "The part you draw on"] {
@@ -709,7 +709,9 @@ fn any_placeholder_makes_a_bodies_field_optional() {
         // advancing from `body` doesn't land on the optional field, and it isn't the first active one
         let mut e = Values::new();
         e.insert("body".into(), json!([]));
-        assert_eq!(bodies::advance_field(t, &e, "body"), None, "{ph}");
+        // spec 2.11: once the pick fields above are filled, Bodies becomes the active field, so an
+        // optional Bodies field is advanced to (only non-Bodies placeholders are skipped)
+        assert_eq!(bodies::advance_field(t, &e, "body").as_deref(), Some("targets"), "{ph}");
         assert_eq!(bodies::first_active(t, &e).as_deref(), Some("body"), "{ph}");
     }
     // without a placeholder the field is required and is advanced to

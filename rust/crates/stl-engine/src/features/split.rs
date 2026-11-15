@@ -12,7 +12,7 @@ fn split(
     fid: &str,
     p: &Map<String, Value>,
     res: &mut FeatureResult,
-    _ctx: &Ctx<'_>,
+    ctx: &Ctx<'_>,
 ) -> Result<(), FeatureError> {
     let bid = p.get("body").and_then(Value::as_str).unwrap_or("").to_string();
     if bid.is_empty() {
@@ -65,8 +65,14 @@ fn split(
         res.created.push(id);
     }
     match keep.as_str() {
-        "above" => below = Solid::compose(&[]),
-        "below" => above = Solid::compose(&[]),
+        "above" => {
+            res.set_cutter(ctx.preview, &below);
+            below = Solid::compose(&[]);
+        }
+        "below" => {
+            res.set_cutter(ctx.preview, &above);
+            above = Solid::compose(&[]);
+        }
         _ => {}
     }
     if above.is_empty() && below.is_empty() {

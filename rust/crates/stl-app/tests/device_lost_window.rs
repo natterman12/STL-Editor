@@ -4,16 +4,18 @@
 //! the work is autosaved, and the new window opens it without asking (`app_device.rs`). This
 //! drives that path as the window does: `StlApp::run_window` (what `main` runs) around the
 //! app's `eframe::App::ui` with an `eframe::Frame` that holds the device, and every frame
-//! painted by egui-wgpu's own `Renderer` (`Headless::paint_egui`), which is where the window
-//! panics after a loss. Only `eframe::run_native` itself is replaced, by a loop that does what
+//! painted by egui-wgpu's own `Renderer` (`Headless::paint_egui`), which is where upstream
+//! egui-wgpu panicked after a loss (milestone 7: our copy in `rust/third_party/egui-wgpu` skips
+//! the frame instead). Only `eframe::run_native` itself is replaced, by a loop that does what
 //! it does.
 //!
-//! Its own test binary with one GPU test (three windows, one after another).
+//! Its own test binary. The GPU tests here share one settings folder and run one at a time
+//! ([`setup`]).
 #![cfg(not(target_arch = "wasm32"))]
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 use std::time::{Duration, Instant};
 
 use egui_kittest::kittest::Queryable;
@@ -29,6 +31,9 @@ use stl_app::viewport::renderer::{destroy_device, Headless, Stats};
 
 #[path = "ui/harness.rs"]
 mod harness;
+// `WGPU_ADAPTER_NAME="Microsoft Basic Render Driver"` runs these on WARP, as CI does
+#[path = "support/gpu.rs"]
+mod gpu;
 use harness::SharedLink;
 
 const W: u32 = 1280;
@@ -42,6 +47,27 @@ fn platform(cfg: &Path) -> NativePlatform {
     let p = NativePlatform::with_config_dir(cfg);
     p.set_setting_json("update_check", json!(false)); // no network from a test
     p
+}
+
+/// This binary's settings folder (never Nathan's real one), set once, and a lock so only one
+/// test drives a window at a time (they share the folder, and each checks what is in it).
+fn setup() -> (PathBuf, MutexGuard<'static, ()>) {
+    static CFG: OnceLock<PathBuf> = OnceLock::new();
+    static ONE: Mutex<()> = Mutex::new(());
+    let guard = ONE.lock().unwrap_or_else(|e| e.into_inner());
+    let cfg = CFG
+        .get_or_init(|| {
+            let cfg = std::env::temp_dir().join(format!("stle2-device-lost-window-{}", std::process::id()));
+            let _ = std::fs::remove_dir_all(&cfg);
+            std::fs::create_dir_all(&cfg).unwrap();
+            // SAFETY: set once, under the lock, before any window or engine of these tests starts
+            // (the harness's test_env set it before main; this only moves it to our own folder)
+            unsafe { std::env::set_var("STLEDITOR2_CONFIG_DIR", &cfg) };
+            cfg
+        })
+        .clone();
+    assert!(autosave_root().starts_with(&cfg));
+    (cfg, guard)
 }
 
 fn autosave_root() -> PathBuf {
@@ -92,6 +118,7 @@ fn window(gpu: &Headless, cfg: &Path, ends: Ends) -> Option<StlApp> {
         }
     };
     let mut reached_after_paint = false;
+    let mut asked_to_close = false;
     // `eframe::run_native`, minus the OS window: make the app, then ui + paint every frame
     let run = |creator: eframe::AppCreator<'static>| -> eframe::Result {
         let ctx = egui::Context::default();
@@ -132,16 +159,27 @@ fn window(gpu: &Headless, cfg: &Path, ends: Ends) -> Option<StlApp> {
             return Ok(()); // the window closed
         }
 
-        // the driver resets while a frame is painted: egui-wgpu panics there, as in the window
+        // the driver resets while a frame is painted: upstream egui-wgpu panicked there; ours
+        // skips the frame, and the app's next frame asks the window to close
         let out = step(&mut app);
         destroy_device(&gpu.render_state);
         gpu.paint_egui(&ctx, out, W, H);
         reached_after_paint = true;
+        for _ in 0..10 {
+            let out = step(&mut app);
+            let close = out.viewport_output.get(&egui::ViewportId::ROOT).is_some_and(|v| v.commands.contains(&egui::ViewportCommand::Close));
+            gpu.paint_egui(&ctx, out, W, H);
+            if close {
+                asked_to_close = true;
+                return Ok(()); // the window closes
+            }
+        }
         Ok(())
     };
     let kept = StlApp::run_window(run, make).expect("run_window");
     if ends != Ends::Quit {
-        assert!(!reached_after_paint, "egui-wgpu painted on a lost device without panicking: the Close path covers that now, update this test");
+        assert!(reached_after_paint, "painting on a lost device panicked (run_window caught it)");
+        assert!(asked_to_close, "the frames after the loss didn't ask the window to close");
     }
     drop(link); // the test's handle; the app holds the other
     kept
@@ -176,26 +214,13 @@ fn marker_of(cmd: &std::process::Command) -> Option<String> {
     cmd.get_envs().find(|(k, _)| *k == StlApp::AFTER_RESET_ENV).and_then(|(_, v)| v).map(|v| v.to_string_lossy().into_owned())
 }
 
-/// After a loss the kept app asks the (gone) window to close on its next frame.
-fn asks_to_close(app: &mut StlApp) -> bool {
-    let ctx = app.viewport.egui_ctx().expect("the viewport was shown").clone();
-    let mut frame = eframe::Frame::_new_kittest();
-    let mut out = ctx.run_ui(input(), |ui| eframe::App::ui(app, ui, &mut frame));
-    out.textures_delta.clear(); // nothing paints this frame
-    out.viewport_output.get(&egui::ViewportId::ROOT).is_some_and(|v| v.commands.contains(&egui::ViewportCommand::Close))
-}
-
 #[test]
 fn window_device_lost_restarts_and_recovers() {
     // never Nathan's real folders: settings and autosave go to a temp folder
-    let cfg = std::env::temp_dir().join(format!("stle2-device-lost-window-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&cfg);
-    std::fs::create_dir_all(&cfg).unwrap();
-    // SAFETY: the only test in this binary, set before any thread of ours starts
-    unsafe { std::env::set_var("STLEDITOR2_CONFIG_DIR", &cfg) };
-    assert!(autosave_root().starts_with(&cfg));
+    let (cfg, _one) = setup();
+    let _ = std::fs::remove_dir_all(autosave_root());
 
-    if Headless::new().is_none() {
+    if gpu::headless().is_none() {
         // loud on purpose: the verify run looks for this line
         println!("SKIPPED: no GPU adapter (window_device_lost_restarts_and_recovers did not run)");
         eprintln!("SKIPPED: no GPU adapter (window_device_lost_restarts_and_recovers did not run)");
@@ -204,15 +229,14 @@ fn window_device_lost_restarts_and_recovers() {
     let path = harness::project("basic.stlx").display().to_string();
 
     // ---- 1. a normal quit: nothing kept, nothing left to recover
-    let gpu = Headless::new().unwrap();
+    let gpu = gpu::headless().unwrap();
     assert!(window(&gpu, &cfg, Ends::Quit).is_none(), "a normal quit kept the app");
     assert!(stl_platform::autosave::recoverable(&autosave_root(), None).is_empty());
 
     // ---- 2. lost with unsaved work: autosave, restart, the copy opens without asking
-    let gpu = Headless::new().unwrap();
+    let gpu = gpu::headless().unwrap();
     let mut app = window(&gpu, &cfg, Ends::LostUnsaved).expect("the app is kept after a device loss");
     assert!(app.viewport.device_lost(false));
-    assert!(asks_to_close(&mut app), "the first frame after the loss didn't ask the window to close");
     assert!(app.shell.dirty, "the added box is unsaved work");
     let steps = app.timeline_view.items.len();
     let bodies: Vec<String> = app.bodies.iter().map(|b| b.id.clone()).collect();
@@ -246,7 +270,7 @@ fn window_device_lost_restarts_and_recovers() {
     std::fs::rename(autosave_root(), &stash).unwrap();
 
     // ---- 3. lost with nothing unsaved: the new window opens the project's file
-    let gpu = Headless::new().unwrap();
+    let gpu = gpu::headless().unwrap();
     let mut app = window(&gpu, &cfg, Ends::LostClean).expect("the app is kept after a device loss");
     assert!(!app.shell.dirty);
     let bodies: Vec<String> = app.bodies.iter().map(|b| b.id.clone()).collect();
@@ -270,7 +294,7 @@ fn window_device_lost_restarts_and_recovers() {
     std::fs::rename(&stash, autosave_root()).unwrap();
     assert_eq!(wait_for_copy(), leftover);
 
-    let gpu = Headless::new().unwrap();
+    let gpu = gpu::headless().unwrap();
     let app = window(&gpu, &cfg, Ends::LostEmptied).expect("the app is kept after a device loss");
     assert!(app.shell.dirty, "deleting every step is unsaved work");
     assert!(app.timeline_view.items.is_empty());
@@ -294,7 +318,7 @@ fn window_device_lost_restarts_and_recovers() {
         drop(link);
         assert_eq!(stl_platform::autosave::recoverable(&autosave_root(), None).len(), 1, "the offered copy is still there");
     }
-    let _ = std::fs::remove_dir_all(&cfg);
+    let _ = std::fs::remove_dir_all(autosave_root());
 }
 
 /// The one recoverable copy, once its window's lock is gone.
@@ -308,4 +332,77 @@ fn wait_for_copy() -> String {
         assert!(Instant::now() < end, "no leftover copy: {copies:?}");
         std::thread::sleep(Duration::from_millis(50));
     }
+}
+
+/// Milestone 7 (spec 2.1): a refused staging write, on the real paint path, is a reported loss
+/// and not a panic. No `run_window` and no `catch_unwind` here: the test owns the app and paints
+/// with egui-wgpu's `Renderer` (`update_buffers`, `render`), so a panic fails the test. Then the
+/// app's next frame notices the loss, logs it, asks the window to close, and `main`'s restart
+/// path writes the autosave copy and the restart marker.
+#[test]
+fn refused_staging_write_does_not_panic() {
+    let (cfg, _one) = setup();
+    let _ = std::fs::remove_dir_all(autosave_root());
+    let Some(gpu) = gpu::headless() else {
+        println!("SKIPPED: no GPU adapter (refused_staging_write_does_not_panic did not run)");
+        eprintln!("SKIPPED: no GPU adapter (refused_staging_write_does_not_panic did not run)");
+        return;
+    };
+    let link = Arc::new(NativeLink::new());
+    let ctx = egui::Context::default();
+    let mut cc = eframe::CreationContext::_new_kittest(ctx.clone());
+    cc.wgpu_render_state = Some(gpu.render_state.clone());
+    let mut viewport = stl_app::viewport::Viewport::new();
+    viewport.init_gpu(&gpu.render_state);
+    let st = viewport.stats_handle();
+    let mut app = StlApp::new(&cc.egui_ctx, Box::new(platform(&cfg)), Box::new(SharedLink { inner: link.clone() }));
+    app.viewport = viewport;
+    app.enable_autosave();
+    app.open_launch_file(&harness::project("basic.stlx"));
+    let mut frame = eframe::Frame::_new_kittest();
+    frame.wgpu_render_state = Some(gpu.render_state.clone());
+    let mut step = |app: &mut StlApp| ctx.run_ui(input(), |ui| eframe::App::ui(app, ui, &mut frame));
+    let drawn = |st: &Stats, after: u64| !link.is_busy() && st.uploads() > after && !st.upload_pending.load(Ordering::Relaxed);
+
+    until("the project to open", || drawn(&st, 0), || {
+        let out = step(&mut app);
+        gpu.paint_egui(&ctx, out, W, H);
+    });
+    let uploads = st.uploads();
+    link.send(Command::AddFeature { kind: "primitive".into(), params: json!({"shape": "box", "size": [7.0, 8.0, 9.0]}), index: None, name: None });
+    until("the change", || drawn(&st, uploads), || {
+        let out = step(&mut app);
+        gpu.paint_egui(&ctx, out, W, H);
+    });
+    assert!(!app.viewport.device_lost(true));
+    assert!(app.shell.dirty, "the added box is unsaved work");
+
+    // the device goes away; this paint's staging write is refused inside `update_buffers`
+    let out = step(&mut app);
+    assert!(!out.shapes.is_empty(), "the frame has something to upload");
+    destroy_device(&gpu.render_state);
+    gpu.paint_egui(&ctx, out, W, H);
+    assert!(gpu.render_state.renderer.read().upload_refused(), "the staging write was not refused (the device wasn't lost?)");
+    assert!(app.viewport.device_lost(false), "the refused upload counts as a lost device");
+
+    // the next frame notices it once: logged, and the window is asked to close
+    let out = step(&mut app);
+    let close = out.viewport_output.get(&egui::ViewportId::ROOT).is_some_and(|v| v.commands.contains(&egui::ViewportCommand::Close));
+    gpu.paint_egui(&ctx, out, W, H);
+    assert!(close, "the first frame after the loss didn't ask the window to close");
+    let log = std::fs::read_to_string(stl_platform::settings::log_file()).unwrap_or_default();
+    assert!(stl_platform::settings::log_file().starts_with(&cfg));
+    let line = log.lines().rev().find(|l| l.contains("The graphics device was lost")).unwrap_or_else(|| panic!("no loss line in log.txt: {log:?}"));
+    assert!(line.contains("upload refused: yes"), "{line}");
+    println!("log.txt: {line}");
+
+    // `main`: autosave, then the restart marker names the copy
+    let saved = app.save_after_device_loss(Duration::from_secs(60));
+    assert!(saved, "the autosave copy wasn't written");
+    drop(link); // the test's handle: the engine (and its autosave session) ends with the app
+    let marker = marker_of(&app.restart_after_device_loss(saved).unwrap()).expect("a restart marker");
+    let copies = stl_platform::autosave::recoverable(&autosave_root(), None);
+    assert_eq!(copies.len(), 1, "one autosave copy: {copies:?}");
+    assert_eq!(marker, format!("recover:{}", copies[0].id));
+    let _ = std::fs::remove_dir_all(autosave_root());
 }

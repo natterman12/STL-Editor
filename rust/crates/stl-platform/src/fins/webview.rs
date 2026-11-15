@@ -49,6 +49,9 @@ const START_LIMIT: Duration = Duration::from_secs(60);
 const POLL: Duration = Duration::from_millis(200);
 /// An argument longer than this (the triangle soup of a part) is kept in the page.
 const BIG: usize = 1_000_000;
+/// The Win32 window class of the hidden windows: not tao's default, which is winit's too.
+#[cfg(windows)]
+pub const WINDOW_CLASS: &str = "STL Editor Support Fins Host";
 
 const PAGE: &str = r#"<!doctype html><html><head><meta charset="utf-8"><title>Support Fins</title></head><body>
 <script src="engine.js"></script>
@@ -309,9 +312,17 @@ fn handle(ev: Ui, target: &EventLoopWindowTarget<Ui>, slots: &mut HashMap<u64, S
 }
 
 fn build(id: u64, shared: Arc<Shared>, tx: Sender<Msg>, target: &EventLoopWindowTarget<Ui>) -> Result<Slot, String> {
-    let window = WindowBuilder::new()
-        .with_title("Support Fins")
-        .with_visible(false)
+    let window = WindowBuilder::new().with_title("Support Fins").with_visible(false);
+    // tao and winit (the app's window) both name their Win32 window class "Window Class" by
+    // default, in the same module. Whichever registers second silently gets the other's window
+    // procedure: the hidden window then ran winit's procedure on tao's window data, and the app
+    // ended inside that callback (0xc000041d, milestone 7 spec 2.1). A class of our own.
+    #[cfg(windows)]
+    let window = {
+        use tao::platform::windows::WindowBuilderExtWindows;
+        window.with_window_classname(WINDOW_CLASS)
+    };
+    let window = window
         .build(target)
         .map_err(|e| format!("could not make the hidden window: {e}"))?;
     // Each host gets its own profile folder, so it gets its own browser process: one host

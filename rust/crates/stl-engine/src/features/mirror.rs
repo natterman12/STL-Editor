@@ -34,6 +34,9 @@ fn f_mirror(
             "replace" => {
                 state.bodies.insert(bid.clone(), mb);
                 res.modified.push(bid.clone());
+                // the body itself was mirrored: its sketches go with it (Join and the copy
+                // keep the original where it was, so its sketches stay)
+                state.record_transform(bid, m);
             }
             "join" => {
                 let s = b.require_solid()?.clone();

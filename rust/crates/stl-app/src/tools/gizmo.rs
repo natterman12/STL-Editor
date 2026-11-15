@@ -19,6 +19,9 @@
 //!    handle is held: a late preview never snaps the part back).
 //! 6. A click in the viewport that [`Gizmo::consume_click`] claims is not a click on the part.
 //!
+//! Move's arrows snap Move X Y Z to the grid step the view shows at this zoom, and the part's
+//! lowest point onto the build plate within [`PLATE_SNAP_PX`] (M7 spec 2.9); Shift moves freely.
+//!
 //! Rotations are degrees about X, then Y, then Z (`R = Rz·Ry·Rx`, three's Euler order 'ZYX'):
 //! [`quat_of`] and [`rot_of`] are ports of 1.x's `quatOf` and `rotOf`.
 
@@ -39,6 +42,9 @@ pub type Quat = [f64; 4];
 const DEG: f64 = std::f64::consts::PI / 180.0;
 /// `tc.setRotationSnap(5 * DEG)`.
 pub const ROTATION_SNAP: f64 = 5.0 * DEG;
+/// A dragged part's lowest point snaps onto the build plate (Z = 0) within this many screen
+/// points (M7 spec 2.9).
+pub const PLATE_SNAP_PX: f64 = 6.0;
 
 // ---------------------------------------------------------------------------- JS numbers
 
@@ -302,6 +308,15 @@ struct Drag {
     scale_start: V3,
     point_start: V3,
     rotation_axis: V3,
+    /// Move's numbers (`translate`) when the handle was grabbed.
+    t_start: V3,
+    /// The grid step a move snaps to: the spacing the grid shows at this zoom, fixed for the
+    /// whole drag.
+    step: f64,
+    /// How close (mm) the lowest point must come to the plate to snap onto it.
+    plate_tol: f64,
+    /// The lowest point of the moved parts with Move Z at 0 (it is linear in Move Z).
+    low0: Option<f64>,
 }
 
 pub struct Gizmo {
@@ -319,6 +334,8 @@ pub struct Gizmo {
     moved: Vec<String>,
     start_q: Quat,
     sync_key: Option<String>,
+    /// The app shows inches: the grid step is a fraction of an inch.
+    inch: bool,
 }
 
 impl Gizmo {
@@ -337,7 +354,13 @@ impl Gizmo {
             moved: Vec::new(),
             start_q: [0.0, 0.0, 0.0, 1.0],
             sync_key: None,
+            inch: false,
         }
+    }
+
+    /// The app shows inches: moves snap to the inch grid (1/16 in and so on).
+    pub fn set_inch(&mut self, inch: bool) {
+        self.inch = inch;
     }
 
     pub fn kind(&self) -> GizmoKind {
@@ -643,6 +666,8 @@ impl Gizmo {
         let Some(h) = vp.gizmo_handle_at(pos) else { return false };
         let mode = self.mode(&self.values);
         let Some(hit) = self.plane_hit(vp, pos, mode, h) else { return false };
+        let px = vp.pixel_size(self.obj.pos);
+        let (t_start, low0) = if self.kind == GizmoKind::Move && mode == GizmoMode::Translate { self.move_start() } else { ([0.0; 3], None) };
         self.drag = Some(Drag {
             handle: h,
             pos_start: self.obj.pos,
@@ -650,6 +675,10 @@ impl Gizmo {
             scale_start: self.obj.scale,
             point_start: camera::sub(hit, self.obj.pos),
             rotation_axis: [0.0, 0.0, 1.0],
+            t_start,
+            step: crate::sketch::guides::visible_grid_step_in(1.0 / px, self.inch),
+            plate_tol: PLATE_SNAP_PX * px,
+            low0,
         });
         self.hover = Some(h);
         self.grabbed = true;
@@ -662,7 +691,8 @@ impl Gizmo {
     }
 
     /// `pointerMove` while a handle is held, then `drag()`: the part follows on screen. Returns
-    /// the numbers the handles stand for now (`liveNumbers`). `free` is Shift (no 5° steps).
+    /// the numbers the handles stand for now (`liveNumbers`). `free` is Shift: no 5° steps, and
+    /// a move does not snap to the grid step shown or onto the build plate.
     pub fn drag_to(&mut self, vp: &mut Viewport, pos: Pos2, free: bool) -> Option<Values> {
         let mut d = self.drag?;
         let mode = self.mode(&self.values);
@@ -675,6 +705,9 @@ impl Gizmo {
                     if !d.handle.has(c) {
                         off[k] = 0.0;
                     }
+                }
+                if self.kind == GizmoKind::Move && !free {
+                    off = Self::snap_move(&d, off);
                 }
                 self.obj.pos = camera::add(off, d.pos_start);
             }
@@ -743,6 +776,78 @@ impl Gizmo {
         let values = self.values.clone();
         self.publish(vp, &values);
         Some(live)
+    }
+
+    /// Move's numbers right now (as [`Gizmo::drag_values`] works them out, unrounded) and the
+    /// lowest point of the moved parts with Move Z at 0.
+    fn move_start(&self) -> (V3, Option<f64>) {
+        let Some(b) = self.bodies.first() else { return ([0.0; 3], None) };
+        let vals = self.values_for(&self.values, Some(b));
+        let c = Self::pivot(&b.bbox, str_or(vals.get("pivot"), "center"));
+        let p = self.obj.pos;
+        let t = [p[0] - c[0], p[1] - c[1], p[2] - c[2] - self.land];
+        let low = Self::lowest(&self.bodies, &vals).map(|lo| lo - or(vec3_of(vals.get("translate"), [0.0; 3]).unwrap_or([0.0; 3])[2], 0.0));
+        (t, low)
+    }
+
+    /// The lowest point of `bodies` placed by Move's numbers `vals`.
+    fn lowest(bodies: &[GizmoBody], vals: &Values) -> Option<f64> {
+        let g = Gizmo::new(GizmoKind::Move);
+        let mut lo = f64::INFINITY;
+        for b in bodies {
+            let m = g.matrix_for(b, vals);
+            for p in b.mesh.positions.chunks_exact(3) {
+                lo = lo.min(m[0][2] * p[0] as f64 + m[1][2] * p[1] as f64 + m[2][2] * p[2] as f64 + m[3][2]);
+            }
+        }
+        lo.is_finite().then_some(lo)
+    }
+
+    /// Snap a move (M7 spec 2.9): Move X Y Z go to whole grid steps on the axes the handle
+    /// moves; with Z free to move, a lowest point within [`PLATE_SNAP_PX`] of the plate lands
+    /// on it instead. `off` is the drag so far; returns it snapped.
+    fn snap_move(d: &Drag, mut off: V3) -> V3 {
+        let mut t = [0, 1, 2].map(|k| d.t_start[k] + off[k]);
+        let snap = |x: f64| {
+            let v = js_round(x / d.step) * d.step;
+            (v * 1e9).round() / 1e9
+        };
+        for (k, c) in ['X', 'Y', 'Z'].into_iter().enumerate() {
+            if d.handle.has(c) && d.step > 0.0 {
+                t[k] = snap(t[k]);
+            }
+        }
+        if d.handle.has('Z') {
+            if let Some(low0) = d.low0 {
+                if (low0 + d.t_start[2] + off[2]).abs() <= d.plate_tol {
+                    t[2] = -low0;
+                }
+            }
+        }
+        for (k, c) in ['X', 'Y', 'Z'].into_iter().enumerate() {
+            if d.handle.has(c) {
+                off[k] = t[k] - d.t_start[k];
+            }
+        }
+        off
+    }
+
+    /// Drop to plate: Move's numbers with Move Z changed so the parts' lowest point rests on
+    /// the build plate (turns and Land on bed included). `None` with no parts.
+    pub fn drop_to_plate(bodies: &[GizmoBody], values: &Values) -> Option<[f64; 3]> {
+        let mut t = vec3_of(values.get("translate"), [0.0; 3]).unwrap_or([0.0; 3]).map(|x| or(x, 0.0));
+        let lo = Self::lowest(bodies, values)?;
+        t[2] = js_round((t[2] - lo) * 1e4) / 1e4;
+        if t[2] == 0.0 {
+            t[2] = 0.0;
+        }
+        Some(t)
+    }
+
+    /// [`Gizmo::drop_to_plate`] for the bodies `values` names, as the viewport shows them.
+    pub fn drop_to_plate_in(vp: &Viewport, values: &Values) -> Option<[f64; 3]> {
+        let g = Gizmo::new(GizmoKind::Move);
+        Self::drop_to_plate(&g.collect_bodies(vp, values), values)
     }
 
     fn apply_transforms(&mut self, vp: &mut Viewport, vals: &Values) {

@@ -90,10 +90,20 @@ fn err(r: Result<Solid, stl_mesh::MeshError>) -> String {
 fn hollow_and_rebuild_match_1x() {
     let mut report = Vec::new();
 
+    // 1.x bevels the cavity corners (its goldens: volume 7206 / 7186..., area 7151...); 2.0 snaps
+    // them square (spec 2.7, rust/tests/EXCEPTIONS.md), so the box shell is exact: 30 x 30 x 20
+    // minus a 26 x 26 x 16 cavity. The 1.x records are kept for the bevelled numbers only.
     for q in ["draft", "normal", "fine"] {
         let b = box_30x30x20();
         let out = hollow(&b, 2.0, Some(hollow_pitch(&b, 2.0, q)), false).expect("hollow");
-        check(&format!("hollow_{q}"), &golden("hollow.json", &format!("hollow_{q}")), &out, &mut report);
+        let want = golden("hollow.json", &format!("hollow_{q}"));
+        let g = stats(&out);
+        println!("hollow_{q}: 1.x volume {} area {}; 2.0 volume {} area {} tri {}", want.volume, want.area, g.volume, g.area, g.triangles);
+        if (g.volume - 7184.0).abs() > 7.184 || (g.area - 7216.0).abs() > 7.216 {
+            report.push(format!("hollow_{q}: not square: volume {} (7184) area {} (7216)", g.volume, g.area));
+        }
+        // the bevelled 1.x cavity is a little smaller, so its shell a little larger
+        assert!(want.volume > g.volume, "1.x bevel should leave more material");
     }
 
     // a hollow with a thick wall: the error text
@@ -156,14 +166,18 @@ fn hollow_cavity_only_and_default_pitch_match_1x() {
     let cavity = hollow(&b, 2.0, Some(pitch), true).expect("cavity");
     let full = hollow(&b, 2.0, Some(pitch), false).expect("hollow");
     assert!((cavity.volume() + full.volume() - b.volume()).abs() < 1e-6 * b.volume());
-    assert_eq!(cavity.num_tri(), 100);
-    assert!(close(10811.016654935866, cavity.volume()), "cavity volume {}", cavity.volume());
-    assert!(close(2986.3821097370587, cavity.surface_area()), "cavity area {}", cavity.surface_area());
+    // 1.x's bevelled cavity: 100 triangles, volume 10811.0, area 2986.4 (scratch script, 2026-11-11).
+    // 2.0 squares the corners (spec 2.7): exactly 26 x 26 x 16.
+    println!("cavity tri {} volume {} area {}", cavity.num_tri(), cavity.volume(), cavity.surface_area());
+    assert_eq!(cavity.num_tri(), 12);
+    assert!(close(26.0 * 26.0 * 16.0, cavity.volume()), "cavity volume {}", cavity.volume());
+    assert!(close(2.0 * (26.0 * 26.0 + 2.0 * 26.0 * 16.0), cavity.surface_area()), "cavity area {}", cavity.surface_area());
 
     let d = hollow(&b, 2.0, None, false).expect("default pitch");
-    assert_eq!(d.num_tri(), 112);
-    assert!(close(7203.581114988085, d.volume()), "default volume {}", d.volume());
-    assert!(close(7165.913931602535, d.surface_area()), "default area {}", d.surface_area());
+    println!("default tri {} volume {} area {}", d.num_tri(), d.volume(), d.surface_area());
+    // 1.x: 112 triangles, volume 7203.6, area 7165.9
+    assert!(close(7184.0, d.volume()), "default volume {}", d.volume());
+    assert!(close(7216.0, d.surface_area()), "default area {}", d.surface_area());
 }
 
 fn close(want: f64, got: f64) -> bool {

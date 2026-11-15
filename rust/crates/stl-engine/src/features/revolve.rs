@@ -13,7 +13,7 @@ fn revolve(
     fid: &str,
     p: &Map<String, Value>,
     res: &mut FeatureResult,
-    _ctx: &Ctx<'_>,
+    ctx: &Ctx<'_>,
 ) -> Result<(), FeatureError> {
     let sk = sketch(&state.sketches, p.get("sketch").and_then(Value::as_str))?.clone();
     let (only, regions) = pick(p);
@@ -68,7 +68,11 @@ fn revolve(
         None => "new".to_string(),
         Some(v) => v.as_str().unwrap_or("").to_string(),
     };
-    apply_tool(state, fid, man.transform(m), &op, p.get("targets"), &name, res)
+    let tool = man.transform(m);
+    if op == "cut" {
+        res.set_cutter(ctx.preview, &tool);
+    }
+    apply_tool(state, fid, tool, &op, p.get("targets"), &name, res)
 }
 
 pub fn register(r: Registry) -> Registry {

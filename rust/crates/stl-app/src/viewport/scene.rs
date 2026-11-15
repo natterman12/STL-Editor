@@ -19,6 +19,17 @@ pub const HOV_STRENGTH: f32 = 0.16;
 pub const FACE_HL: u32 = 0x2f8cff;
 pub const PLANE_COL: u32 = 0xe8763a;
 pub const SKETCH_COL: u32 = 0xd9480f;
+/// Milestone 7 sketch colours (spec 2.3): lines that stand out against the plane fill.
+pub const SKETCH_LINE_DARK: u32 = 0xf2f2f2;
+pub const SKETCH_LINE_LIGHT: u32 = 0x1a1a1a;
+pub const SKETCH_CONSTRUCTION: u32 = 0x8a8a8a;
+pub const SKETCH_CONSTRAINED_DARK: u32 = 0xb8d4ff;
+pub const SKETCH_CONSTRAINED_LIGHT: u32 = 0x1f3f7a;
+/// The sketch plane's fill while sketching.
+pub const PLANE_SKETCH_ALPHA: f32 = 0.18;
+/// The cut preview tint (spec 2.14).
+pub const CUT_TINT: u32 = 0xe03131;
+pub const CUT_TINT_ALPHA: f32 = 0.35;
 /// Active sketch stroke, `colDef()` in `sketcher.js` (`--def-full`).
 pub const SKETCH_DEF_DARK: u32 = 0xe9ecef;
 pub const SKETCH_DEF_LIGHT: u32 = 0x1d2433;
@@ -348,16 +359,22 @@ pub fn plane_mesh(frame: &Frame, size: f64, color: u32, fill_alpha: f32) -> (Vec
     (tris, lines)
 }
 
+/// The most grid lines the sketch plane has in each direction.
+pub const GRID_MAX_LINES: i32 = 1000;
+
 /// `_buildPlaneGrid` (`sketcher.js`): sheet, grid lines (minor then major) and the two axes.
 /// `scene_diagonal` is `sceneBox().getSize().length()`; empty is 100, otherwise at least 40.
-/// Returns (sheet triangles, grid lines, axis lines).
-pub fn sketch_plane_grid(frame: &Frame, scene_diagonal: Option<f64>) -> (Vec<FlatVertex>, Vec<FlatVertex>, Vec<FlatVertex>) {
+/// `step` is the spacing between lines in mm: the sketcher draws the grid at the spacing Grid snap
+/// uses at the current zoom. A tiny step over a big scene is held to
+/// [`GRID_MAX_LINES`] lines each way (the sheet then covers less than the scene, which only
+/// happens zoomed far in). Returns (sheet triangles, grid lines, axis lines).
+pub fn sketch_plane_grid(frame: &Frame, scene_diagonal: Option<f64>, step: f64) -> (Vec<FlatVertex>, Vec<FlatVertex>, Vec<FlatVertex>) {
     let r = match scene_diagonal {
         Some(d) if d.is_finite() && d > 0.0 => d.max(40.0),
         _ => 100.0,
     };
-    let step = if r > 400.0 { 10.0 } else if r > 80.0 { 5.0 } else { 1.0 };
-    let half = (r / step).ceil() * step;
+    let step = if step.is_finite() && step > 0.0 { step } else { 1.0 };
+    let half = ((r / step).ceil().min(GRID_MAX_LINES as f64 / 2.0)) * step;
     let [o, x, y, _] = *frame;
     let at = |u: f64, v: f64| camera::add(o, camera::add(camera::scale(x, u), camera::scale(y, v)));
     let count = (2.0 * half / step).round() as i32;

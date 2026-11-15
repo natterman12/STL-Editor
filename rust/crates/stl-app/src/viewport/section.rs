@@ -5,16 +5,18 @@
 //! The first time it comes on with no cut yet, it opens halfway up the parts on Z, the way
 //! `startSection` does, and keeps the half away from the camera.
 //!
-//! The cut face is `#d06060` (`MeshBasicMaterial`, `BackSide`, same clip). The renderer draws
-//! it with [`CAP_WGSL`] (cull front, after the opaque bodies): every shown body gets it, a
-//! dimmed one too (its `back` mesh is opaque in 1.x); preview meshes get none. With Hatch on
-//! (2.0's Section View, on by default there) the cap gets darker diagonal lines in screen space.
+//! The cut face is the body's own colour, 25 % darker (`BackSide`, same clip; milestone 7: 1.x
+//! painted it red, `#d06060`). The renderer draws it with [`CAP_WGSL`] (cull front, after the
+//! opaque bodies): every shown body gets it, a dimmed one too (its `back` mesh is opaque in 1.x);
+//! preview meshes get none. With Hatch on (2.0's Section View, on by default there) the cap gets
+//! darker diagonal lines in screen space; off, it is the plain darker colour. The grid is drawn
+//! before the bodies and caps, so it never shows through either.
 
 use super::camera::{self, V3};
 use super::Viewport;
 
-/// `0xd06060`, the cut face in `_applySection`.
-pub const CAP_COLOR: u32 = 0xd0_60_60;
+/// How much of the body's colour the cut face keeps (25 % darker). The shader has the same number.
+pub const CAP_KEEP: f32 = 0.75;
 
 /// New mesh bytes (vertices, indices, edges) copied to the GPU in one frame.
 /// A larger upload continues on the next frames; the previous buffers stay on screen.
@@ -72,7 +74,7 @@ pub fn upload_span(offset: u64, total: u64) -> std::ops::Range<u64> {
 /// Spacing of the hatch lines on the cut faces (points, along each screen axis).
 pub const HATCH_SPACING: f64 = 6.0;
 
-/// Back faces of a body, unlit, colour [`CAP_COLOR`]; with Hatch (`flags.y`) darker diagonal
+/// Back faces of a body, unlit, in the body's colour times [`CAP_KEEP`]; with Hatch (`flags.y`) darker diagonal
 /// lines [`HATCH_SPACING`] points apart (`flags.z` is the frame's pixels per point). Append after `shaders/common.wgsl`
 /// (it uses `g` and `clipped`).
 ///
@@ -104,8 +106,9 @@ fn fs_cap(in: CapOut) -> @location(0) vec4<f32> {
     if clipped(in.world) {
         discard;
     }
-    // 0xd06060
-    let cap = vec3<f32>(208.0 / 255.0, 96.0 / 255.0, 96.0 / 255.0);
+    // the body's own colour, 25 % darker (the uniform holds it linear; the flat shader's output
+    // is sRGB encoded)
+    let cap = cap_srgb(cap_body.color.rgb) * 0.75;
     if g.flags.y > 0.5 {
         // Hatch: diagonal lines at 45°, HATCH_SPACING points apart in screen space (so they
         // read the same at any zoom), about a point wide, softened at each edge.
@@ -120,8 +123,14 @@ fn fs_cap(in: CapOut) -> @location(0) vec4<f32> {
     return vec4<f32>(cap, 1.0);
 }
 
-// how dark the hatch lines are against the cap colour (0xd06060 -> about 0x6e3333)
-const HATCH_DARKEN: f32 = 0.53;
+// how dark the hatch lines are against the cap colour
+const HATCH_DARKEN: f32 = 0.6;
+
+fn cap_srgb(c: vec3<f32>) -> vec3<f32> {
+    let lo = c * 12.92;
+    let hi = pow(c, vec3<f32>(0.41666)) * 1.055 - vec3<f32>(0.055);
+    return select(hi, lo, c <= vec3<f32>(0.0031308));
+}
 "#;
 
 impl Viewport {

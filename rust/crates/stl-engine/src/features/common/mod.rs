@@ -10,6 +10,7 @@ pub mod pitch;
 pub mod pose;
 pub mod printers;
 pub mod place;
+pub mod placement;
 pub mod profiles;
 pub mod pushpull_tool;
 pub mod round;

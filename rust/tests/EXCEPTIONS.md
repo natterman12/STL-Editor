@@ -450,3 +450,54 @@ Nathan answered these on 2026-11-14: accepted unless marked otherwise.
   slicer found; To STEP off Windows). 1.x lists them anyway, and running them there only shows "No slicer found…" or an error.
 - **Pending Nathan's OK: the colour picker (Colour… in the body menu) shows a missing-glyph box on egui's clipboard button.** egui
   draws U+1F4CB there and none of the bundled fonts has it; the picker still works. Fixing it needs another font.
+
+## Test-build fixes, navigation and sketching (milestone 7)
+
+- **Accepted by Nathan (2026-11-15): the mouse buttons are Fusion's.** 1.x orbits with the left button and zooms along the cursor
+  ray. 2.0: middle-drag pans; Shift+middle-drag and right-drag orbit; the left button never moves the view with a mouse (one finger
+  on a touch screen still orbits); the wheel zooms toward the surface under the cursor, else the point on the cursor's ray at the
+  target's depth. Two-finger scroll pans, with Shift it orbits. Orbit around (View menu): View Centre (default), Origin, Under the
+  Cursor.
+- **Pending Nathan's OK: the orbit and sketch settings are in the View menu** (Orbit Around, Tint Cuts in Previews, Sketch Cursor
+  Coordinates). The spec says Settings › Navigation / Sketch / Display; 2.0 has no Settings window. 1.x has none of these.
+- **Accepted by Nathan (2026-11-15): sketch colours and fill changed** (spec 2.3): near-white (dark theme) or near-black (light) lines
+  2 px wide, a pale or dark blue for fully defined shapes, grey dashed construction lines, the profile fill at alpha 0.18 (1.x 0.38
+  and orange lines).
+- **Accepted by Nathan (2026-11-15): sketch sizes are typed into value boxes beside the edges** (spec 2.3), replacing 1.x's fixed
+  HUD. Typing a size no longer freezes the preview: unlocked boxes keep following the pointer (1.x froze everything).
+- **Accepted by Nathan (2026-11-15): grid snap defaults to "Auto"** and follows the grid spacing shown at the zoom (1.x: a fixed
+  1 mm, or 1/16 in).
+- **Pending Nathan's OK: a typed line angle becomes an angle dimension** (1.x added only the length dimension).
+- **Accepted by Nathan (2026-11-15): Hole and Thread re-place their points from optional `point_refs` / `position_refs`** (part
+  edges and sketch lines, spec 2.4). 1.x has no such keys. Projects without them build byte for byte as before.
+- **Pending Nathan's OK: how a part edge is found again** (spec 2.4 leaves these open): a candidate must be at least 25% of the
+  stored edge's length (else a hole's rim could match), an edge counts only where its faces meet at more than 20°, touching pieces
+  of one straight line are joined, and when the found edge moved along the face normal (a thicker plate) the point moves with it.
+- **Pending Nathan's OK: 1.x bevels Shell and Hollow corners; 2.0 makes them square** (spec 2.7 picked the method). A 30×30×20 box
+  shelled 2 mm: 1.x cavity volume 10811.0 / area 2986.4 (100 triangles), Hollow body 7188.98–7206.10 depending on resolution; 2.0
+  gives the exact 26×26×16 cavity (10816 / 3016) and a 7184 / 7216 body. Lattice fills the same cavity, so its walls follow: about
+  −0.28% volume and +0.7% area on the two parity cases (`tests/parity/exceptions.json`). At an inside (reflex) corner the cavity is
+  now a square mitre, not the voxel result's rounded arc, so the wall is a little thicker there.
+- **Accepted by Nathan (2026-11-15): Section View's cut face is the body colour 25% darker with the hatch kept.** 1.x painted it
+  red.
+- **Accepted by Nathan (2026-11-15): the grid never shows on the cut face or through a body.** 1.x drew it on the cap; it also
+  showed over a part that dips below the bed, which 2.0 no longer does (pending Nathan's OK for that case).
+- **Accepted by Nathan (2026-11-15): a translucent red cut tint** shows the cutter shape while a tool that removes material is open
+  (1.x has none).
+- **Accepted by Nathan (2026-11-15): Measure draws the X, Y and Z legs** as dotted lines in the axis colours with their lengths
+  (1.x draws only the straight line).
+- **Accepted by Nathan (2026-11-15): a sketch whose plane was picked on a body's face now follows later Move, Rotate and Mirror
+  (Replace) steps of that body** (spec 2.9), in older projects too. 1.x left the sketch where it was. Move with Copy and Mirror Join
+  or New Body leave it in place.
+- **Pending Nathan's OK: Move snaps to the grid shown at the zoom and to the plate within 6 px; Shift turns both snaps off** (spec
+  2.9 names the snaps, not the key). 1.x moved freely.
+- **Pending Nathan's OK: the Move panel's "Drop to bed" is now "Drop to plate" and counts a pending turn**, so a turned part lands
+  with its lowest point at Z = 0. 1.x used the unturned box, so a turned part could land too high or sink into the bed.
+- **Accepted by Nathan (2026-11-15): a Bodies field becomes active once the picks above it are filled** (spec 2.11), even when it
+  is optional ("Auto"). 1.x skipped optional Bodies fields. A tree row click fills the active Bodies field. A plain click on a
+  picked body still removes it; Ctrl and Shift are not used yet (pending Nathan's OK).
+- **Accepted by Nathan (2026-11-15): the origin planes show while a tool waits for a plane** and go back as they were afterwards
+  (spec 2.10). 1.x left them as they were.
+- **Accepted by Nathan (2026-11-15): clicks in the tree and timeline register while the engine is busy** (spec 2.12). The busy
+  screen no longer blocks them; its Cancel button still works. A click on a sketch row or a
+  timeline step selects it; a double-click on a sketch row opens it and also selects it (pending Nathan's OK).

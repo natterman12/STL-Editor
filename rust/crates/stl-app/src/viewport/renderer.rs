@@ -134,6 +134,8 @@ pub struct Stats {
     /// The revision each body key has on the GPU: what is on screen. The viewport picks and
     /// highlights against that revision until a newer one lands.
     on_gpu: Mutex<HashMap<String, u64>>,
+    /// What wgpu's device-lost callback said (reason and message), for `log.txt`.
+    lost_reason: Mutex<Option<String>>,
 }
 
 impl Stats {
@@ -151,6 +153,10 @@ impl Stats {
     }
     pub fn device_lost(&self) -> bool {
         self.device_lost.load(Ordering::Relaxed)
+    }
+    /// What the device-lost callback said, once it has run: `"<reason>: <message>"`.
+    pub fn lost_reason(&self) -> Option<String> {
+        self.lost_reason.lock().unwrap_or_else(|e| e.into_inner()).clone()
     }
     /// The revision of `key` on the GPU, if any.
     pub fn on_gpu(&self, key: &str) -> Option<u64> {
@@ -195,7 +201,7 @@ struct Targets {
 
 struct Pipelines {
     body_opaque: wgpu::RenderPipeline,
-    /// Back faces, unlit `#d06060`, drawn only while the section cut is on.
+    /// Back faces, unlit, the body's colour 25 % darker, drawn only while the section cut is on.
     cap: wgpu::RenderPipeline,
     body_transparent: wgpu::RenderPipeline,
     edge: wgpu::RenderPipeline,
@@ -566,8 +572,7 @@ impl GpuState {
                 cull: Some(wgpu::Face::Front),
                 depth_write: true,
                 compare: Greater,
-                // pushed back like the bodies (three's polygonOffset 1, 1), so grid lines on the
-                // cap's plane (a part standing on the bed) win cleanly instead of z-fighting
+                // pushed back like the bodies (three's polygonOffset 1, 1), so edges on it win
                 bias: BODY_BIAS,
                 blend: None,
             },
@@ -648,15 +653,18 @@ impl GpuState {
         });
         let lost = Arc::new(AtomicBool::new(false));
         {
-            let lost = lost.clone();
-            device.set_device_lost_callback(move |_reason, _msg| {
+            let (lost, stats) = (lost.clone(), stats.clone());
+            device.set_device_lost_callback(move |reason, msg| {
                 #[cfg(not(target_arch = "wasm32"))]
-                eprintln!("viewport: GPU device lost ({_reason:?}): {_msg}");
+                eprintln!("viewport: GPU device lost ({reason:?}): {msg}");
+                // kept for the app, which writes it to log.txt when it notices the loss
+                *stats.lost_reason.lock().unwrap_or_else(|e| e.into_inner()) = Some(format!("{reason:?}: {msg}"));
                 lost.store(true, Ordering::Relaxed);
             });
         }
         stats.on_gpu_map().clear();
         stats.device_lost.store(false, Ordering::Relaxed);
+        *stats.lost_reason.lock().unwrap_or_else(|e| e.into_inner()) = None;
         stats.gpu_states.fetch_add(1, Ordering::Relaxed);
         GpuState {
             pipelines: Pipelines { body_opaque, cap, body_transparent, edge, flat: flat_pipes, blit: blit_pipe },
@@ -911,6 +919,19 @@ impl GpuState {
                 pass.draw(0..g.count, 0..1);
             }
         };
+        let flat_buf = self.flat.as_ref().map(|f| &f.1);
+        let draw_batches = |pass: &mut wgpu::RenderPass<'_>, keep: &dyn Fn(i32) -> bool| {
+            let Some(buf) = flat_buf else { return };
+            for bt in frame.batches.iter().filter(|b| keep(b.order) && !b.range.is_empty()) {
+                pass.set_pipeline(&self.pipelines.flat[&(bt.lines, bt.depth)]);
+                pass.set_vertex_buffer(0, buf.slice(..));
+                pass.draw(bt.range.clone(), 0..1);
+            }
+        };
+        // 0. the grid (renderOrder -1), under everything: the bodies and the cut faces are drawn
+        // over it, so it never shows through a part or on a cut face (milestone 7; 1.x let it
+        // show on the cap on purpose).
+        draw_batches(&mut pass, &|o| o < 0);
         // 1. opaque bodies
         pass.set_pipeline(&self.pipelines.body_opaque);
         for d in frame.bodies.iter().filter(|d| d.visible && !d.transparent) {
@@ -928,19 +949,6 @@ impl GpuState {
                 }
             }
         }
-        let flat_buf = self.flat.as_ref().map(|f| &f.1);
-        let draw_batches = |pass: &mut wgpu::RenderPass<'_>, keep: &dyn Fn(i32) -> bool| {
-            let Some(buf) = flat_buf else { return };
-            for bt in frame.batches.iter().filter(|b| keep(b.order) && !b.range.is_empty()) {
-                pass.set_pipeline(&self.pipelines.flat[&(bt.lines, bt.depth)]);
-                pass.set_vertex_buffer(0, buf.slice(..));
-                pass.draw(bt.range.clone(), 0..1);
-            }
-        };
-        // 2. the grid (renderOrder -1), depth-tested against the bodies and the cap as in 1.x:
-        // it shows on the cut face where the cap's back faces lie on or under the grid's plane.
-        // That is the "hatch" on 1.x's cut faces (viewer.js's cap itself is a flat #d06060).
-        draw_batches(&mut pass, &|o| o < 0);
         // 3. see-through bodies and every body's edges, back to front
         let mut order: Vec<&BodyDraw> = frame.bodies.iter().filter(|d| d.visible).collect();
         order.sort_by(|a, b| b.depth.total_cmp(&a.depth));
@@ -1259,8 +1267,9 @@ impl Headless {
 
     /// Paint one egui frame the way eframe's window does, with egui-wgpu's `Renderer` (textures,
     /// then `update_buffers`, which runs the viewport's paint callback, then the render pass),
-    /// into a `w` x `h` texture. Like the window, it panics inside egui-wgpu when the device is
-    /// lost (tests of the window's device-loss path rely on that).
+    /// into a `w` x `h` texture. On a lost device it does what the window does: our egui-wgpu
+    /// (`rust/third_party/egui-wgpu`) is refused the upload and draws nothing, without a panic
+    /// (tests of the window's device-loss path rely on that).
     pub fn paint_egui(&self, ctx: &egui::Context, mut out: egui::FullOutput, w: u32, h: u32) {
         let rs = &self.render_state;
         // taken out, so the delta (which checks it was used) is empty whatever happens below

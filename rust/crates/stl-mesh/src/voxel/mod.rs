@@ -7,6 +7,7 @@ pub mod field;
 pub mod morphology;
 pub mod occupancy;
 pub mod hollow;
+pub mod square;
 pub mod rebuild;
 
 pub use grid::*;

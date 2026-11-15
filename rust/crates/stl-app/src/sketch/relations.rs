@@ -5,10 +5,11 @@
 use egui::{vec2, Color32, FontId, Rect, Sense, Shape, Stroke, StrokeKind};
 use serde_json::Value;
 use stl_sketch::entities::{point, point_keys, P2};
-use stl_sketch::solver::{glyph_spots, infer_dimension, make_constraint, refs_exist, solve, Constraint, Outcome, Ref, World};
+use stl_sketch::solver::{infer_dimension, make_constraint, solve, Constraint, Outcome, Ref};
 
 use super::dims::{self, Pend};
 use super::geom::{dist_to_entity, outline, seg_dist};
+use super::glyphs;
 use super::solve::{all_ents, fixed_ents, fixed_ids};
 use super::{Entity, SketchEffect, SketchInput, SketchSession, SketchTool, ToolCx};
 use crate::engine_link::Level;
@@ -392,8 +393,6 @@ pub fn paint(ui: &egui::Ui, s: &mut SketchSession, vp: &Viewport, inch: bool) ->
     let to3 = |p: P2| -> [f64; 3] { [0, 1, 2].map(|i| frame.origin[i] + frame.x[i] * p[0] + frame.y[i] * p[1]) };
     let sc = |p: P2| vp.world_to_screen(to3(p));
     let pend: Pend = dims::pending();
-    let ents = all_ents(s);
-    let w = World::new(&ents);
     let st = super::solve::last();
     let picking = s.tool.starts_with("c_");
 
@@ -467,45 +466,41 @@ pub fn paint(ui: &egui::Ui, s: &mut SketchSession, vp: &Viewport, inch: bool) ->
         }
     }
 
-    // glyph chips
+    // glyph chips (spec 2.3): one per constraint, the dense ones hidden; a click selects the
+    // constraint so Delete removes it
     let passive = dims::passive(s);
+    let px = super::snap::px_at(s, vp, [0.0, 0.0]);
     let mut clicked = None;
-    for (i, c) in s.constraints.iter().enumerate() {
-        if dims::is_dim(&c.kind) || (c.kind == "coincident" && s.sel_c != Some(i)) || !refs_exist(c, &w) {
-            continue;
-        }
-        let Some(g) = glyph(&c.kind) else { continue };
+    for (k, gl) in glyphs::visible(&glyphs::spots(s), s.sel_c, px).into_iter().enumerate() {
+        let i = gl.constraint;
         let bad = st.conflicts.contains(&i);
         let sel = s.sel_c == Some(i);
-        for (si, at) in glyph_spots(c, &ents).into_iter().enumerate() {
-            let centre = sc(at) + vec2(12.0 + si as f32 * 2.0, -12.0);
-            let font = FontId::proportional(10.0);
-            let g = dims::drawable(ui.ctx(), &font, g);
-            let galley = painter.layout_no_wrap(g.clone(), font.clone(), Color32::WHITE);
-            let rect = Rect::from_center_size(centre, vec2((galley.size().x + 8.0).max(15.0), 15.0));
-            let (bg, fg, line) = if bad {
-                (t.cg_bad_bg, t.cg_bad_text, t.cg_bad_line)
-            } else if sel {
-                (t.accent, Color32::WHITE, t.accent)
-            } else {
-                (t.cg_bg, t.cg_text, t.cg_line)
-            };
-            let r = ui.interact(rect, ui.scope_id().with(("sk_glyph", i, si)), if passive { Sense::hover() } else { Sense::click() });
-            let name = format!("{} relation", dims::type_label(&c.kind));
-            r.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, name.clone()));
-            let r = r.on_hover_text(format!("{} · click to select, Delete to remove", dims::type_label(&c.kind)));
-            painter.rect_filled(rect, 3.0, bg);
-            painter.rect_stroke(rect, 3.0, Stroke::new(1.0, line), StrokeKind::Inside);
-            let galley = painter.layout_no_wrap(g, font, fg);
-            painter.galley(rect.center() - galley.size() / 2.0, galley, fg);
-            if r.clicked() {
-                clicked = Some(i);
-            }
+        let centre = sc(gl.at) + vec2(12.0, -12.0);
+        let font = FontId::proportional(10.0);
+        let text = dims::drawable(ui.ctx(), &font, gl.text);
+        let galley = painter.layout_no_wrap(text.clone(), font.clone(), Color32::WHITE);
+        let rect = Rect::from_center_size(centre, vec2((galley.size().x + 8.0).max(15.0), 15.0));
+        let (bg, fg, line) = if bad {
+            (t.cg_bad_bg, t.cg_bad_text, t.cg_bad_line)
+        } else if sel {
+            (t.accent, Color32::WHITE, t.accent)
+        } else {
+            (t.cg_bg, t.cg_text, t.cg_line)
+        };
+        let r = ui.interact(rect, ui.scope_id().with(("sk_glyph", i, k)), if passive { Sense::hover() } else { Sense::click() });
+        let name = format!("{} relation", dims::type_label(&gl.kind));
+        r.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, name.clone()));
+        let r = r.on_hover_text(format!("{} · click to select, Delete to remove", dims::type_label(&gl.kind)));
+        painter.rect_filled(rect, 3.0, bg);
+        painter.rect_stroke(rect, 3.0, Stroke::new(1.0, line), StrokeKind::Inside);
+        let galley = painter.layout_no_wrap(text, font, fg);
+        painter.galley(rect.center() - galley.size() / 2.0, galley, fg);
+        if r.clicked() && !passive {
+            clicked = Some(i);
         }
     }
     if let Some(i) = clicked {
-        s.sel_c = if s.sel_c == Some(i) { None } else { Some(i) };
-        s.sel.clear();
+        glyphs::select(s, i);
         out.push(SketchEffect::Changed);
     }
     out

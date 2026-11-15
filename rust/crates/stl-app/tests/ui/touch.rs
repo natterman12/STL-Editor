@@ -1,4 +1,4 @@
-//! Tablet and phone layout, browser drawer, one-finger orbit; open a tool for panel layout.
+//! Tablet and phone layout, browser drawer, orbit by the right button (the left one no longer orbits, spec 2.2); open a tool for panel layout.
 //! Counterpart of `tests/ui/touch.js`.
 #![cfg(not(target_arch = "wasm32"))]
 
@@ -39,29 +39,29 @@ fn touch_layouts_open_hollow_and_orbit() {
         h.run_steps(2);
 
         let cam0 = h.state().viewport.camera().position;
-        // One-finger (primary) drag on the viewport — Model mode orbits (viewport::drag_action).
+        // Spec 2.2: a left-button drag in Model mode moves nothing; the right button orbits.
         let mid = Pos2::new(size.x * 0.5, size.y * 0.55);
-        h.event(Event::PointerMoved(mid));
-        h.event(Event::PointerButton { pos: mid, button: PointerButton::Primary, pressed: true, modifiers: Default::default() });
-        h.step();
-        for i in 1..=8 {
-            let p = Pos2::new(mid.x + i as f32 * 12.0, mid.y);
-            h.event(Event::PointerMoved(p));
+        let drag = |h: &mut Harness, button: PointerButton| {
+            h.event(Event::PointerMoved(mid));
+            h.event(Event::PointerButton { pos: mid, button, pressed: true, modifiers: Default::default() });
             h.step();
-        }
-        h.event(Event::PointerButton {
-            pos: Pos2::new(mid.x + 96.0, mid.y),
-            button: PointerButton::Primary,
-            pressed: false,
-            modifiers: Default::default(),
-        });
-        h.run_steps(3);
+            for i in 1..=8 {
+                h.event(Event::PointerMoved(Pos2::new(mid.x + i as f32 * 12.0, mid.y)));
+                h.step();
+            }
+            h.event(Event::PointerButton { pos: Pos2::new(mid.x + 96.0, mid.y), button, pressed: false, modifiers: Default::default() });
+            h.run_steps(3);
+        };
+        drag(&mut h, PointerButton::Primary);
         let cam1 = h.state().viewport.camera().position;
-        let moved = (0..3).any(|i| (cam0[i] - cam1[i]).abs() > 1e-3);
-        eprintln!("touch {name}: one-finger orbit moved={moved}");
+        assert!((0..3).all(|i| (cam0[i] - cam1[i]).abs() < 1e-9), "{name}: the left button no longer orbits");
+        drag(&mut h, PointerButton::Secondary);
+        let cam2 = h.state().viewport.camera().position;
+        let moved = (0..3).any(|i| (cam1[i] - cam2[i]).abs() > 1e-3);
+        eprintln!("touch {name}: right-drag orbit moved={moved}");
         // Phone chrome can steal the drag; tablet widths must orbit.
         if name != "phone" {
-            assert!(moved, "{name}: one-finger drag should orbit the camera");
+            assert!(moved, "{name}: a right-button drag should orbit the camera");
         }
         settle(&mut h, &link);
     }

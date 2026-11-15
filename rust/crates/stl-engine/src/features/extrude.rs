@@ -13,7 +13,7 @@ fn extrude(
     fid: &str,
     p: &Map<String, Value>,
     res: &mut FeatureResult,
-    _ctx: &Ctx<'_>,
+    ctx: &Ctx<'_>,
 ) -> Result<(), FeatureError> {
     let sk = sketch(&state.sketches, p.get("sketch").and_then(Value::as_str))?.clone();
     let (only, regions) = pick(p);
@@ -84,6 +84,9 @@ fn extrude(
         Some(Value::String(s)) if !s.is_empty() => s.clone(),
         _ => "Extrude".to_string(),
     };
+    if op == "cut" {
+        res.set_cutter(ctx.preview, &tool);
+    }
     apply_tool(state, fid, tool, &op, p.get("targets"), &name, res)
 }
 

@@ -45,14 +45,114 @@ pub struct SketchOutline {
 
 /// `highlightFace`: some triangles of a body, opacity 0.45, both sides.
 pub fn highlight_face(mesh: &MeshArrays, tris: &[u32], tag: &str, color: u32) -> OverlayItem {
+    highlight_face_at(mesh, tris, tag, color, None)
+}
+
+/// [`highlight_face`] for a body drawn moved by `model` (the gizmo's instant motion): the
+/// triangles are taken from the body's mesh as it is now, so the highlight goes where the face goes.
+pub fn highlight_face_at(mesh: &MeshArrays, tris: &[u32], tag: &str, color: u32, model: Option<&camera::M4>) -> OverlayItem {
     let mut it = OverlayItem::new(tag, 3, Depth::TestOffset);
     let c = rgba(color, 0.45);
     let n = mesh.triangles.len() / 3;
     for &t in tris.iter().filter(|&&t| (t as usize) < n) {
         for j in 0..3 {
             let v = mesh.triangles[t as usize * 3 + j] as usize * 3;
-            let p = &mesh.positions[v..v + 3];
-            it.tris.push(FlatVertex { pos: [p[0], p[1], p[2]], c0: c, c1: c, t: 0.0 });
+            let Some(p) = mesh.positions.get(v..v + 3) else { continue };
+            let w = moved([p[0] as f64, p[1] as f64, p[2] as f64], model);
+            it.tris.push(FlatVertex { pos: [w[0] as f32, w[1] as f32, w[2] as f32], c0: c, c1: c, t: 0.0 });
+        }
+    }
+    let whole = it.tris.len() / 3 * 3;
+    it.tris.truncate(whole);
+    it
+}
+
+/// A point carried by a body's on-screen transform.
+fn moved(p: V3, model: Option<&camera::M4>) -> V3 {
+    match model {
+        Some(m) => {
+            let r = camera::transform(m, [p[0], p[1], p[2], 1.0]);
+            [r[0], r[1], r[2]]
+        }
+        None => p,
+    }
+}
+
+/// The cutting shape of a tool that removes material, painted translucent red (spec 2.14).
+pub fn cut_tint(mesh: &MeshArrays, tag: &str, color: u32, alpha: f32) -> OverlayItem {
+    let mut it = OverlayItem::new(tag, 4, Depth::TestOffset);
+    let c = rgba(color, alpha);
+    for t in mesh.triangles.chunks_exact(3) {
+        for &i in t {
+            if let Some(p) = mesh.positions.get(i as usize * 3..i as usize * 3 + 3) {
+                it.tris.push(FlatVertex { pos: [p[0], p[1], p[2]], c0: c, c1: c, t: 0.0 });
+            }
+        }
+    }
+    let whole = it.tris.len() / 3 * 3;
+    it.tris.truncate(whole);
+    it
+}
+
+/// One leg of Measure's triangle: the X, Y or Z part of the way from the first point to the second.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct MeasureLeg {
+    /// 0 for X, 1 for Y, 2 for Z.
+    pub axis: usize,
+    pub from: V3,
+    pub to: V3,
+}
+
+impl MeasureLeg {
+    pub fn length(&self) -> f64 {
+        (self.to[self.axis] - self.from[self.axis]).abs()
+    }
+
+    pub fn middle(&self) -> V3 {
+        [0, 1, 2].map(|i| (self.from[i] + self.to[i]) / 2.0)
+    }
+}
+
+/// The axis colours: X red, Y green, Z blue.
+pub const MEASURE_AXIS_COLORS: [u32; 3] = [0xe03131, 0x2f9e44, 0x1c7ed6];
+/// The straight line between the two points.
+pub const MEASURE_LINE_COLOR: u32 = 0x1f6fd1;
+
+/// The legs from `a` to `b`: X first, then Y, then Z. A leg with no length is left out.
+pub fn measure_legs(a: V3, b: V3) -> Vec<MeasureLeg> {
+    let mut at = a;
+    let mut out = Vec::new();
+    for axis in 0..3 {
+        let mut to = at;
+        to[axis] = b[axis];
+        if (to[axis] - at[axis]).abs() > 1e-6 {
+            out.push(MeasureLeg { axis, from: at, to });
+        }
+        at = to;
+    }
+    out
+}
+
+/// Measure's picture: the line between the points, solid, and the X/Y/Z legs dotted in their
+/// axis colours. Drawn over the part.
+pub fn measure(a: V3, b: V3, tag: &str, extent: f64) -> OverlayItem {
+    let mut it = OverlayItem::new(tag, 20, Depth::Off);
+    let c = rgba(MEASURE_LINE_COLOR, 1.0);
+    it.lines.push(FlatVertex::new(a, c));
+    it.lines.push(FlatVertex::new(b, c));
+    let dash = (extent * 0.01).max(0.3);
+    for leg in measure_legs(a, b) {
+        let c = rgba(MEASURE_AXIS_COLORS[leg.axis], 1.0);
+        let len = leg.length();
+        // dash, gap, dash, gap...; never more than a few hundred dashes on a long leg
+        let step = dash.max(len / 400.0);
+        let dir = camera::scale(camera::sub(leg.to, leg.from), 1.0 / len);
+        let mut s = 0.0;
+        while s < len {
+            let e = (s + step).min(len);
+            it.lines.push(FlatVertex::new(camera::add(leg.from, camera::scale(dir, s)), c));
+            it.lines.push(FlatVertex::new(camera::add(leg.from, camera::scale(dir, e)), c));
+            s += step * 2.0;
         }
     }
     it

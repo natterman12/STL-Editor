@@ -28,7 +28,8 @@ fn sketch(
         Some(Value::Array(a)) => a.clone(),
         _ => Vec::new(),
     };
-    state.sketches.insert(fid.to_string(), SketchRec { name, frame, entities, refs });
+    let body = p.get("plane").and_then(|v| v.get("body")).and_then(Value::as_str).map(str::to_owned);
+    state.sketches.insert(fid.to_string(), SketchRec { name, frame, entities, refs, body });
     res.created_sketch = Some(fid.to_string());
     Ok(())
 }

@@ -1,4 +1,224 @@
 {
+  "hollow/hollow_draft": {
+    "reason": "Milestone 7, spec 2.7 (Nathan 2026-11-15): Hollow and Shell snap the cavity onto the part's flat faces moved inward, so its corners are square. 1.x's voxel cavity bevels them, so its volume and area differ; 2.0's box shell is exactly 30 x 30 x 20 minus a 26 x 26 x 16 cavity (volume 7184, area 7216).",
+    "expect": {
+      "bodies": [
+        {
+          "id": "f1",
+          "name": "Box",
+          "solid": true,
+          "stats": {
+            "triangles": 24,
+            "vertices": 16,
+            "volume": 7184.0,
+            "area": 7216.0,
+            "bbox_min": [
+              -15.0,
+              -15.0,
+              0.0
+            ],
+            "bbox_max": [
+              15.0,
+              15.0,
+              20.0
+            ],
+            "watertight": true
+          }
+        }
+      ],
+      "requires": [
+        "voxel"
+      ],
+      "results": [
+        {
+          "error": null,
+          "id": "f1",
+          "warning": null
+        },
+        {
+          "error": null,
+          "id": "f2",
+          "warning": null
+        }
+      ]
+    }
+  },
+  "hollow/hollow_fine": {
+    "reason": "Milestone 7, spec 2.7 (Nathan 2026-11-15): Hollow and Shell snap the cavity onto the part's flat faces moved inward, so its corners are square. 1.x's voxel cavity bevels them, so its volume and area differ; 2.0's box shell is exactly 30 x 30 x 20 minus a 26 x 26 x 16 cavity (volume 7184, area 7216).",
+    "expect": {
+      "bodies": [
+        {
+          "id": "f1",
+          "name": "Box",
+          "solid": true,
+          "stats": {
+            "triangles": 24,
+            "vertices": 16,
+            "volume": 7184.0,
+            "area": 7216.0,
+            "bbox_min": [
+              -15.0,
+              -15.0,
+              0.0
+            ],
+            "bbox_max": [
+              15.0,
+              15.0,
+              20.0
+            ],
+            "watertight": true
+          }
+        }
+      ],
+      "requires": [
+        "voxel"
+      ],
+      "results": [
+        {
+          "error": null,
+          "id": "f1",
+          "warning": null
+        },
+        {
+          "error": null,
+          "id": "f2",
+          "warning": null
+        }
+      ]
+    }
+  },
+  "hollow/hollow_normal": {
+    "reason": "Milestone 7, spec 2.7 (Nathan 2026-11-15): Hollow and Shell snap the cavity onto the part's flat faces moved inward, so its corners are square. 1.x's voxel cavity bevels them, so its volume and area differ; 2.0's box shell is exactly 30 x 30 x 20 minus a 26 x 26 x 16 cavity (volume 7184, area 7216).",
+    "expect": {
+      "bodies": [
+        {
+          "id": "f1",
+          "name": "Box",
+          "solid": true,
+          "stats": {
+            "triangles": 24,
+            "vertices": 16,
+            "volume": 7184.0,
+            "area": 7216.0,
+            "bbox_min": [
+              -15.0,
+              -15.0,
+              0.0
+            ],
+            "bbox_max": [
+              15.0,
+              15.0,
+              20.0
+            ],
+            "watertight": true
+          }
+        }
+      ],
+      "requires": [
+        "voxel"
+      ],
+      "results": [
+        {
+          "error": null,
+          "id": "f1",
+          "warning": null
+        },
+        {
+          "error": null,
+          "id": "f2",
+          "warning": null
+        }
+      ]
+    }
+  },
+  "lattice/lattice_cell6_strut1": {
+    "reason": "Milestone 7, spec 2.7: Lattice fills the same cavity Shell makes, and that cavity now has square corners (1.x bevels them), so the lattice's wall differs a little in volume and area. Pending Nathan's OK.",
+    "expect": {
+      "bodies": [
+        {
+          "id": "f1",
+          "name": "Box",
+          "solid": true,
+          "stats": {
+            "triangles": 7352,
+            "vertices": 3408,
+            "volume": 7792.224303251492,
+            "area": 9502.175074452887,
+            "bbox_min": [
+              -15.0,
+              -15.0,
+              0.0
+            ],
+            "bbox_max": [
+              15.0,
+              15.0,
+              20.0
+            ],
+            "watertight": true
+          }
+        }
+      ],
+      "requires": [
+        "voxel"
+      ],
+      "results": [
+        {
+          "error": null,
+          "id": "f1",
+          "warning": null
+        },
+        {
+          "error": null,
+          "id": "f2",
+          "warning": null
+        }
+      ]
+    }
+  },
+  "lattice/lattice_cell8_strut1_5": {
+    "reason": "Milestone 7, spec 2.7: Lattice fills the same cavity Shell makes, and that cavity now has square corners (1.x bevels them), so the lattice's wall differs a little in volume and area. Pending Nathan's OK.",
+    "expect": {
+      "bodies": [
+        {
+          "id": "f1",
+          "name": "Box",
+          "solid": true,
+          "stats": {
+            "triangles": 3180,
+            "vertices": 1480,
+            "volume": 7886.622804642214,
+            "area": 8941.690615710711,
+            "bbox_min": [
+              -15.0,
+              -15.0,
+              0.0
+            ],
+            "bbox_max": [
+              15.0,
+              15.0,
+              20.0
+            ],
+            "watertight": true
+          }
+        }
+      ],
+      "requires": [
+        "voxel"
+      ],
+      "results": [
+        {
+          "error": null,
+          "id": "f1",
+          "warning": null
+        },
+        {
+          "error": null,
+          "id": "f2",
+          "warning": null
+        }
+      ]
+    }
+  },
   "offset/offset_detailed_body": {
     "reason": "Manifold C++ 3.5.4's float convex-hull test leaves an inside-out pocket of 8 triangles in 1.x's Minkowski sum (~0.819 mm² counted twice); manifold-rust uses an exact orientation test so 2.0's surface is clean. A 1.x bug 2.0 doesn't copy (agreed with Nathan on 2026-11-11).",
     "expect": {
@@ -28,6 +248,138 @@
       ],
       "requires": [
         "offset"
+      ],
+      "results": [
+        {
+          "error": null,
+          "id": "f1",
+          "warning": null
+        },
+        {
+          "error": null,
+          "id": "f2",
+          "warning": null
+        }
+      ]
+    }
+  },
+  "shell/shell_no_faces": {
+    "reason": "Milestone 7, spec 2.7 (Nathan 2026-11-15): Hollow and Shell snap the cavity onto the part's flat faces moved inward, so its corners are square. 1.x's voxel cavity bevels them, so its volume and area differ; 2.0's shell is the exact wall.",
+    "expect": {
+      "bodies": [
+        {
+          "id": "f1",
+          "name": "Box",
+          "solid": true,
+          "stats": {
+            "triangles": 24,
+            "vertices": 16,
+            "volume": 2464.0,
+            "area": 2496.0,
+            "bbox_min": [
+              -10.0,
+              -10.0,
+              0.0
+            ],
+            "bbox_max": [
+              10.0,
+              10.0,
+              10.0
+            ],
+            "watertight": true
+          }
+        }
+      ],
+      "requires": [
+        "voxel"
+      ],
+      "results": [
+        {
+          "error": null,
+          "id": "f1",
+          "warning": null
+        },
+        {
+          "error": null,
+          "id": "f2",
+          "warning": null
+        }
+      ]
+    }
+  },
+  "shell/shell_one_face": {
+    "reason": "Milestone 7, spec 2.7 (Nathan 2026-11-15): Hollow and Shell snap the cavity onto the part's flat faces moved inward, so its corners are square. 1.x's voxel cavity bevels them, so its volume and area differ; 2.0's shell is the exact wall.",
+    "expect": {
+      "bodies": [
+        {
+          "id": "f1",
+          "name": "Box",
+          "solid": true,
+          "stats": {
+            "triangles": 52,
+            "vertices": 28,
+            "volume": 1952.0,
+            "area": 2112.0,
+            "bbox_min": [
+              -10.0,
+              -10.0,
+              0.0
+            ],
+            "bbox_max": [
+              10.0,
+              10.0,
+              10.0
+            ],
+            "watertight": true
+          }
+        }
+      ],
+      "requires": [
+        "voxel"
+      ],
+      "results": [
+        {
+          "error": null,
+          "id": "f1",
+          "warning": null
+        },
+        {
+          "error": null,
+          "id": "f2",
+          "warning": null
+        }
+      ]
+    }
+  },
+  "shell/shell_two_faces": {
+    "reason": "Milestone 7, spec 2.7 (Nathan 2026-11-15): Hollow and Shell snap the cavity onto the part's flat faces moved inward, so its corners are square. 1.x's voxel cavity bevels them, so its volume and area differ; 2.0's shell is the exact wall.",
+    "expect": {
+      "bodies": [
+        {
+          "id": "f1",
+          "name": "Box",
+          "solid": true,
+          "stats": {
+            "triangles": 48,
+            "vertices": 26,
+            "volume": 1696.0,
+            "area": 1888.0,
+            "bbox_min": [
+              -10.0,
+              -10.0,
+              0.0
+            ],
+            "bbox_max": [
+              10.0,
+              10.0,
+              10.0
+            ],
+            "watertight": true
+          }
+        }
+      ],
+      "requires": [
+        "voxel"
       ],
       "results": [
         {

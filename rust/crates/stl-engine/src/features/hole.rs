@@ -4,6 +4,7 @@ use serde_json::{Map, Value};
 use stl_kernel::Solid;
 
 use super::common::frames::{unit, Vec3};
+use super::common::placement::{lower_first, parse_refs, ref_body, resolve_point};
 use super::common::{apply_tool, big_extent, float, make_cylinder, truthy};
 use crate::{Ctx, FeatureError, FeatureResult, Registry, State};
 
@@ -25,10 +26,10 @@ fn hole(
     fid: &str,
     p: &Map<String, Value>,
     res: &mut FeatureResult,
-    _ctx: &Ctx<'_>,
+    ctx: &Ctx<'_>,
 ) -> Result<(), FeatureError> {
     // 1.x f_hole ignores `thread`; threads are a separate feature.
-    let pts: Vec<Vec3> = match p.get("points") {
+    let mut pts: Vec<Vec3> = match p.get("points") {
         Some(Value::Array(a)) if !a.is_empty() => a.iter().filter_map(vec3).collect(),
         _ => match p.get("point").and_then(vec3) {
             Some(pt) => vec![pt],
@@ -38,13 +39,30 @@ fn hole(
     if pts.is_empty() {
         return Err(FeatureError("Click on a face to place the hole.".into()));
     }
+    let targets = p.get("targets");
     let n = unit(match p.get("normal").and_then(vec3) {
         Some(v) => v,
         None => [0.0, 0.0, 1.0],
     })?;
+    // M7: points measured from part edges or sketch lines are re-placed from those references;
+    // without `point_refs` nothing here runs, so older projects build exactly as before
+    let mut notes: Vec<String> = Vec::new();
+    let refs = parse_refs(p.get("point_refs"));
+    if refs.iter().any(|r| !r.is_empty()) {
+        let raw = p.get("point_refs").and_then(Value::as_array);
+        let first_target = targets.and_then(Value::as_array).and_then(|a| a.first()).and_then(Value::as_str).unwrap_or("");
+        for (i, pt) in pts.iter_mut().enumerate() {
+            let Some(list) = refs.get(i).filter(|l| !l.is_empty()) else { continue };
+            let body = ref_body(raw.and_then(|a| a.get(i))).unwrap_or_else(|| first_target.to_owned());
+            let (np, warn) = resolve_point(state, &body, *pt, n, list)?;
+            *pt = np;
+            if let Some(w) = warn {
+                notes.push(format!("Hole point {}: {}", i + 1, lower_first(&w)));
+            }
+        }
+    }
     let d = float(p, "diameter", Some(5.0))?;
     let r = d / 2.0;
-    let targets = p.get("targets");
     let tbodies_extent = {
         let use_list = truthy(targets);
         if use_list {
@@ -108,7 +126,20 @@ fn hole(
         }
     }
     let tool = if tools.len() > 1 { Solid::union_all(&tools) } else { tools.remove(0) };
-    apply_tool(state, fid, tool, "cut", targets, "Hole", res)
+    res.set_cutter(ctx.preview, &tool);
+    apply_tool(state, fid, tool, "cut", targets, "Hole", res)?;
+    add_notes(res, notes);
+    Ok(())
+}
+
+/// Put placement notes after any warning the cut already gave.
+pub(crate) fn add_notes(res: &mut FeatureResult, notes: Vec<String>) {
+    if notes.is_empty() {
+        return;
+    }
+    let mut all: Vec<String> = res.warning.take().into_iter().collect();
+    all.extend(notes);
+    res.warning = Some(all.join(" "));
 }
 
 pub fn register(r: Registry) -> Registry {

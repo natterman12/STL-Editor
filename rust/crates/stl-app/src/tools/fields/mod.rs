@@ -21,6 +21,7 @@ pub mod bodies;
 pub mod plane;
 pub mod sketch;
 pub mod regions;
+pub mod place_refs;
 pub mod features;
 pub mod facepoints;
 pub mod pface;

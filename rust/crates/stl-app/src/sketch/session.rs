@@ -69,7 +69,9 @@ pub struct SketchMode {
     pub solve: SolveCtl,
     pub state: SolveState,
     pub hint: String,
-    pub hud: Option<String>,
+    /// The grid spacing (mm) the plane grid is drawn at, so it is only rebuilt when the zoom changes it
+    /// (0 until the first build).
+    pub grid_step: f64,
     /// Where the pointer is (snapped, plane coordinates, mm), for the status line.
     pub cursor: Option<[f64; 2]>,
     /// The pointer sits on a snapped point (`this.snapped`).
@@ -86,6 +88,8 @@ pub struct SketchMode {
     pub finishing: Option<bool>,
     /// A toast the solver wants shown (the app drains it).
     pub toast: Option<String>,
+    /// The shapes' outlines, kept until the shapes change (see `view::OutlineCache`).
+    pub outlines: super::view::OutlineCache,
 }
 
 impl SketchMode {
@@ -100,7 +104,7 @@ impl SketchMode {
             solve: SolveCtl::default(),
             state: SolveState::default(),
             hint: String::new(),
-            hud: None,
+            grid_step: 0.0,
             cursor: None,
             snapped: false,
             last_status: String::new(),
@@ -110,6 +114,7 @@ impl SketchMode {
             panel: Default::default(),
             finishing: None,
             toast: None,
+            outlines: Default::default(),
         };
         m.start_solve();
         m.hint = tool_hint(&m.s.tool);
@@ -410,7 +415,7 @@ pub fn match_refs(fresh: &[Entity], saved: &[Entity]) -> (Vec<Entity>, Vec<Entit
 /// `toolHint()`, word for word (the relation tools' hints are `CTOOLS`' own).
 pub fn tool_hint(tool: &str) -> String {
     match tool {
-        "select" => "Click a shape to select it · Delete removes it · Right-drag to orbit, middle-drag to pan",
+        "select" => super::draw::hint_for("select"),
         "line" => "Click points to draw connected lines · click the first point to close · Enter or Esc to stop · type a length",
         "arc3" => "Click the start, then the end, then a point the arc passes through · or type a radius",
         "trim" => "Click the piece of a line, arc or shape to cut away (up to where it crosses something)",
@@ -479,7 +484,6 @@ impl SketchMode {
         self.s.sel_c = None;
         self.tool = super::tool_for(key);
         self.hint = self.tool.as_ref().map(|t| t.hint(&self.s)).filter(|h| !h.is_empty()).unwrap_or_else(|| tool_hint(key));
-        self.hud = None;
         self.dirty = true;
         out.push(SketchEffect::Hint(self.hint.clone()));
         out
@@ -523,6 +527,11 @@ impl SketchMode {
     /// The shape the select tool hovers.
     pub fn hover(&self) -> Option<&str> {
         self.tool.as_ref().and_then(|t| t.hover())
+    }
+
+    /// The dotted guides to the points the drawing tool's pointer lines up with.
+    pub fn guides(&self) -> Vec<super::guides::Guide> {
+        self.tool.as_ref().map(|t| t.guides()).unwrap_or_default()
     }
 
     /// `pickingTool()`: dimension labels let clicks through while picking geometry.

@@ -67,6 +67,11 @@ fn defaults_hole(_: &Ctx) -> Values {
 fn to_params_hole(v: &Values, _: &Ctx) -> Value {
     let mut m = v.clone();
     m.remove("point");
+    // M7: `point_refs` is saved only when a point was measured from something (older projects
+    // and plain holes keep exactly the params they had); `_from_pick` goes in `params_cleanup`
+    if m.get("point_refs").and_then(Value::as_array).is_some_and(|a| a.iter().all(|l| l.as_array().is_none_or(Vec::is_empty))) {
+        m.remove("point_refs");
+    }
     params_cleanup(Value::Object(m))
 }
 

@@ -2,13 +2,15 @@
 //!
 //! eframe 0.37 can't give the window a new device: egui-wgpu's `Painter` makes its
 //! `RenderState` once (`add_surface`, only while it has none) and keeps it private, and the
-//! render state in `eframe::Frame` is a copy. Worse, the next paint after a loss panics inside
-//! egui-wgpu (`Renderer::update_buffers`: "Failed to create staging buffer"), so the window
-//! can't even show a message. So this builds the fallback:
+//! render state in `eframe::Frame` is a copy. Upstream egui-wgpu also panics on the next paint
+//! after a loss (`Renderer::update_buffers`: "Failed to create staging buffer"), inside winit's
+//! window procedure, which Windows can't unwind through: the process ended (0xc000041d). Our
+//! copy (`rust/third_party/egui-wgpu`, see its `VENDORED.md`) skips that frame instead and says
+//! so (`Renderer::upload_refused`, read by `Viewport::device_lost`). So this builds the fallback:
 //!
 //! 1. [`StlApp::run_window`] runs the window and keeps the app when the window ends because its
-//!    device was lost (the panic is caught, or the window closed after [`StlApp::device_frame`]
-//!    noticed the loss);
+//!    device was lost (the window closed after [`StlApp::device_frame`] noticed the loss and
+//!    wrote it to `log.txt`; a panic while drawing is still caught as a last resort);
 //! 2. `main` then writes the autosave copy ([`StlApp::save_after_device_loss`]), says
 //!    [`StlApp::DRIVER_RESTARTED`] in a native message box, and starts STL Editor again
 //!    ([`StlApp::restart_after_device_loss`]);
@@ -37,6 +39,35 @@ fn lost_soon(app: &StlApp) -> bool {
     }
 }
 
+/// One line in `log.txt` when the window notices its device is gone: wgpu's reason and message
+/// (when the driver reported the loss), whether the last paint was refused its upload, and the
+/// adapter. The window has no console, so this is what a crash report can be read from.
+#[cfg(not(target_arch = "wasm32"))]
+fn log_device_loss(viewport: &crate::viewport::Viewport, frame: &eframe::Frame) {
+    use std::io::Write;
+    let reason = viewport.stats().lost_reason().unwrap_or_else(|| "no reason reported".into());
+    let (refused, adapter) = match frame.wgpu_render_state() {
+        Some(rs) => {
+            let i = rs.adapter.get_info();
+            (rs.renderer.read().upload_refused(), format!("{} ({:?}, driver {} {})", i.name, i.backend, i.driver, i.driver_info))
+        }
+        None => (false, "unknown adapter".into()),
+    };
+    let when = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs());
+    let line = format!(
+        "[{when}] The graphics device was lost: {reason}; upload refused: {}; adapter: {adapter}",
+        if refused { "yes" } else { "no" }
+    );
+    eprintln!("{line}");
+    let path = stl_platform::settings::log_file();
+    if let Some(dir) = path.parent() {
+        let _ = std::fs::create_dir_all(dir);
+    }
+    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(&path) {
+        let _ = writeln!(f, "{line}");
+    }
+}
+
 impl StlApp {
     /// What the native message box says after a driver reset, once the work is saved.
     pub const DRIVER_RESTARTED: &'static str = "The graphics driver restarted. STL Editor needs to restart to keep drawing. Your work is saved.";
@@ -56,8 +87,10 @@ impl StlApp {
         {
             #[cfg(debug_assertions)]
             debug_force_loss(self, frame);
-            let _ = frame;
+            #[cfg(debug_assertions)]
+            debug_auto_fins(self);
             if self.viewport.notice_device_loss() {
+                log_device_loss(&self.viewport, frame);
                 eprintln!("STL Editor: the graphics device was lost; closing the window to restart");
                 if let Some(ctx) = self.viewport.egui_ctx() {
                     ctx.send_viewport_cmd(egui::ViewportCommand::Close);
@@ -239,5 +272,71 @@ fn debug_force_loss(app: &mut StlApp, frame: &eframe::Frame) {
             eprintln!("STLEDITOR2_TEST_DEVICE_LOSS: destroying the window's device");
             crate::viewport::renderer::destroy_device(rs);
         }
+    }
+}
+
+/// Debug builds only: `STLEDITOR2_TEST_FINS=1` runs Nathan's two fins steps in the real window
+/// (spec 2.1, milestone 7): once the first part is shown, Support Fins on it (opened, previewed,
+/// OK), then Draw Walls with one wall across its lowest points (OK), then the window closes.
+/// Each step is written to stderr, so a device loss can be placed.
+#[cfg(all(debug_assertions, not(target_arch = "wasm32")))]
+fn debug_auto_fins(app: &mut StlApp) {
+    use std::sync::Mutex;
+    static STATE: Mutex<Option<(u32, web_time::Instant)>> = Mutex::new(None);
+    if std::env::var("STLEDITOR2_TEST_FINS").as_deref() != Ok("1") || RESTARTED.load(std::sync::atomic::Ordering::Relaxed) {
+        return;
+    }
+    if let Some(ctx) = app.viewport.egui_ctx() {
+        ctx.request_repaint_after(std::time::Duration::from_millis(30));
+    }
+    let mut st = STATE.lock().unwrap_or_else(|e| e.into_inner());
+    let (stage, since) = *st.get_or_insert((0, web_time::Instant::now()));
+    let waited = since.elapsed().as_secs_f32();
+    let next = |st: &mut Option<(u32, web_time::Instant)>, what: &str| {
+        eprintln!("STLEDITOR2_TEST_FINS: {what} ({waited:.1} s after the last step)");
+        *st = Some((stage + 1, web_time::Instant::now()));
+    };
+    let tool = app.tool.as_ref().map(|t| t.def.key);
+    match stage {
+        0 if !app.bodies.is_empty() && waited > 3.0 => {
+            app.shell.selection = vec![app.bodies[0].id.clone()];
+            app.open_tool("supportfins", None);
+            next(&mut st, "opening Support Fins");
+        }
+        // reopened until the engine's settings are in (the first open only asks for them)
+        1 if tool != Some("supportfins") && waited > 2.0 => {
+            app.open_tool("supportfins", None);
+            *st = Some((1, web_time::Instant::now()));
+        }
+        1 if tool == Some("supportfins") && waited > 15.0 => {
+            app.tool_ok();
+            next(&mut st, "Support Fins OK");
+        }
+        2 if tool.is_none() && waited > 8.0 => {
+            app.shell.selection = vec![app.bodies[0].id.clone()];
+            app.open_tool("supportwall", None);
+            next(&mut st, "opening Draw Walls");
+        }
+        3 if tool.is_some() && waited > 5.0 => {
+            // one wall between the two lowest vertices that are at least 5 mm apart
+            let m = &app.bodies[0].mesh;
+            let mut pts: Vec<[f64; 3]> = m.positions.chunks_exact(3).map(|p| [p[0] as f64, p[1] as f64, p[2] as f64]).collect();
+            pts.sort_by(|a, b| a[2].total_cmp(&b[2]));
+            let a = pts[pts.len() / 10];
+            let b = pts.iter().skip(pts.len() / 10).find(|p| ((p[0] - a[0]).powi(2) + (p[1] - a[1]).powi(2)).sqrt() > 5.0).copied().unwrap_or(a);
+            app.tool_set_value("walls", serde_json::json!([{ "shape": "line", "points": [a, b] }]));
+            next(&mut st, &format!("drawing a wall from {a:?} to {b:?} with {tool:?}"));
+        }
+        4 if waited > 10.0 => {
+            app.tool_ok();
+            next(&mut st, "Draw Walls OK");
+        }
+        5 if waited > 10.0 => {
+            next(&mut st, "done; closing the window");
+            if let Some(ctx) = app.viewport.egui_ctx() {
+                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+            }
+        }
+        _ => {}
     }
 }

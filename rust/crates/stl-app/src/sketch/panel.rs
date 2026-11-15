@@ -26,6 +26,8 @@ pub struct PanelState {
     /// Grid snap (`snapGrid`, `snapStep`).
     pub snap_grid: bool,
     pub snap_step: f64,
+    /// Grid snap follows the grid shown at this zoom ("Auto"), not the fixed `snap_step`.
+    pub snap_auto: bool,
     init: bool,
 }
 
@@ -41,22 +43,27 @@ impl PanelState {
             self.init = true;
             self.snap_grid = true;
             self.snap_step = 1.0;
+            self.snap_auto = true;
         }
     }
 
     /// Set Grid snap (on entering a sketch, or when the units change) and the drawing tools' grid.
-    pub fn set_snap(&mut self, on: bool, step: f64) {
+    /// `inch`: the units shown, so Auto snaps in fractions of an inch when they are.
+    pub fn set_snap(&mut self, on: bool, step: f64, inch: bool) {
+        if !self.init {
+            self.snap_auto = true;
+        }
         self.init = true;
         self.snap_grid = on;
         self.snap_step = step;
-        super::snap::set_grid(on, step);
+        super::snap::set_grid_mode(on, step, self.snap_auto, inch);
     }
 
     /// Change only the snap step (the units changed), keeping Grid snap on or off.
-    pub fn set_snap_step(&mut self, step: f64) {
+    pub fn set_snap_step(&mut self, step: f64, inch: bool) {
         self.ensure();
         let on = self.snap_grid;
-        self.set_snap(on, step);
+        self.set_snap(on, step, inch);
     }
 }
 
@@ -437,18 +444,29 @@ fn form(ui: &mut Ui, tk: &Tokens, m: &mut SketchMode, inch: bool, out: &mut Pane
         } else {
             &[("0.1", 0.1), ("0.5", 0.5), ("1", 1.0), ("2", 2.0), ("5", 5.0), ("10", 10.0)]
         };
-        let cur = steps.iter().find(|(_, v)| (v - m.panel.snap_step).abs() < 1e-9).map(|(l, _)| *l).unwrap_or(steps[0].0);
+        let cur = if m.panel.snap_auto {
+            "Auto"
+        } else {
+            steps.iter().find(|(_, v)| (v - m.panel.snap_step).abs() < 1e-9).map(|(l, _)| *l).unwrap_or(steps[0].0)
+        };
         crate::tools::fields::framed_combo(ui, tk, "snap-step", 70.0, cur, |ui| {
+            // Auto: the spacing the grid shows at this zoom
+            if ui.selectable_label(m.panel.snap_auto, "Auto").clicked() {
+                m.panel.snap_auto = true;
+            }
             for (l, v) in steps {
-                ui.selectable_value(&mut m.panel.snap_step, *v, *l);
+                if ui.selectable_label(!m.panel.snap_auto && (m.panel.snap_step - v).abs() < 1e-9, *l).clicked() {
+                    m.panel.snap_auto = false;
+                    m.panel.snap_step = *v;
+                }
             }
         });
         ui.label(RichText::new(unit).size(11.0).color(tk.muted));
     });
     // the drawing tools read the grid from here (`snapGrid`, `snapStep`)
-    super::snap::set_grid(m.panel.snap_grid, m.panel.snap_step);
+    super::snap::set_grid_mode(m.panel.snap_grid, m.panel.snap_step, m.panel.snap_auto, inch);
     ui.add_space(2.0);
-    let info = "Shapes inside other shapes become holes; lines and arcs that close a loop make a shape too. Use Smart Dimension (D) to add sizes; double-click one to change it (a parameter name works too). Black shapes are fully defined, blue ones can still move; orange lines are the part's edges, there to dimension from. When extruding you can pick single regions under Profiles.";
+    let info = "Shapes inside other shapes become holes; lines and arcs that close a loop make a shape too. Use Smart Dimension (D) to add sizes; double-click one to change it (a parameter name works too). Pale-blue shapes are fully defined (dark blue in the light theme), white ones can still move (black in the light theme), bright blue is what you picked, and grey dashed lines are construction lines; orange lines are the part's edges, there to dimension from. When extruding you can pick single regions under Profiles.";
     Frame::new().fill(tk.info_bg).corner_radius(CornerRadius::same(tk.radius_sm as u8)).inner_margin(Margin::symmetric(8, 6)).show(ui, |ui| {
         ui.set_width(FORM_W - 16.0);
         ui.add(egui::Label::new(RichText::new(info).size(12.0).color(tk.info_text)).wrap());

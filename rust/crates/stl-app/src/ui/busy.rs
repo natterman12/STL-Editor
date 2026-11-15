@@ -56,8 +56,11 @@ pub fn show(ctx: &Context, tokens: &Tokens, state: &mut Busy, commands: &mut Vec
         state.label.clone()
     };
 
+    // Not interactable: the scrim lets clicks through to the tree and timeline (spec 2.12). The
+    // pill stays clickable, so Cancel still works.
     egui::Area::new(egui::Id::unique("busy_overlay"))
         .order(egui::Order::Foreground)
+        .interactable(false)
         .fixed_pos(screen.left_top())
         .show(ctx, |ui| {
             let (rect, _response) = ui.allocate_exact_size(screen.size(), egui::Sense::hover());

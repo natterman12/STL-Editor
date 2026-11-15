@@ -718,7 +718,7 @@ fn help_shortcuts_and_about_use_the_1x_text() {
     h.run_steps(3);
     h.get_by_label("Keyboard Shortcuts").click();
     h.run_steps(3);
-    for t in ["Keyboard & mouse", "Left-drag", "Orbit", "Right / middle-drag", "0–6", "Standard views", "Ctrl+K or /", "Double-click a dimension", "Change it (a parameter name works too)"] {
+    for t in ["Keyboard & mouse", "Right-drag", "Middle-drag", "Zoom toward the cursor", "0–6", "Standard views", "Ctrl+K or /", "Double-click a dimension", "Change it (a parameter name works too)"] {
         assert!(h.query_by_label(t).is_some(), "{t}");
     }
     h.get_by_label("OK").click();

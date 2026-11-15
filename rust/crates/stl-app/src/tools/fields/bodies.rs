@@ -65,12 +65,22 @@ pub enum Mark {
     PlaneGhost(PlaneFrame),
     Regions { frame: PlaneFrame, faces: Vec<Vec<Vec<[f64; 2]>>> },
     SketchLines { frame: PlaneFrame, outlines: std::sync::Arc<[SketchOutline]> },
+    /// A straight guide line (the living hinge's line).
+    Line { a: [f64; 3], b: [f64; 3], color: u32 },
+    /// An arrow from `p` along `dir` (the living hinge's flex arrow).
+    Arrow { p: [f64; 3], dir: [f64; 3], len: f64, color: u32 },
 }
+
+/// The colour of the living hinge's line and flex arrow.
+pub const HINGE_COL: u32 = 0xf59f00;
+
+/// Overlay tags the marks own; `apply_marks` clears them before it draws again.
+const MARK_TAGS: [&str; 5] = ["marker", "plane-ghost", "regions", "sk", "hinge"];
 
 /// Draw the marks. 1.x clears `marker`, `plane-ghost`, `regions` and `sk` first; the `face`
 /// highlight is kept (it is set by a pick, not by the form).
 pub fn apply_marks(vp: &mut Viewport, marks: &[Mark]) {
-    for tag in ["marker", "plane-ghost", "regions", "sk"] {
+    for tag in MARK_TAGS {
         vp.clear_overlay(tag);
     }
     for m in marks {
@@ -79,6 +89,8 @@ pub fn apply_marks(vp: &mut Viewport, marks: &[Mark]) {
             Mark::PlaneGhost(f) => vp.add_plane_ghost(f, "plane-ghost", hex_color(scene::PLANE_COL)),
             Mark::Regions { frame, faces } => vp.add_regions(frame, faces, "regions"),
             Mark::SketchLines { frame, outlines } => vp.add_sketch_lines(frame, outlines, hex_color(0xd9480f), 0.9, true, "sk"),
+            Mark::Line { a, b, color } => vp.add_line(*a, *b, hex_color(*color), "hinge"),
+            Mark::Arrow { p, dir, len, color } => vp.add_arrow(*p, *dir, *len, hex_color(*color), "hinge"),
         }
     }
 }
@@ -89,7 +101,8 @@ pub fn apply_face(vp: &mut Viewport, out: &PickOut) {
         vp.clear_overlay("face");
     }
     if let Some((body, tris)) = &out.highlight {
-        vp.highlight_face(body, tris, "face", hex_color(scene::FACE_HL));
+        // kept as (body, triangles): it follows the body and is cleared when the tool closes
+        vp.set_face_highlight("face", body, tris.clone(), scene::FACE_HL);
     }
 }
 
@@ -121,17 +134,31 @@ pub fn is_empty_sel(v: Option<&Value>) -> bool {
     }
 }
 
+/// A pick field whose placeholder ("Auto") makes it optional: not opened by `first_active`, but a
+/// Bodies field still becomes the active one once the pick fields above it are filled (2.11).
+fn optional_pick(f: &Field) -> bool {
+    f.placeholder.is_some() && !matches!(f.kind, FieldKind::Bodies { .. })
+}
+
 /// `advanceField(after)`: the next visible pick field that is still empty. `None` closes the
 /// active field.
 pub fn advance_field(tool: &ToolDef, values: &Values, after: &str) -> Option<String> {
     let fields: Vec<&Field> = tool.fields.iter().filter(|f| is_sel_kind(&f.kind) && f.show.is_none_or(|s| s(values))).collect();
     let i = fields.iter().position(|f| f.key == after)?;
-    fields[i + 1..].iter().find(|f| is_empty_sel(values.get(f.key)) && !matches!(f.kind, FieldKind::Regions) && f.placeholder.is_none()).map(|f| f.key.to_owned())
+    fields[i + 1..].iter().find(|f| is_empty_sel(values.get(f.key)) && !matches!(f.kind, FieldKind::Regions) && !optional_pick(f)).map(|f| f.key.to_owned())
 }
 
-/// The field to open first (`openTool`'s `activeField`).
+/// The field to open first (`openTool`'s `activeField`): the first empty pick field; when every
+/// pick field is filled (Mirror's plane is prefilled), the first plane field, so a tool whose
+/// choice is a plane opens on it and its origin planes show (2.10).
 pub fn first_active(tool: &ToolDef, values: &Values) -> Option<String> {
-    tool.fields.iter().find(|f| is_sel_kind(&f.kind) && !matches!(f.kind, FieldKind::Regions) && f.placeholder.is_none() && f.show.is_none_or(|s| s(values)) && is_empty_sel(values.get(f.key))).map(|f| f.key.to_owned())
+    let visible = |f: &&Field| f.show.is_none_or(|s| s(values));
+    tool.fields
+        .iter()
+        .filter(visible)
+        .find(|f| is_sel_kind(&f.kind) && !matches!(f.kind, FieldKind::Regions) && f.placeholder.is_none() && is_empty_sel(values.get(f.key)))
+        .or_else(|| tool.fields.iter().filter(visible).find(|f| matches!(f.kind, FieldKind::Plane { .. })))
+        .map(|f| f.key.to_owned())
 }
 
 /// `bodyName(id)`.
@@ -324,6 +351,55 @@ pub fn feed(tool: &ToolDef, active: Option<&str>, values: &mut Values, hit: &Hit
     }
 }
 
+/// A body row in the browser tree was picked (2.11): it fills the active Bodies field the same way
+/// a viewport click on that body does. `None` when the active field is not a Bodies field, so the
+/// row keeps its plain selection.
+pub fn feed_tree_body(tool: &ToolDef, active: Option<&str>, values: &mut Values, id: &str, ctx: &Ctx) -> Option<PickOut> {
+    let f = tool.fields.iter().find(|f| Some(f.key) == active && matches!(f.kind, FieldKind::Bodies { .. }))?;
+    let hit = Hit::Body { id: id.to_owned(), face: 0, point: [0.0; 3], normal: [0.0; 3] };
+    Some(feed_pick(tool, f, values, &hit, ctx))
+}
+
+/// The living hinge's guides (2.13): the hinge line across the slot, and an arrow from it along
+/// the plane's normal showing which way the two sides flex. Drawn from the plane, the slot's
+/// position and width, the hinge thickness and the extent of the targeted bodies (the same
+/// numbers as the engine's `hinge`).
+fn hinge_marks(values: &Values, ctx: &Ctx) -> Vec<Mark> {
+    use super::plane;
+    let Some(fr) = values.get("plane").and_then(|v| plane::frame_of(v, ctx)) else { return Vec::new() };
+    let num = |k: &str, d: f64| values.get(k).and_then(Value::as_f64).unwrap_or(d);
+    let (x, slot, web) = (num("x", 0.0), num("slot", 1.0), num("thickness", 0.5));
+    if slot <= 0.0 || web <= 0.0 {
+        return Vec::new();
+    }
+    let targets = ids_of(values.get("targets"));
+    let (mut lo, mut hi, mut reach) = (f64::INFINITY, f64::NEG_INFINITY, 0.0_f64);
+    let rel = |c: &[f32]| [c[0] as f64 - fr.origin[0], c[1] as f64 - fr.origin[1], c[2] as f64 - fr.origin[2]];
+    for b in ctx.bodies.iter().filter(|b| targets.is_empty() || targets.contains(&b.id)) {
+        for c in b.mesh.positions.chunks_exact(3) {
+            let r = rel(c);
+            let d = r[0] * fr.normal[0] + r[1] * fr.normal[1] + r[2] * fr.normal[2];
+            lo = lo.min(d);
+            hi = hi.max(d);
+            let v = r[0] * fr.y[0] + r[1] * fr.y[1] + r[2] * fr.y[2];
+            reach = reach.max(v.abs());
+        }
+    }
+    if !lo.is_finite() || web >= hi - lo {
+        return Vec::new();
+    }
+    // a point at `u` along the plane's X, `v` along its Y, `n` along its normal
+    let at = |u: f64, v: f64, n: f64| -> [f64; 3] {
+        std::array::from_fn(|i| fr.origin[i] + u * fr.x[i] + v * fr.y[i] + n * fr.normal[i])
+    };
+    let u = x + slot / 2.0;
+    let web_top = lo + web;
+    vec![
+        Mark::Line { a: at(u, -reach - 1.0, web_top), b: at(u, reach + 1.0, web_top), color: HINGE_COL },
+        Mark::Arrow { p: at(u, 0.0, web_top), dir: fr.normal, len: ((hi - web_top) * 0.6).max(1.0), color: HINGE_COL },
+    ]
+}
+
 /// Everything the open tool's fields want drawn (`renderOverlayForTool`).
 pub fn tool_marks(tool: &ToolDef, values: &Values, ctx: &Ctx) -> Vec<Mark> {
     use super::{facepoints, plane, points3, regions};
@@ -339,6 +415,12 @@ pub fn tool_marks(tool: &ToolDef, values: &Values, ctx: &Ctx) -> Vec<Mark> {
             FieldKind::Regions => out.extend(regions::marks(f, values, ctx)),
             _ => {}
         }
+    }
+    if tool.key == "thread" {
+        out.extend(super::place_refs::thread_dim_marks(values, ctx));
+    }
+    if tool.key == "hinge" {
+        out.extend(hinge_marks(values, ctx));
     }
     out
 }

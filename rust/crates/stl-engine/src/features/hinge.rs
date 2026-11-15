@@ -13,7 +13,7 @@ fn hinge(
     fid: &str,
     p: &Map<String, Value>,
     res: &mut FeatureResult,
-    _ctx: &Ctx<'_>,
+    ctx: &Ctx<'_>,
 ) -> Result<(), FeatureError> {
     let slot = float(p, "slot", Some(1.0))?;
     let web = float(p, "thickness", Some(0.5))?;
@@ -56,7 +56,9 @@ fn hinge(
     let bb = reach + 10.0;
     let strip = Solid::cube([slot, 2.0 * bb, hi - lo - web + 1.0], false)
         .translate([float(p, "x", Some(0.0))?, -bb, lo + web]);
-    apply_tool(state, fid, place(&strip, &frame, [0.0; 3]), "cut", targets, "Living hinge", res)
+    let tool = place(&strip, &frame, [0.0; 3]);
+    res.set_cutter(ctx.preview, &tool);
+    apply_tool(state, fid, tool, "cut", targets, "Living hinge", res)
 }
 
 pub fn register(r: Registry) -> Registry {

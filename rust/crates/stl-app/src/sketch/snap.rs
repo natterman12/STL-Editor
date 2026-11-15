@@ -6,6 +6,7 @@ use std::cell::Cell;
 use serde_json::{json, Map, Value};
 use stl_sketch::entities::{point, point_keys, Entity, Line, Point, P2};
 
+use super::guides::{self, Guide};
 use super::{geom, Ref, SketchSession};
 use crate::viewport::Viewport;
 
@@ -26,6 +27,8 @@ pub struct Snap {
     pub kind: SnapKind,
     /// The point snapped to, when snapping there ties the new point to it (`snapRef`).
     pub on: Option<Ref>,
+    /// Dotted guides to the points the pointer lines up with (spec 2.3).
+    pub guides: Vec<Guide>,
 }
 
 impl Snap {
@@ -48,12 +51,54 @@ const AXIS: f64 = 1e5;
 
 thread_local! {
     static GRID: Cell<(bool, f64)> = const { Cell::new((true, 1.0)) };
+    /// Grid snap follows the spacing the grid is drawn at (and whether that is in inches).
+    static AUTO: Cell<(bool, bool)> = const { Cell::new((false, false)) };
+    /// The spacing the plane grid is drawn at now (mm), once a sketch has drawn it.
+    static SHOWN: Cell<Option<f64>> = const { Cell::new(None) };
 }
 
-/// The sketch panel's Grid snap (`snapGrid`, `snapStep`, in mm). 1.x keeps these on the sketcher;
-/// the session has no field for them yet.
+/// The plane grid is drawn at `step` mm (`None`: no grid is up). While it is, Auto snaps to
+/// exactly the lines drawn, wherever the pointer is (a perspective view has a different scale at
+/// each point, but the grid has one spacing).
+pub fn set_shown_step(step: Option<f64>) {
+    SHOWN.with(|c| c.set(step.filter(|s| s.is_finite() && *s > 0.0)));
+}
+
+/// The sketch panel's Grid snap (`snapGrid`, `snapStep`, in mm): a fixed step. 1.x keeps these
+/// on the sketcher; the session has no field for them yet.
 pub fn set_grid(on: bool, step: f64) {
     GRID.with(|g| g.set((on, step)));
+    AUTO.with(|a| a.set((false, false)));
+}
+
+/// Grid snap with the panel's choice: `auto` snaps to the spacing the grid shows at this zoom
+/// ([`guides::visible_grid_step_in`]), else to the fixed `step`.
+pub fn set_grid_mode(on: bool, step: f64, auto: bool, inch: bool) {
+    GRID.with(|g| g.set((on, step)));
+    AUTO.with(|a| a.set((auto, inch)));
+}
+
+/// `(follows the zoom, in inches)`.
+pub fn grid_auto() -> (bool, bool) {
+    AUTO.with(|a| a.get())
+}
+
+/// The grid spacing in effect with the pointer where one screen point is `px` mm: the spacing
+/// the grid is drawn at (when it is up), else the one this zoom gives ([`zoom_step_at`]).
+pub fn grid_step_at(px: f64) -> f64 {
+    let (_, fixed) = grid();
+    let (auto, _) = grid_auto();
+    if !auto {
+        return fixed;
+    }
+    SHOWN.with(|c| c.get()).unwrap_or_else(|| zoom_step_at(px))
+}
+
+/// What Auto gives with one screen point being `px` mm: the 1-2-5 steps (fractions of an inch in
+/// inch mode) that keep the lines [`guides::GRID_MIN_PX`] apart.
+pub fn zoom_step_at(px: f64) -> f64 {
+    let (_, inch) = grid_auto();
+    guides::visible_grid_step_in(1.0 / px, inch)
 }
 
 pub fn grid() -> (bool, f64) {
@@ -129,6 +174,17 @@ pub fn snap(s: &SketchSession, vp: &Viewport, uv: P2) -> Snap {
 /// the drawing in progress); else to the grid. `straight_from` is the line tool's last point:
 /// near-horizontal and near-vertical lines are held straight (6 px).
 pub fn snap_with(s: &SketchSession, vp: &Viewport, raw: P2, draw_pts: &[P2], straight_from: Option<P2>) -> Snap {
+    snap_impl(s, vp, raw, draw_pts, straight_from, false)
+}
+
+/// [`snap_with`] for the drawing tools: when no point is near, the pointer also lines up with the
+/// X or Y of any point on the sketch (or of the drawing in progress) within 6 px, and the snap
+/// carries the dotted guides to draw (spec 2.3).
+pub fn snap_tracking(s: &SketchSession, vp: &Viewport, raw: P2, draw_pts: &[P2], straight_from: Option<P2>) -> Snap {
+    snap_impl(s, vp, raw, draw_pts, straight_from, true)
+}
+
+fn snap_impl(s: &SketchSession, vp: &Viewport, raw: P2, draw_pts: &[P2], straight_from: Option<P2>, track: bool) -> Snap {
     let px = px_at(s, vp, raw);
     let mut cands: Vec<(P2, Option<Ref>)> = Vec::new();
     for e in &s.entities {
@@ -149,6 +205,7 @@ pub fn snap_with(s: &SketchSession, vp: &Viewport, raw: P2, draw_pts: &[P2], str
         }
     }
     cands.extend(draw_pts.iter().map(|p| (*p, None)));
+    let tracked: Vec<P2> = cands.iter().map(|c| c.0).collect();
     let mut bd = SNAP_PX * px;
     let mut best: Option<(P2, Option<Ref>)> = None;
     for (p, r) in cands {
@@ -159,12 +216,18 @@ pub fn snap_with(s: &SketchSession, vp: &Viewport, raw: P2, draw_pts: &[P2], str
         }
     }
     if let Some((p, r)) = best {
-        return Snap { uv: p, kind: SnapKind::Point, on: r };
+        return Snap { uv: p, kind: SnapKind::Point, on: r, guides: Vec::new() };
     }
-    let (on, step) = grid();
+    // lined up with a point's X or Y (the grid still rounds the other coordinate)
+    let (ax, ay) = if track { guides::align(raw, &tracked, guides::TRACK_PX * px) } else { (None, None) };
+    let (on, _) = grid();
+    let step = grid_step_at(px);
+    let mut uv = raw;
+    let mut kind = SnapKind::Free;
     if on && step > 0.0 {
         let r = |v: f64| (v / step + 0.5).floor() * step;
-        let mut uv = [r(raw[0]), r(raw[1])];
+        uv = [r(raw[0]), r(raw[1])];
+        kind = SnapKind::Grid;
         if let Some(last) = straight_from {
             if (raw[1] - last[1]).abs() < STRAIGHT_PX * px {
                 uv[1] = last[1];
@@ -173,9 +236,18 @@ pub fn snap_with(s: &SketchSession, vp: &Viewport, raw: P2, draw_pts: &[P2], str
                 uv[0] = last[0];
             }
         }
-        return Snap { uv, kind: SnapKind::Grid, on: None };
     }
-    Snap { uv: raw, kind: SnapKind::Free, on: None }
+    let mut from = Vec::new();
+    if let Some((x, p)) = ax {
+        uv[0] = x;
+        from.push(p);
+    }
+    if let Some((y, p)) = ay {
+        uv[1] = y;
+        from.push(p);
+    }
+    let guides = from.into_iter().map(|p| Guide { from: p, to: uv }).collect();
+    Snap { uv, kind, on: None, guides }
 }
 
 /// `entityAt`: the sketch shape within 8 px of `uv`, nearest first.

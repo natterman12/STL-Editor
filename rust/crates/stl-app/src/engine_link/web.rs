@@ -361,6 +361,14 @@ fn emit_preview(seq: u64, pack: super::PreviewPack, msg: Option<String>, error: 
         bufs.push((bytes_to_buffer(&pos), pos.len() as u32));
         bufs.push((bytes_to_buffer(&tri), tri.len() as u32));
     }
+    // the cut tint's shape rides after the meshes: the last two buffers
+    let has_cutter = pack.cutter.is_some();
+    if let Some(c) = &pack.cutter {
+        let pos = f32_bytes(&c.positions);
+        let tri = u32_bytes(&c.triangles);
+        bufs.push((bytes_to_buffer(&pos), pos.len() as u32));
+        bufs.push((bytes_to_buffer(&tri), tri.len() as u32));
+    }
     let strs = |v: &[String]| Value::Array(v.iter().cloned().map(Value::String).collect());
     let colors: Map<String, Value> = pack.colors.iter().map(|(k, v)| (k.clone(), Value::String(v.clone()))).collect();
     let msg = js_from_json(&Value::Object(Map::from_iter([
@@ -377,10 +385,17 @@ fn emit_preview(seq: u64, pack: super::PreviewPack, msg: Option<String>, error: 
         ("colors".into(), Value::Object(colors)),
     ])));
     let arr = Array::from(&get(&msg, "meshes"));
-    for (i, pair) in bufs.chunks(2).enumerate() {
+    let n_meshes = pack.meshes.len();
+    for (i, pair) in bufs.chunks(2).take(n_meshes).enumerate() {
         let item = arr.get(i as u32);
         set(&item, "positions", pair[0].0.as_ref());
         set(&item, "triangles", pair[1].0.as_ref());
+    }
+    if has_cutter {
+        let cutter = js_sys::Object::new();
+        set(&cutter, "positions", bufs[n_meshes * 2].0.as_ref());
+        set(&cutter, "triangles", bufs[n_meshes * 2 + 1].0.as_ref());
+        set(&msg, "cutter", cutter.as_ref());
     }
     let transfer = Array::new();
     for (buf, _) in &bufs {
@@ -1324,6 +1339,11 @@ fn decode_pack(data: &JsValue) -> super::PreviewPack {
         hide: strings_of(&get(data, "hide")),
         colors,
         ghosts: strings_of(&get(data, "ghosts")),
+        cutter: {
+            let c = get(data, "cutter");
+            (!c.is_undefined() && !c.is_null())
+                .then(|| Arc::new(MeshArrays { positions: f32s(&bytes_of(&get(&c, "positions"))), triangles: u32s(&bytes_of(&get(&c, "triangles"))) }))
+        },
     }
 }
 

@@ -160,7 +160,7 @@ mod tests {
     use crate::features::common::SketchRec;
 
     fn rec(frame: Frame, ents: Value) -> SketchRec {
-        SketchRec { name: "s".into(), frame, entities: serde_json::from_value(ents).unwrap(), refs: Vec::new() }
+        SketchRec { name: "s".into(), frame, entities: serde_json::from_value(ents).unwrap(), refs: Vec::new(), body: None }
     }
 
     fn run(state: &mut State, p: Value) -> Result<(), FeatureError> {

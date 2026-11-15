@@ -4,7 +4,10 @@
 pub mod dims;
 pub mod draw;
 pub mod geom;
+pub mod glyphs;
+pub mod guides;
 pub mod import;
+pub mod inline_dims;
 pub mod keys;
 pub mod modify;
 pub mod panel;
@@ -209,7 +212,6 @@ pub enum SketchDialog {
 
 pub enum SketchEffect {
     Hint(String),
-    Hud(Option<String>),
     Toast(crate::engine_link::Level, String),
     /// Sent by Task 2 as `Command::SketchOp`.
     SketchOp { op: String, data: Value },
@@ -244,6 +246,28 @@ pub trait SketchTool {
     /// The shape under the pointer, painted in `COL_HOVER` (`hoverId`).
     fn hover(&self) -> Option<&str> {
         None
+    }
+    /// The value boxes on the drawing (spec 2.3).
+    fn dim_boxes(&self) -> Vec<inline_dims::DimBox> {
+        Vec::new()
+    }
+    /// The total size next to the cursor.
+    fn total_label(&self) -> Option<String> {
+        None
+    }
+    /// Dotted guides to the points the pointer lines up with.
+    fn guides(&self) -> Vec<guides::Guide> {
+        Vec::new()
+    }
+    /// A value box is being typed into: text keys (digits, `=`, letters of a parameter name) go
+    /// to the box, not to the tool shortcuts.
+    fn typing(&self) -> bool {
+        false
+    }
+    /// A press at screen point `pos` landed on a value box: focus it, so typing goes there, and
+    /// return true (the press is used up and places no point).
+    fn click_box(&mut self, _s: &SketchSession, _vp: &crate::viewport::Viewport, _pos: egui::Pos2) -> bool {
+        false
     }
 }
 

@@ -285,7 +285,8 @@ fn land_on_bed() {
     let at = screen(&vp, grab);
     assert!(g.press(&mut vp, at));
     let at = screen(&vp, camera::add(grab, [0.0, 0.0, 3.0]));
-    let live = g.drag_to(&mut vp, at, false).unwrap();
+    // a free drag (Shift), so the 3 mm move isn't snapped to the grid step (M7 spec 2.9)
+    let live = g.drag_to(&mut vp, at, true).unwrap();
     let t = vec3(&live["translate"]);
     assert!(close(t, [0.0, 0.0, 3.0], 0.002), "{t:?}");
     let m = *vp.body_transform("b1").unwrap();

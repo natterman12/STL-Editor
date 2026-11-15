@@ -1,7 +1,7 @@
 //! Task 6: section view and smoothness.
 //!
-//! The plane follows `viewer.js` `setSection`. The cap is `#d06060`, drawn on the GPU (dimmed
-//! bodies too, previews never). Idle is "no repaint, no render unless something changed".
+//! The plane follows `viewer.js` `setSection`. The cap is the body's colour 25 % darker (no red),
+//! drawn on the GPU (dimmed bodies too, previews never); the grid never shows on it. Idle is "no repaint, no render unless something changed".
 //! A rebuild of the bench mesh must not stall a frame.
 //!
 //! Native only: the GPU and the worker threads these tests use do not exist on wasm32.
@@ -15,7 +15,7 @@ use std::time::{Duration, Instant};
 use egui_kittest::Harness;
 use stl_app::engine_link::BodyView;
 use stl_app::viewport::renderer::Headless;
-use stl_app::viewport::section::{self, SectionAxis, CAP_COLOR, CAP_WGSL, UPLOAD_BUDGET_BYTES};
+use stl_app::viewport::section::{self, SectionAxis, CAP_KEEP, CAP_WGSL, UPLOAD_BUDGET_BYTES};
 use stl_app::viewport::{PreviewMesh, PreviewPack, Viewport};
 use stl_kernel::MeshArrays;
 
@@ -114,9 +114,10 @@ fn section_plane_matches_viewer_js() {
     assert!(close4(empty.section_plane().unwrap(), expect), "{:?}", empty.section_plane());
 
     assert!(CAP_WGSL.contains("fn fs_cap"));
-    assert!(CAP_WGSL.contains("208.0 / 255.0"));
+    assert!(CAP_WGSL.contains("cap_body.color"), "the cap takes the body's colour");
+    assert!(!CAP_WGSL.contains("208.0 / 255.0"), "no red cap");
     assert!(CAP_WGSL.contains("discard"));
-    assert_eq!(CAP_COLOR, 0xd06060);
+    assert_eq!(CAP_KEEP, 0.75);
 }
 
 #[test]
@@ -183,11 +184,25 @@ fn section_toggle_always_repaints() {
     assert!(harness.ctx.has_requested_repaint());
 }
 
+/// The cube's colour `#9aa7b4` x 0.75: the plain cut face.
+const CAP_RGB: [u8; 3] = [115, 125, 135];
+/// The hatch lines: the cut face x 0.6.
+const LINE_RGB: [u8; 3] = [69, 75, 81];
+
+fn near(p: &image::Rgba<u8>, c: [u8; 3], tol: u8) -> bool {
+    p.0[3] > 200 && (0..3).all(|k| p.0[k].abs_diff(c[k]) <= tol)
+}
+
 fn cap_pixels(img: &image::RgbaImage) -> usize {
+    img.pixels().filter(|p| near(p, CAP_RGB, 6)).count()
+}
+
+/// Pixels where red dominates (the cut face used to be `#d06060`): only the X axis is left.
+fn red_pixels(img: &image::RgbaImage) -> usize {
     img.pixels()
         .filter(|p| {
             let [r, g, b, a] = p.0;
-            a > 200 && r > 180 && (g as i16) < 140 && (b as i16) < 140 && r > g.saturating_add(40) && r > b.saturating_add(40)
+            a > 200 && r > g.saturating_add(40) && r > b.saturating_add(40)
         })
         .count()
 }
@@ -243,25 +258,30 @@ fn section_snapshot() {
     let dark_caps = cap_pixels(&dark);
     let light_caps = cap_pixels(&light);
     let open_caps = cap_pixels(&open);
-    // about 5,700 (dark) and 6,100 (light) as recorded; the red X axis alone gives about 130
-    assert!(dark_caps >= 2500, "dark section shows {dark_caps} cap pixels, image {}x{}", dark.width(), dark.height());
-    assert!(light_caps >= 2500, "light section shows {light_caps} cap pixels");
-    assert!(open_caps * 4 < dark_caps, "section off has {open_caps} red pixels, on has {dark_caps}");
+    assert!(dark_caps >= 2000, "dark section shows {dark_caps} cap pixels, image {}x{}", dark.width(), dark.height());
+    assert!(light_caps >= 2000, "light section shows {light_caps} cap pixels");
+    assert!(open_caps * 4 < dark_caps, "section off has {open_caps} cap-coloured pixels, on has {dark_caps}");
+    // no red cut face: what red is left is the X axis' thin line
+    for (name, img) in [("dark", &dark), ("light", &light)] {
+        let red = red_pixels(img);
+        assert!(red < 400, "{name}: {red} red-dominant pixels; the cut face must not be red");
+    }
     assert_ne!(dark.as_raw(), light.as_raw(), "dark and light section views are the same picture");
 }
 
-/// The cap's hatch lines: the cap colour darkened (`0xd06060` x 0.53 is about `0x6e3333`).
+/// A hatch line pixel: the cut face darkened again, with the plain cut face a few pixels to
+/// both sides (the dark background has pixels of the same colour, but not beside the cut face).
+fn hatch_at(img: &image::RgbaImage, x: u32, y: u32) -> bool {
+    let (w, _) = img.dimensions();
+    near(img.get_pixel(x, y), LINE_RGB, 8) && x >= 3 && x + 3 < w && near(img.get_pixel(x - 3, y), CAP_RGB, 6) && near(img.get_pixel(x + 3, y), CAP_RGB, 6)
+}
+
 fn hatch_pixels(img: &image::RgbaImage) -> usize {
-    img.pixels()
-        .filter(|p| {
-            let [r, g, b, a] = p.0;
-            a > 200 && (85..=150).contains(&r) && g < 80 && b < 80 && r > g.saturating_add(30) && r > b.saturating_add(30)
-        })
-        .count()
+    (0..img.height()).map(|y| (0..img.width()).filter(|&x| hatch_at(img, x, y)).count()).sum()
 }
 
 /// The cube cut on Z (from the default iso view), with or without Hatch.
-fn hatch_picture(gpu: &Headless, dark: bool, hatch: bool, name: Option<&str>) -> image::RgbaImage {
+fn hatch_picture(gpu: &Headless, dark: bool, hatch: bool, grid: bool, name: Option<&str>) -> image::RgbaImage {
     let mut vp = Viewport::new();
     vp.init_gpu(&gpu.render_state);
     vp.set_theme(dark);
@@ -270,6 +290,7 @@ fn hatch_picture(gpu: &Headless, dark: bool, hatch: bool, name: Option<&str>) ->
     vp.set_view_size(320.0, 240.0);
     vp.fit_all();
     vp.camera_mut().finish_flight();
+    vp.set_grid_visible(grid);
     vp.set_section(true);
     vp.set_section_hatch(hatch);
     assert_eq!(vp.frame_for_size(320.0, 240.0, 1.0).globals.flags[1], if hatch { 1.0 } else { 0.0 });
@@ -290,9 +311,10 @@ fn hatch_picture(gpu: &Headless, dark: bool, hatch: bool, name: Option<&str>) ->
     picture
 }
 
-/// Hatch (Section View, spec 2.3): darker diagonal lines on the cut face, evenly spaced in
-/// screen space; with Hatch off the cap is 1.x's flat `#d06060`. Compared with the snapshots on
-/// the recorded adapter; everywhere (WARP on CI) the lines are counted.
+/// Hatch (Section View): darker diagonal lines on the cut face, evenly spaced in screen space;
+/// with Hatch off the cut face is the plain darker body colour. Never red, and the grid never
+/// shows on it. Compared with the snapshots on the recorded adapter; everywhere (WARP on CI)
+/// the lines and the colours are counted.
 #[test]
 fn section_hatch_snapshot() {
     let Some(gpu) = gpu::headless() else {
@@ -300,32 +322,114 @@ fn section_hatch_snapshot() {
         return;
     };
     for dark in [true, false] {
-        let name = if dark { "section_hatch_dark" } else { "section_hatch_light" };
-        let on = hatch_picture(&gpu, dark, true, Some(name));
-        let off = hatch_picture(&gpu, dark, false, None);
+        let theme = if dark { "dark" } else { "light" };
+        let on = hatch_picture(&gpu, dark, true, true, Some(&format!("section_hatch_on_{theme}")));
+        let off = hatch_picture(&gpu, dark, false, true, Some(&format!("section_hatch_off_{theme}")));
+        let name = format!("section_hatch_{theme}");
         assert_ne!(on.as_raw(), off.as_raw(), "{name}: Hatch on and off are the same picture");
         let (lines_on, lines_off) = (hatch_pixels(&on), hatch_pixels(&off));
         let (cap_on, cap_off) = (cap_pixels(&on), cap_pixels(&off));
         eprintln!("{name}: hatch pixels {lines_on} (off {lines_off}), cap pixels {cap_on} (off {cap_off})");
-        assert!(cap_off >= 2500, "{name}: the flat cap shows {cap_off} pixels");
+        assert!(cap_off >= 2000, "{name}: the plain cut face shows {cap_off} pixels");
         assert!(lines_on >= 300, "{name}: only {lines_on} hatch-line pixels");
-        // without Hatch only the odd antialiased edge (and, dark, the red axis) is that colour
         assert!(lines_off * 4 < lines_on, "{name}: hatch-coloured pixels without Hatch: {lines_off}, with: {lines_on}");
-        // the lines are drawn on the cap, in place of some of its flat colour
-        assert!(cap_on < cap_off && cap_on * 3 > cap_off, "{name}: cap {cap_on} with lines, {cap_off} flat");
-        // diagonal: along a row through the cap, line pixels repeat about every 6 pixels
-        let y = (0..on.height()).max_by_key(|&y| (0..on.width()).filter(|&x| is_hatch(on.get_pixel(x, y))).count()).unwrap();
-        let xs: Vec<u32> = (0..on.width()).filter(|&x| is_hatch(on.get_pixel(x, y)) && !is_hatch(on.get_pixel(x.wrapping_sub(1), y))).collect();
+        // the lines are drawn on the cut face, in place of some of its plain colour
+        assert!(cap_on < cap_off && cap_on * 3 > cap_off, "{name}: cut face {cap_on} with lines, {cap_off} plain");
+        // no red cut face
+        for (what, img) in [("on", &on), ("off", &off)] {
+            let red = red_pixels(img);
+            assert!(red < 400, "{name} {what}: {red} red-dominant pixels");
+        }
+        // diagonal: along a row through the cut face, line pixels repeat about every 6 pixels
+        let y = (0..on.height()).max_by_key(|&y| (0..on.width()).filter(|&x| hatch_at(&on, x, y)).count()).unwrap();
+        let xs: Vec<u32> = (0..on.width()).filter(|&x| hatch_at(&on, x, y) && !(x > 0 && hatch_at(&on, x - 1, y))).collect();
         let gaps: Vec<u32> = xs.windows(2).map(|w| w[1] - w[0]).collect();
         assert!(gaps.len() >= 4, "{name}: too few lines on row {y}: {xs:?}");
         let mean = gaps.iter().sum::<u32>() as f64 / gaps.len() as f64;
         assert!((mean - 6.0).abs() < 1.0, "{name}: lines {mean:.2} px apart on row {y}: {xs:?}");
+        // the grid never shows in the cut face: with the grid off, those pixels are the same.
+        // The face is found in the plain (Hatch off) picture, well inside its edge, where the
+        // pixels blend with whatever is behind the face.
+        let plain = hatch_picture(&gpu, dark, false, false, None);
+        let (w, h) = plain.dimensions();
+        let face: Vec<(u32, u32)> = (3..h - 3)
+            .flat_map(|y| (3..w - 3).map(move |x| (x, y)))
+            .filter(|&(x, y)| (y - 2..=y + 2).all(|j| (x - 2..=x + 2).all(|i| near(plain.get_pixel(i, j), CAP_RGB, 6))))
+            .collect();
+        assert!(face.len() >= 1500, "{name}: only {} cut-face pixels", face.len());
+        for (what, hatch, with_grid) in [("on", true, &on), ("off", false, &off)] {
+            let without = hatch_picture(&gpu, dark, hatch, false, None);
+            let moved = face.iter().filter(|&&(x, y)| (0..3).any(|k| with_grid.get_pixel(x, y).0[k].abs_diff(without.get_pixel(x, y).0[k]) > 2)).count();
+            assert_eq!(moved, 0, "{name} {what}: the grid changes {moved} of {} cut-face pixels", face.len());
+        }
     }
 }
 
-fn is_hatch(p: &image::Rgba<u8>) -> bool {
-    let [r, g, b, a] = p.0;
-    a > 200 && (85..=150).contains(&r) && g < 80 && b < 80 && r > g.saturating_add(30) && r > b.saturating_add(30)
+/// A 20 mm cube with a 10 x 10 x 8 pocket cut in its top, the way the cut preview shows it:
+/// the original body, the preview pack (the pocketed cube) and the cutter shape the engine
+/// reports for the tint.
+fn pocket_preview() -> (BodyView, PreviewPack) {
+    use serde_json::json;
+    let obj = |v: serde_json::Value| v.as_object().unwrap().clone();
+    let mut doc = stl_engine::Document::new(stl_engine::Registry::builtin());
+    let boxp = json!({"shape": "box", "length": 20, "width": 20, "height": 20, "anchor": "corner", "plane": "XY", "operation": "new"});
+    doc.add_feature("primitive", obj(boxp), None).unwrap();
+    let sk = json!({"plane": {"origin": [0, 0, 20], "normal": [0, 0, 1]}, "entities": [{"type": "rect", "id": "r1", "x": 5, "y": 5, "w": 10, "h": 10}]});
+    doc.add_feature("sketch", obj(sk), None).unwrap();
+    let body = BodyView { id: "f1".into(), name: "Box".into(), color: Some("#9aa7b4".into()), hidden: false, solid: true, mesh: Arc::new(doc.state.bodies["f1"].solid.as_ref().unwrap().to_mesh()), revision: 1 };
+    let (state, res) = doc.preview("extrude", obj(json!({"sketch": "f2", "operation": "cut", "distance": 8, "direction": "one", "targets": ["f1"]})), None);
+    assert_eq!(res.error, None);
+    let pack = stl_app::engine_link::views::preview_pack(&state, &res);
+    assert!(pack.cutter.is_some(), "the preview carries the cutter");
+    (body, pack)
+}
+
+/// Pixels the red tint gives (red well over green and blue; the X axis' thin line is a few more).
+fn tint_picture(gpu: &Headless, tint: bool, name: &str) -> image::RgbaImage {
+    let (body, pack) = pocket_preview();
+    let mut vp = Viewport::new();
+    vp.init_gpu(&gpu.render_state);
+    vp.set_theme(true);
+    vp.set_grid_visible(false);
+    vp.sync_bodies(&[body]);
+    vp.flush();
+    vp.show_preview(&pack);
+    vp.flush();
+    vp.set_cut_tint("tool", pack.cutter.clone().filter(|_| tint));
+    assert_eq!(vp.cut_tint_ids().len(), usize::from(tint));
+    vp.set_view_size(320.0, 240.0);
+    vp.set_view("iso");
+    vp.fit_all();
+    vp.camera_mut().finish_flight();
+    let renderer = wgpu_renderer::WgpuRenderer::new(gpu.render_state.clone());
+    let mut harness = Harness::builder().with_size(egui::vec2(320.0, 240.0)).with_render_cursor(false).renderer(renderer).build_ui(move |ui| {
+        egui::CentralPanel::default().frame(egui::Frame::NONE).show(ui, |ui| {
+            vp.show(ui);
+        });
+    });
+    harness.run();
+    gpu::snapshot(&mut harness, gpu, name);
+    let picture = harness.render().expect("cut tint picture");
+    let errors: Vec<String> = harness.take_snapshot_results().into_inner().iter().map(|e| e.to_string()).collect();
+    assert!(errors.is_empty(), "{}", errors.join("
+"));
+    picture
+}
+
+/// The cut tint (spec 2.14): with it on, the pocket's cutter shows translucent red where it cuts;
+/// with the setting off nothing red is drawn.
+#[test]
+fn cut_tint_pocket_preview() {
+    let Some(gpu) = gpu::headless() else {
+        eprintln!("no GPU adapter: skipped");
+        return;
+    };
+    let on = tint_picture(&gpu, true, "cut_tint_pocket_preview");
+    let off = tint_picture(&gpu, false, "cut_tint_pocket_preview_off");
+    let (red_on, red_off) = (red_pixels(&on), red_pixels(&off));
+    eprintln!("cut tint: {red_on} red pixels (off: {red_off})");
+    assert!(red_on > red_off + 150, "the tint shows: {red_on} red-dominant pixels with it, {red_off} without");
+    assert!(red_off < 400, "nothing red without the tint: {red_off}");
 }
 
 fn repaint_delay(harness: &Harness<'_>) -> Duration {

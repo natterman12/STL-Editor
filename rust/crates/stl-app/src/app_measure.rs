@@ -120,7 +120,9 @@ impl StlApp {
         self.measure.pts.push(point);
         self.viewport.add_marker(point, BLUE, TAG, None);
         if let [a, b] = self.measure.pts[..] {
-            self.viewport.add_line(a, b, BLUE, TAG);
+            self.viewport.set_measure(Some((a, b))); // the line, the dotted legs and their labels
+        } else {
+            self.viewport.set_measure(None);
         }
         true
     }
@@ -176,6 +178,7 @@ impl StlApp {
         }
         if self.measure.open {
             self.viewport.clear_overlay(TAG);
+            self.viewport.set_measure(None);
         }
         self.measure = Default::default();
         self.info = InfoState { seq: self.info.seq + 1, ..Default::default() };

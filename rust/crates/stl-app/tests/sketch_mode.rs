@@ -650,7 +650,7 @@ fn match_refs_follows_a_grown_box() {
     }
 }
 
-/// 1.x `_fill`: a closed rect is a peach sheet (0xf6c7a8 at 0.38) under the strokes. An open
+/// 1.x `_fill`: a closed rect is a peach sheet (0xf6c7a8 at 0.18, `PLANE_SKETCH_ALPHA`, spec 2.3) under the strokes. An open
 /// curve and a construction rect add no fill, and selection, under-defined and light theme
 /// leave the colour alone.
 #[test]
@@ -667,7 +667,7 @@ fn closed_rect_produces_a_fill() {
     h.state_mut().sketch_mode_mut().unwrap().dirty = true;
     h.run_steps(2);
 
-    let peach = [0xf6, 0xc7, 0xa8, (0.38_f32 * 255.0).round() as u8];
+    let peach = [0xf6, 0xc7, 0xa8, (0.18_f32 * 255.0).round() as u8];
     let area = fill_area(&h);
     assert!((area - 50.0).abs() < 1e-3, "10×5 rect, not the open curve or the construction rect: {area}");
     assert!(fill_is_peach_under_strokes(&h, peach));

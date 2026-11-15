@@ -13,6 +13,7 @@
 pub mod camera;
 mod drag_draw;
 pub mod gizmo_draw;
+pub mod navigation;
 pub mod overhang;
 pub mod overlays;
 pub mod pick;
@@ -32,7 +33,7 @@ use stl_kernel::{Aabb, MeshArrays};
 use stl_mesh::bvh::Bvh;
 
 use crate::engine_link::{BodyView, PlaneView, SketchView};
-use camera::{Camera, DragAction, V3};
+use camera::{Camera, V3};
 use overlays::{Depth, OverlayItem, SketchOutline, Stroke};
 use renderer::{BodyDraw, BodyUniform, FlatBatch, FrameData, Globals, GpuState, Stats};
 pub use gizmo_draw::{GizmoMode, GizmoShape, Handle};
@@ -90,6 +91,8 @@ pub struct PreviewPack {
     pub colors: HashMap<String, String>,
     /// `pack.result.ghosts`: see-through meshes (a fin you removed).
     pub ghosts: Vec<String>,
+    /// The cutting shape of a tool that removes material (`res.cutter`), for the cut tint.
+    pub cutter: Option<Arc<MeshArrays>>,
 }
 
 struct PreviewEntry {
@@ -357,6 +360,16 @@ pub struct Viewport {
     gizmo_batches: Vec<FlatBatch>,
     /// A handle drag holds the camera still (1.x: `controls.enabled = !dragging`).
     camera_locked: bool,
+    /// Settings › Navigation › Orbit around.
+    pub orbit_around: navigation::OrbitAround,
+    /// The pivot the orbit drag in progress uses (None between drags, and after a pan or zoom).
+    orbit_kept: Option<V3>,
+    /// Face highlights a tool made: (tag, body, triangles, colour), drawn from the body's mesh.
+    tool_highlights: Vec<(String, String, Vec<u32>, u32)>,
+    /// The cut tint's cutter shapes, by id.
+    cut_tints: HashMap<String, Arc<MeshArrays>>,
+    /// Measure's two points.
+    measure: Option<(V3, V3)>,
     overhang_cache: Option<overhang::OverhangCache>,
     overhang_job: Option<overhang::OverhangJob>,
     /// `_buildPlaneGrid`: sheet, grid and axes, built when the sketch opens.
@@ -437,6 +450,11 @@ impl Default for Viewport {
             gizmo_flat: Arc::new(Vec::new()),
             gizmo_batches: Vec::new(),
             camera_locked: false,
+            orbit_around: navigation::OrbitAround::ViewCentre,
+            orbit_kept: None,
+            tool_highlights: Vec::new(),
+            cut_tints: HashMap::new(),
+            measure: None,
             #[cfg(not(target_arch = "wasm32"))]
             gpu_rs: None,
             #[cfg(not(target_arch = "wasm32"))]
@@ -515,6 +533,12 @@ impl Viewport {
             return true;
         }
         let Some(rs) = &self.gpu_rs else { return false };
+        // egui-wgpu (our copy, third_party/egui-wgpu) skipped the last paint because the device
+        // refused its upload: a loss, even where the driver never reports one (WARP)
+        if rs.renderer.read().upload_refused() {
+            self.stats.device_lost.store(true, std::sync::atomic::Ordering::Relaxed);
+            return true;
+        }
         if poll {
             let _ = rs.device.poll(wgpu::PollType::Poll);
         }
@@ -983,11 +1007,13 @@ impl Viewport {
     /// `_buildPlaneGrid`: the sketch plane's grid, axes and sheet. `None` removes it.
     /// The size follows the scene box at the moment it is set, as `sketcher.js` builds it once
     /// in `start`.
-    pub fn set_sketch_plane_grid(&mut self, frame: Option<PlaneFrame>) {
+    ///
+    /// `step` is the spacing of the lines in mm (the spacing Grid snap uses at this zoom).
+    pub fn set_sketch_plane_grid(&mut self, frame: Option<PlaneFrame>, step: f64) {
         match frame {
             Some(f) => {
                 let diag = self.scene_box().map(|b| camera::box_diagonal(&b));
-                let (sheet, lines, axes) = scene::sketch_plane_grid(&f.as_frame(), diag);
+                let (sheet, lines, axes) = scene::sketch_plane_grid(&f.as_frame(), diag, step);
                 self.sketch_sheet = sheet;
                 self.sketch_grid_lines = lines;
                 self.sketch_axes = axes;
@@ -1125,6 +1151,7 @@ impl Viewport {
     /// `clearOverlay(tag)`; an empty tag clears every overlay.
     pub fn clear_overlay(&mut self, tag: &str) {
         self.overlays.retain(|o| !(tag.is_empty() || o.tag == tag));
+        self.tool_highlights.retain(|h| !(tag.is_empty() || h.0 == tag));
         self.overlays_changed();
     }
 
@@ -1500,6 +1527,20 @@ impl Viewport {
         for it in self.overlays.iter().chain(self.band.iter()).chain(self.brush.iter()) {
             items.push((it.order, it.depth, it.tris.clone(), it.lines.clone()));
         }
+        // A tool's face highlights come from the body's mesh and transform as they are now.
+        for (tag, body, tris, color) in &self.tool_highlights {
+            if let Some(mesh) = self.body_mesh(body) {
+                let it = overlays::highlight_face_at(mesh, tris, tag, *color, self.body_transforms.get(body));
+                items.push((it.order, it.depth, it.tris, it.lines));
+            }
+        }
+        // The cut tint: the cutter shapes of the open tool, translucent red.
+        let mut ids: Vec<&String> = self.cut_tints.keys().collect();
+        ids.sort();
+        for id in ids {
+            let it = overlays::cut_tint(&self.cut_tints[id], id, scene::CUT_TINT, scene::CUT_TINT_ALPHA);
+            items.push((it.order, it.depth, it.tris, it.lines));
+        }
         items.sort_by_key(|i| i.0);
         let mut flat = Vec::new();
         let mut batches = Vec::new();
@@ -1714,6 +1755,7 @@ impl Viewport {
             ui.painter().add(egui_wgpu::Callback::new_paint_callback(rect, TimedCallback { inner, trace: self.trace.clone() }));
         }
         self.paint_drag_plane(ui, rect);
+        self.paint_measure(ui, rect);
         let cube = viewcube::show(ui, rect, self.viewcube_inset, self.section_on, self.dark);
         if let Some(v) = cube.view {
             self.set_view(v);
@@ -1731,53 +1773,95 @@ impl Viewport {
             self.camera.cancel_flight();
         }
         let delta = response.drag_delta();
-        if delta != egui::Vec2::ZERO {
-            for b in [egui::PointerButton::Primary, egui::PointerButton::Middle, egui::PointerButton::Secondary] {
-                if response.dragged_by(b) {
-                    if b == egui::PointerButton::Primary && self.drag_busy {
-                        // the arrow is being dragged: no orbit
-                        break;
-                    }
-                    match camera::drag_action(self.mouse_mode, b) {
-                        Some(DragAction::Rotate) => self.camera.rotate(delta.x as f64, delta.y as f64),
-                        Some(DragAction::Pan) => self.camera.pan(delta.x as f64, delta.y as f64),
-                        None => {}
-                    }
-                    break;
-                }
+        let (shift, press, touching, two_fingers) = ui.input(|i| {
+            (i.modifiers.shift, i.pointer.press_origin(), i.any_touches(), i.multi_touch().is_some_and(|t| t.num_touches >= 2))
+        });
+        let mut orbiting = false;
+        for b in [egui::PointerButton::Primary, egui::PointerButton::Middle, egui::PointerButton::Secondary] {
+            if !response.dragged_by(b) {
+                continue;
             }
+            if b == egui::PointerButton::Primary && self.drag_busy {
+                // the arrow is being dragged: no orbit
+                break;
+            }
+            // one finger on a touch screen arrives as the left button: it orbits in Model mode
+            // (two fingers pan / pinch below instead, so the first finger doesn't also orbit)
+            if two_fingers && b == egui::PointerButton::Primary {
+                break;
+            }
+            let touch_orbit = touching && b == egui::PointerButton::Primary && self.mouse_mode == MouseMode::Model;
+            let act = if touch_orbit { Some(navigation::NavAction::Orbit) } else { navigation::nav_action(self.mouse_mode, b, shift) };
+            match act {
+                Some(navigation::NavAction::Orbit) => {
+                    // a held orbit drag keeps its pivot even on a frame where the pointer stands still
+                    orbiting = true;
+                    if delta != egui::Vec2::ZERO {
+                        let under = (self.orbit_kept.is_none() && self.orbit_around == navigation::OrbitAround::Cursor)
+                            .then(|| press.and_then(|p| self.surface_point(p)))
+                            .flatten();
+                        let pivot = navigation::orbit_pivot(&self.camera, self.orbit_around, self.scene_box(), under, self.orbit_kept);
+                        self.orbit_kept = Some(pivot);
+                        self.camera.orbit_about(pivot, delta.x as f64, delta.y as f64);
+                    }
+                }
+                Some(navigation::NavAction::Pan) => {
+                    if delta != egui::Vec2::ZERO {
+                        self.orbit_kept = None;
+                        self.camera.pan(delta.x as f64, delta.y as f64);
+                    }
+                }
+                None => {}
+            }
+            break;
+        }
+        // no orbit drag running (whatever the pointer is over): the next turn, a wheel orbit
+        // included, picks a fresh pivot
+        if !orbiting {
+            self.orbit_kept = None;
         }
         if !response.contains_pointer() {
             return;
         }
         let rect = self.rect;
         let (wheel, cursor, touch) = ui.input(|i| {
-            let mut dy = 0.0f64;
+            let mut acts = Vec::new();
             for e in &i.raw.events {
-                if let egui::Event::MouseWheel { unit, delta, modifiers, .. } = e {
-                    // WheelEvent.deltaY points the other way; a notch is 100 in Chromium
-                    let mut d = -delta.y as f64
-                        * match unit {
-                            egui::MouseWheelUnit::Point => 1.0,
-                            egui::MouseWheelUnit::Line => 100.0,
-                            egui::MouseWheelUnit::Page => 100.0,
-                        };
-                    if modifiers.ctrl {
-                        d *= 10.0;
-                    }
-                    dy += d;
+                match e {
+                    egui::Event::MouseWheel { unit, delta, modifiers, .. } => acts.push(navigation::wheel_action(*unit, *delta, *modifiers)),
+                    // a trackpad pinch (and Ctrl+wheel on the web)
+                    egui::Event::Zoom(f) if *f > 0.0 && *f != 1.0 && i.multi_touch().is_none() => acts.push(navigation::WheelAction::Zoom(1.0 / *f as f64)),
+                    _ => {}
                 }
             }
-            (dy, i.pointer.hover_pos(), i.multi_touch())
+            (acts, i.pointer.hover_pos(), i.multi_touch())
         });
-        if wheel != 0.0 {
-            let c = cursor.unwrap_or(rect.center()) - rect.min;
-            self.camera.wheel(wheel, [c.x as f64, c.y as f64]);
+        for a in wheel {
+            match a {
+                navigation::WheelAction::Zoom(s) if s != 1.0 => {
+                    let at = cursor.unwrap_or(rect.center());
+                    let anchor = navigation::zoom_anchor(&self.camera, self.ray(at), self.surface_point(at));
+                    self.camera.zoom_at(s, anchor);
+                    self.orbit_kept = None;
+                }
+                navigation::WheelAction::Zoom(_) => {}
+                navigation::WheelAction::Pan(dx, dy) => {
+                    self.camera.pan(dx, dy);
+                    self.orbit_kept = None;
+                }
+                navigation::WheelAction::Orbit(dx, dy) => {
+                    let pivot = navigation::orbit_pivot(&self.camera, self.orbit_around, self.scene_box(), None, self.orbit_kept);
+                    self.camera.orbit_about(pivot, dx, dy);
+                }
+            }
         }
         if let Some(t) = touch.filter(|t| t.num_touches >= 2) {
-            let c = t.center_pos - rect.min;
             if t.zoom_delta > 0.0 && t.zoom_delta != 1.0 {
-                self.camera.zoom_to_cursor(1.0 / t.zoom_delta as f64, [c.x as f64, c.y as f64]);
+                // like the wheel: toward the surface under the pinch centre
+                let at = t.center_pos;
+                let anchor = navigation::zoom_anchor(&self.camera, self.ray(at), self.surface_point(at));
+                self.camera.zoom_at(1.0 / t.zoom_delta as f64, anchor);
+                self.orbit_kept = None;
             }
             let d = t.translation_delta;
             if self.mouse_mode == MouseMode::Sculpt {
@@ -1787,6 +1871,13 @@ impl Viewport {
             }
         }
     }
+}
+
+/// The overlay tag of Measure's line and legs.
+const MEASURE_TAG: &str = "measure-tri";
+
+fn rgb_of(c: u32) -> Color32 {
+    Color32::from_rgb((c >> 16) as u8, (c >> 8) as u8, c as u8)
 }
 
 fn hex(c: Color32) -> u32 {
@@ -1815,6 +1906,121 @@ pub fn normal_matrix(m: &camera::M4) -> camera::M4 {
 }
 
 impl Viewport {
+    // ------------------------------------------------------------------ milestone 7 interfaces
+
+    /// The model point under a screen position (bodies only), for the orbit pivot and zoom anchor.
+    pub fn surface_point(&self, pos: Pos2) -> Option<V3> {
+        match self.pick(pos, true, false)? {
+            pick::Hit::Body { point, .. } => Some(point),
+            pick::Hit::Plane { .. } => None,
+        }
+    }
+
+    /// A face highlight a tool made, drawn from the body's current mesh and transform (Task 7).
+    ///
+    /// The highlight is kept as (body, triangles) and built from the body's mesh on screen and its
+    /// gizmo transform each time the overlays are rebuilt, so it moves with the body and is right
+    /// after any rebuild of the model. One highlight per tag: a new one replaces the old.
+    pub fn set_face_highlight(&mut self, tag: &str, body: &str, tris: Vec<u32>, color: u32) {
+        self.tool_highlights.retain(|h| h.0 != tag);
+        self.overlays.retain(|o| o.tag != tag);
+        self.tool_highlights.push((tag.to_owned(), body.to_owned(), tris, color));
+        self.overlays_changed();
+    }
+
+    /// Remove every highlight a tool made (Task 7).
+    pub fn clear_tool_highlights(&mut self) {
+        if !self.tool_highlights.is_empty() {
+            self.tool_highlights.clear();
+            self.overlays_changed();
+        }
+    }
+
+    /// The tags of the highlights tools made, in the order they were set.
+    pub fn tool_highlight_tags(&self) -> Vec<String> {
+        self.tool_highlights.iter().map(|h| h.0.clone()).collect()
+    }
+
+    /// The corners (millimetres, as drawn: the body's gizmo transform included) of the triangles
+    /// highlighted under `tag`. Empty when there is none, or its body is not there.
+    pub fn tool_highlight_corners(&self, tag: &str) -> Vec<V3> {
+        let Some((_, body, tris, color)) = self.tool_highlights.iter().find(|h| h.0 == tag) else { return Vec::new() };
+        let Some(mesh) = self.body_mesh(body) else { return Vec::new() };
+        overlays::highlight_face_at(mesh, tris, tag, *color, self.body_transforms.get(body)).tris.iter().map(|v| v.pos.map(f64::from)).collect()
+    }
+
+    /// The translucent red cutter shape of a tool that removes material; `None` removes it (Task 7).
+    pub fn set_cut_tint(&mut self, id: &str, mesh: Option<Arc<MeshArrays>>) {
+        let changed = match mesh {
+            Some(m) => {
+                self.cut_tints.insert(id.to_owned(), m);
+                true
+            }
+            None => self.cut_tints.remove(id).is_some(),
+        };
+        if changed {
+            self.overlays_changed();
+        }
+    }
+
+    /// The ids of the cut tints on screen.
+    pub fn cut_tint_ids(&self) -> Vec<String> {
+        let mut v: Vec<String> = self.cut_tints.keys().cloned().collect();
+        v.sort();
+        v
+    }
+
+    /// Measure's two points: the line, the dotted X/Y/Z legs and their labels (Task 7).
+    pub fn set_measure(&mut self, m: Option<(V3, V3)>) {
+        if self.measure != m {
+            self.measure = m;
+            self.overlays.retain(|o| o.tag != MEASURE_TAG);
+            if let Some((a, b)) = m {
+                let it = overlays::measure(a, b, MEASURE_TAG, self.extent);
+                self.overlays.push(it);
+            }
+            self.overlays_changed();
+        }
+    }
+
+    /// Measure's legs, as drawn: X, then Y, then Z from the first point; none when it is not showing.
+    pub fn measure_legs(&self) -> Vec<overlays::MeasureLeg> {
+        self.measure.map(|(a, b)| overlays::measure_legs(a, b)).unwrap_or_default()
+    }
+
+    /// Measure's labels: where each sits (the middle of its line) and its text in the current
+    /// units: the distance first, then the legs.
+    pub fn measure_labels(&self) -> Vec<(V3, String)> {
+        use crate::tools::fields::number::{fmt_len, unit_name};
+        let Some((a, b)) = self.measure else { return Vec::new() };
+        let text = |mm: f64| format!("{} {}", fmt_len(mm, Some(if self.inch { 4 } else { 1 }), self.inch), unit_name(self.inch));
+        let mut out = vec![(camera::scale(camera::add(a, b), 0.5), text(camera::length(camera::sub(b, a))))];
+        out.extend(overlays::measure_legs(a, b).iter().map(|l| (l.middle(), text(l.length()))));
+        out
+    }
+
+    /// Measure's labels on top of the view: a small box at the middle of each line.
+    fn paint_measure(&self, ui: &egui::Ui, rect: Rect) {
+        let labels = self.measure_labels();
+        if labels.is_empty() {
+            return;
+        }
+        let painter = ui.painter_at(rect);
+        let tk = crate::theme::tokens(self.dark);
+        let legs = self.measure_legs();
+        for (i, (at, text)) in labels.into_iter().enumerate() {
+            if self.camera.project(at).1 <= 0.0 {
+                continue;
+            }
+            let col = if i == 0 { rgb_of(overlays::MEASURE_LINE_COLOR) } else { rgb_of(overlays::MEASURE_AXIS_COLORS[legs[i - 1].axis]) };
+            let p = self.world_to_screen(at);
+            let galley = painter.layout_no_wrap(text, egui::FontId::proportional(12.0), tk.text);
+            let r = Rect::from_center_size(p, galley.size()).expand2(egui::vec2(6.0, 3.0));
+            painter.rect(r, egui::CornerRadius::same(3), tk.panel, egui::Stroke::new(1.0, col), egui::StrokeKind::Inside);
+            painter.galley(r.center() - galley.size() / 2.0, galley, tk.text);
+        }
+    }
+
     // ------------------------------------------------------------------ gizmo
 
     /// Draw a body moved by `m` (column-major, millimetres) without touching its mesh: the
@@ -1830,6 +2036,9 @@ impl Viewport {
                 }
             }
         }
+        if self.tool_highlights.iter().any(|h| h.1 == id) {
+            self.flat_dirty = true; // its highlight rides on it
+        }
         self.changed();
     }
 
@@ -1837,6 +2046,7 @@ impl Viewport {
     pub fn clear_body_transforms(&mut self) {
         if !self.body_transforms.is_empty() {
             self.body_transforms.clear();
+            self.flat_dirty |= !self.tool_highlights.is_empty();
             self.changed();
         }
     }

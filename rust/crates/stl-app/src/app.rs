@@ -32,6 +32,8 @@ mod handoff;
 mod bodymenu;
 #[path = "app_device.rs"]
 mod device;
+#[path = "app_tools_planes.rs"]
+mod tools_planes;
 use std::collections::{BTreeMap, HashMap};
 use egui::{Align2, Area, CornerRadius, Frame, Id, Margin, Order, Pos2, Rect, RichText, Sense, Stroke, Vec2};
 
@@ -125,7 +127,19 @@ pub struct StlApp {
     info: measure::InfoState,
     /// Send to Slicer and To STEP (`app_handoff.rs`).
     handoff: handoff::HandoffState,
+    /// The sketch or timeline step picked in the tree or timeline (spec 2.12).
+    pub selected_step: Option<String>,
+    /// Settings › Display › Tint cuts in previews (`cut_preview_tint`, on by default).
+    pub cut_tint_on: bool,
+    /// Settings › Sketch › Cursor coordinates (`sketch_cursor_coords`, on by default).
+    pub cursor_coords_on: bool,
+    /// The origin planes' eye state before a plane field showed them (Task 9).
+    pub planes_before_tool: Option<bool>,
 }
+
+/// Setting keys of milestone 7.
+pub const CUT_TINT_KEY: &str = "cut_preview_tint";
+pub const CURSOR_COORDS_KEY: &str = "sketch_cursor_coords";
 
 /// A short fingerprint of the history, to tell whether it changed since the last save.
 fn arr_empty(v: Option<&serde_json::Value>) -> bool {
@@ -152,12 +166,21 @@ fn history_sig(t: &TimelineView) -> String {
     format!("{:?}|{:?}", t.items, t.marker)
 }
 
-/// 1.x `showHelp()` (app.js:2676-2680), word for word.
+use crate::viewport::navigation::OrbitAround;
+
+/// The overlay tag of the sketch picked in the tree.
+const STEP_SEL_TAG: &str = "step-sel";
+/// The cut tint's id.
+pub const CUT_TINT_ID: &str = "tool";
+
+/// 1.x `showHelp()` (app.js:2676-2680), with milestone 7's Fusion mouse buttons.
 const HELP_TITLE: &str = "Keyboard & mouse";
 const HELP_ROWS: &[(&str, &str)] = &[
-    ("Left-drag", "Orbit"),
-    ("Right / middle-drag", "Pan"),
-    ("Wheel", "Zoom"),
+    ("Right-drag", "Orbit"),
+    ("Middle-drag", "Pan"),
+    ("Shift + middle-drag", "Orbit"),
+    ("Wheel", "Zoom toward the cursor"),
+    ("Two-finger scroll", "Pan (Shift: orbit)"),
     ("Click", "Select a body (Shift adds)"),
     ("Double-click a flat face", "Sketch on it"),
     ("S", "Sketch"),
@@ -226,7 +249,7 @@ impl StlApp {
         files.load_recent(&*platform);
         crate::fonts::install(ctx);
         theme::apply(ctx, &tokens);
-        StlApp {
+        let mut app = StlApp {
             dark,
             tokens,
             platform,
@@ -279,7 +302,63 @@ impl StlApp {
             measure: Default::default(),
             info: Default::default(),
             handoff: Default::default(),
+            selected_step: None,
+            cut_tint_on: true,
+            cursor_coords_on: true,
+            planes_before_tool: None,
+        };
+        app.load_view_settings();
+        app
+    }
+
+    /// Orbit around, the cut tint and the sketch's cursor coordinates, from the settings.
+    pub fn load_view_settings(&mut self) {
+        let p = &*self.platform;
+        self.viewport.orbit_around = crate::viewport::navigation::OrbitAround::from_setting(p.setting(crate::viewport::navigation::OrbitAround::KEY).as_deref());
+        self.cut_tint_on = p.setting_json(CUT_TINT_KEY).and_then(|v| v.as_bool()).unwrap_or(true);
+        self.cursor_coords_on = p.setting_json(CURSOR_COORDS_KEY).and_then(|v| v.as_bool()).unwrap_or(true);
+    }
+
+    /// A sketch picked in the tree: select it and draw it in the selection colour (spec 2.12).
+    pub fn select_sketch(&mut self, id: &str) {
+        self.selected_step = Some(id.to_owned());
+        self.viewport.clear_overlay(STEP_SEL_TAG);
+        self.shell.selection.clear();
+        self.viewport.set_selection(&[]);
+        if let Some(sk) = self.sketches.iter().find(|s| s.id == id) {
+            let [origin, x, y, normal] = sk.frame;
+            let frame = crate::viewport::PlaneFrame { origin, x, y, normal };
+            let outlines = sk.outlines.clone();
+            self.viewport.add_sketch_lines(&frame, &outlines, crate::tools::fields::bodies::hex_color(crate::viewport::scene::SEL), 1.0, true, STEP_SEL_TAG);
         }
+    }
+
+    /// A timeline step picked: select it and the bodies it made or changed (spec 2.12).
+    pub fn select_feature(&mut self, id: &str) {
+        let Some(item) = self.timeline_view.items.iter().find(|i| i.id == id).cloned() else { return };
+        if item.kind == "sketch" {
+            return self.select_sketch(id);
+        }
+        self.selected_step = Some(id.to_owned());
+        self.viewport.clear_overlay(STEP_SEL_TAG);
+        let mut ids = vec![id.to_owned()];
+        for k in ["body", "target", "bodies", "targets"] {
+            match item.params.get(k) {
+                Some(serde_json::Value::String(s)) => ids.push(s.clone()),
+                Some(serde_json::Value::Array(a)) => ids.extend(a.iter().filter_map(|v| v.as_str().map(str::to_owned))),
+                _ => {}
+            }
+        }
+        let ids: Vec<String> = ids.into_iter().filter(|i| self.bodies.iter().any(|b| &b.id == i)).collect();
+        self.shell.selection = ids.clone();
+        self.viewport.set_selection(&ids);
+    }
+
+    /// Everything a closing tool leaves on screen goes: highlights, the cut tint, shown planes.
+    fn clear_tool_marks(&mut self) {
+        self.viewport.clear_tool_highlights();
+        self.viewport.set_cut_tint(CUT_TINT_ID, None);
+        self.sync_tool_planes();
     }
 
     /// A path from the command line. A `.stlx` is opened as a project (`Command::Open`); any other
@@ -449,6 +528,12 @@ impl StlApp {
         let mut mark_clean = out.saved || out.view_iso;
         // a recovered project that has just opened is unsaved work, not a clean project
         let recovered_open = self.recovering && out.view_iso;
+        if out.view_iso {
+            // a project arrived: nothing a tool highlighted stays
+            self.clear_tool_marks();
+            self.selected_step = None;
+            self.viewport.clear_overlay(STEP_SEL_TAG);
+        }
         if recovered_open {
             self.recovering = false;
             mark_clean = out.saved;
@@ -697,6 +782,9 @@ impl StlApp {
                 self.edit_feature(id);
             }
             UiEvent::BodyMenu(id, at) => self.open_body_menu(id, *at),
+            UiEvent::SelectSketch(id) => self.select_sketch(id),
+            UiEvent::SelectFeature(id) => self.select_feature(id),
+            UiEvent::Select(ids) => self.tree_fill_body(ids),
             _ => {}
         }
         self.shell.push_event(e);
@@ -735,6 +823,7 @@ impl StlApp {
         if let Some(t) = self.tool.as_mut() {
             t.active_field = key;
         }
+        self.sync_tool_planes();
     }
 
     pub fn tool_mut(&mut self) -> Option<&mut OpenTool> {
@@ -814,6 +903,7 @@ impl StlApp {
         self.viewport.set_viewcube_inset(crate::tools::panel::VIEWCUBE_INSET);
         self.tool = Some(t);
         self.after_open(def);
+        self.sync_tool_planes();
     }
 
     /// `closeTool(committed)`: Cancel puts the rollback back when a step was being edited.
@@ -830,6 +920,7 @@ impl StlApp {
         self.shell.hint.clear();
         self.shell.active_tool = None;
         self.viewport.set_viewcube_inset(0.0);
+        self.clear_tool_marks();
     }
 
     pub fn tool_cancel(&mut self) {
@@ -933,9 +1024,28 @@ impl StlApp {
         let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection, self.shell.inch);
         let Some(t) = self.tool.as_mut() else { return };
         let out = pk::feed(t.def, t.active_field.as_deref(), &mut t.values, &hit, &ctx);
+        self.apply_pick(out);
+    }
+
+    /// A body row in the tree while a tool is open fills the active Bodies field the same way a
+    /// viewport click does (spec 2.11). Anything else leaves the row to plain selection.
+    fn tree_fill_body(&mut self, ids: &[String]) {
+        use crate::tools::fields::bodies as pk;
+        let [id] = ids else { return };
+        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection, self.shell.inch);
+        let Some(t) = self.tool.as_mut() else { return };
+        let Some(out) = pk::feed_tree_body(t.def, t.active_field.as_deref(), &mut t.values, id, &ctx) else { return };
+        self.apply_pick(out);
+    }
+
+    /// What a pick did to the open tool, shared by viewport clicks and tree rows: advance to the
+    /// next empty field, reschedule the preview, show the plane and face, and the tool's messages.
+    fn apply_pick(&mut self, out: crate::tools::fields::bodies::PickOut) {
+        use crate::tools::fields::bodies as pk;
         if !out.used {
             return;
         }
+        let Some(t) = self.tool.as_mut() else { return };
         if out.changed {
             if out.advance {
                 if let Some(cur) = t.active_field.clone() {
@@ -947,6 +1057,8 @@ impl StlApp {
         if let Some((l, m)) = &out.message {
             t.msg = Some(crate::tools::preview::ToolMsg::new(if *l == Level::Error { crate::tools::preview::MsgKind::Err } else { crate::tools::preview::MsgKind::Info }, m.clone()));
         }
+        // a field change (a plane picked and the next field active) shows or hides the planes
+        self.sync_tool_planes();
         pk::apply_face(&mut self.viewport, &out);
         // the plane prompt: a picked plane starts the sketch (`onPlane`)
         if out.changed && self.tool.as_ref().is_some_and(|t| t.def.key == "sketch") {
@@ -1044,6 +1156,7 @@ impl StlApp {
             return;
         }
         self.viewport.show_preview(&pack);
+        self.viewport.set_cut_tint(CUT_TINT_ID, pack.cutter.clone().filter(|_| self.cut_tint_on));
         let (key, wall_tool) = (t.def.key, t.def.flags.wall_tool);
         let mode = crate::supports::mode_of(&t.values).to_owned();
         let (mut msg, mut warn) = (msg.filter(|m| !m.is_empty()), warn);
@@ -1243,6 +1356,12 @@ impl StlApp {
                     it("view.edges", tick(s.show_edges, "Show Edges")),
                     it("view.grid", tick(s.show_grid, "Show Grid")),
                     it("view.planes", tick(self.viewport.base_planes_visible(), "Show Origin Planes")),
+                    it("view.cut_tint", tick(self.cut_tint_on, "Tint Cuts in Previews")),
+                    it("view.cursor_coords", tick(self.cursor_coords_on, "Sketch Cursor Coordinates")),
+                    MenuItem::Hdr("Orbit Around".into()),
+                    it("nav.view_centre", tick(self.viewport.orbit_around == OrbitAround::ViewCentre, "View Centre")),
+                    it("nav.origin", tick(self.viewport.orbit_around == OrbitAround::Origin, "Origin")),
+                    it("nav.cursor", tick(self.viewport.orbit_around == OrbitAround::Cursor, "Under the Cursor")),
                 ]);
                 v
             }
@@ -1334,6 +1453,26 @@ impl StlApp {
             "view.planes" => {
                 let on = self.viewport.base_planes_visible();
                 self.viewport.set_base_planes_visible(!on);
+            }
+            "view.cut_tint" => {
+                self.cut_tint_on = !self.cut_tint_on;
+                self.platform.set_setting_json(CUT_TINT_KEY, serde_json::Value::Bool(self.cut_tint_on));
+                if !self.cut_tint_on {
+                    self.viewport.set_cut_tint(CUT_TINT_ID, None);
+                }
+            }
+            "view.cursor_coords" => {
+                self.cursor_coords_on = !self.cursor_coords_on;
+                self.platform.set_setting_json(CURSOR_COORDS_KEY, serde_json::Value::Bool(self.cursor_coords_on));
+            }
+            "nav.view_centre" | "nav.origin" | "nav.cursor" => {
+                let o = match id {
+                    "nav.origin" => OrbitAround::Origin,
+                    "nav.cursor" => OrbitAround::Cursor,
+                    _ => OrbitAround::ViewCentre,
+                };
+                self.viewport.orbit_around = o;
+                self.platform.set_setting(OrbitAround::KEY, o.as_setting());
             }
             "help.shortcuts" => a(self, UiAction::ShowShortcuts),
             "help.guide" => ctx.open_url(egui::OpenUrl::new_tab(GUIDE_URL)),
@@ -1824,15 +1963,8 @@ impl StlApp {
                 ctx.move_to_top(egui::LayerId::new(Order::Middle, Id::unique("tool-panel")));
             }
         }
-        // HUD (1.x leaves it empty; the sketch HUD is 4c)
-        if let Some(h) = &self.shell.hud {
-            Area::new(Id::unique("hud")).order(Order::Middle).interactable(false).fixed_pos(ws.min + Vec2::new(256.0, 8.0)).show(ctx, |ui| {
-                Frame::new().fill(tk.float).stroke(Stroke::new(1.0, tk.line)).corner_radius(CornerRadius::same(tk.radius as u8)).shadow(tk.shadow).inner_margin(Margin::symmetric(10, 6)).show(ui, |ui| {
-                    ui.set_min_width(160.0);
-                    ui.label(RichText::new(h.as_str()).size(12.0).color(tk.text));
-                });
-            });
-        }
+        // the sketch's value boxes, total size and cursor coordinates, on the drawing (spec 2.3)
+        self.sketch_labels(ctx, tk, ws);
         // drop overlay while a file is dragged over the window
         if self.shell.dragging_files {
             Area::new(Id::unique("drop-overlay")).order(Order::Foreground).interactable(false).fixed_pos(ws.min).show(ctx, |ui| {
@@ -1845,6 +1977,66 @@ impl StlApp {
                 }
                 ui.painter().text(r.center(), Align2::CENTER_CENTER, "Drop to insert meshes", egui::FontId::new(18.0, egui::FontFamily::Name("bold".into())), tk.accent);
             });
+        }
+    }
+}
+
+impl StlApp {
+    /// Draw the open sketch tool's value boxes at their anchors, the total size and the cursor's
+    /// coordinates next to the cursor.
+    fn sketch_labels(&self, ctx: &egui::Context, tk: &Tokens, ws: Rect) {
+        let Some(m) = self.sketch.as_ref() else { return };
+        let f = &m.s.frame;
+        let to_world = |p: [f64; 2]| [0, 1, 2].map(|i| f.origin[i] + f.x[i] * p[0] + f.y[i] * p[1]);
+        let small = |ui: &mut egui::Ui, text: &str, strong: bool| {
+            Frame::new().fill(tk.float).stroke(Stroke::new(1.0, if strong { tk.accent } else { tk.line })).corner_radius(CornerRadius::same(4)).inner_margin(Margin::symmetric(5, 2)).show(ui, |ui| {
+                ui.label(RichText::new(text).size(11.0).color(tk.text));
+            });
+        };
+        // a value box: the accent stroke when typing goes into it, bold accent text when a typed value holds it
+        let dim_box = |ui: &mut egui::Ui, text: &str, focused: bool, locked: bool| {
+            let mut label = RichText::new(text).size(11.0).color(if locked { tk.accent } else { tk.text });
+            if locked {
+                label = label.strong();
+            }
+            Frame::new()
+                .fill(tk.float)
+                .stroke(Stroke::new(if focused { 2.0 } else { 1.0 }, if focused { tk.accent } else { tk.line }))
+                .corner_radius(CornerRadius::same(4))
+                .inner_margin(Margin::symmetric(5, 2))
+                .show(ui, |ui| {
+                    ui.label(label);
+                });
+        };
+        if let Some(t) = m.tool.as_ref() {
+            for (i, b) in t.dim_boxes().iter().enumerate() {
+                // each box sits on its edge's anchor, centred there (spec 2.3)
+                let at = self.viewport.world_to_screen(to_world(b.anchor));
+                let text = format!("{} {}", b.label, b.value);
+                Area::new(Id::unique(("sk-dim", i)))
+                    .order(Order::Middle)
+                    .interactable(false)
+                    .pivot(Align2::CENTER_CENTER)
+                    .fixed_pos(at)
+                    .show(ctx, |ui| dim_box(ui, &text, b.focused, b.locked));
+            }
+        }
+        let hover = ctx.input(|i| i.pointer.hover_pos()).filter(|p| self.viewport.rect().contains(*p) && ws.contains(*p));
+        let Some(pos) = hover else { return };
+        let mut lines = Vec::new();
+        if let Some(total) = m.tool.as_ref().and_then(|t| t.total_label()) {
+            lines.push(total);
+        }
+        if self.cursor_coords_on {
+            if let Some(w) = self.viewport.ray_to_plane(pos, f) {
+                let d = [0, 1, 2].map(|i| w[i] - f.origin[i]);
+                let p = [d[0] * f.x[0] + d[1] * f.x[1] + d[2] * f.x[2], d[0] * f.y[0] + d[1] * f.y[1] + d[2] * f.y[2]];
+                lines.push(crate::sketch::inline_dims::cursor_label(p, self.shell.inch));
+            }
+        }
+        if !lines.is_empty() {
+            Area::new(Id::unique("sk-cursor")).order(Order::Middle).interactable(false).fixed_pos(pos + Vec2::new(16.0, -30.0)).show(ctx, |ui| small(ui, &lines.join("
+"), false));
         }
     }
 }

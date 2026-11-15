@@ -3,6 +3,7 @@
 use serde_json::{Map, Value};
 use stl_mesh::thread::thread_tool;
 
+use super::common::placement::{lower_first, parse_ref_list, ref_body, resolve_point};
 use super::common::{apply_tool, float, place, truthy, Vec3};
 use crate::{Ctx, FeatureError, FeatureResult, Registry, State};
 
@@ -63,7 +64,7 @@ fn f_thread(
     fid: &str,
     p: &Map<String, Value>,
     res: &mut FeatureResult,
-    _ctx: &Ctx<'_>,
+    ctx: &Ctx<'_>,
 ) -> Result<(), FeatureError> {
     let kind = match p.get("kind") {
         None => "internal",
@@ -88,7 +89,24 @@ fn f_thread(
     };
     let tool = thread_tool(kind, d, pitch, l, tol, hand, chamfer).map_err(|e| FeatureError(e.to_string()))?;
     let frame = state.frame(p.get("plane"))?;
-    let off = vec3_offset(p)?;
+    let mut off = vec3_offset(p)?;
+    // M7: a position measured from part edges or sketch lines is re-placed from them; without
+    // `position_refs` nothing here runs, so older projects build exactly as before
+    let mut notes: Vec<String> = Vec::new();
+    let refs = parse_ref_list(p.get("position_refs"));
+    if !refs.is_empty() {
+        let at = |o: Vec3| -> Vec3 { std::array::from_fn(|i| frame.o[i] + o[0] * frame.x[i] + o[1] * frame.y[i] + o[2] * frame.n[i]) };
+        let body = ref_body(p.get("position_refs"))
+            .or_else(|| p.get("plane").and_then(|v| v.get("body")).and_then(Value::as_str).map(str::to_owned))
+            .unwrap_or_default();
+        let (pt, warn) = resolve_point(state, &body, at(off), frame.n, &refs)?;
+        let d: Vec3 = std::array::from_fn(|i| pt[i] - frame.o[i]);
+        let dot = |a: Vec3| a[0] * d[0] + a[1] * d[1] + a[2] * d[2];
+        off = [dot(frame.x), dot(frame.y), dot(frame.n)];
+        if let Some(w) = warn {
+            notes.push(format!("Thread position: {}", lower_first(&w)));
+        }
+    }
     let tool = place(&tool, &frame, off);
     let op = match p.get("operation").and_then(Value::as_str) {
         Some(s) if !s.is_empty() => s,
@@ -109,7 +127,12 @@ fn f_thread(
         Some(s) if !s.is_empty() => s,
         _ => default_name.as_str(),
     };
-    apply_tool(state, fid, tool, op, p.get("targets"), name, res)
+    if op == "cut" {
+        res.set_cutter(ctx.preview, &tool);
+    }
+    apply_tool(state, fid, tool, op, p.get("targets"), name, res)?;
+    super::hole::add_notes(res, notes);
+    Ok(())
 }
 
 pub fn register(r: Registry) -> Registry {

@@ -759,7 +759,7 @@ pub fn paint(ui: &egui::Ui, s: &mut SketchSession, vp: &Viewport, inch: bool, pa
             painter.add(arrow_head(&sc, a, px, line_col));
         }
         // the label
-        let mut label = dim_text(&c, &ents, inch, false);
+        let label = dim_text(&c, &ents, inch, false);
         let shown = if expr_of_dim(&c).is_some() { format!("ƒ {label}") } else { label.clone() };
         let font = FontId::proportional(11.5);
         let shown = drawable(ui.ctx(), &font, &shown);
@@ -771,7 +771,6 @@ pub fn paint(ui: &egui::Ui, s: &mut SketchSession, vp: &Viewport, inch: bool, pa
             let i = idx.unwrap();
             let sense = if is_passive { Sense::hover() } else { Sense::click_and_drag() };
             let r = ui.interact(rect, ui.scope_id().with(("sk_dim", i)), sense);
-            label = dim_text(&c, &ents, inch, false);
             let name = label.clone();
             r.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, name.clone()));
             let tip = if is_ref_dim(&c) {

@@ -311,6 +311,9 @@ impl StlApp {
                 _ => GizmoKind::Move,
             };
             self.gizmo = Some(Gizmo::new(kind));
+            if let Some(g) = self.gizmo.as_mut() {
+                g.set_inch(self.shell.inch);
+            }
         }
         if def.flags.sculpt {
             if let Some(t) = self.tool.as_ref() {
@@ -1522,7 +1525,11 @@ impl StlApp {
             Some(f) => {
                 let from_view = self.sketches.iter().find(|s| s.id == f.id).map(|s| PlaneFrame { origin: s.frame[0], x: s.frame[1], y: s.frame[2], normal: s.frame[3] });
                 let plane_ref = f.params.get("plane").cloned().unwrap_or(Value::Null);
-                let frame = from_view.or_else(|| crate::tools::fields::plane::frame_of(&plane_ref, &ctx));
+                // a sketch on a body's face follows later moves; the editor rolls back to before them,
+                // so it opens on the stored plane, where the body is at that step
+                let on_body = plane_ref.as_object().is_some_and(|o| o.contains_key("body"));
+                let stored = if on_body { crate::tools::fields::plane::frame_of(&plane_ref, &ctx) } else { None };
+                let frame = stored.or(from_view).or_else(|| crate::tools::fields::plane::frame_of(&plane_ref, &ctx));
                 let list: Vec<Value> = f.params.get("refs").and_then(Value::as_array).cloned().unwrap_or_default();
                 saved = stl_sketch::entities::parse_entities(&list.into_iter().filter(|v| v.is_object()).collect::<Vec<_>>()).unwrap_or_default();
                 let ents: Vec<Value> = f.params.get("entities").and_then(Value::as_array).cloned().unwrap_or_default();
@@ -1562,12 +1569,12 @@ impl StlApp {
         self.viewport.set_base_planes_visible(false);
         self.viewport.sync_sketches(&self.sketches, feature.map(|f| f.id.as_str()));
         self.viewport.set_viewcube_inset(crate::tools::panel::VIEWCUBE_INSET);
-        sketch::view::build_grid(&mut self.viewport, &m.s);
         // the panel's Grid snap starts on, at the units' step (1 mm, or 1/16 in after `setUnits('in')`)
         let step = self.sk.snap_step.unwrap_or(1.0);
-        m.panel.set_snap(true, step);
+        m.panel.set_snap(true, step, self.shell.inch);
+        // the grid shows the spacing the snap uses (so after the snap is set)
+        m.grid_step = sketch::view::build_grid(&mut self.viewport, &m.s);
         self.shell.hint = m.hint.clone();
-        self.shell.hud = None;
         self.gizmo = None;
         self.sketch = Some(m);
     }
@@ -1576,10 +1583,13 @@ impl StlApp {
     /// 1 mm), and a toast says what changed.
     pub fn set_units_inch(&mut self, inch: bool) {
         self.shell.inch = inch;
+        if let Some(g) = self.gizmo.as_mut() {
+            g.set_inch(inch);
+        }
         let step = if inch { 25.4 / 16.0 } else { 1.0 };
         self.sk.snap_step = Some(step);
         if let Some(m) = self.sketch.as_mut() {
-            m.panel.set_snap_step(step);
+            m.panel.set_snap_step(step, inch);
         }
         let text = if inch { "Showing inches. Models are still saved in millimetres." } else { "Showing millimetres." };
         self.toasts.push(Level::Info, text.to_owned());
@@ -1601,12 +1611,6 @@ impl StlApp {
                         m.hint = h.clone();
                     }
                     self.shell.hint = h;
-                }
-                SketchEffect::Hud(h) => {
-                    if let Some(m) = self.sketch.as_mut() {
-                        m.hud = h.clone();
-                    }
-                    self.shell.hud = h;
                 }
                 SketchEffect::Toast(l, t) => self.toasts.push(l, t),
                 SketchEffect::SketchOp { op, data } => {
@@ -1830,7 +1834,6 @@ impl StlApp {
         self.viewport.sync_sketches(&self.sketches, None);
         self.viewport.set_viewcube_inset(0.0);
         self.shell.hint.clear();
-        self.shell.hud = None;
         sketch::dims::set_pending(Default::default());
     }
 
@@ -1920,6 +1923,10 @@ impl StlApp {
                             if !hovered {
                                 continue;
                             }
+                            // a press on a value box focuses it and places no point
+                            if m.tool.as_mut().is_some_and(|t| t.click_box(&m.s, vp, *pos)) {
+                                continue;
+                            }
                             m.down = true;
                         } else {
                             if !m.down {
@@ -1933,12 +1940,22 @@ impl StlApp {
                         }
                     }
                     egui::Event::Touch { .. } if hovered || m.down => {
+                        if let egui::Event::Touch { phase: egui::TouchPhase::Start, pos, .. } = ev {
+                            if m.tool.as_mut().is_some_and(|t| t.click_box(&m.s, vp, *pos)) {
+                                continue;
+                            }
+                        }
                         if let Some(i) = sketch::touch::input(ev, vp, &m.s, &mut m.touch, mods, &pointer, &opts) {
                             inputs.push(i);
                         }
                     }
                     egui::Event::Text(t) if !typing => {
-                        let typed: String = t.chars().filter(|c| c.is_ascii_digit() || matches!(c, '.' | '-' | '/' | ',')).collect();
+                        // while a value box is being typed, a parameter name ("=width/2") goes in too
+                        let boxing = m.tool.as_ref().is_some_and(|t| t.typing());
+                        let typed: String = t
+                            .chars()
+                            .filter(|c| c.is_ascii_digit() || matches!(c, '.' | '-' | '/' | ',') || (boxing && (c.is_alphanumeric() || matches!(c, '=' | '+' | '*' | '(' | ')' | ' ' | '_'))))
+                            .collect();
                         if !typed.is_empty() && m.s.tool != "select" {
                             inputs.push(SketchInput::Typed(typed));
                         }
@@ -1960,10 +1977,13 @@ impl StlApp {
         let params = self.sk_params();
         let mut fx = Vec::new();
         if let Some(m) = self.sketch.as_mut() {
+            // the grid shows the spacing Grid snap uses at this zoom
+            sketch::view::refresh_grid(&mut self.viewport, m);
             if m.dirty {
                 m.dirty = false;
                 sketch::view::redraw(&mut self.viewport, m);
             }
+            sketch::view::paint(ui, &self.viewport, m);
             fx.extend(sketch::relations::paint(ui, &mut m.s, &self.viewport, inch));
             fx.extend(sketch::dims::paint(ui, &mut m.s, &self.viewport, inch, &params));
         }

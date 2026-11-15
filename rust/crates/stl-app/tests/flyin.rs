@@ -106,10 +106,10 @@ fn start_flies_to_iso() {
 fn sketch_plane_grid_matches_sketcher() {
     let mut vp = Viewport::new();
     let xy = PlaneFrame { origin: [0.0; 3], x: [1.0, 0.0, 0.0], y: [0.0, 1.0, 0.0], normal: [0.0, 0.0, 1.0] };
-    vp.set_sketch_plane_grid(Some(xy));
+    vp.set_sketch_plane_grid(Some(xy), 5.0);
     assert!(vp.sketch_plane_grid_visible());
     // empty scene: R = 100, step 5, half 100. 41 stations, 9 of them major.
-    let (sheet, lines, axes) = scene::sketch_plane_grid(&xy.as_frame(), None);
+    let (sheet, lines, axes) = scene::sketch_plane_grid(&xy.as_frame(), None, 5.0);
     assert_eq!(sheet.len(), 6);
     assert_eq!(lines.len(), 41 * 4);
     assert_eq!(axes.len(), 4);
@@ -120,7 +120,7 @@ fn sketch_plane_grid_matches_sketcher() {
     assert_eq!(sheet[0].c0, [0xff, 0xf1, 0xe8, 46]);
     // a major station (v = 0) is the stronger rust colour
     assert!(lines.iter().any(|v| v.c0[3] == (0.32_f32 * 255.0).round() as u8 && v.c0[0] == 0xc5));
-    vp.set_sketch_plane_grid(None);
+    vp.set_sketch_plane_grid(None, 1.0);
     assert!(!vp.sketch_plane_grid_visible());
 }
 

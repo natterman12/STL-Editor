@@ -289,7 +289,7 @@ pub fn preview_pack(state: &stl_engine::State, res: &stl_engine::FeatureResult) 
         .map(|o| o.iter().filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string()))).collect())
         .unwrap_or_default();
     let ghosts = res.extra.get("ghosts").and_then(Value::as_array).map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect()).unwrap_or_default();
-    super::PreviewPack { meshes, removed: res.removed.clone(), hide: Vec::new(), colors, ghosts }
+    super::PreviewPack { meshes, removed: res.removed.clone(), hide: Vec::new(), colors, ghosts, cutter: res.cutter.clone() }
 }
 
 /// 1.x's `pack.result`: the feature's record under its 1.x key names.

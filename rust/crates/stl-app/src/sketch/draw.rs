@@ -8,8 +8,13 @@ use serde_json::{json, Value};
 use stl_sketch::entities::{point, Circle, Entity, Line, Polygon, Rect, Slot, P2};
 use stl_sketch::solver::{Constraint, Ref};
 
+use std::collections::BTreeMap;
+
+use super::guides::Guide;
+use super::inline_dims::{mid, unit, Row};
 use super::typed::{self, fmt3, fmt_len, parse_expr, Typed};
-use super::{geom, snap, SketchEffect, SketchInput, SketchSession, SketchTool, ToolCx};
+use super::{dims, geom, snap, SketchEffect, SketchInput, SketchSession, SketchTool, ToolCx};
+use crate::tools::fields::number::expr_text;
 use crate::engine_link::Level;
 use crate::viewport::overlays::SketchOutline;
 
@@ -29,7 +34,7 @@ pub fn tool_for(key: &str) -> Option<Box<dyn SketchTool>> {
 /// `toolHint` for the drawing and modify tools.
 pub fn hint_for(key: &str) -> &'static str {
     match key {
-        "select" => "Click a shape to select it · Delete removes it · Right-drag to orbit, middle-drag to pan",
+        "select" => "Click a shape to select it · Delete removes it · Right-drag to orbit, middle-drag to pan (Shift+middle-drag orbits too)",
         "line" => "Click points to draw connected lines · click the first point to close · Enter or Esc to stop · type a length",
         "arc3" => "Click the start, then the end, then a point the arc passes through · or type a radius",
         "trim" => "Click the piece of a line, arc or shape to cut away (up to where it crosses something)",
@@ -62,6 +67,8 @@ pub struct Draw {
     pub last_line: Option<String>,
     pub made: u32,
     pub slot_len: bool,
+    /// The parameter expression the slot length was typed as.
+    pub slot_expr: Option<String>,
 }
 
 pub struct DrawTool {
@@ -71,7 +78,16 @@ pub struct DrawTool {
     pub cursor: Option<P2>,
     pub snap_ref: Option<Ref>,
     down: Option<egui::Pos2>,
-    hud: Vec<(String, String)>,
+    /// The value boxes of the shape being drawn (what [`DrawTool::dim_boxes`] shows).
+    pub(super) rows: Vec<Row>,
+    /// The total size next to the cursor.
+    pub(super) total: Option<String>,
+    /// What the typed fields read as: millimetres, degrees or a count (`None`: not typed).
+    pub(super) vals: [Option<f64>; 2],
+    /// The parameter expression a typed field was ("=width/2").
+    pub(super) exprs: [Option<String>; 2],
+    /// Dotted guides to the points the pointer lines up with.
+    pub guides: Vec<Guide>,
 }
 
 pub(crate) fn set_id(e: &mut Entity, id: &str) {
@@ -110,47 +126,69 @@ fn sign_or1(x: f64) -> f64 {
 
 impl DrawTool {
     pub fn new(key: &'static str) -> Self {
-        DrawTool { key, draw: None, typed: Typed::default(), cursor: None, snap_ref: None, down: None, hud: Vec::new() }
+        DrawTool { key, draw: None, typed: Typed::default(), cursor: None, snap_ref: None, down: None, rows: Vec::new(), total: None, vals: [None, None], exprs: [None, None], guides: Vec::new() }
     }
 
-    /// The HUD rows (label, value shown) while drawing.
-    pub fn hud(&self) -> &[(String, String)] {
-        &self.hud
+    /// What a field shows: what was typed there, else the live value.
+    pub(super) fn shown(&self, r: &Row) -> String {
+        match r.field {
+            Some(i) if self.field_locked(i) => self.field_text(i).trim().to_string(),
+            _ => r.live.clone(),
+        }
     }
 
-    fn set_hud(&mut self, cx: &mut ToolCx, rows: &[(&str, String)]) {
-        let fields = [&self.typed.a, &self.typed.b];
-        self.hud = rows
-            .iter()
-            .enumerate()
-            .map(|(i, (l, v))| {
-                let t = fields[i.min(1)];
-                // a field shows what was typed, else the live value (its placeholder)
-                (l.to_string(), if self.typed.typed && !t.is_empty() { t.clone() } else { v.clone() })
-            })
-            .collect();
-        let text = self.hud.iter().map(|(l, v)| format!("{l}\t{v}")).collect::<Vec<_>>().join("\n");
-        cx.out.push(SketchEffect::Hud(Some(text)));
+    pub(super) fn field_text(&self, i: u8) -> &str {
+        if i == 0 { &self.typed.a } else { &self.typed.b }
     }
 
-    fn hide_hud(&mut self, cx: &mut ToolCx) {
-        self.hud.clear();
+    /// A box holds its typed value: the cursor no longer moves it.
+    pub(super) fn field_locked(&self, i: u8) -> bool {
+        self.typed.typed && !self.field_text(i).trim().is_empty()
+    }
+
+    /// How many boxes the tool has at this stage (what Tab cycles through).
+    pub(super) fn box_count(&self) -> u8 {
+        self.rows.iter().filter_map(|r| r.field).max().map_or(0, |m| m + 1)
+    }
+
+    /// A typed field's value in mm (or degrees, or a count), and the parameter expression when it
+    /// was one ("=width/2"). `None` when nothing is typed there or it can't be read.
+    fn read_field(&self, i: u8, is_len: bool, inch: bool, params: &BTreeMap<String, f64>) -> Option<(f64, Option<String>)> {
+        if !self.field_locked(i) {
+            return None;
+        }
+        let t = self.field_text(i).trim();
+        if expr_text(t) {
+            return dims::parse_dim(t, !is_len, inch, params).ok();
+        }
+        let v = parse_expr(t);
+        v.is_finite().then(|| (if is_len { v * typed::factor(inch) } else { v }, None))
+    }
+
+    /// Drop the value boxes, the total and the typed fields (the shape is placed or cancelled).
+    fn clear_boxes(&mut self) {
+        self.rows.clear();
+        self.total = None;
+        self.vals = [None, None];
+        self.exprs = [None, None];
+        self.guides.clear();
         self.typed.focus = None;
-        cx.out.push(SketchEffect::Hud(None));
     }
 
     fn snap_at(&mut self, cx: &mut ToolCx, raw: P2) -> P2 {
         let pts = self.draw.as_ref().map(|d| d.pts.clone()).unwrap_or_default();
         let straight = (self.key == "line").then(|| pts.last().copied()).flatten();
-        let sn = snap::snap_with(cx.s, cx.vp, raw, &pts, straight);
+        let sn = snap::snap_tracking(cx.s, cx.vp, raw, &pts, straight);
         self.snap_ref = sn.on.clone();
+        self.guides = sn.guides;
         sn.uv
     }
 
     fn on_move(&mut self, cx: &mut ToolCx, raw: P2) {
         let uv = self.snap_at(cx, raw);
         self.cursor = Some(uv);
-        if self.draw.is_some() && !self.typed.typed {
+        // a typed box keeps its value; the others follow the pointer
+        if self.draw.is_some() {
             self.update_draw(cx);
         }
     }
@@ -159,15 +197,17 @@ impl DrawTool {
     pub fn update_draw(&mut self, cx: &mut ToolCx) {
         let Some(d) = self.draw.as_ref() else { return };
         let inch = cx.inch;
-        let f = typed::factor(inch);
         let c = self.cursor.unwrap_or(d.pts[0]);
         let b_is_len = self.key == "rect" || self.key == "rect_center";
-        let (araw, braw) = (parse_expr(&self.typed.a), parse_expr(&self.typed.b));
-        let a = araw * f;
-        let b = if b_is_len { braw * f } else { braw };
-        let (has_a, has_b) = (a.is_finite(), b.is_finite());
+        let (ra, rb) = (self.read_field(0, true, inch, cx.params), self.read_field(1, b_is_len, inch, cx.params));
+        let (has_a, has_b) = (ra.is_some(), rb.is_some());
+        let a = ra.as_ref().map_or(f64::NAN, |v| v.0);
+        let b = rb.as_ref().map_or(f64::NAN, |v| v.0);
+        self.vals = [ra.as_ref().map(|v| v.0), rb.as_ref().map(|v| v.0)];
+        self.exprs = [ra.and_then(|v| v.1), rb.and_then(|v| v.1)];
         let p0 = d.pts[0];
-        let mut hud: Vec<(&str, String)> = Vec::new();
+        let mut rows: Vec<Row> = Vec::new();
+        let mut total: Option<String> = None;
         let e: Entity = match self.key {
             "line" => {
                 let last = *d.pts.last().unwrap_or(&p0);
@@ -181,17 +221,19 @@ impl DrawTool {
                     l = a;
                 }
                 let end = if has_a || has_b { [last[0] + l * ang.to_radians().cos(), last[1] + l * ang.to_radians().sin()] } else { c };
-                hud.push(("Length", fmt_len(l, inch)));
-                hud.push(("Angle", fmt3(ang)));
+                let along = unit([end[0] - last[0], end[1] - last[1]]);
+                rows.push(Row::new("Length", Some(0), fmt_len(l, inch), mid(last, end), along));
+                rows.push(Row::new("Angle", Some(1), fmt3(ang), last, along));
+                total = Some(fmt_len(l, inch));
                 line(last, end)
             }
             "arc3" => {
                 if d.pts.len() == 1 {
-                    hud.push(("Chord", fmt_len(dist(c, p0), inch)));
+                    rows.push(Row::new("Chord", None, fmt_len(dist(c, p0), inch), mid(p0, c), unit([c[0] - p0[0], c[1] - p0[1]])));
                     line(p0, c)
                 } else {
                     let (pa, pb) = (d.pts[0], d.pts[1]);
-                    let mut mid = c;
+                    let mut mid_pt = c;
                     if has_a {
                         let (mx, my) = ((pa[0] + pb[0]) / 2.0, (pa[1] + pb[1]) / 2.0);
                         let ch = dist(pa, pb) / 2.0;
@@ -199,11 +241,11 @@ impl DrawTool {
                         let sag = r - (r * r - ch * ch).sqrt();
                         let (nx, ny) = (-(pb[1] - pa[1]) / (2.0 * ch), (pb[0] - pa[0]) / (2.0 * ch));
                         let side = sign_or1((c[0] - mx) * nx + (c[1] - my) * ny);
-                        mid = [mx + nx * sag * side, my + ny * sag * side];
+                        mid_pt = [mx + nx * sag * side, my + ny * sag * side];
                     }
-                    let e = geom::arc_from3(pa, mid, pb).unwrap_or_else(|| line(pa, pb));
+                    let e = geom::arc_from3(pa, mid_pt, pb).unwrap_or_else(|| line(pa, pb));
                     let r = if let Entity::Arc(x) = &e { x.r } else { 0.0 };
-                    hud.push(("Radius", fmt_len(r, inch)));
+                    rows.push(Row::new("Radius", Some(0), fmt_len(r, inch), mid_pt, unit([pb[0] - pa[0], pb[1] - pa[1]])));
                     e
                 }
             }
@@ -215,8 +257,9 @@ impl DrawTool {
                 if has_b {
                     h = sign_or1(h) * b.abs();
                 }
-                hud.push(("Width", fmt_len(w.abs(), inch)));
-                hud.push(("Height", fmt_len(h.abs(), inch)));
+                rows.push(Row::new("Width", Some(0), fmt_len(w.abs(), inch), [p0[0] + w / 2.0, p0[1]], [1.0, 0.0]));
+                rows.push(Row::new("Height", Some(1), fmt_len(h.abs(), inch), [p0[0] + w, p0[1] + h / 2.0], [0.0, 1.0]));
+                total = Some(format!("{} × {}", fmt_len(w.abs(), inch), fmt_len(h.abs(), inch)));
                 Entity::Rect(Rect { id: None, x: p0[0], y: p0[1], w, h, angle: None, fillet: None, construction: None, extra: Default::default() })
             }
             "rect_center" => {
@@ -227,8 +270,9 @@ impl DrawTool {
                 if has_b {
                     h = b.abs();
                 }
-                hud.push(("Width", fmt_len(w, inch)));
-                hud.push(("Height", fmt_len(h, inch)));
+                rows.push(Row::new("Width", Some(0), fmt_len(w, inch), [p0[0], p0[1] - h / 2.0], [1.0, 0.0]));
+                rows.push(Row::new("Height", Some(1), fmt_len(h, inch), [p0[0] + w / 2.0, p0[1]], [0.0, 1.0]));
+                total = Some(format!("{} × {}", fmt_len(w, inch), fmt_len(h, inch)));
                 Entity::Rect(Rect { id: None, x: p0[0] - w / 2.0, y: p0[1] - h / 2.0, w, h, angle: None, fillet: None, construction: None, extra: Default::default() })
             }
             "circle" => {
@@ -236,7 +280,9 @@ impl DrawTool {
                 if has_a {
                     r = a.abs() / 2.0;
                 }
-                hud.push(("Diameter", fmt_len(r * 2.0, inch)));
+                let u = unit([c[0] - p0[0], c[1] - p0[1]]);
+                rows.push(Row::new("Diameter", Some(0), fmt_len(r * 2.0, inch), [p0[0] + u[0] * r, p0[1] + u[1] * r], [-u[1], u[0]]));
+                total = Some(fmt_len(r * 2.0, inch));
                 Entity::Circle(Circle { id: None, cx: p0[0], cy: p0[1], r, construction: None, extra: Default::default() })
             }
             "polygon" => {
@@ -246,9 +292,11 @@ impl DrawTool {
                     r = a.abs();
                 }
                 let n = if has_b { 3f64.max(typed::js_round(b)) } else { POLY_SIDES.with(|p| p.get()).unwrap_or(6.0) };
-                hud.push(("Radius", fmt_len(r, inch)));
-                hud.push(("Sides", typed::js_num(n)));
-                Entity::Polygon(Polygon { id: None, cx: p0[0], cy: p0[1], r, n, angle: Some(if has_a { 90.0 } else { ang }), construction: None, extra: Default::default() })
+                let shown = if has_a { 90.0 } else { ang };
+                let u = [shown.to_radians().cos(), shown.to_radians().sin()];
+                rows.push(Row::new("Radius", Some(0), fmt_len(r, inch), [p0[0] + u[0] * r / 2.0, p0[1] + u[1] * r / 2.0], u));
+                rows.push(Row::new("Sides", Some(1), typed::js_num(n), p0, [1.0, 0.0]));
+                Entity::Polygon(Polygon { id: None, cx: p0[0], cy: p0[1], r, n, angle: Some(shown), construction: None, extra: Default::default() })
             }
             _ => {
                 // slot
@@ -263,8 +311,9 @@ impl DrawTool {
                         ang = b;
                     }
                     let (x2, y2) = (p0[0] + l * ang.to_radians().cos(), p0[1] + l * ang.to_radians().sin());
-                    hud.push(("Length", fmt_len(l, inch)));
-                    hud.push(("Angle", fmt3(ang)));
+                    let along = unit([x2 - p0[0], y2 - p0[1]]);
+                    rows.push(Row::new("Length", Some(0), fmt_len(l, inch), mid(p0, [x2, y2]), along));
+                    rows.push(Row::new("Angle", Some(1), fmt3(ang), p0, along));
                     Entity::Slot(Slot { id: None, x1: p0[0], y1: p0[1], x2, y2, r: (l * 0.15).max(0.5), construction: None, extra: Default::default() })
                 } else {
                     let (p1, p2) = (d.pts[0], d.pts[1]);
@@ -274,7 +323,9 @@ impl DrawTool {
                     if has_a {
                         r = a.abs() / 2.0;
                     }
-                    hud.push(("Width", fmt_len(r * 2.0, inch)));
+                    let n = [-seg[1] / ls, seg[0] / ls];
+                    let m = mid(p1, p2);
+                    rows.push(Row::new("Width", Some(0), fmt_len(r * 2.0, inch), [m[0] + n[0] * r, m[1] + n[1] * r], unit(seg)));
                     Entity::Slot(Slot { id: None, x1: p1[0], y1: p1[1], x2: p2[0], y2: p2[1], r: r.max(1e-3), construction: None, extra: Default::default() })
                 }
             }
@@ -282,7 +333,8 @@ impl DrawTool {
         if let Some(d) = self.draw.as_mut() {
             d.preview = Some(e);
         }
-        self.set_hud(cx, &hud);
+        self.rows = rows;
+        self.total = total;
     }
 
     fn preview_p2(&self) -> Option<P2> {
@@ -304,7 +356,8 @@ impl DrawTool {
         }
         let p2 = self.preview_p2();
         let snap_ref = self.snap_ref.clone();
-        let read_a = self.typed.read().0;
+        let read_a = self.vals[0].is_some();
+        let read_expr = self.exprs[0].clone();
         let d = self.draw.as_mut().unwrap();
         match self.key {
             "line" => self.add_line_point(cx, p2.unwrap_or(uv)),
@@ -329,6 +382,7 @@ impl DrawTool {
             }
             "slot" if d.pts.len() == 1 => {
                 d.slot_len = read_a;
+                d.slot_expr = read_expr;
                 let p = match &d.preview {
                     Some(Entity::Slot(s)) => [s.x2, s.y2],
                     _ => uv,
@@ -373,9 +427,11 @@ impl DrawTool {
             return;
         }
         if self.key == "slot" && n == 1 {
-            let slot_len = self.typed.read().0;
+            let slot_len = self.vals[0].is_some();
+            let slot_expr = self.exprs[0].clone();
             let d = self.draw.as_mut().unwrap();
             d.slot_len = slot_len;
+            d.slot_expr = slot_expr;
             if let Some(Entity::Slot(s)) = &d.preview {
                 let p = [s.x2, s.y2];
                 d.pts.push(p);
@@ -392,7 +448,7 @@ impl DrawTool {
     /// `commit`: the preview becomes a shape, tied to the points it was snapped to.
     pub fn commit(&mut self, cx: &mut ToolCx) {
         let Some(mut e) = self.draw.as_ref().and_then(|d| d.preview.clone()) else {
-            return self.cancel_draw(cx);
+            return self.cancel_draw();
         };
         let bad = match &e {
             Entity::Rect(r) => r.w.abs() < 1e-6 || r.h.abs() < 1e-6,
@@ -415,11 +471,11 @@ impl DrawTool {
         let refs = self.draw.as_ref().map(|d| d.refs.clone()).unwrap_or_default();
         self.auto_constrain(cx, &e, &refs);
         let px = typed::plane_px(cx.s, cx.vp);
-        let slot_len = self.draw.as_ref().is_some_and(|d| d.slot_len);
-        typed::add_typed_dims(cx.s, &e, &self.typed, slot_len, px);
+        let (slot_len, slot_expr) = self.draw.as_ref().map_or((false, None), |d| (d.slot_len, d.slot_expr.clone()));
+        super::inline_dims::add_typed_dims(cx.s, &e, [self.vals[0].is_some(), self.vals[1].is_some()], &self.exprs, slot_len, slot_expr, px);
         self.draw = None;
         self.typed.typed = false;
-        self.hide_hud(cx);
+        self.clear_boxes();
         cx.s.sel = [id].into_iter().collect();
         cx.s.sel_c = None;
         cx.out.push(SketchEffect::Changed);
@@ -488,9 +544,10 @@ impl DrawTool {
             cx.s.constraints.push(c);
         }
         // a typed length becomes a dimension on the line
-        if self.typed.read().0 {
+        let (has_len, has_angle) = (self.vals[0].is_some(), self.vals[1].is_some());
+        if has_len || has_angle {
             let px = typed::plane_px(cx.s, cx.vp);
-            typed::add_dims(cx.s, vec![typed::spec("length", Ref::ent(&id), None, None)], px);
+            super::inline_dims::add_line_dims(cx.s, &id, [has_len, has_angle], &self.exprs, px);
         }
         let d = self.draw.as_mut().unwrap();
         if d.first_line.is_none() {
@@ -515,28 +572,52 @@ impl DrawTool {
             return;
         }
         self.draw = None;
-        self.hide_hud(cx);
+        self.clear_boxes();
         cx.out.push(SketchEffect::Changed);
     }
 
     /// `cancelDraw`.
-    pub fn cancel_draw(&mut self, cx: &mut ToolCx) {
+    pub fn cancel_draw(&mut self) {
         self.draw = None;
         self.typed.typed = false;
-        self.hide_hud(cx);
+        self.clear_boxes();
     }
 
-    fn on_key(&mut self, cx: &mut ToolCx, key: egui::Key) -> bool {
+    fn on_key(&mut self, cx: &mut ToolCx, key: egui::Key, mods: egui::Modifiers) -> bool {
         use egui::Key;
         let focused = self.typed.focus.is_some() && self.draw.is_some();
         match key {
             Key::Enter if focused => self.commit_typed(cx),
-            Key::Tab if focused => {
-                // the other field, its text selected
-                self.typed.focus = Some(1 - self.typed.focus.unwrap_or(0).min(1));
+            // Tab: the next box (Shift+Tab: the one before), its text selected; with no box
+            // focused yet, the first (the last)
+            Key::Tab if self.draw.is_some() && self.box_count() > 0 => {
+                let n = self.box_count();
+                let at = match (self.typed.focus, mods.shift) {
+                    (None, false) => 0,
+                    (None, true) => n - 1,
+                    (Some(f), false) => (f.min(n - 1) + 1) % n,
+                    (Some(f), true) => (f.min(n - 1) + n - 1) % n,
+                };
+                self.typed.focus = Some(at);
                 self.typed.replace = true;
             }
-            Key::Escape if focused => self.cancel_draw(cx),
+            // letters go to a focused box, not to the tool keys (T trim, D dimension...)
+            k if focused && (Key::A..=Key::Z).contains(&k) => {}
+            // Escape in a box with something typed clears it (the pointer moves that value again);
+            // Escape in an empty box cancels the shape
+            Key::Escape if focused => {
+                let typed_here = self.typed.field_mut().is_some_and(|f| !f.trim().is_empty());
+                if typed_here {
+                    if let Some(f) = self.typed.field_mut() {
+                        f.clear();
+                    }
+                    self.typed.replace = false;
+                    self.typed.typed = !(self.typed.a.trim().is_empty() && self.typed.b.trim().is_empty());
+                    self.update_draw(cx);
+                } else {
+                    self.cancel_draw();
+                }
+            }
             Key::Backspace if focused => {
                 let all = std::mem::take(&mut self.typed.replace);
                 if let Some(f) = self.typed.field_mut() {
@@ -546,7 +627,7 @@ impl DrawTool {
                 self.update_draw(cx);
             }
             Key::Escape if self.draw.is_some() => {
-                if self.key == "line" { self.finish_line(cx) } else { self.cancel_draw(cx) }
+                if self.key == "line" { self.finish_line(cx) } else { self.cancel_draw() }
             }
             Key::Enter if self.key == "line" && self.draw.is_some() => self.finish_line(cx),
             _ => return false,
@@ -559,8 +640,8 @@ impl DrawTool {
             return false;
         }
         if self.typed.focus.is_none() {
-            // a digit, point or minus starts typing in the first field
-            if !text.chars().next().is_some_and(|c| c.is_ascii_digit() || c == '.' || c == '-') {
+            // a digit, point, minus or "=" (a parameter expression) starts typing in the first field
+            if !text.chars().next().is_some_and(|c| c.is_ascii_digit() || matches!(c, '.' | '-' | '=')) {
                 return false;
             }
             self.typed.a.clear();
@@ -583,6 +664,18 @@ impl DrawTool {
 impl SketchTool for DrawTool {
     fn key(&self) -> &'static str {
         self.key
+    }
+
+    fn dim_boxes(&self) -> Vec<super::inline_dims::DimBox> {
+        DrawTool::dim_boxes(self)
+    }
+
+    fn total_label(&self) -> Option<String> {
+        DrawTool::total_label(self)
+    }
+
+    fn guides(&self) -> Vec<Guide> {
+        self.guides.clone()
     }
 
     fn hint(&self, _s: &SketchSession) -> String {
@@ -613,19 +706,27 @@ impl SketchTool for DrawTool {
                 }
                 false
             }
-            SketchInput::Key { key, .. } => self.on_key(cx, *key),
+            SketchInput::Key { key, mods } => self.on_key(cx, *key, *mods),
             SketchInput::Typed(t) => self.on_typed(cx, t),
         }
     }
 
-    fn cancel(&mut self, cx: &mut ToolCx) {
+    fn cancel(&mut self, _cx: &mut ToolCx) {
         if self.draw.is_some() {
-            self.cancel_draw(cx);
+            self.cancel_draw();
         }
     }
 
     fn picks_geometry(&self) -> bool {
         self.draw.is_some()
+    }
+
+    fn typing(&self) -> bool {
+        self.draw.is_some() && self.typed.focus.is_some()
+    }
+
+    fn click_box(&mut self, s: &SketchSession, vp: &crate::viewport::Viewport, pos: egui::Pos2) -> bool {
+        DrawTool::click_box(self, s, vp, pos)
     }
 
     /// Offset is an action: its answer can come back while a drawing tool is active.

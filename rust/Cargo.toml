@@ -16,6 +16,9 @@ codegen-units = 1
 # Our copy of manifold-rust, so the kernel's speed can be fixed here (third_party/manifold-rust/VENDORED.md).
 [patch.crates-io]
 manifold-rust = { path = "third_party/manifold-rust" }
+# Our copy of egui-wgpu 0.37.0: a refused upload after a driver reset is reported instead of
+# panicking inside the window procedure (third_party/egui-wgpu/VENDORED.md).
+egui-wgpu = { path = "third_party/egui-wgpu" }
 
 # Slimmer debug builds (2026-11-11): line numbers for our code, no debug info for dependencies.
 # The debug test builds were about 20 GB with full debug info; results are unchanged.

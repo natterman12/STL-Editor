@@ -579,12 +579,12 @@ fn right_click_in_the_3d_view_opens_the_body_or_view_menu() {
     assert!(menu_rows(&w.h).iter().any(|(l, _)| l == "Properties"));
     w.reset();
 
-    // a right-drag pans and opens nothing
+    // a right-drag orbits and opens nothing
     let moved = on_body + egui::vec2(60.0, 40.0);
-    let cam = w.h.state().viewport.camera().target;
+    let cam = w.h.state().viewport.camera().position;
     right_press(&mut w.h, on_body, moved);
     assert!(w.h.state().shell.menu.is_none(), "a right-drag opens no menu");
-    assert_ne!(w.h.state().viewport.camera().target, cam, "the right-drag panned");
+    assert_ne!(w.h.state().viewport.camera().position, cam, "the right-drag orbited");
     w.reset();
 
     // empty space: the view menu, every row of which acts

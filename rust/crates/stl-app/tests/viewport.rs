@@ -9,13 +9,11 @@ use std::sync::Arc;
 
 use egui::Color32;
 use egui_kittest::Harness;
-use egui::PointerButton::{Middle, Primary, Secondary};
 use stl_app::engine_link::BodyView;
-use stl_app::viewport::camera::{drag_action, DragAction};
 use stl_app::viewport::overlays::Depth;
 use stl_app::viewport::renderer::{FlatBatch, Headless, ViewportCallback};
 use stl_app::viewport::scene::{self, FlatVertex};
-use stl_app::viewport::{MouseMode, PlaneFrame, Viewport};
+use stl_app::viewport::{PlaneFrame, Viewport};
 use stl_kernel::{Aabb, MeshArrays};
 
 #[path = "support/wgpu_renderer.rs"]
@@ -115,15 +113,7 @@ fn empty_scene_fit() {
 
 #[test]
 fn mouse_modes_map_buttons() {
-    use DragAction::*;
-    assert_eq!(drag_action(MouseMode::Model, Primary), Some(Rotate));
-    assert_eq!(drag_action(MouseMode::Model, Middle), Some(Pan));
-    assert_eq!(drag_action(MouseMode::Model, Secondary), Some(Pan));
-    for m in [MouseMode::Sketch, MouseMode::Sculpt] {
-        assert_eq!(drag_action(m, Primary), None);
-        assert_eq!(drag_action(m, Middle), Some(Pan));
-        assert_eq!(drag_action(m, Secondary), Some(Rotate));
-    }
+    // which button does what is in tests/navigation.rs (`fusion_bindings`)
 
     // OrbitControls: a drag the view's height long turns a full circle about Z, no damping
     let mut vp = Viewport::new();

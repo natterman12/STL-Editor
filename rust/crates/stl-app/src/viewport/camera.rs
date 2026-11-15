@@ -4,8 +4,6 @@
 
 use stl_kernel::Aabb;
 
-use super::MouseMode;
-
 pub type V3 = [f64; 3];
 /// Column-major 4x4 matrix (`m[col][row]`), as wgpu and WGSL expect.
 pub type M4 = [[f64; 4]; 4];
@@ -20,27 +18,8 @@ pub const START_POSITION: V3 = [160.0, -220.0, 150.0];
 pub const FLY_SECONDS: f64 = 0.32;
 /// `Spherical.makeSafe`'s EPS.
 const SAFE_EPS: f64 = 0.000001;
-
-/// What a mouse drag does.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum DragAction {
-    Rotate,
-    Pan,
-}
-
-/// `setMouseMode`: model mode rotates with the left button and pans with middle and right;
-/// sketch and sculpt leave the left button to the tool, pan with middle and rotate with right.
-pub fn drag_action(mode: MouseMode, button: egui::PointerButton) -> Option<DragAction> {
-    use egui::PointerButton::*;
-    match (mode, button) {
-        (MouseMode::Model, Primary) => Some(DragAction::Rotate),
-        (MouseMode::Model, Middle | Secondary) => Some(DragAction::Pan),
-        (MouseMode::Sketch | MouseMode::Sculpt, Primary) => None,
-        (MouseMode::Sketch | MouseMode::Sculpt, Middle) => Some(DragAction::Pan),
-        (MouseMode::Sketch | MouseMode::Sculpt, Secondary) => Some(DragAction::Rotate),
-        _ => None,
-    }
-}
+/// The closest a zoom brings the camera to its target (mm).
+const MIN_RADIUS: f64 = 0.5;
 
 pub fn add(a: V3, b: V3) -> V3 {
     [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
@@ -233,29 +212,9 @@ impl Camera {
 
     // ------------------------------------------------------------------ OrbitControls
 
-    /// `_handleMouseMoveRotate`: 2π per view height, both ways ("yes, height").
+    /// `_handleMouseMoveRotate`: 2π per view height, both ways ("yes, height"), about the target.
     pub fn rotate(&mut self, dx: f64, dy: f64) {
-        self.fly = None;
-        let tau = std::f64::consts::TAU;
-        self.orbit(-tau * dx / self.height, -tau * dy / self.height);
-    }
-
-    /// `update()`'s spherical step. OrbitControls works in the space where the camera's up at
-    /// construction, (0, 0, 1), is +Y, so the orbit is always around the world Z axis.
-    fn orbit(&mut self, d_theta: f64, d_phi: f64) {
-        let o = sub(self.position, self.target);
-        // Z-up world to Y-up: (x, y, z) -> (x, z, -y)
-        let (x, y, z) = (o[0], o[2], -o[1]);
-        let r = (x * x + y * y + z * z).sqrt();
-        let (mut theta, mut phi) = if r == 0.0 { (0.0, 0.0) } else { (x.atan2(z), (y / r).clamp(-1.0, 1.0).acos()) };
-        theta += d_theta;
-        phi += d_phi;
-        phi = phi.clamp(0.0, std::f64::consts::PI);
-        phi = phi.clamp(SAFE_EPS, std::f64::consts::PI - SAFE_EPS);
-        let s = phi.sin() * r;
-        let (x, y, z) = (s * theta.sin(), phi.cos() * r, s * theta.cos());
-        // back to Z up: (a, b, c) -> (a, -c, b)
-        self.position = add(self.target, [x, -z, y]);
+        self.orbit_about(self.target, dx, dy);
     }
 
     /// `_pan` for a perspective camera: deltas in points, right and down positive.
@@ -270,8 +229,8 @@ impl Camera {
         self.position = add(self.position, off);
     }
 
-    /// `_handleMouseWheel` with `zoomToCursor`: `delta_y` as a browser's `WheelEvent.deltaY`
-    /// (positive zooms out), the cursor in points from the view's top left.
+    /// A wheel step: `delta_y` as a browser's `WheelEvent.deltaY` (positive zooms out), the cursor in
+    /// points from the view's top left. Zooms toward the point on the cursor's ray at the target's depth.
     pub fn wheel(&mut self, delta_y: f64, cursor: [f64; 2]) {
         if delta_y == 0.0 {
             return;
@@ -281,18 +240,76 @@ impl Camera {
         self.zoom_to_cursor(s, cursor);
     }
 
-    /// Scale the camera's distance by `s` (below 1 zooms in) along the ray under the cursor.
+    /// Scale the view's distance by `s` (below 1 zooms in) toward the point on the cursor's ray at the
+    /// target's depth. The wheel and the pinch go through [`zoom_at`](Self::zoom_at) with the surface
+    /// under the cursor instead; this is for callers that have no surface to offer.
     pub fn zoom_to_cursor(&mut self, s: f64, cursor: [f64; 2]) {
+        let anchor = super::navigation::zoom_anchor(self, self.ray(cursor), None);
+        self.zoom_at(s, anchor);
+    }
+
+    /// Turn the view about `pivot` like a turntable (spec 2.2): +Z stays up and the turn never
+    /// rolls the view. `dx`, `dy` in points, 2π per view height; right and down positive. The camera
+    /// and its target turn together as one rigid piece, so `pivot` stays where it is on screen.
+    /// The look up or down stops just short of straight up or down.
+    pub fn orbit_about(&mut self, pivot: V3, dx: f64, dy: f64) {
         self.fly = None;
-        let nx = cursor[0] / self.width * 2.0 - 1.0;
-        let ny = -(cursor[1] / self.height) * 2.0 + 1.0;
-        let dolly_dir = normalize(sub(self.unproject([nx, ny], 1.0), self.position));
-        let (_, _, z) = self.basis();
-        let prev = length(sub(self.position, self.target));
-        let new_r = (prev * s).max(0.0);
-        self.position = add(self.position, scale(dolly_dir, prev - new_r));
-        // screenSpacePanning: the target sits in front of the moved camera
-        self.target = add(self.position, scale(z, -new_r));
+        let pivot = if pivot.iter().all(|v| v.is_finite()) { pivot } else { self.target };
+        let tau = std::f64::consts::TAU;
+        let (d_yaw, d_pitch) = (-tau * dx / self.height, -tau * dy / self.height);
+        // the view now: right, up and back axes, and which way it looks
+        let (x0, y0, z0) = self.basis();
+        let f = scale(z0, -1.0);
+        let pitch = f[2].clamp(-1.0, 1.0).asin();
+        let horizontal = (f[0] * f[0] + f[1] * f[1]).sqrt();
+        let (hx, hy) = if horizontal > 1e-9 {
+            (f[0] / horizontal, f[1] / horizontal)
+        } else {
+            // straight up or down: the way the screen's up points on the ground gives the heading
+            let (ux, uy) = (y0[0], y0[1]);
+            let l = (ux * ux + uy * uy).sqrt();
+            let (ux, uy) = if l > 1e-9 { (ux / l, uy / l) } else { (1.0, 0.0) };
+            if f[2] < 0.0 { (ux, uy) } else { (-ux, -uy) }
+        };
+        let yaw = hy.atan2(hx) + d_yaw;
+        let limit = std::f64::consts::FRAC_PI_2 - SAFE_EPS;
+        let pitch = (pitch + d_pitch).clamp(-limit, limit);
+        // the view after: Z up, no roll
+        let f1 = [pitch.cos() * yaw.cos(), pitch.cos() * yaw.sin(), pitch.sin()];
+        let x1 = [yaw.sin(), -yaw.cos(), 0.0];
+        let y1 = cross(x1, f1);
+        let z1 = scale(f1, -1.0);
+        // the turn that takes the old axes to the new ones, applied to the camera and the target
+        let turn = |p: V3| {
+            let o = sub(p, pivot);
+            let c = [dot(o, x0), dot(o, y0), dot(o, z0)];
+            add(pivot, add(add(scale(x1, c[0]), scale(y1, c[1])), scale(z1, c[2])))
+        };
+        self.position = turn(self.position);
+        self.target = turn(self.target);
+        self.up = [0.0, 0.0, 1.0];
+    }
+
+    /// Scale the camera's distance by `s` (below 1 zooms in) toward `anchor`: the whole view
+    /// (camera and target) scales about the anchor, so the anchor stays under the cursor and the
+    /// target stays on the view axis in front of the eye. It stops zooming in at half a millimetre.
+    pub fn zoom_at(&mut self, s: f64, anchor: V3) {
+        self.fly = None;
+        if !(s > 0.0 && s.is_finite()) || !anchor.iter().all(|v| v.is_finite()) {
+            return;
+        }
+        let reach = length(sub(self.target, self.position));
+        // a camera on its target (or a broken one) has no distance to clamp: don't zoom in
+        let s = if s < 1.0 {
+            if reach > 0.0 && reach.is_finite() { s.max(MIN_RADIUS / reach).min(1.0) } else { 1.0 }
+        } else {
+            s
+        };
+        if !(s > 0.0 && s.is_finite()) {
+            return;
+        }
+        self.position = add(anchor, scale(sub(self.position, anchor), s));
+        self.target = add(anchor, scale(sub(self.target, anchor), s));
     }
 
     // ------------------------------------------------------------------ views

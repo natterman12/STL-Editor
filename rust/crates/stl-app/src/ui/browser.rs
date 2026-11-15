@@ -112,7 +112,7 @@ fn row_tag(ui: &mut Ui, text: &str, color: Color32, bad: bool) {
     });
 }
 
-fn eye_btn(ui: &mut Ui, ctx: &Context, tokens: &Tokens, salt: &str, hidden: bool, tip_show: &str, tip_hide: &str) -> bool {
+fn eye_btn(ui: &mut Ui, ctx: &Context, tokens: &Tokens, salt: &str, hidden: bool, tip_show: &str, tip_hide: &str) -> egui::Response {
     let eye_name = if hidden { "eye_off" } else { "eye" };
     let tip = if hidden { tip_show } else { tip_hide };
     // `push_id(..).response` is the scope's own hover-only response; the button is `.inner`.
@@ -122,7 +122,35 @@ fn eye_btn(ui: &mut Ui, ctx: &Context, tokens: &Tokens, salt: &str, hidden: bool
         })
         .inner;
     response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, tip));
-    response.on_hover_text(tip).clicked()
+    response.on_hover_text(tip)
+}
+
+/// A click on a whole tree row (spec 2.12): read from the pointer, so the row takes clicks on its
+/// empty side while the buttons inside it (eye, swatch, name) keep their own.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+struct RowPick {
+    /// Where the pointer was released, when a row click ended there.
+    at: Option<egui::Pos2>,
+    click: bool,
+    double: bool,
+    secondary: bool,
+}
+
+/// Reads this frame's clicks in `row` (the row's rect), ignoring any that land on `buttons`.
+fn row_pick(ui: &Ui, row: egui::Rect, buttons: &[egui::Rect]) -> RowPick {
+    let (click, double, secondary, at) = ui.input(|i| {
+        (
+            i.pointer.button_clicked(egui::PointerButton::Primary),
+            i.pointer.button_double_clicked(egui::PointerButton::Primary),
+            i.pointer.button_clicked(egui::PointerButton::Secondary),
+            i.pointer.interact_pos(),
+        )
+    });
+    let on_row = |p: egui::Pos2| row.contains(p) && !buttons.iter().any(|b| b.contains(p));
+    match at.filter(|p| on_row(*p)) {
+        Some(p) if click || double || secondary => RowPick { at: Some(p), click, double, secondary },
+        _ => RowPick::default(),
+    }
 }
 
 fn body_row(
@@ -141,17 +169,20 @@ fn body_row(
     let solid = b.solid;
     // `.tnode.selected` paints the whole row, not a chip behind the name.
     let width = ui.available_width();
-    egui::Frame::new().fill(if selected { tokens.sel } else { Color32::TRANSPARENT }).show(ui, |ui| {
+    let (row, name, buttons) = egui::Frame::new().fill(if selected { tokens.sel } else { Color32::TRANSPARENT }).show(ui, |ui| {
         ui.set_width(width);
         ui.spacing_mut().button_padding = egui::vec2(0.0, 0.0);
-        ui.horizontal(|ui| {
+        let mut buttons: Vec<egui::Rect> = Vec::new();
+        let hz = ui.horizontal(|ui| {
             ui.set_min_width(width);
             // padding-left is the indent; the 6 px is `.tnode { gap: 6px }` before the eye
             ui.spacing_mut().item_spacing.x = 6.0;
             ui.add_space(if indent > 6.0 { indent - 6.0 } else { 0.0 });
 
         let (show_tip, hide_tip) = (format!("Show {}", b.name), format!("Hide {}", b.name));
-        if eye_btn(ui, ctx, tokens, &format!("browser_eye_{}", b.id), b.hidden, &show_tip, &hide_tip) {
+        let eye = eye_btn(ui, ctx, tokens, &format!("browser_eye_{}", b.id), b.hidden, &show_tip, &hide_tip);
+        buttons.push(eye.rect);
+        if eye.clicked() {
             commands.push(Command::BodyProps { id: b.id.clone(), name: None, color: None, hidden: Some(!b.hidden) });
         }
 
@@ -173,6 +204,7 @@ fn body_row(
             .inner
             .on_hover_text("Colour");
         sw_resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, format!("Colour of {}", b.name)));
+        buttons.push(sw_resp.rect);
         if sw_resp.clicked() {
             state.colour_id = Some(b.id.clone());
             state.colour = rgb;
@@ -198,33 +230,43 @@ fn body_row(
         // 1.x `.tnode .tag` keeps `--muted`, and `.tag.bad` keeps `--warn`, on a selected row.
         row_tag(ui, &tag, tag_colour, !solid);
         response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, &b.name));
-
-        if response.clicked() {
-            let multi = ui.input(|i| i.modifiers.shift || i.modifiers.command || i.modifiers.ctrl);
-            let next = if multi {
-                if selection.contains(&b.id) {
-                    selection.iter().filter(|x| *x != &b.id).cloned().collect()
-                } else {
-                    let mut v = selection.to_vec();
-                    v.push(b.id.clone());
-                    v
-                }
-            } else {
-                vec![b.id.clone()]
-            };
-            events.push(UiEvent::Select(next));
-        }
-        if response.double_clicked() {
-            state.rename_id = Some(b.id.clone());
-            state.rename_text = b.name.clone();
-        }
-        // the menu is the app's (`app_bodymenu.rs`): the same rows as 1.x's body menu
-        if response.secondary_clicked() {
-            let at = response.interact_pointer_pos().unwrap_or_else(|| response.rect.left_bottom());
-            events.push(UiEvent::BodyMenu(b.id.clone(), at));
-        }
+        buttons.push(response.rect);
+        response
         });
-    });
+        (hz.response.rect, hz.inner, buttons)
+    }).inner;
+    // the whole row is the click target (spec 2.12): the empty side too; the eye, swatch and name keep their own
+    let pick = row_pick(ui, row, &buttons);
+    if name.clicked() || pick.click {
+        let multi = ui.input(|i| i.modifiers.shift || i.modifiers.command || i.modifiers.ctrl);
+        let next = if multi {
+            if selection.contains(&b.id) {
+                selection.iter().filter(|x| *x != &b.id).cloned().collect()
+            } else {
+                let mut v = selection.to_vec();
+                v.push(b.id.clone());
+                v
+            }
+        } else {
+            vec![b.id.clone()]
+        };
+        events.push(UiEvent::Select(next));
+    }
+    if name.double_clicked() {
+        state.rename_id = Some(b.id.clone());
+        state.rename_text = b.name.clone();
+    }
+    // the menu is the app's (`app_bodymenu.rs`): the same rows as 1.x's body menu
+    let menu_at = if pick.secondary {
+        pick.at
+    } else if name.secondary_clicked() {
+        Some(name.interact_pointer_pos().unwrap_or_else(|| name.rect.left_bottom()))
+    } else {
+        None
+    };
+    if let Some(at) = menu_at {
+        events.push(UiEvent::BodyMenu(b.id.clone(), at));
+    }
 }
 
 /// Draw the browser panel; append commands and `UiEvent`s to the vectors.
@@ -272,7 +314,7 @@ pub fn show(
                 !view.origin_visible,
                 "Show origin planes",
                 "Hide origin planes",
-            ) {
+            ).clicked() {
                 state.origin_toggle = Some(!view.origin_visible);
             }
             ui.label(bold("Origin", tokens.label, 12.0));
@@ -298,7 +340,7 @@ pub fn show(
                 ui.horizontal(|ui| {
                     ui.add_space(8.0 + 14.0 * 2.0);
                     let hidden = !p.visible;
-                    if eye_btn(ui, ctx, tokens, &format!("browser_eye_plane_{}", p.id), hidden, &format!("Show {}", p.name), &format!("Hide {}", p.name)) {
+                    if eye_btn(ui, ctx, tokens, &format!("browser_eye_plane_{}", p.id), hidden, &format!("Show {}", p.name), &format!("Hide {}", p.name)).clicked() {
                         commands.push(Command::BodyProps {
                             id: p.id.clone(),
                             name: None,
@@ -348,9 +390,13 @@ pub fn show(
                 ui.label(bold("Sketches", tokens.label, 12.0));
             });
             for s in sketches {
-                ui.horizontal(|ui| {
+                // the whole row is the click target (spec 2.12): a click selects the sketch and
+                // highlights it in the viewport, a double-click edits it; the eye keeps its own click
+                let row = ui.horizontal(|ui| {
+                    ui.set_min_width(row_w);
                     ui.add_space(8.0 + 14.0 * 2.0);
-                    if eye_btn(ui, ctx, tokens, &format!("browser_eye_sketch_{}", s.id), s.hidden, &format!("Show {}", s.name), &format!("Hide {}", s.name)) {
+                    let eye = eye_btn(ui, ctx, tokens, &format!("browser_eye_sketch_{}", s.id), s.hidden, &format!("Show {}", s.name), &format!("Hide {}", s.name));
+                    if eye.clicked() {
                         commands.push(Command::BodyProps {
                             id: s.id.clone(),
                             name: None,
@@ -361,7 +407,14 @@ pub fn show(
                     ui.label(RichText::new(&s.name).color(tokens.text));
                     // `<span class="tag">${k.entities.length}</span>`: how many shapes it holds
                     row_tag(ui, &s.outlines.len().to_string(), tokens.muted, false);
+                    eye.rect
                 });
+                let pick = row_pick(ui, row.response.rect, &[row.inner]);
+                if pick.double {
+                    events.push(UiEvent::EditFeature(s.id.clone()));
+                } else if pick.click {
+                    events.push(UiEvent::SelectSketch(s.id.clone()));
+                }
             }
         }
     });

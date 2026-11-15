@@ -128,6 +128,7 @@ mod tests {
             frame,
             entities: serde_json::from_value(ents).unwrap(),
             refs: Vec::new(),
+            body: None,
         }
     }
 

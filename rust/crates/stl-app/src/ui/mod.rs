@@ -29,6 +29,10 @@ pub enum UiEvent {
     Hover(Option<String>),
     /// Right-click on a body in the browser: its menu opens at the position.
     BodyMenu(String, egui::Pos2),
+    /// A sketch row clicked in the browser: select it and highlight it.
+    SelectSketch(String),
+    /// A timeline step clicked: select it and highlight what it made.
+    SelectFeature(String),
 }
 
 /// Which theme the user asked for (View > Theme). `System` follows the operating system.

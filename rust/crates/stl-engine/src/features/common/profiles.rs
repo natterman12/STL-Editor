@@ -23,6 +23,9 @@ pub struct SketchRec {
     pub frame: Frame,
     pub entities: Vec<Entity>,
     pub refs: Vec<Value>,
+    /// The body whose face the sketch's plane was picked on (the plane value's `"body"`): the
+    /// sketch moves with that body.
+    pub body: Option<String>,
 }
 
 /// 1.x `_sketch`: the stored sketch for `sid`.

@@ -865,7 +865,7 @@ pub fn hinge() -> ToolDef {
                 show: None,
             },
         ],
-        hint: Some("Cuts a thin slot across the whole block, leaving a thin strip of material under it (the hinge) so the two sides can flex. Position is measured along the plane’s X; 0.5 mm is a common hinge thickness for PLA"),
+        hint: Some("1. Pick the face or plane the hinge runs across.\n2. Set where it sits and how thin it is.\nThe slot cuts across the whole block and leaves a thin strip of material under it, so the two sides can flex. The orange line is the hinge; the arrow shows which way it flexes. Position is measured along the plane’s X; 0.5 mm is a common hinge thickness for PLA"),
         extra: None,
         flags: ToolFlags::default(),
         defaults: defaults_hinge,

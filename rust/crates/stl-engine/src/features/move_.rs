@@ -80,6 +80,8 @@ fn f_move(
         let rc = matmul_vec(&r, c);
         let m = affine(r, [c[0] - rc[0] + t[0], c[1] - rc[1] + t[1], c[2] - rc[2] + t[2]]);
         let mut nb = transform_body(&b, m);
+        // the whole move, for the sketches on this body (the lift below included)
+        let mut whole = m;
         // Land on bed: a turned part rests on the bed (Move Z then lifts it off), so it never
         // hangs through the bed after a rotation
         if bed && has_rot {
@@ -87,6 +89,7 @@ fn f_move(
             if dz.abs() > 1e-9 {
                 let eye = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
                 nb = transform_body(&nb, affine(eye, [0.0, 0.0, dz]));
+                whole[2][3] += dz;
             }
         }
         if do_copy {
@@ -97,6 +100,8 @@ fn f_move(
         } else {
             state.bodies.insert(bid.clone(), nb);
             res.modified.push(bid.clone());
+            // a copy leaves the original (and its sketches) where it was
+            state.record_transform(bid, whole);
         }
     }
     Ok(())

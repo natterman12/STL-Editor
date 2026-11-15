@@ -329,8 +329,11 @@ fn typed_size_inch() {
     h.click([3.0, 20.0]);
     h.mv([13.0, 20.0]);
     h.typed("1 3/8");
-    let hud: Vec<String> = h.out.iter().filter_map(|e| if let SketchEffect::Hud(Some(t)) = e { Some(t.clone()) } else { None }).collect();
-    assert_eq!(hud.last().unwrap(), "Length\t1 3/8\nAngle\t0");
+    // the value boxes on the drawing (spec 2.3): the typed length holds its box, the angle follows the pointer
+    let boxes = h.tool.dim_boxes();
+    assert_eq!(boxes.iter().map(|b| (b.label, b.value.as_str())).collect::<Vec<_>>(), vec![("Length", "1 3/8"), ("Angle", "0")]);
+    assert!(boxes[0].locked && boxes[0].focused);
+    assert!(!boxes[1].locked);
     h.key(egui::Key::Enter);
     let Entity::Line(l) = &h.s.entities[0] else { panic!("a line") };
     assert!((l.p2[0] - (3.0 + 34.925)).abs() < 1e-9 && (l.p2[1] - 20.0).abs() < 1e-9);

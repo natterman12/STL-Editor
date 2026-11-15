@@ -260,6 +260,8 @@ fn draw_item(
             item.label.clone()
         };
         state.status_message = Some(msg);
+        // the step is selected and what it made is highlighted (spec 2.12); a double-click edits it
+        events.push(UiEvent::SelectFeature(item.id.clone()));
     }
     if response.double_clicked() {
         state.edit_feature = Some(item.id.clone());

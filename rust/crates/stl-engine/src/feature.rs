@@ -88,9 +88,23 @@ pub struct FeatureResult {
     pub suppressed: bool,
     /// The result is a preview-only picture (not what committing would give), so it isn't reused.
     pub preview_only: bool,
+    /// The shape a cutting step removes (the hole, the slot, the cut extrusion), for the red cut
+    /// tint in the preview. Filled only while previewing (`Ctx::preview`), never stored in a
+    /// project.
+    pub cutter: Option<std::sync::Arc<stl_kernel::MeshArrays>>,
     /// Extra record keys a feature reports under their 1.x names (Support Fins: `paint`, `walls`,
     /// `support`, and for the live preview `pieces`, `colors`, `ghosts`). Not compared by parity.
     pub extra: Map<String, Value>,
+}
+
+impl FeatureResult {
+    /// Remember the shape a cutting step removes, for the preview's red tint. Does nothing
+    /// unless `preview` is on, so a committed step never carries (or builds) the mesh.
+    pub fn set_cutter(&mut self, preview: bool, shape: &stl_kernel::Solid) {
+        if preview && !shape.is_empty() {
+            self.cutter = Some(std::sync::Arc::new(shape.to_mesh()));
+        }
+    }
 }
 
 /// What an evaluator can reach besides the state.

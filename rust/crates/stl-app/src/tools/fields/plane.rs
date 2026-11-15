@@ -374,6 +374,9 @@ pub fn feed_pick(tool: &ToolDef, f: &Field, values: &mut Values, hit: &Hit, ctx:
             values.insert(f.key.to_owned(), Value::from(id.clone()));
         }
         Hit::Body { id, face, point, .. } => {
+            if tool.key == "thread" && super::place_refs::thread_feed_pick(values, ctx, id, *point).is_some() {
+                return PickOut::changed();
+            }
             let Some(b) = ctx.bodies.iter().find(|b| &b.id == id) else { return PickOut::used() };
             let Some(fi) = face_info(&b.mesh, *face as usize, false) else { return PickOut::used() };
             values.insert(
@@ -384,6 +387,9 @@ pub fn feed_pick(tool: &ToolDef, f: &Field, values: &mut Values, hit: &Hit, ctx:
                 let d = sub(*point, fi.origin);
                 let r3 = |x: f64| (x * 1e3).round() / 1e3;
                 values.insert("offset".to_owned(), json!([r3(dot(d, fi.xdir)), r3(dot(d, fi.ydir)), 0.0]));
+                if tool.key == "thread" {
+                    super::place_refs::thread_after_place(values, ctx, id);
+                }
             }
             out.clear_face = true;
             out.highlight = Some((id.clone(), fi.tris));
