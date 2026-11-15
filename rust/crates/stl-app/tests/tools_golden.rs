@@ -615,6 +615,15 @@ fn without_split_distance(v: &mut Value) {
     }
 }
 
+/// Living Hinge's hint (milestone 7, spec 2.13; `EXCEPTIONS.md`): two numbered steps, then what
+/// the slot does and what the orange line and the arrow mean. Everything else is compared with 1.x.
+#[test]
+fn hinge_hint_says_what_to_pick() {
+    let hint = tool("hinge").unwrap().hint.unwrap();
+    assert!(hint.starts_with("1. Pick the face or plane the hinge runs across.\n2. Set where it sits and how thin it is.\n"), "{hint}");
+    assert!(hint.contains("The orange line is the hinge; the arrow shows which way it flexes."), "{hint}");
+}
+
 #[test]
 fn split_distance_is_the_one_difference() {
     let (bodies, planes, sketches, features, selection) = fixture_data();
@@ -656,6 +665,10 @@ fn tools_golden_all_41() {
         let mut recorded = record_tool(def, &ctx, &golden["extra"]);
         if *key == "split" {
             without_split_distance(&mut recorded);
+        }
+        if *key == "hinge" {
+            // milestone 7 (spec 2.13): the hint is rewritten; checked in `hinge_hint_says_what_to_pick`
+            recorded["hint"] = golden["hint"].clone();
         }
         if !values_eq_tool(key, &recorded, &golden) {
             eprintln!("MISMATCH {key}");

@@ -496,6 +496,9 @@ Nathan answered these on 2026-11-14: accepted unless marked otherwise.
 - **Accepted by Nathan (2026-11-15): a Bodies field becomes active once the picks above it are filled** (spec 2.11), even when it
   is optional ("Auto"). 1.x skipped optional Bodies fields. A tree row click fills the active Bodies field. A plain click on a
   picked body still removes it; Ctrl and Shift are not used yet (pending Nathan's OK).
+- **Accepted by Nathan (2026-11-15): Living Hinge's hint is rewritten** (spec 2.13): two numbered steps (pick the face or plane,
+  then set where it sits and how thin it is), then what the slot does and what the orange line and arrow mean. The tools
+  golden keeps 1.x's hint; `tools_golden.rs` compares the rest with 1.x and checks the new hint on its own.
 - **Accepted by Nathan (2026-11-15): the origin planes show while a tool waits for a plane** and go back as they were afterwards
   (spec 2.10). 1.x left them as they were.
 - **Accepted by Nathan (2026-11-15): clicks in the tree and timeline register while the engine is busy** (spec 2.12). The busy
