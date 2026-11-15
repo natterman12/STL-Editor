@@ -161,8 +161,8 @@ fn recover_later_discard_and_help_menu() {
 
     // Discard removes the copy; with nothing left the dialog goes
     h.get_by_label("Discard").click();
-    h.run_steps(6);
-    assert_eq!(sessions(), 0, "Discard deletes the copy");
+    // the copy is deleted off the UI thread; a slow runner takes a moment
+    wait_for(&mut h, &link, "Discard to delete the copy", |_| sessions() == 0);
 
     // nothing left: 1.x's toast
     h.state_mut().toasts.clear();

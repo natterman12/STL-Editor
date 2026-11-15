@@ -20,6 +20,22 @@ use super::*;
 #[cfg(not(target_arch = "wasm32"))]
 const FENCE_SEQ: u64 = u64::MAX - 0x5eed;
 
+/// After a panic while drawing: whether the device turns out to be lost, polling it for up to a
+/// second (a driver may report the loss a little after the draw that failed).
+#[cfg(not(target_arch = "wasm32"))]
+fn lost_soon(app: &StlApp) -> bool {
+    let end = web_time::Instant::now() + std::time::Duration::from_secs(1);
+    loop {
+        if app.viewport.device_lost(true) {
+            return true;
+        }
+        if web_time::Instant::now() >= end {
+            return false;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+}
+
 impl StlApp {
     /// What the native message box says after a driver reset, once the work is saved.
     pub const DRIVER_RESTARTED: &'static str = "The graphics driver restarted. STL Editor needs to restart to keep drawing. Your work is saved.";
@@ -96,7 +112,9 @@ impl StlApp {
                 Ok(Some(app))
             }
             (Ok(r), _) => r.map(|()| None),
-            (Err(_), Some(app)) if app.viewport.device_lost(true) => {
+            // some drivers (WARP on CI) report the loss a moment after the draw that failed:
+            // poll the device for up to a second before treating the panic as a real one
+            (Err(_), Some(app)) if lost_soon(&app) => {
                 eprintln!("STL Editor: the graphics device was lost while drawing; restarting");
                 Ok(Some(app))
             }

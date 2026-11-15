@@ -67,7 +67,14 @@ fn union_of_a_row_is_unchanged() {
 #[test]
 fn union_of_a_ring_is_unchanged() {
     let u = Solid::union_all(&ring());
-    assert_eq!(hash(&u), EXPECTED_RING, "ring: {:?}", hash(&u));
+    // the ring's last bits follow the platform's sin and cos (Linux's glibc rounds a few
+    // differently), so its hash was recorded on Windows; elsewhere the size is checked and
+    // `union_of_groups_repeats` checks the bytes don't depend on the order groups finish in
+    if cfg!(windows) {
+        assert_eq!(hash(&u), EXPECTED_RING, "ring: {:?}", hash(&u));
+    } else {
+        assert_eq!(hash(&u).0, EXPECTED_RING.0, "ring: {:?}", hash(&u));
+    }
 }
 
 /// Twice in a row gives the same bytes: the order the groups finish in does not show.
