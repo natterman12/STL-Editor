@@ -354,9 +354,11 @@ impl StlApp {
         self.viewport.set_selection(&ids);
     }
 
-    /// Everything a closing tool leaves on screen goes: highlights, the cut tint, shown planes.
+    /// Everything a closing tool leaves on screen goes: highlights, the cut tint, shown planes,
+    /// and its form's marks (the picked plane's ghost, markers, regions, sketch lines).
     fn clear_tool_marks(&mut self) {
         self.viewport.clear_tool_highlights();
+        crate::tools::fields::bodies::apply_marks(&mut self.viewport, &[]);
         self.viewport.set_cut_tint(CUT_TINT_ID, None);
         self.sync_tool_planes();
     }
