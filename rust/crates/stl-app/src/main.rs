@@ -25,6 +25,13 @@ fn init_log() {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn main() -> eframe::Result {
+    // A restart after a graphics driver reset says what to open (`StlApp::after_device_reset`).
+    // Read once and removed, so a later restart (an update) doesn't repeat it.
+    let after_reset = std::env::var(StlApp::AFTER_RESET_ENV).ok().filter(|v| !v.is_empty());
+    if after_reset.is_some() {
+        // SAFETY: the first thing `main` does; no other thread has started yet
+        unsafe { std::env::remove_var(StlApp::AFTER_RESET_ENV) };
+    }
     init_log();
     // Before eframe or the engine starts a thread. On Windows this thread runs above normal.
     // The engine thread builds Rayon's pool and runs below this one. See `engine_link::native`.
@@ -50,10 +57,10 @@ fn main() -> eframe::Result {
     };
     // `stl-app <file>`: a .stlx is opened, any other mesh is inserted.
     let launch_file = args.into_iter().find(|a| !a.starts_with('-'));
-    eframe::run_native(
-        &stl_app::build_info::title(),
-        options,
-        Box::new(move |cc| {
+    let title = stl_app::build_info::title();
+    let lost = StlApp::run_window(
+        |creator| eframe::run_native(&title, options, creator),
+        move |cc| {
             // The GPU device comes up before the engine thread, so driver threads are not
             // part of the engine's pool.
             let mut viewport = stl_app::viewport::Viewport::new();
@@ -71,13 +78,53 @@ fn main() -> eframe::Result {
                 Box::new(link),
             );
             app.viewport = viewport;
+            // before autosave starts: its start-up offer must not list the copy this opens
+            let reset = after_reset.is_some();
+            if let Some(marker) = after_reset {
+                app.after_device_reset(&marker);
+            }
             app.enable_autosave();
-            if let Some(path) = launch_file {
+            if let Some(path) = launch_file.filter(|_| !reset) {
                 app.open_launch_file(std::path::Path::new(&path));
             }
-            Ok(Box::new(app))
-        }),
-    )
+            app
+        },
+    )?;
+    if let Some(app) = lost {
+        restart_after_device_loss(app);
+    }
+    Ok(())
+}
+
+/// The window's graphics device was lost (a driver reset) and eframe can't make a new one:
+/// keep the work, say so, and start again (`app_device.rs`). The window is already gone, so the
+/// message is a native one.
+#[cfg(not(target_arch = "wasm32"))]
+fn restart_after_device_loss(mut app: StlApp) {
+    let saved = app.save_after_device_loss(std::time::Duration::from_secs(20));
+    let text = if saved { StlApp::DRIVER_RESTARTED } else { StlApp::DRIVER_RESTARTED_NOT_SAVED };
+    log_line(text);
+    let _ = rfd::MessageDialog::new()
+        .set_level(rfd::MessageLevel::Warning)
+        .set_title("STL Editor")
+        .set_description(text)
+        .set_buttons(rfd::MessageButtons::OkCustom("Restart".into()))
+        .show();
+    // this ends the app (its engine ends the autosave session; the copy stays for the new window)
+    match app.restart_after_device_loss(saved).and_then(|mut c| c.spawn()) {
+        Ok(child) => eprintln!("STL Editor: the restart helper is running (process {})", child.id()),
+        Err(e) => log_line(&format!("Couldn't restart STL Editor: {e}")),
+    }
+}
+
+/// One line in `log.txt` (and on stderr).
+#[cfg(not(target_arch = "wasm32"))]
+fn log_line(text: &str) {
+    use std::io::Write;
+    eprintln!("{text}");
+    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(stl_platform::settings::log_file()) {
+        let _ = writeln!(f, "{text}");
+    }
 }
 
 #[cfg(target_arch = "wasm32")]

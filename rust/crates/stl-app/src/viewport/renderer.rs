@@ -1133,6 +1133,21 @@ pub fn new_render_state() -> Option<egui_wgpu::RenderState> {
     block_on(egui_wgpu::RenderState::create(&config, &instance, None, egui_wgpu::RendererOptions::default())).ok()
 }
 
+/// Test hook: `rs`'s device goes away now, as after a graphics driver reset (the device-lost
+/// callback runs at once). Native only.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn destroy_device(rs: &egui_wgpu::RenderState) {
+    rs.device.destroy();
+    let _ = rs.device.poll(wgpu::PollType::Poll);
+}
+
+/// The viewport's GPU side on `rs` (set up by [`super::Viewport::init_gpu`]) saw its device
+/// lost. False when it was never set up there. Native only.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn render_state_lost(rs: &egui_wgpu::RenderState) -> bool {
+    rs.renderer.read().callback_resources.get::<GpuState>().is_some_and(|g| g.is_lost())
+}
+
 /// A GPU device without a window, for tests, `uibench` and screenshots.
 #[cfg(not(target_arch = "wasm32"))]
 pub struct Headless {
@@ -1149,13 +1164,12 @@ impl Headless {
     /// Test hook: the device goes away now, as after a graphics driver reset. The device-lost
     /// callback runs at once; the next frames draw nothing until [`Headless::recover`].
     pub fn force_device_loss(&self) {
-        self.render_state.device.destroy();
-        let _ = self.render_state.device.poll(wgpu::PollType::Poll);
+        destroy_device(&self.render_state);
     }
 
     /// The device this renderer draws on was lost.
     pub fn is_lost(&self) -> bool {
-        self.render_state.renderer.read().callback_resources.get::<GpuState>().is_some_and(|g| g.is_lost())
+        render_state_lost(&self.render_state)
     }
 
     /// After a lost device: the viewport makes a new device and sets itself up there
@@ -1220,6 +1234,61 @@ impl Headless {
     pub fn surface_lost(&self) {
         if let Some(gpu) = self.render_state.renderer.write().callback_resources.get_mut::<GpuState>() {
             gpu.surface_lost();
+        }
+    }
+
+    /// Paint one egui frame the way eframe's window does, with egui-wgpu's `Renderer` (textures,
+    /// then `update_buffers`, which runs the viewport's paint callback, then the render pass),
+    /// into a `w` x `h` texture. Like the window, it panics inside egui-wgpu when the device is
+    /// lost (tests of the window's device-loss path rely on that).
+    pub fn paint_egui(&self, ctx: &egui::Context, mut out: egui::FullOutput, w: u32, h: u32) {
+        let rs = &self.render_state;
+        // taken out, so the delta (which checks it was used) is empty whatever happens below
+        let set = std::mem::take(&mut out.textures_delta.set);
+        let free = std::mem::take(&mut out.textures_delta.free);
+        let ppp = out.pixels_per_point;
+        let prims = ctx.tessellate(out.shapes, ppp);
+        let screen = egui_wgpu::ScreenDescriptor { size_in_pixels: [w, h], pixels_per_point: ppp };
+        let mut encoder = rs.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("egui test paint") });
+        let user = {
+            let mut r = rs.renderer.write();
+            for (id, deltas) in &set {
+                for delta in deltas {
+                    r.update_texture(&rs.device, &rs.queue, *id, delta);
+                }
+            }
+            r.update_buffers(&rs.device, &rs.queue, &mut encoder, &prims, &screen)
+        };
+        let target = rs.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("egui test target"),
+            size: wgpu::Extent3d { width: w.max(1), height: h.max(1), depth_or_array_layers: 1 },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: rs.target_format,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            view_formats: &[],
+        });
+        let view = target.create_view(&wgpu::TextureViewDescriptor::default());
+        {
+            let mut pass = encoder
+                .begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("egui test pass"),
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: &view,
+                        resolve_target: None,
+                        depth_slice: None,
+                        ops: wgpu::Operations { load: wgpu::LoadOp::Clear(wgpu::Color::BLACK), store: wgpu::StoreOp::Store },
+                    })],
+                    ..Default::default()
+                })
+                .forget_lifetime();
+            rs.renderer.read().render(&mut pass, &prims, &screen);
+        }
+        rs.queue.submit(user.into_iter().chain(std::iter::once(encoder.finish())));
+        let mut r = rs.renderer.write();
+        for id in &free {
+            r.free_texture(id);
         }
     }
 

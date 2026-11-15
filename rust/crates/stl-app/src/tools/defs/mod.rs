@@ -79,6 +79,14 @@ pub fn select_grouped(options: Vec<(String, String, String)>) -> FieldKind {
     }
 }
 
+/// The drag-the-plane control on a tool (Split): the names of its plane, distance and body fields.
+#[derive(Clone, Copy, Debug)]
+pub struct DragSpec {
+    pub plane: &'static str,
+    pub distance: &'static str,
+    pub body: &'static str,
+}
+
 #[derive(Default)]
 pub struct ToolFlags {
     pub place_on_face: bool,
@@ -88,6 +96,8 @@ pub struct ToolFlags {
     pub sculpt: bool,
     pub paint: bool,
     pub wall_tool: bool,
+    /// Show the drag-the-plane control for these fields.
+    pub drag: Option<DragSpec>,
 }
 
 pub struct ToolDef {

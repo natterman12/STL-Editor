@@ -22,6 +22,16 @@ use crate::tools::sculpt::Sculpt;
 use crate::tools::{Ctx, ToolDef, Values};
 #[path = "app_wiring.rs"]
 mod wiring;
+#[path = "app_section.rs"]
+mod section;
+#[path = "app_measure.rs"]
+mod measure;
+#[path = "app_handoff.rs"]
+mod handoff;
+#[path = "app_bodymenu.rs"]
+mod bodymenu;
+#[path = "app_device.rs"]
+mod device;
 use std::collections::{BTreeMap, HashMap};
 use egui::{Align2, Area, CornerRadius, Frame, Id, Margin, Order, Pos2, Rect, RichText, Sense, Stroke, Vec2};
 
@@ -108,6 +118,13 @@ pub struct StlApp {
     sketch: Option<SketchMode>,
     /// What the sketch keeps beside it: engine sequence, the text dialog, the import dialog.
     sk: wiring::Sk,
+    /// Section View (`app_section.rs`).
+    section: section::SectionState,
+    /// Measure and Properties (`app_measure.rs`).
+    measure: measure::MeasureState,
+    info: measure::InfoState,
+    /// Send to Slicer and To STEP (`app_handoff.rs`).
+    handoff: handoff::HandoffState,
 }
 
 /// A short fingerprint of the history, to tell whether it changed since the last save.
@@ -258,6 +275,10 @@ impl StlApp {
             sf: Default::default(),
             sketch: None,
             sk: Default::default(),
+            section: Default::default(),
+            measure: Default::default(),
+            info: Default::default(),
+            handoff: Default::default(),
         }
     }
 
@@ -385,7 +406,7 @@ impl StlApp {
         self.shell.active_tool = None;
         self.shell.selection.clear();
         self.viewport.set_selection(&[]);
-        self.viewport.set_section_enabled(false);
+        self.clear_cut();
         self.recovering = true;
         // the file it was saved as, or `<title>.stlx` for work that never was
         let name = r.path.as_deref().and_then(|p| std::path::Path::new(p).file_name()).map_or(r.name, |n| n.to_string_lossy().into_owned());
@@ -418,8 +439,9 @@ impl StlApp {
 
     /// Apply the engine's updates. Returns true when there were any (the caller repaints).
     pub fn poll(&mut self) -> bool {
-        let updates = self.link.poll();
+        let mut updates = self.link.poll();
         let mut any = !updates.is_empty();
+        self.handoff_updates(&mut updates);
         let out = self.files.poll(&*self.platform, &*self.link, &updates);
         any |= self.files.busy() || !out.messages.is_empty();
         // clean once the file is written (not when the engine hands over the bytes), or when a
@@ -474,6 +496,7 @@ impl StlApp {
                 }
                 Update::Fins { seq, ask, result } => self.on_fins(seq, &ask, result),
                 Update::SketchOp { seq, result } => self.on_sketch_op(seq, result),
+                Update::BodyInfo { seq, result } => self.on_body_info(seq, result),
                 Update::Solved { seq, entities, ok, error } => self.on_solved(seq, entities, ok, error),
                 Update::EngineLost => {
                     self.engine_lost = true;
@@ -593,7 +616,7 @@ impl StlApp {
         self.shell.active_tool = None;
         self.shell.selection.clear();
         self.viewport.set_selection(&[]);
-        self.viewport.set_section_enabled(false);
+        self.clear_cut();
         match what {
             UiAction::OpenRecent(name) => {
                 if !self.files.open_recent(&*self.platform, &*self.link, &name) {
@@ -645,10 +668,7 @@ impl StlApp {
                     KeyAction::FocusSearch => self.shell.focus_search = true,
                     KeyAction::Fit => self.viewport.fit_all(),
                     KeyAction::View(v) => self.viewport.set_view(v),
-                    KeyAction::ToggleCut => {
-                        let on = self.viewport.section_enabled();
-                        self.viewport.set_section_enabled(!on);
-                    }
+                    KeyAction::ToggleCut => self.toggle_cut(),
                     KeyAction::New => self.shell.file_requests.push(UiAction::New),
                     KeyAction::BeginSketch => self.push_ui_event(UiEvent::OpenTool("sketch".into())),
                     KeyAction::PanelCancel => self.tool_cancel(),
@@ -676,6 +696,7 @@ impl StlApp {
             UiEvent::EditFeature(id) => {
                 self.edit_feature(id);
             }
+            UiEvent::BodyMenu(id, at) => self.open_body_menu(id, *at),
             _ => {}
         }
         self.shell.push_event(e);
@@ -766,6 +787,8 @@ impl StlApp {
     /// Open any `ToolDef`, also one built at run time (`edit`: the step's id and params).
     pub fn open_tool_def(&mut self, def: &'static ToolDef, edit: Option<(String, serde_json::Value)>, values: Option<Values>) {
         self.close_tool(false);
+        self.close_section();
+        self.close_measure();
         let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection, self.shell.inch);
         let mut v = match &edit {
             Some((_, p)) => (def.from_params)(p.clone()),
@@ -820,6 +843,9 @@ impl StlApp {
         let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection, self.shell.inch);
         if self.committing {
             return; // the first OK is still on its way
+        }
+        if self.tool.is_none() && self.section_open() {
+            return self.close_section();
         }
         if self.tool.as_ref().is_some_and(|t| t.def.key == "sketch") {
             return self.sketch_prompt_ok(); // Start: no step is added, the sketch opens
@@ -1082,6 +1108,36 @@ impl StlApp {
         }
     }
 
+    /// The drag-the-plane control: from the open Section panel, else from the open tool's
+    /// `ToolFlags::drag`. A drag sets the distance field (the tool's preview follows).
+    fn feed_drag_plane(&mut self) {
+        let section = self.section_drag_plane();
+        let spec = self.tool.as_ref().and_then(|t| t.def.flags.drag);
+        let p = section.or_else(|| self.tool_drag_plane(spec?));
+        self.viewport.set_drag_plane(p);
+        let Some((d, done)) = self.viewport.take_drag_distance() else { return };
+        if section.is_some() {
+            self.section_dragged(d, done);
+        } else if let Some(spec) = spec {
+            self.tool_set_value(spec.distance, crate::tools::fields::number::num_value(d));
+        }
+    }
+
+    /// The open tool's plane, distance and body box as a `DragPlane`.
+    fn tool_drag_plane(&self, spec: crate::tools::DragSpec) -> Option<crate::viewport::plane_drag::DragPlane> {
+        let t = self.tool.as_ref()?;
+        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection, self.shell.inch);
+        let frame = crate::tools::fields::plane::frame_of(t.values.get(spec.plane)?, &ctx)?;
+        let distance = match t.values.get(spec.distance) {
+            Some(serde_json::Value::Number(n)) => n.as_f64().unwrap_or(0.0),
+            Some(serde_json::Value::String(e)) => stl_engine::params::evaluate(e.trim().trim_start_matches('='), &self.param_map()).ok()?,
+            _ => 0.0,
+        };
+        let body = t.values.get(spec.body).and_then(|v| v.as_str().or_else(|| v.get(0)?.as_str()));
+        let span = body.and_then(|id| self.viewport.body_box(id)).or_else(|| self.viewport.scene_box())?;
+        Some(crate::viewport::plane_drag::DragPlane { origin: frame.origin, normal: frame.normal, distance, span })
+    }
+
     /// A ribbon / search / dropdown tool was chosen (`App.onRibbon`).
     pub fn on_ribbon(&mut self, key: &str, anchor: Pos2) {
         if self.sketch.is_some() {
@@ -1091,8 +1147,11 @@ impl StlApp {
             "import" => self.shell.file_requests.push(UiAction::Insert),
             "export" => self.open_export_menu(anchor),
             "params" => { self.params_open = true; self.params.set_open(true); }
-            // Send to Slicer is desktop-only and not part of 4a
-            "send" => {}
+            "section" => self.open_section(),
+            "measure" => self.open_measure(),
+            "info" => self.open_info(None),
+            "send" => self.open_send_menu(anchor),
+            "to_step" => self.to_step(),
             "sf_about" => self.show_sf_about(),
             // Rotate opens Move with the rings (`_gizmo: "rotate"`)
             k => self.push_ui_event(ribbon::tool_event(k)),
@@ -1142,6 +1201,9 @@ impl StlApp {
                     it("export:obj", "Export OBJ…"),
                 ]);
                 if !web {
+                    v.extend(self.send_file_items());
+                }
+                if !web {
                     v.extend([MenuItem::Sep, it("file.quit", "Quit")]);
                 }
                 v
@@ -1157,13 +1219,18 @@ impl StlApp {
             ],
             "view" => {
                 let s = &self.shell;
-                vec![
+                let mut v = vec![
                     it("view.fit", "Fit All").key("F"),
                     it("view.iso", "Isometric").key("0"),
                     it("view.top", "Top").key("5"),
                     it("view.front", "Front").key("1"),
                     it("view.right", "Right").key("4"),
                     it("view.section", tick(self.viewport.section_enabled(), "Section View")).key("X"),
+                ];
+                if self.section_has_cut() {
+                    v.extend([it("view.edit_section", "Edit Section…"), it("view.remove_section", "Remove Section")]);
+                }
+                v.extend([
                     MenuItem::Sep,
                     MenuItem::Hdr("Units".into()),
                     it("units.mm", tick(!s.inch, "Millimetres")),
@@ -1176,7 +1243,8 @@ impl StlApp {
                     it("view.edges", tick(s.show_edges, "Show Edges")),
                     it("view.grid", tick(s.show_grid, "Show Grid")),
                     it("view.planes", tick(self.viewport.base_planes_visible(), "Show Origin Planes")),
-                ]
+                ]);
+                v
             }
             _ => {
                 let mut v = vec![it("help.shortcuts", "Keyboard Shortcuts")];
@@ -1205,6 +1273,19 @@ impl StlApp {
         if let Some(k) = id.strip_prefix("search:") {
             return self.run_search_command(ctx, k, anchor);
         }
+        if let Some(k) = id.strip_prefix("send:") {
+            return self.send_pick(k);
+        }
+        if let Some(rest) = id.strip_prefix("bsend:") {
+            // `<key>:<body id>`: Send to Slicer from the body menu
+            if let Some((key, body)) = rest.split_once(':') {
+                self.send_pick_body(key, body);
+            }
+            return;
+        }
+        if let Some(rest) = id.strip_prefix("body:") {
+            return self.on_body_menu_pick(rest, anchor);
+        }
         if let Some(f) = id.strip_prefix("export:") {
             return a(self, UiAction::Export(f.to_owned()));
         }
@@ -1229,15 +1310,15 @@ impl StlApp {
                 self.shell.push_event(UiEvent::Select(ids));
             }
             "edit.remove" => a(self, UiAction::RemoveSelected),
+            "view.sketch" => self.begin_sketch(None),
             "view.fit" => self.viewport.fit_all(),
             "view.iso" => self.viewport.set_view("iso"),
             "view.top" => self.viewport.set_view("top"),
             "view.front" => self.viewport.set_view("front"),
             "view.right" => self.viewport.set_view("right"),
-            "view.section" => {
-                let on = self.viewport.section_enabled();
-                self.viewport.set_section_enabled(!on);
-            }
+            "view.section" => self.toggle_cut(),
+            "view.edit_section" => self.open_section(),
+            "view.remove_section" => self.clear_cut(),
             "units.mm" | "units.in" => self.set_units_inch(id == "units.in"),
             "theme.light" => self.set_theme(ctx, ThemePref::Light),
             "theme.dark" => self.set_theme(ctx, ThemePref::Dark),
@@ -1302,7 +1383,7 @@ impl StlApp {
     }
 
     fn update_search_menu(&mut self, rect: Rect) {
-        let results = ribbon::search_in(&self.shell.query, self.sketch.is_some());
+        let results = ribbon::search_shown(&self.shell.query, self.sketch.is_some(), &ribbon::DeskTools::of(&*self.platform));
         if self.shell.query.trim().is_empty() {
             if self.shell.menu.as_ref().is_some_and(|m| m.tag == "search") {
                 self.shell.menu = None;
@@ -1358,7 +1439,7 @@ impl StlApp {
                 self.shell.menu = Some(OpenMenu::new("more", rows, r.left_bottom() + Vec2::new(0.0, 2.0)).keep(r));
             }
             Pick::GroupMenu(gi, r) => {
-                let d = ribbon::def(self.ribbon_tab());
+                let d = ribbon::def_shown(self.ribbon_tab(), &ribbon::DeskTools::of(&*self.platform));
                 if let Some(g) = d.groups.get(gi) {
                     let rows = g.tools().iter().map(|x| MenuItem::item(format!("tool:{}", x.key), x.label).icon(x.icon)).collect();
                     self.shell.menu = Some(OpenMenu::new("group", rows, r.left_bottom() + Vec2::new(0.0, 2.0)).keep(r));
@@ -1427,7 +1508,7 @@ impl StlApp {
             self.update_search_menu(tb_out.search_rect);
         }
         if let Some(k) = tb_out.search_key {
-            let n = ribbon::search_in(&self.shell.query, self.sketch.is_some()).len();
+            let n = ribbon::search_shown(&self.shell.query, self.sketch.is_some(), &ribbon::DeskTools::of(&*self.platform)).len();
             match k {
                 egui::Key::ArrowDown | egui::Key::ArrowUp if n > 0 => {
                     if !self.shell.menu.as_ref().is_some_and(|m| m.tag == "search") {
@@ -1439,7 +1520,7 @@ impl StlApp {
                     }
                 }
                 egui::Key::Enter => {
-                    if let Some(c) = ribbon::search_in(&self.shell.query, self.sketch.is_some()).get(self.shell.search_hot) {
+                    if let Some(c) = ribbon::search_shown(&self.shell.query, self.sketch.is_some(), &ribbon::DeskTools::of(&*self.platform)).get(self.shell.search_hot) {
                         let key = c.k.clone();
                         self.run_search_command(&ctx, &key, tb_out.search_rect.left_bottom());
                     }
@@ -1461,7 +1542,7 @@ impl StlApp {
             None => self.shell.active_tool.clone(),
         };
         egui::Panel::top("ribbon").exact_size(ribbon::height(&rb_tab)).frame(Frame::NONE).show_separator_line(false).show(ui, |ui| {
-            let st = ribbon::RibbonState { tab: &rb_tab, active: rb_active.as_deref(), drop_last: &self.shell.drop_last, web: self.platform.is_web() };
+            let st = ribbon::RibbonState { tab: &rb_tab, active: rb_active.as_deref(), drop_last: &self.shell.drop_last, web: self.platform.is_web(), desk: ribbon::DeskTools::of(&*self.platform) };
             let (p, fit) = ribbon::show(ui, &tk, &st);
             rb_pick = p;
             self.last_fit = Some(fit);
@@ -1481,6 +1562,7 @@ impl StlApp {
                 self.start_view_done = true;
                 self.viewport.set_view_size(avail.x, avail.y);
             }
+            self.feed_drag_plane();
             let vr = self.viewport.show(ui);
             if !self.sk.fly_started {
                 // the first frame after the viewport shows: the opening fly-in (`start()` in 1.x)
@@ -1489,12 +1571,12 @@ impl StlApp {
             }
             let ws = vr.response.rect;
             if vr.section_clicked {
-                let on = self.viewport.section_enabled();
-                self.viewport.set_section_enabled(!on);
+                self.toggle_cut();
             }
             // the handles, the Sculpt brush and Draw Walls' pointer first: a click on one of
             // them isn't a click on the part
             let mut consumed = self.tool_frame(ui, &vr.response);
+            consumed |= self.viewport.drag_plane_hot();
             if let Some(g) = self.gizmo.as_mut() {
                 consumed |= g.consume_click();
             }
@@ -1503,12 +1585,21 @@ impl StlApp {
             consumed |= self.sketch.is_some();
             if vr.response.clicked() && !consumed {
                 if let Some(pos) = vr.response.interact_pointer_pos() {
-                    if !self.sf_click(pos) {
+                    if !(self.section_click(pos) || self.measure_click(pos) || self.sf_click(pos)) {
                         self.tool_click(pos);
                     }
                 }
             }
+            // a right-click (not a right-drag, which pans): the body's menu, or the view menu
+            if vr.response.secondary_clicked() && self.sketch.is_none() {
+                if let Some(pos) = vr.response.interact_pointer_pos() {
+                    self.open_viewport_menu(pos);
+                }
+            }
             self.overlays(&ctx, &tk, ws, &mut commands, &mut events);
+            self.section_frame(&ctx, &tk, ws);
+            self.measure_frame(&ctx, &tk, ws);
+            self.handoff_frame();
             let empty = self.timeline_view.items.is_empty() && self.shell.active_tool.is_none() && self.sketch.is_none();
             if empty {
                 start_pick = start::show(&ctx, &tk, ws, &self.shell.recent);
@@ -1759,7 +1850,8 @@ impl StlApp {
 }
 
 impl eframe::App for StlApp {
-    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+    fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
+        self.device_frame(frame);
         self.layout(ui);
     }
 

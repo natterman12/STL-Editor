@@ -595,6 +595,50 @@ fn values_eq_tool(_key: &str, recorded: &Value, golden: &Value) -> bool {
     recorded == golden
 }
 
+/// Split's one deliberate difference from 1.x (milestone 6, spec 2.4; `EXCEPTIONS.md`): the
+/// Distance field, key `offset`, right after Split plane. Takes it out of a recorded definition so
+/// the rest of Split is still compared with 1.x field for field.
+fn without_split_distance(v: &mut Value) {
+    match v {
+        Value::Object(o) => {
+            o.remove("offset");
+            if let Some(Value::Array(fields)) = o.get_mut("fields") {
+                fields.retain(|f| f["key"] != "offset");
+            }
+            o.values_mut().for_each(without_split_distance);
+        }
+        Value::Array(a) => {
+            a.retain(|x| x != "offset");
+            a.iter_mut().for_each(without_split_distance);
+        }
+        _ => {}
+    }
+}
+
+#[test]
+fn split_distance_is_the_one_difference() {
+    let (bodies, planes, sketches, features, selection) = fixture_data();
+    let ctx = fixture_ctx(&bodies, &planes, &sketches, &features, &selection);
+    let def = tool("split").unwrap();
+    let keys: Vec<&str> = def.fields.iter().map(|f| f.key).collect();
+    assert_eq!(&keys[..4], ["body", "plane", "offset", "keep"], "Distance sits right after Split plane");
+    let f = &def.fields[2];
+    assert_eq!(f.label, "Distance");
+    assert!(matches!(f.kind, FieldKind::Number { unit: Some("mm") }));
+    let d = def.flags.drag.expect("Split shows the drag-the-plane control");
+    assert_eq!((d.plane, d.distance, d.body), ("plane", "offset", "body"));
+    let mut v = (def.defaults)(&ctx);
+    assert_eq!(v.get("offset"), Some(&json!(0)));
+    assert!((def.to_params)(&v, &ctx).get("offset").is_none(), "a Distance of 0 is not stored");
+    v.insert("offset".into(), json!(-5));
+    assert_eq!((def.to_params)(&v, &ctx)["offset"], json!(-5));
+    v.insert("offset".into(), json!("=h/2"));
+    assert_eq!((def.to_params)(&v, &ctx)["offset"], json!("=h/2"));
+    // a 1.x step has no Distance and comes back as 0
+    let from = (def.from_params)(json!({"body": "body_a", "plane": "XY", "keep": "both"}));
+    assert_eq!(from.get("offset"), Some(&json!(0)));
+}
+
 #[test]
 fn tools_golden_all_41() {
     let (bodies, planes, sketches, features, selection) = fixture_data();
@@ -609,7 +653,10 @@ fn tools_golden_all_41() {
         let golden_text = fs::read_to_string(&golden_path).unwrap_or_else(|_| panic!("missing golden {golden_path:?}"));
         let golden: Value = serde_json::from_str(&golden_text).unwrap();
         let def = tool(key).unwrap_or_else(|| panic!("tool {key} missing from registry"));
-        let recorded = record_tool(def, &ctx, &golden["extra"]);
+        let mut recorded = record_tool(def, &ctx, &golden["extra"]);
+        if *key == "split" {
+            without_split_distance(&mut recorded);
+        }
         if !values_eq_tool(key, &recorded, &golden) {
             eprintln!("MISMATCH {key}");
             if let (Some(ro), Some(go)) = (recorded.as_object(), golden.as_object()) {

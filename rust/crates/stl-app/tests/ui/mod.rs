@@ -30,6 +30,11 @@ mod v110;
 mod web2;
 mod web7;
 mod web8;
+mod section_view;
+mod split_face;
+mod measure_info;
+mod handoff;
+mod no_silent_buttons;
 
 use std::path::Path;
 

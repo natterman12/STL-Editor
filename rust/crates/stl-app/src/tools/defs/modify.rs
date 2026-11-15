@@ -5,7 +5,7 @@ use serde_json::{json, Map, Value};
 use super::fields::{connector_fields_split, ops_options, show_targets};
 use super::tables::{self, axv, THREAD_SIZES};
 use super::util::*;
-use super::{Ctx, Field, FieldKind, ToolDef, ToolFlags, Values};
+use super::{Ctx, DragSpec, Field, FieldKind, ToolDef, ToolFlags, Values};
 
 fn hole_preset_select() -> FieldKind {
     super::select_grouped(tables::hole_preset_options())
@@ -317,6 +317,7 @@ fn defaults_split(ctx: &Ctx) -> Values {
     values(&[
         ("body", json!(sel_body(ctx).into_iter().take(1).collect::<Vec<_>>())),
         ("plane", Value::Null),
+        ("offset", json!(0)),
         ("keep", json!("both")),
         ("connector", json!("none")),
         ("pin_d", json!(5)),
@@ -329,6 +330,16 @@ fn to_params_split(v: &Values, _: &Ctx) -> Value {
     let mut m = v.clone();
     m.remove("body");
     put_opt(&mut m, "body", first_of(v, "body").as_ref());
+    // Distance is stored only when it moves the cut, so a step without it stays as 1.x wrote it.
+    let zero = match m.get("offset") {
+        Some(Value::Number(n)) => n.as_f64() == Some(0.0),
+        Some(Value::String(s)) => s.trim().is_empty(),
+        Some(Value::Null) | None => true,
+        _ => false,
+    };
+    if zero {
+        m.remove("offset");
+    }
     params_cleanup(Value::Object(m))
 }
 
@@ -343,12 +354,32 @@ fn from_params_split(p: Value) -> Values {
             o.insert(k.clone(), v.clone());
         }
     }
+    o.entry("offset").or_insert(json!(0));
     let body = wrap_truthy(o.get("body"));
     o.insert("body".into(), body);
     o
 }
 
+/// A fresh plane pick sets Distance (spec 2.2): 0 when the plane passes through the body, else
+/// halfway through it. Reopening a step never runs this, so its stored distance stays.
 fn on_change_split(key: &str, v: &Values, ctx: &Ctx) -> Option<Values> {
+    if key == "plane" {
+        let frame = crate::tools::fields::plane::frame_of(v.get("plane")?, ctx)?;
+        let id = first_of(v, "body")?;
+        let mesh = &ctx.bodies.iter().find(|b| Some(b.id.as_str()) == id.as_str())?.mesh;
+        let (mut min, mut max) = ([f64::INFINITY; 3], [f64::NEG_INFINITY; 3]);
+        for p in mesh.positions.chunks_exact(3) {
+            for i in 0..3 {
+                min[i] = min[i].min(f64::from(p[i]));
+                max[i] = max[i].max(f64::from(p[i]));
+            }
+        }
+        if min[0] > max[0] {
+            return None;
+        }
+        let d = crate::viewport::plane_drag::start_distance(frame.origin, frame.normal, &stl_kernel::Aabb { min, max });
+        return Some(values(&[("offset", crate::tools::fields::number::num_value(d))]));
+    }
     on_change_connector(key, v, ctx)
 }
 
@@ -378,6 +409,14 @@ pub fn split() -> ToolDef {
             show: None,
         },
         Field {
+            key: "offset",
+            label: "Distance",
+            kind: FieldKind::Number { unit: Some("mm") },
+            help: Some("Moves the cut along the plane's normal. Drag the arrow in the view, or type a distance."),
+            placeholder: None,
+            show: None,
+        },
+        Field {
             key: "keep",
             label: "Keep",
             kind: super::fields::opts(&[("both", "Both"), ("above", "Above"), ("below", "Below")]),
@@ -395,7 +434,7 @@ pub fn split() -> ToolDef {
         fields,
         hint: Some("Pick a body, then a plane or flat face to cut it with · add connectors so the pieces line up when you glue them"),
         extra: None,
-        flags: ToolFlags::default(),
+        flags: ToolFlags { drag: Some(DragSpec { plane: "plane", distance: "offset", body: "body" }), ..ToolFlags::default() },
         defaults: defaults_split,
         to_params: to_params_split,
         from_params: from_params_split,

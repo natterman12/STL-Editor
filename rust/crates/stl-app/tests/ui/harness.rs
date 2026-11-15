@@ -15,7 +15,7 @@ use egui_kittest::Harness;
 use stl_app::app::StlApp;
 use stl_app::engine_link::native::NativeLink;
 use stl_app::engine_link::{Command, EngineLink, Update};
-use stl_app::platform::{Pending, PickedFile, Platform};
+use stl_app::platform::{Pending, PickedFile, Platform, SaveOutcome};
 use stl_app::ui::ThemePref;
 
 /// Hands out queued picks and records every save / open filter list.
@@ -57,6 +57,77 @@ impl Platform for FakePlatform {
 
     fn set_setting(&self, key: &str, value: &str) {
         self.settings.lock().unwrap().insert(key.to_owned(), value.to_owned());
+    }
+}
+
+/// A desktop-like platform that records file dialogs and program launches in its log (what
+/// `launch_log` returns) instead of opening them, with a fake list of slicers and SolidCraft's
+/// command-line tool as given. A dialog is answered "cancelled".
+#[derive(Clone)]
+pub struct RecordPlatform {
+    pub log: Arc<Mutex<Vec<String>>>,
+    pub slicers: Vec<(String, String)>,
+    pub step: bool,
+    /// Report the web edition (`is_web`), whose Send to Slicer and To STEP say they are desktop-only.
+    pub web: bool,
+}
+
+impl RecordPlatform {
+    /// `slicers` are (key, name); `step` says SolidCraft's command-line tool is installed.
+    pub fn new(slicers: &[(&str, &str)], step: bool) -> Self {
+        let slicers = slicers.iter().map(|(k, n)| (k.to_string(), n.to_string())).collect();
+        RecordPlatform { log: Arc::new(Mutex::new(Vec::new())), slicers, step, web: false }
+    }
+
+    /// The same, as the web edition.
+    pub fn web() -> Self {
+        RecordPlatform { web: true, ..RecordPlatform::new(&[], false) }
+    }
+
+    fn record(&self, entry: String) {
+        self.log.lock().unwrap().push(entry);
+    }
+}
+
+impl Platform for RecordPlatform {
+    fn open_file(&self, _filters: &[(&str, &[&str])]) -> Pending<Option<PickedFile>> {
+        self.record("open file".to_owned());
+        Pending::ready(None)
+    }
+
+    fn save_file(&self, suggested: &str, _bytes: Vec<u8>) -> Pending<Result<bool, String>> {
+        self.record(format!("save {suggested}"));
+        Pending::ready(Ok(false))
+    }
+
+    fn now_iso_utc(&self) -> String {
+        "2026-11-12T12:00:00".to_string()
+    }
+
+    fn is_web(&self) -> bool {
+        self.web
+    }
+
+    fn slicers(&self) -> Vec<(String, String)> {
+        self.slicers.clone()
+    }
+
+    fn send_to_slicer(&self, key: &str, name: &str, _bytes: Vec<u8>) -> Pending<Result<(), String>> {
+        self.record(format!("launch {key} {name}"));
+        Pending::ready(Ok(()))
+    }
+
+    fn step_available(&self) -> bool {
+        self.step
+    }
+
+    fn to_step(&self, suggested: &str, _stl: Vec<u8>) -> Pending<Result<SaveOutcome, String>> {
+        self.record(format!("save {suggested}"));
+        Pending::ready(Ok(SaveOutcome::Cancelled))
+    }
+
+    fn launch_log(&self) -> Vec<String> {
+        self.log.lock().unwrap().clone()
     }
 }
 
@@ -104,6 +175,12 @@ pub fn app_harness_ex(project: Option<&Path>, size: egui::Vec2) -> (Harness<'sta
 
 /// [`app_harness_ex`] on a platform the caller keeps a handle to (its settings, saved files).
 pub fn app_harness_with(project: Option<&Path>, size: egui::Vec2, platform: FakePlatform) -> (Harness<'static, StlApp>, Arc<NativeLink>) {
+    app_harness_on(project, size, platform)
+}
+
+/// [`app_harness_ex`] on any platform, such as [`RecordPlatform`]. The app keeps the platform;
+/// read it back with `h.state().platform`.
+pub fn app_harness_on(project: Option<&Path>, size: egui::Vec2, platform: impl Platform + 'static) -> (Harness<'static, StlApp>, Arc<NativeLink>) {
     let link = Arc::new(NativeLink::new());
     let ctx = egui::Context::default();
     let app = StlApp::new(&ctx, Box::new(platform), Box::new(SharedLink { inner: link.clone() }));

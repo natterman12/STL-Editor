@@ -11,10 +11,12 @@
 //! revision (without a GPU, a prepared revision counts as shown at once).
 
 pub mod camera;
+mod drag_draw;
 pub mod gizmo_draw;
 pub mod overhang;
 pub mod overlays;
 pub mod pick;
+pub mod plane_drag;
 pub mod preview_prep;
 pub mod renderer;
 pub mod scene;
@@ -311,6 +313,19 @@ pub struct Viewport {
     preview_counter: u64,
     section_plane: Option<[f64; 4]>,
     section_on: bool,
+    drag_plane: Option<plane_drag::DragPlane>,
+    /// The arrow being dragged (`drag_draw.rs`).
+    drag: Option<drag_draw::Grab>,
+    drag_hover: bool,
+    /// The pointer is on the arrow, or a drag of it moved or ended this frame.
+    drag_hot: bool,
+    /// A drag of the arrow is on, or ended this frame: no orbit.
+    drag_busy: bool,
+    drag_out: Option<(f64, bool)>,
+    inch: bool,
+    section_hatch: bool,
+    /// The frame's pixels per point (capped at 2), for the hatch spacing.
+    px_scale: f32,
     viewcube_inset: f32,
     rect: Rect,
     frame_id: u64,
@@ -325,6 +340,13 @@ pub struct Viewport {
     /// egui's target format, once [`Viewport::init_gpu`] ran.
     gpu_format: Option<wgpu::TextureFormat>,
     ctx: Option<egui::Context>,
+    /// The render state [`Viewport::init_gpu`] last set up (the window's), to ask whether its
+    /// device was lost.
+    #[cfg(not(target_arch = "wasm32"))]
+    gpu_rs: Option<egui_wgpu::RenderState>,
+    /// [`Viewport::notice_device_loss`] has answered true.
+    #[cfg(not(target_arch = "wasm32"))]
+    loss_noticed: bool,
     /// Per-body on-screen transforms (a gizmo drag): column-major, millimetres.
     body_transforms: HashMap<String, camera::M4>,
     /// The transform handles, and their geometry for the camera they were built for.
@@ -386,6 +408,15 @@ impl Default for Viewport {
             preview_counter: 0,
             section_plane: None,
             section_on: false,
+            drag_plane: None,
+            drag: None,
+            drag_hover: false,
+            drag_hot: false,
+            drag_busy: false,
+            drag_out: None,
+            inch: false,
+            section_hatch: false,
+            px_scale: 1.0,
             viewcube_inset: 0.0,
             rect: Rect::from_min_size(Pos2::ZERO, egui::vec2(1.0, 1.0)),
             frame_id: 1,
@@ -406,6 +437,10 @@ impl Default for Viewport {
             gizmo_flat: Arc::new(Vec::new()),
             gizmo_batches: Vec::new(),
             camera_locked: false,
+            #[cfg(not(target_arch = "wasm32"))]
+            gpu_rs: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            loss_noticed: false,
             overhang_cache: None,
             overhang_job: None,
             sketch_sheet: Vec::new(),
@@ -443,6 +478,11 @@ impl Viewport {
         let gpu = GpuState::new(&rs.device, rs.target_format, self.stats.clone());
         rs.renderer.write().callback_resources.insert(gpu);
         self.gpu_format = Some(rs.target_format);
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            self.gpu_rs = Some(rs.clone());
+            self.loss_noticed = false;
+        }
         self.dirty = true;
     }
 
@@ -459,6 +499,36 @@ impl Viewport {
 
     pub fn has_gpu(&self) -> bool {
         self.gpu_format.is_some()
+    }
+
+    /// The egui context the viewport was last shown in (`None` before its first frame).
+    pub fn egui_ctx(&self) -> Option<&egui::Context> {
+        self.ctx.as_ref()
+    }
+
+    /// The device [`Viewport::init_gpu`] last set up (the window's) was lost, or a frame found
+    /// it lost. `poll`: ask the device first, so a loss the driver has reported but nothing has
+    /// run into yet counts too. Native only.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn device_lost(&self, poll: bool) -> bool {
+        if self.stats.device_lost() {
+            return true;
+        }
+        let Some(rs) = &self.gpu_rs else { return false };
+        if poll {
+            let _ = rs.device.poll(wgpu::PollType::Poll);
+        }
+        renderer::render_state_lost(rs)
+    }
+
+    /// True the first time it is asked after [`Viewport::device_lost`] became true.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn notice_device_loss(&mut self) -> bool {
+        if self.loss_noticed || !self.device_lost(false) {
+            return false;
+        }
+        self.loss_noticed = true;
+        true
     }
 
     /// Upload and render counters.
@@ -967,9 +1037,13 @@ impl Viewport {
         self.section_plane
     }
 
-    /// `setSectionEnabled(on)`: the same as [`set_section`](Self::set_section), the one place
-    /// that turns the view on or off.
+    /// On: the same as [`set_section`](Self::set_section). Off removes the cut as well
+    /// (`clearCut`: a new or opened project); the view bar's Section button and X turn the view
+    /// off with `set_section(false)`, which keeps the plane.
     pub fn set_section_enabled(&mut self, on: bool) {
+        if !on {
+            self.section_plane = None;
+        }
         self.set_section(on);
     }
 
@@ -980,6 +1054,54 @@ impl Viewport {
     /// The cut in force: enabled and set.
     pub fn active_section(&self) -> Option<[f64; 4]> {
         self.section_plane.filter(|_| self.section_on)
+    }
+
+    /// The drag-the-plane control to show (`None` hides it). Set every frame by the app.
+    /// It is drawn by egui over the 3D view, so a change needs no new render.
+    pub fn set_drag_plane(&mut self, p: Option<plane_drag::DragPlane>) {
+        if self.drag_plane != p {
+            self.drag_plane = p;
+            if let Some(ctx) = &self.ctx {
+                ctx.request_repaint();
+            }
+        }
+    }
+
+    pub fn drag_plane(&self) -> Option<&plane_drag::DragPlane> {
+        self.drag_plane.as_ref()
+    }
+
+    /// The distance the user dragged the plane to since the last call; `true` when the drag ended.
+    pub fn take_drag_distance(&mut self) -> Option<(f64, bool)> {
+        self.drag_out.take()
+    }
+
+    /// The arrow is being dragged.
+    pub fn drag_plane_dragging(&self) -> bool {
+        self.drag.is_some()
+    }
+
+    /// The pointer is on the arrow, or a drag of it moved or ended this frame: a click now is
+    /// the arrow's, not a pick on the part.
+    pub fn drag_plane_hot(&self) -> bool {
+        self.drag_hot
+    }
+
+    /// Show lengths in inches (the drag control's distance box).
+    pub fn set_inch(&mut self, inch: bool) {
+        self.inch = inch;
+    }
+
+    /// Diagonal hatch lines on the cut faces.
+    pub fn set_section_hatch(&mut self, on: bool) {
+        if self.section_hatch != on {
+            self.section_hatch = on;
+            self.changed();
+        }
+    }
+
+    pub fn section_hatch(&self) -> bool {
+        self.section_hatch
     }
 
     // ------------------------------------------------------------------ overlays
@@ -1419,7 +1541,7 @@ impl Viewport {
             sky: [sky[0], sky[1], sky[2], 1.0],
             ground: [ground[0], ground[1], ground[2], 1.0],
             clip,
-            flags: [on, 0.0, 0.0, 0.0],
+            flags: [on, if self.section_hatch { 1.0 } else { 0.0 }, self.px_scale, 0.0],
         }
     }
 
@@ -1510,6 +1632,10 @@ impl Viewport {
         }
         self.camera.set_size(w as f64, h as f64);
         let s = ppp.min(2.0);
+        if s != self.px_scale {
+            self.px_scale = s;
+            self.dirty = true;
+        }
         self.rebuild_gizmo([(w * s).round().max(0.0) as u32, (h * s).round().max(0.0) as u32]);
         let size = [(w * s).round().max(0.0) as u32, (h * s).round().max(0.0) as u32];
         if size != self.last_size {
@@ -1550,6 +1676,7 @@ impl Viewport {
         self.rect = rect;
         self.camera.set_size(rect.width() as f64, rect.height() as f64);
         let before = (self.camera.position, self.camera.target, self.camera.up);
+        self.drag_input(ui, &response);
         self.handle_input(ui, &response);
         let now = ui.input(|i| i.time);
         if self.camera.is_flying() && self.camera.animate(now) {
@@ -1575,6 +1702,7 @@ impl Viewport {
             let inner = renderer::ViewportCallback { frame, ctx: ui.ctx().clone(), format, stats: self.stats.clone() };
             ui.painter().add(egui_wgpu::Callback::new_paint_callback(rect, TimedCallback { inner, trace: self.trace.clone() }));
         }
+        self.paint_drag_plane(ui, rect);
         let cube = viewcube::show(ui, rect, self.viewcube_inset, self.section_on, self.dark);
         if let Some(v) = cube.view {
             self.set_view(v);
@@ -1595,6 +1723,10 @@ impl Viewport {
         if delta != egui::Vec2::ZERO {
             for b in [egui::PointerButton::Primary, egui::PointerButton::Middle, egui::PointerButton::Secondary] {
                 if response.dragged_by(b) {
+                    if b == egui::PointerButton::Primary && self.drag_busy {
+                        // the arrow is being dragged: no orbit
+                        break;
+                    }
                     match camera::drag_action(self.mouse_mode, b) {
                         Some(DragAction::Rotate) => self.camera.rotate(delta.x as f64, delta.y as f64),
                         Some(DragAction::Pan) => self.camera.pan(delta.x as f64, delta.y as f64),

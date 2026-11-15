@@ -42,5 +42,87 @@
         }
       ]
     }
+  },
+  "split/split_plane_misses": {
+    "reason": "Nathan 2026-11-14: Split's miss message tells you how to fix it (Drag the arrow or change Distance)",
+    "expect": {
+      "bodies": [
+        {
+          "id": "f1",
+          "name": "Box",
+          "solid": true,
+          "stats": {
+            "area": 600.0,
+            "bbox_max": [
+              10.0,
+              10.0,
+              10.0
+            ],
+            "bbox_min": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "triangles": 12,
+            "vertices": 8,
+            "volume": 1000.0,
+            "watertight": true
+          }
+        }
+      ],
+      "results": [
+        {
+          "error": null,
+          "id": "f1",
+          "warning": null
+        },
+        {
+          "error": "The plane doesn't cut through this body. Drag the arrow or change Distance to move it into the part.",
+          "id": "f2",
+          "warning": null
+        }
+      ]
+    }
+  },
+  "split/split_tangent_plane": {
+    "reason": "Nathan 2026-11-14: Split's miss message tells you how to fix it (Drag the arrow or change Distance)",
+    "expect": {
+      "bodies": [
+        {
+          "id": "f1",
+          "name": "Box",
+          "solid": true,
+          "stats": {
+            "area": 600.0,
+            "bbox_max": [
+              10.0,
+              10.0,
+              10.0
+            ],
+            "bbox_min": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "triangles": 12,
+            "vertices": 8,
+            "volume": 1000.0,
+            "watertight": true
+          }
+        }
+      ],
+      "results": [
+        {
+          "error": null,
+          "id": "f1",
+          "warning": null
+        },
+        {
+          "error": "The plane doesn't cut through this body. Drag the arrow or change Distance to move it into the part.",
+          "id": "f2",
+          "warning": null
+        }
+      ]
+    }
   }
 }

@@ -4,10 +4,13 @@ pub mod browser;
 pub mod busy;
 pub mod dialogs;
 pub mod files;
+pub mod info_panel;
 pub mod keys;
+pub mod measure_panel;
 pub mod menu;
 pub mod params;
 pub mod ribbon;
+pub mod section_panel;
 pub mod start;
 pub mod status;
 pub mod timeline;
@@ -24,6 +27,8 @@ pub enum UiEvent {
     EditFeature(String),
     Select(Vec<String>),
     Hover(Option<String>),
+    /// Right-click on a body in the browser: its menu opens at the position.
+    BodyMenu(String, egui::Pos2),
 }
 
 /// Which theme the user asked for (View > Theme). `System` follows the operating system.

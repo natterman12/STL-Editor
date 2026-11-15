@@ -31,6 +31,15 @@ impl Toasts {
         self.next_wake = Some(until);
     }
 
+    /// How many toasts are showing (for the tests).
+    pub fn len(&self) -> usize {
+        self.queue.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.queue.is_empty()
+    }
+
     /// Drop every toast and any wake they had scheduled.
     pub fn clear(&mut self) {
         self.queue.clear();

@@ -7,7 +7,8 @@
 //!
 //! The cut face is `#d06060` (`MeshBasicMaterial`, `BackSide`, same clip). The renderer draws
 //! it with [`CAP_WGSL`] (cull front, after the opaque bodies): every shown body gets it, a
-//! dimmed one too (its `back` mesh is opaque in 1.x); preview meshes get none.
+//! dimmed one too (its `back` mesh is opaque in 1.x); preview meshes get none. With Hatch on
+//! (2.0's Section View, on by default there) the cap gets darker diagonal lines in screen space.
 
 use super::camera::{self, V3};
 use super::Viewport;
@@ -68,7 +69,11 @@ pub fn upload_span(offset: u64, total: u64) -> std::ops::Range<u64> {
     start..end
 }
 
-/// Back faces of a body, unlit, colour [`CAP_COLOR`]. Append after `shaders/common.wgsl`
+/// Spacing of the hatch lines on the cut faces (points, along each screen axis).
+pub const HATCH_SPACING: f64 = 6.0;
+
+/// Back faces of a body, unlit, colour [`CAP_COLOR`]; with Hatch (`flags.y`) darker diagonal
+/// lines [`HATCH_SPACING`] points apart (`flags.z` is the frame's pixels per point). Append after `shaders/common.wgsl`
 /// (it uses `g` and `clipped`).
 ///
 /// Pipeline, matching three's `MeshBasicMaterial` + `BackSide` + the body's clipping plane:
@@ -100,8 +105,23 @@ fn fs_cap(in: CapOut) -> @location(0) vec4<f32> {
         discard;
     }
     // 0xd06060
-    return vec4<f32>(208.0 / 255.0, 96.0 / 255.0, 96.0 / 255.0, 1.0);
+    let cap = vec3<f32>(208.0 / 255.0, 96.0 / 255.0, 96.0 / 255.0);
+    if g.flags.y > 0.5 {
+        // Hatch: diagonal lines at 45°, HATCH_SPACING points apart in screen space (so they
+        // read the same at any zoom), about a point wide, softened at each edge.
+        let s = max(g.flags.z, 1.0);
+        let spacing = 6.0 * s;
+        let t = fract((in.pos.x + in.pos.y) / spacing) * spacing;
+        let dist = min(t, spacing - t);
+        let half = 0.5 * s;
+        let k = 1.0 - smoothstep(half, half + 0.8, dist);
+        return vec4<f32>(mix(cap, cap * HATCH_DARKEN, k), 1.0);
+    }
+    return vec4<f32>(cap, 1.0);
 }
+
+// how dark the hatch lines are against the cap colour (0xd06060 -> about 0x6e3333)
+const HATCH_DARKEN: f32 = 0.53;
 "#;
 
 impl Viewport {

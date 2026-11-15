@@ -115,6 +115,26 @@ pub trait Platform {
     fn read_path(&self, _path: &str) -> Pending<Result<PickedFile, String>> {
         Pending::ready(Err("Opening a file by its path is not possible here.".into()))
     }
+    /// The slicers found on this computer: (key, name), as 1.x `slicerItems`. Default: none.
+    fn slicers(&self) -> Vec<(String, String)> {
+        Vec::new()
+    }
+    /// Write `bytes` (a file called `name`) somewhere temporary and open it in slicer `key`.
+    fn send_to_slicer(&self, _key: &str, _name: &str, _bytes: Vec<u8>) -> Pending<Result<(), String>> {
+        Pending::ready(Err("Send to Slicer runs in the desktop app.".into()))
+    }
+    /// SolidCraft's command-line tool is installed (To STEP). Default: no.
+    fn step_available(&self) -> bool {
+        false
+    }
+    /// Ask where to save, then convert the STL `stl` to a true STEP there (1.x `r_to_step`).
+    fn to_step(&self, _suggested: &str, _stl: Vec<u8>) -> Pending<Result<SaveOutcome, String>> {
+        Pending::ready(Err("To STEP runs in the desktop app.".into()))
+    }
+    /// Test platforms record file dialogs and program launches here instead of opening them.
+    fn launch_log(&self) -> Vec<String> {
+        Vec::new()
+    }
 }
 
 /// Returns nothing; for tests and the empty window.

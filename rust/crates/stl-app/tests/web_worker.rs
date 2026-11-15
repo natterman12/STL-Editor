@@ -34,6 +34,7 @@ fn kinds(updates: &[Update]) -> String {
             Update::SketchOp { seq, result } => format!("sketchOp({seq} {})", if result.is_ok() { "ok" } else { "err" }),
             Update::Solved { seq, ok, .. } => format!("solved({seq} {ok})"),
             Update::Autosaved { ok, .. } => format!("autosaved({ok})"),
+            Update::BodyInfo { seq, result } => format!("bodyInfo({seq} {})", if result.is_ok() { "ok" } else { "err" }),
         })
         .collect::<Vec<_>>()
         .join(", ")

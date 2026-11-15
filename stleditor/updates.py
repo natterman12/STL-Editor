@@ -25,8 +25,37 @@ def _ver(s):
     return tuple(int(n) for n in nums[:4]) or (0,)
 
 
-def is_newer(latest, current=__version__):
-    return _ver(latest) > _ver(current)
+def is_newer(latest, current=None):
+    return _ver(latest) > _ver(__version__ if current is None else current)
+
+
+def _releases(timeout):
+    """The repository's recent releases, newest first (drafts and prereleases included)."""
+    req = urllib.request.Request(f"https://api.github.com/repos/{repo()}/releases?per_page=100",
+                                 headers={"Accept": "application/vnd.github+json",
+                                          "User-Agent": f"STL-Editor/{__version__}"})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def _tag(rel):
+    """A release's version tag: its tag_name, or its name when there is none (as 1.x read it)."""
+    return (rel.get("tag_name") or rel.get("name") or "").lstrip("vV")
+
+
+def _latest_1x(releases):
+    """The newest published 1.x release in a release list, or None. 2.x releases are skipped,
+    so 1.x installs never see them; drafts and prereleases are ignored as 1.x did for 'latest'."""
+    best = None
+    for rel in releases or []:
+        if rel.get("draft") or rel.get("prerelease"):
+            continue
+        tag = _tag(rel)
+        if not tag.startswith("1."):
+            continue
+        if best is None or _ver(tag) > _ver(_tag(best)):
+            best = rel
+    return best
 
 
 def check(force=False):
@@ -41,13 +70,9 @@ def check(force=False):
         return STATE
     STATE["checking"] = True
     try:
-        req = urllib.request.Request(f"https://api.github.com/repos/{r}/releases/latest",
-                                     headers={"Accept": "application/vnd.github+json",
-                                              "User-Agent": f"STL-Editor/{__version__}"})
-        with urllib.request.urlopen(req, timeout=8) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-        latest = (data.get("tag_name") or data.get("name") or "").lstrip("vV")
-        url = data.get("html_url") or f"https://github.com/{r}/releases/latest"
+        data = _latest_1x(_releases(8)) or {}
+        latest = _tag(data)
+        url = data.get("html_url") or f"https://github.com/{r}/releases"
         notes = (data.get("body") or "")[:1500]
         STATE.update(latest=latest, url=url, notes=notes, error=None, checked=time.time())
         settings.set("update_last", time.time())
@@ -175,11 +200,11 @@ def _writable(folder):
 
 
 def _release():
-    r = repo()
-    req = urllib.request.Request(f"https://api.github.com/repos/{r}/releases/latest",
-                                 headers={"Accept": "application/vnd.github+json", "User-Agent": f"STL-Editor/{__version__}"})
-    with urllib.request.urlopen(req, timeout=15) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+    """The newest 1.x release, the same one check() announces (never a 2.x build)."""
+    rel = _latest_1x(_releases(15))
+    if rel is None:
+        raise RuntimeError("No 1.x release was found to update to.")
+    return rel
 
 
 def _git(*args, timeout=120):
@@ -218,7 +243,7 @@ def _install():
             raise RuntimeError(f"The system won't let STL Editor change its own folder {where}. Move the app "
                                "somewhere you own, like your home folder, or download the new version from the website.")
         rel = _release()
-        latest = (rel.get("tag_name") or "").lstrip("vV")
+        latest = _tag(rel)
         asset = next((a for a in rel.get("assets", []) if a.get("name") == name), None)
         if not asset:
             raise RuntimeError(f"The {latest} release has no {name}.")

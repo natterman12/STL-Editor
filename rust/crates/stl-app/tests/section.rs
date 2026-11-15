@@ -250,6 +250,84 @@ fn section_snapshot() {
     assert_ne!(dark.as_raw(), light.as_raw(), "dark and light section views are the same picture");
 }
 
+/// The cap's hatch lines: the cap colour darkened (`0xd06060` x 0.53 is about `0x6e3333`).
+fn hatch_pixels(img: &image::RgbaImage) -> usize {
+    img.pixels()
+        .filter(|p| {
+            let [r, g, b, a] = p.0;
+            a > 200 && (85..=150).contains(&r) && g < 80 && b < 80 && r > g.saturating_add(30) && r > b.saturating_add(30)
+        })
+        .count()
+}
+
+/// The cube cut on Z (from the default iso view), with or without Hatch.
+fn hatch_picture(gpu: &Headless, dark: bool, hatch: bool, name: Option<&str>) -> image::RgbaImage {
+    let mut vp = Viewport::new();
+    vp.init_gpu(&gpu.render_state);
+    vp.set_theme(dark);
+    vp.sync_bodies(&[cube(1)]);
+    vp.flush();
+    vp.set_view_size(320.0, 240.0);
+    vp.fit_all();
+    vp.camera_mut().finish_flight();
+    vp.set_section(true);
+    vp.set_section_hatch(hatch);
+    assert_eq!(vp.frame_for_size(320.0, 240.0, 1.0).globals.flags[1], if hatch { 1.0 } else { 0.0 });
+    let renderer = wgpu_renderer::WgpuRenderer::new(gpu.render_state.clone());
+    let mut harness = Harness::builder().with_size(egui::vec2(320.0, 240.0)).with_render_cursor(false).renderer(renderer).build_ui(move |ui| {
+        egui::CentralPanel::default().frame(egui::Frame::NONE).show(ui, |ui| {
+            vp.show(ui);
+        });
+    });
+    harness.run();
+    if let Some(name) = name {
+        gpu::snapshot(&mut harness, gpu, name);
+    }
+    let picture = harness.render().expect("hatch picture");
+    let errors: Vec<String> = harness.take_snapshot_results().into_inner().iter().map(|e| e.to_string()).collect();
+    assert!(errors.is_empty(), "{}", errors.join("
+"));
+    picture
+}
+
+/// Hatch (Section View, spec 2.3): darker diagonal lines on the cut face, evenly spaced in
+/// screen space; with Hatch off the cap is 1.x's flat `#d06060`. Compared with the snapshots on
+/// the recorded adapter; everywhere (WARP on CI) the lines are counted.
+#[test]
+fn section_hatch_snapshot() {
+    let Some(gpu) = gpu::headless() else {
+        eprintln!("no GPU adapter: skipped");
+        return;
+    };
+    for dark in [true, false] {
+        let name = if dark { "section_hatch_dark" } else { "section_hatch_light" };
+        let on = hatch_picture(&gpu, dark, true, Some(name));
+        let off = hatch_picture(&gpu, dark, false, None);
+        assert_ne!(on.as_raw(), off.as_raw(), "{name}: Hatch on and off are the same picture");
+        let (lines_on, lines_off) = (hatch_pixels(&on), hatch_pixels(&off));
+        let (cap_on, cap_off) = (cap_pixels(&on), cap_pixels(&off));
+        eprintln!("{name}: hatch pixels {lines_on} (off {lines_off}), cap pixels {cap_on} (off {cap_off})");
+        assert!(cap_off >= 2500, "{name}: the flat cap shows {cap_off} pixels");
+        assert!(lines_on >= 300, "{name}: only {lines_on} hatch-line pixels");
+        // without Hatch only the odd antialiased edge (and, dark, the red axis) is that colour
+        assert!(lines_off * 4 < lines_on, "{name}: hatch-coloured pixels without Hatch: {lines_off}, with: {lines_on}");
+        // the lines are drawn on the cap, in place of some of its flat colour
+        assert!(cap_on < cap_off && cap_on * 3 > cap_off, "{name}: cap {cap_on} with lines, {cap_off} flat");
+        // diagonal: along a row through the cap, line pixels repeat about every 6 pixels
+        let y = (0..on.height()).max_by_key(|&y| (0..on.width()).filter(|&x| is_hatch(on.get_pixel(x, y))).count()).unwrap();
+        let xs: Vec<u32> = (0..on.width()).filter(|&x| is_hatch(on.get_pixel(x, y)) && !is_hatch(on.get_pixel(x.wrapping_sub(1), y))).collect();
+        let gaps: Vec<u32> = xs.windows(2).map(|w| w[1] - w[0]).collect();
+        assert!(gaps.len() >= 4, "{name}: too few lines on row {y}: {xs:?}");
+        let mean = gaps.iter().sum::<u32>() as f64 / gaps.len() as f64;
+        assert!((mean - 6.0).abs() < 1.0, "{name}: lines {mean:.2} px apart on row {y}: {xs:?}");
+    }
+}
+
+fn is_hatch(p: &image::Rgba<u8>) -> bool {
+    let [r, g, b, a] = p.0;
+    a > 200 && (85..=150).contains(&r) && g < 80 && b < 80 && r > g.saturating_add(30) && r > b.saturating_add(30)
+}
+
 fn repaint_delay(harness: &Harness<'_>) -> Duration {
     harness
         .output()

@@ -180,6 +180,12 @@ fn plain_update(update: &Update) -> Value {
             ("ok".into(), Value::Bool(*ok)),
             ("error".into(), Value::from(*error)),
         ])),
+        Update::BodyInfo { seq, result } => Value::Object(Map::from_iter([
+            ("t".into(), Value::String("bodyInfo".into())),
+            ("seq".into(), Value::from(*seq)),
+            ("ok".into(), Value::Bool(result.is_ok())),
+            ("data".into(), match result { Ok(v) => v.clone(), Err(e) => Value::String(e.clone()) }),
+        ])),
         Update::SketchOp { seq, result } => Value::Object(Map::from_iter([
             ("t".into(), Value::String("sketchOp".into())),
             ("seq".into(), Value::from(*seq)),
@@ -495,6 +501,7 @@ fn decode_command(data: &JsValue) -> Result<Command, String> {
             edit_id: opt_string(&get(data, "editId")),
         }),
         "clearPreview" => Ok(Command::ClearPreview),
+        "bodyInfo" => Ok(Command::BodyInfo { seq: get(data, "seq").as_f64().unwrap_or(0.0) as u64, id: req_string(data, "id")? }),
         "sketchOp" => Ok(Command::SketchOp {
             seq: get(data, "seq").as_f64().unwrap_or(0.0) as u64,
             op: req_string(data, "op")?,
@@ -597,6 +604,7 @@ fn encode_command(c: &Command) -> JsValue {
         Command::ClearPreview => "clearPreview",
         Command::Fins { .. } => "fins",
         Command::SketchOp { .. } => "sketchOp",
+        Command::BodyInfo { .. } => "bodyInfo",
         Command::Solve { .. } => "solve",
         Command::Autosave { .. } => "autosave",
     };
@@ -633,6 +641,10 @@ fn encode_command(c: &Command) -> JsValue {
             m.insert("constraints".into(), serde_json::to_value(constraints).unwrap_or_default());
             m.insert("locks".into(), serde_json::to_value(locks).unwrap_or_default());
             m.insert("fixed".into(), serde_json::to_value(fixed).unwrap_or_default());
+        }
+        Command::BodyInfo { seq, id } => {
+            m.insert("seq".into(), Value::from(*seq));
+            m.insert("id".into(), Value::String(id.clone()));
         }
         Command::SketchOp { seq, op, data } => {
             m.insert("seq".into(), Value::from(*seq));
@@ -947,7 +959,7 @@ fn post_cmd(inner: &Rc<RefCell<Inner>>, c: &Command) {
         Command::Open { .. } => Pending::Clear,
         // Preview, fins, sketch ops and solves send no Busy: the worker does not count them.
         // An autosave is quiet too: no Busy comes back for it.
-        Command::Preview { .. } | Command::ClearPreview | Command::Fins { .. } | Command::SketchOp { .. } | Command::Solve { .. } | Command::Autosave { .. } => {
+        Command::Preview { .. } | Command::ClearPreview | Command::Fins { .. } | Command::SketchOp { .. } | Command::BodyInfo { .. } | Command::Solve { .. } | Command::Autosave { .. } => {
             return post_js(inner, &encode_command(c))
         }
         _ => Pending::Other,
@@ -1133,6 +1145,13 @@ fn decode_update(data: &JsValue) -> Option<Update> {
             warn: get(data, "warn").as_bool().unwrap_or(false),
             result: json_field(data, "result"),
         },
+        "bodyInfo" => {
+            let data_v = json_field(data, "data");
+            Update::BodyInfo {
+                seq: get(data, "seq").as_f64().unwrap_or(0.0) as u64,
+                result: if get(data, "ok").as_bool().unwrap_or(false) { Ok(data_v) } else { Err(data_v.as_str().unwrap_or("Couldn't read the body.").to_owned()) },
+            }
+        }
         "sketchOp" => {
             let data_v = json_field(data, "data");
             Update::SketchOp {

@@ -396,13 +396,21 @@ Nathan answered these on 2026-11-14: accepted unless marked otherwise.
   of this copy."
 - **Accepted (2026-11-14): Update Settings is an on/off switch** ("Check for new versions once a day"). 1.x asked for a repository name
   (`update_repo`), which 2.0 doesn't need.
-- **Milestone 6 (Nathan, 2026-11-14): 1.x's update check must never offer a 2.x release.** 1.x reads `releases/latest`; once a 2.0
-  release is published, 1.x must skip `v2.*` tags (spec 2.7 decision 1). Not built in milestone 5.
+- **Fixed in milestone 6 (2026-11-14): 1.x's update check never offers a 2.x release.** `stleditor/updates.py` lists the releases
+  and takes the newest `v1.*` (drafts and prereleases skipped), for the check and for one-click install; `tests/test_updates.py`.
 - **Accepted (2026-11-14): The title and About say "STL Editor 2.0 (test build <date> <commit>)"**; the date is the UTC build date.
 - **Accepted (2026-11-14): The phone drawer's button sits above the tool panel** (1.x puts it below), because 2.0's tool panel isn't yet a
   bottom sheet on phones.
-- **Milestone 6 (Nathan, 2026-11-14): recovering from a graphics driver reset works in the test renderer only.** eframe 0.37 owns the window's
-  device, so the real window needs a restart after a reset.
+- **Changed in milestone 6 (pending Nathan's OK): after a graphics driver reset the desktop window restarts itself.** eframe 0.37 can't
+  give the window a new device (egui-wgpu's `Painter` makes its render state once and keeps it private), and egui-wgpu panics on the
+  next paint after a loss, so 2.0 can't keep drawing in the same window. Instead STL Editor saves an autosave copy at once, says "The
+  graphics driver restarted. STL Editor needs to restart to keep drawing. Your work is saved." and starts again, and the new window
+  opens the saved copy (or the project's file when nothing was unsaved) without asking. 1.x's browser tab reloads its WebGL context
+  instead. Differences pending Nathan's OK: the message is a Windows message box, because nothing can be drawn on the lost device; its
+  button reads "OK", not "Restart" (rfd 0.18 on Windows uses MessageBoxW); closing it with X also restarts; if the copy couldn't be
+  written the message leaves out "Your work is saved." and the new window offers Recover Unsaved Work as usual; while the engine
+  finishes a running job the window is gone for up to 20 s before the message shows. The test renderer still recovers in place
+  (milestone 5). Only tried on Windows.
 - **Fixed (2026-11-14): system fonts and added font files draw in their own font.** The text request carries the font's bytes (1.x web `fontData`) and the engine uses them, on desktop and web. On the web, added font files are kept in IndexedDB `stle2` (store `blobs`), not `localStorage`; ones saved the old way still load.
 
 ## Finishing 2.0 (milestone 6)
@@ -411,3 +419,34 @@ Nathan answered these on 2026-11-14: accepted unless marked otherwise.
   sets the orbit target to the point on the plane, so orbiting swings around the face. 2.0 puts the camera exactly where 1.x does
   and only moves the target back along the same line to the parts' middle (the view itself is unchanged). On a close-up where the
   middle would be behind the camera, the point on the plane is kept.
+- **Pending Nathan's OK: Section View can cut on a picked construction plane or flat face.** 1.x offers X, Y and Z only. A picked
+  face that only touches the body starts halfway through it.
+- **Pending Nathan's OK: Section View has a Distance box and a drag arrow instead of 1.x's Position slider.** The box takes `=`
+  expressions and inches; a small box shows the distance while dragging. The hint reads "Drag the arrow or change Distance to look
+  inside · only the view changes · the cut stays when you close this; X turns it off and on" (1.x: "Drag the slider to look
+  inside…"). New text with no 1.x original: "Or click a flat face or a plane." and "That face isn't flat. Click a flat face or a
+  plane." A Distance expression that fails shows the engine's expression error, as the tool panel does. The panel has Cancel,
+  which puts the cut back as it was.
+- **Pending Nathan's OK: Hatch (on by default) draws darker diagonal lines on the cut faces** (45°, 6 px apart in screen space, at
+  0.53 × the cap colour). With Hatch off the cut face is 1.x's flat #d06060.
+- **Pending Nathan's OK: Split has a Distance field (`offset`, mm) after Split plane, with the drag arrow.** 1.x has no such field.
+  It is saved only when it isn't 0, so 1.x projects and the 1.x goldens are unchanged; `tests/tools_golden.rs` leaves it out
+  before comparing with the 1.x definition. A fresh plane pick sets it: 0 when the plane passes through the body, else halfway.
+- **Accepted by Nathan (2026-11-14): Split's message for a plane that misses the body is always "The plane doesn't cut through this
+  body. Drag the arrow or change Distance to move it into the part."**, at Distance 0 and for 1.x steps too (1.x: "The plane
+  doesn't cut through this body."). The parity cases `split/split_plane_misses` and `split/split_tangent_plane` pass by exception
+  (`tests/parity/exceptions.json`).
+- **Pending Nathan's OK: Send to Slicer writes a 3MF.** 1.x's `r_send_to` writes an STL (the 1.x UI doesn't pass `slicer` to the
+  export route).
+- **Pending Nathan's OK: the Send to Slicer menu lists only the slicers found.** 1.x shows Bambu Studio and OrcaSlicer greyed out
+  when they are missing.
+- **Pending Nathan's OK: a failed launch says "Couldn't open <Slicer>: it wasn't found on this computer".** 1.x: "Couldn't find
+  <key> on this computer."
+- **Pending Nathan's OK: To STEP, when greyed out, has the tooltip "needs SolidCraft, which isn't installed"** (1.x has none), and a
+  conversion that takes more than 10 minutes stops with a plain message (1.x showed Python's exception text).
+- **Pending Nathan's OK: the body menu's Send to Slicer replaces the menu with the slicer list** instead of opening a submenu beside
+  the row, as 1.x does; 2.0's menu has no submenus. The rows and their words are 1.x's.
+- **Pending Nathan's OK: the tool search leaves out Send to Slicer and To STEP where the ribbon hides them** (off Windows without a
+  slicer found; To STEP off Windows). 1.x lists them anyway, and running them there only shows "No slicer found…" or an error.
+- **Pending Nathan's OK: the colour picker (Colour… in the body menu) shows a missing-glyph box on egui's clipboard button.** egui
+  draws U+1F4CB there and none of the bundled fonts has it; the picker still works. Fixing it needs another font.

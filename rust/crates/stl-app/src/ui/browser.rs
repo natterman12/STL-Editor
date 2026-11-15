@@ -48,6 +48,23 @@ impl Browser {
         Self { rename_id: Some(id.into()), rename_text: text.into(), ..Default::default() }
     }
 
+    /// The Rename or Colour window is open.
+    pub fn is_editing(&self) -> bool {
+        self.rename_id.is_some() || self.colour_id.is_some()
+    }
+
+    /// The Rename window for a body (the body menu's Rename…).
+    pub fn begin_rename(&mut self, id: &str, name: &str) {
+        self.rename_id = Some(id.to_owned());
+        self.rename_text = name.to_owned();
+    }
+
+    /// The Colour window for a body (the body menu's Colour…).
+    pub fn begin_colour(&mut self, id: &str, rgb: [u8; 3]) {
+        self.colour_id = Some(id.to_owned());
+        self.colour = rgb;
+    }
+
     pub fn take_origin_toggle(&mut self) -> Option<bool> {
         self.origin_toggle.take()
     }
@@ -201,28 +218,11 @@ fn body_row(
             state.rename_id = Some(b.id.clone());
             state.rename_text = b.name.clone();
         }
-        response.context_menu(|ui| {
-            if ui.button("Rename…").clicked() {
-                state.rename_id = Some(b.id.clone());
-                state.rename_text = b.name.clone();
-                ui.close();
-            }
-            let hide_label = if b.hidden { "Show" } else { "Hide" };
-            if ui.button(hide_label).clicked() {
-                commands.push(Command::BodyProps {
-                    id: b.id.clone(),
-                    name: None,
-                    color: None,
-                    hidden: Some(!b.hidden),
-                });
-                ui.close();
-            }
-            if ui.button("Colour…").clicked() {
-                state.colour_id = Some(b.id.clone());
-                state.colour = rgb;
-                ui.close();
-            }
-        });
+        // the menu is the app's (`app_bodymenu.rs`): the same rows as 1.x's body menu
+        if response.secondary_clicked() {
+            let at = response.interact_pointer_pos().unwrap_or_else(|| response.rect.left_bottom());
+            events.push(UiEvent::BodyMenu(b.id.clone(), at));
+        }
         });
     });
 }

@@ -628,10 +628,35 @@ fn union_plain(parts: Vec<&ManifoldImpl>) -> ManifoldImpl {
                 None => groups.push(vec![i]),
             }
         }
+        // The groups of more than one part are put together side by side: each is a few
+        // passes on one thread (the flood that finds coplanar faces, the copies) and the
+        // rest on many, and the groups do not depend on each other. Their mesh IDs are
+        // reserved first, in group order, which is the order a loop over the groups
+        // reserves them in, so every group has the IDs it would have had. A soup part takes
+        // no IDs: with one in the chunk the groups go one after another as before.
+        let multi: Vec<usize> = (0..groups.len()).filter(|&gi| groups[gi].len() > 1).collect();
+        let no_soup = multi.iter().all(|&gi| groups[gi].iter().all(|&i| !chunk[i].as_ref().unwrap().mesh().is_soup));
+        let mut composed: Vec<Option<ManifoldImpl>> = Vec::new();
+        if multi.len() > 1 && no_soup {
+            let counts: Vec<u32> = multi
+                .iter()
+                .map(|&gi| boolean3::compose_id_count(groups[gi].iter().map(|&i| chunk[i].as_ref().unwrap().mesh())))
+                .collect();
+            let firsts: Vec<i32> = counts.iter().map(|&n| manifold_rust::impl_mesh::reserve_ids(n) as i32).collect();
+            let done = manifold_rust::par::maybe_par_map(multi.len(), 2, |k| {
+                let g = &groups[multi[k]];
+                let meshes: Vec<ManifoldImpl> = g.iter().map(|&i| chunk[i].as_ref().unwrap().mesh().clone()).collect();
+                boolean3::compose_meshes_from(&meshes, Some(firsts[k]))
+            });
+            composed = done.into_iter().map(Some).collect();
+            composed.reverse(); // so `pop` gives them in group order
+        }
         let mut results: Vec<Part> = Vec::with_capacity(groups.len());
         for g in &groups {
             if let [one] = g.as_slice() {
                 results.push(chunk[*one].take().unwrap());
+            } else if let Some(m) = composed.pop() {
+                results.push(Part::Made(m.unwrap()));
             } else {
                 let meshes: Vec<ManifoldImpl> = g.iter().map(|&i| chunk[i].as_ref().unwrap().mesh().clone()).collect();
                 results.push(Part::Made(boolean3::compose_meshes(&meshes)));
@@ -1039,6 +1064,20 @@ impl Solid {
     /// Put bodies that do not overlap into one solid, without the cost of a union.
     pub fn compose(parts: &[Solid]) -> Solid {
         Solid::wrap(Manifold::compose(&Solid::inner(parts)))
+    }
+
+    /// For each triangle, in the solid's own order, the rank of its mesh ID among the mesh IDs
+    /// the solid holds (`u32::MAX` for an ID it does not list). The IDs themselves come from a
+    /// counter that other work moves, so only their order means anything. For tests that check
+    /// the order in which IDs were handed out.
+    #[doc(hidden)]
+    pub fn mesh_id_ranks(&self) -> Vec<u32> {
+        let rel = &self.0.as_impl().mesh_relation;
+        let ids: Vec<i32> = rel.mesh_id_transform.keys().copied().collect();
+        rel.tri_ref
+            .iter()
+            .map(|t| ids.binary_search(&t.mesh_id).map_or(u32::MAX, |r| r as u32))
+            .collect()
     }
 
     /// True when both solids are the same shared object (a clone and its original).

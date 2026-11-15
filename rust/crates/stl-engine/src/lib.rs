@@ -5,6 +5,7 @@ pub mod error;
 pub mod feature;
 pub mod features;
 pub mod fins_host;
+pub mod info;
 pub mod labels;
 pub mod params;
 pub mod registry;

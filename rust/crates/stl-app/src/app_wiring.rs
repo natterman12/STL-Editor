@@ -171,8 +171,9 @@ pub fn restart_helper(exe: &std::path::Path, pid: u32) -> std::process::Command 
         let mut c = std::process::Command::new(ps);
         c.args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-Command", &script])
             .env("STLE_EXE", exe)
-            // DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW
-            .creation_flags(0x0000_0008 | 0x0000_0200 | 0x0800_0000);
+            // CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW. Not DETACHED_PROCESS: Windows PowerShell
+            // started detached with `-WindowStyle Hidden` exits without starting anything.
+            .creation_flags(0x0000_0200 | 0x0800_0000);
         c
     }
     #[cfg(not(windows))]
@@ -1513,6 +1514,8 @@ impl StlApp {
         if self.sketch.is_some() {
             return;
         }
+        self.close_section();
+        self.close_measure();
         let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection, self.shell.inch);
         let mut saved: Vec<stl_sketch::entities::Entity> = Vec::new();
         let (frame, plane_ref, entities, constraints, name) = match feature {

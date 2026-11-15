@@ -4,9 +4,10 @@
 //! the answer lands in a [`Pending`] that the UI polls.
 
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use stl_platform::handoff;
 use stl_platform::settings::{keys, Settings};
 
 use super::{Pending, PickedFile, Platform, SaveOutcome};
@@ -16,22 +17,30 @@ pub struct NativePlatform {
     wake: Option<Arc<dyn Fn() + Send + Sync>>,
     /// `settings.json` in 2.0's own config folder (never 1.x's), merged key by key.
     settings: Settings,
+    /// The slicers found, looked up once (1.x looks them up once, when the page loads).
+    slicers: OnceLock<Vec<(String, String)>>,
+    /// SolidCraft's command-line tool is installed, looked up once.
+    step: OnceLock<bool>,
 }
 
 impl NativePlatform {
     pub fn new() -> Self {
-        NativePlatform { wake: None, settings: Settings::open(&stl_platform::paths::config_dir()) }
+        Self::with_settings(Settings::open(&stl_platform::paths::config_dir()), None)
     }
 
     /// `f` runs on the dialog's thread after the answer is stored.
     pub fn with_waker(f: impl Fn() + Send + Sync + 'static) -> Self {
-        NativePlatform { wake: Some(Arc::new(f)), settings: Settings::open(&stl_platform::paths::config_dir()) }
+        Self::with_settings(Settings::open(&stl_platform::paths::config_dir()), Some(Arc::new(f)))
     }
 
     /// Keep the remembered settings in `<dir>/settings.json` (tests; the app uses
     /// [`stl_platform::paths::config_dir`]).
     pub fn with_config_dir(dir: &Path) -> Self {
-        NativePlatform { wake: None, settings: Settings::open(dir) }
+        Self::with_settings(Settings::open(dir), None)
+    }
+
+    fn with_settings(settings: Settings, wake: Option<Arc<dyn Fn() + Send + Sync>>) -> Self {
+        NativePlatform { wake, settings, slicers: OnceLock::new(), step: OnceLock::new() }
     }
 
     fn wake_handle(&self) -> Option<Arc<dyn Fn() + Send + Sync>> {
@@ -227,6 +236,90 @@ impl Platform for NativePlatform {
         });
         pending
     }
+
+    fn slicers(&self) -> Vec<(String, String)> {
+        self.slicers
+            .get_or_init(|| {
+                handoff::SLICERS
+                    .iter()
+                    .filter(|(key, _)| handoff::find_slicer(key).is_some())
+                    .map(|(key, name)| (key.to_string(), name.to_string()))
+                    .collect()
+            })
+            .clone()
+    }
+
+    fn send_to_slicer(&self, key: &str, name: &str, bytes: Vec<u8>) -> Pending<Result<(), String>> {
+        let pending = Pending::new();
+        let out = pending.clone();
+        let key = key.to_owned();
+        let name = name.to_owned();
+        let wake = self.wake_handle();
+        std::thread::spawn(move || {
+            out.set(send_to_slicer_now(&key, &name, &bytes));
+            if let Some(w) = wake {
+                w();
+            }
+        });
+        pending
+    }
+
+    fn step_available(&self) -> bool {
+        *self.step.get_or_init(handoff::step_available)
+    }
+
+    fn to_step(&self, suggested: &str, stl: Vec<u8>) -> Pending<Result<SaveOutcome, String>> {
+        let pending = Pending::new();
+        let out = pending.clone();
+        let suggested = suggested.to_owned();
+        let wake = self.wake_handle();
+        let settings = self.settings.clone();
+        std::thread::spawn(move || {
+            out.set(to_step_now(&suggested, &stl, &settings));
+            if let Some(w) = wake {
+                w();
+            }
+        });
+        pending
+    }
+}
+
+/// Write the file to the hand-off folder and open it in the slicer `key`. A failure reads
+/// "Couldn't open <Slicer>: <reason>".
+fn send_to_slicer_now(key: &str, name: &str, bytes: &[u8]) -> Result<(), String> {
+    let slicer = handoff::SLICERS.iter().find(|(k, _)| *k == key).map(|(_, n)| *n).unwrap_or(key);
+    let fail = |reason: &str| handoff::launch_failure_message(slicer, reason);
+    let Some(cmd) = handoff::find_slicer(key) else {
+        return Err(fail("it wasn't found on this computer"));
+    };
+    let dir = handoff::handoff_dir();
+    std::fs::create_dir_all(&dir).map_err(|e| fail(&format!("Couldn't make the folder {}: {e}", dir.display())))?;
+    let path = dir.join(handoff::temp_file_name(name));
+    write_file(&path, bytes).map_err(|e| fail(&e))?;
+    handoff::open_in(&cmd, &path).map_err(|e| fail(&e))
+}
+
+/// Ask where to save the STEP, then convert the STL through SolidCraft (1.x `toStep`, `r_to_step`).
+/// SolidCraft is checked first, as 1.x does, so nothing is asked when it is not there.
+fn to_step_now(suggested: &str, stl: &[u8], settings: &Settings) -> Result<SaveOutcome, String> {
+    if !handoff::step_available() {
+        return Err("SolidCraft isn't installed.".to_string());
+    }
+    let mut dialog = rfd::FileDialog::new().set_file_name(suggested).add_filter("STEP (*.step;*.stp)", &["step", "stp"]);
+    if let Some(dir) = dialog_dir(settings) {
+        dialog = dialog.set_directory(dir);
+    }
+    let Some(path) = dialog.save_file() else {
+        return Ok(SaveOutcome::Cancelled);
+    };
+    remember_dir(settings, &path);
+    let nanos = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0);
+    let work = std::env::temp_dir().join(format!("stle-{}-{nanos}", std::process::id()));
+    std::fs::create_dir_all(&work).map_err(|e| format!("Couldn't make a work folder: {e}"))?;
+    let stl_path = work.join("body.stl");
+    let result = write_file(&stl_path, stl).and_then(|_| handoff::to_step(&stl_path, &path));
+    let _ = std::fs::remove_dir_all(&work);
+    result.map(|_| SaveOutcome::Done(Some(path.to_string_lossy().into_owned())))
 }
 
 /// Open Recent: the file's bytes. A file that is gone says so in plain words (Nathan,

@@ -162,6 +162,14 @@ impl Worker {
             }
             return;
         }
+        if let Command::BodyInfo { seq, id } = c {
+            let run = catch_unwind(AssertUnwindSafe(|| self.send(Update::BodyInfo { seq, result: self.doc.body_info(&id).map_err(|e| e.0) })));
+            if run.is_err() {
+                self.lost = true;
+                self.send(Update::EngineLost);
+            }
+            return;
+        }
         if let Command::SketchOp { seq, op, data } = c {
             // Quiet, like 1.x `post('sketch_op', …, {quiet: true})`: no Busy overlay, no refresh.
             let run = catch_unwind(AssertUnwindSafe(|| self.answer_sketch(seq, &op, &data)));
@@ -407,7 +415,7 @@ impl Worker {
                 Ok(())
             }
             Command::Autosave { .. } => Ok(()), // answered in `handle`, before it gets here
-            Command::Cancel | Command::ClearPreview | Command::Preview { .. } | Command::Fins { .. } => Ok(()),
+            Command::Cancel | Command::ClearPreview | Command::Preview { .. } | Command::Fins { .. } | Command::BodyInfo { .. } => Ok(()),
         }
     }
 

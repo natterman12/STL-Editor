@@ -418,7 +418,10 @@ fn timeline_marker_tooltip_matches_1x() {
 
 #[test]
 fn browser_hide_body() {
+    // a right-click asks the app for the body's menu (its rows are tested with the app:
+    // `tests/ui/no_silent_buttons.rs`); the eye button hides the body from the tree itself
     let commands = Rc::new(RefCell::new(Vec::new()));
+    let events = Rc::new(RefCell::new(Vec::new()));
     let mut harness = browser_harness(
         BrowserUi {
             browser: Browser::default(),
@@ -431,7 +434,7 @@ fn browser_hide_body() {
             params: Vec::new(),
             dark: true,
             commands: commands.clone(),
-            events: Rc::new(RefCell::new(Vec::new())),
+            events: events.clone(),
         },
         280.0,
         220.0,
@@ -439,7 +442,8 @@ fn browser_hide_body() {
     harness.run();
     harness.get_by_label("Part").click_secondary();
     harness.run();
-    harness.get_by_label("Hide").click();
+    assert!(matches!(events.borrow().last(), Some(UiEvent::BodyMenu(id, _)) if id == "b1"), "right-click asks for the body menu");
+    harness.get_by_label("Hide Part").click();
     harness.run();
     assert!(matches!(
         commands.borrow().last(),
@@ -607,13 +611,48 @@ fn browser_basic_fixture_context_colour() {
         300.0,
         320.0,
     );
+    // egui's colour picker draws a clipboard emoji no installed font has: tofu in the window
+    harness.ctx.set_missing_glyph_policy(egui::MissingGlyphPolicy::Tofu);
+    let commands = harness.state().commands.clone();
+    let events = harness.state().events.clone();
     harness.run();
-    let name = harness.state().bodies[0].name.clone();
+    let (id, name) = (harness.state().bodies[0].id.clone(), harness.state().bodies[0].name.clone());
+    // right-click asks the app for the body's menu; its Colour… row opens the colour window
+    // (the app does this: `tests/ui/no_silent_buttons.rs` presses the real row)
     harness.get_by_label(name.as_str()).click_secondary();
     harness.run();
-    harness.get_by_label("Colour…").click();
-    harness.run();
+    assert!(matches!(events.borrow().last(), Some(UiEvent::BodyMenu(i, _)) if *i == id));
     assert!(harness.state_mut().browser.take_origin_toggle().is_none());
+    harness.state_mut().browser.begin_colour(&id, [10, 20, 30]);
+    harness.run();
+    // pick red 200 in the picker, then OK sends the colour for that body
+    let press = |h: &mut Harness<'_, BrowserUi>, at: egui::Pos2| {
+        h.event(egui::Event::PointerMoved(at));
+        h.step();
+        for pressed in [true, false] {
+            h.event(egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() });
+            h.step();
+        }
+        h.run();
+    };
+    let well = harness.get_by_role(egui::accesskit::Role::ColorWell).rect().center();
+    press(&mut harness, well);
+    let red = harness.get_by_role_and_label(egui::accesskit::Role::SpinButton, "R").rect().center();
+    press(&mut harness, red);
+    harness.event(egui::Event::Text("200".to_owned()));
+    harness.run();
+    harness.key_press(egui::Key::Enter);
+    harness.run();
+    // Escape closes the picker (it can sit over OK); then OK sends the colour
+    harness.key_press(egui::Key::Escape);
+    harness.run();
+    let ok = harness.get_by_label("OK").rect().center();
+    press(&mut harness, ok);
+    assert!(
+        matches!(commands.borrow().last(), Some(Command::BodyProps { id: i, color: Some(c), .. }) if *i == id && c == "#c8141e"),
+        "the picked colour is sent: {:?}",
+        commands.borrow().last()
+    );
 }
 
 #[test]
@@ -1011,7 +1050,7 @@ fn params_dialog_matches_1x_layout() {
     // the table is as wide as 1.x's card (720 px): Apply ends at its right edge, Add starts at its left
     assert!(apply.max.x - add.min.x > 700.0, "buttons span the card: {add:?} {apply:?}");
     // the cells are as wide as 1.x's, so the text is not cut off
-    let cells: Vec<_> = harness.get_all_by_role(egui::accesskit::Role::TextInput).collect();
+    let cells: Vec<_> = harness.query_all_by_role(egui::accesskit::Role::TextInput).collect();
     let find = |v: &str| cells.iter().find(|n| n.value().as_deref() == Some(v)).unwrap_or_else(|| panic!("no field {v:?}")).rect();
     assert!(find("spare_length").width() >= 150.0, "name cell width {:?}", find("spare_length"));
     assert!(find("=width/2 + 3").width() >= 178.0, "value cell width {:?}", find("=width/2 + 3"));

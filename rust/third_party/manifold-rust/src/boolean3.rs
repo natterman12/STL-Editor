@@ -143,6 +143,43 @@ impl Boolean3 {
             });
         }
 
+        // Without a cancel token or a stage sink the two directions are independent
+        // chains: P->Q intersections then the winding of P, and Q->P then the winding of
+        // Q. Each result is the one the sequential order gives, so they run side by side.
+        if token.is_none() && stage.is_none() {
+            let t_total = crate::timing::start();
+            let p_total = crate::timing::profile_start();
+            let chain = |forward: bool| -> Option<(Intersections, Option<Vec<i32>>)> {
+                let t = crate::timing::start();
+                let xv = intersect12(in_p, in_q, expand_p, forward, None)?;
+                crate::timing::print(if forward { "  Intersect12 P->Q" } else { "  Intersect12 Q->P" }, t);
+                if xv.x12.len() > i32::MAX as usize {
+                    return Some((xv, None));
+                }
+                let t = crate::timing::start();
+                let w = winding03(in_p, in_q, &xv.p1q2, expand_p, forward, None)?;
+                crate::timing::print(if forward { "  Winding03 P" } else { "  Winding03 Q" }, t);
+                Some((xv, Some(w)))
+            };
+            let (pq, qp) = crate::par::maybe_par_join(|| chain(true), || chain(false));
+            let (Some((xv12, w03)), Some((xv21, w30))) = (pq, qp) else {
+                return None;
+            };
+            let (Some(w03), Some(w30)) = (w03, w30) else {
+                return Some(Boolean3 {
+                    xv12: Intersections::default(),
+                    xv21: Intersections::default(),
+                    w03: Vec::new(),
+                    w30: Vec::new(),
+                    expand_p,
+                    valid: false,
+                });
+            };
+            crate::timing::profile_add(&crate::timing::PROFILE_INTERSECT, p_total);
+            crate::timing::print("Intersections (total)", t_total);
+            return Some(Boolean3 { xv12, xv21, w03, w30, expand_p, valid: true });
+        }
+
         // Level 3: find all edge-face intersections in both directions
         let t_total = crate::timing::start();
         let p_total = crate::timing::profile_start();
@@ -282,6 +319,20 @@ fn property_row(mesh: &ManifoldImpl, row: usize, width: usize) -> Vec<f64> {
 /// swap stage, and epsilon and tolerance raised to the inputs' max after
 /// `SetNormalsAndCoplanar`.
 pub fn compose_meshes(meshes: &[ManifoldImpl]) -> ManifoldImpl {
+    compose_meshes_from(meshes, None)
+}
+
+/// How many mesh IDs [`compose_meshes_from`] uses for `meshes`: one for every
+/// entry of every input's ID table. Reserve this many (`impl_mesh::reserve_ids`)
+/// to give a composition IDs that do not depend on when it runs.
+pub fn compose_id_count<'a>(meshes: impl IntoIterator<Item = &'a ManifoldImpl>) -> u32 {
+    meshes.into_iter().map(|m| m.mesh_relation.mesh_id_transform.len() as u32).sum()
+}
+
+/// [`compose_meshes`] with the mesh IDs reserved earlier: `first_reserved` is
+/// the first of at least [`compose_id_count`] IDs. `None` reserves them now.
+/// Not used for soup inputs, which take no IDs.
+pub fn compose_meshes_from(meshes: &[ManifoldImpl], first_reserved: Option<i32>) -> ManifoldImpl {
     if meshes.is_empty() {
         return ManifoldImpl::new();
     }
@@ -400,7 +451,7 @@ pub fn compose_meshes(meshes: &[ManifoldImpl]) -> ManifoldImpl {
     crate::edge_op::collapse_short_edges(&mut out, 0);
     crate::face_op::calculate_vert_normals(&mut out);
     out.sort_geometry();
-    out.increment_mesh_ids();
+    out.increment_mesh_ids_from(first_reserved);
     out.set_normals_and_coplanar();
     // The inputs' largest epsilon and tolerance (C++ Compose,
     // csg_tree.cpp:245-268; boolean_result for an overlapping union), raised

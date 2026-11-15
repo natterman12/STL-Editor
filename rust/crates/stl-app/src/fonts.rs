@@ -70,7 +70,9 @@ pub fn bundled_definitions() -> FontDefinitions {
     let prop = f.families.entry(FontFamily::Proportional).or_default();
     prop.insert(0, "selawik".into());
     prop.push("symbols".into());
-    f.families.insert(FontFamily::Name("bold".into()), vec!["selawik-bold".into(), "selawik".into(), "symbols".into()]);
+    let mut bold: Vec<String> = vec!["selawik-bold".into(), "selawik".into(), "symbols".into()];
+    bold.extend(prop.iter().filter(|n| !bold.contains(n)).cloned().collect::<Vec<_>>());
+    f.families.insert(FontFamily::Name("bold".into()), bold);
     f
 }
 

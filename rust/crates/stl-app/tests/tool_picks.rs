@@ -723,3 +723,50 @@ fn text_field_placeholder_is_always_optional() {
     assert_eq!(placeholder_text(None), "optional");
     assert_eq!(placeholder_text(Some("anything the tool says")), "optional");
 }
+
+// ------------------------------------------------------------------ Split's Distance (milestone 6)
+
+/// A fresh plane pick sets Split's Distance: 0 through the part, halfway for a face on its boundary.
+#[test]
+fn split_fresh_pick_sets_distance() {
+    let sc = Scene::new(); // body b1: a 10 mm cube from the origin
+    let def = stl_app::tools::defs::tool("split").unwrap();
+    let on_change = def.on_change.unwrap();
+    let face = |origin: [f64; 3], normal: [f64; 3], xdir: [f64; 3]| json!({"origin": origin, "normal": normal, "xdir": xdir, "label": "Face"});
+    let mut v = (def.defaults)(&sc.ctx());
+    v.insert("body".into(), json!(["b1"]));
+
+    // the top face (z = 10, normal up) is on the boundary: halfway down
+    v.insert("plane".into(), face([5., 5., 10.], [0., 0., 1.], [1., 0., 0.]));
+    let patch = on_change("plane", &v, &sc.ctx()).expect("a plane pick sets Distance");
+    assert_eq!(patch["offset"].as_f64(), Some(-5.0));
+    // a plane through the middle keeps 0
+    v.insert("plane".into(), face([5., 5., 5.], [0., 0., 1.], [1., 0., 0.]));
+    assert_eq!(on_change("plane", &v, &sc.ctx()).unwrap()["offset"].as_f64(), Some(0.0));
+    // a construction plane on the boundary (XY at z = 0) starts halfway up
+    v.insert("plane".into(), json!("XY"));
+    assert_eq!(on_change("plane", &v, &sc.ctx()).unwrap()["offset"].as_f64(), Some(5.0));
+    // other fields leave Distance alone
+    assert!(on_change("keep", &v, &sc.ctx()).is_none());
+}
+
+/// Reopening a Split from the timeline keeps its stored Distance: opening runs `from_params`,
+/// never `on_change`.
+#[test]
+fn reopen_keeps_offset() {
+    let sc = Scene::new();
+    let def = stl_app::tools::defs::tool("split").unwrap();
+    let params = json!({"body": "b1", "plane": {"origin": [5., 5., 10.], "normal": [0., 0., 1.], "xdir": [1., 0., 0.]}, "offset": -3.5, "keep": "both", "connector": "none"});
+    let v = (def.from_params)(params.clone());
+    assert_eq!(v["offset"].as_f64(), Some(-3.5));
+    let back = (def.to_params)(&v, &sc.ctx());
+    assert_eq!(back["offset"].as_f64(), Some(-3.5));
+    // an '=' expression survives the round trip as typed
+    let mut w = v.clone();
+    w.insert("offset".into(), json!("=h/2"));
+    assert_eq!((def.to_params)(&w, &sc.ctx())["offset"], json!("=h/2"));
+    // a step from 1.x has no offset: Distance shows 0 and nothing is stored
+    let old = (def.from_params)(json!({"body": "b1", "plane": "XY", "keep": "both"}));
+    assert_eq!(old["offset"].as_f64(), Some(0.0));
+    assert!((def.to_params)(&old, &sc.ctx()).get("offset").is_none());
+}

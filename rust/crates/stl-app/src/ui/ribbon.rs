@@ -189,6 +189,64 @@ const TOOL_LABELS: &[(&str, &str)] = &[
 /// The two tools only the desktop app has (`DESKTOP_TOOLS` in app.js).
 pub const DESKTOP_TOOLS: [&str; 2] = ["to_step", "send"];
 
+/// The desktop-only tools as this platform has them (1.x `deskToolShown` and `apps` in app.js).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct DeskTools {
+    /// Send to Slicer is in the ribbon: always on Windows, elsewhere only when a slicer is found.
+    pub send: bool,
+    /// To STEP is in the ribbon: Windows only (SolidCraft is).
+    pub to_step: bool,
+    /// To STEP can be pressed: SolidCraft's command-line tool is installed.
+    pub step_ready: bool,
+}
+
+impl DeskTools {
+    /// The desktop tools for `platform`. The web edition shows both, marked desktop-only, and
+    /// both can be pressed (they say what the desktop app does), as 1.x does.
+    pub fn of(platform: &dyn crate::platform::Platform) -> Self {
+        if platform.is_web() {
+            return DeskTools { send: true, to_step: true, step_ready: true };
+        }
+        let windows = cfg!(windows);
+        DeskTools { send: windows || !platform.slicers().is_empty(), to_step: windows, step_ready: platform.step_available() }
+    }
+}
+
+/// A desktop tool that is left out of the ribbon on this platform.
+fn hidden(key: &str, desk: &DeskTools) -> bool {
+    (key == "send" && !desk.send) || (key == "to_step" && !desk.to_step)
+}
+
+/// A desktop tool that shows but cannot be pressed (To STEP without SolidCraft's tool).
+pub fn tool_disabled(key: &str, desk: &DeskTools) -> bool {
+    key == "to_step" && !desk.step_ready
+}
+
+/// [`def`] as shown here: the tools left out on this platform are taken out, and a group that
+/// is left empty with them.
+pub fn def_shown(tab: &str, desk: &DeskTools) -> Def {
+    let mut d = def(tab);
+    let keep = |items: Vec<Item>| -> Vec<Item> {
+        items
+            .into_iter()
+            .filter_map(|it| match it {
+                Item::Big(t) => (!hidden(t.key, desk)).then_some(Item::Big(t)),
+                Item::Stack(mut v) => {
+                    v.retain(|t| !hidden(t.key, desk));
+                    (!v.is_empty()).then_some(Item::Stack(v))
+                }
+                other => Some(other),
+            })
+            .collect()
+    };
+    for g in &mut d.groups {
+        g.items = keep(std::mem::take(&mut g.items));
+    }
+    d.groups.retain(|g| !g.items.is_empty());
+    d.pinned.items = keep(std::mem::take(&mut d.pinned.items));
+    d
+}
+
 /// What choosing a tool in the ribbon, a dropdown or the tool search asks the app to open
 /// (`onRibbon`'s tail): Rotate opens Move with `_gizmo: "rotate"`, every other tool opens as itself.
 /// `sketch` and the inspect tools go through the same event; the app decides what they start.
@@ -260,12 +318,27 @@ pub fn search(q: &str) -> Vec<Command> {
 }
 
 pub fn search_in(q: &str, sketch: bool) -> Vec<Command> {
+    search_among(q, all_commands_in(sketch))
+}
+
+/// [`all_commands_in`] as this platform has them: a desktop tool the ribbon leaves out (Send to
+/// Slicer where no slicer is found, To STEP off Windows) is not listed either.
+pub fn all_commands_shown(sketch: bool, desk: &DeskTools) -> Vec<Command> {
+    all_commands_in(sketch).into_iter().filter(|c| !hidden(&c.k, desk)).collect()
+}
+
+/// [`search_in`] over [`all_commands_shown`].
+pub fn search_shown(q: &str, sketch: bool, desk: &DeskTools) -> Vec<Command> {
+    search_among(q, all_commands_shown(sketch, desk))
+}
+
+fn search_among(q: &str, all: Vec<Command>) -> Vec<Command> {
     let q = q.trim().to_lowercase();
     if q.is_empty() {
         return Vec::new();
     }
     let words: Vec<&str> = q.split_whitespace().collect();
-    let mut hits: Vec<(u8, Command)> = all_commands_in(sketch)
+    let mut hits: Vec<(u8, Command)> = all
         .into_iter()
         .filter_map(|c| {
             let hay = format!("{} {} {}", c.l, c.group, c.k.replace('_', " ")).to_lowercase();
@@ -343,6 +416,8 @@ pub struct RibbonState<'a> {
     /// The tool last chosen from each dropdown (its icon shows on the button).
     pub drop_last: &'a std::collections::HashMap<String, String>,
     pub web: bool,
+    /// The desktop-only tools on this platform (see [`DeskTools::of`]).
+    pub desk: DeskTools,
 }
 
 /// Which groups are folded into "More" at this width; also the size mode.
@@ -350,6 +425,8 @@ pub struct Fit {
     pub mode: Mode,
     pub folded: Vec<bool>,
     pub more: bool,
+    /// The desktop tools the fit was made with (the More menu lists the same tools).
+    pub desk: DeskTools,
 }
 
 fn font(size: f32) -> FontId {
@@ -399,11 +476,11 @@ fn group_w(ui: &Ui, mode: Mode, g: &Group) -> f32 {
 }
 
 /// Pick the size mode and fold groups into "More" like `fitRibbon()`.
-pub fn fit(ui: &Ui, d: &Def, avail: f32) -> Fit {
+pub fn fit(ui: &Ui, d: &Def, avail: f32, desk: DeskTools) -> Fit {
     let total = |m: Mode| d.groups.iter().map(|g| group_w(ui, m, g)).sum::<f32>() + group_w(ui, m, &d.pinned);
     for m in [Mode::Normal, Mode::Compact, Mode::Tight] {
         if total(m) <= avail {
-            return Fit { mode: m, folded: vec![false; d.groups.len()], more: false };
+            return Fit { mode: m, folded: vec![false; d.groups.len()], more: false, desk };
         }
     }
     let mut folded = vec![false; d.groups.len()];
@@ -415,13 +492,14 @@ pub fn fit(ui: &Ui, d: &Def, avail: f32) -> Fit {
         folded[i] = true;
         sum -= group_w(ui, Mode::Tight, &d.groups[i]);
     }
-    Fit { mode: Mode::Tight, folded, more: true }
+    Fit { mode: Mode::Tight, folded, more: true, desk }
 }
 
-fn paint_tool(ui: &mut Ui, tk: &Tokens, rect: Rect, id: Id, tool: &Tool, icon: &str, label: &str, big: bool, caret: bool, mode: Mode, on: bool, web: bool) -> egui::Response {
+#[allow(clippy::too_many_arguments)]
+fn paint_tool(ui: &mut Ui, tk: &Tokens, rect: Rect, id: Id, tool: &Tool, icon: &str, label: &str, big: bool, caret: bool, mode: Mode, on: bool, web: bool, dis: bool) -> egui::Response {
     let desk_only = web && matches!(tool.key, "to_step" | "send");
     let resp = ui.interact(rect, id, Sense::click());
-    resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, label));
+    resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, !dis, label));
     let p = ui.painter();
     let finish = tool.key.starts_with("finish");
     let (mut fg, ic) = if on { (tk.sel_text, tk.sel_text) } else if finish { (tk.ok, tk.ok) } else { (tk.text, tk.accent) };
@@ -430,7 +508,9 @@ fn paint_tool(ui: &mut Ui, tk: &Tokens, rect: Rect, id: Id, tool: &Tool, icon: &
     } else if on {
         p.rect(rect, CornerRadius::same(tk.radius_sm as u8), tk.sel, Stroke::new(1.0, tk.sel_line), StrokeKind::Inside);
     }
-    if desk_only {
+    if dis {
+        fg = fg.gamma_multiply(0.45);
+    } else if desk_only {
         fg = fg.gamma_multiply(0.7);
     }
     let cx = rect.center().x;
@@ -462,7 +542,13 @@ fn paint_tool(ui: &mut Ui, tk: &Tokens, rect: Rect, id: Id, tool: &Tool, icon: &
             ui.painter().galley(Pos2::new(x0 + 20.0, y), g, fg);
         }
     }
-    let tip = if desk_only { format!("{label} · desktop app") } else { label.to_owned() };
+    let tip = if dis {
+        format!("{label} · needs SolidCraft, which isn't installed")
+    } else if desk_only {
+        format!("{label} · desktop app")
+    } else {
+        label.to_owned()
+    };
     resp.on_hover_text(tip)
 }
 
@@ -483,7 +569,7 @@ fn paint_mini(ui: &mut Ui, tk: &Tokens, rect: Rect, id: Id, tool: &Tool, on: boo
 
 /// Draw the ribbon into `ui` (the whole panel). Returns what was clicked.
 pub fn show(ui: &mut Ui, tk: &Tokens, st: &RibbonState) -> (Option<Pick>, Fit) {
-    let d = def(st.tab);
+    let d = def_shown(st.tab, &st.desk);
     let full = ui.available_rect_before_wrap();
     let items_h = items_h(st.tab);
     let rect = Rect::from_min_size(full.min, Vec2::new(full.width(), height(st.tab)));
@@ -538,7 +624,7 @@ pub fn show(ui: &mut Ui, tk: &Tokens, st: &RibbonState) -> (Option<Pick>, Fit) {
     // body
     let body = Rect::from_min_max(Pos2::new(badge.max.x + 4.0, rect.min.y + 25.0), Pos2::new(rect.max.x, rect.max.y));
     let avail = body.width() - 8.0;
-    let fit = fit(ui, &d, avail);
+    let fit = fit(ui, &d, avail, st.desk);
     let mode = fit.mode;
     let top = body.min.y + 3.0;
     let mut gx = body.min.x + 4.0;
@@ -561,7 +647,8 @@ pub fn show(ui: &mut Ui, tk: &Tokens, st: &RibbonState) -> (Option<Pick>, Fit) {
                 Item::Big(tool) => {
                     let r = Rect::from_min_size(Pos2::new(ix, top), Vec2::new(iw, items_h));
                     let on = st.active == Some(tool.key);
-                    if paint_tool(ui, tk, r, ui.scope_id().with(("tool", tool.key)), tool, tool.icon, tool.label, true, false, mode, on, st.web).clicked() {
+                    let dis = tool_disabled(tool.key, &st.desk);
+                    if paint_tool(ui, tk, r, ui.scope_id().with(("tool", tool.key)), tool, tool.icon, tool.label, true, false, mode, on, st.web, dis).clicked() && !dis {
                         *pick = Some(Pick::Tool(tool.key));
                     }
                 }
@@ -569,7 +656,8 @@ pub fn show(ui: &mut Ui, tk: &Tokens, st: &RibbonState) -> (Option<Pick>, Fit) {
                     for (n, tool) in v.iter().enumerate() {
                         let r = Rect::from_min_size(Pos2::new(ix, top + 18.0 * n as f32), Vec2::new(iw, 18.0));
                         let on = st.active == Some(tool.key);
-                        if paint_tool(ui, tk, r, ui.scope_id().with(("tool", tool.key)), tool, tool.icon, tool.label, false, false, mode, on, st.web).clicked() {
+                        let dis = tool_disabled(tool.key, &st.desk);
+                        if paint_tool(ui, tk, r, ui.scope_id().with(("tool", tool.key)), tool, tool.icon, tool.label, false, false, mode, on, st.web, dis).clicked() && !dis {
                             *pick = Some(Pick::Tool(tool.key));
                         }
                     }
@@ -589,7 +677,7 @@ pub fn show(ui: &mut Ui, tk: &Tokens, st: &RibbonState) -> (Option<Pick>, Fit) {
                     let last = st.drop_last.get(*id).and_then(|k| items.iter().find(|x| x.key == k)).unwrap_or(&items[0]);
                     let on = st.active.is_some_and(|a| items.iter().any(|x| x.key == a));
                     let tool = Tool { key: id, label, icon: last.icon };
-                    if paint_tool(ui, tk, r, ui.scope_id().with(("drop", *id)), &tool, last.icon, label, true, true, mode, on, st.web).clicked() {
+                    if paint_tool(ui, tk, r, ui.scope_id().with(("drop", *id)), &tool, last.icon, label, true, true, mode, on, st.web, false).clicked() {
                         *pick = Some(Pick::Drop(id, r));
                     }
                 }
@@ -636,7 +724,7 @@ pub fn show(ui: &mut Ui, tk: &Tokens, st: &RibbonState) -> (Option<Pick>, Fit) {
         ui.painter().vline(mr.min.x + 0.5, mr.y_range(), Stroke::new(1.0, tk.divider));
         let br = Rect::from_min_size(Pos2::new(mx + 4.0, top), Vec2::new(34.0, items_h));
         let mt = Tool { key: "more", label: "More", icon: "more" };
-        let resp = paint_tool(ui, tk, br, ui.scope_id().with("more"), &mt, "more", "More tools", true, false, Mode::Tight, false, st.web);
+        let resp = paint_tool(ui, tk, br, ui.scope_id().with("more"), &mt, "more", "More tools", true, false, Mode::Tight, false, st.web, false);
         if resp.clicked() {
             pick = Some(Pick::More(br));
         }
@@ -649,6 +737,6 @@ pub fn show(ui: &mut Ui, tk: &Tokens, st: &RibbonState) -> (Option<Pick>, Fit) {
 
 /// The tools of the groups folded into "More", as menu rows (headers and tools).
 pub fn folded_groups(st_tab: &str, fit: &Fit) -> Vec<(&'static str, Vec<Tool>)> {
-    let d = def(st_tab);
+    let d = def_shown(st_tab, &fit.desk);
     d.groups.iter().enumerate().filter(|(i, _)| fit.folded.get(*i).copied().unwrap_or(false)).map(|(_, g)| (g.label, g.tools())).collect()
 }

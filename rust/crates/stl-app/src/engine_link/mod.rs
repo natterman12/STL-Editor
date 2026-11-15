@@ -58,6 +58,9 @@ pub enum Command {
         locks: Vec<stl_sketch::solver::Lock>,
         fixed: Vec<stl_sketch::entities::Entity>,
     },
+    /// 1.x's `info` route (Properties): one body's size, area, volume and genus. Quiet; the
+    /// answer is [`Update::BodyInfo`] with the same `seq`.
+    BodyInfo { seq: u64, id: String },
     Cancel,
     /// The worker writes an autosave if the document changed since the last one. `path` is where
     /// the open project lives on disk (desktop; `None` for a new project and on the web) and
@@ -117,6 +120,8 @@ pub enum Update {
     Solved { seq: u64, entities: Vec<stl_sketch::entities::Entity>, ok: bool, error: f64 },
     /// The answer to [`Command::Autosave`] (only when something was written or failed).
     Autosaved { ok: bool, error: Option<String> },
+    /// The answer to [`Command::BodyInfo`]: `stl_engine::info::body_info`'s object, or its error.
+    BodyInfo { seq: u64, result: Result<serde_json::Value, String> },
     EngineLost,
 }
 

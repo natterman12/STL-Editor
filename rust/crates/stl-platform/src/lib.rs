@@ -20,3 +20,6 @@ pub mod update;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod fonts;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod handoff;
