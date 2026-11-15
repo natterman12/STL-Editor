@@ -21,12 +21,13 @@ use super::*;
 const FENCE_SEQ: u64 = u64::MAX - 0x5eed;
 
 /// After a panic while drawing: whether the device turns out to be lost, polling it for up to a
-/// second (a driver may report the loss a little after the draw that failed).
+/// second (a driver may report the loss a little after the draw that failed, and WARP never
+/// reports it: there the device just refuses uploads, as it did for the draw that panicked).
 #[cfg(not(target_arch = "wasm32"))]
 fn lost_soon(app: &StlApp) -> bool {
     let end = web_time::Instant::now() + std::time::Duration::from_secs(1);
     loop {
-        if app.viewport.device_lost(true) {
+        if app.viewport.device_lost(true) || app.viewport.device_refuses_uploads() {
             return true;
         }
         if web_time::Instant::now() >= end {

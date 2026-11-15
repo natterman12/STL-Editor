@@ -1148,6 +1148,26 @@ pub fn render_state_lost(rs: &egui_wgpu::RenderState) -> bool {
     rs.renderer.read().callback_resources.get::<GpuState>().is_some_and(|g| g.is_lost())
 }
 
+/// `rs`'s device no longer takes uploads: the staging write egui-wgpu makes every frame is
+/// refused. Some drivers (WARP on CI) never call the device-lost callback after a loss, and
+/// this is the failure they show instead. Native only.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn render_state_refuses_uploads(rs: &egui_wgpu::RenderState) -> bool {
+    let d = &rs.device;
+    let validation = d.push_error_scope(wgpu::ErrorFilter::Validation);
+    let oom = d.push_error_scope(wgpu::ErrorFilter::OutOfMemory);
+    let buf = d.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("device probe"),
+        size: 16,
+        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::VERTEX,
+        mapped_at_creation: false,
+    });
+    let refused = rs.queue.write_buffer_with(&buf, 0, wgpu::BufferSize::new(16).unwrap()).is_none();
+    let _ = block_on(oom.pop());
+    let _ = block_on(validation.pop());
+    refused
+}
+
 /// A GPU device without a window, for tests, `uibench` and screenshots.
 #[cfg(not(target_arch = "wasm32"))]
 pub struct Headless {

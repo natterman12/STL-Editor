@@ -63,8 +63,11 @@ fn device_lost_recovers() {
     assert!(uploads >= 1);
     assert_eq!(vp.stats().gpu_states(), 1);
 
+    // a working device takes uploads; a lost one refuses them (what WARP shows instead of the callback)
+    assert!(!stl_app::viewport::renderer::render_state_refuses_uploads(&gpu.render_state));
     // the device goes away: nothing is drawn on it any more, and nothing panics
     gpu.force_device_loss();
+    assert!(stl_app::viewport::renderer::render_state_refuses_uploads(&gpu.render_state), "a lost device still takes uploads");
     for _ in 0..3 {
         assert!(gpu.render(vp, w, hgt).is_none(), "drew on a lost device");
     }
