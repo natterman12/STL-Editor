@@ -53,6 +53,12 @@ pub fn col_def(dark: bool) -> u32 {
     if dark { scene::SKETCH_CONSTRAINED_DARK } else { scene::SKETCH_CONSTRAINED_LIGHT }
 }
 
+/// The colour of a selected shape: the selection blue, or amber in the dark theme, where free
+/// lines are blue.
+pub fn col_sel(dark: bool) -> u32 {
+    if dark { scene::SKETCH_SELECTED_DARK } else { COL_SEL }
+}
+
 /// The colour of a shape that can still move.
 pub fn col_free(dark: bool) -> u32 {
     if dark { scene::SKETCH_LINE_DARK } else { scene::SKETCH_LINE_LIGHT }
@@ -176,7 +182,7 @@ fn bucket_of(m: &SketchMode, e: &Entity, picked: &std::collections::BTreeSet<&st
 }
 
 fn bucket_colours(dark: bool) -> [u32; 5] {
-    [COL_SEL, COL_BAD, col_free(dark), col_def(dark), COL_HOVER]
+    [col_sel(dark), COL_BAD, col_free(dark), col_def(dark), COL_HOVER]
 }
 
 /// The outlines of the sketch's shapes, worked out once and kept until a shape changes. Colours

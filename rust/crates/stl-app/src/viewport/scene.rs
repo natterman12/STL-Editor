@@ -20,10 +20,14 @@ pub const FACE_HL: u32 = 0x2f8cff;
 pub const PLANE_COL: u32 = 0xe8763a;
 pub const SKETCH_COL: u32 = 0xd9480f;
 /// Milestone 7 sketch colours (spec 2.3): lines that stand out against the plane fill.
-pub const SKETCH_LINE_DARK: u32 = 0xf2f2f2;
+/// Dark theme as SolidCraft's dark palette: free lines blue (92,150,255), fully defined near-white
+/// (232,234,238); Nathan, 2026-11-16 ("stronger blue"): white lines vanished on light faces.
+pub const SKETCH_LINE_DARK: u32 = 0x5c96ff;
 pub const SKETCH_LINE_LIGHT: u32 = 0x1a1a1a;
 pub const SKETCH_CONSTRUCTION: u32 = 0x8a8a8a;
-pub const SKETCH_CONSTRAINED_DARK: u32 = 0xb8d4ff;
+pub const SKETCH_CONSTRAINED_DARK: u32 = 0xe8eaee;
+/// Selected sketch lines in the dark theme: the selection blue would look like a free line.
+pub const SKETCH_SELECTED_DARK: u32 = 0xffc94a;
 pub const SKETCH_CONSTRAINED_LIGHT: u32 = 0x1f3f7a;
 /// The sketch plane's fill while sketching.
 pub const PLANE_SKETCH_ALPHA: f32 = 0.18;

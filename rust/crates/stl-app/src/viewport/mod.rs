@@ -1040,6 +1040,11 @@ impl Viewport {
         !self.sketch_sheet.is_empty()
     }
 
+    /// The bed grid is drawn: the Grid setting is on and no sketch plane grid is showing.
+    pub fn bed_grid_drawn(&self) -> bool {
+        self.grid_visible && self.sketch_grid_lines.is_empty()
+    }
+
     /// `sceneBox`: shown bodies (the revision on screen) and preview meshes, `None` when there
     /// are none.
     pub fn scene_box(&self) -> Option<Aabb> {
@@ -1504,7 +1509,9 @@ impl Viewport {
     fn rebuild_flat(&mut self) {
         let mut items: Vec<(i32, Depth, Vec<FlatVertex>, Vec<FlatVertex>)> = Vec::new();
         let s = self.origin_s;
-        if self.grid_visible {
+        // While a sketch is open only its own plane's grid shows (Nathan, 2026-11-16: two grids at
+        // once were distracting).
+        if self.bed_grid_drawn() {
             items.push((-1, Depth::Test, Vec::new(), scene::grid_lines(s, self.dark)));
         }
         if self.base_visible {

@@ -105,9 +105,12 @@ fn start_flies_to_iso() {
 #[test]
 fn sketch_plane_grid_matches_sketcher() {
     let mut vp = Viewport::new();
+    assert!(vp.bed_grid_drawn());
     let xy = PlaneFrame { origin: [0.0; 3], x: [1.0, 0.0, 0.0], y: [0.0, 1.0, 0.0], normal: [0.0, 0.0, 1.0] };
     vp.set_sketch_plane_grid(Some(xy), 5.0);
     assert!(vp.sketch_plane_grid_visible());
+    // only the sketch plane's grid shows while sketching (Nathan, 2026-11-16)
+    assert!(!vp.bed_grid_drawn());
     // empty scene: R = 100, step 5, half 100. 41 stations, 9 of them major.
     let (sheet, lines, axes) = scene::sketch_plane_grid(&xy.as_frame(), None, 5.0);
     assert_eq!(sheet.len(), 6);
@@ -122,6 +125,7 @@ fn sketch_plane_grid_matches_sketcher() {
     assert!(lines.iter().any(|v| v.c0[3] == (0.32_f32 * 255.0).round() as u8 && v.c0[0] == 0xc5));
     vp.set_sketch_plane_grid(None, 1.0);
     assert!(!vp.sketch_plane_grid_visible());
+    assert!(vp.bed_grid_drawn());
 }
 
 #[test]

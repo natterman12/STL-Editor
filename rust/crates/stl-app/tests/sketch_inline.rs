@@ -822,8 +822,9 @@ mod shots {
             eprintln!("{name}: line {line:?}, beside it {beside:?} ({ratio:.2}:1), fill {fill:?} ({raw:.2}:1)");
             // Light theme: dark lines stand out against the plain face and fill by themselves.
             // Dark theme: lines are drawn as SolidCraft draws the open sketch, 2 px with no casing
-            // (Nathan, 2026-11-16), so the pale fully-defined colour on a light face reads poorly
-            // (about 1.2:1); that is accepted, and only the light theme is held to 3:1.
+            // (Nathan, 2026-11-16), in SolidCraft's dark colours: free lines blue, fully defined
+            // ones near-white. This rectangle is fully defined, and near-white on a light face
+            // reads poorly (about 1.2:1); that is accepted, and only the light theme is held to 3:1.
             if !dark {
                 assert!(raw >= 3.0, "{name}: the line differs from the plain fill by only {raw:.2}:1");
             }

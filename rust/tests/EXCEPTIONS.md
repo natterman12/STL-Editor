@@ -526,5 +526,8 @@ Nathan answered these on 2026-11-14: accepted unless marked otherwise.
   screen** (8 real pixels with a thin ring), not 1.x's spheres `max(extent * 0.006, 0.3)` across, which covered the point when
   zoomed in. Sketch lines are drawn as SolidCraft draws them (Nathan, 2026-11-16): widths in real screen pixels, 2 px for lines
   and 1.2 px for construction lines, no casing (`sketch_inline_*`); sketch points are 7 px squares. The dark theme's pale lines
-  are faint on light faces, so the 3:1 readability check covers the light theme only. The Recover screen has "Discard
+  are faint on light faces, so the 3:1 readability check covers the light theme only. Dark-theme sketch colours are
+  SolidCraft's (Nathan, "stronger blue"): free lines blue 0x5c96ff, fully defined near-white 0xe8eaee, selected amber
+  0xffc94a (the selection blue would look like a free line). While a sketch is open the bed grid is hidden and only the sketch
+  plane's grid shows (Nathan: two grids at once were distracting). The Recover screen has "Discard
   all", which asks once before deleting every copy.
