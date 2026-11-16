@@ -363,6 +363,16 @@ impl DrawTool {
         if let Some(d) = self.draw.as_mut() {
             d.preview = Some(e);
         }
+        // A box under the pointer would take the click that places the shape (a circle's
+        // Diameter box sat on the edge being dragged, so a circle could only be finished by
+        // typing; Nathan, 2026-11-16): move any such box clear of the pointer.
+        for r in rows.iter_mut() {
+            let shown = match r.field {
+                Some(i) if self.field_locked(i) => self.field_text(i).trim().to_string(),
+                _ => r.live.clone(),
+            };
+            r.anchor = clear_of_pointer(r, &shown, c, p0, cx.s, cx.vp);
+        }
         self.rows = rows;
         self.total = total;
     }
@@ -786,4 +796,42 @@ impl SketchTool for DrawTool {
             })
             .unwrap_or_default()
     }
+}
+
+/// Where a value box goes so that it does not cover the pointer `c`: its own anchor when the box
+/// (as `box_at` measures it, plus a gap) is clear of the pointer on screen, else pushed straight
+/// away from the pointer, on screen, until it is (toward the first point `p0` when it sits right
+/// on the pointer).
+pub(super) fn clear_of_pointer(r: &Row, shown: &str, c: P2, p0: P2, s: &SketchSession, vp: &crate::viewport::Viewport) -> P2 {
+    const GAP: f32 = 6.0;
+    let chars = super::inline_dims::box_text(r.label, shown, false).chars().count() as f32;
+    let half = egui::vec2((chars * 6.0 + 14.0) / 2.0 + 2.0 + GAP, 12.0 + GAP);
+    let scr = |uv: P2| vp.world_to_screen(s.to_3(uv));
+    let (pc, pa) = (scr(c), scr(r.anchor));
+    let d = pa - pc;
+    if d.x.abs() > half.x || d.y.abs() > half.y {
+        return r.anchor;
+    }
+    // the plane's screen axes near the pointer (mm -> points), to map a screen move back
+    let e = 1.0;
+    let (ju, jv) = (scr([c[0] + e, c[1]]) - pc, scr([c[0], c[1] + e]) - pc);
+    let det = (ju.x * jv.y - ju.y * jv.x) as f64;
+    if !det.is_finite() || det.abs() < 1e-9 {
+        return r.anchor;
+    }
+    let mut dir = d;
+    if dir.length() < 0.5 {
+        dir = scr(p0) - pc;
+        if dir.length() < 0.5 {
+            dir = egui::vec2(0.0, 1.0);
+        }
+    }
+    let dir = dir.normalized();
+    // how far along `dir` the box's centre must go to leave the pointer outside it
+    let t = [half.x / dir.x.abs().max(1e-6), half.y / dir.y.abs().max(1e-6)].into_iter().fold(f32::MAX, f32::min) + 1.0;
+    let want = dir * t; // from the pointer, in points
+    let (wx, wy) = (want.x as f64, want.y as f64);
+    let du = (wx * jv.y as f64 - wy * jv.x as f64) / det;
+    let dv = (ju.x as f64 * wy - ju.y as f64 * wx) / det;
+    [c[0] + du * e, c[1] + dv * e]
 }

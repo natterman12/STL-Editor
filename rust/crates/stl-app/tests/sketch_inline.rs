@@ -78,6 +78,20 @@ impl H {
         self.send(SketchInput::Up { uv, pos });
     }
 
+    /// A press as the app makes it: a value box under the pointer takes it, else it is a click.
+    /// Returns false when a box took it.
+    fn app_click(&mut self, uv: [f64; 2]) -> bool {
+        let pos = self.pos(uv);
+        let mods = egui::Modifiers::NONE;
+        self.send(SketchInput::Move { uv, pos, mods });
+        if self.tool.click_box(&self.s, &self.vp, pos) {
+            return false;
+        }
+        self.send(SketchInput::Down { uv, pos, mods });
+        self.send(SketchInput::Up { uv, pos });
+        true
+    }
+
     fn key(&mut self, key: egui::Key) -> bool {
         self.send(SketchInput::Key { key, mods: egui::Modifiers::NONE })
     }
@@ -218,7 +232,8 @@ fn circle_box_diameter() {
     assert_eq!(b.len(), 1);
     assert_eq!(b[0].label, "Diameter");
     assert_eq!(b[0].value, "20");
-    assert!(near(b[0].anchor[0], 30.0) && near(b[0].anchor[1], 20.0), "on the rim: {:?}", b[0].anchor);
+    // on the diameter line, moved in from the rim so it is not under the pointer
+    assert!(b[0].anchor[0] < 30.0 && near(b[0].anchor[1], 20.0), "inside the rim: {:?}", b[0].anchor);
     assert_eq!(h.tool.total_label().as_deref(), Some("20"));
     h.typed("14");
     // one box: Tab stays on it
@@ -228,6 +243,39 @@ fn circle_box_diameter() {
     let Entity::Circle(c) = &h.s.entities[0] else { panic!("a circle") };
     assert!(near(c.r, 7.0));
     assert!(dim(&h.s, "diameter").is_some_and(|v| near(v, 14.0)));
+}
+
+/// Nathan, 2026-11-16: a circle could only be finished by typing a size, because its Diameter
+/// box sat on the rim under the pointer and took the click. No value box may sit under the
+/// pointer while a shape is being drawn, for any tool, small or large, so a click always places it.
+#[test]
+fn second_click_places_the_shape_not_a_box() {
+    // (tool, first click, second click) in mm; 50 mm across the view, so 1 mm is about 20 points
+    let cases: &[(&str, [f64; 2], [f64; 2])] = &[
+        ("circle", [20.0, 20.0], [30.0, 20.0]),
+        ("circle", [20.0, 20.0], [23.0, 20.0]),
+        ("rect", [5.0, 5.0], [25.0, 6.0]),
+        ("rect", [5.0, 5.0], [8.0, 7.0]),
+        ("rect_center", [5.0, 5.0], [15.0, 7.0]),
+        ("polygon", [10.0, 10.0], [13.0, 10.0]),
+        ("line", [0.0, 0.0], [3.0, 0.0]),
+    ];
+    for &(key, a, b) in cases {
+        let mut h = H::new(key, vec![]);
+        assert!(h.app_click(a), "{key}: first click");
+        h.mv(b);
+        assert!(!h.boxes().is_empty(), "{key}: value boxes show while drawing");
+        assert!(h.app_click(b), "{key} {b:?}: a value box took the second click");
+        if key != "line" {
+            assert_eq!(h.s.entities.len(), 1, "{key} {b:?}: placed by clicking");
+        }
+    }
+    // a slot: two clicks for the ends, a third for the width, near the middle of the slot
+    let mut h = H::new("slot", vec![]);
+    assert!(h.app_click([0.0, 0.0]));
+    assert!(h.app_click([20.0, 0.0]));
+    assert!(h.app_click([10.0, 1.0]), "a value box took the slot's width click");
+    assert_eq!(h.s.entities.len(), 1);
 }
 
 #[test]
