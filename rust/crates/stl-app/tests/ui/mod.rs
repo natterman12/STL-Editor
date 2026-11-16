@@ -42,6 +42,7 @@ mod tool_picking;
 mod tree_select;
 mod primitive_panel;
 mod panel_layout;
+mod fins_perf;
 
 use std::path::Path;
 
