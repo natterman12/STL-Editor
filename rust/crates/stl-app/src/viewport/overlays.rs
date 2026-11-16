@@ -27,11 +27,17 @@ pub struct OverlayItem {
     pub depth: Depth,
     pub tris: Vec<FlatVertex>,
     pub lines: Vec<FlatVertex>,
+    /// Points drawn as small dots of a fixed size on screen (`DOT_PX`), over everything: a
+    /// clicked point stays a pinpoint at any zoom (Nathan, 2026-11-16: the old spheres hid it).
+    pub dots: Vec<(V3, u32)>,
 }
+
+/// A clicked point's dot, this many screen points across.
+pub const DOT_PX: f32 = 7.0;
 
 impl OverlayItem {
     fn new(tag: &str, order: i32, depth: Depth) -> Self {
-        OverlayItem { tag: tag.to_owned(), order, depth, tris: Vec::new(), lines: Vec::new() }
+        OverlayItem { tag: tag.to_owned(), order, depth, tris: Vec::new(), lines: Vec::new(), dots: Vec::new() }
     }
 }
 
@@ -195,11 +201,14 @@ fn sphere(out: &mut Vec<FlatVertex>, p: V3, r: f64, c: [u8; 4]) {
     }
 }
 
-/// `addMarker`: a dot, `max(extent * 0.006, 0.3)` across unless `size` is given.
-pub fn marker(p: V3, color: u32, tag: &str, size: Option<f64>, extent: f64) -> OverlayItem {
-    let s = size.unwrap_or_else(|| (extent * 0.006).max(0.3));
+/// `addMarker`: a dot `DOT_PX` across on screen; a sphere of radius `size` when one is given.
+/// (1.x drew a sphere `max(extent * 0.006, 0.3)` across, which covered the point when zoomed in.)
+pub fn marker(p: V3, color: u32, tag: &str, size: Option<f64>, _extent: f64) -> OverlayItem {
     let mut it = OverlayItem::new(tag, 20, Depth::Off);
-    sphere(&mut it.tris, p, s, rgba(color, 1.0));
+    match size {
+        Some(s) => sphere(&mut it.tris, p, s, rgba(color, 1.0)),
+        None => it.dots.push((p, color)),
+    }
     it
 }
 
@@ -283,7 +292,7 @@ pub fn band(points: &[V3], cursor: Option<(V3, f64)>, color: u32) -> Vec<Overlay
 /// `addPlaneGhost`: a plane at opacity 0.22, `max(extent * 0.35, 20)` across.
 pub fn plane_ghost(frame: &Frame, tag: &str, color: u32, extent: f64) -> OverlayItem {
     let (tris, lines) = scene::plane_mesh(frame, (extent * 0.35).max(20.0), color, 0.22);
-    OverlayItem { tag: tag.to_owned(), order: 2, depth: Depth::Test, tris, lines }
+    OverlayItem { tag: tag.to_owned(), order: 2, depth: Depth::Test, tris, lines, dots: Vec::new() }
 }
 
 /// `setBrush`: a ring of `radius` facing `normal`, drawn over everything.

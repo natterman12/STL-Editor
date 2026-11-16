@@ -511,24 +511,17 @@ fn overlay_highlight_face() {
 #[test]
 fn overlay_marker() {
     let mut vp = overlay_view();
-    // the cube's extent is its diagonal, 34.6: radius max(0.2, 0.3) = 0.3
+    // a clicked point is a dot of fixed screen size, not a sphere that grows as you zoom in
+    // (Nathan, 2026-11-16); it is drawn over the view each frame, so it makes no triangles
     vp.add_marker([1.0, 2.0, 3.0], Color32::from_rgb(0xd9, 0x48, 0x0f), "marker", None);
-    let b = batches(&mut vp, 20);
-    assert_eq!(b.len(), 1);
-    let (batch, v) = &b[0];
-    assert_eq!((batch.lines, batch.depth), (false, Depth::Off));
-    // SphereGeometry(r, 16, 12): 16 + 10 * 32 + 16 triangles
-    assert_eq!(v.len(), 352 * 3);
-    for x in v {
-        let p = pos(x);
-        let r = ((p[0] - 1.0).powi(2) + (p[1] - 2.0).powi(2) + (p[2] - 3.0).powi(2)).sqrt();
-        assert!((r - 0.3).abs() < 1e-5, "{r}");
-        assert_eq!(x.c0, [0xd9, 0x48, 0x0f, 255]);
-    }
+    assert!(batches(&mut vp, 20).is_empty());
+    let it = vp.overlay_items().iter().find(|o| o.tag == "marker").expect("the marker is listed");
+    assert_eq!(it.dots, vec![([1.0, 2.0, 3.0], 0xd9480f)]);
+    // with a size it is still a sphere of that radius
     vp.add_marker([0.0; 3], Color32::WHITE, "big", Some(2.0));
     let b = batches(&mut vp, 20);
-    assert_eq!(b.len(), 2);
-    let r = b[1].1.iter().map(|x| (pos(x)[0].powi(2) + pos(x)[1].powi(2) + pos(x)[2].powi(2)).sqrt()).fold(0.0, f64::max);
+    assert_eq!(b.len(), 1);
+    let r = b[0].1.iter().map(|x| (pos(x)[0].powi(2) + pos(x)[1].powi(2) + pos(x)[2].powi(2)).sqrt()).fold(0.0, f64::max);
     assert!((r - 2.0).abs() < 1e-5, "{r}");
 }
 
@@ -664,7 +657,7 @@ fn overlay_preview() {
 fn overlay_clear_by_tag() {
     let mut vp = overlay_view();
     vp.add_line([0.0; 3], [1.0, 0.0, 0.0], Color32::WHITE, "a");
-    vp.add_marker([0.0; 3], Color32::WHITE, "b", None);
+    vp.add_marker([0.0; 3], Color32::WHITE, "b", Some(0.5));
     vp.add_polyline(&[[0.0; 3], [0.0, 1.0, 0.0]], Color32::WHITE, "a");
     vp.clear_overlay("a");
     let b = batches(&mut vp, 20);

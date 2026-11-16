@@ -1764,6 +1764,7 @@ impl Viewport {
         }
         self.paint_drag_plane(ui, rect);
         self.paint_measure(ui, rect);
+        self.paint_dots(ui, rect);
         let cube = viewcube::show(ui, rect, self.viewcube_inset, self.section_on, self.dark);
         if let Some(v) = cube.view {
             self.set_view(v);
@@ -2005,6 +2006,18 @@ impl Viewport {
         let mut out = vec![(camera::scale(camera::add(a, b), 0.5), text(camera::length(camera::sub(b, a))))];
         out.extend(overlays::measure_legs(a, b).iter().map(|l| (l.middle(), text(l.length()))));
         out
+    }
+
+    /// The overlays' clicked points: small dots of a fixed size with a thin contrasting ring.
+    fn paint_dots(&self, ui: &egui::Ui, rect: Rect) {
+        let painter = ui.painter_at(rect);
+        let ring = if self.dark { egui::Color32::from_rgb(0x0b, 0x0e, 0x12) } else { egui::Color32::WHITE };
+        for (p, c) in self.overlays.iter().flat_map(|o| o.dots.iter()) {
+            if self.camera.project(*p).1 <= 0.0 {
+                continue;
+            }
+            painter.circle(self.world_to_screen(*p), overlays::DOT_PX / 2.0, rgb_of(*c), egui::Stroke::new(1.5, ring));
+        }
     }
 
     /// Measure's labels on top of the view: a small box at the middle of each line.

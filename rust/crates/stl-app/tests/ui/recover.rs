@@ -184,3 +184,26 @@ fn a_clean_start_shows_no_dialog() {
     assert!(h.query_by_label("There is no unsaved work to recover.").is_none(), "and no message at start-up");
     close(h, link);
 }
+
+/// "Discard all" (Nathan, 2026-11-16) asks once, then deletes every copy and closes the dialog;
+/// Cancel goes back to the list with nothing deleted.
+#[test]
+fn recover_discard_all_asks_then_deletes() {
+    let _g = lock();
+    crashed_session("Hinge");
+    let (mut h, link) = start_app("discard-all");
+    wait_dialog(&mut h, &link);
+    h.get_by_label("Discard all").click();
+    h.run_steps(4);
+    h.get_by_label(&stl_app::recover::discard_all_confirm(1));
+    h.get_by_label("Cancel").click();
+    h.run_steps(4);
+    h.get_by_label("Hinge");
+    assert_eq!(sessions(), 1, "Cancel deletes nothing");
+    h.get_by_label("Discard all").click();
+    h.run_steps(4);
+    h.get_by_label("Delete").click();
+    wait_for(&mut h, &link, "Discard all to delete the copy", |_| sessions() == 0);
+    assert!(h.query_by_label("Recover unsaved work?").is_none(), "the dialog closes");
+    close(h, link);
+}

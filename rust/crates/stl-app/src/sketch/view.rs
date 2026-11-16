@@ -25,8 +25,9 @@ pub const COL_SEL: u32 = scene::FACE_HL;
 /// (Nathan, 2026-11-16: orange lines vanished on the orange plane).
 pub const COL_PREV: u32 = 0x2db86a;
 pub const COL_HOVER: u32 = 0x38c99a;
-/// Sketch lines are this many screen points wide (thin, as SolidCraft's; was 2 with a 4 casing).
-pub const LINE_PX: f32 = 1.5;
+/// Sketch lines are this many screen points wide (thin, as SolidCraft's; was 2 with a 4 casing,
+/// then 1.5 on 3, still too thick for Nathan, 2026-11-16).
+pub const LINE_PX: f32 = 1.0;
 /// The squares at shapes' ends, corners and centres, this many points across.
 pub const POINT_PX: f32 = 4.0;
 
@@ -332,10 +333,10 @@ pub fn redraw(vp: &mut Viewport, m: &SketchMode) {
 /// The tracking guides' colour (a soft blue that reads on both themes).
 pub const GUIDE_COL: u32 = 0x4b8fe0;
 
-/// A thin casing under the lines: dark under light lines (dark theme), light under dark ones, so a
-/// thin line still reads on a part face of any brightness (the dark theme's light lines on a light
-/// face are 1.16:1 without it). It is `CASING_PX` wider than the line (was 4 under a 2 px line).
-pub const CASING_PX: f32 = 3.0;
+/// A thin dark casing under the dark theme's light lines, so a thin line still reads on a light
+/// part face (the light theme's dark lines need none; a white one only made them look thicker) (the dark theme's light lines on a light
+/// face are 1.16:1 without it). It is `CASING_PX` wider than the line (was 4 under a 2 px line, then 3 under 1.5).
+pub const CASING_PX: f32 = 1.5;
 
 fn casing(dark: bool) -> Color32 {
     if dark { Color32::from_rgba_unmultiplied(0x0b, 0x0e, 0x12, 0xb0) } else { Color32::from_rgba_unmultiplied(0xff, 0xff, 0xff, 0xb0) }
@@ -368,7 +369,7 @@ pub fn paint(ui: &egui::Ui, vp: &Viewport, m: &SketchMode) {
         }
     }
     // every casing first, so lines that meet are not cut by a neighbour's casing
-    for (p, _) in &solid {
+    for (p, _) in solid.iter().filter(|_| dark) {
         painter.add(egui::Shape::line(p.clone(), egui::Stroke::new(LINE_PX + CASING_PX, casing(dark))));
     }
     for (p, c) in solid {

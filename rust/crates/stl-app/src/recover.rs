@@ -21,6 +21,10 @@ pub const RECOVERED_TOAST: &str = "Recovered. Save it to keep it.";
 pub const NOTHING_TO_RECOVER: &str = "There is no unsaved work to recover.";
 /// 1.x confirm when the open project has unsaved changes.
 pub const REPLACE_CONFIRM: &str = "Replace the current unsaved work with the recovered project?";
+/// Asked before "Discard all" deletes every copy (Nathan, 2026-11-16).
+pub fn discard_all_confirm(n: usize) -> String {
+    if n == 1 { "Delete this copy? It can't be recovered afterwards.".into() } else { format!("Delete all {n} copies? They can't be recovered afterwards.") }
+}
 /// 1.x busy note while a project is rebuilt.
 pub const RECOVERING_MSG: &str = "Recovering…";
 
@@ -73,6 +77,8 @@ enum State {
     Open { entries: Vec<RecoverEntry> },
     /// Recover was pressed while the open project has unsaved changes.
     Confirm { entries: Vec<RecoverEntry>, id: String },
+    /// "Discard all" was pressed: asks once before deleting every copy.
+    ConfirmAll { entries: Vec<RecoverEntry> },
     Loading { pending: Pending<Result<Vec<u8>, String>>, entry: RecoverEntry },
 }
 
@@ -167,10 +173,13 @@ impl Recover {
         let mut confirm_ok = false;
         let mut confirm_cancel = false;
         let entries: Vec<RecoverEntry> = match &self.state {
-            State::Open { entries } | State::Confirm { entries, .. } => entries.clone(),
+            State::Open { entries } | State::Confirm { entries, .. } | State::ConfirmAll { entries } => entries.clone(),
             _ => return None,
         };
         let confirming = matches!(self.state, State::Confirm { .. });
+        let confirming_all = matches!(self.state, State::ConfirmAll { .. });
+        let mut ask_all = false;
+        let mut all_ok = false;
         Area::new(Id::unique("recover-card")).order(Order::Tooltip).anchor(egui::Align2::CENTER_CENTER, Vec2::ZERO).show(ctx, |ui| {
             Frame::new()
                 .fill(tk.panel)
@@ -190,6 +199,18 @@ impl Recover {
                         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                             ui.spacing_mut().item_spacing.x = 8.0;
                             confirm_ok = button(ui, tk, "OK", true).clicked();
+                            confirm_cancel = button(ui, tk, "Cancel", false).clicked();
+                        });
+                        return;
+                    }
+                    if confirming_all {
+                        ui.label(RichText::new("Discard all").font(bold).color(tk.strong));
+                        ui.add_space(8.0);
+                        ui.label(RichText::new(discard_all_confirm(entries.len())).size(12.0).color(tk.text));
+                        ui.add_space(14.0);
+                        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                            ui.spacing_mut().item_spacing.x = 8.0;
+                            all_ok = button(ui, tk, "Delete", true).clicked();
                             confirm_cancel = button(ui, tk, "Cancel", false).clicked();
                         });
                         return;
@@ -222,14 +243,27 @@ impl Recover {
                     }
                     ui.add_space(14.0);
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        ui.spacing_mut().item_spacing.x = 8.0;
                         if button(ui, tk, "Later", false).clicked() {
                             later = true;
+                        }
+                        if button(ui, tk, "Discard all", false).on_hover_text("Delete every copy listed here").clicked() {
+                            ask_all = true;
                         }
                     });
                 });
         });
 
-        if confirming {
+        if confirming_all {
+            if all_ok {
+                for e in &entries {
+                    self.store.discard(&e.id);
+                }
+                next = Some(State::Closed);
+            } else if confirm_cancel || esc {
+                next = Some(State::Open { entries });
+            }
+        } else if confirming {
             if confirm_ok {
                 if let State::Confirm { id, .. } = &self.state {
                     let id = id.clone();
@@ -239,6 +273,8 @@ impl Recover {
             if confirm_cancel || esc {
                 next = Some(State::Open { entries });
             }
+        } else if ask_all {
+            next = Some(State::ConfirmAll { entries });
         } else if let Some(id) = discard {
             self.store.discard(&id);
             let left: Vec<RecoverEntry> = entries.into_iter().filter(|e| e.id != id).collect();
