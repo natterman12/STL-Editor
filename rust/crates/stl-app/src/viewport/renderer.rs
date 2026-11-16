@@ -528,9 +528,9 @@ impl GpuState {
             attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3],
         })];
         let edge_vb = [Some(wgpu::VertexBufferLayout {
-            array_stride: 12,
+            array_stride: std::mem::size_of::<super::scene::EdgeVertex>() as u64,
             step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &wgpu::vertex_attr_array![0 => Float32x3],
+            attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x3],
         })];
         let flat_vb = [Some(wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<FlatVertex>() as u64,

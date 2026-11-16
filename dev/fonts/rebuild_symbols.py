@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Rebuild rust/crates/stl-app/assets/fonts/symbols.ttf.
 
-The bundled fallback is a tiny SIL OFL subset renamed "STL Editor Symbols" (16 marks):
+The bundled fallback is a tiny SIL OFL subset renamed "STL Editor Symbols" (17 marks):
   Noto Sans Math:       U+2033 ″  U+2192 →  U+2212 −  U+2225 ∥  U+2299 ⊙  U+22A5 ⊥  U+2300 ⌀  U+25CE ◎
-  Noto Sans Symbols 2:  U+2665 ♥  U+26A0 ⚠  U+2713 ✓  U+2714 ✔  U+2715 ✕  U+2717 ✗  U+1F512 🔒
+  Noto Sans Symbols 2:  U+2665 ♥  U+26A0 ⚠  U+2713 ✓  U+2714 ✔  U+2715 ✕  U+2717 ✗  U+1F512 🔒  U+1F4CB 📋
   Noto Sans Symbols:    U+232F ⌯
 
 Download the three source Regular TTFs (Google Fonts ofl/notosansmath, ofl/notosanssymbols2,
@@ -26,7 +26,7 @@ from fontTools.ttLib import TTFont
 
 # (source file, code points taken from it). The first is the base font the others merge into.
 SOURCES = [
-    ("NotoSansSymbols2-Regular.ttf", [0x2665, 0x26A0, 0x2713, 0x2714, 0x2715, 0x2717, 0x1F512]),
+    ("NotoSansSymbols2-Regular.ttf", [0x2665, 0x26A0, 0x2713, 0x2714, 0x2715, 0x2717, 0x1F512, 0x1F4CB]),
     ("NotoSansMath-Regular.ttf", [0x2033, 0x2192, 0x2212, 0x2225, 0x2299, 0x22A5, 0x2300, 0x25CE]),
     ("NotoSansSymbols-Regular.ttf", [0x232F]),
 ]

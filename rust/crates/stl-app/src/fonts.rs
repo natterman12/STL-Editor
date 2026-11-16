@@ -13,9 +13,10 @@ use std::sync::Arc;
 
 const SELAWIK: &[u8] = include_bytes!("../assets/fonts/selawk.ttf");
 const SELAWIK_BOLD: &[u8] = include_bytes!("../assets/fonts/selawkb.ttf");
-/// A ~8.9 KB piece of Noto Sans Math + Noto Sans Symbols + Noto Sans Symbols 2 (SIL OFL 1.1,
+/// A ~9.4 KB piece of Noto Sans Math + Noto Sans Symbols + Noto Sans Symbols 2 (SIL OFL 1.1,
 /// `assets/fonts/Symbols-OFL.txt`) with the marks the text and sketch UI use that Selawik and
-/// egui's default fonts lack: → ″ ♥ ⚠ ✓ ✔ ✕ ✗ −, and sketch ⌀ ⊙ ∥ ⊥ ◎ ⌯ (U+232F) 🔒. Rebuild
+/// egui's default fonts lack: → ″ ♥ ⚠ ✓ ✔ ✕ ✗ −, sketch ⌀ ⊙ ∥ ⊥ ◎ ⌯ (U+232F) 🔒, and the colour
+/// picker's 📋. Rebuild
 /// with `dev/fonts/rebuild_symbols.py` (extend its code lists when adding glyphs). It is the last
 /// fallback, so it never replaces a glyph another font has.
 const SYMBOLS: &[u8] = include_bytes!("../assets/fonts/symbols.ttf");

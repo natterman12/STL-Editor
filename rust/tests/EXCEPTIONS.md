@@ -301,7 +301,7 @@ Nathan answered all of these (2026-11-12, 2026-11-13 and 2026-11-14).
 - **Accepted (2026-11-14): ten constraint icons** (`c_coincident` to `c_symmetric`) are text glyphs in 1.x's
   `icons.js`. The icon renderer has no text support, so 2.0 draws them as paths that look
   close but not identical.
-- **Still open after milestone 5 (pending Nathan's OK): if the graphics device is lost** (a driver reset), the view goes blank until the app is
+- **Superseded in milestone 6 (accepted by Nathan 2026-11-16): if the graphics device is lost** (a driver reset), the view goes blank until the app is
   restarted; nothing crashes and the project is kept. eframe 0.37 doesn't create a new
   device on its own. A browser tab in 1.x reloads its WebGL context instead.
 
@@ -364,7 +364,7 @@ Nathan answered all of these on 2026-11-13: six accepted, one to measure in 4c, 
 - **Accepted (2026-11-14): profile points are no longer nudged by rounding when they already sit on
   the 0.00001 mm grid.** 1.x desktop gave 13.000000000000002 where 1.x web and 2.0 give 13
   (`faces_nested`).
-- **Pending Nathan's OK (milestone 5): the desktop text font list starts with the bundled fonts and any added fonts; "More: fonts on this computer…" adds the system fonts.** 1.x desktop listed every system font at once and had neither entry (both were web-only). Font files are .ttf or .otf only (2.0 can't read .woff), so the bad-file message says "(use .ttf or .otf)" where 1.x says "(use .ttf, .otf or .woff)".
+- **Accepted by Nathan (2026-11-16) (milestone 5): the desktop text font list starts with the bundled fonts and any added fonts; "More: fonts on this computer…" adds the system fonts.** 1.x desktop listed every system font at once and had neither entry (both were web-only). Font files are .ttf or .otf only (2.0 can't read .woff), so the bad-file message says "(use .ttf or .otf)" where 1.x says "(use .ttf, .otf or .woff)".
 - **Accepted (2026-11-14): bundled symbol glyphs.** The bundled fonts had no ⌀ and some relation
   symbols; 2.0 adds them from Noto (SIL Open Font License) so labels show the same symbols as 1.x.
 
@@ -401,12 +401,12 @@ Nathan answered these on 2026-11-14: accepted unless marked otherwise.
 - **Accepted (2026-11-14): The title and About say "STL Editor 2.0 (test build <date> <commit>)"**; the date is the UTC build date.
 - **Accepted (2026-11-14): The phone drawer's button sits above the tool panel** (1.x puts it below), because 2.0's tool panel isn't yet a
   bottom sheet on phones.
-- **Changed in milestone 6 (pending Nathan's OK): after a graphics driver reset the desktop window restarts itself.** eframe 0.37 can't
+- **Changed in milestone 6 (accepted by Nathan 2026-11-16): after a graphics driver reset the desktop window restarts itself.** eframe 0.37 can't
   give the window a new device (egui-wgpu's `Painter` makes its render state once and keeps it private), and egui-wgpu panics on the
   next paint after a loss, so 2.0 can't keep drawing in the same window. Instead STL Editor saves an autosave copy at once, says "The
   graphics driver restarted. STL Editor needs to restart to keep drawing. Your work is saved." and starts again, and the new window
   opens the saved copy (or the project's file when nothing was unsaved) without asking. 1.x's browser tab reloads its WebGL context
-  instead. Differences pending Nathan's OK: the message is a Windows message box, because nothing can be drawn on the lost device; its
+  instead. Differences accepted by Nathan (2026-11-16): the message is a Windows message box, because nothing can be drawn on the lost device; its
   button reads "OK", not "Restart" (rfd 0.18 on Windows uses MessageBoxW); closing it with X also restarts; if the copy couldn't be
   written the message leaves out "Your work is saved." and the new window offers Recover Unsaved Work as usual; while the engine
   finishes a running job the window is gone for up to 20 s before the message shows. The test renderer still recovers in place
@@ -419,37 +419,41 @@ Nathan answered these on 2026-11-14: accepted unless marked otherwise.
   sets the orbit target to the point on the plane, so orbiting swings around the face. 2.0 puts the camera exactly where 1.x does
   and only moves the target back along the same line to the parts' middle (the view itself is unchanged). On a close-up where the
   middle would be behind the camera, the point on the plane is kept.
-- **Pending Nathan's OK: Section View can cut on a picked construction plane or flat face.** 1.x offers X, Y and Z only. A picked
+- **Accepted by Nathan (2026-11-16): Section View can cut on a picked construction plane or flat face.** 1.x offers X, Y and Z only. A picked
   face that only touches the body starts halfway through it.
-- **Pending Nathan's OK: Section View has a Distance box and a drag arrow instead of 1.x's Position slider.** The box takes `=`
+- **Accepted by Nathan (2026-11-16): Section View has a Distance box and a drag arrow instead of 1.x's Position slider.** The box takes `=`
   expressions and inches; a small box shows the distance while dragging. The hint reads "Drag the arrow or change Distance to look
   inside · only the view changes · the cut stays when you close this; X turns it off and on" (1.x: "Drag the slider to look
   inside…"). New text with no 1.x original: "Or click a flat face or a plane." and "That face isn't flat. Click a flat face or a
   plane." A Distance expression that fails shows the engine's expression error, as the tool panel does. The panel has Cancel,
   which puts the cut back as it was.
-- **Pending Nathan's OK: Hatch (on by default) draws darker diagonal lines on the cut faces** (45°, 6 px apart in screen space, at
+- **Accepted by Nathan (2026-11-16): Hatch (on by default) draws darker diagonal lines on the cut faces** (45°, 6 px apart in screen space, at
   0.53 × the cap colour). With Hatch off the cut face is 1.x's flat #d06060.
-- **Pending Nathan's OK: Split has a Distance field (`offset`, mm) after Split plane, with the drag arrow.** 1.x has no such field.
+- **Asked by Nathan (2026-11-16): the part's edges never show through a cut face.** The cut face is drawn from the
+  body's back faces, and the M7 build drew the edges lying on them (a far wall's corners) over it. While the cut is on,
+  an edge whose two faces both point away from the camera is now hidden; outline edges always have one face toward the
+  camera and stay (`tests/m4a_fix_t5.rs` `cut_face_hides_edges_*`).
+- **Accepted by Nathan (2026-11-16): Split has a Distance field (`offset`, mm) after Split plane, with the drag arrow.** 1.x has no such field.
   It is saved only when it isn't 0, so 1.x projects and the 1.x goldens are unchanged; `tests/tools_golden.rs` leaves it out
   before comparing with the 1.x definition. A fresh plane pick sets it: 0 when the plane passes through the body, else halfway.
 - **Accepted by Nathan (2026-11-14): Split's message for a plane that misses the body is always "The plane doesn't cut through this
   body. Drag the arrow or change Distance to move it into the part."**, at Distance 0 and for 1.x steps too (1.x: "The plane
   doesn't cut through this body."). The parity cases `split/split_plane_misses` and `split/split_tangent_plane` pass by exception
   (`tests/parity/exceptions.json`).
-- **Pending Nathan's OK: Send to Slicer writes a 3MF.** 1.x's `r_send_to` writes an STL (the 1.x UI doesn't pass `slicer` to the
+- **Accepted by Nathan (2026-11-16): Send to Slicer writes a 3MF.** 1.x's `r_send_to` writes an STL (the 1.x UI doesn't pass `slicer` to the
   export route).
-- **Pending Nathan's OK: the Send to Slicer menu lists only the slicers found.** 1.x shows Bambu Studio and OrcaSlicer greyed out
+- **Accepted by Nathan (2026-11-16): the Send to Slicer menu lists only the slicers found.** 1.x shows Bambu Studio and OrcaSlicer greyed out
   when they are missing.
-- **Pending Nathan's OK: a failed launch says "Couldn't open <Slicer>: it wasn't found on this computer".** 1.x: "Couldn't find
+- **Accepted by Nathan (2026-11-16): a failed launch says "Couldn't open <Slicer>: it wasn't found on this computer".** 1.x: "Couldn't find
   <key> on this computer."
-- **Pending Nathan's OK: To STEP, when greyed out, has the tooltip "needs SolidCraft, which isn't installed"** (1.x has none), and a
+- **Accepted by Nathan (2026-11-16): To STEP, when greyed out, has the tooltip "needs SolidCraft, which isn't installed"** (1.x has none), and a
   conversion that takes more than 10 minutes stops with a plain message (1.x showed Python's exception text).
-- **Pending Nathan's OK: the body menu's Send to Slicer replaces the menu with the slicer list** instead of opening a submenu beside
+- **Accepted by Nathan (2026-11-16): the body menu's Send to Slicer replaces the menu with the slicer list** instead of opening a submenu beside
   the row, as 1.x does; 2.0's menu has no submenus. The rows and their words are 1.x's.
-- **Pending Nathan's OK: the tool search leaves out Send to Slicer and To STEP where the ribbon hides them** (off Windows without a
+- **Accepted by Nathan (2026-11-16): the tool search leaves out Send to Slicer and To STEP where the ribbon hides them** (off Windows without a
   slicer found; To STEP off Windows). 1.x lists them anyway, and running them there only shows "No slicer found…" or an error.
-- **Pending Nathan's OK: the colour picker (Colour… in the body menu) shows a missing-glyph box on egui's clipboard button.** egui
-  draws U+1F4CB there and none of the bundled fonts has it; the picker still works. Fixing it needs another font.
+- **Fixed (2026-11-16): the colour picker's copy button (Colour… in the body menu) shows 📋.** egui draws U+1F4CB
+  there; `symbols.ttf` now has it, from Noto Sans Symbols 2 (`tests/fonts_fallback.rs` checks it).
 
 ## Test-build fixes, navigation and sketching (milestone 7)
 
@@ -458,7 +462,7 @@ Nathan answered these on 2026-11-14: accepted unless marked otherwise.
   on a touch screen still orbits); the wheel zooms toward the surface under the cursor, else the point on the cursor's ray at the
   target's depth. Two-finger scroll pans, with Shift it orbits. Orbit around (View menu): View Centre (default), Origin, Under the
   Cursor.
-- **Pending Nathan's OK: the orbit and sketch settings are in the View menu** (Orbit Around, Tint Cuts in Previews, Sketch Cursor
+- **Accepted by Nathan (2026-11-16): the orbit and sketch settings are in the View menu** (Orbit Around, Tint Cuts in Previews, Sketch Cursor
   Coordinates). The spec says Settings › Navigation / Sketch / Display; 2.0 has no Settings window. 1.x has none of these.
 - **Accepted by Nathan (2026-11-15): sketch colours and fill changed** (spec 2.3): near-white (dark theme) or near-black (light) lines
   2 px wide, a pale or dark blue for fully defined shapes, grey dashed construction lines, the profile fill at alpha 0.18 (1.x 0.38
@@ -467,13 +471,13 @@ Nathan answered these on 2026-11-14: accepted unless marked otherwise.
   HUD. Typing a size no longer freezes the preview: unlocked boxes keep following the pointer (1.x froze everything).
 - **Accepted by Nathan (2026-11-15): grid snap defaults to "Auto"** and follows the grid spacing shown at the zoom (1.x: a fixed
   1 mm, or 1/16 in).
-- **Pending Nathan's OK: a typed line angle becomes an angle dimension** (1.x added only the length dimension).
+- **Accepted by Nathan (2026-11-16): a typed line angle becomes an angle dimension** (1.x added only the length dimension).
 - **Accepted by Nathan (2026-11-15): Hole and Thread re-place their points from optional `point_refs` / `position_refs`** (part
   edges and sketch lines, spec 2.4). 1.x has no such keys. Projects without them build byte for byte as before.
-- **Pending Nathan's OK: how a part edge is found again** (spec 2.4 leaves these open): a candidate must be at least 25% of the
+- **Accepted by Nathan (2026-11-16): how a part edge is found again** (spec 2.4 leaves these open): a candidate must be at least 25% of the
   stored edge's length (else a hole's rim could match), an edge counts only where its faces meet at more than 20°, touching pieces
   of one straight line are joined, and when the found edge moved along the face normal (a thicker plate) the point moves with it.
-- **Pending Nathan's OK: 1.x bevels Shell and Hollow corners; 2.0 makes them square** (spec 2.7 picked the method). A 30×30×20 box
+- **Accepted by Nathan (2026-11-16): 1.x bevels Shell and Hollow corners; 2.0 makes them square** (spec 2.7 picked the method). A 30×30×20 box
   shelled 2 mm: 1.x cavity volume 10811.0 / area 2986.4 (100 triangles), Hollow body 7188.98–7206.10 depending on resolution; 2.0
   gives the exact 26×26×16 cavity (10816 / 3016) and a 7184 / 7216 body. Lattice fills the same cavity, so its walls follow: about
   −0.28% volume and +0.7% area on the two parity cases (`tests/parity/exceptions.json`). At an inside (reflex) corner the cavity is
@@ -481,7 +485,7 @@ Nathan answered these on 2026-11-14: accepted unless marked otherwise.
 - **Accepted by Nathan (2026-11-15): Section View's cut face is the body colour 25% darker with the hatch kept.** 1.x painted it
   red.
 - **Accepted by Nathan (2026-11-15): the grid never shows on the cut face or through a body.** 1.x drew it on the cap; it also
-  showed over a part that dips below the bed, which 2.0 no longer does (pending Nathan's OK for that case).
+  showed over a part that dips below the bed, which 2.0 no longer does (accepted by Nathan 2026-11-16 for that case).
 - **Accepted by Nathan (2026-11-15): a translucent red cut tint** shows the cutter shape while a tool that removes material is open
   (1.x has none).
 - **Accepted by Nathan (2026-11-15): Measure draws the X, Y and Z legs** as dotted lines in the axis colours with their lengths
@@ -489,13 +493,13 @@ Nathan answered these on 2026-11-14: accepted unless marked otherwise.
 - **Accepted by Nathan (2026-11-15): a sketch whose plane was picked on a body's face now follows later Move, Rotate and Mirror
   (Replace) steps of that body** (spec 2.9), in older projects too. 1.x left the sketch where it was. Move with Copy and Mirror Join
   or New Body leave it in place.
-- **Pending Nathan's OK: Move snaps to the grid shown at the zoom and to the plate within 6 px; Shift turns both snaps off** (spec
+- **Accepted by Nathan (2026-11-16): Move snaps to the grid shown at the zoom and to the plate within 6 px; Shift turns both snaps off** (spec
   2.9 names the snaps, not the key). 1.x moved freely.
-- **Pending Nathan's OK: the Move panel's "Drop to bed" is now "Drop to plate" and counts a pending turn**, so a turned part lands
+- **Accepted by Nathan (2026-11-16): the Move panel's "Drop to bed" is now "Drop to plate" and counts a pending turn**, so a turned part lands
   with its lowest point at Z = 0. 1.x used the unturned box, so a turned part could land too high or sink into the bed.
 - **Accepted by Nathan (2026-11-15): a Bodies field becomes active once the picks above it are filled** (spec 2.11), even when it
   is optional ("Auto"). 1.x skipped optional Bodies fields. A tree row click fills the active Bodies field. A plain click on a
-  picked body still removes it; Ctrl and Shift are not used yet (pending Nathan's OK).
+  picked body still removes it; Ctrl and Shift are not used yet (accepted by Nathan 2026-11-16).
 - **Accepted by Nathan (2026-11-15): Living Hinge's hint is rewritten** (spec 2.13): two numbered steps (pick the face or plane,
   then set where it sits and how thin it is), then what the slot does and what the orange line and arrow mean. The tools
   golden keeps 1.x's hint; `tools_golden.rs` compares the rest with 1.x and checks the new hint on its own.
@@ -503,4 +507,4 @@ Nathan answered these on 2026-11-14: accepted unless marked otherwise.
   (spec 2.10). 1.x left them as they were.
 - **Accepted by Nathan (2026-11-15): clicks in the tree and timeline register while the engine is busy** (spec 2.12). The busy
   screen no longer blocks them; its Cancel button still works. A click on a sketch row or a
-  timeline step selects it; a double-click on a sketch row opens it and also selects it (pending Nathan's OK).
+  timeline step selects it; a double-click on a sketch row opens it and also selects it (accepted by Nathan 2026-11-16).

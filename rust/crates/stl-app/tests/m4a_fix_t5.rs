@@ -339,6 +339,37 @@ fn section_cap_has_no_grid_light() {
     section_cap_has_no_grid("section_cap_no_grid_light", false);
 }
 
+/// From Nathan's test of the M7 build (2026-11-16): the part's edges showed through the cut face.
+/// The cut face is drawn from the body's back faces, so the edges lying on them (the far walls'
+/// corners) were drawn over it. With edges on, no pixel of the cut face may change.
+fn cut_face_hides_edges(name: &str, dark: bool) {
+    let Some(gpu) = gpu::headless() else {
+        eprintln!("no GPU adapter: skipped");
+        return;
+    };
+    let body = block("b1", 0.0, 20.0);
+    let shot = |edges: bool| {
+        let mut vp = cut_view(&gpu, dark, &body, Some(10.0), false);
+        vp.set_edges_visible(edges);
+        picture(&gpu, vp, dark, 320.0, 240.0, None)
+    };
+    let (off, on) = (shot(false), shot(true));
+    let cap = cap_mask(&off);
+    assert!(cap.len() >= 200, "{name}: only {} cut-face pixels", cap.len());
+    let changed = cap.iter().filter(|&&(x, y)| (0..3).any(|k| on.get_pixel(x, y).0[k].abs_diff(off.get_pixel(x, y).0[k]) > 2)).count();
+    assert_eq!(changed, 0, "{name}: edges show on {changed} of {} cut-face pixels", cap.len());
+}
+
+#[test]
+fn cut_face_hides_edges_dark() {
+    cut_face_hides_edges("cut_face_hides_edges_dark", true);
+}
+
+#[test]
+fn cut_face_hides_edges_light() {
+    cut_face_hides_edges("cut_face_hides_edges_light", false);
+}
+
 // ---------------------------------------------------------------------- grid through a body
 
 /// A tan body (two_blobs' colour family) from `z0` to `z1`, without a section: its pixels

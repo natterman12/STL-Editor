@@ -113,6 +113,17 @@ pub fn rgba(hex: u32, alpha: f32) -> [u8; 4] {
 
 // ---------------------------------------------------------------------- vertices
 
+/// A feature-edge point and the normals of the two faces that meet there (`n1` is zero on an
+/// open edge, which has one face). While the section cut is on, an edge whose faces both point
+/// away from the camera is hidden: it lies behind the cut face (Nathan's M7 test, 2026-11-16).
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct EdgeVertex {
+    pub pos: [f32; 3],
+    pub n0: [f32; 3],
+    pub n1: [f32; 3],
+}
+
 /// A body vertex: position and creased normal (zero when the body is flat shaded).
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -154,7 +165,7 @@ pub struct PreparedMesh {
     pub indices: Option<Vec<u32>>,
     pub flat: bool,
     /// Feature edges, two points per segment (`None` above [`EDGES_BELOW`] triangles).
-    pub edges: Option<Vec<[f32; 3]>>,
+    pub edges: Option<Vec<EdgeVertex>>,
     pub bbox: Aabb,
     pub triangles: usize,
 }
@@ -250,7 +261,8 @@ pub fn creased_normals(m: &MeshArrays, crease_deg: f64) -> Vec<LitVertex> {
 
 /// three's `EdgesGeometry(geo, threshold_deg)`: edges between faces whose normals differ by at
 /// least the threshold, and open edges (positions matched to 0.0001 mm).
-pub fn feature_edges(m: &MeshArrays, threshold_deg: f64) -> Vec<[f32; 3]> {
+/// Each point carries the normals of the faces on either side ([`EdgeVertex`]).
+pub fn feature_edges(m: &MeshArrays, threshold_deg: f64) -> Vec<EdgeVertex> {
     let ntri = m.triangles.len() / 3;
     let threshold_dot = threshold_deg.to_radians().cos();
     // `Math.round(x * 1e4)`
@@ -262,8 +274,9 @@ pub fn feature_edges(m: &MeshArrays, threshold_deg: f64) -> Vec<[f32; 3]> {
         open: bool,
     }
     let mut map: HashMap<([i64; 3], [i64; 3]), Slot> = HashMap::with_capacity(ntri * 2);
-    let mut out: Vec<[f32; 3]> = Vec::new();
+    let mut out: Vec<EdgeVertex> = Vec::new();
     let f = |p: V3| [p[0] as f32, p[1] as f32, p[2] as f32];
+    let v = |p: V3, n0: V3, n1: V3| EdgeVertex { pos: f(p), n0: f(n0), n1: f(n1) };
     for t in 0..ntri {
         let idx = [m.triangles[t * 3], m.triangles[t * 3 + 1], m.triangles[t * 3 + 2]];
         let p = idx.map(|i| corner(m, i));
@@ -276,8 +289,8 @@ pub fn feature_edges(m: &MeshArrays, threshold_deg: f64) -> Vec<[f32; 3]> {
             let k = (j + 1) % 3;
             if let Some(s) = map.get_mut(&(h[k], h[j])).filter(|s| s.open) {
                 if camera::dot(n, s.normal) <= threshold_dot {
-                    out.push(f(p[j]));
-                    out.push(f(p[k]));
+                    out.push(v(p[j], n, s.normal));
+                    out.push(v(p[k], n, s.normal));
                 }
                 s.open = false;
             } else {
@@ -286,8 +299,8 @@ pub fn feature_edges(m: &MeshArrays, threshold_deg: f64) -> Vec<[f32; 3]> {
         }
     }
     for s in map.values().filter(|s| s.open) {
-        out.push(f(corner(m, s.i0)));
-        out.push(f(corner(m, s.i1)));
+        out.push(v(corner(m, s.i0), s.normal, [0.0; 3]));
+        out.push(v(corner(m, s.i1), s.normal, [0.0; 3]));
     }
     out
 }

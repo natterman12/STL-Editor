@@ -22,11 +22,11 @@ fn close(a: [f64; 3], b: [f64; 3], tol: f64) -> bool {
 
 /// Feature-edge segments, sorted. `feature_edges` finishes with a HashMap walk, so the order
 /// of open edges changes between calls even when the segments are the same.
-fn edge_set(edges: &Option<Vec<[f32; 3]>>) -> Vec<[u32; 6]> {
+fn edge_set(edges: &Option<Vec<stl_app::viewport::scene::EdgeVertex>>) -> Vec<[u32; 6]> {
     let Some(v) = edges else { return Vec::new() };
     let mut segs: Vec<[u32; 6]> = v
         .chunks(2)
-        .map(|c| [c[0][0].to_bits(), c[0][1].to_bits(), c[0][2].to_bits(), c[1][0].to_bits(), c[1][1].to_bits(), c[1][2].to_bits()])
+        .map(|c| [c[0].pos[0].to_bits(), c[0].pos[1].to_bits(), c[0].pos[2].to_bits(), c[1].pos[0].to_bits(), c[1].pos[1].to_bits(), c[1].pos[2].to_bits()])
         .collect();
     segs.sort_unstable();
     segs

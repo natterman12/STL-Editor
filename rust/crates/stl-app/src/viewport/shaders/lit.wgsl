@@ -100,21 +100,28 @@ fn fs_body(in: VsOut) -> @location(0) vec4<f32> {
     return vec4<f32>(srgb_encode(out), b.color.a);
 }
 
-// Feature edges: a plain line colour.
+// Feature edges: a plain line colour. While the section cut is on, an edge whose two faces
+// both point away from the camera lies behind the cut face (the cut face is drawn from the
+// back faces), so it is hidden; `normal.x` carries that to the fragment shader. An open edge's
+// second normal is zero, which never counts as pointing away.
 @vertex
-fn vs_edge(@location(0) p: vec3<f32>) -> VsOut {
+fn vs_edge(@location(0) p: vec3<f32>, @location(1) n0: vec3<f32>, @location(2) n1: vec3<f32>) -> VsOut {
     var o: VsOut;
     let wp = b.model * vec4<f32>(p, 1.0);
     o.pos = g.view_proj * wp;
     o.view_pos = vec3<f32>(0.0);
-    o.normal = vec3<f32>(0.0, 0.0, 1.0);
+    let to_eye = -(g.view * wp).xyz;
+    let away0 = dot((g.view * (b.normal_m * vec4<f32>(n0, 0.0))).xyz, to_eye) < 0.0;
+    let away1 = dot((g.view * (b.normal_m * vec4<f32>(n1, 0.0))).xyz, to_eye) < 0.0;
+    let hidden = g.flags.x > 0.5 && away0 && away1;
+    o.normal = vec3<f32>(select(0.0, 1.0, hidden), 0.0, 1.0);
     o.world = wp.xyz;
     return o;
 }
 
 @fragment
 fn fs_edge(in: VsOut) -> @location(0) vec4<f32> {
-    if clipped(in.world) {
+    if clipped(in.world) || in.normal.x > 0.5 {
         discard;
     }
     return b.edge;

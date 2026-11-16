@@ -288,6 +288,14 @@ fn every_tool_and_supports_panel_string_has_a_bundled_glyph() {
     );
 }
 
+/// egui's colour picker (Colour… in the body menu) labels its copy button 📋 (U+1F4CB); it showed
+/// a missing-glyph box (Nathan's OK list, 2026-11-16). symbols.ttf has it now.
+#[test]
+fn the_colour_pickers_copy_button_has_a_glyph() {
+    let ctx = bundled_ctx();
+    assert!(has(&ctx, &FontFamily::Proportional, '\u{1F4CB}'), "bundled fonts lack the colour picker's 📋");
+}
+
 #[test]
 fn every_sketch_label_hint_toast_and_panel_string_has_a_bundled_glyph() {
     let ctx = bundled_ctx();
