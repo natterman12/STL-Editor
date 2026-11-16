@@ -52,6 +52,31 @@ pub fn hint_for(key: &str) -> &'static str {
 thread_local! {
     /// `this.polySides`: the last polygon's side count, kept for the next one.
     static POLY_SIDES: Cell<Option<f64>> = const { Cell::new(None) };
+    /// The sketch panel's "Construction" tick: new shapes are drawn as construction lines.
+    static CONSTRUCT: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Set by the sketch panel's "Construction" tick each frame.
+pub fn set_construction_mode(on: bool) {
+    CONSTRUCT.with(|c| c.set(on));
+}
+
+pub fn construction_mode() -> bool {
+    CONSTRUCT.with(|c| c.get())
+}
+
+/// A new shape takes the panel's Construction tick.
+fn mark_construction(e: &mut Entity) {
+    let v = construction_mode().then_some(true);
+    match e {
+        Entity::Line(x) => x.construction = v,
+        Entity::Arc(x) => x.construction = v,
+        Entity::Circle(x) => x.construction = v,
+        Entity::Rect(x) => x.construction = v,
+        Entity::Polygon(x) => x.construction = v,
+        Entity::Slot(x) => x.construction = v,
+        _ => {}
+    }
 }
 
 /// A pointer press, to tell a click (moved at most 5 points) from a drag.
@@ -472,6 +497,7 @@ impl DrawTool {
         cx.s.push();
         let id = cx.s.new_id();
         set_id(&mut e, &id);
+        mark_construction(&mut e);
         cx.s.entities.push(e.clone());
         let refs = self.draw.as_ref().map(|d| d.refs.clone()).unwrap_or_default();
         self.auto_constrain(cx, &e, &refs);
@@ -526,6 +552,7 @@ impl DrawTool {
         let id = cx.s.new_id();
         let mut e = line(last, p);
         set_id(&mut e, &id);
+        mark_construction(&mut e);
         cx.s.entities.push(e);
         let mut auto: Vec<(&str, Ref, Option<Ref>)> = Vec::new();
         if let Some(ll) = &last_line {

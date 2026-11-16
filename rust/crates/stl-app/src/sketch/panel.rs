@@ -36,6 +36,8 @@ pub struct PanelState {
     pub no_point_snap: bool,
     /// "More" (the shapes and relations lists) is open.
     pub more_open: bool,
+    /// New shapes are drawn as construction lines (the "Construction" tick).
+    pub construction: bool,
     init: bool,
 }
 
@@ -87,6 +89,8 @@ pub struct PanelOut {
     pub edit_text: Option<(String, Value)>,
     /// A tool kind picked under Tool options (Rectangle, Center Rectangle...).
     pub set_tool: Option<&'static str>,
+    /// "Look at": turn the view to face the sketch plane.
+    pub look_at: bool,
 }
 
 /// The help that used to sit at the panel's foot, now behind the "?" in its title.
@@ -349,6 +353,10 @@ fn actions(ui: &mut Ui, tk: &Tokens, out: &mut PanelOut) {
     if crate::ui::dialogs::button(&mut right, tk, "Cancel", false).clicked() {
         out.cancel = true;
     }
+    let mut left = ui.new_child(egui::UiBuilder::new().max_rect(inner).layout(Layout::left_to_right(Align::Center)));
+    if crate::ui::dialogs::button(&mut left, tk, "Look at", false).on_hover_text("Turn the view to face the sketch").clicked() {
+        out.look_at = true;
+    }
 }
 
 /// One tick-box row with its name.
@@ -358,6 +366,20 @@ fn tick(ui: &mut Ui, tk: &Tokens, label: &str, on: &mut bool) {
         let cb = crate::tools::fields::check_box(ui, tk, on);
         cb.widget_info(|| WidgetInfo::selected(egui::Role::CheckBox, true, was, label));
     });
+}
+
+/// A tick box with its (longer) name to its right; a click on the name flips it too.
+fn tick_wide(ui: &mut Ui, tk: &Tokens, label: &str, on: &mut bool) {
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = GAP;
+        let was = *on;
+        let cb = crate::tools::fields::check_box(ui, tk, on);
+        cb.widget_info(|| WidgetInfo::selected(egui::Role::CheckBox, true, was, label));
+        if ui.add(egui::Label::new(RichText::new(label).size(12.0).color(tk.label)).sense(Sense::click())).clicked() {
+            *on = !*on;
+        }
+    });
+    ui.add_space(6.0);
 }
 
 /// Tool options: the open drawing tool's kinds as icon buttons (Rectangle, Center Rectangle).
@@ -391,6 +413,8 @@ fn tool_options(ui: &mut Ui, tk: &Tokens, m: &SketchMode, out: &mut PanelOut) {
 fn form(ui: &mut Ui, tk: &Tokens, m: &mut SketchMode, inch: bool, out: &mut PanelOut) {
     def_line(ui, tk, m);
     tool_options(ui, tk, m, out);
+    tick_wide(ui, tk, "Draw as construction", &mut m.panel.construction);
+    super::draw::set_construction_mode(m.panel.construction);
     let unit = unit_name(inch);
     // the selected dimension: its value (or parameter), and whether it drives the size
     if let Some(i) = m.s.sel_c {

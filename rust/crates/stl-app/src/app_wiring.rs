@@ -2017,6 +2017,10 @@ impl StlApp {
         if let Some(m) = self.sketch.as_mut() {
             let out = sketch::panel::show(ctx, tk, m, ws, inch);
             set_tool = out.set_tool;
+            if out.look_at {
+                let f = m.s.frame;
+                self.viewport.look_at_plane(&f, None);
+            }
             finish = out.finish;
             cancel = out.cancel;
             fx.extend(out.effects);

@@ -852,3 +852,45 @@ fn unchanged_frames_do_not_rebuild_outlines_or_glyphs() {
     let _ = glyphs::spots(&m.s);
     assert_eq!((m.outlines.builds(), glyphs::spot_builds()), (2, 2), "a changed shape rebuilds both");
 }
+
+/// The sketch panel's Construction tick draws new shapes as construction lines, and Look at turns
+/// the view to face the sketch (Nathan, 2026-11-16).
+#[test]
+fn construction_tick_and_look_at() {
+    use egui_kittest::kittest::Queryable;
+    let rec = Rec::default();
+    let mut h = scene(&rec);
+    h.state_mut().enter_sketch(Some(json!("XY")), None);
+    h.run_steps(3);
+    h.state_mut().viewport.set_view("iso");
+    h.state_mut().viewport.camera_mut().finish_flight();
+    h.run_steps(2);
+    let back = |h: &Harness<'static, StlApp>| h.state().viewport.camera().basis().2;
+    assert!(back(&h)[2] < 0.99, "iso is not face-on: {:?}", back(&h));
+    let press = |h: &mut Harness<'static, StlApp>, p: egui::Pos2| {
+        h.event(egui::Event::PointerMoved(p));
+        h.run_steps(1);
+        for pressed in [true, false] {
+            h.event(egui::Event::PointerButton { pos: p, button: egui::PointerButton::Primary, pressed, modifiers: egui::Modifiers::NONE });
+            h.run_steps(1);
+        }
+    };
+    let at = h.get_by_label("Look at").rect().center();
+    press(&mut h, at);
+    h.state_mut().viewport.camera_mut().finish_flight();
+    h.run_steps(2);
+    assert!(back(&h)[2] > 0.999, "Look at faces the XY sketch: {:?}", back(&h));
+
+    let at = h.get_by_role_and_label(egui::accesskit::Role::CheckBox, "Draw as construction").rect().center();
+    press(&mut h, at);
+    assert!(h.state().sketch_mode().unwrap().panel.construction, "the tick is on");
+    h.state_mut().sketch_set_tool("rect");
+    h.run_steps(1);
+    let r = h.state().viewport.rect();
+    press(&mut h, r.center() - egui::vec2(60.0, 40.0));
+    press(&mut h, r.center() + egui::vec2(20.0, 10.0));
+    h.run_steps(2);
+    let s = h.state().sketch().expect("still sketching");
+    let Some(e) = s.entities.first() else { panic!("a rectangle was placed") };
+    assert!(e.construction(), "drawn as a construction shape: {e:?}");
+}
