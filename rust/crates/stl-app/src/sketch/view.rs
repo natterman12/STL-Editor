@@ -21,10 +21,14 @@ pub const COL_UNDER: u32 = scene::SKETCH_LINE_DARK;
 pub const COL_BAD: u32 = 0xe03131;
 /// The selection blue.
 pub const COL_SEL: u32 = scene::FACE_HL;
-pub const COL_PREV: u32 = 0xe8590c;
+/// The shape being drawn: a green of 2.0's own, apart from the orange plane, grid and part edges
+/// (Nathan, 2026-11-16: orange lines vanished on the orange plane).
+pub const COL_PREV: u32 = 0x2db86a;
 pub const COL_HOVER: u32 = 0x38c99a;
-/// Sketch lines are this many screen points wide.
-pub const LINE_PX: f32 = 2.0;
+/// Sketch lines are this many screen points wide (thin, as SolidCraft's; was 2 with a 4 casing).
+pub const LINE_PX: f32 = 1.5;
+/// The squares at shapes' ends, corners and centres, this many points across.
+pub const POINT_PX: f32 = 4.0;
 
 const TAG_ENTS: &str = "sketch:ents";
 const TAG_PREV: &str = "sketch:prev";
@@ -328,17 +332,9 @@ pub fn redraw(vp: &mut Viewport, m: &SketchMode) {
 /// The tracking guides' colour (a soft blue that reads on both themes).
 pub const GUIDE_COL: u32 = 0x4b8fe0;
 
-/// The casing under the lines: dark under light lines (dark theme), light under dark ones, so a
-/// line reads on a face of any brightness. It is `CASING_PX` wider than the line.
-pub const CASING_PX: f32 = 4.0;
-
-fn casing(dark: bool) -> Color32 {
-    if dark { Color32::from_rgba_unmultiplied(0x0b, 0x0e, 0x12, 0xcc) } else { Color32::from_rgba_unmultiplied(0xff, 0xff, 0xff, 0xcc) }
-}
-
-/// The sketch's lines, `LINE_PX` wide with a casing, painted over the thin overlay lines each
-/// frame (egui strokes have a width; the viewport's overlay lines are one pixel). Construction
-/// shapes are dashed.
+/// The sketch's lines, `LINE_PX` wide, painted over the thin overlay lines each frame (egui strokes
+/// have a width; the viewport's overlay lines are one pixel), with small squares at their ends,
+/// corners and centres. Construction shapes are dashed. The shape being drawn is green.
 pub fn paint(ui: &egui::Ui, vp: &Viewport, m: &SketchMode) {
     let dark = vp.dark();
     let painter = ui.painter().with_clip_rect(vp.rect());
@@ -362,11 +358,34 @@ pub fn paint(ui: &egui::Ui, vp: &Viewport, m: &SketchMode) {
             }
         }
     }
-    // every casing first, so lines that meet are not cut by a neighbour's casing
-    for (p, _) in &solid {
-        painter.add(egui::Shape::line(p.clone(), egui::Stroke::new(LINE_PX + CASING_PX, casing(dark))));
-    }
     for (p, c) in solid {
         painter.add(egui::Shape::line(p, egui::Stroke::new(LINE_PX, c)));
     }
+    for (ents, c) in buckets_of(m).iter().zip(colours) {
+        for &i in ents {
+            let e = &m.s.entities[i];
+            if e.construction() {
+                continue;
+            }
+            for k in shown_point_keys(e) {
+                if let Some(q) = stl_sketch::entities::point(e, &k) {
+                    painter.rect_filled(egui::Rect::from_center_size(sc(q), egui::Vec2::splat(POINT_PX)), 0.0, col(c));
+                }
+            }
+        }
+    }
+    for o in m.preview() {
+        let mut p: Vec<egui::Pos2> = o.pts.iter().map(|q| sc(*q)).collect();
+        if o.closed && !p.is_empty() {
+            p.push(p[0]);
+        }
+        painter.add(egui::Shape::line(p, egui::Stroke::new(LINE_PX, col(COL_PREV))));
+    }
+}
+
+/// The points marked with a square: ends, corners and the centres of round shapes (not a line's
+/// middle or a rectangle's centre).
+fn shown_point_keys(e: &Entity) -> Vec<String> {
+    let round = matches!(e, Entity::Arc(_) | Entity::Circle(_) | Entity::Polygon(_));
+    stl_sketch::entities::point_keys(e).into_iter().filter(|k| k != "m" && (k != "c" || round)).collect()
 }

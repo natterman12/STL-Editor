@@ -426,6 +426,26 @@ fn new_body_box_comes_from_the_worker() {
     assert!(close(pos, [31.15045885313839, -42.831880923065285, 39.20355517481724], 1e-9), "{pos:?}");
 }
 
+/// The origin planes are one square each from the origin into + x/y/z, a quarter of the part's
+/// longest side (at least 10 mm, 25 mm with no part), as SolidCraft draws them (Nathan, 2026-11-16).
+#[test]
+fn origin_planes_scale_to_the_part() {
+    assert_eq!(scene::origin_plane_side(None), 25.0);
+    assert_eq!(scene::origin_plane_side(Some(20.0)), 10.0);
+    assert_eq!(scene::origin_plane_side(Some(101.0)), 25.25);
+    assert_eq!(scene::origin_plane_side(Some(400.0)), 100.0);
+
+    let mut vp = Viewport::new();
+    vp.set_view_size(800.0, 600.0);
+    vp.set_base_planes_visible(true);
+    let base = |vp: &Viewport| vp.shown_planes().into_iter().take(3).map(|(id, f, s)| (id, f[0], s)).collect::<Vec<_>>();
+    assert_eq!(base(&vp), [("XY".to_string(), [12.5, 12.5, 0.0], 25.0), ("XZ".to_string(), [12.5, 0.0, 12.5], 25.0), ("YZ".to_string(), [0.0, 12.5, 12.5], 25.0)]);
+    vp.sync_bodies(&[cube(1)]);
+    vp.flush();
+    // the 20 mm cube: 10 mm squares from the origin
+    assert_eq!(base(&vp)[0], ("XY".to_string(), [5.0, 5.0, 0.0], 10.0));
+}
+
 #[test]
 fn non_solid_body_is_pink() {
     let mut vp = Viewport::new();

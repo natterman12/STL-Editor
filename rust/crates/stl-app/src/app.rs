@@ -131,15 +131,12 @@ pub struct StlApp {
     pub selected_step: Option<String>,
     /// Settings › Display › Tint cuts in previews (`cut_preview_tint`, on by default).
     pub cut_tint_on: bool,
-    /// Settings › Sketch › Cursor coordinates (`sketch_cursor_coords`, on by default).
-    pub cursor_coords_on: bool,
     /// The origin planes' eye state before a plane field showed them (Task 9).
     pub planes_before_tool: Option<bool>,
 }
 
 /// Setting keys of milestone 7.
 pub const CUT_TINT_KEY: &str = "cut_preview_tint";
-pub const CURSOR_COORDS_KEY: &str = "sketch_cursor_coords";
 
 /// A short fingerprint of the history, to tell whether it changed since the last save.
 fn arr_empty(v: Option<&serde_json::Value>) -> bool {
@@ -304,7 +301,6 @@ impl StlApp {
             handoff: Default::default(),
             selected_step: None,
             cut_tint_on: true,
-            cursor_coords_on: true,
             planes_before_tool: None,
         };
         app.load_view_settings();
@@ -316,7 +312,6 @@ impl StlApp {
         let p = &*self.platform;
         self.viewport.orbit_around = crate::viewport::navigation::OrbitAround::from_setting(p.setting(crate::viewport::navigation::OrbitAround::KEY).as_deref());
         self.cut_tint_on = p.setting_json(CUT_TINT_KEY).and_then(|v| v.as_bool()).unwrap_or(true);
-        self.cursor_coords_on = p.setting_json(CURSOR_COORDS_KEY).and_then(|v| v.as_bool()).unwrap_or(true);
     }
 
     /// A sketch picked in the tree: select it and draw it in the selection colour (spec 2.12).
@@ -1372,7 +1367,6 @@ impl StlApp {
                     it("view.grid", tick(s.show_grid, "Show Grid")),
                     it("view.planes", tick(self.viewport.base_planes_visible(), "Show Origin Planes")),
                     it("view.cut_tint", tick(self.cut_tint_on, "Tint Cuts in Previews")),
-                    it("view.cursor_coords", tick(self.cursor_coords_on, "Sketch Cursor Coordinates")),
                     MenuItem::Hdr("Orbit Around".into()),
                     it("nav.view_centre", tick(self.viewport.orbit_around == OrbitAround::ViewCentre, "View Centre")),
                     it("nav.origin", tick(self.viewport.orbit_around == OrbitAround::Origin, "Origin")),
@@ -1475,10 +1469,6 @@ impl StlApp {
                 if !self.cut_tint_on {
                     self.viewport.set_cut_tint(CUT_TINT_ID, None);
                 }
-            }
-            "view.cursor_coords" => {
-                self.cursor_coords_on = !self.cursor_coords_on;
-                self.platform.set_setting_json(CURSOR_COORDS_KEY, serde_json::Value::Bool(self.cursor_coords_on));
             }
             "nav.view_centre" | "nav.origin" | "nav.cursor" => {
                 let o = match id {
@@ -1979,7 +1969,7 @@ impl StlApp {
             }
         }
         // the sketch's value boxes, total size and cursor coordinates, on the drawing (spec 2.3)
-        self.sketch_labels(ctx, tk, ws);
+        self.sketch_labels(ctx, tk);
         // drop overlay while a file is dragged over the window
         if self.shell.dragging_files {
             Area::new(Id::unique("drop-overlay")).order(Order::Foreground).interactable(false).fixed_pos(ws.min).show(ctx, |ui| {
@@ -1997,17 +1987,12 @@ impl StlApp {
 }
 
 impl StlApp {
-    /// Draw the open sketch tool's value boxes at their anchors, the total size and the cursor's
-    /// coordinates next to the cursor.
-    fn sketch_labels(&self, ctx: &egui::Context, tk: &Tokens, ws: Rect) {
+    /// Draw the open sketch tool's value boxes at their anchors, each on one line with its unit, as
+    /// wide as its text (Nathan, 2026-11-16: they wrapped, and the cursor's X, Y box went).
+    fn sketch_labels(&self, ctx: &egui::Context, tk: &Tokens) {
         let Some(m) = self.sketch.as_ref() else { return };
         let f = &m.s.frame;
         let to_world = |p: [f64; 2]| [0, 1, 2].map(|i| f.origin[i] + f.x[i] * p[0] + f.y[i] * p[1]);
-        let small = |ui: &mut egui::Ui, text: &str, strong: bool| {
-            Frame::new().fill(tk.float).stroke(Stroke::new(1.0, if strong { tk.accent } else { tk.line })).corner_radius(CornerRadius::same(4)).inner_margin(Margin::symmetric(5, 2)).show(ui, |ui| {
-                ui.label(RichText::new(text).size(11.0).color(tk.text));
-            });
-        };
         // a value box: the accent stroke when typing goes into it, bold accent text when a typed value holds it
         let dim_box = |ui: &mut egui::Ui, text: &str, focused: bool, locked: bool| {
             let mut label = RichText::new(text).size(11.0).color(if locked { tk.accent } else { tk.text });
@@ -2020,14 +2005,14 @@ impl StlApp {
                 .corner_radius(CornerRadius::same(4))
                 .inner_margin(Margin::symmetric(5, 2))
                 .show(ui, |ui| {
-                    ui.label(label);
+                    ui.add(egui::Label::new(label).extend());
                 });
         };
         if let Some(t) = m.tool.as_ref() {
             for (i, b) in t.dim_boxes().iter().enumerate() {
                 // each box sits on its edge's anchor, centred there (spec 2.3)
                 let at = self.viewport.world_to_screen(to_world(b.anchor));
-                let text = format!("{} {}", b.label, b.value);
+                let text = crate::sketch::inline_dims::box_text(b.label, &b.value, self.shell.inch);
                 Area::new(Id::unique(("sk-dim", i)))
                     .order(Order::Middle)
                     .interactable(false)
@@ -2036,23 +2021,7 @@ impl StlApp {
                     .show(ctx, |ui| dim_box(ui, &text, b.focused, b.locked));
             }
         }
-        let hover = ctx.input(|i| i.pointer.hover_pos()).filter(|p| self.viewport.rect().contains(*p) && ws.contains(*p));
-        let Some(pos) = hover else { return };
-        let mut lines = Vec::new();
-        if let Some(total) = m.tool.as_ref().and_then(|t| t.total_label()) {
-            lines.push(total);
-        }
-        if self.cursor_coords_on {
-            if let Some(w) = self.viewport.ray_to_plane(pos, f) {
-                let d = [0, 1, 2].map(|i| w[i] - f.origin[i]);
-                let p = [d[0] * f.x[0] + d[1] * f.x[1] + d[2] * f.x[2], d[0] * f.y[0] + d[1] * f.y[1] + d[2] * f.y[2]];
-                lines.push(crate::sketch::inline_dims::cursor_label(p, self.shell.inch));
-            }
-        }
-        if !lines.is_empty() {
-            Area::new(Id::unique("sk-cursor")).order(Order::Middle).interactable(false).fixed_pos(pos + Vec2::new(16.0, -30.0)).show(ctx, |ui| small(ui, &lines.join("
-"), false));
-        }
+        // nothing follows the pointer: the boxes on the edges show every size (as SolidCraft)
     }
 }
 

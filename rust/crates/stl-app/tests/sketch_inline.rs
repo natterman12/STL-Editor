@@ -19,7 +19,7 @@ use stl_app::engine_link::{BodyView, Command, EngineLink, TimelineItem, Timeline
 use stl_app::platform::NullPlatform;
 use stl_app::sketch::glyphs;
 use stl_app::sketch::guides;
-use stl_app::sketch::inline_dims::{cursor_label, DimBox};
+use stl_app::sketch::inline_dims::{box_text, DimBox};
 use stl_app::sketch::snap::{self, SnapKind};
 use stl_app::sketch::{draw, keys, Constraint, Entity, Ref, SketchEffect, SketchInput, SketchSession, SketchTool, ToolCx};
 use stl_app::ui::ThemePref;
@@ -239,12 +239,15 @@ fn expression_value() {
     assert_eq!(c.extra.get("expr").and_then(Value::as_str), Some("=width/2"), "the dimension keeps the expression");
 }
 
+/// The value boxes say their unit (Nathan, 2026-11-16); the cursor's X, Y is no longer shown.
 #[test]
-fn coordinates_follow_cursor_mm_and_inch() {
-    assert_eq!(cursor_label([12.5, 3.0], false), "12.5, 3");
-    assert_eq!(cursor_label([-4.0, 0.25], false), "-4, 0.25");
-    assert_eq!(cursor_label([25.4, 12.7], true), "1, 0.5");
-    assert_eq!(cursor_label([0.0, 50.8], true), "0, 2");
+fn value_boxes_show_their_unit() {
+    assert_eq!(box_text("Width", "18", false), "Width 18 mm");
+    assert_eq!(box_text("Width", "0.75", true), "Width 0.75 in");
+    assert_eq!(box_text("Angle", "30", false), "Angle 30°");
+    assert_eq!(box_text("Sides", "6", false), "Sides 6");
+    assert_eq!(box_text("Length", "=width/2", false), "Length =width/2");
+    assert_eq!(box_text("Length", "", false), "Length ");
 }
 
 // ------------------------------------------------------------------ guides and grid

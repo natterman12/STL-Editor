@@ -290,6 +290,8 @@ pub struct Viewport {
     base_visible: bool,
     extent: f64,
     origin_s: f64,
+    /// The origin planes' side ([`scene::origin_plane_side`]).
+    base_side: f64,
     built_once: bool,
     planes: Vec<PlaneView>,
     sketches: Vec<SketchView>,
@@ -402,6 +404,7 @@ impl Default for Viewport {
             base_visible: false,
             extent: 100.0,
             origin_s: scene::origin_size(100.0),
+            base_side: scene::origin_plane_side(None),
             built_once: false,
             planes: Vec::new(),
             sketches: Vec::new(),
@@ -726,9 +729,9 @@ impl Viewport {
         if changed {
             // A new box can move the grid, the origin and the plane sizes. A revision that only
             // moved to "shown" changes nothing drawn: its upload already cleared the last render.
-            let before = (self.extent, self.origin_s);
+            let before = (self.extent, self.origin_s, self.base_side);
             self.update_extent();
-            if before != (self.extent, self.origin_s) {
+            if before != (self.extent, self.origin_s, self.base_side) {
                 self.overlays_changed();
             }
         }
@@ -825,6 +828,10 @@ impl Viewport {
             }
         }
         let size = if camera::box_is_empty(&b) { 100.0 } else { camera::box_diagonal(&b) };
+        let longest = (!camera::box_is_empty(&b)).then(|| (0..3).map(|i| b.max[i] - b.min[i]).fold(0.0, f64::max));
+        if !(camera::box_is_empty(&b) && self.boxes_pending()) {
+            self.base_side = scene::origin_plane_side(longest);
+        }
         let ext = size.max(20.0);
         // Don't size the grid from the empty-scene stand-in while a box is still on its way.
         let placeholder = camera::box_is_empty(&b) && self.boxes_pending();
@@ -904,12 +911,13 @@ impl Viewport {
         self.overlays_changed();
     }
 
-    /// The planes that can be picked: (id, frame, size), the base planes first when shown.
+    /// The planes that can be picked: (id, frame, size), the base planes first when shown. A base
+    /// plane's frame here is its drawn square's centre ([`scene::origin_plane_quad`]).
     pub fn shown_planes(&self) -> Vec<(String, Frame, f64)> {
         let mut out = Vec::new();
         if self.base_visible {
             for (name, f, _) in scene::BASE_FRAMES {
-                out.push((name.to_owned(), f, self.origin_s * 0.3));
+                out.push((name.to_owned(), scene::origin_plane_quad(&f, self.base_side), self.base_side));
             }
         }
         for p in self.planes.iter().filter(|p| p.visible) {
@@ -1501,7 +1509,7 @@ impl Viewport {
         }
         if self.base_visible {
             for (_, f, c) in scene::BASE_FRAMES {
-                let (t, l) = scene::plane_mesh(&f, s * 0.3, c, 0.13);
+                let (t, l) = scene::plane_mesh(&scene::origin_plane_quad(&f, self.base_side), self.base_side, c, 0.13);
                 items.push((2, Depth::Test, t, l));
             }
         }

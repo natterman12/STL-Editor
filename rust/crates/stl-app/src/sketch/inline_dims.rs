@@ -80,7 +80,7 @@ impl DrawTool {
         }
         self.rows.iter().position(|r| {
             let at = vp.world_to_screen(s.to_3(r.anchor));
-            let chars = format!("{} {}", r.label, self.shown(r)).chars().count() as f32;
+            let chars = box_text(r.label, &self.shown(r), false).chars().count() as f32;
             // text (about 6 points a character) + the frame's margin, with a little slack
             let half = egui::vec2((chars * 6.0 + 14.0) / 2.0 + 2.0, 12.0);
             (pos.x - at.x).abs() <= half.x && (pos.y - at.y).abs() <= half.y
@@ -108,9 +108,22 @@ impl DrawTool {
     }
 }
 
-/// The cursor's position on the sketch plane, shown next to the cursor (Settings › Sketch).
-pub fn cursor_label(p: P2, inch: bool) -> String {
-    format!("{}, {}", typed::fmt_len(p[0], inch), typed::fmt_len(p[1], inch))
+/// A value box's text on one line, with its unit: "Width 18 mm" ("in" in inch mode), "Angle 30°",
+/// "Sides 6". A typed parameter expression ("=width/2") and an empty box show no unit.
+pub fn box_text(label: &str, value: &str, inch: bool) -> String {
+    let v = value.trim();
+    let unit = match label {
+        _ if v.is_empty() || v.starts_with('=') => "",
+        "Angle" => "°",
+        "Sides" => "",
+        _ if inch => " in",
+        _ => " mm",
+    };
+    if unit.is_empty() || v.ends_with(unit.trim()) {
+        format!("{label} {v}")
+    } else {
+        format!("{label} {v}{unit}")
+    }
 }
 
 /// A typed value that was a parameter expression keeps it on its dimension ("=width/2"), so a

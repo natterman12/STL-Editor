@@ -358,6 +358,23 @@ pub const BASE_FRAMES: [(&str, Frame, u32); 3] = [
     ("YZ", [[0.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0]], BASE_YZ),
 ];
 
+/// The origin planes' side in mm: a quarter of the parts' longest side, at least 10 mm; 25 mm with
+/// no part (Nathan, 2026-11-16: "scale to the size of the part", as SolidCraft does).
+pub fn origin_plane_side(longest: Option<f64>) -> f64 {
+    match longest {
+        Some(l) if l.is_finite() && l > 0.0 => (l / 4.0).max(10.0),
+        _ => 25.0,
+    }
+}
+
+/// An origin plane drawn as one square from the origin into its + directions: the frame moved by
+/// half the side along its x and y, so [`plane_mesh`] (which centres the square) covers 0..side.
+pub fn origin_plane_quad(frame: &Frame, side: f64) -> Frame {
+    let [o, x, y, n] = *frame;
+    let h = side / 2.0;
+    [camera::add(o, camera::add(camera::scale(x, h), camera::scale(y, h))), x, y, n]
+}
+
 /// `_planeMesh`: a `size` square on the frame (fill at `fill_alpha`, border at 0.7), as
 /// (triangles, border lines).
 pub fn plane_mesh(frame: &Frame, size: f64, color: u32, fill_alpha: f32) -> (Vec<FlatVertex>, Vec<FlatVertex>) {

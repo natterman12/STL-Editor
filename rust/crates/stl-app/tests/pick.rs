@@ -228,12 +228,17 @@ fn pick_empty_scene() {
 
     vp.sync_planes(&[]);
     vp.set_base_planes_visible(true);
-    match vp.pick(center, true, true) {
+    // the origin planes are squares from the origin into + (25 mm with no part)
+    let inside = vp.camera().world_to_view([24.0, 24.0, 0.0]); // past the XZ square in front of it
+    let inside = egui::pos2(inside[0] as f32, inside[1] as f32);
+    match vp.pick(inside, true, true) {
         Some(Hit::Plane { id, .. }) => assert_eq!(id, "XY"),
         other => panic!("expected the XY base plane, got {other:?}"),
     }
+    let behind = vp.camera().world_to_view([-12.5, -12.5, 0.0]);
+    assert!(vp.pick(egui::pos2(behind[0] as f32, behind[1] as f32), true, true).is_none(), "nothing on the - side");
     vp.set_base_planes_visible(false);
-    assert!(vp.pick(center, true, true).is_none());
+    assert!(vp.pick(inside, true, true).is_none());
 }
 
 #[test]
