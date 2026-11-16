@@ -819,7 +819,9 @@ mod snapshots {
         assert!(if dark { lum < 90 } else { lum > 170 }, "{name}: background pixel {:?} is not {}", [r, g, b], if dark { "dark" } else { "light" });
         let without = picture(&gpu, None, dark, |vp| vp.set_base_planes_visible(false));
         let n = changed(&img, &without);
-        assert!(n >= 500, "{name}: the base planes change only {n} pixels");
+        // the planes are a quarter of the part's longest side now (Nathan, 2026-11-16), so they
+        // cover far less of the picture than the old centred squares did
+        assert!(n >= 100, "{name}: the base planes change only {n} pixels");
     }
 
     #[test]

@@ -512,3 +512,13 @@ Nathan answered these on 2026-11-14: accepted unless marked otherwise.
 - **Accepted by Nathan (2026-11-15): clicks in the tree and timeline register while the engine is busy** (spec 2.12). The busy
   screen no longer blocks them; its Cancel button still works. A click on a sketch row or a
   timeline step selects it; a double-click on a sketch row opens it and also selects it (accepted by Nathan 2026-11-16).
+- **Asked for by Nathan (2026-11-16): sketching looks and works like SolidCraft's** (design
+  `dev/specs/2026-11-16-stl-editor-2-sketch-look-design.md`). Origin planes are one square from the origin in the +
+  directions, a quarter of the part's longest side (at least 10 mm, 25 mm with no part), not 1.x's centred squares
+  (`viewport_cube_*` snapshots, the `pick_empty_scene` click point). No X,Y box next to the pointer and no View menu item for it
+  (`shell_view_menu_*`). Value boxes are one line with the unit. Finished sketch lines are 1.5 px on a 3 px casing (were 2 on
+  4), with small squares at their points; the shape being drawn is green (`sketch_inline_*`). Snaps show a marker and a
+  label, and a line can snap tangent to a circle or arc. The Rectangle button's icon starts the plain rectangle; its label row
+  opens the list. The sketch panel has tool options, Show and Snapping switches, and a folded "More". Feature panels put the
+  main rows first and fold rarely used fields (start offset, taper, clearance, resolution, thread tolerance...) under "More
+  options"; the fields and what they send are unchanged.

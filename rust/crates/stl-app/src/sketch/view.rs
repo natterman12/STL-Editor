@@ -332,7 +332,16 @@ pub fn redraw(vp: &mut Viewport, m: &SketchMode) {
 /// The tracking guides' colour (a soft blue that reads on both themes).
 pub const GUIDE_COL: u32 = 0x4b8fe0;
 
-/// The sketch's lines, `LINE_PX` wide, painted over the thin overlay lines each frame (egui strokes
+/// A thin casing under the lines: dark under light lines (dark theme), light under dark ones, so a
+/// thin line still reads on a part face of any brightness (the dark theme's light lines on a light
+/// face are 1.16:1 without it). It is `CASING_PX` wider than the line (was 4 under a 2 px line).
+pub const CASING_PX: f32 = 3.0;
+
+fn casing(dark: bool) -> Color32 {
+    if dark { Color32::from_rgba_unmultiplied(0x0b, 0x0e, 0x12, 0xb0) } else { Color32::from_rgba_unmultiplied(0xff, 0xff, 0xff, 0xb0) }
+}
+
+/// The sketch's lines, `LINE_PX` wide on a thin casing, painted over the thin overlay lines each frame (egui strokes
 /// have a width; the viewport's overlay lines are one pixel), with small squares at their ends,
 /// corners and centres. Construction shapes are dashed. The shape being drawn is green.
 pub fn paint(ui: &egui::Ui, vp: &Viewport, m: &SketchMode) {
@@ -357,6 +366,10 @@ pub fn paint(ui: &egui::Ui, vp: &Viewport, m: &SketchMode) {
                 solid.push((p, col(c)));
             }
         }
+    }
+    // every casing first, so lines that meet are not cut by a neighbour's casing
+    for (p, _) in &solid {
+        painter.add(egui::Shape::line(p.clone(), egui::Stroke::new(LINE_PX + CASING_PX, casing(dark))));
     }
     for (p, c) in solid {
         painter.add(egui::Shape::line(p, egui::Stroke::new(LINE_PX, c)));
