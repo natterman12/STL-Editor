@@ -39,10 +39,12 @@ const TAG_ENTS: &str = "sketch:ents";
 const TAG_PREV: &str = "sketch:prev";
 const TAG_GUIDE: &str = "sketch:guides";
 
-/// The closed-profile fill: peach, faint (the plane's own alpha). The same in light and dark, and
-/// for selected, under-defined, conflicting and hovered shapes (only the strokes change).
-const COL_FILL: u32 = 0xf6c7a8;
-const FILL_ALPHA: f32 = scene::PLANE_SKETCH_ALPHA;
+/// The closed-profile fill: SolidCraft's dark-theme profile fill, blue (120,150,200) at alpha 40
+/// (Nathan, 2026-11-16: "make it blue like solidcraft", replacing the peach). The same in light
+/// and dark, and for selected, under-defined, conflicting and hovered shapes (only the strokes
+/// change).
+const COL_FILL: u32 = 0x7896c8;
+const FILL_ALPHA: f32 = 40.0 / 255.0;
 
 fn col(c: u32) -> Color32 {
     Color32::from_rgb((c >> 16) as u8, (c >> 8) as u8, c as u8)

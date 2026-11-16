@@ -529,5 +529,6 @@ Nathan answered these on 2026-11-14: accepted unless marked otherwise.
   are faint on light faces, so the 3:1 readability check covers the light theme only. Dark-theme sketch colours are
   SolidCraft's (Nathan, "stronger blue"): free lines blue 0x5c96ff, fully defined near-white 0xe8eaee, selected amber
   0xffc94a (the selection blue would look like a free line). While a sketch is open the bed grid is hidden and only the sketch
-  plane's grid shows (Nathan: two grids at once were distracting). The Recover screen has "Discard
+  plane's grid shows (Nathan: two grids at once were distracting). Closed shapes are filled blue, SolidCraft's dark profile
+  fill 0x7896c8 at alpha 40, in both themes, not 1.x's peach 0xf6c7a8 (Nathan: "make it blue like solidcraft"). The Recover screen has "Discard
   all", which asks once before deleting every copy.
