@@ -7,12 +7,19 @@ use std::time::Instant;
 use serde_json::json;
 use stl_app::engine_link::Command;
 
-use super::harness::{empty_harness, select_first_body, settle, wait_support_open};
+use super::harness::{empty_harness, import_stl, select_first_body, settle, wait_support_open};
 
 #[test]
 #[ignore]
 fn fins_perf_many_fins() {
     let (mut h, link) = empty_harness();
+    // FINS_PERF_STL=<path>: time a real part instead of the built one
+    if let Ok(path) = std::env::var("FINS_PERF_STL") {
+        let t = Instant::now();
+        import_stl(&mut h, &link, std::path::Path::new(&path));
+        eprintln!("import: {:?}, triangles {}", t.elapsed(), h.state().bodies.first().map(|b| b.mesh.triangles.len() / 3).unwrap_or(0));
+        return time_fins(h, link);
+    }
     // a mushroom: a post holding up a wide plate, so the plate's whole underside wants fins
     h.state_mut().link.send(Command::AddFeature {
         kind: "primitive".into(),
@@ -50,6 +57,10 @@ fn fins_perf_many_fins() {
     });
     settle(&mut h, &link);
     eprintln!("bodies before: {}", h.state().bodies.len());
+    time_fins(h, link);
+}
+
+fn time_fins(mut h: egui_kittest::Harness<'static, stl_app::app::StlApp>, link: std::sync::Arc<stl_app::engine_link::native::NativeLink>) {
     select_first_body(&mut h);
     let t = Instant::now();
     wait_support_open(&mut h, &link, "supportfins");
