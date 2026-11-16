@@ -32,8 +32,8 @@ pub struct OverlayItem {
     pub dots: Vec<(V3, u32)>,
 }
 
-/// A clicked point's dot, this many screen points across.
-pub const DOT_PX: f32 = 7.0;
+/// A clicked point's dot, this many real screen pixels across (plus its 1.5 px ring).
+pub const DOT_PX: f32 = 8.0;
 
 impl OverlayItem {
     fn new(tag: &str, order: i32, depth: Depth) -> Self {

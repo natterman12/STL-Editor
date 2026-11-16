@@ -25,11 +25,15 @@ pub const COL_SEL: u32 = scene::FACE_HL;
 /// (Nathan, 2026-11-16: orange lines vanished on the orange plane).
 pub const COL_PREV: u32 = 0x2db86a;
 pub const COL_HOVER: u32 = 0x38c99a;
-/// Sketch lines are this many screen points wide (thin, as SolidCraft's; was 2 with a 4 casing,
-/// then 1.5 on 3, still too thick for Nathan, 2026-11-16).
-pub const LINE_PX: f32 = 1.0;
-/// The squares at shapes' ends, corners and centres, this many points across.
-pub const POINT_PX: f32 = 4.0;
+/// Sketch lines are this many real screen pixels wide, whatever the Windows scaling, as in
+/// SolidCraft (its viewport draws sketch curves 2.0 px and construction 1.2 px, in screen pixels;
+/// Nathan, 2026-11-16: "do the same as it's done there"). Points were tried first (2, 1.5, 1),
+/// but at 250% scaling one point is 2.5 pixels.
+pub const LINE_PX: f32 = 2.0;
+/// Construction lines, dashed (SolidCraft's 1.2 px).
+pub const CONSTRUCTION_PX: f32 = 1.2;
+/// The squares at shapes' ends, corners and centres, this many real pixels across (SolidCraft's: 7).
+pub const POINT_PX: f32 = 7.0;
 
 const TAG_ENTS: &str = "sketch:ents";
 const TAG_PREV: &str = "sketch:prev";
@@ -333,21 +337,16 @@ pub fn redraw(vp: &mut Viewport, m: &SketchMode) {
 /// The tracking guides' colour (a soft blue that reads on both themes).
 pub const GUIDE_COL: u32 = 0x4b8fe0;
 
-/// A thin dark casing under the dark theme's light lines, so a thin line still reads on a light
-/// part face (the light theme's dark lines need none; a white one only made them look thicker) (the dark theme's light lines on a light
-/// face are 1.16:1 without it). It is `CASING_PX` wider than the line (was 4 under a 2 px line, then 3 under 1.5).
-pub const CASING_PX: f32 = 1.5;
-
-fn casing(dark: bool) -> Color32 {
-    if dark { Color32::from_rgba_unmultiplied(0x0b, 0x0e, 0x12, 0xb0) } else { Color32::from_rgba_unmultiplied(0xff, 0xff, 0xff, 0xb0) }
-}
-
-/// The sketch's lines, `LINE_PX` wide on a thin casing, painted over the thin overlay lines each frame (egui strokes
+/// The sketch's lines, `LINE_PX` real pixels wide with no casing (as SolidCraft draws the open
+/// sketch), painted over the thin overlay lines each frame (egui strokes
 /// have a width; the viewport's overlay lines are one pixel), with small squares at their ends,
 /// corners and centres. Construction shapes are dashed. The shape being drawn is green.
 pub fn paint(ui: &egui::Ui, vp: &Viewport, m: &SketchMode) {
     let dark = vp.dark();
     let painter = ui.painter().with_clip_rect(vp.rect());
+    // sizes are in real pixels: one point is `ppp` pixels
+    let px = 1.0 / ui.ctx().pixels_per_point();
+    let (line_w, cons_w, point_w) = (LINE_PX * px, CONSTRUCTION_PX * px, POINT_PX * px);
     let f = m.s.frame;
     let sc = |p: [f64; 2]| vp.world_to_screen([0, 1, 2].map(|i| f.origin[i] + f.x[i] * p[0] + f.y[i] * p[1]));
     let colours = bucket_colours(dark);
@@ -362,18 +361,14 @@ pub fn paint(ui: &egui::Ui, vp: &Viewport, m: &SketchMode) {
             }
             if o.construction {
                 let cc = if c == colours[2] || c == colours[3] { scene::SKETCH_CONSTRUCTION } else { c };
-                painter.extend(egui::Shape::dashed_line(&p, egui::Stroke::new(LINE_PX * 0.75, col(cc)), 5.0, 3.5));
+                painter.extend(egui::Shape::dashed_line(&p, egui::Stroke::new(cons_w, col(cc)), 5.0, 3.5));
             } else {
                 solid.push((p, col(c)));
             }
         }
     }
-    // every casing first, so lines that meet are not cut by a neighbour's casing
-    for (p, _) in solid.iter().filter(|_| dark) {
-        painter.add(egui::Shape::line(p.clone(), egui::Stroke::new(LINE_PX + CASING_PX, casing(dark))));
-    }
     for (p, c) in solid {
-        painter.add(egui::Shape::line(p, egui::Stroke::new(LINE_PX, c)));
+        painter.add(egui::Shape::line(p, egui::Stroke::new(line_w, c)));
     }
     for (ents, c) in buckets_of(m).iter().zip(colours).filter(|_| !m.panel.hide_points) {
         for &i in ents {
@@ -383,7 +378,7 @@ pub fn paint(ui: &egui::Ui, vp: &Viewport, m: &SketchMode) {
             }
             for k in shown_point_keys(e) {
                 if let Some(q) = stl_sketch::entities::point(e, &k) {
-                    painter.rect_filled(egui::Rect::from_center_size(sc(q), egui::Vec2::splat(POINT_PX)), 0.0, col(c));
+                    painter.rect_filled(egui::Rect::from_center_size(sc(q), egui::Vec2::splat(point_w)), 0.0, col(c));
                 }
             }
         }
@@ -393,7 +388,7 @@ pub fn paint(ui: &egui::Ui, vp: &Viewport, m: &SketchMode) {
         if o.closed && !p.is_empty() {
             p.push(p[0]);
         }
-        painter.add(egui::Shape::line(p, egui::Stroke::new(LINE_PX, col(COL_PREV))));
+        painter.add(egui::Shape::line(p, egui::Stroke::new(line_w, col(COL_PREV))));
     }
     if let Some((uv, what)) = m.tool.as_ref().and_then(|t| t.snap_marker()) {
         paint_snap(&painter, sc(uv), what, dark);

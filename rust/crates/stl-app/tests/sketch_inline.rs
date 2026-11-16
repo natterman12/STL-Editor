@@ -808,11 +808,10 @@ mod shots {
             let (ex, ey) = (edge.x.round() as u32, edge.y.round() as u32);
             let cx = (ex - 5..=ex + 5).min_by_key(|&x| dist(at(x, ey))).unwrap();
             let line = at(cx, ey);
-            // a 1 px line off the pixel grid is blended with its casing, so allow more
+            // a thin line off the pixel grid is blended with what is under it, so allow more
             assert!(dist(line) < 160, "{name}: no line at the rectangle's edge: {line:?} vs {want:?}");
-            // what the line is seen against: the surface right beside it (the casing), and the
-            // face and fill a few points away (the median of a patch, off the axes and grid lines)
-            // (one pixel out: the casing is 0.75 px each side of a 1 px line)
+            // what the line is seen against: the surface right beside it, and the face and fill a
+            // few points away (the median of a patch, off the axes and grid lines)
             let beside = [at(cx - 1, ey), at(cx + 1, ey)];
             let ratio = beside.iter().map(|b| contrast(line, *b)).fold(f64::MAX, f64::min);
             let (px, py) = (centre.x.round() as u32 + 18, centre.y.round() as u32 + 9);
@@ -820,14 +819,12 @@ mod shots {
             patch.sort_by_key(|p| p[0] as u32 + p[1] as u32 + p[2] as u32);
             let fill = patch[patch.len() / 2];
             let raw = contrast(line, fill);
-            eprintln!("{name}: line {line:?}, beside it {beside:?} ({ratio:.2}:1), fill {fill:?} ({raw:.2}:1 without the casing)");
-            // Light theme: dark lines stand out against the plain face and fill by themselves (no
-            // casing). Dark theme: the 1 px light line sits on a light face (1.16:1 alone), so what
-            // reads is its thin dark casing against the fill, or the line against the casing.
-            if dark {
-                let casing = beside.iter().map(|b| contrast(*b, fill)).fold(f64::MAX, f64::min);
-                assert!(ratio.max(casing) >= 3.0, "{name}: the line reads at only {ratio:.2}:1 on its casing and {casing:.2}:1 for the casing on the fill");
-            } else {
+            eprintln!("{name}: line {line:?}, beside it {beside:?} ({ratio:.2}:1), fill {fill:?} ({raw:.2}:1)");
+            // Light theme: dark lines stand out against the plain face and fill by themselves.
+            // Dark theme: lines are drawn as SolidCraft draws the open sketch, 2 px with no casing
+            // (Nathan, 2026-11-16), so the pale fully-defined colour on a light face reads poorly
+            // (about 1.2:1); that is accepted, and only the light theme is held to 3:1.
+            if !dark {
                 assert!(raw >= 3.0, "{name}: the line differs from the plain fill by only {raw:.2}:1");
             }
         }

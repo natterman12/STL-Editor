@@ -523,6 +523,8 @@ Nathan answered these on 2026-11-14: accepted unless marked otherwise.
   main rows first and fold rarely used fields (start offset, taper, clearance, resolution, thread tolerance...) under "More
   options"; the fields and what they send are unchanged.
 - **Asked for by Nathan (2026-11-16): clicked points (Hole, Thread, Measure and other picks) are small dots of a fixed size on
-  screen** (7 px with a thin ring), not 1.x's spheres `max(extent * 0.006, 0.3)` across, which covered the point when zoomed in.
-  Sketch lines are 1 px, with a thin dark casing in the dark theme only (`sketch_inline_*`). The Recover screen has "Discard
+  screen** (8 real pixels with a thin ring), not 1.x's spheres `max(extent * 0.006, 0.3)` across, which covered the point when
+  zoomed in. Sketch lines are drawn as SolidCraft draws them (Nathan, 2026-11-16): widths in real screen pixels, 2 px for lines
+  and 1.2 px for construction lines, no casing (`sketch_inline_*`); sketch points are 7 px squares. The dark theme's pale lines
+  are faint on light faces, so the 3:1 readability check covers the light theme only. The Recover screen has "Discard
   all", which asks once before deleting every copy.
