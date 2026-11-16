@@ -414,8 +414,9 @@ pub fn sketch_plane_grid(frame: &Frame, scene_diagonal: Option<f64>, step: f64) 
     let count = (2.0 * half / step).round() as i32;
     let mut lines = Vec::new();
     let mut major = Vec::new();
-    let minor_c = rgba(0xc58a68, 0.16);
-    let major_c = rgba(0xc58a68, 0.32);
+    // grey-blue, the sketch fill's blue (Nathan, 2026-11-16: grid blue too, not orange)
+    let minor_c = rgba(0x7896c8, 0.16);
+    let major_c = rgba(0x7896c8, 0.32);
     for i in 0..=count {
         let v = -half + i as f64 * step;
         let dest_major = (v / step).round() as i32 % 5 == 0;
@@ -433,7 +434,7 @@ pub fn sketch_plane_grid(frame: &Frame, scene_diagonal: Option<f64>, step: f64) 
     axes.push(FlatVertex::new(at(half, 0.0), red));
     axes.push(FlatVertex::new(at(0.0, -half), green));
     axes.push(FlatVertex::new(at(0.0, half), green));
-    let sheet_c = rgba(0xfff1e8, 0.18);
+    let sheet_c = rgba(0xe8eef8, 0.18);
     let q = [at(-half, -half), at(half, -half), at(half, half), at(-half, half)];
     let sheet = [0, 1, 2, 0, 2, 3].into_iter().map(|i| FlatVertex::new(q[i], sheet_c)).collect();
     (sheet, lines, axes)

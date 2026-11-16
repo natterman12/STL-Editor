@@ -530,5 +530,6 @@ Nathan answered these on 2026-11-14: accepted unless marked otherwise.
   SolidCraft's (Nathan, "stronger blue"): free lines blue 0x5c96ff, fully defined near-white 0xe8eaee, selected amber
   0xffc94a (the selection blue would look like a free line). While a sketch is open the bed grid is hidden and only the sketch
   plane's grid shows (Nathan: two grids at once were distracting). Closed shapes are filled blue, SolidCraft's dark profile
-  fill 0x7896c8 at alpha 40, in both themes, not 1.x's peach 0xf6c7a8 (Nathan: "make it blue like solidcraft"). The Recover screen has "Discard
+  fill 0x7896c8 at alpha 40, in both themes, not 1.x's peach 0xf6c7a8 (Nathan: "make it blue like solidcraft"). The sketch plane's grid is the same
+  grey-blue (0x7896c8 at 0.16 / 0.32) on a cool sheet 0xe8eef8, not 1.x's rust 0xc58a68 on 0xfff1e8. The Recover screen has "Discard
   all", which asks once before deleting every copy.

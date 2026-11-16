@@ -119,10 +119,10 @@ fn sketch_plane_grid_matches_sketcher() {
     assert!(close([axes[0].pos[0] as f64, axes[0].pos[1] as f64, axes[0].pos[2] as f64], [-100.0, 0.0, 0.0], 1e-6));
     assert_eq!(axes[0].c0, [0xe2, 0x55, 0x55, 255]);
     assert_eq!(axes[2].c0, [0x22, 0xa3, 0x5a, 255]);
-    // sheet 0xfff1e8 at 0.18 → alpha 46
-    assert_eq!(sheet[0].c0, [0xff, 0xf1, 0xe8, 46]);
-    // a major station (v = 0) is the stronger rust colour
-    assert!(lines.iter().any(|v| v.c0[3] == (0.32_f32 * 255.0).round() as u8 && v.c0[0] == 0xc5));
+    // sheet 0xe8eef8 at 0.18 → alpha 46
+    assert_eq!(sheet[0].c0, [0xe8, 0xee, 0xf8, 46]);
+    // a major station (v = 0) is the stronger grey-blue
+    assert!(lines.iter().any(|v| v.c0[3] == (0.32_f32 * 255.0).round() as u8 && v.c0[0] == 0x78 && v.c0[2] == 0xc8));
     vp.set_sketch_plane_grid(None, 1.0);
     assert!(!vp.sketch_plane_grid_visible());
     assert!(vp.bed_grid_drawn());
