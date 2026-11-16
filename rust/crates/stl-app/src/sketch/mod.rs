@@ -259,6 +259,10 @@ pub trait SketchTool {
     fn guides(&self) -> Vec<guides::Guide> {
         Vec::new()
     }
+    /// Where the pointer snapped to a point, and what kind (drawn as a marker with a label).
+    fn snap_marker(&self) -> Option<([f64; 2], snap::SnapWhat)> {
+        None
+    }
     /// A value box is being typed into: text keys (digits, `=`, letters of a parameter name) go
     /// to the box, not to the tool shortcuts.
     fn typing(&self) -> bool {

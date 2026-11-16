@@ -381,6 +381,49 @@ pub fn paint(ui: &egui::Ui, vp: &Viewport, m: &SketchMode) {
         }
         painter.add(egui::Shape::line(p, egui::Stroke::new(LINE_PX, col(COL_PREV))));
     }
+    if let Some((uv, what)) = m.tool.as_ref().and_then(|t| t.snap_marker()) {
+        paint_snap(&painter, sc(uv), what, dark);
+    }
+}
+
+/// The snap marker's colour (the guides' blue) and size in points.
+pub const SNAP_COL: u32 = GUIDE_COL;
+const SNAP_PX: f32 = 9.0;
+
+/// The marker where the pointer snapped, its shape telling the kind (square: endpoint, triangle:
+/// midpoint, circle: centre, diamond: quadrant, circle and line: tangent, a cross: origin or
+/// point), with its name next to it.
+fn paint_snap(painter: &egui::Painter, at: egui::Pos2, what: super::snap::SnapWhat, dark: bool) {
+    use super::snap::SnapWhat as W;
+    let c = col(SNAP_COL);
+    let st = egui::Stroke::new(1.5, c);
+    let h = SNAP_PX / 2.0;
+    match what {
+        W::Endpoint => {
+            painter.rect_stroke(egui::Rect::from_center_size(at, egui::Vec2::splat(SNAP_PX)), 0.0, st, egui::StrokeKind::Middle);
+        }
+        W::Midpoint => {
+            let p = vec![at + egui::vec2(0.0, -h), at + egui::vec2(h, h * 0.8), at + egui::vec2(-h, h * 0.8)];
+            painter.add(egui::Shape::closed_line(p, st));
+        }
+        W::Centre => {
+            painter.circle_stroke(at, h, st);
+        }
+        W::Quadrant => {
+            let p = vec![at + egui::vec2(0.0, -h), at + egui::vec2(h, 0.0), at + egui::vec2(0.0, h), at + egui::vec2(-h, 0.0)];
+            painter.add(egui::Shape::closed_line(p, st));
+        }
+        W::Tangent => {
+            painter.circle_stroke(at + egui::vec2(0.0, h * 0.4), h * 0.8, st);
+            painter.line_segment([at + egui::vec2(-h * 1.3, -h * 0.4), at + egui::vec2(h * 1.3, -h * 0.4)], st);
+        }
+        W::Origin | W::Point => {
+            painter.line_segment([at + egui::vec2(-h, -h), at + egui::vec2(h, h)], st);
+            painter.line_segment([at + egui::vec2(-h, h), at + egui::vec2(h, -h)], st);
+        }
+    }
+    let text = if dark { Color32::from_gray(0xe6) } else { Color32::from_gray(0x22) };
+    painter.text(at + egui::vec2(h + 5.0, h + 3.0), egui::Align2::LEFT_TOP, what.label(), egui::FontId::proportional(11.0), text);
 }
 
 /// The points marked with a square: ends, corners and the centres of round shapes (not a line's

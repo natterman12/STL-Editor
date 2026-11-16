@@ -77,6 +77,9 @@ pub struct DrawTool {
     pub typed: Typed,
     pub cursor: Option<P2>,
     pub snap_ref: Option<Ref>,
+    /// What the pointer snapped to (the marker), and the circle a tangent snap touches.
+    pub snap_what: Option<snap::SnapWhat>,
+    pub snap_tangent: Option<String>,
     down: Option<egui::Pos2>,
     /// The value boxes of the shape being drawn (what [`DrawTool::dim_boxes`] shows).
     pub(super) rows: Vec<Row>,
@@ -126,7 +129,7 @@ fn sign_or1(x: f64) -> f64 {
 
 impl DrawTool {
     pub fn new(key: &'static str) -> Self {
-        DrawTool { key, draw: None, typed: Typed::default(), cursor: None, snap_ref: None, down: None, rows: Vec::new(), total: None, vals: [None, None], exprs: [None, None], guides: Vec::new() }
+        DrawTool { key, draw: None, typed: Typed::default(), cursor: None, snap_ref: None, snap_what: None, snap_tangent: None, down: None, rows: Vec::new(), total: None, vals: [None, None], exprs: [None, None], guides: Vec::new() }
     }
 
     /// What a field shows: what was typed there, else the live value.
@@ -180,6 +183,8 @@ impl DrawTool {
         let straight = (self.key == "line").then(|| pts.last().copied()).flatten();
         let sn = snap::snap_tracking(cx.s, cx.vp, raw, &pts, straight);
         self.snap_ref = sn.on.clone();
+        self.snap_what = sn.what;
+        self.snap_tangent = sn.tangent_to.clone();
         self.guides = sn.guides;
         sn.uv
     }
@@ -534,6 +539,10 @@ impl DrawTool {
             (_, Some(sr)) if sr.e != id => auto.push(("coincident", Ref::pt(&id, "p2"), Some(sr.clone()))),
             _ => {}
         }
+        // a tangent snap: the line touches that circle or arc
+        if let Some(t) = self.snap_tangent.clone().filter(|_| !closing) {
+            auto.push(("tangent", Ref::ent(&id), Some(Ref::ent(&t))));
+        }
         if (p[1] - last[1]).abs() < 1e-9 {
             auto.push(("horizontal", Ref::ent(&id), None));
         } else if (p[0] - last[0]).abs() < 1e-9 {
@@ -676,6 +685,10 @@ impl SketchTool for DrawTool {
 
     fn guides(&self) -> Vec<Guide> {
         self.guides.clone()
+    }
+
+    fn snap_marker(&self) -> Option<(P2, snap::SnapWhat)> {
+        Some((self.cursor?, self.snap_what?))
     }
 
     fn hint(&self, _s: &SketchSession) -> String {

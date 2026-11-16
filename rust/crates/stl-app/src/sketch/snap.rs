@@ -21,6 +21,34 @@ pub enum SnapKind {
     Free,
 }
 
+/// What kind of point a [`SnapKind::Point`] snap caught, shown as a marker with a short label
+/// next to the pointer (Nathan, 2026-11-16, "like SolidCraft").
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SnapWhat {
+    Endpoint,
+    Midpoint,
+    Centre,
+    Quadrant,
+    Origin,
+    Point,
+    /// Where a line from the last point touches a circle or arc.
+    Tangent,
+}
+
+impl SnapWhat {
+    pub fn label(self) -> &'static str {
+        match self {
+            SnapWhat::Endpoint => "Endpoint",
+            SnapWhat::Midpoint => "Midpoint",
+            SnapWhat::Centre => "Centre",
+            SnapWhat::Quadrant => "Quadrant",
+            SnapWhat::Origin => "Origin",
+            SnapWhat::Point => "Point",
+            SnapWhat::Tangent => "Tangent",
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Snap {
     pub uv: P2,
@@ -29,6 +57,10 @@ pub struct Snap {
     pub on: Option<Ref>,
     /// Dotted guides to the points the pointer lines up with (spec 2.3).
     pub guides: Vec<Guide>,
+    /// What a point snap caught.
+    pub what: Option<SnapWhat>,
+    /// A tangent snap: the circle or arc the new line touches (it gets a tangent relation).
+    pub tangent_to: Option<String>,
 }
 
 impl Snap {
@@ -184,39 +216,87 @@ pub fn snap_tracking(s: &SketchSession, vp: &Viewport, raw: P2, draw_pts: &[P2],
     snap_impl(s, vp, raw, draw_pts, straight_from, true)
 }
 
+/// What the point `k` of `e` is, for the snap marker.
+pub fn what_of(e: &Entity, k: &str) -> SnapWhat {
+    match (e, k) {
+        (Entity::Point(p), _) if p.id.as_deref() == Some("_o") => SnapWhat::Origin,
+        (Entity::Point(_), _) => SnapWhat::Point,
+        (_, "m" | "mb" | "mr" | "mt" | "ml") => SnapWhat::Midpoint,
+        (_, "c") => SnapWhat::Centre,
+        (Entity::Circle(_), _) => SnapWhat::Quadrant,
+        _ => SnapWhat::Endpoint,
+    }
+}
+
+/// Where lines from `from` touch the circle or arc `e` (two points for a circle, the ones on the
+/// arc's sweep for an arc). Nothing when `from` is on or inside it.
+pub fn tangent_points(e: &Entity, from: P2) -> Vec<P2> {
+    let (c, r, sweep) = match e {
+        Entity::Circle(c) => ([c.cx, c.cy], c.r, None),
+        Entity::Arc(a) => ([a.cx, a.cy], a.r, Some((a.a0, a.a1))),
+        _ => return Vec::new(),
+    };
+    let d = (from[0] - c[0]).hypot(from[1] - c[1]);
+    if !(r > 0.0) || d <= r * (1.0 + 1e-9) {
+        return Vec::new();
+    }
+    let base = (from[1] - c[1]).atan2(from[0] - c[0]);
+    let alpha = (r / d).acos();
+    let on_sweep = |t: f64| match sweep {
+        None => true,
+        Some((a0, a1)) => {
+            let norm = |x: f64| ((x % 360.0) + 360.0) % 360.0;
+            let span = norm(a1 - a0);
+            let span = if span < 1e-9 { 360.0 } else { span };
+            norm(t.to_degrees() - a0) <= span + 1e-9
+        }
+    };
+    [base + alpha, base - alpha].into_iter().filter(|t| on_sweep(*t)).map(|t| [c[0] + r * t.cos(), c[1] + r * t.sin()]).collect()
+}
+
 fn snap_impl(s: &SketchSession, vp: &Viewport, raw: P2, draw_pts: &[P2], straight_from: Option<P2>, track: bool) -> Snap {
     let px = px_at(s, vp, raw);
-    let mut cands: Vec<(P2, Option<Ref>)> = Vec::new();
+    // (point, what snapping there ties to, what it is, the circle a tangent snap touches)
+    let mut cands: Vec<(P2, Option<Ref>, SnapWhat, Option<String>)> = Vec::new();
     for e in &s.entities {
         for k in point_keys(e) {
             if let Some(p) = point(e, &k) {
-                cands.push((p, e.id().map(|id| Ref::pt(id, &k))));
+                cands.push((p, e.id().map(|id| Ref::pt(id, &k)), what_of(e, &k), None));
             }
         }
-        for (_, q) in geom::key_points(e) {
-            cands.push((q, None));
+        for (k, q) in geom::key_points(e) {
+            cands.push((q, None, what_of(e, &k), None));
         }
     }
     for e in fixed_ents(s).iter().filter(|e| !is_axis(e)) {
         for k in point_keys(e) {
             if let Some(p) = point(e, &k) {
-                cands.push((p, e.id().map(|id| Ref::pt(id, &k))));
+                cands.push((p, e.id().map(|id| Ref::pt(id, &k)), what_of(e, &k), None));
             }
         }
     }
-    cands.extend(draw_pts.iter().map(|p| (*p, None)));
+    cands.extend(draw_pts.iter().map(|p| (*p, None, SnapWhat::Endpoint, None)));
     let tracked: Vec<P2> = cands.iter().map(|c| c.0).collect();
-    let mut bd = SNAP_PX * px;
-    let mut best: Option<(P2, Option<Ref>)> = None;
-    for (p, r) in cands {
-        let d = (p[0] - raw[0]).hypot(p[1] - raw[1]);
-        if d < bd - 1e-12 {
-            bd = d;
-            best = Some((p, r));
+    // a line from the last point snaps to where it would touch a circle or arc
+    if let Some(from) = straight_from {
+        for e in s.entities.iter().filter(|e| !e.construction()) {
+            let Some(id) = e.id() else { continue };
+            for q in tangent_points(e, from) {
+                cands.push((q, Some(Ref::ent(id)), SnapWhat::Tangent, Some(id.to_string())));
+            }
         }
     }
-    if let Some((p, r)) = best {
-        return Snap { uv: p, kind: SnapKind::Point, on: r, guides: Vec::new() };
+    let mut bd = SNAP_PX * px;
+    let mut best = None;
+    for c in cands {
+        let d = (c.0[0] - raw[0]).hypot(c.0[1] - raw[1]);
+        if d < bd - 1e-12 {
+            bd = d;
+            best = Some(c);
+        }
+    }
+    if let Some((p, r, what, tangent_to)) = best {
+        return Snap { uv: p, kind: SnapKind::Point, on: r, guides: Vec::new(), what: Some(what), tangent_to };
     }
     // lined up with a point's X or Y (the grid still rounds the other coordinate)
     let (ax, ay) = if track { guides::align(raw, &tracked, guides::TRACK_PX * px) } else { (None, None) };
@@ -247,7 +327,7 @@ fn snap_impl(s: &SketchSession, vp: &Viewport, raw: P2, draw_pts: &[P2], straigh
         from.push(p);
     }
     let guides = from.into_iter().map(|p| Guide { from: p, to: uv }).collect();
-    Snap { uv, kind, on: None, guides }
+    Snap { uv, kind, on: None, guides, what: None, tangent_to: None }
 }
 
 /// `entityAt`: the sketch shape within 8 px of `uv`, nearest first.

@@ -107,6 +107,54 @@ fn dim(s: &SketchSession, kind: &str) -> Option<f64> {
     s.constraints.iter().find(|c| c.kind == kind).and_then(|c| c.value)
 }
 
+// ------------------------------------------------------------------ snap markers
+
+/// The pointer shows what it snapped to (Nathan, 2026-11-16, "like SolidCraft").
+#[test]
+fn snaps_say_what_they_caught() {
+    use stl_app::sketch::snap::SnapWhat as W;
+    let line = ent(json!({ "id": "l1", "type": "line", "p1": [0.0, 0.0], "p2": [20.0, 10.0] }));
+    let circle = ent(json!({ "id": "c1", "type": "circle", "cx": 50.0, "cy": 0.0, "r": 10.0 }));
+    let mut h = H::new("line", vec![line, circle]);
+    let mut caught = |h: &mut H, uv: [f64; 2]| {
+        h.mv(uv);
+        h.tool.snap_marker().map(|(p, w)| (w, [p[0], p[1]]))
+    };
+    assert_eq!(caught(&mut h, [20.1, 10.1]), Some((W::Endpoint, [20.0, 10.0])));
+    assert_eq!(caught(&mut h, [10.1, 5.1]), Some((W::Midpoint, [10.0, 5.0])));
+    assert_eq!(caught(&mut h, [50.1, 0.1]), Some((W::Centre, [50.0, 0.0])));
+    assert_eq!(caught(&mut h, [60.1, 0.1]), Some((W::Quadrant, [60.0, 0.0])));
+    assert_eq!(caught(&mut h, [0.1, -0.1]).map(|c| c.0), Some(W::Endpoint), "the line's start (on the origin) is its end");
+    assert_eq!(caught(&mut h, [33.3, -17.7]), None, "on the grid only: no marker");
+}
+
+/// A line from a point outside a circle snaps to where it touches it, and is tied there as
+/// tangent (and onto the circle).
+#[test]
+fn line_snaps_tangent_to_a_circle() {
+    let circle = ent(json!({ "id": "c1", "type": "circle", "cx": 0.0, "cy": 0.0, "r": 10.0 }));
+    let mut h = H::new("line", vec![circle]);
+    h.click([-30.0, 0.0]);
+    // from (-30, 0) the line touches r = 10 at angle 180 - acos(1/3) degrees
+    let t = std::f64::consts::PI - (1.0f64 / 3.0).acos();
+    let touch = [10.0 * t.cos(), 10.0 * t.sin()];
+    h.mv([touch[0] + 0.2, touch[1] + 0.2]);
+    let (p, w) = h.tool.snap_marker().expect("a snap");
+    assert_eq!(w, stl_app::sketch::snap::SnapWhat::Tangent);
+    assert!(near(p[0], touch[0]) && near(p[1], touch[1]), "{p:?} vs {touch:?}");
+    h.click([touch[0] + 0.2, touch[1] + 0.2]);
+    let Some(Entity::Line(l)) = h.s.entities.iter().find(|e| matches!(e, Entity::Line(_))) else { panic!("a line") };
+    let id = l.id.clone().unwrap();
+    assert!(near(l.p2[0], touch[0]) && near(l.p2[1], touch[1]), "the line ends where it touches");
+    let has = |kind: &str, a: &str, b: &str| {
+        h.s.constraints.iter().any(|c| c.kind == kind && c.a.as_ref().is_some_and(|r| r.e == a) && c.b.as_ref().is_some_and(|r| r.e == b))
+    };
+    assert!(has("tangent", &id, "c1"), "tangent to the circle: {:?}", h.s.constraints);
+    assert!(has("coincident", &id, "c1"), "its end is on the circle");
+    // from inside the circle there is no tangent
+    assert!(stl_app::sketch::snap::tangent_points(&h.s.entities[0], [1.0, 1.0]).is_empty());
+}
+
 // ------------------------------------------------------------------ value boxes
 
 #[test]
