@@ -622,6 +622,53 @@ fn finish_keeps_camera() {
     assert_eq!(view_of(&h), before, "cancelling leaves the camera too");
 }
 
+/// Tab and typing go through egui's own input, as a keyboard does (Nathan, 2026-11-16: Tab
+/// didn't reach the size boxes in the app). egui moves the keyboard focus to a panel widget on
+/// Tab; the typed digits must still land in the sketch's box.
+#[test]
+fn tab_and_typing_reach_the_boxes_through_egui() {
+    let rec = Rec::default();
+    let mut h = scene(&rec);
+    h.state_mut().enter_sketch(Some(json!("XY")), None);
+    h.run_steps(3);
+    h.state_mut().viewport.camera_mut().finish_flight();
+    h.run_steps(1);
+    h.state_mut().sketch_set_tool("rect");
+    h.run_steps(1);
+    let r = h.state().viewport.rect();
+    let (a, b) = (r.center() - egui::vec2(60.0, 40.0), r.center() + egui::vec2(20.0, 10.0));
+    let click = |h: &mut Harness<'static, StlApp>, p: egui::Pos2| {
+        h.event(egui::Event::PointerMoved(p));
+        h.run_steps(1);
+        for pressed in [true, false] {
+            h.event(egui::Event::PointerButton { pos: p, button: egui::PointerButton::Primary, pressed, modifiers: egui::Modifiers::NONE });
+            h.run_steps(1);
+        }
+    };
+    click(&mut h, a);
+    h.event(egui::Event::PointerMoved(b));
+    h.run_steps(2);
+    let boxes = |h: &Harness<'static, StlApp>| h.state().sketch_mode().and_then(|m| m.tool.as_ref()).map(|t| t.dim_boxes()).unwrap_or_default();
+    assert_eq!(boxes(&h).len(), 2, "the first click started a rectangle");
+    let typed = |h: &mut Harness<'static, StlApp>, t: &str| {
+        h.event(egui::Event::Text(t.into()));
+        h.run_steps(1);
+    };
+    h.key_press(egui::Key::Tab);
+    h.run_steps(1);
+    assert!(boxes(&h)[0].focused, "Tab focused the first box");
+    typed(&mut h, "25");
+    assert!(boxes(&h)[0].locked, "25 went into the first box");
+    h.key_press(egui::Key::Tab);
+    h.run_steps(1);
+    typed(&mut h, "12");
+    h.key_press(egui::Key::Enter);
+    h.run_steps(2);
+    let s = h.state().sketch().expect("still sketching");
+    let Some(Entity::Rect(rect)) = s.entities.first() else { panic!("a rectangle was placed: {:?}", s.entities) };
+    assert!((rect.w.abs() - 25.0).abs() < 1e-9 && (rect.h.abs() - 12.0).abs() < 1e-9, "typed 25 x 12, got {} x {}", rect.w, rect.h);
+}
+
 // ------------------------------------------------------------------ snapshots
 
 mod shots {

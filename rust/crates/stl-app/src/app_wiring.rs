@@ -1874,13 +1874,17 @@ impl StlApp {
         self.sk.import = Some(self.platform.open_file(&[("Vector drawings", &["svg", "dxf"])]));
     }
 
-    /// A key of the sketcher (`KeyAction::Sketcher`).
-    pub(super) fn sketch_key(&mut self, press: keys::KeyPress) {
+    /// A key of the sketcher (`KeyAction::Sketcher`). True when the sketch used it.
+    pub(super) fn sketch_key(&mut self, press: keys::KeyPress) -> bool {
         if self.sketch_modal_open() {
-            return;
+            return false;
         }
-        if let Some((_, fx)) = self.sk_call(|m, env| sketch::keys::on_key(m, env, press.key, press.mods)) {
-            self.sketch_apply(fx);
+        match self.sk_call(|m, env| sketch::keys::on_key(m, env, press.key, press.mods)) {
+            Some((used, fx)) => {
+                self.sketch_apply(fx);
+                used
+            }
+            None => false,
         }
     }
 

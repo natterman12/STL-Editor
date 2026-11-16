@@ -762,7 +762,19 @@ impl StlApp {
                     KeyAction::PanelCancel => self.tool_cancel(),
                     KeyAction::PanelOk => self.tool_ok(),
                     KeyAction::Walls(_) | KeyAction::Gizmo { .. } => self.tool_key(&a),
-                    KeyAction::Sketcher(press) => self.sketch_key(press),
+                    KeyAction::Sketcher(press) => {
+                        // egui also moves the keyboard focus on Tab (to the first panel widget),
+                        // and then the digits typed next go to that widget, not to the size box.
+                        // A Tab the sketch used takes no widget focus.
+                        if self.sketch_key(press) && press.key == egui::Key::Tab {
+                            ctx.memory_mut(|m| {
+                                m.move_focus(egui::FocusDirection::None);
+                                if let Some(id) = m.focused() {
+                                    m.surrender_focus(id);
+                                }
+                            });
+                        }
+                    }
                     _ => {}
                 }
             }
