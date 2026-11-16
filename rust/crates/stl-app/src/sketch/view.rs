@@ -361,7 +361,7 @@ pub fn paint(ui: &egui::Ui, vp: &Viewport, m: &SketchMode) {
     for (p, c) in solid {
         painter.add(egui::Shape::line(p, egui::Stroke::new(LINE_PX, c)));
     }
-    for (ents, c) in buckets_of(m).iter().zip(colours) {
+    for (ents, c) in buckets_of(m).iter().zip(colours).filter(|_| !m.panel.hide_points) {
         for &i in ents {
             let e = &m.s.entities[i];
             if e.construction() {

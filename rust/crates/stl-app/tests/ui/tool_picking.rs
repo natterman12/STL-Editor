@@ -84,9 +84,10 @@ fn snapfit_click_two_bodies() {
     let ids: Vec<String> = h.state().bodies.iter().take(2).map(|b| b.id.clone()).collect();
     h.state_mut().viewport.set_view("front");
     assert!(open_tool(&mut h, "snapfit"));
-    h.state_mut().tool_set_active_field(Some("plane".into()));
-    let at = h.state().viewport.world_to_screen(XZ_CLEAR);
-    click_at(&mut h, at);
+    // the plane click itself is covered by pick_xz_fills_and_restores; here the origin planes
+    // (sized to these small parts) sit behind the bodies, so set On directly
+    h.state_mut().tool_set_value("plane", json!("XZ"));
+    h.state_mut().tool_set_active_field(Some("targets".into()));
     h.run_steps(2);
     // from above the two bodies sit side by side, so neither hides the other
     h.state_mut().viewport.set_view("top");

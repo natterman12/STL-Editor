@@ -471,7 +471,8 @@ pub fn paint(ui: &egui::Ui, s: &mut SketchSession, vp: &Viewport, inch: bool) ->
     let passive = dims::passive(s);
     let px = super::snap::px_at(s, vp, [0.0, 0.0]);
     let mut clicked = None;
-    for (k, gl) in glyphs::visible(&glyphs::spots(s), s.sel_c, px).into_iter().enumerate() {
+    let chips = if glyphs::shown() { glyphs::visible(&glyphs::spots(s), s.sel_c, px) } else { Vec::new() };
+    for (k, gl) in chips.into_iter().enumerate() {
         let i = gl.constraint;
         let bad = st.conflicts.contains(&i);
         let sel = s.sel_c == Some(i);

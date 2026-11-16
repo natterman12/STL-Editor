@@ -439,6 +439,22 @@ fn text_w(ui: &Ui, s: &str, size: f32) -> f32 {
 
 const CARET_W: f32 = 8.0;
 
+/// The dropdowns whose button starts a tool instead of opening the list: the sketch's.
+pub fn split_drop(id: &str) -> bool {
+    id.starts_with("sk_")
+}
+
+/// The part of a big dropdown button that opens its list: the label row with the arrow (the
+/// lower part in the tight ribbon, where the arrow sits under the icon).
+pub fn in_caret_row(r: Rect, mode: Mode, at: Pos2) -> bool {
+    let icon_bottom = r.min.y + match mode {
+        Mode::Tight => 7.0 + 18.0,
+        Mode::Compact => 5.0 + 20.0 + 2.0,
+        Mode::Normal => 5.0 + 22.0 + 2.0,
+    };
+    at.y >= icon_bottom
+}
+
 fn tool_w(ui: &Ui, mode: Mode, big: bool, label: &str, caret: bool) -> f32 {
     let tw = text_w(ui, label, if mode == Mode::Compact && big { 10.0 } else { 11.0 }) + if caret { CARET_W } else { 0.0 };
     match (big, mode) {
@@ -677,8 +693,13 @@ pub fn show(ui: &mut Ui, tk: &Tokens, st: &RibbonState) -> (Option<Pick>, Fit) {
                     let last = st.drop_last.get(*id).and_then(|k| items.iter().find(|x| x.key == k)).unwrap_or(&items[0]);
                     let on = st.active.is_some_and(|a| items.iter().any(|x| x.key == a));
                     let tool = Tool { key: id, label, icon: last.icon };
-                    if paint_tool(ui, tk, r, ui.scope_id().with(("drop", *id)), &tool, last.icon, label, true, true, mode, on, st.web, false).clicked() {
-                        *pick = Some(Pick::Drop(id, r));
+                    let resp = paint_tool(ui, tk, r, ui.scope_id().with(("drop", *id)), &tool, last.icon, label, true, true, mode, on, st.web, false);
+                    if resp.clicked() {
+                        // a sketch dropdown is a split button (Nathan, 2026-11-16, as SolidCraft):
+                        // the icon starts the tool last chosen (Rectangle at first), the label with
+                        // its arrow opens the list
+                        let at = resp.interact_pointer_pos().unwrap_or(r.center());
+                        *pick = Some(if split_drop(id) && !in_caret_row(r, mode, at) { Pick::Tool(last.key) } else { Pick::Drop(id, r) });
                     }
                 }
             }

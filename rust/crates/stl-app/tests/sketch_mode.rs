@@ -396,6 +396,27 @@ fn ribbon_is_sketch_tab() {
     h.key_press(egui::Key::Escape);
     h.run_steps(2);
     assert_eq!(h.state().sketch().unwrap().tool, "select");
+
+    // Rectangle is a split button (Nathan, 2026-11-16): its icon starts the plain rectangle at
+    // once, its label row with the arrow opens the list
+    let r = h.get_by_label("Rectangle").rect();
+    let click = |h: &mut Harness<'static, StlApp>, p: Pos2| {
+        h.event(egui::Event::PointerMoved(p));
+        h.run_steps(1);
+        for pressed in [true, false] {
+            h.event(egui::Event::PointerButton { pos: p, button: egui::PointerButton::Primary, pressed, modifiers: egui::Modifiers::NONE });
+            h.run_steps(1);
+        }
+        h.run_steps(1);
+    };
+    // (the sketch panel's Tool options also show "Center Rectangle" once the tool is a rectangle)
+    let shown = |h: &Harness<'static, StlApp>| h.query_all_by_label("Center Rectangle").count();
+    click(&mut h, Pos2::new(r.center().x, r.min.y + 12.0));
+    assert_eq!(h.state().sketch().unwrap().tool, "rect", "the icon starts the rectangle");
+    let in_panel = shown(&h);
+    assert!(in_panel <= 1, "and opens no list");
+    click(&mut h, Pos2::new(r.center().x, r.max.y - 6.0));
+    assert_eq!(shown(&h), in_panel + 1, "the arrow row opens the list");
 }
 
 #[test]

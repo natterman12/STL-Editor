@@ -54,9 +54,34 @@ pub struct PanelEnv<'a> {
     pub ws: Rect,
 }
 
+/// How a tool's panel lays out its fields (Nathan, 2026-11-16: "like SolidCraft"): these first, in
+/// this order, then the rest as defined, then the `more` ones folded under "More options". Only
+/// the drawing changes; the tool's fields and what it sends stay as defined.
+pub fn panel_layout(key: &str) -> (&'static [&'static str], &'static [&'static str]) {
+    match key {
+        "extrude" => (&["regions", "sketch", "direction", "through_all", "distance", "distance2", "operation", "targets"], &["start_offset", "taper"]),
+        "revolve" => (&["regions", "sketch", "axis", "angle", "operation", "targets"], &[]),
+        "thread" => (&[], &["tolerance", "hand", "chamfer"]),
+        "combine" => (&[], &["clearance", "keep_tools"]),
+        "hollow" | "lattice" | "shell" | "repair" => (&[], &["resolution"]),
+        _ => (&[], &[]),
+    }
+}
+
+/// The fields in the order the panel draws them: (the main ones, the folded ones).
+pub fn laid_out(def: &'static ToolDef) -> (Vec<&'static Field>, Vec<&'static Field>) {
+    let (first, more) = panel_layout(def.key);
+    let mut main: Vec<&'static Field> = first.iter().filter_map(|k| def.fields.iter().find(|f| f.key == *k)).collect();
+    main.extend(def.fields.iter().filter(|f| !first.contains(&f.key) && !more.contains(&f.key)));
+    let folded = more.iter().filter_map(|k| def.fields.iter().find(|f| f.key == *k)).collect();
+    (main, folded)
+}
+
 /// The tool that is open (`this.tool` in app.js).
 pub struct OpenTool {
     pub def: &'static ToolDef,
+    /// "More options" (the rarely changed fields) is open.
+    pub more_open: bool,
     pub values: Values,
     /// The step being edited (`editId`).
     pub edit_id: Option<String>,
@@ -124,6 +149,7 @@ impl OpenTool {
         let active_field = fields::bodies::first_active(def, &values);
         OpenTool {
             def,
+            more_open: false,
             values,
             edit_id,
             active_field,
@@ -373,6 +399,25 @@ impl OpenTool {
         self.sf = Some(sess);
     }
 
+    /// The "More options" row that folds the rarely changed fields.
+    fn more_header(&mut self, ui: &mut Ui, tk: &crate::theme::Tokens) {
+        let (r, resp) = ui.allocate_exact_size(egui::vec2(fields::FORM_W, 22.0), egui::Sense::click());
+        let open = self.more_open;
+        resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::Button, true, open, "More options"));
+        let c = egui::pos2(r.min.x + 5.0, r.center().y);
+        let tri = if open {
+            vec![c + egui::vec2(-4.0, -2.0), c + egui::vec2(4.0, -2.0), c + egui::vec2(0.0, 3.0)]
+        } else {
+            vec![c + egui::vec2(-2.0, -4.0), c + egui::vec2(3.0, 0.0), c + egui::vec2(-2.0, 4.0)]
+        };
+        ui.painter().add(egui::Shape::convex_polygon(tri, tk.muted, egui::Stroke::NONE));
+        ui.painter().text(egui::pos2(r.min.x + 15.0, r.center().y), egui::Align2::LEFT_CENTER, "MORE OPTIONS", egui::FontId::proportional(11.0), if resp.hovered() { tk.text } else { tk.muted });
+        if resp.clicked() {
+            self.more_open = !open;
+        }
+        ui.add_space(6.0);
+    }
+
     fn form(&mut self, ui: &mut Ui, env: &PanelEnv, out: &mut PanelOut) {
         if self.sf.is_some() {
             return self.sf_form(ui, env, out);
@@ -382,7 +427,17 @@ impl OpenTool {
         let def = self.def;
         let mut edits: Vec<fields::Edit> = Vec::new();
         ui.add_space(6.0);
-        for f in def.fields.iter() {
+        let (main, folded) = laid_out(def);
+        let folded_shown: Vec<&'static Field> = folded.into_iter().filter(|f| f.show.is_none_or(|s| s(&self.values))).collect();
+        let mut rows: Vec<&'static Field> = main;
+        let fold_at = rows.len();
+        if self.more_open {
+            rows.extend(folded_shown.iter().copied());
+        }
+        for (n, f) in rows.into_iter().enumerate() {
+            if n == fold_at {
+                self.more_header(ui, tk);
+            }
             if let Some(s) = f.show {
                 if !s(&self.values) {
                     continue;
@@ -418,6 +473,9 @@ impl OpenTool {
                     out.changed = true;
                 }
             }
+        }
+        if !folded_shown.is_empty() && !self.more_open {
+            self.more_header(ui, tk);
         }
         if def.extra == Some("dropToBed") {
             ui.horizontal_top(|ui| {

@@ -1989,7 +1989,9 @@ impl StlApp {
             }
             sketch::view::paint(ui, &self.viewport, m);
             fx.extend(sketch::relations::paint(ui, &mut m.s, &self.viewport, inch));
-            fx.extend(sketch::dims::paint(ui, &mut m.s, &self.viewport, inch, &params));
+            if !m.panel.hide_dims {
+                fx.extend(sketch::dims::paint(ui, &mut m.s, &self.viewport, inch, &params));
+            }
         }
         // an import chosen in the file dialog
         if let Some(p) = self.sk.import.as_ref().and_then(|p| p.take()) {
@@ -2010,9 +2012,11 @@ impl StlApp {
         let params = self.sk_params();
         let mut fx = Vec::new();
         let (mut finish, mut cancel) = (false, false);
+        let mut set_tool = None;
         let mut toasts = Vec::new();
         if let Some(m) = self.sketch.as_mut() {
             let out = sketch::panel::show(ctx, tk, m, ws, inch);
+            set_tool = out.set_tool;
             finish = out.finish;
             cancel = out.cancel;
             fx.extend(out.effects);
@@ -2027,6 +2031,9 @@ impl StlApp {
         }
         for (l, t) in toasts {
             self.toasts.push(l, t);
+        }
+        if let Some(k) = set_tool {
+            self.sketch_set_tool(k);
         }
         // the text dialog, over a scrim
         if self.sk.text.open {

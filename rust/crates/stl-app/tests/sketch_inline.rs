@@ -116,7 +116,7 @@ fn snaps_say_what_they_caught() {
     let line = ent(json!({ "id": "l1", "type": "line", "p1": [0.0, 0.0], "p2": [20.0, 10.0] }));
     let circle = ent(json!({ "id": "c1", "type": "circle", "cx": 50.0, "cy": 0.0, "r": 10.0 }));
     let mut h = H::new("line", vec![line, circle]);
-    let mut caught = |h: &mut H, uv: [f64; 2]| {
+    let caught = |h: &mut H, uv: [f64; 2]| {
         h.mv(uv);
         h.tool.snap_marker().map(|(p, w)| (w, [p[0], p[1]]))
     };

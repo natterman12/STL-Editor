@@ -41,6 +41,7 @@ mod measure_triangle;
 mod tool_picking;
 mod tree_select;
 mod primitive_panel;
+mod panel_layout;
 
 use std::path::Path;
 

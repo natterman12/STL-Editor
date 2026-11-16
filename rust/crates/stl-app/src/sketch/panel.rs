@@ -28,6 +28,14 @@ pub struct PanelState {
     pub snap_step: f64,
     /// Grid snap follows the grid shown at this zoom ("Auto"), not the fixed `snap_step`.
     pub snap_auto: bool,
+    /// Show: the relation chips, the dimensions, the squares at shapes' ends (all shown unless
+    /// turned off), and snapping to shapes' points.
+    pub hide_relations: bool,
+    pub hide_dims: bool,
+    pub hide_points: bool,
+    pub no_point_snap: bool,
+    /// "More" (the shapes and relations lists) is open.
+    pub more_open: bool,
     init: bool,
 }
 
@@ -77,6 +85,25 @@ pub struct PanelOut {
     pub toasts: Vec<(crate::engine_link::Level, String)>,
     /// "Edit…" on a selected text: its group and settings.
     pub edit_text: Option<(String, Value)>,
+    /// A tool kind picked under Tool options (Rectangle, Center Rectangle...).
+    pub set_tool: Option<&'static str>,
+}
+
+/// The help that used to sit at the panel's foot, now behind the "?" in its title.
+pub const HELP: &str = "Shapes inside other shapes become holes; lines and arcs that close a loop make a shape too. Use Smart Dimension (D) to add sizes; double-click one to change it (a parameter name works too). Pale-blue shapes are fully defined (dark blue in the light theme), white ones can still move (black in the light theme), bright blue is what you picked, and grey dashed lines are construction lines; orange lines are the part's edges, there to dimension from. While drawing, a green line is the shape being drawn and a blue mark shows the point it snaps to. When extruding you can pick single regions under Profiles.";
+
+/// The kinds of the open drawing tool, when it has more than one (the ribbon dropdown it is in).
+pub fn tool_kinds(tool: &str) -> Vec<crate::ui::ribbon::Tool> {
+    for g in crate::ui::ribbon::sketch_def().groups {
+        for it in g.items {
+            if let crate::ui::ribbon::Item::Drop { items, .. } = it {
+                if items.iter().any(|t| t.key == tool) {
+                    return items;
+                }
+            }
+        }
+    }
+    Vec::new()
 }
 
 /// The title: "Edit Sketch" for a step being edited, else "Sketch".
@@ -286,6 +313,17 @@ fn title_row(ui: &mut Ui, ctx: &egui::Context, tk: &Tokens, s: &SketchSession, o
     let t = title(s);
     let galley = ui.painter().layout_no_wrap(t.to_owned(), font, tk.strong);
     ui.painter().galley(egui::pos2(rect.min.x + 34.0, cy - galley.size().y / 2.0), galley, tk.strong);
+    let help = Rect::from_center_size(egui::pos2(rect.max.x - 43.0, cy), Vec2::splat(22.0));
+    let hr = ui.interact(help, Id::unique("sketch-help"), Sense::hover());
+    hr.widget_info(|| WidgetInfo::labeled(egui::Role::Button, true, "Sketch help"));
+    if hr.hovered() {
+        ui.painter().rect_filled(help, CornerRadius::same(4), tk.hover);
+    }
+    ui.painter().text(help.center(), egui::Align2::CENTER_CENTER, "?", egui::FontId::proportional(13.0), if hr.hovered() { tk.strong } else { tk.muted });
+    hr.on_hover_ui(|ui| {
+        ui.set_max_width(300.0);
+        ui.label(RichText::new(HELP).size(12.0));
+    });
     let close = Rect::from_center_size(egui::pos2(rect.max.x - 19.0, cy), Vec2::splat(22.0));
     let resp = ui.interact(close, Id::unique("sketch-close"), Sense::click());
     resp.widget_info(|| WidgetInfo::labeled(egui::Role::Button, true, "Close"));
@@ -313,8 +351,46 @@ fn actions(ui: &mut Ui, tk: &Tokens, out: &mut PanelOut) {
     }
 }
 
+/// One tick-box row with its name.
+fn tick(ui: &mut Ui, tk: &Tokens, label: &str, on: &mut bool) {
+    row(ui, tk, label, |ui| {
+        let was = *on;
+        let cb = crate::tools::fields::check_box(ui, tk, on);
+        cb.widget_info(|| WidgetInfo::selected(egui::Role::CheckBox, true, was, label));
+    });
+}
+
+/// Tool options: the open drawing tool's kinds as icon buttons (Rectangle, Center Rectangle).
+fn tool_options(ui: &mut Ui, tk: &Tokens, m: &SketchMode, out: &mut PanelOut) {
+    let kinds = tool_kinds(&m.s.tool);
+    if kinds.len() < 2 {
+        return;
+    }
+    section(ui, tk, "Tool options");
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = 4.0;
+        for k in kinds {
+            let on = m.s.tool == k.key;
+            let (r, resp) = ui.allocate_exact_size(Vec2::splat(30.0), Sense::click());
+            resp.widget_info(|| WidgetInfo::selected(egui::Role::Button, true, on, k.label));
+            let fill = if on { tk.accent_soft } else if resp.hovered() { tk.hover } else { Color32::TRANSPARENT };
+            ui.painter().rect_filled(r, CornerRadius::same(5), fill);
+            if on {
+                ui.painter().rect_stroke(r, CornerRadius::same(5), Stroke::new(1.0, tk.accent), egui::StrokeKind::Inside);
+            }
+            let img = crate::icons::icon(ui.ctx(), k.icon, 18.0, if on { tk.accent } else { tk.text });
+            egui::Image::new(img).paint_at(ui, Rect::from_center_size(r.center(), Vec2::splat(18.0)));
+            if resp.on_hover_text(k.label).clicked() && !on {
+                out.set_tool = Some(k.key);
+            }
+        }
+    });
+    ui.add_space(6.0);
+}
+
 fn form(ui: &mut Ui, tk: &Tokens, m: &mut SketchMode, inch: bool, out: &mut PanelOut) {
     def_line(ui, tk, m);
+    tool_options(ui, tk, m, out);
     let unit = unit_name(inch);
     // the selected dimension: its value (or parameter), and whether it drives the size
     if let Some(i) = m.s.sel_c {
@@ -359,8 +435,6 @@ fn form(ui: &mut Ui, tk: &Tokens, m: &mut SketchMode, inch: bool, out: &mut Pane
             });
         }
     }
-    section(ui, tk, "Shapes");
-    shapes_list(ui, tk, m, out);
     if let Some((group, meta)) = super::text::selected_text(&m.s) {
         section(ui, tk, "Text");
         let t = meta.get("text").and_then(Value::as_str).unwrap_or("").to_owned();
@@ -432,8 +506,22 @@ fn form(ui: &mut Ui, tk: &Tokens, m: &mut SketchMode, inch: bool, out: &mut Pane
             });
         }
     }
-    relations_list(ui, tk, m, inch, out);
+    section(ui, tk, "Show");
+    let mut v = !m.panel.hide_relations;
+    tick(ui, tk, "Relations", &mut v);
+    m.panel.hide_relations = !v;
+    let mut v = !m.panel.hide_dims;
+    tick(ui, tk, "Dimensions", &mut v);
+    m.panel.hide_dims = !v;
+    let mut v = !m.panel.hide_points;
+    tick(ui, tk, "Points", &mut v);
+    m.panel.hide_points = !v;
     section(ui, tk, "Snapping");
+    let mut v = !m.panel.no_point_snap;
+    tick(ui, tk, "Snap to points", &mut v);
+    m.panel.no_point_snap = !v;
+    super::snap::set_point_snap(v);
+    super::glyphs::set_shown(!m.panel.hide_relations);
     row(ui, tk, "Grid snap", |ui| {
         let mut on = m.panel.snap_grid;
         let cb = crate::tools::fields::check_box(ui, tk, &mut on);
@@ -465,12 +553,27 @@ fn form(ui: &mut Ui, tk: &Tokens, m: &mut SketchMode, inch: bool, out: &mut Pane
     });
     // the drawing tools read the grid from here (`snapGrid`, `snapStep`)
     super::snap::set_grid_mode(m.panel.snap_grid, m.panel.snap_step, m.panel.snap_auto, inch);
-    ui.add_space(2.0);
-    let info = "Shapes inside other shapes become holes; lines and arcs that close a loop make a shape too. Use Smart Dimension (D) to add sizes; double-click one to change it (a parameter name works too). Pale-blue shapes are fully defined (dark blue in the light theme), white ones can still move (black in the light theme), bright blue is what you picked, and grey dashed lines are construction lines; orange lines are the part's edges, there to dimension from. When extruding you can pick single regions under Profiles.";
-    Frame::new().fill(tk.info_bg).corner_radius(CornerRadius::same(tk.radius_sm as u8)).inner_margin(Margin::symmetric(8, 6)).show(ui, |ui| {
-        ui.set_width(FORM_W - 16.0);
-        ui.add(egui::Label::new(RichText::new(info).size(12.0).color(tk.info_text)).wrap());
-    });
+    // the shapes and relations lists, folded away as in SolidCraft's "More"
+    ui.add_space(10.0);
+    let (r, resp) = ui.allocate_exact_size(Vec2::new(FORM_W, 20.0), Sense::click());
+    let open = m.panel.more_open;
+    resp.widget_info(|| WidgetInfo::selected(egui::Role::Button, true, open, "More"));
+    let c = egui::pos2(r.min.x + 5.0, r.center().y);
+    let tri = if open {
+        vec![c + Vec2::new(-4.0, -2.0), c + Vec2::new(4.0, -2.0), c + Vec2::new(0.0, 3.0)]
+    } else {
+        vec![c + Vec2::new(-2.0, -4.0), c + Vec2::new(3.0, 0.0), c + Vec2::new(-2.0, 4.0)]
+    };
+    ui.painter().add(egui::Shape::convex_polygon(tri, tk.muted, Stroke::NONE));
+    ui.painter().text(egui::pos2(r.min.x + 15.0, r.center().y), egui::Align2::LEFT_CENTER, "MORE", egui::FontId::proportional(11.0), if resp.hovered() { tk.text } else { tk.muted });
+    if resp.clicked() {
+        m.panel.more_open = !open;
+    }
+    if m.panel.more_open {
+        section(ui, tk, "Shapes");
+        shapes_list(ui, tk, m, out);
+        relations_list(ui, tk, m, inch, out);
+    }
 }
 
 /// `.ent-list`: a bordered, scrolling list of rows.

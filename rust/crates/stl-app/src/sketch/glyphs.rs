@@ -108,3 +108,16 @@ pub fn select(s: &mut SketchSession, constraint: usize) {
     s.sel_c = if s.sel_c == Some(constraint) { None } else { Some(constraint) };
     s.sel.clear();
 }
+
+thread_local! {
+    static SHOWN: std::cell::Cell<bool> = const { std::cell::Cell::new(true) };
+}
+
+/// The sketch panel's Show › Relations: off, no relation chips are drawn.
+pub fn set_shown(on: bool) {
+    SHOWN.with(|c| c.set(on));
+}
+
+pub fn shown() -> bool {
+    SHOWN.with(|c| c.get())
+}

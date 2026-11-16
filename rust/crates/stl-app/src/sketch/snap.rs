@@ -87,6 +87,17 @@ thread_local! {
     static AUTO: Cell<(bool, bool)> = const { Cell::new((false, false)) };
     /// The spacing the plane grid is drawn at now (mm), once a sketch has drawn it.
     static SHOWN: Cell<Option<f64>> = const { Cell::new(None) };
+    /// The sketch panel's Snap to points.
+    static POINTS: Cell<bool> = const { Cell::new(true) };
+}
+
+/// The sketch panel's "Snap to points": off, the pointer snaps only to the grid.
+pub fn set_point_snap(on: bool) {
+    POINTS.with(|c| c.set(on));
+}
+
+pub fn point_snap() -> bool {
+    POINTS.with(|c| c.get())
 }
 
 /// The plane grid is drawn at `step` mm (`None`: no grid is up). While it is, Auto snaps to
@@ -288,6 +299,9 @@ fn snap_impl(s: &SketchSession, vp: &Viewport, raw: P2, draw_pts: &[P2], straigh
     }
     let mut bd = SNAP_PX * px;
     let mut best = None;
+    if !point_snap() {
+        cands.clear();
+    }
     for c in cands {
         let d = (c.0[0] - raw[0]).hypot(c.0[1] - raw[1]);
         if d < bd - 1e-12 {
