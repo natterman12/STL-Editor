@@ -75,7 +75,8 @@ fn make_headless() -> Option<Headless> {
         }));
     }
     let instance = block_on(setup.new_instance());
-    let config = egui_wgpu::WgpuConfiguration { wgpu_setup: setup, ..Default::default() };
+    let mut config = egui_wgpu::WgpuConfiguration { wgpu_setup: setup, ..Default::default() };
+    stl_app::viewport::renderer::ask_for_stencil(&mut config);
     let render_state = block_on(egui_wgpu::RenderState::create(&config, &instance, None, egui_wgpu::RendererOptions::default()))
         .unwrap_or_else(|e| panic!("WGPU_ADAPTER_NAME: {e}"));
     Some(Headless { render_state })

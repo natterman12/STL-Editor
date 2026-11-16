@@ -72,7 +72,7 @@ pub fn upload_span(offset: u64, total: u64) -> std::ops::Range<u64> {
 }
 
 /// Spacing of the hatch lines on the cut faces (points, along each screen axis).
-pub const HATCH_SPACING: f64 = 6.0;
+pub const HATCH_SPACING: f64 = 12.0;
 
 /// Back faces of a body, unlit, in the body's colour times [`CAP_KEEP`]; with Hatch (`flags.y`) darker diagonal
 /// lines [`HATCH_SPACING`] points apart (`flags.z` is the frame's pixels per point). Append after `shaders/common.wgsl`
@@ -106,6 +106,11 @@ fn fs_cap(in: CapOut) -> @location(0) vec4<f32> {
     if clipped(in.world) {
         discard;
     }
+    return cap_color(in.pos);
+}
+
+// The cut face's colour at screen position `pos`: the body's colour, darker, hatched or plain.
+fn cap_color(pos: vec4<f32>) -> vec4<f32> {
     // the body's own colour, 25 % darker (the uniform holds it linear; the flat shader's output
     // is sRGB encoded)
     let cap = cap_srgb(cap_body.color.rgb) * 0.75;
@@ -113,8 +118,8 @@ fn fs_cap(in: CapOut) -> @location(0) vec4<f32> {
         // Hatch: diagonal lines at 45°, HATCH_SPACING points apart in screen space (so they
         // read the same at any zoom), about a point wide, softened at each edge.
         let s = max(g.flags.z, 1.0);
-        let spacing = 6.0 * s;
-        let t = fract((in.pos.x + in.pos.y) / spacing) * spacing;
+        let spacing = 12.0 * s;
+        let t = fract((pos.x + pos.y) / spacing) * spacing;
         let dist = min(t, spacing - t);
         let half = 0.5 * s;
         let k = 1.0 - smoothstep(half, half + 0.8, dist);
@@ -125,6 +130,47 @@ fn fs_cap(in: CapOut) -> @location(0) vec4<f32> {
 
 // how dark the hatch lines are against the cap colour
 const HATCH_DARKEN: f32 = 0.6;
+
+// With a stencil (renderer `cut`): the count pass only flips the stencil for each surface
+// beyond the cut plane; it writes no colour.
+@fragment
+fn fs_cut_count(in: CapOut) -> @location(0) vec4<f32> {
+    if clipped(in.world) {
+        discard;
+    }
+    return vec4<f32>(0.0);
+}
+
+struct CutFace {
+    @location(0) color: vec4<f32>,
+    @builtin(frag_depth) depth: f32,
+};
+
+// The cut face where the count is odd: the cap colour (and hatch) at the depth where this
+// pixel's view ray meets the cut plane.
+@fragment
+fn fs_cut_face(in: CapOut) -> CutFace {
+    if clipped(in.world) {
+        discard;
+    }
+    // the camera: view = [R | t], so the eye is -R^T t
+    let r = mat3x3<f32>(g.view[0].xyz, g.view[1].xyz, g.view[2].xyz);
+    let eye = -(transpose(r) * g.view[3].xyz);
+    let dir = in.world - eye;
+    let along = dot(g.clip.xyz, dir);
+    if abs(along) < 1e-12 {
+        discard;
+    }
+    let t = -(dot(g.clip.xyz, eye) + g.clip.w) / along;
+    if t <= 0.0 {
+        discard;
+    }
+    let hit = g.view_proj * vec4<f32>(eye + dir * t, 1.0);
+    var out: CutFace;
+    out.color = cap_color(in.pos);
+    out.depth = clamp(hit.z / hit.w, 0.0, 1.0);
+    return out;
+}
 
 fn cap_srgb(c: vec3<f32>) -> vec3<f32> {
     let lo = c * 12.92;

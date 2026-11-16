@@ -339,35 +339,54 @@ fn section_cap_has_no_grid_light() {
     section_cap_has_no_grid("section_cap_no_grid_light", false);
 }
 
-/// From Nathan's test of the M7 build (2026-11-16): the part's edges showed through the cut face.
-/// The cut face is drawn from the body's back faces, so the edges lying on them (the far walls'
-/// corners) were drawn over it. With edges on, no pixel of the cut face may change.
-fn cut_face_hides_edges(name: &str, dark: bool) {
+/// From Nathan's test of the M7 build (2026-11-16): the part's edges, and slivers of faces
+/// behind the cut, showed through the cut face. The cut face must look the same whatever lies
+/// behind it: every pixel of the plain block's cut face is plain cut-face colour on a block with
+/// a pocket under the cut, edges on. A hole the cut passes through still shows.
+fn cut_face_hides_what_is_behind_it(name: &str, dark: bool) {
     let Some(gpu) = gpu::headless() else {
         eprintln!("no GPU adapter: skipped");
         return;
     };
-    let body = block("b1", 0.0, 20.0);
-    let shot = |edges: bool| {
-        let mut vp = cut_view(&gpu, dark, &body, Some(10.0), false);
+    let shot = |body: &BodyView, edges: bool| {
+        let mut vp = cut_view(&gpu, dark, body, Some(10.0), false);
         vp.set_edges_visible(edges);
         picture(&gpu, vp, dark, 320.0, 240.0, None)
     };
-    let (off, on) = (shot(false), shot(true));
-    let cap = cap_mask(&off);
-    assert!(cap.len() >= 200, "{name}: only {} cut-face pixels", cap.len());
-    let changed = cap.iter().filter(|&&(x, y)| (0..3).any(|k| on.get_pixel(x, y).0[k].abs_diff(off.get_pixel(x, y).0[k]) > 2)).count();
-    assert_eq!(changed, 0, "{name}: edges show on {changed} of {} cut-face pixels", cap.len());
+    let cap = cap_mask(&shot(&block("b1", 0.0, 20.0), false));
+    assert!(cap.len() >= 2000, "{name}: only {} cut-face pixels", cap.len());
+    let is_cap = |img: &image::RgbaImage, x: u32, y: u32| {
+        let [r, g, b, _] = img.get_pixel(x, y).0;
+        (r as i32 - 115).abs() <= 4 && (g as i32 - 125).abs() <= 4 && (b as i32 - 135).abs() <= 4
+    };
+    for (what, body) in [("block", block("b1", 0.0, 20.0)), ("block with a pocket under the cut", holed_block(4.0, 9.0))] {
+        let img = shot(&body, true);
+        let wrong: Vec<(u32, u32)> = cap.iter().copied().filter(|&(x, y)| !is_cap(&img, x, y)).collect();
+        assert!(wrong.is_empty(), "{name}, {what}: {} of {} cut-face pixels aren't cut face, e.g. {:?}", wrong.len(), cap.len(), &wrong[..wrong.len().min(8)]);
+    }
+    // a 12 x 12 hole through the whole block: the cut face has a hole in it
+    let img = shot(&holed_block(-1.0, 21.0), true);
+    let through = cap.iter().filter(|&&(x, y)| is_cap(&img, x, y)).count();
+    assert!(through + 1500 < cap.len(), "{name}: the hole through the block is covered ({through} of {} pixels are cut face)", cap.len());
+}
+
+/// A 20 mm block on the bed with a 12 x 12 mm hole from `z0` to `z1` (below 0 opens it at the
+/// bottom, above 20 at the top).
+fn holed_block(z0: f64, z1: f64) -> BodyView {
+    use stl_kernel::Solid;
+    let outer = Solid::cube([20.0, 20.0, 20.0], true).translate([0.0, 0.0, 10.0]);
+    let hole = Solid::cube([12.0, 12.0, z1 - z0], true).translate([0.0, 0.0, (z0 + z1) / 2.0]);
+    BodyView { mesh: Arc::new(outer.difference(&hole).to_mesh()), ..block("b1", 0.0, 20.0) }
 }
 
 #[test]
-fn cut_face_hides_edges_dark() {
-    cut_face_hides_edges("cut_face_hides_edges_dark", true);
+fn cut_face_hides_what_is_behind_it_dark() {
+    cut_face_hides_what_is_behind_it("cut_face_dark", true);
 }
 
 #[test]
-fn cut_face_hides_edges_light() {
-    cut_face_hides_edges("cut_face_hides_edges_light", false);
+fn cut_face_hides_what_is_behind_it_light() {
+    cut_face_hides_what_is_behind_it("cut_face_light", false);
 }
 
 // ---------------------------------------------------------------------- grid through a body

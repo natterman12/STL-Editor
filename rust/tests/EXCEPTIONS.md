@@ -427,12 +427,16 @@ Nathan answered these on 2026-11-14: accepted unless marked otherwise.
   inside…"). New text with no 1.x original: "Or click a flat face or a plane." and "That face isn't flat. Click a flat face or a
   plane." A Distance expression that fails shows the engine's expression error, as the tool panel does. The panel has Cancel,
   which puts the cut back as it was.
-- **Accepted by Nathan (2026-11-16): Hatch (on by default) draws darker diagonal lines on the cut faces** (45°, 6 px apart in screen space, at
+- **Accepted by Nathan (2026-11-16): Hatch (on by default) draws darker diagonal lines on the cut faces** (45°, 12 points apart in screen space (6 until Nathan asked for wider spacing, 2026-11-16), at
   0.53 × the cap colour). With Hatch off the cut face is 1.x's flat #d06060.
-- **Asked by Nathan (2026-11-16): the part's edges never show through a cut face.** The cut face is drawn from the
-  body's back faces, and the M7 build drew the edges lying on them (a far wall's corners) over it. While the cut is on,
-  an edge whose two faces both point away from the camera is now hidden; outline edges always have one face toward the
-  camera and stay (`tests/m4a_fix_t5.rs` `cut_face_hides_edges_*`).
+- **Asked by Nathan (2026-11-16): nothing behind a cut face shows through it** (edges, or slivers of faces where a pocket
+  or wall meets the material above it). The M7 build drew the cut face from the body's back faces, at their depth. Where
+  the GPU has a depth buffer with a stencil (`DEPTH32FLOAT_STENCIL8`), the cut face is now drawn at the cut plane: a
+  stencil count of the surfaces beyond the plane marks where the cut passes through material, and the cut face hides
+  everything behind it there; a hole the cut passes through still shows (`tests/m4a_fix_t5.rs`
+  `cut_face_hides_what_is_behind_it_*`). Known limit: where shells overlap inside one STL the count is even, so that
+  part of the cut shows no cut face. Without the stencil feature, edges whose two faces both point away from the camera
+  are hidden while the cut is on, which covers simple parts.
 - **Accepted by Nathan (2026-11-16): Split has a Distance field (`offset`, mm) after Split plane, with the drag arrow.** 1.x has no such field.
   It is saved only when it isn't 0, so 1.x projects and the 1.x goldens are unchanged; `tests/tools_golden.rs` leaves it out
   before comparing with the 1.x definition. A fresh plane pick sets it: 0 when the plane passes through the body, else halfway.

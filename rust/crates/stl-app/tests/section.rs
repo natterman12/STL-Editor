@@ -340,13 +340,15 @@ fn section_hatch_snapshot() {
             let red = red_pixels(img);
             assert!(red < 400, "{name} {what}: {red} red-dominant pixels");
         }
-        // diagonal: along a row through the cut face, line pixels repeat about every 6 pixels
+        // diagonal: along a row through the cut face, line pixels repeat every HATCH_SPACING pixels
+        // (12; 6 until Nathan asked for wider spacing, 2026-11-16)
         let y = (0..on.height()).max_by_key(|&y| (0..on.width()).filter(|&x| hatch_at(&on, x, y)).count()).unwrap();
         let xs: Vec<u32> = (0..on.width()).filter(|&x| hatch_at(&on, x, y) && !(x > 0 && hatch_at(&on, x - 1, y))).collect();
         let gaps: Vec<u32> = xs.windows(2).map(|w| w[1] - w[0]).collect();
         assert!(gaps.len() >= 4, "{name}: too few lines on row {y}: {xs:?}");
         let mean = gaps.iter().sum::<u32>() as f64 / gaps.len() as f64;
-        assert!((mean - 6.0).abs() < 1.0, "{name}: lines {mean:.2} px apart on row {y}: {xs:?}");
+        let want = stl_app::viewport::section::HATCH_SPACING;
+        assert!((mean - want).abs() < 1.0, "{name}: lines {mean:.2} px apart on row {y}, not {want}: {xs:?}");
         // the grid never shows in the cut face: with the grid off, those pixels are the same.
         // The face is found in the plain (Hatch off) picture, well inside its edge, where the
         // pixels blend with whatever is behind the face.

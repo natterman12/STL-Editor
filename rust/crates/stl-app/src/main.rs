@@ -40,10 +40,11 @@ fn main() -> eframe::Result {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if let Some((out, quick)) = stl_app::bench::parse_args(args.iter().cloned()) {
         let launched = std::time::Instant::now();
-        let options = eframe::NativeOptions {
+        let mut options = eframe::NativeOptions {
             viewport: egui::ViewportBuilder::default().with_title("STL Editor (uibench)").with_inner_size([1280.0, 800.0]),
             ..Default::default()
         };
+        stl_app::viewport::renderer::ask_for_stencil(&mut options.wgpu_options);
         return eframe::run_native(
             "STL Editor",
             options,
@@ -51,10 +52,11 @@ fn main() -> eframe::Result {
         );
     }
 
-    let options = eframe::NativeOptions {
+    let mut options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default().with_title(stl_app::build_info::title()).with_inner_size([1280.0, 800.0]),
         ..Default::default()
     };
+    stl_app::viewport::renderer::ask_for_stencil(&mut options.wgpu_options);
     // `stl-app <file>`: a .stlx is opened, any other mesh is inserted.
     let launch_file = args.into_iter().find(|a| !a.starts_with('-'));
     let title = stl_app::build_info::title();
@@ -491,7 +493,11 @@ mod web_main {
             let result = eframe::WebRunner::new()
                 .start(
                     canvas,
-                    eframe::WebOptions::default(),
+                    {
+                        let mut options = eframe::WebOptions::default();
+                        stl_app::viewport::renderer::ask_for_stencil(&mut options.wgpu_options);
+                        options
+                    },
                     Box::new(move |cc| {
                         let ctx = cc.egui_ctx.clone();
                         let (link, track): (Box<dyn EngineLink>, bool) = match WebLink::new() {

@@ -23,6 +23,22 @@ use super::scene::{as_bytes, FlatVertex, LitVertex, PreparedMesh};
 pub const MSAA: u32 = 4;
 pub const COLOR_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
 pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
+/// The depth format with a stencil, used when the device has `DEPTH32FLOAT_STENCIL8`: the
+/// section cut then puts its cut face at the cut plane (see [`GpuState::render`]).
+pub const DEPTH_STENCIL_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32FloatStencil8;
+
+/// Ask for the stencil the section cut uses, where the adapter has it (every device the
+/// viewport draws on is made through this: the app's window, the web page, tests, headless).
+pub fn ask_for_stencil(config: &mut egui_wgpu::WgpuConfiguration) {
+    if let egui_wgpu::WgpuSetup::CreateNew(create) = &mut config.wgpu_setup {
+        let base = create.device_descriptor.clone();
+        create.device_descriptor = Arc::new(move |adapter: &wgpu::Adapter| {
+            let mut d = base(adapter);
+            d.required_features |= adapter.features() & wgpu::Features::DEPTH32FLOAT_STENCIL8;
+            d
+        });
+    }
+}
 
 const LIT_SHADER: &str = concat!(include_str!("shaders/common.wgsl"), include_str!("shaders/lit.wgsl"));
 const FLAT_SHADER: &str = concat!(include_str!("shaders/common.wgsl"), include_str!("shaders/flat.wgsl"));
@@ -200,6 +216,9 @@ struct Targets {
 }
 
 struct Pipelines {
+    /// With a stencil: (count the surfaces behind the cut plane, then draw the cut face at the
+    /// plane where that count is odd).
+    cut: Option<(wgpu::RenderPipeline, wgpu::RenderPipeline)>,
     body_opaque: wgpu::RenderPipeline,
     /// Back faces, unlit, the body's colour 25 % darker, drawn only while the section cut is on.
     cap: wgpu::RenderPipeline,
@@ -213,6 +232,7 @@ struct Pipelines {
 /// The viewport's GPU resources. Lives in egui-wgpu's `callback_resources`.
 pub struct GpuState {
     pipelines: Pipelines,
+    depth_format: wgpu::TextureFormat,
     globals: wgpu::Buffer,
     globals_bind: wgpu::BindGroup,
     body_layout: wgpu::BindGroupLayout,
@@ -271,6 +291,9 @@ struct PipeDesc<'a> {
     compare: wgpu::CompareFunction,
     bias: wgpu::DepthBiasState,
     blend: Option<wgpu::BlendState>,
+    depth_format: wgpu::TextureFormat,
+    stencil: wgpu::StencilState,
+    writes: wgpu::ColorWrites,
 }
 
 fn pipeline(device: &wgpu::Device, d: PipeDesc<'_>) -> wgpu::RenderPipeline {
@@ -293,17 +316,17 @@ fn pipeline(device: &wgpu::Device, d: PipeDesc<'_>) -> wgpu::RenderPipeline {
             conservative: false,
         },
         depth_stencil: Some(wgpu::DepthStencilState {
-            format: DEPTH_FORMAT,
+            format: d.depth_format,
             depth_write_enabled: Some(d.depth_write),
             depth_compare: Some(d.compare),
-            stencil: wgpu::StencilState::default(),
+            stencil: d.stencil,
             bias: d.bias,
         }),
         multisample: wgpu::MultisampleState { count: MSAA, mask: !0, alpha_to_coverage_enabled: false },
         fragment: Some(wgpu::FragmentState {
             module: d.module,
             entry_point: Some(d.fs),
-            targets: &[Some(wgpu::ColorTargetState { format: COLOR_FORMAT, blend: d.blend, write_mask: wgpu::ColorWrites::ALL })],
+            targets: &[Some(wgpu::ColorTargetState { format: COLOR_FORMAT, blend: d.blend, write_mask: d.writes })],
             compilation_options: wgpu::PipelineCompilationOptions::default(),
         }),
         multiview_mask: None,
@@ -539,6 +562,8 @@ impl GpuState {
         })];
         use wgpu::CompareFunction::*;
         use wgpu::PrimitiveTopology::*;
+        let stencil = device.features().contains(wgpu::Features::DEPTH32FLOAT_STENCIL8);
+        let depth_format = if stencil { DEPTH_STENCIL_FORMAT } else { DEPTH_FORMAT };
         let body = |label, depth_write, blend| {
             pipeline(
                 device,
@@ -555,6 +580,9 @@ impl GpuState {
                     compare: Greater,
                     bias: BODY_BIAS,
                     blend,
+                    depth_format,
+                    stencil: wgpu::StencilState::default(),
+                    writes: wgpu::ColorWrites::ALL,
                 },
             )
         };
@@ -575,9 +603,73 @@ impl GpuState {
                 // pushed back like the bodies (three's polygonOffset 1, 1), so edges on it win
                 bias: BODY_BIAS,
                 blend: None,
+                depth_format,
+                stencil: wgpu::StencilState::default(),
+                writes: wgpu::ColorWrites::ALL,
             },
         );
         let body_transparent = body("viewport body (see-through)", false, Some(blend_alpha()));
+        // The cut face at the cut plane (Nathan's M7 test, 2026-11-16: edges and faces behind
+        // the cut face showed through it). First every surface of the body beyond the plane
+        // flips the stencil's low bit, so it is 1 where the cut passes through material (an odd
+        // count: watertight rasterization covers a shared edge once, so ties don't matter).
+        // Then the body's triangles are drawn again where the bit is 1, as the cut face, with
+        // the depth of the cut plane: everything behind it is hidden, a hole the cut passes
+        // through still shows, and a nearer part still wins. That draw clears the bit again.
+        let cut = stencil.then(|| {
+            let face = |compare, op| wgpu::StencilFaceState { compare, fail_op: op, depth_fail_op: op, pass_op: op };
+            let count = pipeline(
+                device,
+                PipeDesc {
+                    label: "viewport cut count",
+                    module: &cap_mod,
+                    layout: &lit_layout,
+                    vs: "vs_cap",
+                    fs: "fs_cut_count",
+                    buffers: &lit_vb,
+                    topology: TriangleList,
+                    cull: None,
+                    depth_write: false,
+                    compare: Always,
+                    bias: NO_BIAS,
+                    blend: None,
+                    depth_format,
+                    stencil: wgpu::StencilState {
+                        front: face(Always, wgpu::StencilOperation::Invert),
+                        back: face(Always, wgpu::StencilOperation::Invert),
+                        read_mask: 1,
+                        write_mask: 1,
+                    },
+                    writes: wgpu::ColorWrites::empty(),
+                },
+            );
+            let at_plane = pipeline(
+                device,
+                PipeDesc {
+                    label: "viewport cut face",
+                    module: &cap_mod,
+                    layout: &lit_layout,
+                    vs: "vs_cap",
+                    fs: "fs_cut_face",
+                    buffers: &lit_vb,
+                    topology: TriangleList,
+                    cull: None,
+                    depth_write: true,
+                    compare: Greater,
+                    bias: NO_BIAS,
+                    blend: None,
+                    depth_format,
+                    stencil: wgpu::StencilState {
+                        front: face(Equal, wgpu::StencilOperation::Zero),
+                        back: face(Equal, wgpu::StencilOperation::Zero),
+                        read_mask: 1,
+                        write_mask: 1,
+                    },
+                    writes: wgpu::ColorWrites::ALL,
+                },
+            );
+            (count, at_plane)
+        });
         let edge = pipeline(
             device,
             PipeDesc {
@@ -593,6 +685,9 @@ impl GpuState {
                 compare: GreaterEqual,
                 bias: NO_BIAS,
                 blend: Some(blend_alpha()),
+                depth_format,
+                stencil: wgpu::StencilState::default(),
+                writes: wgpu::ColorWrites::ALL,
             },
         );
         let mut flat_pipes = HashMap::new();
@@ -619,6 +714,9 @@ impl GpuState {
                         compare,
                         bias,
                         blend: Some(blend_alpha()),
+                        depth_format,
+                        stencil: wgpu::StencilState::default(),
+                        writes: wgpu::ColorWrites::ALL,
                     },
                 );
                 flat_pipes.insert((lines, depth), p);
@@ -667,7 +765,8 @@ impl GpuState {
         *stats.lost_reason.lock().unwrap_or_else(|e| e.into_inner()) = None;
         stats.gpu_states.fetch_add(1, Ordering::Relaxed);
         GpuState {
-            pipelines: Pipelines { body_opaque, cap, body_transparent, edge, flat: flat_pipes, blit: blit_pipe },
+            pipelines: Pipelines { cut, body_opaque, cap, body_transparent, edge, flat: flat_pipes, blit: blit_pipe },
+            depth_format,
             globals,
             globals_bind,
             body_layout,
@@ -761,7 +860,7 @@ impl GpuState {
             })
         };
         let msaa = tex("viewport msaa", COLOR_FORMAT, MSAA, wgpu::TextureUsages::RENDER_ATTACHMENT);
-        let depth = tex("viewport depth", DEPTH_FORMAT, MSAA, wgpu::TextureUsages::RENDER_ATTACHMENT);
+        let depth = tex("viewport depth", self.depth_format, MSAA, wgpu::TextureUsages::RENDER_ATTACHMENT);
         let resolve = tex(
             "viewport image",
             COLOR_FORMAT,
@@ -903,7 +1002,8 @@ impl GpuState {
             depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                 view: &t.depth,
                 depth_ops: Some(wgpu::Operations { load: wgpu::LoadOp::Clear(0.0), store: wgpu::StoreOp::Discard }),
-                stencil_ops: None,
+                stencil_ops: (self.depth_format == DEPTH_STENCIL_FORMAT)
+                    .then_some(wgpu::Operations { load: wgpu::LoadOp::Clear(0), store: wgpu::StoreOp::Discard }),
             }),
             ..Default::default()
         });
@@ -942,10 +1042,23 @@ impl GpuState {
         // 1b. section cap: the body's back faces, unlit, clipped by the same plane. A dimmed
         // body keeps its opaque cap (viewer.js `o.back`); preview meshes have none.
         if frame.globals.flags[0] > 0.5 {
-            pass.set_pipeline(&self.pipelines.cap);
-            for d in frame.bodies.iter().filter(|d| d.visible && d.cap) {
-                if let Some(g) = self.bodies.get(&d.key) {
-                    draw_body(&mut pass, g);
+            if let Some((count, at_plane)) = &self.pipelines.cut {
+                // with a stencil: the cut face at the cut plane, one body at a time
+                pass.set_stencil_reference(1);
+                for d in frame.bodies.iter().filter(|d| d.visible && d.cap) {
+                    if let Some(g) = self.bodies.get(&d.key) {
+                        pass.set_pipeline(count);
+                        draw_body(&mut pass, g);
+                        pass.set_pipeline(at_plane);
+                        draw_body(&mut pass, g);
+                    }
+                }
+            } else {
+                pass.set_pipeline(&self.pipelines.cap);
+                for d in frame.bodies.iter().filter(|d| d.visible && d.cap) {
+                    if let Some(g) = self.bodies.get(&d.key) {
+                        draw_body(&mut pass, g);
+                    }
                 }
             }
         }
@@ -1137,7 +1250,8 @@ pub fn block_on<F: std::future::Future>(f: F) -> F::Output {
 pub fn new_render_state() -> Option<egui_wgpu::RenderState> {
     let setup = egui_wgpu::WgpuSetup::without_display_handle();
     let instance = block_on(setup.new_instance());
-    let config = egui_wgpu::WgpuConfiguration { wgpu_setup: setup, ..Default::default() };
+    let mut config = egui_wgpu::WgpuConfiguration { wgpu_setup: setup, ..Default::default() };
+    ask_for_stencil(&mut config);
     block_on(egui_wgpu::RenderState::create(&config, &instance, None, egui_wgpu::RendererOptions::default())).ok()
 }
 
