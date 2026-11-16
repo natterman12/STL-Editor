@@ -1,5 +1,5 @@
 //! Support Fins engine hosts against the 1.x engine golden (rust/tests/parity/fins_golden.json,
-//! made by dev/parity/make_fins_golden.py with the bundled v1.0.5 engine).
+//! made by dev/parity/make_fins_golden.py with the bundled engine; rerun it after each Support Fins update).
 //!
 //! Matching rules (spec section 5): integer stats exact, float stats within 1e-6 relative,
 //! piece count and report text exact. The triangle hash is reported, not required.

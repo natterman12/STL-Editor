@@ -422,6 +422,7 @@ impl StlApp {
             if t.elapsed() >= wait {
                 self.update_start = None;
                 u.start_background(&*self.platform, now_secs());
+                crate::updates::Updates::start_fins_check(&*self.platform);
             } else {
                 ctx.request_repaint_after(wait - t.elapsed());
             }

@@ -415,3 +415,22 @@ fn help_menu_items() {
     assert!(u.is_busy(), "turning checks on checks now");
     settle(&mut u, &p, 1_800_000_000.0);
 }
+
+/// The Support Fins engine check at start-up follows the same switches as 1.x: "Check for new
+/// versions" (`update_check`) and `supportfins_update`, both on unless turned off.
+#[test]
+fn fins_check_follows_the_update_switches() {
+    let dir = temp("fins-switches");
+    let p = platform(&dir);
+    let s = updates::fins_settings(&p, PathBuf::from("bundled"), dir.clone());
+    assert!(s.update_check && s.supportfins_update, "both on by default");
+    assert_eq!(s.bundled, PathBuf::from("bundled"));
+    assert_eq!(s.config_dir, dir);
+    assert_eq!(s.repo, None, "the published site, not a test server");
+
+    p.set_setting_json("update_check", json!(false));
+    assert!(!updates::fins_settings(&p, PathBuf::new(), dir.clone()).update_check);
+    p.set_setting_json("update_check", json!(true));
+    p.set_setting_json("supportfins_update", json!(false));
+    assert!(!updates::fins_settings(&p, PathBuf::new(), dir.clone()).supportfins_update);
+}

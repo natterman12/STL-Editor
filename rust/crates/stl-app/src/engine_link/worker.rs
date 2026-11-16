@@ -680,10 +680,10 @@ fn seed(title: &str, date: &str) -> u64 {
     h
 }
 
-/// Desktop: the engine files beside the program (or the newest downloaded one), on the system web
-/// engine or Boa. Web: the `SupportFinsEngine` the page loaded.
+/// Desktop: the shipped Support Fins engine folder (`web/vendor/support-fins` beside the
+/// program, or above the working folder or this crate). Empty when there is none.
 #[cfg(not(target_arch = "wasm32"))]
-fn make_fins_host() -> Arc<dyn FinsHost> {
+pub fn bundled_fins_dir() -> std::path::PathBuf {
     use std::path::PathBuf;
     let rel = ["web", "vendor", "support-fins"];
     let mut starts: Vec<PathBuf> = Vec::new();
@@ -694,23 +694,23 @@ fn make_fins_host() -> Arc<dyn FinsHost> {
         starts.push(cwd);
     }
     starts.push(PathBuf::from(env!("CARGO_MANIFEST_DIR")));
-    let mut bundled = None;
     for s in starts {
         for a in s.ancestors() {
             let d: PathBuf = rel.iter().fold(a.to_path_buf(), |p, x| p.join(x));
             if d.join("engine.iife.js").is_file() {
-                bundled = Some(d);
-                break;
+                return d;
             }
         }
-        if bundled.is_some() {
-            break;
-        }
     }
+    PathBuf::new()
+}
+
+/// Desktop: the engine files beside the program (or the newest downloaded one), on the system web
+/// engine or Boa. Web: the `SupportFinsEngine` the page loaded.
+#[cfg(not(target_arch = "wasm32"))]
+fn make_fins_host() -> Arc<dyn FinsHost> {
     // 2.0's own folder; 1.x's `STL Editor` folder is never read or written
-    let user = stl_platform::paths::config_dir().join("support-fins");
-    let bundled = bundled.unwrap_or_default();
-    match stl_platform::fins::choose_engine(&bundled, &user) {
+    match stl_platform::fins::choose_engine(&bundled_fins_dir(), &stl_platform::fins::engines_dir()) {
         Ok(info) => stl_platform::fins::start_fins_host(&info.path),
         Err(_) => Arc::new(stl_engine::NullHost),
     }

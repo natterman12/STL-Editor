@@ -263,6 +263,15 @@ mod desktop {
             self.spawn_check(false);
         }
 
+        /// The start-up check (once, from the app, with [`Updates::start_background`]) for a newer
+        /// Support Fins engine on the web edition's site: at most once a day, in the background.
+        /// A newer engine is downloaded to `config_dir()/support-fins` and used from the next start
+        /// (1.x `supportfins.check_update`), so a Support Fins release needs no 2.0 release.
+        pub fn start_fins_check(p: &dyn Platform) {
+            let s = fins_settings(p, crate::engine_link::worker::bundled_fins_dir(), stl_platform::paths::config_dir());
+            stl_platform::fins::check_update(&s, false);
+        }
+
         /// Help > Check for Updates…: asks now, whatever the settings say.
         pub fn check_now(&mut self, _p: &dyn Platform, _now: f64) {
             if let Some((_, manual)) = &mut self.checking {
@@ -651,6 +660,16 @@ mod desktop {
     }
 
     /// After the first frame: the new copy started, so the previous exe can go.
+    /// What the Support Fins engine check reads: the bundled engine, the config folder, and the
+    /// two switches (`update_check`, `supportfins_update`), both on unless turned off.
+    pub fn fins_settings(p: &dyn Platform, bundled: PathBuf, config_dir: PathBuf) -> stl_platform::fins::Settings {
+        let on = |key: &str| p.setting_json(key) != Some(Value::Bool(false));
+        let mut s = stl_platform::fins::Settings::new(bundled, config_dir);
+        s.update_check = on(keys::UPDATE_CHECK);
+        s.supportfins_update = on(keys::SUPPORTFINS_UPDATE);
+        s
+    }
+
     pub fn finish_swap_after_first_frame() {
         if let Ok(exe) = std::env::current_exe() {
             update::finish_swap(&exe);

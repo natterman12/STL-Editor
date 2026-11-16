@@ -8,7 +8,7 @@
   "small": 0,
   "stats": {
    "braces": 3,
-   "finTriangles": 516,
+   "finTriangles": 636,
    "floating": 0,
    "floatingDrop": 0,
    "overhangRegions": 1,
@@ -24,7 +24,7 @@
    "tines": 0,
    "unserved": 0
   },
-  "triangles_sha256": "86415cbb73487024807b846b3777a8c283fdfa63e29a0c0260f296779f920655"
+  "triangles_sha256": "3642bdedc5ce7d46de47d90f615f32202847a5cf21bdb0afc0f30e9bd0d4ef7b"
  },
  "bridge_ring_dense_tines": {
   "model": "bridge_ring.stl",
@@ -34,11 +34,11 @@
   },
   "over": 2,
   "pieces": 3,
-  "report": "3 walls, 12 pins",
+  "report": "3 walls, 15 pins",
   "small": 0,
   "stats": {
    "braces": 3,
-   "finTriangles": 924,
+   "finTriangles": 1164,
    "floating": 0,
    "floatingDrop": 0,
    "overhangRegions": 1,
@@ -51,10 +51,10 @@
    "swaySkipped": 0,
    "swayTines": 0,
    "swayTriangles": 0,
-   "tines": 12,
+   "tines": 15,
    "unserved": 0
   },
-  "triangles_sha256": "5974d3a5e51ecd4231a36372d4d115525130c4584f7d40794446e3b765d41797"
+  "triangles_sha256": "0be6e8ad840b4bf0b6c72b5091536197f8c7e9750899d1b09cf8ed7a37b25d1b"
  },
  "bridge_ring_full": {
   "model": "bridge_ring.stl",
@@ -67,7 +67,7 @@
   "small": 0,
   "stats": {
    "braces": 3,
-   "finTriangles": 516,
+   "finTriangles": 636,
    "floating": 0,
    "floatingDrop": 0,
    "overhangRegions": 1,
@@ -83,7 +83,7 @@
    "tines": 0,
    "unserved": 0
   },
-  "triangles_sha256": "86415cbb73487024807b846b3777a8c283fdfa63e29a0c0260f296779f920655"
+  "triangles_sha256": "3642bdedc5ce7d46de47d90f615f32202847a5cf21bdb0afc0f30e9bd0d4ef7b"
  },
  "lipped_shelf_default": {
   "model": "lipped_shelf.stl",
@@ -226,7 +226,7 @@
    "tines": 80,
    "unserved": 0
   },
-  "triangles_sha256": "8720ccb8ebe71ca29c7de63b98412c5736876dd532833ca2a0597a33f0cf03b5"
+  "triangles_sha256": "62408cead4da3a99c31be8809ecf6229809719280219d8ac570462772af149fa"
  },
  "t_bracket_full": {
   "model": "t_bracket.stl",

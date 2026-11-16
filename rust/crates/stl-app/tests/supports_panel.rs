@@ -111,7 +111,10 @@ impl OverhangOverlay for Paint {
 #[test]
 fn schema_builds_panel() {
     ensure();
-    assert_eq!(supports::engine_version(), "1.0.5");
+    // the bundled engine's own version (the daily Support Fins update changes it)
+    let bundled = concat!(env!("CARGO_MANIFEST_DIR"), "/../../../web/vendor/support-fins/VERSION.json");
+    let info: serde_json::Value = serde_json::from_slice(&std::fs::read(bundled).unwrap()).unwrap();
+    assert_eq!(supports::engine_version(), info["version"].as_str().unwrap());
     assert!(supports::orient_available());
     assert!(supports::engine_features().curves);
 
