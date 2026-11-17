@@ -6,7 +6,7 @@ SF._call("computeFinsB64", ...) and records stats, piece count, report, and a
 SHA-256 of the decoded little-endian float32 triangle bytes.
 
 Update checks are off and USER_DIR is empty so only the bundled
-web/vendor/support-fins/engine.iife.js (v1.0.5) is used.
+web/vendor/support-fins/engine.iife.js is used.
 
 Usage:
   python dev/parity/make_fins_golden.py          # write golden
@@ -54,7 +54,7 @@ def _norm_newlines(s: str) -> str:
 
 
 def _force_bundled_engine() -> None:
-    """Golden files must use the bundled v1.0.5 engine, never a downloaded update."""
+    """Golden files must use the bundled engine, never a downloaded update."""
     SF.USER_DIR = tempfile.mkdtemp(prefix="sf-fins-golden-")
     SF._ctx = None
     SF._active = None

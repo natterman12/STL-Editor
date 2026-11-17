@@ -222,7 +222,17 @@ mod tests {
         assert!(h.has("computeFinsB64"));
         assert!(!h.has("noSuchThing"));
         let info: Value = serde_json::from_str(&h.call("__info", &[]).unwrap()).unwrap();
-        assert_eq!(info["version"], "1.0.5");
+        // the replay is recorded from the bundled engine: after a new engine arrives, run
+        // dev/parity/make_golden.py and dev/parity/record_fins_replay.py again
+        let bundled = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../../web/vendor/support-fins/VERSION.json"
+        );
+        let bundled: Value = serde_json::from_str(&std::fs::read_to_string(bundled).unwrap()).unwrap();
+        assert_eq!(
+            info["version"], bundled["version"],
+            "fins_replay.json is from an older Support Fins engine"
+        );
         assert!(h.call("computeFinsB64", &["\"nothing recorded\""]).is_err());
     }
 }

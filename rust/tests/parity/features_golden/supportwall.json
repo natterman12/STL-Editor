@@ -109,7 +109,7 @@
    {
     "error": null,
     "id": "f2",
-    "info": "Support Fins 1.0.5: wall 20.0 mm long, 49.8 mm tall, 0 tines",
+    "info": "Support Fins 1.0.6: wall 20.0 mm long, 49.8 mm tall, 0 tines",
     "warning": null
    }
   ]
@@ -148,7 +148,7 @@
    {
     "error": null,
     "id": "f2",
-    "info": "Support Fins 1.0.5: 2 walls, 60.0 mm in all, 0 tines",
+    "info": "Support Fins 1.0.6: 2 walls, 60.0 mm in all, 0 tines",
     "warning": null
    }
   ]
