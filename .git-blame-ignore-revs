@@ -1,0 +1,6 @@
+# Commits that only reformat code. `git blame` skips them with:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+# (GitHub reads this file by itself.)
+
+# rustfmt over the Rust workspace, with the clippy fixes (2026-11-17)
+4706d2d039c703bae97060a5fc10dc09b04d9e38
