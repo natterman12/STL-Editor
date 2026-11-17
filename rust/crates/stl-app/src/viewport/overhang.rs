@@ -7,8 +7,8 @@ use std::sync::{Arc, Mutex};
 use egui::Color32;
 use stl_kernel::MeshArrays;
 
-use super::camera;
 use super::Viewport;
+use super::camera;
 
 /// `0xd64545`: the faces Support Fins holds up (`sf-over`).
 pub const OVERHANG_RED: Color32 = Color32::from_rgb(0xd6, 0x45, 0x45);
@@ -79,7 +79,7 @@ impl OverhangWork {
             // the clock is read every 1024 items, not for each one
             if let Some(b) = budget {
                 n += 1;
-                if n % 1024 == 0 && start.elapsed() >= b {
+                if n.is_multiple_of(1024) && start.elapsed() >= b {
                     return None;
                 }
             }
@@ -178,7 +178,10 @@ pub(super) struct OverhangJob {
 
 impl Viewport {
     fn cached_overhangs(&self, mesh: &Arc<MeshArrays>, thr: f64) -> Option<Arc<Vec<u32>>> {
-        self.overhang_cache.as_ref().filter(|c| Arc::ptr_eq(&c.mesh, mesh) && c.thr == thr).map(|c| c.faces.clone())
+        self.overhang_cache
+            .as_ref()
+            .filter(|c| Arc::ptr_eq(&c.mesh, mesh) && c.thr == thr)
+            .map(|c| c.faces.clone())
     }
 
     /// `show_overhangs` without making the frame wait: a repeat of the last ask paints from the
@@ -197,11 +200,17 @@ impl Viewport {
         #[cfg(target_arch = "wasm32")]
         {
             let work = Some(OverhangWork::new(&mesh, threshold_deg));
-            self.overhang_job = Some(OverhangJob { body: body.to_owned(), mesh, thr: threshold_deg, slot: Arc::new(Mutex::new(None)), work });
+            self.overhang_job = Some(OverhangJob {
+                body: body.to_owned(),
+                mesh,
+                thr: threshold_deg,
+                slot: Arc::new(Mutex::new(None)),
+                work,
+            });
             if let Some(c) = &self.ctx {
                 c.request_repaint();
             }
-            return None;
+            None
         }
         #[cfg(not(target_arch = "wasm32"))]
         {
@@ -214,27 +223,33 @@ impl Viewport {
                     c.request_repaint();
                 }
             });
-            self.overhang_job = Some(OverhangJob { body: body.to_owned(), mesh, thr: threshold_deg, slot, work: None });
+            self.overhang_job = Some(OverhangJob {
+                body: body.to_owned(),
+                mesh,
+                thr: threshold_deg,
+                slot,
+                work: None,
+            });
             None
         }
     }
 
     /// Paint a finished [`Viewport::show_overhangs_async`]: `Some((body, faces))` the frame it lands.
     pub fn poll_overhangs(&mut self) -> Option<(String, usize)> {
-        if let Some(job) = self.overhang_job.as_mut() {
-            if let Some(w) = job.work.as_mut() {
-                // a slice of the work each frame, so none runs past its time
-                match w.step(&job.mesh, Some(std::time::Duration::from_millis(4))) {
-                    Some(f) => {
-                        *job.slot.lock().unwrap_or_else(|e| e.into_inner()) = Some(f);
-                        job.work = None;
+        if let Some(job) = self.overhang_job.as_mut()
+            && let Some(w) = job.work.as_mut()
+        {
+            // a slice of the work each frame, so none runs past its time
+            match w.step(&job.mesh, Some(std::time::Duration::from_millis(4))) {
+                Some(f) => {
+                    *job.slot.lock().unwrap_or_else(|e| e.into_inner()) = Some(f);
+                    job.work = None;
+                }
+                None => {
+                    if let Some(c) = &self.ctx {
+                        c.request_repaint();
                     }
-                    None => {
-                        if let Some(c) = &self.ctx {
-                            c.request_repaint();
-                        }
-                        return None;
-                    }
+                    return None;
                 }
             }
         }
@@ -247,7 +262,11 @@ impl Viewport {
         }
         self.highlight_face(&job.body, &faces, "sf-over", OVERHANG_RED);
         let n = faces.len();
-        self.overhang_cache = Some(OverhangCache { mesh: job.mesh, thr: job.thr, faces: Arc::new(faces) });
+        self.overhang_cache = Some(OverhangCache {
+            mesh: job.mesh,
+            thr: job.thr,
+            faces: Arc::new(faces),
+        });
         Some((job.body, n))
     }
 
@@ -265,7 +284,13 @@ impl Viewport {
     /// `overhangFaces(bodyId, thresholdDeg)`: faces pointing down more steeply than the
     /// threshold, off the bed, in regions of 12 mm² or more, on the mesh on screen.
     pub fn overhang_faces(&self, body: &str, threshold_deg: f64) -> Vec<u32> {
-        self.body_mesh(body).map(|m| self.cached_overhangs(m, threshold_deg).map(|f| (*f).clone()).unwrap_or_else(|| overhang_faces(m, threshold_deg))).unwrap_or_default()
+        self.body_mesh(body)
+            .map(|m| {
+                self.cached_overhangs(m, threshold_deg)
+                    .map(|f| (*f).clone())
+                    .unwrap_or_else(|| overhang_faces(m, threshold_deg))
+            })
+            .unwrap_or_default()
     }
 
     /// The viewer half of `quickPaint`: clear the `sf-over` and `sf-small` overlays, then paint

@@ -3,7 +3,7 @@
 use egui::FontId;
 use serde_json::Value;
 
-use super::{framed_combo, row, seg_strip, Edit, FieldEnv, CTL_W, FORM_W};
+use super::{CTL_W, Edit, FORM_W, FieldEnv, framed_combo, row, seg_strip};
 use crate::tools::Field;
 
 /// `segFits`: at most 4 options, each label at most 16 characters, and all of them on one line.
@@ -18,11 +18,18 @@ pub fn seg_fits(ui: &egui::Ui, options: &[(String, String)], wide: bool) -> bool
 }
 
 fn text_w(ui: &egui::Ui, text: &str, font: &FontId) -> f32 {
-    ui.fonts_mut(|f| f.layout_no_wrap(text.to_owned(), font.clone(), egui::Color32::WHITE).size().x)
+    ui.fonts_mut(|f| {
+        f.layout_no_wrap(text.to_owned(), font.clone(), egui::Color32::WHITE)
+            .size()
+            .x
+    })
 }
 
 fn current_label(all: &[(String, String)], val: &str) -> String {
-    all.iter().find(|(k, _)| k == val).map(|(_, l)| l.clone()).unwrap_or_default()
+    all.iter()
+        .find(|(k, _)| k == val)
+        .map(|(_, l)| l.clone())
+        .unwrap_or_default()
 }
 
 pub fn value_str(val: &Value) -> String {
@@ -35,7 +42,9 @@ pub fn value_str(val: &Value) -> String {
     }
 }
 
-fn group_rows(options: &[(String, String, Option<String>)]) -> (Vec<(String, String)>, Vec<(String, Vec<(String, String)>)>) {
+fn group_rows(
+    options: &[(String, String, Option<String>)],
+) -> (Vec<(String, String)>, Vec<(String, Vec<(String, String)>)>) {
     let flat: Vec<(String, String)> = options.iter().map(|(a, b, _)| (a.clone(), b.clone())).collect();
     let mut order: Vec<String> = Vec::new();
     let mut by: std::collections::BTreeMap<String, Vec<(String, String)>> = std::collections::BTreeMap::new();
@@ -105,5 +114,8 @@ pub fn show(
             });
         }
     });
-    pick.filter(|k| *k != cur).map(|k| Edit { key: f.key.to_owned(), value: Value::String(k) })
+    pick.filter(|k| *k != cur).map(|k| Edit {
+        key: f.key.to_owned(),
+        value: Value::String(k),
+    })
 }

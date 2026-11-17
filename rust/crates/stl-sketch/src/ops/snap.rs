@@ -9,7 +9,13 @@ pub fn snap_points(entities: &[Entity]) -> Vec<P2> {
         match e {
             Entity::Rect(r) => {
                 let (x, y, w, h) = (r.x, r.y, r.w, r.h);
-                pts.extend([[x, y], [x + w, y], [x + w, y + h], [x, y + h], [x + w / 2.0, y + h / 2.0]]);
+                pts.extend([
+                    [x, y],
+                    [x + w, y],
+                    [x + w, y + h],
+                    [x, y + h],
+                    [x + w / 2.0, y + h / 2.0],
+                ]);
             }
             Entity::Circle(c) => pts.push([c.cx, c.cy]),
             Entity::Polygon(p) => pts.push([p.cx, p.cy]),

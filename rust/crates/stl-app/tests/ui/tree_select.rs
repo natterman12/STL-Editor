@@ -8,26 +8,33 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use egui_kittest::kittest::Queryable;
 use egui_kittest::Harness;
+use egui_kittest::kittest::Queryable;
 use serde_json::json;
 use stl_app::app::StlApp;
 use stl_app::engine_link::native::NativeLink;
 use stl_app::engine_link::{BodyView, Command, SketchView, TimelineItem, TimelineView};
 use stl_app::theme;
-use stl_app::ui::browser::{show as show_browser, Browser, BrowserView};
-use stl_app::ui::timeline::{show as show_timeline, Timeline};
 use stl_app::ui::UiEvent;
+use stl_app::ui::browser::{Browser, BrowserView, show as show_browser};
+use stl_app::ui::timeline::{Timeline, show as show_timeline};
 use stl_kernel::MeshArrays;
 
-use super::harness::{app_harness_ex, empty_harness, enter_sketch_plane, finish_sketch_settle, project, sketch_add_rect, settle, wait_for};
+use super::harness::{
+    app_harness_ex, empty_harness, enter_sketch_plane, finish_sketch_settle, project, settle, sketch_add_rect, wait_for,
+};
 
 // ------------------------------------------------------------------ pointer helpers
 
 /// One click (press and release in one frame, as a fast click arrives), then a frame.
 fn click<T>(h: &mut Harness<'_, T>, at: egui::Pos2) {
     use egui::{Event, PointerButton};
-    let button = |pressed| Event::PointerButton { pos: at, button: PointerButton::Primary, pressed, modifiers: Default::default() };
+    let button = |pressed| Event::PointerButton {
+        pos: at,
+        button: PointerButton::Primary,
+        pressed,
+        modifiers: Default::default(),
+    };
     h.event(Event::PointerMoved(at));
     h.event(button(true));
     h.event(button(false));
@@ -37,7 +44,12 @@ fn click<T>(h: &mut Harness<'_, T>, at: egui::Pos2) {
 /// Two clicks in one frame: egui reads the second as a double-click.
 fn double_click<T>(h: &mut Harness<'_, T>, at: egui::Pos2) {
     use egui::{Event, PointerButton};
-    let button = |pressed| Event::PointerButton { pos: at, button: PointerButton::Primary, pressed, modifiers: Default::default() };
+    let button = |pressed| Event::PointerButton {
+        pos: at,
+        button: PointerButton::Primary,
+        pressed,
+        modifiers: Default::default(),
+    };
     h.event(Event::PointerMoved(at));
     for _ in 0..2 {
         h.event(button(true));
@@ -56,7 +68,10 @@ fn body(id: &str, name: &str) -> BodyView {
         color: Some("#9aa7b4".into()),
         hidden: false,
         solid: true,
-        mesh: Arc::new(MeshArrays { positions: Vec::new(), triangles: Vec::new() }),
+        mesh: Arc::new(MeshArrays {
+            positions: Vec::new(),
+            triangles: Vec::new(),
+        }),
         revision: 1,
         holds_up: None,
     }
@@ -94,7 +109,15 @@ fn browser_harness(st: BrowserUi) -> Harness<'static, BrowserUi> {
                     sketches: &st.sketches,
                     params: &[],
                 };
-                show_browser(ui, &ctx, &tokens, &mut st.browser, view, &mut st.commands.borrow_mut(), &mut st.events.borrow_mut());
+                show_browser(
+                    ui,
+                    &ctx,
+                    &tokens,
+                    &mut st.browser,
+                    view,
+                    &mut st.commands.borrow_mut(),
+                    &mut st.events.borrow_mut(),
+                );
             },
             st,
         )
@@ -115,14 +138,22 @@ fn click_row_empty_side_selects() {
     let row_y = h.get_by_label("Part").rect().center().y;
     click(&mut h, egui::pos2(250.0, row_y));
     h.run();
-    assert!(events.borrow().contains(&UiEvent::Select(vec!["b1".into()])), "{:?}", events.borrow());
+    assert!(
+        events.borrow().contains(&UiEvent::Select(vec!["b1".into()])),
+        "{:?}",
+        events.borrow()
+    );
 
     // the eye keeps its own click: it hides the body and does not select it
     events.borrow_mut().clear();
     let eye = h.get_by_label("Hide Part").rect().center();
     click(&mut h, eye);
     h.run();
-    assert!(!events.borrow().iter().any(|e| matches!(e, UiEvent::Select(_))), "the eye does not select: {:?}", events.borrow());
+    assert!(
+        !events.borrow().iter().any(|e| matches!(e, UiEvent::Select(_))),
+        "the eye does not select: {:?}",
+        events.borrow()
+    );
 }
 
 #[test]
@@ -132,7 +163,13 @@ fn sketch_row_double_click_edits() {
     let mut h = browser_harness(BrowserUi {
         browser: Browser::default(),
         bodies: Vec::new(),
-        sketches: vec![SketchView { id: "s1".into(), name: "Sketch1".into(), plane: "XY".into(), hidden: false, ..Default::default() }],
+        sketches: vec![SketchView {
+            id: "s1".into(),
+            name: "Sketch1".into(),
+            plane: "XY".into(),
+            hidden: false,
+            ..Default::default()
+        }],
         events: events.clone(),
         commands: Rc::new(RefCell::new(Vec::new())),
     });
@@ -145,13 +182,23 @@ fn sketch_row_double_click_edits() {
     events.borrow_mut().clear();
     double_click(&mut h, egui::pos2(250.0, y));
     h.run();
-    assert!(events.borrow().contains(&UiEvent::EditFeature("s1".into())), "{:?}", events.borrow());
+    assert!(
+        events.borrow().contains(&UiEvent::EditFeature("s1".into())),
+        "{:?}",
+        events.borrow()
+    );
 }
 
 // ------------------------------------------------------------------ timeline (no app)
 
 fn item(id: &str, kind: &str, label: &str) -> TimelineItem {
-    TimelineItem { id: id.into(), kind: kind.into(), label: label.into(), active: true, ..Default::default() }
+    TimelineItem {
+        id: id.into(),
+        kind: kind.into(),
+        label: label.into(),
+        active: true,
+        ..Default::default()
+    }
 }
 
 struct TimelineUi {
@@ -176,7 +223,17 @@ fn timeline_harness(st: TimelineUi) -> Harness<'static, TimelineUi> {
                 let tokens = theme::tokens(true);
                 theme::apply(ui.ctx(), &tokens);
                 let ctx = ui.ctx().clone();
-                show_timeline(ui, &ctx, &tokens, &mut st.tl, &st.view, false, false, &mut st.commands.borrow_mut(), &mut st.events.borrow_mut());
+                show_timeline(
+                    ui,
+                    &ctx,
+                    &tokens,
+                    &mut st.tl,
+                    &st.view,
+                    false,
+                    false,
+                    &mut st.commands.borrow_mut(),
+                    &mut st.events.borrow_mut(),
+                );
             },
             st,
         )
@@ -201,7 +258,11 @@ fn feature_click_selects() {
     let at = h.get_by_label("Box").rect().center();
     click(&mut h, at);
     h.run();
-    assert!(events.borrow().contains(&UiEvent::SelectFeature("f2".into())), "{:?}", events.borrow());
+    assert!(
+        events.borrow().contains(&UiEvent::SelectFeature("f2".into())),
+        "{:?}",
+        events.borrow()
+    );
     // the status line still gets the step's name, as before
     assert_eq!(h.state_mut().tl.take_status().as_deref(), Some("Box"));
 }
@@ -223,7 +284,9 @@ fn sketch_fixture() -> (Harness<'static, StlApp>, Arc<NativeLink>, String, Strin
 /// The sketch row in the browser. Its name is a plain label; the timeline item beside it is a
 /// button of the same name, so the label is found by role.
 fn sketch_row(h: &Harness<'_, StlApp>, name: &str) -> egui::Pos2 {
-    h.get_by(|n| n.role() == egui::accesskit::Role::Label && n.value() == Some(name.to_string())).rect().center()
+    h.get_by(|n| n.role() == egui::accesskit::Role::Label && n.value() == Some(name.to_string()))
+        .rect()
+        .center()
 }
 
 #[test]
@@ -233,11 +296,23 @@ fn sketch_row_selects_and_highlights() {
     let at = sketch_row(&h, &name);
     click(&mut h, at);
     settle(&mut h, &link);
-    assert_eq!(h.state().selected_step.as_deref(), Some(id.as_str()), "the sketch is the selected step");
-    assert!(h.state().shell.events.contains(&UiEvent::SelectSketch(id.clone())), "{:?}", h.state().shell.events);
+    assert_eq!(
+        h.state().selected_step.as_deref(),
+        Some(id.as_str()),
+        "the sketch is the selected step"
+    );
+    assert!(
+        h.state().shell.events.contains(&UiEvent::SelectSketch(id.clone())),
+        "{:?}",
+        h.state().shell.events
+    );
     // the viewport draws the sketch in the selection colour under the "step-sel" tag
     assert!(
-        h.state().viewport.overlay_items().iter().any(|o| o.tag == "step-sel" && !o.lines.is_empty()),
+        h.state()
+            .viewport
+            .overlay_items()
+            .iter()
+            .any(|o| o.tag == "step-sel" && !o.lines.is_empty()),
         "the selected sketch is highlighted"
     );
 }
@@ -256,10 +331,20 @@ fn sketch_row_edit_reopens_sketch() {
 fn feature_click_selects_in_app() {
     let (mut h, _link) = app_harness_ex(Some(&project("basic.stlx")), egui::vec2(1280.0, 800.0));
     let step = h.state().timeline_view.items[0].clone();
-    let at = h.get_by(|n| n.role() == egui::accesskit::Role::Button && n.label() == Some(step.label.clone())).rect().center();
+    let at = h
+        .get_by(|n| n.role() == egui::accesskit::Role::Button && n.label() == Some(step.label.clone()))
+        .rect()
+        .center();
     click(&mut h, at);
     h.run_steps(2);
-    assert!(h.state().shell.events.contains(&UiEvent::SelectFeature(step.id.clone())), "{:?}", h.state().shell.events);
+    assert!(
+        h.state()
+            .shell
+            .events
+            .contains(&UiEvent::SelectFeature(step.id.clone())),
+        "{:?}",
+        h.state().shell.events
+    );
 }
 
 #[test]
@@ -269,11 +354,17 @@ fn click_while_busy_registers() {
     // the busy overlay shows once the work has taken 0.35 s; a click on a step still gets through
     h.state_mut().busy.set_progress(1, 2, "Rebuilding");
     h.run_steps(3);
-    let at = h.get_by(|n| n.role() == egui::accesskit::Role::Button && n.label() == Some(step.label.clone())).rect().center();
+    let at = h
+        .get_by(|n| n.role() == egui::accesskit::Role::Button && n.label() == Some(step.label.clone()))
+        .rect()
+        .center();
     click(&mut h, at);
     h.run_steps(2);
     assert!(
-        h.state().shell.events.contains(&UiEvent::SelectFeature(step.id.clone())),
+        h.state()
+            .shell
+            .events
+            .contains(&UiEvent::SelectFeature(step.id.clone())),
         "the click registered while busy: {:?}",
         h.state().shell.events
     );

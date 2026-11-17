@@ -27,7 +27,9 @@ fn f_lattice(
     let d = float(p, "strut", Some(1.0))?;
     let t = float(p, "thickness", Some(2.0))?;
     if cell <= 0.0 || d <= 0.0 || t <= 0.0 {
-        return Err(FeatureError("Cell size, strut diameter and wall thickness must all be above zero.".into()));
+        return Err(FeatureError(
+            "Cell size, strut diameter and wall thickness must all be above zero.".into(),
+        ));
     }
     if d >= cell {
         return Err(FeatureError(
@@ -46,7 +48,11 @@ fn f_lattice(
     }
     let n: [usize; 3] = std::array::from_fn(|i| nf[i] as usize);
     let pos: Vec<Vec<f64>> = (0..3)
-        .map(|a| (0..n[a]).map(|i| lo[a] + (i as f64 + 0.5) * size[a] / n[a] as f64).collect())
+        .map(|a| {
+            (0..n[a])
+                .map(|i| lo[a] + (i as f64 + 0.5) * size[a] / n[a] as f64)
+                .collect()
+        })
         .collect();
     let r = d / 2.0;
     let mut struts: Vec<Solid> = Vec::new();
@@ -71,7 +77,14 @@ fn f_lattice(
     }
     let grid = Solid::union_all(&struts);
     let out = s.difference(&cavity.difference(&grid));
-    state.bodies.insert(bid.to_string(), Body { name: b.name.clone(), solid: Some(out), mesh: None });
+    state.bodies.insert(
+        bid.to_string(),
+        Body {
+            name: b.name.clone(),
+            solid: Some(out),
+            mesh: None,
+        },
+    );
     res.modified.push(bid.to_string());
     Ok(())
 }

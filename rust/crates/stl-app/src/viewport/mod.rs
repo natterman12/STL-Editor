@@ -34,10 +34,10 @@ use stl_mesh::bvh::Bvh;
 
 use crate::engine_link::{BodyView, PlaneView, SketchView};
 use camera::{Camera, V3};
+pub use gizmo_draw::{GizmoMode, GizmoShape, Handle};
+pub use overhang::{OVERHANG_RED, SMALL_AMBER, overhang_faces};
 use overlays::{Depth, OverlayItem, SketchOutline, Stroke};
 use renderer::{BodyDraw, BodyUniform, FlatBatch, FrameData, Globals, GpuState, Stats};
-pub use gizmo_draw::{GizmoMode, GizmoShape, Handle};
-pub use overhang::{overhang_faces, OVERHANG_RED, SMALL_AMBER};
 use scene::{FlatVertex, Frame, PreparedMesh};
 
 /// Which mouse buttons do what.
@@ -207,7 +207,9 @@ impl TraceCell {
 fn free_later<T: Send + 'static>(old: T) {
     #[cfg(not(target_arch = "wasm32"))]
     {
-        let spawned = std::thread::Builder::new().name("stl-viewport-free".into()).spawn(move || drop(old));
+        let spawned = std::thread::Builder::new()
+            .name("stl-viewport-free".into())
+            .spawn(move || drop(old));
         // No thread to be had: free it here.
         drop(spawned);
     }
@@ -237,7 +239,11 @@ impl egui_wgpu::CallbackTrait for TimedCallback {
         let t = web_time::Instant::now();
         let uploads = self.inner.stats.uploads();
         let out = egui_wgpu::CallbackTrait::prepare(&self.inner, device, queue, screen, encoder, resources);
-        let pending = self.inner.stats.upload_pending.load(std::sync::atomic::Ordering::Relaxed);
+        let pending = self
+            .inner
+            .stats
+            .upload_pending
+            .load(std::sync::atomic::Ordering::Relaxed);
         let done = self.inner.stats.uploads().saturating_sub(uploads);
         self.trace.add(|tr| {
             tr.paint_ms += ms_since(t);
@@ -258,7 +264,12 @@ impl egui_wgpu::CallbackTrait for TimedCallback {
         egui_wgpu::CallbackTrait::finish_prepare(&self.inner, device, queue, encoder, resources)
     }
 
-    fn paint(&self, info: egui::PaintCallbackInfo, pass: &mut wgpu::RenderPass<'static>, resources: &egui_wgpu::CallbackResources) {
+    fn paint(
+        &self,
+        info: egui::PaintCallbackInfo,
+        pass: &mut wgpu::RenderPass<'static>,
+        resources: &egui_wgpu::CallbackResources,
+    ) {
         egui_wgpu::CallbackTrait::paint(&self.inner, info, pass, resources);
     }
 }
@@ -474,12 +485,17 @@ impl Default for Viewport {
 }
 
 pub fn color_of(css: Option<&str>, index: usize) -> [u8; 3] {
-    css.and_then(scene::parse_css_hex).unwrap_or_else(|| scene::rgb(scene::PALETTE[index % scene::PALETTE.len()]))
+    css.and_then(scene::parse_css_hex)
+        .unwrap_or_else(|| scene::rgb(scene::PALETTE[index % scene::PALETTE.len()]))
 }
 
 /// `_makeBody`: `info.solid ? info.color : '#d9a0a0'`.
 pub fn body_color(view: &BodyView, index: usize) -> [u8; 3] {
-    if view.solid { color_of(view.color.as_deref(), index) } else { scene::rgb(scene::NOT_SOLID) }
+    if view.solid {
+        color_of(view.color.as_deref(), index)
+    } else {
+        scene::rgb(scene::NOT_SOLID)
+    }
 }
 
 fn lin_scaled(hex: u32, s: f32) -> [f32; 3] {
@@ -612,14 +628,17 @@ impl Viewport {
                     e.view = b.clone();
                     e
                 }
-                None => BodyEntry { view: b.clone(), shown: None, ready: None },
+                None => BodyEntry {
+                    view: b.clone(),
+                    shown: None,
+                    ready: None,
+                },
             };
-            if entry.newest().is_none_or(|r| r.revision != b.revision) {
-                if let Some(r) = self.schedule(b) {
-                    if let Some(old) = entry.ready.replace(r) {
-                        free_later(old);
-                    }
-                }
+            if entry.newest().is_none_or(|r| r.revision != b.revision)
+                && let Some(r) = self.schedule(b)
+                && let Some(old) = entry.ready.replace(r)
+            {
+                free_later(old);
             }
             self.bodies.push(entry);
         }
@@ -657,7 +676,16 @@ impl Viewport {
                     let _ = tree.set(Bvh::build(&mesh));
                 }
             });
-            self.jobs.insert(b.id.clone(), Job { revision: b.revision, mesh: b.mesh.clone(), rx, bvh, thread });
+            self.jobs.insert(
+                b.id.clone(),
+                Job {
+                    revision: b.revision,
+                    mesh: b.mesh.clone(),
+                    rx,
+                    bvh,
+                    thread,
+                },
+            );
             None
         }
         #[cfg(target_arch = "wasm32")]
@@ -665,7 +693,12 @@ impl Viewport {
             if self.pick_trees {
                 let _ = bvh.set(Bvh::build(&b.mesh));
             }
-            Some(Revision { revision: b.revision, mesh: b.mesh.clone(), prepared: Arc::new(scene::prepare_mesh(&b.mesh)), bvh })
+            Some(Revision {
+                revision: b.revision,
+                mesh: b.mesh.clone(),
+                prepared: Arc::new(scene::prepare_mesh(&b.mesh)),
+                bvh,
+            })
         }
     }
 
@@ -677,7 +710,9 @@ impl Viewport {
 
     /// Whether `id`'s picking tree (of the revision picks use) is built.
     pub fn pick_tree_ready(&self, id: &str) -> bool {
-        self.entry(id).and_then(|e| e.current()).is_some_and(|r| r.bvh.get().is_some())
+        self.entry(id)
+            .and_then(|e| e.current())
+            .is_some_and(|r| r.bvh.get().is_some())
     }
 
     fn entry(&self, id: &str) -> Option<&BodyEntry> {
@@ -694,7 +729,11 @@ impl Viewport {
             use std::sync::mpsc::TryRecvError;
             let mut done = Vec::new();
             for (id, job) in &self.jobs {
-                let got = if wait { job.rx.recv().map_err(|_| TryRecvError::Disconnected) } else { job.rx.try_recv() };
+                let got = if wait {
+                    job.rx.recv().map_err(|_| TryRecvError::Disconnected)
+                } else {
+                    job.rx.try_recv()
+                };
                 match got {
                     Ok(p) => done.push((id.clone(), Some(p))),
                     Err(TryRecvError::Disconnected) => done.push((id.clone(), None)),
@@ -705,8 +744,17 @@ impl Viewport {
                 let Some(job) = self.jobs.remove(&id) else { continue };
                 self.builders.push(job.thread);
                 let Some(p) = p else { continue };
-                if let Some(e) = self.bodies.iter_mut().find(|e| e.view.id == id && e.view.revision == job.revision) {
-                    let r = Revision { revision: job.revision, mesh: job.mesh, prepared: Arc::new(p), bvh: job.bvh };
+                if let Some(e) = self
+                    .bodies
+                    .iter_mut()
+                    .find(|e| e.view.id == id && e.view.revision == job.revision)
+                {
+                    let r = Revision {
+                        revision: job.revision,
+                        mesh: job.mesh,
+                        prepared: Arc::new(p),
+                        bvh: job.bvh,
+                    };
                     if let Some(old) = e.ready.replace(r) {
                         free_later(old);
                     }
@@ -746,7 +794,11 @@ impl Viewport {
         }
         let t = web_time::Instant::now();
         let immediate = !self.has_gpu() || self.stats.device_lost();
-        let on_gpu = if immediate { HashMap::new() } else { self.stats.on_gpu_map().clone() };
+        let on_gpu = if immediate {
+            HashMap::new()
+        } else {
+            self.stats.on_gpu_map().clone()
+        };
         let mut moved = false;
         let mut promoted = 0;
         let mut replaced = Vec::new();
@@ -773,7 +825,9 @@ impl Viewport {
     fn boxes_pending(&self) -> bool {
         #[cfg(not(target_arch = "wasm32"))]
         {
-            self.bodies.iter().any(|e| !e.view.hidden && e.current().is_none() && self.jobs.contains_key(&e.view.id))
+            self.bodies
+                .iter()
+                .any(|e| !e.view.hidden && e.current().is_none() && self.jobs.contains_key(&e.view.id))
         }
         #[cfg(target_arch = "wasm32")]
         {
@@ -813,7 +867,11 @@ impl Viewport {
     /// The supports bodies that hold up `part` (made as a body of their own): they go with it
     /// when it moves.
     pub fn held_by(&self, part: &str) -> Vec<String> {
-        self.bodies.iter().filter(|e| e.view.holds_up.as_deref() == Some(part)).map(|e| e.view.id.clone()).collect()
+        self.bodies
+            .iter()
+            .filter(|e| e.view.holds_up.as_deref() == Some(part))
+            .map(|e| e.view.id.clone())
+            .collect()
     }
 
     /// The revision of a body that picks and highlights use (the one on screen).
@@ -823,7 +881,9 @@ impl Viewport {
 
     /// A body is drawn (not hidden, not replaced by a preview).
     pub fn body_visible(&self, id: &str) -> bool {
-        self.bodies.iter().any(|b| b.view.id == id && !b.view.hidden && !self.preview_hidden.contains(id))
+        self.bodies
+            .iter()
+            .any(|b| b.view.id == id && !b.view.hidden && !self.preview_hidden.contains(id))
     }
 
     fn update_extent(&mut self) {
@@ -833,7 +893,11 @@ impl Viewport {
                 b = camera::box_union(&b, &r.prepared.bbox);
             }
         }
-        let size = if camera::box_is_empty(&b) { 100.0 } else { camera::box_diagonal(&b) };
+        let size = if camera::box_is_empty(&b) {
+            100.0
+        } else {
+            camera::box_diagonal(&b)
+        };
         let longest = (!camera::box_is_empty(&b)).then(|| (0..3).map(|i| b.max[i] - b.min[i]).fold(0.0, f64::max));
         if !(camera::box_is_empty(&b) && self.boxes_pending()) {
             self.base_side = scene::origin_plane_side(longest);
@@ -868,7 +932,11 @@ impl Viewport {
 
     /// `setBodiesDim(ids, dim)`: with `dim`, exactly these bodies are see-through; without, none.
     pub fn set_dimmed(&mut self, ids: &[String], dim: bool) {
-        self.dimmed = if dim { ids.iter().cloned().collect() } else { HashSet::new() };
+        self.dimmed = if dim {
+            ids.iter().cloned().collect()
+        } else {
+            HashSet::new()
+        };
         self.changed();
     }
 
@@ -923,11 +991,19 @@ impl Viewport {
         let mut out = Vec::new();
         if self.base_visible {
             for (name, f, _) in scene::BASE_FRAMES {
-                out.push((name.to_owned(), scene::origin_plane_quad(&f, self.base_side), self.base_side));
+                out.push((
+                    name.to_owned(),
+                    scene::origin_plane_quad(&f, self.base_side),
+                    self.base_side,
+                ));
             }
         }
         for p in self.planes.iter().filter(|p| p.visible) {
-            out.push((p.id.clone(), [p.origin, p.x, p.y, p.normal], (self.extent * 0.35).max(20.0)));
+            out.push((
+                p.id.clone(),
+                [p.origin, p.x, p.y, p.normal],
+                (self.extent * 0.35).max(20.0),
+            ));
         }
         out
     }
@@ -1014,7 +1090,8 @@ impl Viewport {
             return;
         }
         let scene = self.scene_box();
-        self.camera.look_at_plane(frame.origin, frame.y, frame.normal, radius, scene);
+        self.camera
+            .look_at_plane(frame.origin, frame.y, frame.normal, radius, scene);
         self.changed();
     }
 
@@ -1055,7 +1132,12 @@ impl Viewport {
     /// are none.
     pub fn scene_box(&self) -> Option<Aabb> {
         let mut b = camera::empty_box();
-        for r in self.bodies.iter().filter(|e| !e.view.hidden).filter_map(|e| e.current()) {
+        for r in self
+            .bodies
+            .iter()
+            .filter(|e| !e.view.hidden)
+            .filter_map(|e| e.current())
+        {
             b = camera::box_union(&b, &r.prepared.bbox);
         }
         for p in self.preview.iter().filter_map(|p| p.prepared.as_ref()) {
@@ -1177,16 +1259,33 @@ impl Viewport {
     /// `highlightFace(bodyId, tris, tag, color)` (1.x defaults: tag `"face"`, colour
     /// [`scene::FACE_HL`]).
     pub fn highlight_face(&mut self, body: &str, tris: &[u32], tag: &str, color: Color32) {
-        let Some(mesh) = self.body_mesh(body).cloned() else { return };
+        let Some(mesh) = self.body_mesh(body).cloned() else {
+            return;
+        };
         self.push(overlays::highlight_face(&mesh, tris, tag, hex(color)));
     }
 
     /// `addDistTris(arr, dist, limit, tag, [c0, a0], [c1, a1])`.
-    pub fn add_dist_tris(&mut self, arr: &[f32], dist: &[f64], limit: f64, tag: &str, near: (Color32, f32), far: (Color32, f32)) {
+    pub fn add_dist_tris(
+        &mut self,
+        arr: &[f32],
+        dist: &[f64],
+        limit: f64,
+        tag: &str,
+        near: (Color32, f32),
+        far: (Color32, f32),
+    ) {
         if arr.is_empty() {
             return;
         }
-        self.push(overlays::dist_tris(arr, dist, limit, tag, (hex(near.0), near.1), (hex(far.0), far.1)));
+        self.push(overlays::dist_tris(
+            arr,
+            dist,
+            limit,
+            tag,
+            (hex(near.0), near.1),
+            (hex(far.0), far.1),
+        ));
     }
 
     /// `addMarker(p, color, tag, size)` (defaults 0xd9480f, `"marker"`, `max(extent * 0.006, 0.3)`).
@@ -1261,14 +1360,42 @@ impl Viewport {
 
     /// [`Self::add_regions`] in `color` at `alpha` (the colour's own alpha is ignored), drawn
     /// under sketch strokes. 1.x sketch fill is `0xf6c7a8` at 0.38 and does not follow the theme.
-    pub fn add_regions_tinted(&mut self, frame: &PlaneFrame, faces: &[Vec<Vec<[f64; 2]>>], tag: &str, color: Color32, alpha: f32) {
-        self.overlays.extend(overlays::regions_tinted(&frame.as_frame(), faces, tag, hex(color), alpha));
+    pub fn add_regions_tinted(
+        &mut self,
+        frame: &PlaneFrame,
+        faces: &[Vec<Vec<[f64; 2]>>],
+        tag: &str,
+        color: Color32,
+        alpha: f32,
+    ) {
+        self.overlays.extend(overlays::regions_tinted(
+            &frame.as_frame(),
+            faces,
+            tag,
+            hex(color),
+            alpha,
+        ));
         self.overlays_changed();
     }
 
     /// `sketchLines(frame, entities, color, opacity, construction)` as a tagged overlay.
-    pub fn add_sketch_lines(&mut self, frame: &PlaneFrame, entities: &[SketchOutline], color: Color32, opacity: f32, construction: bool, tag: &str) {
-        self.push(overlays::sketch_lines(&frame.as_frame(), entities, hex(color), opacity, construction, tag));
+    pub fn add_sketch_lines(
+        &mut self,
+        frame: &PlaneFrame,
+        entities: &[SketchOutline],
+        color: Color32,
+        opacity: f32,
+        construction: bool,
+        tag: &str,
+    ) {
+        self.push(overlays::sketch_lines(
+            &frame.as_frame(),
+            entities,
+            hex(color),
+            opacity,
+            construction,
+            tag,
+        ));
     }
 
     // ------------------------------------------------------------------ preview
@@ -1279,8 +1406,16 @@ impl Viewport {
     /// step when all its meshes are ready. The preview already on screen stays up meanwhile, and
     /// a preview replaced before it is ready stops its worker.
     pub fn show_preview(&mut self, pack: &PreviewPack) {
-        let hide: HashSet<String> = pack.meshes.iter().map(|m| m.id.clone()).chain(pack.removed.iter().cloned()).chain(pack.hide.iter().cloned()).collect();
-        const PAL: [u32; 8] = [0x7fb0e8, 0xe8a87f, 0x8fd18a, 0xd88fd1, 0xe8d27f, 0x7fe0d6, 0xb39ae8, 0xe87f8f];
+        let hide: HashSet<String> = pack
+            .meshes
+            .iter()
+            .map(|m| m.id.clone())
+            .chain(pack.removed.iter().cloned())
+            .chain(pack.hide.iter().cloned())
+            .collect();
+        const PAL: [u32; 8] = [
+            0x7fb0e8, 0xe8a87f, 0x8fd18a, 0xd88fd1, 0xe8d27f, 0x7fe0d6, 0xb39ae8, 0xe87f8f,
+        ];
         if let Some(old) = self.preview_staged.take() {
             old.cancel.store(true, Ordering::Relaxed);
         }
@@ -1310,7 +1445,11 @@ impl Viewport {
                 bvh,
                 revision: self.preview_counter,
                 color: scene::linear(color),
-                emissive: if existing.is_some() || tint.is_some() { 0.08 } else { 0.2 },
+                emissive: if existing.is_some() || tint.is_some() {
+                    0.08
+                } else {
+                    0.2
+                },
                 ghost,
             });
         }
@@ -1327,7 +1466,12 @@ impl Viewport {
     fn install_preview(&mut self, mut st: StagedPreview) {
         // a mesh whose worker stopped without it (it panicked) is left out, and the body it
         // stands for stays on screen instead of vanishing
-        let lost: Vec<String> = st.entries.iter().filter(|e| e.prepared.is_none()).map(|e| e.id.clone()).collect();
+        let lost: Vec<String> = st
+            .entries
+            .iter()
+            .filter(|e| e.prepared.is_none())
+            .map(|e| e.id.clone())
+            .collect();
         if !lost.is_empty() {
             st.entries.retain(|e| e.prepared.is_some());
             for id in &lost {
@@ -1346,13 +1490,28 @@ impl Viewport {
     /// (native; the display meshes first, then the trees), or inline (wasm has no threads). The
     /// worker checks `cancel` between stages and asks for a repaint only while it is wanted.
     #[allow(clippy::type_complexity)]
-    fn prepare_previews(&mut self, meshes: &[Arc<MeshArrays>], cancel: &Arc<AtomicBool>) -> Vec<(Option<Arc<PreparedMesh>>, Option<std::sync::mpsc::Receiver<PreparedMesh>>, Arc<OnceLock<Bvh>>)> {
+    fn prepare_previews(
+        &mut self,
+        meshes: &[Arc<MeshArrays>],
+        cancel: &Arc<AtomicBool>,
+    ) -> Vec<(
+        Option<Arc<PreparedMesh>>,
+        Option<std::sync::mpsc::Receiver<PreparedMesh>>,
+        Arc<OnceLock<Bvh>>,
+    )> {
         let trees: Vec<Arc<OnceLock<Bvh>>> = meshes.iter().map(|_| Arc::new(OnceLock::new())).collect();
         #[cfg(not(target_arch = "wasm32"))]
         {
-            let (txs, rxs): (Vec<_>, Vec<_>) = meshes.iter().map(|_| std::sync::mpsc::channel::<PreparedMesh>()).unzip();
+            let (txs, rxs): (Vec<_>, Vec<_>) = meshes
+                .iter()
+                .map(|_| std::sync::mpsc::channel::<PreparedMesh>())
+                .unzip();
             let (meshes_w, ctx, trees_w, cancel_w) = (meshes.to_vec(), self.ctx.clone(), trees.clone(), cancel.clone());
-            let (gate, tree_gate, builds) = (self.preview_gate.clone(), self.preview_tree_gate.clone(), self.preview_builds.clone());
+            let (gate, tree_gate, builds) = (
+                self.preview_gate.clone(),
+                self.preview_tree_gate.clone(),
+                self.preview_builds.clone(),
+            );
             let thread = std::thread::spawn(move || {
                 let guard = gate.lock().unwrap_or_else(|e| e.into_inner());
                 for (mesh, tx) in meshes_w.iter().zip(txs) {
@@ -1362,10 +1521,11 @@ impl Viewport {
                     builds.fetch_add(1, Ordering::Relaxed);
                     let sent = tx.send(scene::prepare_mesh(mesh)).is_ok();
                     drop(tx);
-                    if sent && !cancel_w.load(Ordering::Relaxed) {
-                        if let Some(ctx) = &ctx {
-                            ctx.request_repaint();
-                        }
+                    if sent
+                        && !cancel_w.load(Ordering::Relaxed)
+                        && let Some(ctx) = &ctx
+                    {
+                        ctx.request_repaint();
                     }
                 }
                 drop(guard);
@@ -1386,7 +1546,11 @@ impl Viewport {
             let _ = cancel;
             // Not on this turn: a 500,000-triangle preview would freeze the page. Slices run
             // from [`collect_preview`](Self::collect_preview), 4 ms a frame, like the overhangs.
-            self.preview_batch = Some(preview_prep::Batch::new(meshes.to_vec(), trees.clone(), self.preview_builds.clone()));
+            self.preview_batch = Some(preview_prep::Batch::new(
+                meshes.to_vec(),
+                trees.clone(),
+                self.preview_builds.clone(),
+            ));
             if let Some(c) = &self.ctx {
                 c.request_repaint();
             }
@@ -1402,10 +1566,16 @@ impl Viewport {
         if !self.poll_preview_batch(wait) {
             return false;
         }
-        let Some(st) = self.preview_staged.as_mut() else { return false };
+        let Some(st) = self.preview_staged.as_mut() else {
+            return false;
+        };
         for e in st.entries.iter_mut().filter(|e| e.prepared.is_none()) {
             let Some(rx) = &e.rx else { continue };
-            let got = if wait { rx.recv().map_err(|_| TryRecvError::Disconnected) } else { rx.try_recv() };
+            let got = if wait {
+                rx.recv().map_err(|_| TryRecvError::Disconnected)
+            } else {
+                rx.try_recv()
+            };
             match got {
                 Ok(p) => {
                     e.prepared = Some(Arc::new(p));
@@ -1501,7 +1671,10 @@ impl Viewport {
                 color: None,
                 hidden: false,
                 solid: true,
-                mesh: Arc::new(MeshArrays { positions: p.positions.iter().map(|&v| v as f32).collect(), triangles: p.triangles }),
+                mesh: Arc::new(MeshArrays {
+                    positions: p.positions.iter().map(|&v| v as f32).collect(),
+                    triangles: p.triangles,
+                }),
                 revision: 1,
                 holds_up: None,
             })
@@ -1542,7 +1715,11 @@ impl Viewport {
         if !self.sketch_axes.is_empty() {
             items.push((9, Depth::Off, Vec::new(), self.sketch_axes.clone()));
         }
-        for sk in self.sketches.iter().filter(|s| !s.hidden && Some(&s.id) != self.active_sketch.as_ref()) {
+        for sk in self
+            .sketches
+            .iter()
+            .filter(|s| !s.hidden && Some(&s.id) != self.active_sketch.as_ref())
+        {
             let it = overlays::sketch_lines(&sk.frame, &sk.outlines, scene::SKETCH_COL, 0.9, true, "");
             items.push((it.order, it.depth, it.tris, it.lines));
         }
@@ -1573,7 +1750,12 @@ impl Viewport {
                 }
                 let start = flat.len() as u32;
                 flat.extend(v);
-                batches.push(FlatBatch { order, lines: is_lines, depth, range: start..flat.len() as u32 });
+                batches.push(FlatBatch {
+                    order,
+                    lines: is_lines,
+                    depth,
+                    range: start..flat.len() as u32,
+                });
             }
         }
         self.flat = Arc::new(flat);
@@ -1595,7 +1777,13 @@ impl Viewport {
         // a DirectionalLight in the camera shines from its world position towards its target,
         // which stays at the world origin
         let light = |off: V3, intensity: f32| {
-            let p = camera::add(cam.position, camera::add(camera::add(camera::scale(x, off[0]), camera::scale(y, off[1])), camera::scale(z, off[2])));
+            let p = camera::add(
+                cam.position,
+                camera::add(
+                    camera::add(camera::scale(x, off[0]), camera::scale(y, off[1])),
+                    camera::scale(z, off[2]),
+                ),
+            );
             let d = to_view(p);
             [d[0], d[1], d[2], intensity]
         };
@@ -1621,7 +1809,14 @@ impl Viewport {
 
     fn body_draws(&self) -> Vec<BodyDraw> {
         let edge_rgb = scene::rgb(if self.dark { scene::EDGE_DARK } else { scene::EDGE_LIGHT });
-        let edge = |a: f32| [edge_rgb[0] as f32 / 255.0, edge_rgb[1] as f32 / 255.0, edge_rgb[2] as f32 / 255.0, a];
+        let edge = |a: f32| {
+            [
+                edge_rgb[0] as f32 / 255.0,
+                edge_rgb[1] as f32 / 255.0,
+                edge_rgb[2] as f32 / 255.0,
+                a,
+            ]
+        };
         let dist = |b: &Aabb| camera::length(camera::sub(camera::box_center(b), self.camera.position));
         let mut out = Vec::new();
         for (i, e) in self.bodies.iter().enumerate() {
@@ -1648,7 +1843,11 @@ impl Viewport {
                 uniform: BodyUniform {
                     color: [c[0], c[1], c[2], if dim { scene::DIM_OPACITY } else { 1.0 }],
                     emissive: [emissive[0], emissive[1], emissive[2], scene::ROUGHNESS],
-                    edge: edge(if dim { scene::EDGE_OPACITY_DIM } else { scene::EDGE_OPACITY }),
+                    edge: edge(if dim {
+                        scene::EDGE_OPACITY_DIM
+                    } else {
+                        scene::EDGE_OPACITY
+                    }),
                     params: [scene::METALNESS, if mesh.flat { 1.0 } else { 0.0 }, 0.0, 0.0],
                     model,
                     normal,
@@ -1663,7 +1862,11 @@ impl Viewport {
         for p in &self.preview {
             let Some(prepared) = &p.prepared else { continue };
             let hovered = self.preview_hover.as_ref() == Some(&p.id);
-            let em = if hovered { lin_scaled(0xd64545, 0.6) } else { lin_scaled(0x2f6fd1, p.emissive) };
+            let em = if hovered {
+                lin_scaled(0xd64545, 0.6)
+            } else {
+                lin_scaled(0x2f6fd1, p.emissive)
+            };
             let e = scene::rgb(0x1f4f8f);
             out.push(BodyDraw {
                 key: format!("\u{0}preview:{}", p.id),
@@ -1773,8 +1976,19 @@ impl Viewport {
         let bg = crate::theme::tokens(self.dark).bg;
         ui.painter().rect_filled(rect, 0.0, bg);
         if let Some(format) = self.gpu_format.filter(|_| rect.width() >= 1.0 && rect.height() >= 1.0) {
-            let inner = renderer::ViewportCallback { frame, ctx: ui.ctx().clone(), format, stats: self.stats.clone() };
-            ui.painter().add(egui_wgpu::Callback::new_paint_callback(rect, TimedCallback { inner, trace: self.trace.clone() }));
+            let inner = renderer::ViewportCallback {
+                frame,
+                ctx: ui.ctx().clone(),
+                format,
+                stats: self.stats.clone(),
+            };
+            ui.painter().add(egui_wgpu::Callback::new_paint_callback(
+                rect,
+                TimedCallback {
+                    inner,
+                    trace: self.trace.clone(),
+                },
+            ));
         }
         self.paint_drag_plane(ui, rect);
         self.paint_measure(ui, rect);
@@ -1783,7 +1997,11 @@ impl Viewport {
         if let Some(v) = cube.view {
             self.set_view(v);
         }
-        ViewportResponse { response, view: cube.view, section_clicked: cube.section_clicked }
+        ViewportResponse {
+            response,
+            view: cube.view,
+            section_clicked: cube.section_clicked,
+        }
     }
 
     fn handle_input(&mut self, ui: &egui::Ui, response: &egui::Response) {
@@ -1797,10 +2015,19 @@ impl Viewport {
         }
         let delta = response.drag_delta();
         let (shift, press, touching, two_fingers) = ui.input(|i| {
-            (i.modifiers.shift, i.pointer.press_origin(), i.any_touches(), i.multi_touch().is_some_and(|t| t.num_touches >= 2))
+            (
+                i.modifiers.shift,
+                i.pointer.press_origin(),
+                i.any_touches(),
+                i.multi_touch().is_some_and(|t| t.num_touches >= 2),
+            )
         });
         let mut orbiting = false;
-        for b in [egui::PointerButton::Primary, egui::PointerButton::Middle, egui::PointerButton::Secondary] {
+        for b in [
+            egui::PointerButton::Primary,
+            egui::PointerButton::Middle,
+            egui::PointerButton::Secondary,
+        ] {
             if !response.dragged_by(b) {
                 continue;
             }
@@ -1814,7 +2041,11 @@ impl Viewport {
                 break;
             }
             let touch_orbit = touching && b == egui::PointerButton::Primary && self.mouse_mode == MouseMode::Model;
-            let act = if touch_orbit { Some(navigation::NavAction::Orbit) } else { navigation::nav_action(self.mouse_mode, b, shift) };
+            let act = if touch_orbit {
+                Some(navigation::NavAction::Orbit)
+            } else {
+                navigation::nav_action(self.mouse_mode, b, shift)
+            };
             match act {
                 Some(navigation::NavAction::Orbit) => {
                     // a held orbit drag keeps its pivot even on a frame where the pointer stands still
@@ -1823,11 +2054,19 @@ impl Viewport {
                         let under = (self.orbit_kept.is_none() && self.orbit_around == navigation::OrbitAround::Cursor)
                             .then(|| press.and_then(|p| self.surface_point(p)))
                             .flatten();
-                        let pivot = navigation::orbit_pivot(&self.camera, self.orbit_around, self.scene_box(), under, self.orbit_kept);
+                        let pivot = navigation::orbit_pivot(
+                            &self.camera,
+                            self.orbit_around,
+                            self.scene_box(),
+                            under,
+                            self.orbit_kept,
+                        );
                         self.orbit_kept = Some(pivot);
                         self.camera.orbit_about(pivot, delta.x as f64, delta.y as f64);
                     }
                 }
+                // kept as an `if` inside the arm: a guard here would leave `Some(Pan)` without an arm
+                #[allow(clippy::collapsible_match)]
                 Some(navigation::NavAction::Pan) => {
                     if delta != egui::Vec2::ZERO {
                         self.orbit_kept = None;
@@ -1851,9 +2090,13 @@ impl Viewport {
             let mut acts = Vec::new();
             for e in &i.raw.events {
                 match e {
-                    egui::Event::MouseWheel { unit, delta, modifiers, .. } => acts.push(navigation::wheel_action(*unit, *delta, *modifiers)),
+                    egui::Event::MouseWheel {
+                        unit, delta, modifiers, ..
+                    } => acts.push(navigation::wheel_action(*unit, *delta, *modifiers)),
                     // a trackpad pinch (and Ctrl+wheel on the web)
-                    egui::Event::Zoom(f) if *f > 0.0 && *f != 1.0 && i.multi_touch().is_none() => acts.push(navigation::WheelAction::Zoom(1.0 / *f as f64)),
+                    egui::Event::Zoom(f) if *f > 0.0 && *f != 1.0 && i.multi_touch().is_none() => {
+                        acts.push(navigation::WheelAction::Zoom(1.0 / *f as f64))
+                    }
                     _ => {}
                 }
             }
@@ -1873,7 +2116,13 @@ impl Viewport {
                     self.orbit_kept = None;
                 }
                 navigation::WheelAction::Orbit(dx, dy) => {
-                    let pivot = navigation::orbit_pivot(&self.camera, self.orbit_around, self.scene_box(), None, self.orbit_kept);
+                    let pivot = navigation::orbit_pivot(
+                        &self.camera,
+                        self.orbit_around,
+                        self.scene_box(),
+                        None,
+                        self.orbit_kept,
+                    );
                     self.camera.orbit_about(pivot, dx, dy);
                 }
             }
@@ -1947,7 +2196,8 @@ impl Viewport {
     pub fn set_face_highlight(&mut self, tag: &str, body: &str, tris: Vec<u32>, color: u32) {
         self.tool_highlights.retain(|h| h.0 != tag);
         self.overlays.retain(|o| o.tag != tag);
-        self.tool_highlights.push((tag.to_owned(), body.to_owned(), tris, color));
+        self.tool_highlights
+            .push((tag.to_owned(), body.to_owned(), tris, color));
         self.overlays_changed();
     }
 
@@ -1967,9 +2217,17 @@ impl Viewport {
     /// The corners (millimetres, as drawn: the body's gizmo transform included) of the triangles
     /// highlighted under `tag`. Empty when there is none, or its body is not there.
     pub fn tool_highlight_corners(&self, tag: &str) -> Vec<V3> {
-        let Some((_, body, tris, color)) = self.tool_highlights.iter().find(|h| h.0 == tag) else { return Vec::new() };
-        let Some(mesh) = self.body_mesh(body) else { return Vec::new() };
-        overlays::highlight_face_at(mesh, tris, tag, *color, self.body_transforms.get(body)).tris.iter().map(|v| v.pos.map(f64::from)).collect()
+        let Some((_, body, tris, color)) = self.tool_highlights.iter().find(|h| h.0 == tag) else {
+            return Vec::new();
+        };
+        let Some(mesh) = self.body_mesh(body) else {
+            return Vec::new();
+        };
+        overlays::highlight_face_at(mesh, tris, tag, *color, self.body_transforms.get(body))
+            .tris
+            .iter()
+            .map(|v| v.pos.map(f64::from))
+            .collect()
     }
 
     /// The translucent red cutter shape of a tool that removes material; `None` removes it (Task 7).
@@ -2008,7 +2266,9 @@ impl Viewport {
 
     /// Measure's legs, as drawn: X, then Y, then Z from the first point; none when it is not showing.
     pub fn measure_legs(&self) -> Vec<overlays::MeasureLeg> {
-        self.measure.map(|(a, b)| overlays::measure_legs(a, b)).unwrap_or_default()
+        self.measure
+            .map(|(a, b)| overlays::measure_legs(a, b))
+            .unwrap_or_default()
     }
 
     /// Measure's labels: where each sits (the middle of its line) and its text in the current
@@ -2016,23 +2276,45 @@ impl Viewport {
     pub fn measure_labels(&self) -> Vec<(V3, String)> {
         use crate::tools::fields::number::{fmt_len, unit_name};
         let Some((a, b)) = self.measure else { return Vec::new() };
-        let text = |mm: f64| format!("{} {}", fmt_len(mm, Some(if self.inch { 4 } else { 1 }), self.inch), unit_name(self.inch));
-        let mut out = vec![(camera::scale(camera::add(a, b), 0.5), text(camera::length(camera::sub(b, a))))];
-        out.extend(overlays::measure_legs(a, b).iter().map(|l| (l.middle(), text(l.length()))));
+        let text = |mm: f64| {
+            format!(
+                "{} {}",
+                fmt_len(mm, Some(if self.inch { 4 } else { 1 }), self.inch),
+                unit_name(self.inch)
+            )
+        };
+        let mut out = vec![(
+            camera::scale(camera::add(a, b), 0.5),
+            text(camera::length(camera::sub(b, a))),
+        )];
+        out.extend(
+            overlays::measure_legs(a, b)
+                .iter()
+                .map(|l| (l.middle(), text(l.length()))),
+        );
         out
     }
 
     /// The overlays' clicked points: small dots of a fixed size with a thin contrasting ring.
     fn paint_dots(&self, ui: &egui::Ui, rect: Rect) {
         let painter = ui.painter_at(rect);
-        let ring = if self.dark { egui::Color32::from_rgb(0x0b, 0x0e, 0x12) } else { egui::Color32::WHITE };
+        let ring = if self.dark {
+            egui::Color32::from_rgb(0x0b, 0x0e, 0x12)
+        } else {
+            egui::Color32::WHITE
+        };
         // real pixels, whatever the Windows scaling
         let px = 1.0 / ui.ctx().pixels_per_point();
         for (p, c) in self.overlays.iter().flat_map(|o| o.dots.iter()) {
             if self.camera.project(*p).1 <= 0.0 {
                 continue;
             }
-            painter.circle(self.world_to_screen(*p), overlays::DOT_PX / 2.0 * px, rgb_of(*c), egui::Stroke::new(1.5 * px, ring));
+            painter.circle(
+                self.world_to_screen(*p),
+                overlays::DOT_PX / 2.0 * px,
+                rgb_of(*c),
+                egui::Stroke::new(1.5 * px, ring),
+            );
         }
     }
 
@@ -2049,11 +2331,21 @@ impl Viewport {
             if self.camera.project(at).1 <= 0.0 {
                 continue;
             }
-            let col = if i == 0 { rgb_of(overlays::MEASURE_LINE_COLOR) } else { rgb_of(overlays::MEASURE_AXIS_COLORS[legs[i - 1].axis]) };
+            let col = if i == 0 {
+                rgb_of(overlays::MEASURE_LINE_COLOR)
+            } else {
+                rgb_of(overlays::MEASURE_AXIS_COLORS[legs[i - 1].axis])
+            };
             let p = self.world_to_screen(at);
             let galley = painter.layout_no_wrap(text, egui::FontId::proportional(12.0), tk.text);
             let r = Rect::from_center_size(p, galley.size()).expand2(egui::vec2(6.0, 3.0));
-            painter.rect(r, egui::CornerRadius::same(3), tk.panel, egui::Stroke::new(1.0, col), egui::StrokeKind::Inside);
+            painter.rect(
+                r,
+                egui::CornerRadius::same(3),
+                tk.panel,
+                egui::Stroke::new(1.0, col),
+                egui::StrokeKind::Inside,
+            );
             painter.galley(r.center() - galley.size() / 2.0, galley, tk.text);
         }
     }
@@ -2139,7 +2431,13 @@ impl Viewport {
             }
             return;
         };
-        let key = (g.clone(), self.camera.position, self.camera.target, self.camera.up, size);
+        let key = (
+            g.clone(),
+            self.camera.position,
+            self.camera.target,
+            self.camera.up,
+            size,
+        );
         if self.gizmo_key.as_ref() == Some(&key) {
             return;
         }

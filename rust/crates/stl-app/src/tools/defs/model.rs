@@ -1,6 +1,6 @@
 //! MODEL tab tools (create / primitives).
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use super::fields::{ops_options, show_targets};
 use super::util::*;
@@ -32,10 +32,7 @@ fn defaults_extrude(ctx: &Ctx) -> Values {
     let v = values(&[
         ("sketch", json!(ctx.last_sketch.unwrap_or(""))),
         ("regions", json!([])),
-        (
-            "operation",
-            json!(if ctx.sketch_on_body { "join" } else { "new" }),
-        ),
+        ("operation", json!(if ctx.sketch_on_body { "join" } else { "new" })),
         ("direction", json!("one")),
         ("distance", json!(10)),
         ("distance2", json!(10)),
@@ -89,7 +86,12 @@ pub fn extrude() -> ToolDef {
             Field {
                 key: "direction",
                 label: "Direction",
-                kind: super::fields::opts(&[("one", "One side"), ("reverse", "Flipped"), ("symmetric", "Symmetric"), ("two", "Two sides")]),
+                kind: super::fields::opts(&[
+                    ("one", "One side"),
+                    ("reverse", "Flipped"),
+                    ("symmetric", "Symmetric"),
+                    ("two", "Two sides"),
+                ]),
                 help: None,
                 placeholder: None,
                 show: None,
@@ -282,8 +284,20 @@ fn from_params_loft(p: Value) -> Values {
         ("profile_2", str_at(profiles, 1)),
         ("profile_3", str_at(profiles, 2)),
         ("profile_4", str_at(profiles, 3)),
-        ("operation", o.and_then(|o| o.get("operation")).filter(|x| js_truthy(x)).cloned().unwrap_or(json!("new"))),
-        ("targets", o.and_then(|o| o.get("targets")).filter(|x| js_truthy(x)).cloned().unwrap_or(json!([]))),
+        (
+            "operation",
+            o.and_then(|o| o.get("operation"))
+                .filter(|x| js_truthy(x))
+                .cloned()
+                .unwrap_or(json!("new")),
+        ),
+        (
+            "targets",
+            o.and_then(|o| o.get("targets"))
+                .filter(|x| js_truthy(x))
+                .cloned()
+                .unwrap_or(json!([])),
+        ),
     ])
 }
 
@@ -343,7 +357,9 @@ pub fn loft() -> ToolDef {
                 show: Some(show_targets),
             },
         ],
-        hint: Some("Pick two or more closed sketches on parallel planes, in order from the first end to the last. Each one is a single outline with no holes."),
+        hint: Some(
+            "Pick two or more closed sketches on parallel planes, in order from the first end to the last. Each one is a single outline with no holes.",
+        ),
         extra: None,
         flags: ToolFlags::default(),
         defaults: defaults_loft,
@@ -411,7 +427,9 @@ pub fn sweep() -> ToolDef {
                 show: Some(show_targets),
             },
         ],
-        hint: Some("The profile starts at the first point of the path and turns to face along it. Draw the profile centred on its sketch origin. The path must be one open chain of lines and arcs."),
+        hint: Some(
+            "The profile starts at the first point of the path and turns to face along it. Draw the profile centred on its sketch origin. The path must be one open chain of lines and arcs.",
+        ),
         extra: None,
         flags: ToolFlags::default(),
         defaults: defaults_sweep,
@@ -439,7 +457,14 @@ fn primitive_defaults(ctx: &Ctx, shape: &str, label: &str, dims: &[(&str, Value)
 
 fn primitive_fields(shape: &str, dims: Vec<Field>) -> Vec<Field> {
     let mut f = dims;
-    f.push(Field { key: "plane", label: "On", kind: FieldKind::Plane { any_face: false }, help: None, placeholder: None, show: None });
+    f.push(Field {
+        key: "plane",
+        label: "On",
+        kind: FieldKind::Plane { any_face: false },
+        help: None,
+        placeholder: None,
+        show: None,
+    });
     f.push(Field {
         key: "offset",
         label: "Position",
@@ -456,10 +481,7 @@ fn primitive_fields(shape: &str, dims: Vec<Field>) -> Vec<Field> {
         placeholder: None,
         show: None,
     });
-    let mut anchor_opts = vec![
-        ("base".into(), "Base".into()),
-        ("center".into(), "Centre".into()),
-    ];
+    let mut anchor_opts = vec![("base".into(), "Base".into()), ("center".into(), "Centre".into())];
     if shape == "box" {
         anchor_opts.push(("corner".into(), "Corner".into()));
     }
@@ -535,7 +557,10 @@ pub fn primitive_box() -> ToolDef {
         ),
         hint: Some("Click a flat face to place it there, or set the position · use Cut to subtract it"),
         extra: None,
-        flags: ToolFlags { place_on_face: true, ..ToolFlags::default() },
+        flags: ToolFlags {
+            place_on_face: true,
+            ..ToolFlags::default()
+        },
         defaults: |ctx| {
             primitive_defaults(
                 ctx,
@@ -579,8 +604,18 @@ pub fn primitive_cylinder() -> ToolDef {
         ),
         hint: Some("Click a flat face to place it there, or set the position · use Cut to subtract it"),
         extra: None,
-        flags: ToolFlags { place_on_face: true, ..ToolFlags::default() },
-        defaults: |ctx| primitive_defaults(ctx, "cylinder", "Cylinder", &[("radius", json!(10)), ("height", json!(20))]),
+        flags: ToolFlags {
+            place_on_face: true,
+            ..ToolFlags::default()
+        },
+        defaults: |ctx| {
+            primitive_defaults(
+                ctx,
+                "cylinder",
+                "Cylinder",
+                &[("radius", json!(10)), ("height", json!(20))],
+            )
+        },
         to_params: to_params_primitive,
         from_params: from_params_primitive,
         on_change: None,
@@ -595,11 +630,21 @@ pub fn primitive_sphere() -> ToolDef {
         kind: "primitive",
         fields: primitive_fields(
             "sphere",
-            vec![Field { key: "radius", label: "Radius", kind: FieldKind::Number { unit: Some("mm") }, help: None, placeholder: None, show: None }],
+            vec![Field {
+                key: "radius",
+                label: "Radius",
+                kind: FieldKind::Number { unit: Some("mm") },
+                help: None,
+                placeholder: None,
+                show: None,
+            }],
         ),
         hint: Some("Click a flat face to place it there, or set the position · use Cut to subtract it"),
         extra: None,
-        flags: ToolFlags { place_on_face: true, ..ToolFlags::default() },
+        flags: ToolFlags {
+            place_on_face: true,
+            ..ToolFlags::default()
+        },
         defaults: |ctx| primitive_defaults(ctx, "sphere", "Sphere", &[("radius", json!(10))]),
         to_params: to_params_primitive,
         from_params: from_params_primitive,
@@ -644,7 +689,10 @@ pub fn primitive_cone() -> ToolDef {
         ),
         hint: Some("Click a flat face to place it there, or set the position · use Cut to subtract it"),
         extra: None,
-        flags: ToolFlags { place_on_face: true, ..ToolFlags::default() },
+        flags: ToolFlags {
+            place_on_face: true,
+            ..ToolFlags::default()
+        },
         defaults: |ctx| {
             primitive_defaults(
                 ctx,
@@ -688,15 +736,11 @@ pub fn primitive_torus() -> ToolDef {
         ),
         hint: Some("Click a flat face to place it there, or set the position · use Cut to subtract it"),
         extra: None,
-        flags: ToolFlags { place_on_face: true, ..ToolFlags::default() },
-        defaults: |ctx| {
-            primitive_defaults(
-                ctx,
-                "torus",
-                "Torus",
-                &[("radius", json!(15)), ("radius2", json!(4))],
-            )
+        flags: ToolFlags {
+            place_on_face: true,
+            ..ToolFlags::default()
         },
+        defaults: |ctx| primitive_defaults(ctx, "torus", "Torus", &[("radius", json!(15)), ("radius2", json!(4))]),
         to_params: to_params_primitive,
         from_params: from_params_primitive,
         on_change: None,
@@ -797,7 +841,9 @@ pub fn snapfit() -> ToolDef {
                 show: Some(show_targets),
             },
         ],
-        hint: Some("A thin arm standing on a face, with a hook at its tip. Position is the corner of the arm’s foot on that face. Choose the face with On, then set the size. The hook sticks out one arm thickness"),
+        hint: Some(
+            "A thin arm standing on a face, with a hook at its tip. Position is the corner of the arm’s foot on that face. Choose the face with On, then set the size. The hook sticks out one arm thickness",
+        ),
         extra: None,
         flags: ToolFlags::default(),
         defaults: defaults_snapfit,
@@ -865,7 +911,9 @@ pub fn hinge() -> ToolDef {
                 show: None,
             },
         ],
-        hint: Some("1. Pick the face or plane the hinge runs across.\n2. Set where it sits and how thin it is.\nThe slot cuts across the whole block and leaves a thin strip of material under it, so the two sides can flex. The orange line is the hinge; the arrow shows which way it flexes. Position is measured along the plane’s X; 0.5 mm is a common hinge thickness for PLA"),
+        hint: Some(
+            "1. Pick the face or plane the hinge runs across.\n2. Set where it sits and how thin it is.\nThe slot cuts across the whole block and leaves a thin strip of material under it, so the two sides can flex. The orange line is the hinge; the arrow shows which way it flexes. Position is measured along the plane’s X; 0.5 mm is a common hinge thickness for PLA",
+        ),
         extra: None,
         flags: ToolFlags::default(),
         defaults: defaults_hinge,

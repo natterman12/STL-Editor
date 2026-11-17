@@ -40,7 +40,9 @@ impl BoaHost {
                     .eval(Source::from_bytes(&code))
                     .map_err(|e| error_text(e, &mut ctx))
                     .and_then(|_| {
-                        engine(&mut ctx).map(|_| String::new()).ok_or_else(|| "SupportFinsEngine is not defined".into())
+                        engine(&mut ctx)
+                            .map(|_| String::new())
+                            .ok_or_else(|| "SupportFinsEngine is not defined".into())
                     });
                 let ok = loaded.is_ok();
                 if res_tx.send(loaded).is_err() || !ok {
@@ -59,7 +61,9 @@ impl BoaHost {
             })
             .map_err(|e| format!("could not start the Boa thread: {e}"))?;
         match res_rx.recv() {
-            Ok(Ok(_)) => Ok(BoaHost { chan: Mutex::new((req_tx, res_rx)) }),
+            Ok(Ok(_)) => Ok(BoaHost {
+                chan: Mutex::new((req_tx, res_rx)),
+            }),
             Ok(Err(e)) => Err(format!("Boa could not load the Support Fins engine: {e}")),
             Err(_) => Err("the Boa thread stopped while loading the engine".into()),
         }
@@ -86,7 +90,10 @@ fn function(ctx: &mut Context, name: &str) -> Option<(boa_engine::JsObject, boa_
 /// `String(e)` of a thrown value, as the webview host reports it ("Error: message").
 fn error_text(e: boa_engine::JsError, ctx: &mut Context) -> String {
     match e.into_opaque(ctx) {
-        Ok(v) => v.to_string(ctx).map(|s| s.to_std_string_escaped()).unwrap_or_else(|_| "Error".into()),
+        Ok(v) => v
+            .to_string(ctx)
+            .map(|s| s.to_std_string_escaped())
+            .unwrap_or_else(|_| "Error".into()),
         Err(e) => e.to_string(),
     }
 }
@@ -112,7 +119,10 @@ fn call(ctx: &mut Context, name: &str, args: &[String]) -> Result<String, String
 
 impl FinsHost for BoaHost {
     fn call(&self, name: &str, args: &[&str]) -> Result<String, String> {
-        self.request(Req::Call(name.to_string(), args.iter().map(|s| s.to_string()).collect()))
+        self.request(Req::Call(
+            name.to_string(),
+            args.iter().map(|s| s.to_string()).collect(),
+        ))
     }
 
     fn has(&self, name: &str) -> bool {

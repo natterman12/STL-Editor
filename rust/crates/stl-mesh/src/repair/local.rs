@@ -3,8 +3,7 @@
 use stl_kernel::Solid;
 
 use super::{
-    cap_holes, face_components, fill_holes, fix_winding, merge_overlapping_shells, reversed, to_solid,
-    touching_shells,
+    cap_holes, face_components, fill_holes, fix_winding, merge_overlapping_shells, reversed, to_solid, touching_shells,
 };
 use crate::weld;
 
@@ -40,14 +39,23 @@ pub fn local_repair(v: &[f64], f: &[u32]) -> Option<Solid> {
             i = j;
         }
         if bad_face.iter().any(|&b| b) {
-            f = f.chunks_exact(3).zip(&bad_face).filter(|(_, bad)| !**bad).flat_map(|(t, _)| t.iter().copied()).collect();
+            f = f
+                .chunks_exact(3)
+                .zip(&bad_face)
+                .filter(|(_, bad)| !**bad)
+                .flat_map(|(t, _)| t.iter().copied())
+                .collect();
         }
         fix_winding(&v, &mut f);
         let (cv, cf, _) = cap_holes(&v, &f);
         v = cv;
         f = cf;
         if let Some(man) = to_solid(&v, &f) {
-            let man = if man.signed_volume() < 0.0 { to_solid(&v, &reversed(&f)) } else { Some(man) };
+            let man = if man.signed_volume() < 0.0 {
+                to_solid(&v, &reversed(&f))
+            } else {
+                Some(man)
+            };
             return man.map(|m| merge_overlapping_shells(&m).0);
         }
     }
@@ -57,14 +65,23 @@ pub fn local_repair(v: &[f64], f: &[u32]) -> Option<Solid> {
     let mut solids: Vec<Solid> = Vec::new();
     for shell in face_components(&f, true) {
         // the shell as its own mesh: its vertices in index order (trimesh `submesh`)
-        let mut used: Vec<u32> =
-            shell.iter().flat_map(|&t| f[3 * t as usize..3 * t as usize + 3].iter().copied()).collect();
+        let mut used: Vec<u32> = shell
+            .iter()
+            .flat_map(|&t| f[3 * t as usize..3 * t as usize + 3].iter().copied())
+            .collect();
         used.sort_unstable();
         used.dedup();
-        let mut sv: Vec<f64> = used.iter().flat_map(|&i| v[3 * i as usize..3 * i as usize + 3].iter().copied()).collect();
+        let mut sv: Vec<f64> = used
+            .iter()
+            .flat_map(|&i| v[3 * i as usize..3 * i as usize + 3].iter().copied())
+            .collect();
         let mut sf: Vec<u32> = shell
             .iter()
-            .flat_map(|&t| f[3 * t as usize..3 * t as usize + 3].iter().map(|i| used.binary_search(i).unwrap_or(0) as u32))
+            .flat_map(|&t| {
+                f[3 * t as usize..3 * t as usize + 3]
+                    .iter()
+                    .map(|i| used.binary_search(i).unwrap_or(0) as u32)
+            })
             .collect();
         if sf.len() / 3 >= 4 {
             fill_holes(&mut sv, &mut sf);

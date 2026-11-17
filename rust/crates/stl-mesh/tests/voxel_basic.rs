@@ -5,9 +5,7 @@ use std::path::PathBuf;
 
 use serde_json::Value;
 use stl_kernel::{MeshArrays, Solid};
-use stl_mesh::voxel::{
-    Grid3, check_grid, gaussian_filter, grid_for, raster_evenodd, solid_occupancy, surface_points,
-};
+use stl_mesh::voxel::{Grid3, check_grid, gaussian_filter, grid_for, raster_evenodd, solid_occupancy, surface_points};
 use stl_mesh::{MeshError, weld};
 
 const CAP_MSG: &str = "Resolution too fine for this model size. Use a coarser setting.";
@@ -26,20 +24,17 @@ fn voxel_golden() -> Value {
 /// FIPS 180-4 SHA-256 for checking size-limited boolean grids in `voxel_golden.json`.
 fn sha256_hex(message: &[u8]) -> String {
     const K: [u32; 64] = [
-        0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4,
-        0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe,
-        0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f,
-        0x4a7484aa, 0x5cb0a9dc, 0x76f988da, 0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7,
-        0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc,
-        0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b,
-        0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070, 0x19a4c116,
-        0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
-        0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7,
+        0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98,
+        0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786,
+        0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da, 0x983e5152, 0xa831c66d, 0xb00327c8,
+        0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
+        0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819,
+        0xd6990624, 0xf40e3585, 0x106aa070, 0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a,
+        0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7,
         0xc67178f2,
     ];
     let mut h: [u32; 8] = [
-        0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab,
-        0x5be0cd19,
+        0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
     ];
     let mut data = message.to_vec();
     data.push(0x80);
@@ -61,7 +56,11 @@ fn sha256_hex(message: &[u8]) -> String {
         for i in 0..64 {
             let s1 = v[4].rotate_right(6) ^ v[4].rotate_right(11) ^ v[4].rotate_right(25);
             let ch = (v[4] & v[5]) ^ (!v[4] & v[6]);
-            let t1 = v[7].wrapping_add(s1).wrapping_add(ch).wrapping_add(K[i]).wrapping_add(w[i]);
+            let t1 = v[7]
+                .wrapping_add(s1)
+                .wrapping_add(ch)
+                .wrapping_add(K[i])
+                .wrapping_add(w[i]);
             let s0 = v[0].rotate_right(2) ^ v[0].rotate_right(13) ^ v[0].rotate_right(22);
             let maj = (v[0] & v[1]) ^ (v[0] & v[2]) ^ (v[1] & v[2]);
             let t2 = s0.wrapping_add(maj);
@@ -154,7 +153,11 @@ fn solid_occupancy_matches_golden() {
         let want_origin = rec["output"]["origin"].as_array().unwrap();
         for a in 0..3 {
             let w = want_origin[a].as_f64().unwrap();
-            assert!((origin[a] - w).abs() <= 1e-12, "{case} origin[{a}]: got {} want {w}", origin[a]);
+            assert!(
+                (origin[a] - w).abs() <= 1e-12,
+                "{case} origin[{a}]: got {} want {w}",
+                origin[a]
+            );
         }
 
         let want_grid = &rec["output"]["grid"];
@@ -246,21 +249,49 @@ fn gaussian_matches_golden() {
     // Non-cubic grid (3x5x2) with sigma = 2.0 (radius 8 > all dimensions: tests multi-period
     // reflect boundary extension and non-cubic axis strides) and sigma = 0.0 no-op.
     let raw: Vec<f32> = (0..30).map(|i| (i as f32) * 0.37f32 - 4.1f32).collect();
-    let mut noop = Grid3 { n: [3, 5, 2], data: raw.clone() };
+    let mut noop = Grid3 {
+        n: [3, 5, 2],
+        data: raw.clone(),
+    };
     gaussian_filter(&mut noop, 0.0);
     assert_eq!(noop.data, raw);
 
-    let mut small = Grid3 { n: [3, 5, 2], data: raw };
+    let mut small = Grid3 {
+        n: [3, 5, 2],
+        data: raw,
+    };
     gaussian_filter(&mut small, 2.0);
     const WANT_3_5_2: [f64; 30] = [
-        0.21428610384464264, 0.21694770455360413, 0.45757582783699036, 0.46023741364479065,
-        0.8508502244949341, 0.8535118103027344, 1.2441245317459106, 1.246786117553711,
-        1.4874142408370972, 1.4900758266448975, 0.6271052956581116, 0.6297668814659119,
-        0.8703950643539429, 0.8730566501617432, 1.2636693716049194, 1.2663309574127197,
-        1.6569437980651855, 1.6596053838729858, 1.9002333879470825, 1.9028950929641724,
-        1.0399245023727417, 1.042586088180542, 1.2832142114639282, 1.2858757972717285,
-        1.6764885187149048, 1.6791502237319946, 2.069762945175171, 2.0724246501922607,
-        2.3130526542663574, 2.3157143592834473,
+        0.21428610384464264,
+        0.21694770455360413,
+        0.45757582783699036,
+        0.46023741364479065,
+        0.8508502244949341,
+        0.8535118103027344,
+        1.2441245317459106,
+        1.246786117553711,
+        1.4874142408370972,
+        1.4900758266448975,
+        0.6271052956581116,
+        0.6297668814659119,
+        0.8703950643539429,
+        0.8730566501617432,
+        1.2636693716049194,
+        1.2663309574127197,
+        1.6569437980651855,
+        1.6596053838729858,
+        1.9002333879470825,
+        1.9028950929641724,
+        1.0399245023727417,
+        1.042586088180542,
+        1.2832142114639282,
+        1.2858757972717285,
+        1.6764885187149048,
+        1.6791502237319946,
+        2.069762945175171,
+        2.0724246501922607,
+        2.3130526542663574,
+        2.3157143592834473,
     ];
     for (idx, (&got, &want)) in small.data.iter().zip(WANT_3_5_2.iter()).enumerate() {
         let diff = (got as f64 - want).abs();
@@ -323,7 +354,12 @@ fn surface_points_match_1x() {
         let got = pts[idx];
         for c in 0..3 {
             let diff = (got[c] - want[c]).abs();
-            assert!(diff <= 1e-12, "pts15[{idx}][{c}]: got {} want {} (diff {diff})", got[c], want[c]);
+            assert!(
+                diff <= 1e-12,
+                "pts15[{idx}][{c}]: got {} want {} (diff {diff})",
+                got[c],
+                want[c]
+            );
         }
     }
 
@@ -339,7 +375,12 @@ fn surface_points_match_1x() {
         }
     }
     for c in 0..3 {
-        assert!((sum15[c] - want_sum15[c]).abs() <= 1e-12 * n15, "sum15[{c}] got {} want {}", sum15[c], want_sum15[c]);
+        assert!(
+            (sum15[c] - want_sum15[c]).abs() <= 1e-12 * n15,
+            "sum15[{c}] got {} want {}",
+            sum15[c],
+            want_sum15[c]
+        );
         assert!(
             (wsum15[c] - want_wsum15[c]).abs() <= 1e-12 * n15,
             "wsum15[{c}] got {} want {}",
@@ -362,7 +403,12 @@ fn surface_points_match_1x() {
         let got = pts1[idx];
         for c in 0..3 {
             let diff = (got[c] - want[c]).abs();
-            assert!(diff <= 1e-12, "pts1[{idx}][{c}]: got {} want {} (diff {diff})", got[c], want[c]);
+            assert!(
+                diff <= 1e-12,
+                "pts1[{idx}][{c}]: got {} want {} (diff {diff})",
+                got[c],
+                want[c]
+            );
         }
     }
     let want_sum1 = [410220.00037860934, 273480.00196154957, 137000.00000000012];
@@ -377,16 +423,32 @@ fn surface_points_match_1x() {
         }
     }
     for c in 0..3 {
-        assert!((sum1[c] - want_sum1[c]).abs() <= 1e-12 * n1, "sum1[{c}] got {} want {}", sum1[c], want_sum1[c]);
-        assert!((wsum1[c] - want_wsum1[c]).abs() <= 1e-12 * n1, "wsum1[{c}] got {} want {}", wsum1[c], want_wsum1[c]);
+        assert!(
+            (sum1[c] - want_sum1[c]).abs() <= 1e-12 * n1,
+            "sum1[{c}] got {} want {}",
+            sum1[c],
+            want_sum1[c]
+        );
+        assert!(
+            (wsum1[c] - want_wsum1[c]).abs() <= 1e-12 * n1,
+            "wsum1[{c}] got {} want {}",
+            wsum1[c],
+            want_wsum1[c]
+        );
     }
 }
 
 #[test]
 fn check_grid_rejects_before_alloc() {
     assert_eq!(check_grid([1000, 1000, 300]), Ok(()));
-    assert_eq!(check_grid([1000, 1000, 301]), Err(MeshError::Message(CAP_MSG.to_string())));
-    assert_eq!(Grid3::try_new([1000, 1000, 301], false), Err(MeshError::Message(CAP_MSG.to_string())));
+    assert_eq!(
+        check_grid([1000, 1000, 301]),
+        Err(MeshError::Message(CAP_MSG.to_string()))
+    );
+    assert_eq!(
+        Grid3::try_new([1000, 1000, 301], false),
+        Err(MeshError::Message(CAP_MSG.to_string()))
+    );
     assert_eq!(
         Grid3::try_new([usize::MAX, usize::MAX, usize::MAX], 0.0f32),
         Err(MeshError::Message(CAP_MSG.to_string()))

@@ -41,7 +41,10 @@ fn f_repair(
             let (rv, rf) = stl_mesh::quick_repair(&v, &f);
             // manifold_from_arrays: positions as f32, None unless it is a closed solid
             if !rf.is_empty() {
-                let arrays = MeshArrays { positions: rv.iter().map(|&x| x as f32).collect(), triangles: rf };
+                let arrays = MeshArrays {
+                    positions: rv.iter().map(|&x| x as f32).collect(),
+                    triangles: rf,
+                };
                 man = Solid::from_mesh(&arrays).ok();
             }
         }
@@ -65,13 +68,20 @@ fn f_repair(
             };
             let verts: Vec<[f64; 3]> = v.chunks_exact(3).map(|c| [c[0], c[1], c[2]]).collect();
             let faces: Vec<[u32; 3]> = f.chunks_exact(3).map(|c| [c[0], c[1], c[2]]).collect();
-            let m = stl_mesh::voxel::voxel_rebuild(&verts, &faces, pitch, 0.6)
-                .map_err(|e| FeatureError(e.to_string()))?;
+            let m =
+                stl_mesh::voxel::voxel_rebuild(&verts, &faces, pitch, 0.6).map_err(|e| FeatureError(e.to_string()))?;
             res.warning = Some(format!("Rebuilt as a watertight solid on a {} mm grid.", fmt_g3(pitch)));
             m
         }
     };
-    state.bodies.insert(bid.to_string(), Body { name: b.name.clone(), solid: Some(man), mesh: None });
+    state.bodies.insert(
+        bid.to_string(),
+        Body {
+            name: b.name.clone(),
+            solid: Some(man),
+            mesh: None,
+        },
+    );
     res.modified.push(bid.to_string());
     Ok(())
 }

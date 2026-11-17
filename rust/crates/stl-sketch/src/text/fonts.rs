@@ -6,7 +6,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
-use ttf_parser::{name_id, Face, PlatformId};
+use ttf_parser::{Face, PlatformId, name_id};
 
 use crate::error::SketchError;
 
@@ -106,10 +106,8 @@ fn collect_font_files(dir: &Path, out: &mut Vec<PathBuf>) {
             // Do not follow symlinked directories; still accept symlinked font files.
             match fs::metadata(&path) {
                 Ok(m) if m.is_dir() => continue,
-                Ok(m) if m.is_file() => {
-                    if is_font_file(&path) {
-                        out.push(path);
-                    }
+                Ok(m) if m.is_file() && is_font_file(&path) => {
+                    out.push(path);
                 }
                 _ => {}
             }
@@ -140,9 +138,7 @@ static LIST_FONTS_CACHE: OnceLock<Vec<FontInfo>> = OnceLock::new();
 /// Outline fonts on this computer: one [`FontInfo`] per family + style.
 /// Cached like 1.x `@lru_cache(maxsize=1)` on `list_fonts`.
 pub fn list_fonts() -> Vec<FontInfo> {
-    LIST_FONTS_CACHE
-        .get_or_init(|| list_fonts_in(&font_dirs()))
-        .clone()
+    LIST_FONTS_CACHE.get_or_init(|| list_fonts_in(&font_dirs())).clone()
 }
 
 /// Like [`list_fonts`] but only looking in `dirs` (used by tests / callers that pin fonts).
@@ -163,11 +159,7 @@ pub fn list_fonts_in(dirs: &[PathBuf]) -> Vec<FontInfo> {
         }
         let fam = best_name(
             &face,
-            &[
-                name_id::WWS_FAMILY,
-                name_id::TYPOGRAPHIC_FAMILY,
-                name_id::FAMILY,
-            ],
+            &[name_id::WWS_FAMILY, name_id::TYPOGRAPHIC_FAMILY, name_id::FAMILY],
         )
         .unwrap_or_else(|| {
             path.file_stem()
@@ -189,7 +181,7 @@ pub fn list_fonts_in(dirs: &[PathBuf]) -> Vec<FontInfo> {
         }
     }
     let mut families: Vec<_> = fams.into_iter().collect();
-    families.sort_by(|a, b| a.0.to_ascii_lowercase().cmp(&b.0.to_ascii_lowercase()));
+    families.sort_by_key(|a| a.0.to_ascii_lowercase());
     let mut out = Vec::new();
     for (family, styles) in families {
         for (style, path) in styles {
@@ -230,22 +222,13 @@ fn debug_name(face: &Face<'_>, id: u16) -> Option<String> {
         }
         some = Some(s.clone());
         // Prefer the Windows English name record (3, 1, 0x409) as fontTools does.
-        if name.platform_id == PlatformId::Windows
-            && name.encoding_id == 1
-            && name.language_id == 0x409
-        {
+        if name.platform_id == PlatformId::Windows && name.encoding_id == 1 && name.language_id == 0x409 {
             return Some(s);
         }
-        if english.is_none()
-            && name.platform_id == PlatformId::Windows
-            && name.language_id == 0x409
-        {
+        if english.is_none() && name.platform_id == PlatformId::Windows && name.language_id == 0x409 {
             english = Some(s.clone());
         }
-        if mac_english.is_none()
-            && name.platform_id == PlatformId::Macintosh
-            && name.language_id == 0
-        {
+        if mac_english.is_none() && name.platform_id == PlatformId::Macintosh && name.language_id == 0 {
             mac_english = Some(s);
         }
     }
@@ -292,23 +275,14 @@ pub fn font_path_among(
         .map(|s| !fonts.iter().any(|f| f.family == s))
         .unwrap_or(true)
     {
-        fam = default_font_in(fonts).and_then(|p| {
-            fonts
-                .iter()
-                .find(|f| f.path == p)
-                .map(|f| f.family.clone())
-        });
+        fam = default_font_in(fonts).and_then(|p| fonts.iter().find(|f| f.path == p).map(|f| f.family.clone()));
         if fam.is_none() {
-            return Err(SketchError::new(
-                "No outline fonts were found on this computer.",
-            ));
+            return Err(SketchError::new("No outline fonts were found on this computer."));
         }
     }
     let fam = fam.unwrap();
     if !fonts.iter().any(|f| f.family == fam) {
-        return Err(SketchError::new(
-            "No outline fonts were found on this computer.",
-        ));
+        return Err(SketchError::new("No outline fonts were found on this computer."));
     }
     Ok(pick_style_from(fonts, &fam, bold, italic))
 }
@@ -325,22 +299,11 @@ fn pick_style_from(fonts: &[FontInfo], family: &str, bold: bool, italic: bool) -
     let want = want.trim();
     let want = if want.is_empty() { "Regular" } else { want };
     let oblique = want.replace("Italic", "Oblique");
-    for k in [
-        want,
-        oblique.as_str(),
-        "Regular",
-        "Normal",
-        "Book",
-        "Roman",
-    ] {
+    for k in [want, oblique.as_str(), "Regular", "Normal", "Book", "Roman"] {
         if let Some(f) = styles.iter().find(|f| f.style == k) {
             return f.path.clone();
         }
     }
     // First style in file order (not alphabetical).
-    styles
-        .first()
-        .expect("non-empty styles")
-        .path
-        .clone()
+    styles.first().expect("non-empty styles").path.clone()
 }

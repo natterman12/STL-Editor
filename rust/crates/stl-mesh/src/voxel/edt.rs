@@ -67,7 +67,11 @@ fn voronoi_ft(
         let dist2 = |fe: &[i32; 3], ii: usize| -> f64 {
             let mut s = 0.0f64;
             for jj in 0..3 {
-                let t = if jj == d { fe[jj] as f64 - ii as f64 } else { fe[jj] as f64 - coor[jj] as f64 };
+                let t = if jj == d {
+                    fe[jj] as f64 - ii as f64
+                } else {
+                    fe[jj] as f64 - coor[jj] as f64
+                };
                 s += t * t;
             }
             s
@@ -108,19 +112,47 @@ pub fn distance_transform_edt(occ: &Grid3<bool>) -> Result<Grid3<f64>, crate::Me
         for k in 0..n[2] {
             for i in 0..n[0] {
                 let c = at(i, j, k);
-                feat[c] = if occ.data[c] { [-1, 0, 0] } else { [i as i32, j as i32, k as i32] };
+                feat[c] = if occ.data[c] {
+                    [-1, 0, 0]
+                } else {
+                    [i as i32, j as i32, k as i32]
+                };
             }
-            voronoi_ft(feat, |ii| at(ii, j, k), n[0], [0, j as i64, k as i64], 0, &mut f, &mut g);
+            voronoi_ft(
+                feat,
+                |ii| at(ii, j, k),
+                n[0],
+                [0, j as i64, k as i64],
+                0,
+                &mut f,
+                &mut g,
+            );
         }
     }
     for k in 0..n[2] {
         for i in 0..n[0] {
-            voronoi_ft(feat, |ii| at(i, ii, k), n[1], [i as i64, 0, k as i64], 1, &mut f, &mut g);
+            voronoi_ft(
+                feat,
+                |ii| at(i, ii, k),
+                n[1],
+                [i as i64, 0, k as i64],
+                1,
+                &mut f,
+                &mut g,
+            );
         }
     }
     for i in 0..n[0] {
         for j in 0..n[1] {
-            voronoi_ft(feat, |ii| at(i, j, ii), n[2], [i as i64, j as i64, 0], 2, &mut f, &mut g);
+            voronoi_ft(
+                feat,
+                |ii| at(i, j, ii),
+                n[2],
+                [i as i64, j as i64, 0],
+                2,
+                &mut f,
+                &mut g,
+            );
         }
     }
 

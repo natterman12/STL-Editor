@@ -6,8 +6,10 @@ use super::{edge, edge_key, face_components, is_watertight, volume};
 /// `graph.is_watertight` on the edges of some of the faces only: every edge is used exactly
 /// twice, and the two uses run in opposite directions.
 fn group_is_closed_and_wound(f: &[u32], faces: &[u32]) -> bool {
-    let mut edges: Vec<(u32, u32)> =
-        faces.iter().flat_map(|&t| (0..3).map(move |k| edge(f, 3 * t as usize + k))).collect();
+    let mut edges: Vec<(u32, u32)> = faces
+        .iter()
+        .flat_map(|&t| (0..3).map(move |k| edge(f, 3 * t as usize + k)))
+        .collect();
     edges.sort_by_key(|&e| edge_key(e));
     let mut i = 0;
     while i < edges.len() {
@@ -28,6 +30,8 @@ fn group_is_closed_and_wound(f: &[u32], faces: &[u32]) -> bool {
 /// trimesh `repair.fix_inversion`, in place. Without `multibody` the whole mesh is reversed
 /// when it is watertight with a negative volume; with it, every connected group of faces that
 /// is closed and consistently wound is checked on its own.
+// `f` is a Vec like the other repair steps' (fill_holes grows it)
+#[allow(clippy::ptr_arg)]
 pub fn fix_inversion(v: &[f64], f: &mut Vec<u32>, multibody: bool) {
     if !multibody {
         if f.len() >= 3 && is_watertight(f).0 && volume(v, f, None) < 0.0 {

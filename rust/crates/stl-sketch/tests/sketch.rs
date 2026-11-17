@@ -16,11 +16,18 @@ fn read(path: &Path) -> Value {
 }
 
 fn entities(v: &Value) -> Vec<Entity> {
-    v.as_array().cloned().unwrap_or_default().into_iter().map(|e| serde_json::from_value(e).unwrap()).collect()
+    v.as_array()
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .map(|e| serde_json::from_value(e).unwrap())
+        .collect()
 }
 
 fn id_of(spec: &Value) -> String {
-    spec.as_str().unwrap_or_else(|| spec["id"].as_str().unwrap()).to_string()
+    spec.as_str()
+        .unwrap_or_else(|| spec["id"].as_str().unwrap())
+        .to_string()
 }
 
 fn pt(v: &Value) -> [f64; 2] {
@@ -28,7 +35,11 @@ fn pt(v: &Value) -> [f64; 2] {
 }
 
 fn ids(v: &Value) -> Vec<String> {
-    v.as_array().unwrap().iter().map(|x| x.as_str().unwrap().to_string()).collect()
+    v.as_array()
+        .unwrap()
+        .iter()
+        .map(|x| x.as_str().unwrap().to_string())
+        .collect()
 }
 
 fn new_id_factory() -> impl FnMut() -> String {
@@ -105,7 +116,11 @@ fn same(path: &str, want: &Value, got: &Value, tol: f64, out: &mut Vec<String>) 
             }
         }
         (Value::Object(a), Value::Object(b)) => {
-            let tol = if a.get("type").and_then(Value::as_str) == Some("arc") { tol.max(1e-6) } else { tol };
+            let tol = if a.get("type").and_then(Value::as_str) == Some("arc") {
+                tol.max(1e-6)
+            } else {
+                tol
+            };
             let mut keys: Vec<&String> = a.keys().chain(b.keys()).collect();
             keys.sort();
             keys.dedup();
@@ -157,8 +172,10 @@ fn sketch_matches_golden() {
         let case = read(&parity_dir().join(format!("sketch/{name}.json")));
         let ents = entities(&case["entities"]);
         let only = case.get("only").filter(|v| !v.is_null()).map(ids);
-        let regions: Option<Vec<[f64; 2]>> =
-            case.get("regions").filter(|v| !v.is_null()).map(|r| r.as_array().unwrap().iter().map(pt).collect());
+        let regions: Option<Vec<[f64; 2]>> = case
+            .get("regions")
+            .filter(|v| !v.is_null())
+            .map(|r| r.as_array().unwrap().iter().map(pt).collect());
         let mut got = serde_json::Map::new();
         got.insert("polygonize".into(), polygonize_json(&ents, only.as_deref()));
         match profile_with(&ents, only.as_deref(), regions.as_deref()) {
@@ -193,7 +210,12 @@ fn sketch_matches_golden() {
     assert_eq!(files, keys, "case files and golden entries differ");
     assert_eq!(cases, keys.len());
     assert!(cases >= 20, "only {cases} golden cases");
-    assert!(problems.is_empty(), "{} differences:\n{}", problems.len(), problems.join("\n"));
+    assert!(
+        problems.is_empty(),
+        "{} differences:\n{}",
+        problems.len(),
+        problems.join("\n")
+    );
 }
 
 /// Face order and ring start/direction as shapely `polygonize` gives them (values taken from
@@ -202,7 +224,12 @@ fn sketch_matches_golden() {
 #[test]
 fn polygonize_order_matches_shapely() {
     let load = |name: &str| entities(&read(&parity_dir().join(format!("sketch/{name}.json")))["entities"]);
-    let ring = |f: &stl_sketch::polygon::Face| f.exterior.iter().map(|p| (p[0].round(), p[1].round())).collect::<Vec<_>>();
+    let ring = |f: &stl_sketch::polygon::Face| {
+        f.exterior
+            .iter()
+            .map(|p| (p[0].round(), p[1].round()))
+            .collect::<Vec<_>>()
+    };
 
     let f = stl_sketch::profile::faces(&load("lines_loop"), None);
     assert_eq!(f.len(), 1);
@@ -230,7 +257,11 @@ fn zero_length_mirror_axis_gives_the_axis_error() {
     ]));
     let mut nid = new_id_factory();
     let err = ops::mirror(&ents, &["c".to_string()], "ax", &mut nid).unwrap_err();
-    assert!(err.message().starts_with("Pick a straight sketch line"), "{}", err.message());
+    assert!(
+        err.message().starts_with("Pick a straight sketch line"),
+        "{}",
+        err.message()
+    );
 }
 
 #[test]

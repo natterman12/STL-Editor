@@ -29,7 +29,12 @@ mod tests {
     use super::*;
 
     fn xy() -> Frame {
-        Frame { o: [0.0; 3], x: [1.0, 0.0, 0.0], y: [0.0, 1.0, 0.0], n: [0.0, 0.0, 1.0] }
+        Frame {
+            o: [0.0; 3],
+            x: [1.0, 0.0, 0.0],
+            y: [0.0, 1.0, 0.0],
+            n: [0.0, 0.0, 1.0],
+        }
     }
 
     #[test]
@@ -46,8 +51,14 @@ mod tests {
     #[test]
     fn errors_and_holes() {
         let sq = vec![vec![[0.0, 0.0], [4.0, 0.0], [4.0, 4.0], [0.0, 4.0]]];
-        assert_eq!(pushpull_tool(&sq, &xy(), 0.0).err().unwrap().0, "Distance can't be zero.");
-        assert_eq!(pushpull_tool(&[], &xy(), 1.0).err().unwrap().0, "That face has no area.");
+        assert_eq!(
+            pushpull_tool(&sq, &xy(), 0.0).err().unwrap().0,
+            "Distance can't be zero."
+        );
+        assert_eq!(
+            pushpull_tool(&[], &xy(), 1.0).err().unwrap().0,
+            "That face has no area."
+        );
         let ring = vec![
             vec![[0.0, 0.0], [4.0, 0.0], [4.0, 4.0], [0.0, 4.0]],
             vec![[1.0, 1.0], [3.0, 1.0], [3.0, 3.0], [1.0, 3.0]],

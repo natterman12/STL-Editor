@@ -14,8 +14,8 @@ use std::sync::{Mutex, MutexGuard};
 use std::time::Duration;
 use stl_engine::HostKind;
 use stl_platform::fins::{
-    check_update, choose_engine, digest, finish_update_check, published_url, reset_fins_state, start_fins_host, EngineInfo,
-    FinsState, Settings,
+    EngineInfo, FinsState, Settings, check_update, choose_engine, digest, finish_update_check, published_url,
+    reset_fins_state, start_fins_host,
 };
 use stl_platform::net::https_get;
 
@@ -53,7 +53,11 @@ fn scratch(name: &str) -> (PathBuf, Clean) {
 
 fn python() -> PathBuf {
     let known = PathBuf::from(r"C:\Program Files\Python314\python.exe");
-    if known.is_file() { known } else { PathBuf::from("python") }
+    if known.is_file() {
+        known
+    } else {
+        PathBuf::from("python")
+    }
 }
 
 struct Server {
@@ -79,7 +83,9 @@ impl Server {
             let _ = BufReader::new(stdout).read_line(&mut line);
             let _ = tx.send(line);
         });
-        let line = rx.recv_timeout(Duration::from_secs(15)).expect("update server printed no port");
+        let line = rx
+            .recv_timeout(Duration::from_secs(15))
+            .expect("update server printed no port");
         let port: u16 = line.trim().parse().unwrap_or_else(|_| {
             let mut err = String::new();
             if let Some(mut e) = child.stderr.take() {
@@ -157,7 +163,10 @@ fn digest_ignores_crlf() {
     assert_eq!(digest(lf), digest(crlf), "CRLF and LF are the same bundle");
     assert_eq!(digest(lf), format!("{:x}", Sha256::digest(lf)));
     assert_ne!(digest(crlf), format!("{:x}", Sha256::digest(crlf)));
-    assert_eq!(digest(b""), "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+    assert_eq!(
+        digest(b""),
+        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    );
 
     let (root, _clean) = scratch("crlf");
     let dir = root.join("eng");
@@ -184,12 +193,20 @@ fn newer_engine_used_next_start() {
     let pubdir = root.join("pub");
     publish(&pubdir, "v9.9.9", 1, b"published-engine-v9.9.9", None);
     let server = Server::start(&pubdir);
-    assert_eq!(published_url(Some(&format!("http://127.0.0.1:{}", server.port))), server.base());
+    assert_eq!(
+        published_url(Some(&format!("http://127.0.0.1:{}", server.port))),
+        server.base()
+    );
     let got = https_get(&format!("{}VERSION.json", server.base()), Duration::from_secs(5)).expect("http get");
     assert!(got.windows(6).any(|w| w == b"v9.9.9"));
 
     let st = run(&settings(&bundled, &config, &server.base()), true);
-    assert_eq!(st.pending.as_deref(), Some("v9.9.9"), "pending is the downloaded tag; error={:?}", st.error);
+    assert_eq!(
+        st.pending.as_deref(),
+        Some("v9.9.9"),
+        "pending is the downloaded tag; error={:?}",
+        st.error
+    );
     assert!(st.error.is_none(), "{:?}", st.error);
     assert!(st.checked.is_some());
     // The download is on disk, and the next choose (the next start) uses it.
@@ -224,9 +241,18 @@ fn bad_update_refused() {
     let full = b"brand-new-engine-bytes";
 
     // Bad checksum: the file is intact, the published hash is not.
-    publish(&pubdir, "v9.9.9", 1, full, Some("0000000000000000000000000000000000000000000000000000000000000000"));
+    publish(
+        &pubdir,
+        "v9.9.9",
+        1,
+        full,
+        Some("0000000000000000000000000000000000000000000000000000000000000000"),
+    );
     let st = run(&settings, true);
-    assert!(st.error.as_deref().unwrap_or("").contains("checksum mismatch"), "bad checksum: {st:?}");
+    assert!(
+        st.error.as_deref().unwrap_or("").contains("checksum mismatch"),
+        "bad checksum: {st:?}"
+    );
     assert!(st.pending.is_none(), "{st:?}");
     assert_eq!(engine_bytes(&user).unwrap(), previous_js);
     assert_eq!(choose_engine(&bundled, &user).unwrap().tag, "v1.0.5");
@@ -236,7 +262,10 @@ fn bad_update_refused() {
     let hash = digest(full);
     publish(&pubdir, "v9.9.9", 1, &full[..8], Some(hash.as_str()));
     let st = run(&settings, true);
-    assert!(st.error.as_deref().unwrap_or("").contains("checksum mismatch"), "cut-off file: {st:?}");
+    assert!(
+        st.error.as_deref().unwrap_or("").contains("checksum mismatch"),
+        "cut-off file: {st:?}"
+    );
     assert_eq!(engine_bytes(&user).unwrap(), previous_js);
     assert_eq!(fs::read(user.join("VERSION.json")).unwrap(), previous_ver);
     assert_eq!(choose_engine(&bundled, &user).unwrap().tag, "v1.0.5");
@@ -244,7 +273,10 @@ fn bad_update_refused() {
     // A different integration api is refused; the previous engine stays.
     publish(&pubdir, "v9.9.9", 2, full, None);
     let st = run(&settings, true);
-    assert!(st.error.as_deref().unwrap_or("").to_lowercase().contains("api"), "different api: {st:?}");
+    assert!(
+        st.error.as_deref().unwrap_or("").to_lowercase().contains("api"),
+        "different api: {st:?}"
+    );
     assert!(st.pending.is_none(), "{st:?}");
     assert_eq!(engine_bytes(&user).unwrap(), previous_js);
     assert_eq!(fs::read(user.join("VERSION.json")).unwrap(), previous_ver);
@@ -263,14 +295,23 @@ fn offline_check_is_quiet() {
     drop(listener);
     let settings = settings(&bundled, &config, &format!("http://127.0.0.1:{port}/"));
     let st = run(&settings, true);
-    assert!(st.error.as_ref().is_some_and(|e| !e.is_empty()), "a failed check is recorded, not thrown: {st:?}");
+    assert!(
+        st.error.as_ref().is_some_and(|e| !e.is_empty()),
+        "a failed check is recorded, not thrown: {st:?}"
+    );
     assert!(st.pending.is_none(), "{st:?}");
     assert!(engine_bytes(&config.join("support-fins")).is_none());
-    assert_eq!(choose_engine(&bundled, &config.join("support-fins")).unwrap().tag, "v1.0.5");
+    assert_eq!(
+        choose_engine(&bundled, &config.join("support-fins")).unwrap().tag,
+        "v1.0.5"
+    );
     // Still quiet on the follow-up: no panic, the bundled engine stays.
     let st2 = run(&settings, false);
     assert!(st2.pending.is_none());
-    assert_eq!(choose_engine(&bundled, &config.join("support-fins")).unwrap().tag, "v1.0.5");
+    assert_eq!(
+        choose_engine(&bundled, &config.join("support-fins")).unwrap().tag,
+        "v1.0.5"
+    );
 }
 
 #[test]
@@ -304,13 +345,20 @@ fn once_a_day() {
     assert_eq!(engine_bytes(&user).unwrap(), b"engine-1.0.1");
     let saved: Value = serde_json::from_slice(&fs::read(config.join("settings.json")).unwrap()).unwrap();
     let last = saved["supportfins_last"].as_i64().unwrap();
-    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as i64;
     assert!((now - last).abs() < 30, "supportfins_last {last} vs {now}");
 
     // A newer publish the same day is left for tomorrow, unless the check is forced.
     publish(&pubdir, "v1.0.2", 1, b"engine-1.0.2", None);
     let st = run(&settings, false);
-    assert_eq!(engine_bytes(&user).unwrap(), b"engine-1.0.1", "the same-day check must not download; {st:?}");
+    assert_eq!(
+        engine_bytes(&user).unwrap(),
+        b"engine-1.0.1",
+        "the same-day check must not download; {st:?}"
+    );
     assert_eq!(choose_engine(&bundled, &user).unwrap().tag, "v1.0.1");
     let st = run(&settings, true);
     assert_eq!(st.pending.as_deref(), Some("v1.0.2"), "{st:?}");
@@ -353,5 +401,8 @@ fn info_call_reports_engine_and_pending() {
     assert_eq!(info["version"], "1.0.5", "the running host keeps its engine");
     assert_eq!(info["tag"], "v1.0.5");
     assert_eq!(info["pending"], "v1.0.6");
-    assert_eq!(choose_engine(&bundled, &config.join("support-fins")).unwrap().tag, "v1.0.6");
+    assert_eq!(
+        choose_engine(&bundled, &config.join("support-fins")).unwrap().tag,
+        "v1.0.6"
+    );
 }

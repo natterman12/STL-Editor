@@ -1,9 +1,9 @@
 //! Draw Walls: hand-drawn Support Fins walls (1.x `f_supportwall`).
 
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 use stl_kernel::Solid;
 
-use crate::features::common::fins::{add_supports, body_mesh, usable_walls, walls as fin_walls, Extras};
+use crate::features::common::fins::{Extras, add_supports, body_mesh, usable_walls, walls as fin_walls};
 use crate::{Ctx, FeatureError, FeatureResult, Registry, State};
 
 /// Runs the feature and returns what 1.x puts in the result besides `FeatureResult`'s fields.
@@ -23,15 +23,29 @@ pub fn run(
     let b = state.body(&bid)?.clone();
     let walls = usable_walls(p);
     if walls.is_empty() {
-        return Err(FeatureError("Click on the part to draw a wall under an overhang.".into()));
+        return Err(FeatureError(
+            "Click on the part to draw a wall under an overhang.".into(),
+        ));
     }
     let options = p.get("options").cloned().unwrap_or_else(|| json!({}));
     let mesh = body_mesh(&b);
     let r = fin_walls::walls(ctx.fins, &mesh, &walls, &options)?;
-    let mut ex = Extras::default();
-    ex.walls = Some(Value::Array(r.walls.iter().map(|w| json!({"ok": w.ok, "reason": w.reason})).collect()));
+    let mut ex = Extras {
+        walls: Some(Value::Array(
+            r.walls
+                .iter()
+                .map(|w| json!({"ok": w.ok, "reason": w.reason}))
+                .collect(),
+        )),
+        ..Default::default()
+    };
     let good: Vec<_> = r.walls.iter().filter(|w| w.ok).collect();
-    let bad: Vec<(usize, _)> = r.walls.iter().enumerate().filter(|(_, w)| !w.ok || w.failed > 0).collect();
+    let bad: Vec<(usize, _)> = r
+        .walls
+        .iter()
+        .enumerate()
+        .filter(|(_, w)| !w.ok || w.failed > 0)
+        .collect();
     if good.is_empty() {
         let why = r.walls[0].reason.clone().unwrap_or_else(|| "None".into());
         return Err(FeatureError(if walls.len() == 1 {
@@ -52,10 +66,20 @@ pub fn run(
             length,
             tall,
             tines,
-            if good[0].part_attached { ", standing on the part" } else { "" }
+            if good[0].part_attached {
+                ", standing on the part"
+            } else {
+                ""
+            }
         )
     } else {
-        format!("Support Fins {}: {} walls, {:.1} mm in all, {} tines", r.version, good.len(), length, tines)
+        format!(
+            "Support Fins {}: {} walls, {:.1} mm in all, {} tines",
+            r.version,
+            good.len(),
+            length,
+            tines
+        )
     });
     if !bad.is_empty() {
         let text: Vec<String> = bad
@@ -71,7 +95,17 @@ pub fn run(
             .collect();
         res.warning = Some(text.join(". ") + ".");
     }
-    add_supports(state, fid, res, &mut ex, &bid, &r.solids, p.get("output").and_then(Value::as_str), "walls", ctx.preview)?;
+    add_supports(
+        state,
+        fid,
+        res,
+        &mut ex,
+        &bid,
+        &r.solids,
+        p.get("output").and_then(Value::as_str),
+        "walls",
+        ctx.preview,
+    )?;
     Ok(ex)
 }
 

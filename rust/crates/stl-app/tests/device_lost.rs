@@ -17,7 +17,11 @@ fn project_state(app: &StlApp) -> (Vec<(String, u64, usize, usize)>, String, Str
         .iter()
         .map(|b| (b.id.clone(), b.revision, b.mesh.positions.len(), b.mesh.triangles.len()))
         .collect();
-    (bodies, format!("{:?}", app.timeline_view), format!("{:?}", app.param_views))
+    (
+        bodies,
+        format!("{:?}", app.timeline_view),
+        format!("{:?}", app.param_views),
+    )
 }
 
 #[test]
@@ -64,10 +68,15 @@ fn device_lost_recovers() {
     assert_eq!(vp.stats().gpu_states(), 1);
 
     // a working device takes uploads; a lost one refuses them (what WARP shows instead of the callback)
-    assert!(!stl_app::viewport::renderer::render_state_refuses_uploads(&gpu.render_state));
+    assert!(!stl_app::viewport::renderer::render_state_refuses_uploads(
+        &gpu.render_state
+    ));
     // the device goes away: nothing is drawn on it any more, and nothing panics
     gpu.force_device_loss();
-    assert!(stl_app::viewport::renderer::render_state_refuses_uploads(&gpu.render_state), "a lost device still takes uploads");
+    assert!(
+        stl_app::viewport::renderer::render_state_refuses_uploads(&gpu.render_state),
+        "a lost device still takes uploads"
+    );
     for _ in 0..3 {
         assert!(gpu.render(vp, w, hgt).is_none(), "drew on a lost device");
     }

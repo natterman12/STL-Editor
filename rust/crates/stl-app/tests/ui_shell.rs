@@ -5,41 +5,46 @@
 use std::sync::{Arc, Mutex};
 
 use egui::Key;
-use egui_kittest::kittest::{NodeT, Queryable};
 use egui_kittest::Harness;
+use egui_kittest::kittest::{NodeT, Queryable};
 use stl_app::app::StlApp;
 use stl_app::engine_link::{Command, EngineLink, Update};
 use stl_app::theme;
 use stl_app::ui::dialogs::DialogResult;
-use stl_app::ui::{ribbon, ThemePref, UiEvent};
+use stl_app::ui::{ThemePref, UiEvent, ribbon};
 
-#[path = "support/wgpu_renderer.rs"]
-mod wgpu_renderer;
 #[path = "support/gpu.rs"]
 mod gpu;
+#[path = "support/wgpu_renderer.rs"]
+mod wgpu_renderer;
 
 fn repo() -> std::path::PathBuf {
     std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..")
 }
 
 fn app_js() -> String {
-    std::fs::read_to_string(repo().join("web/js/app.js")).unwrap().replace("\r\n", "\n")
+    std::fs::read_to_string(repo().join("web/js/app.js"))
+        .unwrap()
+        .replace("\r\n", "\n")
 }
 
 fn shell_with(w: f32, h: f32, app: StlApp) -> Harness<'static, StlApp> {
     let mut init = false;
     // The accessibility check is off: the browser's image buttons (Task 8) have no names yet.
-    Harness::builder().with_size(egui::vec2(w, h)).with_accessibility_check(false).build_ui_state(
-        move |ui, app: &mut StlApp| {
-            if !init {
-                init = true;
-                stl_app::fonts::install(ui.ctx());
-                app.set_theme(ui.ctx(), ThemePref::Dark);
-            }
-            app.layout(ui);
-        },
-        app,
-    )
+    Harness::builder()
+        .with_size(egui::vec2(w, h))
+        .with_accessibility_check(false)
+        .build_ui_state(
+            move |ui, app: &mut StlApp| {
+                if !init {
+                    init = true;
+                    stl_app::fonts::install(ui.ctx());
+                    app.set_theme(ui.ctx(), ThemePref::Dark);
+                }
+                app.layout(ui);
+            },
+            app,
+        )
 }
 
 fn shell(w: f32, h: f32) -> Harness<'static, StlApp> {
@@ -60,7 +65,11 @@ fn triples(src: &str) -> Vec<(String, String, String)> {
             if let Some(end) = rest.find(']') {
                 let inner = &rest[1..end];
                 let parts: Vec<&str> = inner.split(", ").collect();
-                if parts.len() == 3 && parts.iter().all(|p| p.starts_with('\'') && p.ends_with('\'') && p.len() >= 2 && !p[1..p.len() - 1].contains('\'')) {
+                if parts.len() == 3
+                    && parts.iter().all(|p| {
+                        p.starts_with('\'') && p.ends_with('\'') && p.len() >= 2 && !p[1..p.len() - 1].contains('\'')
+                    })
+                {
                     let t: Vec<String> = parts.iter().map(|p| p[1..p.len() - 1].to_string()).collect();
                     out.push((t[0].clone(), t[1].clone(), t[2].clone()));
                     i += end;
@@ -108,12 +117,12 @@ fn ribbon_group_names_and_tabs_match_ribbon_def() {
     let mut want = Vec::new();
     for line in src.lines() {
         let l = line.trim_start();
-        if let Some(rest) = l.strip_prefix("['") {
-            if let Some((name, tail)) = rest.split_once("', [") {
-                if name.chars().next().is_some_and(|c| c.is_uppercase()) && !tail.is_empty() {
-                    want.push(name.to_string());
-                }
-            }
+        if let Some(rest) = l.strip_prefix("['")
+            && let Some((name, tail)) = rest.split_once("', [")
+            && name.chars().next().is_some_and(|c| c.is_uppercase())
+            && !tail.is_empty()
+        {
+            want.push(name.to_string());
         }
     }
     let mut have: Vec<String> = vec![ribbon::def("solid").pinned.label.to_string()];
@@ -125,7 +134,11 @@ fn ribbon_group_names_and_tabs_match_ribbon_def() {
     assert_eq!(want, have);
     let tabs: Vec<_> = ribbon::TABS.iter().map(|t| t.1).collect();
     assert_eq!(tabs, ["Model", "Print", "Supports", "Mesh"]);
-    assert!(src.contains("tabs: [['solid', 'Model'], ['print', 'Print'], ['supports', 'Supports'], ['mesh', 'Mesh']]") || app_js().contains("tabs: [['solid', 'Model'], ['print', 'Print'], ['supports', 'Supports'], ['mesh', 'Mesh']]"));
+    assert!(
+        src.contains("tabs: [['solid', 'Model'], ['print', 'Print'], ['supports', 'Supports'], ['mesh', 'Mesh']]")
+            || app_js()
+                .contains("tabs: [['solid', 'Model'], ['print', 'Print'], ['supports', 'Supports'], ['mesh', 'Mesh']]")
+    );
 }
 
 #[test]
@@ -218,8 +231,16 @@ fn primitive_dropdown_lists_the_shapes() {
     }
     h.get_by_label("Torus").click();
     h.run_steps(4);
-    assert!(h.state().shell.events.contains(&UiEvent::OpenTool("primitive_torus".into())));
-    assert_eq!(h.state().shell.drop_last.get("primitive").map(String::as_str), Some("primitive_torus"));
+    assert!(
+        h.state()
+            .shell
+            .events
+            .contains(&UiEvent::OpenTool("primitive_torus".into()))
+    );
+    assert_eq!(
+        h.state().shell.drop_last.get("primitive").map(String::as_str),
+        Some("primitive_torus")
+    );
 }
 
 // ------------------------------------------------------------------ tool search keys
@@ -252,7 +273,11 @@ fn tool_search_arrows_enter_escape() {
     h.key_press(Key::Enter);
     h.run_steps(4);
     let want = results[1].k.clone();
-    assert!(h.state().shell.events.contains(&UiEvent::OpenTool(want)), "{:?}", h.state().shell.events);
+    assert!(
+        h.state().shell.events.contains(&UiEvent::OpenTool(want)),
+        "{:?}",
+        h.state().shell.events
+    );
     assert!(h.state().shell.query.is_empty());
     assert!(h.state().shell.menu.is_none());
 
@@ -285,19 +310,28 @@ fn tool_search_switches_tab_when_needed() {
 #[test]
 fn prompt_enter_accepts_and_escape_cancels() {
     let mut h = shell(900.0, 600.0);
-    h.state_mut().shell.dialogs.open_prompt("rename", "Rename body", "  Body 1 ");
+    h.state_mut()
+        .shell
+        .dialogs
+        .open_prompt("rename", "Rename body", "  Body 1 ");
     h.run_steps(4);
     assert!(h.query_by_label("OK").is_some() && h.query_by_label("Cancel").is_some());
     h.key_press(Key::Enter);
     h.run_steps(4);
-    assert_eq!(h.state_mut().dialog_result.take(), Some(("rename".into(), DialogResult::Text("Body 1".into()))));
+    assert_eq!(
+        h.state_mut().dialog_result.take(),
+        Some(("rename".into(), DialogResult::Text("Body 1".into())))
+    );
     assert!(!h.state().shell.dialogs.is_open());
 
     h.state_mut().shell.dialogs.open_prompt("rename", "Rename body", "x");
     h.run_steps(4);
     h.key_press(Key::Escape);
     h.run_steps(4);
-    assert_eq!(h.state_mut().dialog_result.take(), Some(("rename".into(), DialogResult::Cancelled)));
+    assert_eq!(
+        h.state_mut().dialog_result.take(),
+        Some(("rename".into(), DialogResult::Cancelled))
+    );
 }
 
 #[test]
@@ -318,16 +352,28 @@ fn prompt_typed_text_is_returned() {
 #[test]
 fn confirm_buttons() {
     let mut h = shell(900.0, 600.0);
-    h.state_mut().shell.dialogs.open_confirm("c", "Replace the current unsaved work?");
+    h.state_mut()
+        .shell
+        .dialogs
+        .open_confirm("c", "Replace the current unsaved work?");
     h.run_steps(4);
     h.get_by_label("Cancel").click();
     h.run_steps(4);
-    assert_eq!(h.state_mut().dialog_result.take(), Some(("c".into(), DialogResult::Cancelled)));
-    h.state_mut().shell.dialogs.open_confirm("c", "Replace the current unsaved work?");
+    assert_eq!(
+        h.state_mut().dialog_result.take(),
+        Some(("c".into(), DialogResult::Cancelled))
+    );
+    h.state_mut()
+        .shell
+        .dialogs
+        .open_confirm("c", "Replace the current unsaved work?");
     h.run_steps(4);
     h.get_by_label("OK").click();
     h.run_steps(4);
-    assert_eq!(h.state_mut().dialog_result.take(), Some(("c".into(), DialogResult::Yes)));
+    assert_eq!(
+        h.state_mut().dialog_result.take(),
+        Some(("c".into(), DialogResult::Yes))
+    );
 }
 
 // ------------------------------------------------------------------ theme switch
@@ -360,10 +406,18 @@ fn start_page_shows_until_the_project_has_steps() {
     h.run_steps(4);
     assert!(h.query_by_label("Open mesh…").is_some());
     assert!(h.query_by_label("Start with a box").is_some());
-    assert!(h.query_by_label("Support STL Editor").is_some(), "Ko-fi link on the start page");
+    assert!(
+        h.query_by_label("Support STL Editor").is_some(),
+        "Ko-fi link on the start page"
+    );
     h.get_by_label("Start with a box").click();
     h.run_steps(4);
-    assert!(h.state().shell.events.contains(&UiEvent::OpenTool("primitive_box".into())));
+    assert!(
+        h.state()
+            .shell
+            .events
+            .contains(&UiEvent::OpenTool("primitive_box".into()))
+    );
 }
 
 /// kofi.js: the start screen's footer line (`.empty-foot`) and its link to the Ko-fi page.
@@ -371,7 +425,10 @@ fn start_page_shows_until_the_project_has_steps() {
 fn start_page_kofi_link_text_and_url() {
     let mut h = shell(1500.0, 700.0);
     h.run_steps(4);
-    assert!(h.query_by_label("Free and open source · ").is_some(), "footer text before the link");
+    assert!(
+        h.query_by_label("Free and open source · ").is_some(),
+        "footer text before the link"
+    );
     assert_eq!(stl_app::ui::start::KOFI, "https://ko-fi.com/natterman12");
     h.get_by_label("Support STL Editor").click();
     // the command lives in one frame's output: look after each step
@@ -383,7 +440,10 @@ fn start_page_kofi_link_text_and_url() {
             _ => None,
         }));
     }
-    assert!(opened.iter().any(|u| u == "https://ko-fi.com/natterman12"), "opened {opened:?}");
+    assert!(
+        opened.iter().any(|u| u == "https://ko-fi.com/natterman12"),
+        "opened {opened:?}"
+    );
 }
 
 #[test]
@@ -396,7 +456,10 @@ fn help_menu_has_kofi_and_about() {
     assert!(h.query_by_label("Keyboard Shortcuts").is_some());
     h.get_by_label("About STL Editor").click();
     h.run_steps(4);
-    assert!(h.query_by_label("Buy me a coffee on Ko-fi").is_some(), "Ko-fi link in the About dialog");
+    assert!(
+        h.query_by_label("Buy me a coffee on Ko-fi").is_some(),
+        "Ko-fi link in the About dialog"
+    );
 }
 
 #[test]
@@ -404,9 +467,49 @@ fn file_edit_view_menus_match_app_js() {
     let mut h = shell(1500.0, 700.0);
     h.run_steps(4);
     for (menu, items) in [
-        ("File", vec!["New", "Open…", "Insert Mesh…", "Save", "Save As…", "Export STL…", "Export 3MF…", "Export OBJ…", "Quit"]),
-        ("Edit", vec!["Undo", "Redo", "Parameters…", "Select All Bodies", "Remove Selected Bodies"]),
-        ("View", vec!["Fit All", "Isometric", "Top", "Front", "Right", "Section View", "Millimetres", "Inches", "Light", "Dark", "Match Windows", "Show Edges", "Show Grid", "Show Origin Planes"]),
+        (
+            "File",
+            vec![
+                "New",
+                "Open…",
+                "Insert Mesh…",
+                "Save",
+                "Save As…",
+                "Export STL…",
+                "Export 3MF…",
+                "Export OBJ…",
+                "Quit",
+            ],
+        ),
+        (
+            "Edit",
+            vec![
+                "Undo",
+                "Redo",
+                "Parameters…",
+                "Select All Bodies",
+                "Remove Selected Bodies",
+            ],
+        ),
+        (
+            "View",
+            vec![
+                "Fit All",
+                "Isometric",
+                "Top",
+                "Front",
+                "Right",
+                "Section View",
+                "Millimetres",
+                "Inches",
+                "Light",
+                "Dark",
+                "Match Windows",
+                "Show Edges",
+                "Show Grid",
+                "Show Origin Planes",
+            ],
+        ),
     ] {
         h.get_by_label(menu).click();
         h.run_steps(4);
@@ -463,11 +566,22 @@ impl EngineLink for LostLink {
 #[test]
 fn engine_lost_shows_restart() {
     let restarts = Arc::new(Mutex::new(0));
-    let link = LostLink { sent: Default::default(), restarts: restarts.clone(), fired: Mutex::new(false) };
-    let app = StlApp::new(&egui::Context::default(), Box::new(stl_app::platform::NullPlatform), Box::new(link));
+    let link = LostLink {
+        sent: Default::default(),
+        restarts: restarts.clone(),
+        fired: Mutex::new(false),
+    };
+    let app = StlApp::new(
+        &egui::Context::default(),
+        Box::new(stl_app::platform::NullPlatform),
+        Box::new(link),
+    );
     let mut h = shell_with(900.0, 600.0, app);
     h.run_steps(4);
-    assert!(h.query_by_label("The engine stopped unexpectedly. Your last saved project is safe.").is_some());
+    assert!(
+        h.query_by_label("The engine stopped unexpectedly. Your last saved project is safe.")
+            .is_some()
+    );
     h.get_by_label("Restart").click();
     h.run_steps(4);
     assert_eq!(*restarts.lock().unwrap(), 1);
@@ -489,24 +603,31 @@ mod snapshots {
         let mut init = false;
         let app = StlApp::empty(&egui::Context::default());
         let pref = if dark { ThemePref::Dark } else { ThemePref::Light };
-        let mut h = Harness::builder().with_size(egui::vec2(1280.0, 720.0)).with_accessibility_check(false).renderer(renderer).build_ui_state(
-            move |ui, app: &mut StlApp| {
-                if !init {
-                    init = true;
-                    stl_app::fonts::install(ui.ctx());
-                    app.set_theme(ui.ctx(), pref);
-                }
-                app.layout(ui);
-            },
-            app,
-        );
+        let mut h = Harness::builder()
+            .with_size(egui::vec2(1280.0, 720.0))
+            .with_accessibility_check(false)
+            .renderer(renderer)
+            .build_ui_state(
+                move |ui, app: &mut StlApp| {
+                    if !init {
+                        init = true;
+                        stl_app::fonts::install(ui.ctx());
+                        app.set_theme(ui.ctx(), pref);
+                    }
+                    app.layout(ui);
+                },
+                app,
+            );
         h.run_steps(4);
         setup(&mut h);
         h.run_steps(4);
         // egui alone: the harness never calls `init_gpu`, so the viewport adds no paint callback
         // and the picture has no 3D view in it; that is what lets `snapshot_2d` compare it on
         // every adapter
-        assert!(!h.state().viewport.has_gpu(), "{name}: the shell picture has the 3D view in it: use gpu::snapshot");
+        assert!(
+            !h.state().viewport.has_gpu(),
+            "{name}: the shell picture has the 3D view in it: use gpu::snapshot"
+        );
         super::gpu::snapshot_2d(&mut h, &gpu, name);
     }
 
@@ -536,11 +657,15 @@ mod snapshots {
     }
     #[test]
     fn shell_prompt_dark() {
-        snap("shell_prompt_dark", true, |h| h.state_mut().shell.dialogs.open_prompt("rename", "Rename body", "Cube"));
+        snap("shell_prompt_dark", true, |h| {
+            h.state_mut().shell.dialogs.open_prompt("rename", "Rename body", "Cube")
+        });
     }
     #[test]
     fn shell_prompt_light() {
-        snap("shell_prompt_light", false, |h| h.state_mut().shell.dialogs.open_prompt("rename", "Rename body", "Cube"));
+        snap("shell_prompt_light", false, |h| {
+            h.state_mut().shell.dialogs.open_prompt("rename", "Rename body", "Cube")
+        });
     }
 }
 
@@ -569,7 +694,10 @@ impl EngineLink for ScriptLink {
 struct PicksFile;
 impl Platform for PicksFile {
     fn open_file(&self, _f: &[(&str, &[&str])]) -> Pending<Option<PickedFile>> {
-        Pending::ready(Some(PickedFile { name: "a.stl".into(), bytes: vec![1, 2, 3] }))
+        Pending::ready(Some(PickedFile {
+            name: "a.stl".into(),
+            bytes: vec![1, 2, 3],
+        }))
     }
     fn save_file(&self, _s: &str, _b: Vec<u8>) -> Pending<Result<bool, String>> {
         Pending::ready(Ok(false))
@@ -589,11 +717,27 @@ fn with_link(platform: Box<dyn Platform>) -> (Harness<'static, StlApp>, ScriptLi
 }
 
 fn step_added() -> Update {
-    Update::Timeline(TimelineView { items: vec![TimelineItem { id: "f1".into(), kind: "primitive".into(), label: "Box".into(), active: true, ..Default::default() }], marker: None, can_undo: true, can_redo: false })
+    Update::Timeline(TimelineView {
+        items: vec![TimelineItem {
+            id: "f1".into(),
+            kind: "primitive".into(),
+            label: "Box".into(),
+            active: true,
+            ..Default::default()
+        }],
+        marker: None,
+        can_undo: true,
+        can_redo: false,
+    })
 }
 
 fn opens(link: &ScriptLink) -> usize {
-    link.sent.lock().unwrap().iter().filter(|c| matches!(c, Command::Open { .. })).count()
+    link.sent
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|c| matches!(c, Command::Open { .. }))
+        .count()
 }
 
 #[test]
@@ -612,12 +756,18 @@ fn keys_use_the_real_app_state() {
     h.state_mut().shell.active_tool = Some("extrude".into());
     h.key_press(Key::Delete);
     h.run_steps(3);
-    assert!(!h.state().shell.events.contains(&UiEvent::OpenTool("delete".into())), "tool_open comes from the app");
+    assert!(
+        !h.state().shell.events.contains(&UiEvent::OpenTool("delete".into())),
+        "tool_open comes from the app"
+    );
     h.state_mut().shell.active_tool = None;
     h.state_mut().close_tool(false); // E opened the real Extrude tool (4b); the key state reads it
     h.key_press(Key::Delete);
     h.run_steps(3);
-    assert!(h.state().shell.events.contains(&UiEvent::OpenTool("delete".into())), "selection comes from the app");
+    assert!(
+        h.state().shell.events.contains(&UiEvent::OpenTool("delete".into())),
+        "selection comes from the app"
+    );
     // Escape with nothing open clears the selection
     h.state_mut().close_tool(false); // Delete opened the real Delete tool
     h.key_press(Key::Escape);
@@ -696,7 +846,10 @@ fn recent_files_open_again_from_the_file_menu() {
     h.run_steps(6);
     assert_eq!(opens(&link), 1);
     // a file is in Recent once the engine has accepted it
-    link.feed.lock().unwrap().extend([Update::Busy(true), Update::Bodies(Vec::new()), Update::Busy(false)]);
+    link.feed
+        .lock()
+        .unwrap()
+        .extend([Update::Busy(true), Update::Bodies(Vec::new()), Update::Busy(false)]);
     h.run_steps(3);
     assert_eq!(h.state().shell.recent, vec!["a.stl".to_string()]);
     h.get_by_label("File").click();
@@ -718,7 +871,17 @@ fn help_shortcuts_and_about_use_the_1x_text() {
     h.run_steps(3);
     h.get_by_label("Keyboard Shortcuts").click();
     h.run_steps(3);
-    for t in ["Keyboard & mouse", "Right-drag", "Middle-drag", "Zoom toward the cursor", "0–6", "Standard views", "Ctrl+K or /", "Double-click a dimension", "Change it (a parameter name works too)"] {
+    for t in [
+        "Keyboard & mouse",
+        "Right-drag",
+        "Middle-drag",
+        "Zoom toward the cursor",
+        "0–6",
+        "Standard views",
+        "Ctrl+K or /",
+        "Double-click a dimension",
+        "Change it (a parameter name works too)",
+    ] {
         assert!(h.query_by_label(t).is_some(), "{t}");
     }
     h.get_by_label("OK").click();
@@ -727,7 +890,10 @@ fn help_shortcuts_and_about_use_the_1x_text() {
     h.run_steps(3);
     h.get_by_label("About STL Editor").click();
     h.run_steps(3);
-    assert!(h.query_by_label_contains("CAD-style editing for STL, 3MF and OBJ meshes.").is_some());
+    assert!(
+        h.query_by_label_contains("CAD-style editing for STL, 3MF and OBJ meshes.")
+            .is_some()
+    );
     assert!(h.query_by_label_contains("egui and eframe").is_some());
     assert!(h.query_by_label_contains("you can buy me a coffee on Ko-fi").is_some());
 }

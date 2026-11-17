@@ -32,15 +32,19 @@ pub enum TouchModelAction {
 pub fn classify_tap(state: &mut TouchState, pos: Pos2, now: Instant, opts: &InputOptions) -> bool {
     let delay = opts.max_double_click_delay;
     let dist = opts.max_click_dist;
-    let double = state.last_tap.is_some_and(|(t, p)| {
-        now.duration_since(t).as_secs_f64() < delay && p.distance(pos) < dist
-    });
+    let double = state
+        .last_tap
+        .is_some_and(|(t, p)| now.duration_since(t).as_secs_f64() < delay && p.distance(pos) < dist);
     state.last_tap = Some((now, pos));
     double
 }
 
 /// After [`classify_tap`] returns true, pick the model action (sketch profile wins over face).
-pub fn model_action(double: bool, face_plane: Option<serde_json::Value>, sketch_feature: Option<String>) -> Option<TouchModelAction> {
+pub fn model_action(
+    double: bool,
+    face_plane: Option<serde_json::Value>,
+    sketch_feature: Option<String>,
+) -> Option<TouchModelAction> {
     if !double {
         return None;
     }
@@ -73,7 +77,11 @@ pub fn input(
             state.down = Some(*pos);
             let world = vp.ray_to_plane(*pos, frame)?;
             let uv = session.to_uv(world);
-            Some(SketchInput::Down { uv, pos: *pos, mods: *modifiers })
+            Some(SketchInput::Down {
+                uv,
+                pos: *pos,
+                mods: *modifiers,
+            })
         }
         Event::PointerButton {
             pos,

@@ -96,7 +96,9 @@ pub fn mirror(
         }
     }
     if out.is_empty() {
-        return Err(SketchError::new("Select the shapes to mirror (not the mirror line itself)."));
+        return Err(SketchError::new(
+            "Select the shapes to mirror (not the mirror line itself).",
+        ));
     }
     let mut all = entities.to_vec();
     all.extend(out);

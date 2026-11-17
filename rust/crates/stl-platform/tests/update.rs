@@ -10,9 +10,11 @@ use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
 
 use fake_releases::{FakeReleases, Faults};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
-use stl_platform::update::{check_host, download, finish_swap, newest_2x, rollback_failed, swap, Release, ASSET_NAME, NOT_GITHUB};
+use stl_platform::update::{
+    ASSET_NAME, NOT_GITHUB, Release, check_host, download, finish_swap, newest_2x, rollback_failed, swap,
+};
 
 static ENV: Mutex<()> = Mutex::new(());
 
@@ -81,14 +83,20 @@ fn redirector(target: String) -> String {
             while r.read_line(&mut line).is_ok_and(|n| n > 0) && line != "\r\n" {
                 line.clear();
             }
-            let _ = write!(s, "HTTP/1.1 302 Found\r\nLocation: {target}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+            let _ = write!(
+                s,
+                "HTTP/1.1 302 Found\r\nLocation: {target}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+            );
         }
     });
     url
 }
 
 fn names(dir: &Path) -> Vec<String> {
-    let mut v: Vec<_> = std::fs::read_dir(dir).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect();
+    let mut v: Vec<_> = std::fs::read_dir(dir)
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
     v.sort();
     v
 }
@@ -97,12 +105,18 @@ fn names(dir: &Path) -> Vec<String> {
 fn finds_newer_2x() {
     let (_g, _d) = env(false);
     let long = "x".repeat(4000);
-    let mut beta = rel("v2.0.2-beta.1", &[(ASSET_NAME, &asset_url("v2.0.2-beta.1"), 1234, Some("sha256:abcd"))]);
+    let mut beta = rel(
+        "v2.0.2-beta.1",
+        &[(ASSET_NAME, &asset_url("v2.0.2-beta.1"), 1234, Some("sha256:abcd"))],
+    );
     beta["body"] = json!(long);
     let releases = json!([
         rel("v2.0.1", &[(ASSET_NAME, &asset_url("v2.0.1"), 999, None)]),
         beta,
-        rel("v1.14.0", &[("STL-Editor-Windows-portable.zip", "https://github.com/x/y.zip", 5, None)]),
+        rel(
+            "v1.14.0",
+            &[("STL-Editor-Windows-portable.zip", "https://github.com/x/y.zip", 5, None)]
+        ),
     ]);
     let srv = FakeReleases::start(releases, vec![], Faults::default());
     let api = format!("{}/releases", srv.base_url());
@@ -127,7 +141,10 @@ fn finds_newer_2x() {
     );
     let api = format!("{}/releases", srv.base_url());
     assert_eq!(newest_2x(&api, "2.1.0-beta.2").unwrap().unwrap().tag, "v2.1.0-beta.10");
-    assert!(newest_2x(&api, "2.1.0").unwrap().is_none(), "2.1.0 is newer than its betas");
+    assert!(
+        newest_2x(&api, "2.1.0").unwrap().is_none(),
+        "2.1.0 is newer than its betas"
+    );
     assert!(newest_2x(&api, "2.1.0-beta.10").unwrap().is_none());
 }
 
@@ -138,9 +155,18 @@ fn ignores_1x_releases() {
     draft["draft"] = json!(true);
     let releases = json!([
         // 1.x, even with an asset of the 2.0 name
-        rel("v1.20.0", &[(ASSET_NAME, &asset_url("v1.20.0"), 1, None), ("STL-Editor-Windows-portable.zip", "https://github.com/a.zip", 1, None)]),
+        rel(
+            "v1.20.0",
+            &[
+                (ASSET_NAME, &asset_url("v1.20.0"), 1, None),
+                ("STL-Editor-Windows-portable.zip", "https://github.com/a.zip", 1, None)
+            ]
+        ),
         // a 2.x tag without the 2.0 Windows asset
-        rel("v2.0.5", &[("STL-Editor-Windows-portable.zip", "https://github.com/a.zip", 1, None)]),
+        rel(
+            "v2.0.5",
+            &[("STL-Editor-Windows-portable.zip", "https://github.com/a.zip", 1, None)]
+        ),
         // not "v2."
         rel("v20.0.0", &[(ASSET_NAME, &asset_url("v20.0.0"), 1, None)]),
         rel("2.9.0", &[(ASSET_NAME, &asset_url("2.9.0"), 1, None)]),
@@ -160,7 +186,10 @@ fn ignores_older_releases() {
     ]);
     let srv = FakeReleases::start(releases, vec![], Faults::default());
     let api = format!("{}/releases", srv.base_url());
-    assert!(newest_2x(&api, "2.0.0").unwrap().is_none(), "the same version is not newer");
+    assert!(
+        newest_2x(&api, "2.0.0").unwrap().is_none(),
+        "the same version is not newer"
+    );
     assert!(newest_2x(&api, "2.0.1").unwrap().is_none());
     // 2.0.0-dev: "beta" sorts before "dev", so only v2.0.0 itself is newer
     assert_eq!(newest_2x(&api, "2.0.0-dev").unwrap().unwrap().tag, "v2.0.0");
@@ -170,7 +199,11 @@ fn ignores_older_releases() {
 fn unreachable_api_is_an_error_in_plain_words() {
     let (_g, _d) = env(false);
     // a port nothing listens on
-    let port = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
+    let port = std::net::TcpListener::bind("127.0.0.1:0")
+        .unwrap()
+        .local_addr()
+        .unwrap()
+        .port();
     let e = newest_2x(&format!("http://127.0.0.1:{port}/releases"), "2.0.0").unwrap_err();
     assert!(e.starts_with("Couldn't reach GitHub ("), "{e}");
 }
@@ -226,19 +259,44 @@ fn download_checks_host_size_digest() {
     assert_eq!(std::fs::read(&to).unwrap(), data);
     std::fs::remove_file(&to).unwrap();
     // upper-case digest is the same digest
-    download(&release_for(&srv.base_url(), &data, good.clone().map(|d| d.to_uppercase().replacen("SHA256", "sha256", 1))), &to).unwrap();
+    download(
+        &release_for(
+            &srv.base_url(),
+            &data,
+            good.clone().map(|d| d.to_uppercase().replacen("SHA256", "sha256", 1)),
+        ),
+        &to,
+    )
+    .unwrap();
     std::fs::remove_file(&to).unwrap();
 
     // wrong size
-    let srv = FakeReleases::start(json!([]), vec![(ASSET_NAME.into(), data.clone())], Faults { wrong_size: true, ..Faults::default() });
+    let srv = FakeReleases::start(
+        json!([]),
+        vec![(ASSET_NAME.into(), data.clone())],
+        Faults {
+            wrong_size: true,
+            ..Faults::default()
+        },
+    );
     let e = download(&release_for(&srv.base_url(), &data, good.clone()), &to).unwrap_err();
     assert!(e.contains("wrong size"), "{e}");
     assert!(!to.exists());
 
     // wrong digest
-    let srv = FakeReleases::start(json!([]), vec![(ASSET_NAME.into(), data.clone())], Faults { wrong_digest: true, ..Faults::default() });
+    let srv = FakeReleases::start(
+        json!([]),
+        vec![(ASSET_NAME.into(), data.clone())],
+        Faults {
+            wrong_digest: true,
+            ..Faults::default()
+        },
+    );
     let e = download(&release_for(&srv.base_url(), &data, good.clone()), &to).unwrap_err();
-    assert_eq!(e, "The download didn't match its checksum; nothing was changed. Try again later.");
+    assert_eq!(
+        e,
+        "The download didn't match its checksum; nothing was changed. Try again later."
+    );
     assert!(!to.exists());
     // no digest listed: only the size can be checked (1.x does the same)
     download(&release_for(&srv.base_url(), &data, None), &to).unwrap();
@@ -249,7 +307,14 @@ fn download_checks_host_size_digest() {
     assert!(!to.exists());
 
     // cut off half way
-    let srv = FakeReleases::start(json!([]), vec![(ASSET_NAME.into(), data.clone())], Faults { drop_connection: true, ..Faults::default() });
+    let srv = FakeReleases::start(
+        json!([]),
+        vec![(ASSET_NAME.into(), data.clone())],
+        Faults {
+            drop_connection: true,
+            ..Faults::default()
+        },
+    );
     let e = download(&release_for(&srv.base_url(), &data, good), &to).unwrap_err();
     assert!(e.contains("nothing was changed"), "{e}");
     assert!(!to.exists());
@@ -268,10 +333,19 @@ fn redirects_checked_every_hop() {
     let new = dir.join("stl-editor-2.v2.0.1.new.exe");
 
     // GitHub's hosts pass, https only; anything else is refused
-    for ok in ["https://github.com/a", "https://objects.githubusercontent.com/a", "https://release-assets.githubusercontent.com/a?x=1"] {
+    for ok in [
+        "https://github.com/a",
+        "https://objects.githubusercontent.com/a",
+        "https://release-assets.githubusercontent.com/a?x=1",
+    ] {
         assert!(check_host(ok).is_ok(), "{ok}");
     }
-    for bad in ["http://release-assets.githubusercontent.com/a", "https://evil.example/a", "https://github.com:8443/a", "http://localhost:1/a"] {
+    for bad in [
+        "http://release-assets.githubusercontent.com/a",
+        "https://evil.example/a",
+        "https://github.com:8443/a",
+        "http://localhost:1/a",
+    ] {
         assert!(check_host(bad).is_err(), "{bad}");
     }
 
@@ -280,7 +354,10 @@ fn redirects_checked_every_hop() {
     r.url = redirector("https://evil.example/stl-editor-2.exe".into());
     assert_eq!(download(&r, &new).unwrap_err(), NOT_GITHUB);
     // a plain-HTTP redirect to another loopback name is refused too (only 127.0.0.1 in tests)
-    r.url = redirector(format!("http://localhost:{}/assets/{ASSET_NAME}", srv.base_url().rsplit(':').next().unwrap()));
+    r.url = redirector(format!(
+        "http://localhost:{}/assets/{ASSET_NAME}",
+        srv.base_url().rsplit(':').next().unwrap()
+    ));
     assert_eq!(download(&r, &new).unwrap_err(), NOT_GITHUB);
     assert_eq!(std::fs::read(&running).unwrap(), b"installed");
     assert_eq!(names(&dir), vec!["stl-editor-2.exe".to_string()]);
@@ -297,8 +374,16 @@ fn rollback_failure_names_old_exe() {
     let e = std::io::Error::other("disk full");
     let dir = Path::new("Apps");
     let old = dir.join("stl-editor-2.old.exe");
-    let m = rollback_failed(&e, &std::io::Error::other("access denied"), &old, &dir.join("stl-editor-2.exe"));
-    assert!(m.contains(&old.display().to_string()) && m.contains("rename it to stl-editor-2.exe"), "{m}");
+    let m = rollback_failed(
+        &e,
+        &std::io::Error::other("access denied"),
+        &old,
+        &dir.join("stl-editor-2.exe"),
+    );
+    assert!(
+        m.contains(&old.display().to_string()) && m.contains("rename it to stl-editor-2.exe"),
+        "{m}"
+    );
 }
 
 #[test]
@@ -307,9 +392,18 @@ fn failed_download_leaves_exe() {
     let data: Vec<u8> = (0..100_000u32).map(|i| (i % 253) as u8).collect();
     let digest = Some(format!("sha256:{}", sha(&data)));
     for faults in [
-        Faults { wrong_size: true, ..Faults::default() },
-        Faults { wrong_digest: true, ..Faults::default() },
-        Faults { drop_connection: true, ..Faults::default() },
+        Faults {
+            wrong_size: true,
+            ..Faults::default()
+        },
+        Faults {
+            wrong_digest: true,
+            ..Faults::default()
+        },
+        Faults {
+            drop_connection: true,
+            ..Faults::default()
+        },
     ] {
         let dir = temp("leave");
         let running = dir.join("stl-editor-2.exe");
@@ -333,11 +427,19 @@ fn swap_keeps_old_until_first_frame() {
     let old = dir.join("stl-editor-2.old.exe");
     std::fs::write(&running, b"OLD").unwrap();
     std::fs::write(&new, b"NEW").unwrap();
-    std::fs::write(&old, b"an even older one, left from a swap whose new copy never started").unwrap();
+    std::fs::write(
+        &old,
+        b"an even older one, left from a swap whose new copy never started",
+    )
+    .unwrap();
 
     swap(&new, &running).unwrap();
     assert_eq!(std::fs::read(&running).unwrap(), b"NEW");
-    assert_eq!(std::fs::read(&old).unwrap(), b"OLD", "the previous exe is kept until the new one draws");
+    assert_eq!(
+        std::fs::read(&old).unwrap(),
+        b"OLD",
+        "the previous exe is kept until the new one draws"
+    );
     assert!(!new.exists());
 
     finish_swap(&running);

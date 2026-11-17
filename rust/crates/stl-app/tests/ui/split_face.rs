@@ -36,21 +36,50 @@ fn split_face_pick_side_face_gives_two_bodies() {
     h.state_mut().tool_set_value("plane", face);
     h.run_steps(2);
     let want = -(hi[0] - lo[0]) / 2.0;
-    let got = h.state().tool().unwrap().values.get("offset").and_then(|v| v.as_f64()).expect("Distance is set");
-    assert!((got - want).abs() < 1e-3, "a face on the boundary starts halfway: {got} vs {want}");
+    let got = h
+        .state()
+        .tool()
+        .unwrap()
+        .values
+        .get("offset")
+        .and_then(|v| v.as_f64())
+        .expect("Distance is set");
+    assert!(
+        (got - want).abs() < 1e-3,
+        "a face on the boundary starts halfway: {got} vs {want}"
+    );
 
     h.state_mut().tool_ok();
     settle(&mut h, &link);
-    let split = h.state().timeline_view.items.iter().find(|i| i.kind == "split").expect("the Split step");
+    let split = h
+        .state()
+        .timeline_view
+        .items
+        .iter()
+        .find(|i| i.kind == "split")
+        .expect("the Split step");
     assert_eq!(split.error, None);
     assert_eq!(h.state().bodies.len(), n0 + 1, "two bodies from one");
     let total: f64 = h.state().bodies.iter().map(|b| mesh_volume(&b.mesh)).sum();
-    assert!((total - v0).abs() < 1e-2 * v0.max(1.0), "halves add up: {total} vs {v0}");
+    assert!(
+        (total - v0).abs() < 1e-2 * v0.max(1.0),
+        "halves add up: {total} vs {v0}"
+    );
 
     // reopen from the timeline: the stored distance stays
     let sid = split.id.clone();
     assert!(h.state_mut().edit_feature(&sid));
     settle(&mut h, &link);
-    let again = h.state().tool().unwrap().values.get("offset").and_then(|v| v.as_f64()).unwrap_or(0.0);
-    assert!((again - want).abs() < 1e-3, "reopened Split keeps Distance: {again} vs {want}");
+    let again = h
+        .state()
+        .tool()
+        .unwrap()
+        .values
+        .get("offset")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.0);
+    assert!(
+        (again - want).abs() < 1e-3,
+        "reopened Split keeps Distance: {again} vs {want}"
+    );
 }

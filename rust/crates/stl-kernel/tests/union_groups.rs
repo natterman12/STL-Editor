@@ -91,5 +91,8 @@ fn union_of_groups_repeats() {
 const EXPECTED_ROW: (usize, u64) = (11042, 11494398696467308062);
 /// The ring's bytes differ between debug and release builds of the kernel (the code before the
 /// parallel groups gives the same two values), so each build has its own recorded hash.
-const EXPECTED_RING: (usize, u64) =
-    if cfg!(debug_assertions) { (15682, 4315223761225570891) } else { (15682, 17949423041799652355) };
+const EXPECTED_RING: (usize, u64) = if cfg!(debug_assertions) {
+    (15682, 4315223761225570891)
+} else {
+    (15682, 17949423041799652355)
+};

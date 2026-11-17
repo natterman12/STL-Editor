@@ -15,7 +15,7 @@ pub mod constraints;
 pub mod infer;
 pub mod solve;
 
-pub use analyze::{analyze, is_redundant, unsatisfied, unsatisfied_ids, Analysis};
-pub use constraints::{glyph_spots, measure, refs_exist, Constraint, Ref, World};
-pub use infer::{angle_to, infer_dimension, line_meet, make_constraint, Outcome};
-pub use solve::{solve, Lock, SolveReport};
+pub use analyze::{Analysis, analyze, is_redundant, unsatisfied, unsatisfied_ids};
+pub use constraints::{Constraint, Ref, World, glyph_spots, measure, refs_exist};
+pub use infer::{Outcome, angle_to, infer_dimension, line_meet, make_constraint};
+pub use solve::{Lock, SolveReport, solve};

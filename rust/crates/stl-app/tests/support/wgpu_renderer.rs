@@ -41,16 +41,25 @@ impl TestRenderer for WgpuRenderer {
     fn render(&mut self, ctx: &egui::Context, output: &egui::FullOutput) -> Result<image::RgbaImage, String> {
         let rs = &self.render_state;
         let mut renderer = rs.renderer.write();
-        let mut encoder = rs.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("test egui") });
+        let mut encoder = rs.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("test egui"),
+        });
         let ppp = ctx.pixels_per_point();
         let size = ctx.content_rect().size() * ppp;
-        let screen = egui_wgpu::ScreenDescriptor { pixels_per_point: ppp, size_in_pixels: [size.x.round() as u32, size.y.round() as u32] };
+        let screen = egui_wgpu::ScreenDescriptor {
+            pixels_per_point: ppp,
+            size_in_pixels: [size.x.round() as u32, size.y.round() as u32],
+        };
         let tris = ctx.tessellate(output.shapes.clone(), ppp);
         let user = renderer.update_buffers(&rs.device, &rs.queue, &mut encoder, &tris, &screen);
         let (w, h) = (screen.size_in_pixels[0].max(1), screen.size_in_pixels[1].max(1));
         let texture = rs.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("test egui target"),
-            size: wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 },
+            size: wgpu::Extent3d {
+                width: w,
+                height: h,
+                depth_or_array_layers: 1,
+            },
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
@@ -67,7 +76,10 @@ impl TestRenderer for WgpuRenderer {
                         view: &view,
                         depth_slice: None,
                         resolve_target: None,
-                        ops: wgpu::Operations { load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT), store: wgpu::StoreOp::Store },
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                            store: wgpu::StoreOp::Store,
+                        },
                     })],
                     ..Default::default()
                 })
@@ -83,18 +95,35 @@ impl TestRenderer for WgpuRenderer {
         });
         encoder.copy_texture_to_buffer(
             texture.as_image_copy(),
-            wgpu::TexelCopyBufferInfo { buffer: &buf, layout: wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(row), rows_per_image: None } },
-            wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 },
+            wgpu::TexelCopyBufferInfo {
+                buffer: &buf,
+                layout: wgpu::TexelCopyBufferLayout {
+                    offset: 0,
+                    bytes_per_row: Some(row),
+                    rows_per_image: None,
+                },
+            },
+            wgpu::Extent3d {
+                width: w,
+                height: h,
+                depth_or_array_layers: 1,
+            },
         );
         let idx = rs.queue.submit(user.into_iter().chain(iter::once(encoder.finish())));
         let (tx, rx) = std::sync::mpsc::channel();
         buf.slice(..).map_async(wgpu::MapMode::Read, move |r| drop(tx.send(r)));
         rs.device
-            .poll(wgpu::PollType::Wait { submission_index: Some(idx), timeout: Some(std::time::Duration::from_secs(10)) })
+            .poll(wgpu::PollType::Wait {
+                submission_index: Some(idx),
+                timeout: Some(std::time::Duration::from_secs(10)),
+            })
             .map_err(|e| format!("{e}"))?;
         rx.recv().map_err(|e| e.to_string())?.map_err(|e| e.to_string())?;
         let data = buf.slice(..).get_mapped_range().map_err(|e| format!("{e:?}"))?;
-        let bgra = matches!(rs.target_format, wgpu::TextureFormat::Bgra8Unorm | wgpu::TextureFormat::Bgra8UnormSrgb);
+        let bgra = matches!(
+            rs.target_format,
+            wgpu::TextureFormat::Bgra8Unorm | wgpu::TextureFormat::Bgra8UnormSrgb
+        );
         let mut px = Vec::with_capacity((w * h * 4) as usize);
         for r in data.chunks_exact(row as usize) {
             for p in r[..(w * 4) as usize].chunks_exact(4) {

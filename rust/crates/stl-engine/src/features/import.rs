@@ -14,7 +14,10 @@ fn solid_from_arrays(v: &[f64], f: &[u32]) -> Option<Solid> {
     if f.is_empty() {
         return None;
     }
-    let arrays = MeshArrays { positions: v.iter().map(|&x| x as f32).collect(), triangles: f.to_vec() };
+    let arrays = MeshArrays {
+        positions: v.iter().map(|&x| x as f32).collect(),
+        triangles: f.to_vec(),
+    };
     Solid::from_mesh(&arrays).ok().filter(|s| !s.is_empty())
 }
 
@@ -82,9 +85,17 @@ fn f_import(
     let n = parts.len();
     let mut broken = 0usize;
     for (i, part) in parts.iter().enumerate() {
-        let v: Vec<f64> = part.positions.chunks_exact(3).flat_map(|c| (0..3).map(move |k| c[k] + shift[k])).collect();
+        let v: Vec<f64> = part
+            .positions
+            .chunks_exact(3)
+            .flat_map(|c| (0..3).map(move |k| c[k] + shift[k]))
+            .collect();
         let f = &part.triangles;
-        let bid = if n == 1 { fid.to_string() } else { format!("{fid}.{}", i + 1) };
+        let bid = if n == 1 {
+            fid.to_string()
+        } else {
+            format!("{fid}.{}", i + 1)
+        };
         let mut name = name_param.map_or_else(|| part.name.clone(), String::from);
         if n > 1 {
             name = match name_param {
@@ -100,9 +111,8 @@ fn f_import(
                 man = solid_from_arrays(&rv, &rf);
             }
             if man.is_some() {
-                res.warning = Some(
-                    "The mesh had small defects (open or doubled edges); they were fixed automatically.".into(),
-                );
+                res.warning =
+                    Some("The mesh had small defects (open or doubled edges); they were fixed automatically.".into());
             }
         }
         if let Some(m) = man {
@@ -111,10 +121,27 @@ fn f_import(
                 let rest = res.warning.as_ref().map(|w| format!(" {w}")).unwrap_or_default();
                 res.warning = Some(format!("{merged} overlapping shells were merged into one solid.{rest}"));
             }
-            state.bodies.insert(bid.clone(), Body { name, solid: Some(m), mesh: None });
+            state.bodies.insert(
+                bid.clone(),
+                Body {
+                    name,
+                    solid: Some(m),
+                    mesh: None,
+                },
+            );
         } else {
-            let mesh = MeshArrays { positions: v.iter().map(|&x| x as f32).collect(), triangles: f.clone() };
-            state.bodies.insert(bid.clone(), Body { name, solid: None, mesh: Some(Arc::new(mesh)) });
+            let mesh = MeshArrays {
+                positions: v.iter().map(|&x| x as f32).collect(),
+                triangles: f.clone(),
+            };
+            state.bodies.insert(
+                bid.clone(),
+                Body {
+                    name,
+                    solid: None,
+                    mesh: Some(Arc::new(mesh)),
+                },
+            );
             broken += 1;
         }
         res.created.push(bid);

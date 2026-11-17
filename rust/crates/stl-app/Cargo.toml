@@ -39,3 +39,6 @@ wasm-bindgen-test = "=0.3.80"
 serde_json = "1"
 sha2 = "0.10"
 stl-mesh = { path = "../stl-mesh" }
+
+[lints]
+workspace = true

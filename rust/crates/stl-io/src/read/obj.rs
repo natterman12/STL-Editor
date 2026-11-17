@@ -100,7 +100,11 @@ fn build_part(base: &str, n_dump: usize, index: usize, positions: Vec<f64>, tria
     } else {
         format!("{} {}", base, index + 1)
     };
-    Part { name, positions, triangles }
+    Part {
+        name,
+        positions,
+        triangles,
+    }
 }
 
 /// See the contract in `read/mod.rs`.

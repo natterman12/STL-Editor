@@ -37,7 +37,10 @@ pub fn show(ui: &mut egui::Ui, viewport: Rect, right_inset: f32, section_on: boo
     let painter = ui.painter_at(viewport);
     let width = |s: &str, f: &FontId| painter.layout_no_wrap(s.to_owned(), f.clone(), text).size().x + 14.0;
     let section_w = width("Section", &font) + 3.0;
-    let widths: Vec<f32> = VIEWS.iter().map(|(k, l)| width(l, if *k == "fit" { &bold } else { &font })).collect();
+    let widths: Vec<f32> = VIEWS
+        .iter()
+        .map(|(k, l)| width(l, if *k == "fit" { &bold } else { &font }))
+        .collect();
     let total = widths.iter().sum::<f32>() + (VIEWS.len() as f32) * 1.0 + section_w + 4.0;
     let h = 18.0 + 4.0;
     let max = egui::pos2(viewport.max.x - 8.0 - right_inset, viewport.min.y + 8.0);
@@ -50,16 +53,32 @@ pub fn show(ui: &mut egui::Ui, viewport: Rect, right_inset: f32, section_on: boo
         let r = Rect::from_min_size(egui::pos2(x, bar.min.y + 2.0), Vec2::new(widths[i], 18.0));
         let id = ui.scope_id().with(("viewcube", *key));
         let resp = ui.interact(r, id, Sense::click());
-        let resp = if *key == "fit" { resp.on_hover_text(FIT_TIP) } else { resp };
+        let resp = if *key == "fit" {
+            resp.on_hover_text(FIT_TIP)
+        } else {
+            resp
+        };
         let hovered = resp.hovered();
         if hovered {
             painter.rect_filled(r, CornerRadius::same(4), hover);
         }
-        let (color, f) = if *key == "fit" { (accent, &bold) } else if hovered { (strong, &font) } else { (text, &font) };
+        let (color, f) = if *key == "fit" {
+            (accent, &bold)
+        } else if hovered {
+            (strong, &font)
+        } else {
+            (text, &font)
+        };
         painter.text(r.center(), Align2::CENTER_CENTER, *label, f.clone(), color);
         if *key == "fit" {
             // font-weight 600: a second pass a hair to the right
-            painter.text(r.center() + Vec2::new(0.4, 0.0), Align2::CENTER_CENTER, *label, f.clone(), color);
+            painter.text(
+                r.center() + Vec2::new(0.4, 0.0),
+                Align2::CENTER_CENTER,
+                *label,
+                f.clone(),
+                color,
+            );
         }
         if resp.clicked() {
             out.view = Some(key);
@@ -70,8 +89,15 @@ pub fn show(ui: &mut egui::Ui, viewport: Rect, right_inset: f32, section_on: boo
     x += 2.0;
     painter.vline(x, (bar.min.y + 2.0)..=(bar.max.y - 2.0), Stroke::new(1.0, t.divider));
     let r = Rect::from_min_size(egui::pos2(x + 1.0, bar.min.y + 2.0), Vec2::new(section_w - 3.0, 18.0));
-    let resp = ui.interact(r, ui.scope_id().with("viewcube-section"), Sense::click()).on_hover_text(SECTION_TIP);
-    let rr = CornerRadius { nw: 0, sw: 0, ne: 4, se: 4 };
+    let resp = ui
+        .interact(r, ui.scope_id().with("viewcube-section"), Sense::click())
+        .on_hover_text(SECTION_TIP);
+    let rr = CornerRadius {
+        nw: 0,
+        sw: 0,
+        ne: 4,
+        se: 4,
+    };
     let color = if section_on {
         // .on: var(--sel) behind var(--sel-text)
         painter.rect_filled(r, rr, t.sel);

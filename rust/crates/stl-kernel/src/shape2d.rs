@@ -25,8 +25,10 @@ impl Shape2d {
     /// 8 (the 1e-8 grid), exactly as 1.x does; the result is returned as Clipper gives it,
     /// without snapping the points to the grid again.
     pub fn from_even_odd(contours: &[Vec<[f64; 2]>]) -> Shape2d {
-        let polygons: Polygons =
-            contours.iter().map(|c| c.iter().map(|p| Vec2::new(p[0], p[1])).collect()).collect();
+        let polygons: Polygons = contours
+            .iter()
+            .map(|c| c.iter().map(|p| Vec2::new(p[0], p[1])).collect())
+            .collect();
         Shape2d::from_cross_section(&CrossSection::from_polygons_with_fill_rule(polygons, 0))
     }
 
@@ -73,7 +75,11 @@ impl Shape2d {
             return Vec::new();
         }
         let b = cs.bounds();
-        let big = [b.min.x, b.min.y, b.max.x, b.max.y].iter().fold(0.0_f64, |m, v| m.max(v.abs())) * 4.0 + 10.0;
+        let big = [b.min.x, b.min.y, b.max.x, b.max.y]
+            .iter()
+            .fold(0.0_f64, |m, v| m.max(v.abs()))
+            * 4.0
+            + 10.0;
         let (rmin, rmax) = ([0.0, -big], [big, big]);
         let rect = Self::rect_section(rmin, rmax);
         let rp = Shape2d::from_cross_section(&cs.intersection(&rect));
@@ -114,8 +120,12 @@ impl Shape2d {
     /// `circular_segments` on a full circle. Matches 1.x
     /// `CrossSection.offset(delta, JoinType.Round, 2, circular_segments)`.
     pub fn offset_round_segments(&self, delta: f64, circular_segments: i32) -> Shape2d {
-        Shape2d::from_cross_section(&self.to_cross_section().offset_with_params(delta, 1, 2.0, circular_segments))
-            .on_clipper_grid()
+        Shape2d::from_cross_section(
+            &self
+                .to_cross_section()
+                .offset_with_params(delta, 1, 2.0, circular_segments),
+        )
+        .on_clipper_grid()
     }
 
     /// Grow (positive) or shrink (negative) the shape by `delta` with mitred corners up to
@@ -142,7 +152,11 @@ impl Shape2d {
     /// The separate pieces of the shape, each an outline with its holes, in the kernel's order
     /// (1.x `CrossSection.decompose`).
     pub fn decompose(&self) -> Vec<Shape2d> {
-        self.to_cross_section().decompose().iter().map(|c| Shape2d::from_cross_section(c).on_clipper_grid()).collect()
+        self.to_cross_section()
+            .decompose()
+            .iter()
+            .map(|c| Shape2d::from_cross_section(c).on_clipper_grid())
+            .collect()
     }
 
     /// Net area: outer contours add, holes subtract.
@@ -174,11 +188,19 @@ impl Shape2d {
     }
 
     fn polygons(&self) -> Polygons {
-        self.contours.iter().map(|c| c.iter().map(|p| Vec2::new(p[0], p[1])).collect()).collect()
+        self.contours
+            .iter()
+            .map(|c| c.iter().map(|p| Vec2::new(p[0], p[1])).collect())
+            .collect()
     }
 
     fn from_polygons(polygons: &Polygons) -> Shape2d {
-        Shape2d { contours: polygons.iter().map(|c| c.iter().map(|p| [p.x, p.y]).collect()).collect() }
+        Shape2d {
+            contours: polygons
+                .iter()
+                .map(|c| c.iter().map(|p| [p.x, p.y]).collect())
+                .collect(),
+        }
     }
 
     pub(crate) fn from_cross_section(section: &CrossSection) -> Shape2d {

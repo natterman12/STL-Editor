@@ -9,7 +9,7 @@
 use super::camera::{self, Camera, V3};
 use super::overlays::Depth;
 use super::renderer::FlatBatch;
-use super::scene::{rgba, FlatVertex};
+use super::scene::{FlatVertex, rgba};
 
 /// `tc.setSize(1.1)`.
 pub const GIZMO_SIZE: f64 = 1.1;
@@ -86,7 +86,15 @@ pub struct GizmoShape {
 
 impl GizmoShape {
     pub fn new(mode: GizmoMode, position: V3) -> Self {
-        GizmoShape { mode, position, axis: None, enabled: true, dragging: false, start: position, rotation_axis: [0.0, 0.0, 1.0] }
+        GizmoShape {
+            mode,
+            position,
+            axis: None,
+            enabled: true,
+            dragging: false,
+            start: position,
+            rotation_axis: [0.0, 0.0, 1.0],
+        }
     }
 }
 
@@ -295,8 +303,14 @@ impl Out {
             return;
         }
         let s = camera::scale(camera::normalize(side), LINE_W * self.u / 2.0);
-        let (p0, p1, p2, p3) = (camera::sub(wa, s), camera::add(wa, s), camera::add(wb, s), camera::sub(wb, s));
-        self.tris.extend([p0, p1, p2, p0, p2, p3].map(|q| FlatVertex::new(q, col)));
+        let (p0, p1, p2, p3) = (
+            camera::sub(wa, s),
+            camera::add(wa, s),
+            camera::add(wb, s),
+            camera::sub(wb, s),
+        );
+        self.tris
+            .extend([p0, p1, p2, p0, p2, p3].map(|q| FlatVertex::new(q, col)));
     }
     fn line_world(&mut self, a: V3, b: V3, col: [u8; 4]) {
         self.lines.push(FlatVertex::new(a, col));
@@ -308,8 +322,16 @@ impl Out {
         let base = camera::scale(a, from);
         let tip = camera::scale(a, to);
         for i in 0..12 {
-            let (a0, a1) = (i as f64 / 12.0 * std::f64::consts::TAU, (i + 1) as f64 / 12.0 * std::f64::consts::TAU);
-            let rim = |t: f64| camera::add(base, camera::add(camera::scale(x, r * t.cos()), camera::scale(y, r * t.sin())));
+            let (a0, a1) = (
+                i as f64 / 12.0 * std::f64::consts::TAU,
+                (i + 1) as f64 / 12.0 * std::f64::consts::TAU,
+            );
+            let rim = |t: f64| {
+                camera::add(
+                    base,
+                    camera::add(camera::scale(x, r * t.cos()), camera::scale(y, r * t.sin())),
+                )
+            };
             let (q0, q1) = (rim(a0), rim(a1));
             self.tri(q0, q1, tip, col);
             self.tri(q1, q0, base, col);
@@ -342,14 +364,21 @@ impl Out {
     fn ring(&mut self, r: f64, arc: f64, at: impl Fn(f64) -> V3, col: [u8; 4]) {
         let n = (64.0 * arc).round().max(1.0) as usize;
         for i in 0..n {
-            let (a0, a1) = (arc * std::f64::consts::TAU * i as f64 / n as f64, arc * std::f64::consts::TAU * (i + 1) as f64 / n as f64);
+            let (a0, a1) = (
+                arc * std::f64::consts::TAU * i as f64 / n as f64,
+                arc * std::f64::consts::TAU * (i + 1) as f64 / n as f64,
+            );
             self.band(camera::scale(at(a0), r), camera::scale(at(a1), r), col);
         }
     }
 }
 
 fn perp(n: V3) -> (V3, V3) {
-    let t = if n[0].abs() < 0.9 { [1.0, 0.0, 0.0] } else { [0.0, 1.0, 0.0] };
+    let t = if n[0].abs() < 0.9 {
+        [1.0, 0.0, 0.0]
+    } else {
+        [0.0, 1.0, 0.0]
+    };
     let x = camera::normalize(camera::cross(n, t));
     (x, camera::cross(n, x))
 }
@@ -357,10 +386,14 @@ fn perp(n: V3) -> (V3, V3) {
 /// The handles' colour: their own, or yellow at full strength when the pointer is on them
 /// (or on a plane square or the centre that includes their axis).
 fn colour(shape: &GizmoShape, h: Handle, base: u32, alpha: f32) -> [u8; 4] {
-    if let (true, Some(ax)) = (shape.enabled, shape.axis) {
-        if ax == h || ax.name().chars().any(|c| h.name().len() == 1 && h.name().starts_with(c)) {
-            return rgba(YELLOW, 1.0);
-        }
+    if let (true, Some(ax)) = (shape.enabled, shape.axis)
+        && (ax == h
+            || ax
+                .name()
+                .chars()
+                .any(|c| h.name().len() == 1 && h.name().starts_with(c)))
+    {
+        return rgba(YELLOW, 1.0);
     }
     rgba(base, alpha)
 }
@@ -370,7 +403,13 @@ fn colour(shape: &GizmoShape, h: Handle, base: u32, alpha: f32) -> [u8; 4] {
 pub fn build(shape: &GizmoShape, cam: &Camera) -> (Vec<FlatVertex>, Vec<FlatBatch>) {
     let u = handle_unit(cam, shape.position);
     let e = eye(cam, shape.position);
-    let mut o = Out { tris: Vec::new(), lines: Vec::new(), p: shape.position, u, cam: cam.position };
+    let mut o = Out {
+        tris: Vec::new(),
+        lines: Vec::new(),
+        p: shape.position,
+        u,
+        cam: cam.position,
+    };
     let axis_col = [RED, GREEN, BLUE];
     let shown = visible_handles(shape.mode, e);
     match shape.mode {
@@ -411,7 +450,13 @@ pub fn build(shape: &GizmoShape, cam: &Camera) -> (Vec<FlatVertex>, Vec<FlatBatc
                     q[ax[1]] += s1 * half[ax[1]];
                     q
                 };
-                o.quad(corner(-1.0, -1.0), corner(1.0, -1.0), corner(1.0, 1.0), corner(-1.0, 1.0), c);
+                o.quad(
+                    corner(-1.0, -1.0),
+                    corner(1.0, -1.0),
+                    corner(1.0, 1.0),
+                    corner(-1.0, 1.0),
+                    c,
+                );
             }
             let c = colour(shape, Handle::XYZ, WHITE, 0.25);
             if shape.mode == GizmoMode::Translate {
@@ -426,11 +471,44 @@ pub fn build(shape: &GizmoShape, cam: &Camera) -> (Vec<FlatVertex>, Vec<FlatBatc
             let facing = move |a: f64| camera::add(camera::scale(fx, a.cos()), camera::scale(fy, a.sin()));
             o.ring(0.5, 1.0, facing, colour(shape, Handle::XYZE, GRAY, 1.0));
             let phi = (-ey).atan2(ez);
-            o.ring(0.5, 0.5, move |a: f64| [0.0, a.cos() * phi.cos() - a.sin() * phi.sin(), a.cos() * phi.sin() + a.sin() * phi.cos()], colour(shape, Handle::X, RED, 1.0));
+            o.ring(
+                0.5,
+                0.5,
+                move |a: f64| {
+                    [
+                        0.0,
+                        a.cos() * phi.cos() - a.sin() * phi.sin(),
+                        a.cos() * phi.sin() + a.sin() * phi.cos(),
+                    ]
+                },
+                colour(shape, Handle::X, RED, 1.0),
+            );
             let psi = ex.atan2(ez);
-            o.ring(0.5, 0.5, move |a: f64| [a.cos() * psi.cos() + a.sin() * psi.sin(), 0.0, -a.cos() * psi.sin() + a.sin() * psi.cos()], colour(shape, Handle::Y, GREEN, 1.0));
+            o.ring(
+                0.5,
+                0.5,
+                move |a: f64| {
+                    [
+                        a.cos() * psi.cos() + a.sin() * psi.sin(),
+                        0.0,
+                        -a.cos() * psi.sin() + a.sin() * psi.cos(),
+                    ]
+                },
+                colour(shape, Handle::Y, GREEN, 1.0),
+            );
             let chi = ey.atan2(ex);
-            o.ring(0.5, 0.5, move |a: f64| [a.sin() * chi.cos() - a.cos() * chi.sin(), a.sin() * chi.sin() + a.cos() * chi.cos(), 0.0], colour(shape, Handle::Z, BLUE, 1.0));
+            o.ring(
+                0.5,
+                0.5,
+                move |a: f64| {
+                    [
+                        a.sin() * chi.cos() - a.cos() * chi.sin(),
+                        a.sin() * chi.sin() + a.cos() * chi.cos(),
+                        0.0,
+                    ]
+                },
+                colour(shape, Handle::Z, BLUE, 1.0),
+            );
             o.ring(0.75, 1.0, facing, colour(shape, Handle::E, YELLOW, 0.25));
         }
     }
@@ -443,7 +521,11 @@ pub fn build(shape: &GizmoShape, cam: &Camera) -> (Vec<FlatVertex>, Vec<FlatBatc
             GizmoMode::Translate | GizmoMode::Scale => {
                 for (i, c) in ['X', 'Y', 'Z'].into_iter().enumerate() {
                     if ax != Handle::E && ax != Handle::XYZE && ax.has(c) {
-                        o.line_world(camera::add(at, camera::scale(UNIT[i], -far)), camera::add(at, camera::scale(UNIT[i], far)), helper);
+                        o.line_world(
+                            camera::add(at, camera::scale(UNIT[i], -far)),
+                            camera::add(at, camera::scale(UNIT[i], far)),
+                            helper,
+                        );
                     }
                 }
                 if shape.mode == GizmoMode::Translate && shape.dragging {
@@ -461,7 +543,11 @@ pub fn build(shape: &GizmoShape, cam: &Camera) -> (Vec<FlatVertex>, Vec<FlatBatc
                 };
                 if let Some(a) = dir {
                     let p = shape.position;
-                    o.line_world(camera::add(p, camera::scale(a, -far)), camera::add(p, camera::scale(a, far)), helper);
+                    o.line_world(
+                        camera::add(p, camera::scale(a, -far)),
+                        camera::add(p, camera::scale(a, far)),
+                        helper,
+                    );
                 }
             }
         }
@@ -469,12 +555,22 @@ pub fn build(shape: &GizmoShape, cam: &Camera) -> (Vec<FlatVertex>, Vec<FlatBatc
     let mut verts = o.tris;
     let mut batches = Vec::new();
     if !verts.is_empty() {
-        batches.push(FlatBatch { order: i32::MAX, lines: false, depth: Depth::Off, range: 0..verts.len() as u32 });
+        batches.push(FlatBatch {
+            order: i32::MAX,
+            lines: false,
+            depth: Depth::Off,
+            range: 0..verts.len() as u32,
+        });
     }
     if !o.lines.is_empty() {
         let start = verts.len() as u32;
         verts.extend(o.lines);
-        batches.push(FlatBatch { order: i32::MAX, lines: true, depth: Depth::Off, range: start..verts.len() as u32 });
+        batches.push(FlatBatch {
+            order: i32::MAX,
+            lines: true,
+            depth: Depth::Off,
+            range: start..verts.len() as u32,
+        });
     }
     (verts, batches)
 }

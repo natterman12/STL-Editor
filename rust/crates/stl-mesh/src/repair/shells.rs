@@ -57,14 +57,22 @@ pub(crate) fn is_flat(v: &[f64]) -> bool {
     let size = if size == 0.0 { 1.0 } else { size };
     let mut s = [[0.0f64; 3]; 3];
     for p in v.chunks_exact(3) {
-        let c = [p[0] - mean[0] / n as f64, p[1] - mean[1] / n as f64, p[2] - mean[2] / n as f64];
+        let c = [
+            p[0] - mean[0] / n as f64,
+            p[1] - mean[1] / n as f64,
+            p[2] - mean[2] / n as f64,
+        ];
         for i in 0..3 {
             for j in 0..3 {
                 s[i][j] += c[i] * c[j];
             }
         }
     }
-    let smallest = symmetric_eigenvalues(s).into_iter().fold(f64::INFINITY, f64::min).max(0.0).sqrt();
+    let smallest = symmetric_eigenvalues(s)
+        .into_iter()
+        .fold(f64::INFINITY, f64::min)
+        .max(0.0)
+        .sqrt();
     smallest / (n as f64).sqrt() <= 1e-5 * size
 }
 
@@ -103,7 +111,10 @@ pub fn touching_shells(v: &[f64], f: &[u32]) -> Option<Solid> {
             any_over_two = true;
         } else if j - i == 2 {
             // triangles stay together only across edges that exactly two of them share
-            let (ra, rb) = (find(&mut parent, (order[i] / 3) as u32), find(&mut parent, (order[i + 1] / 3) as u32));
+            let (ra, rb) = (
+                find(&mut parent, (order[i] / 3) as u32),
+                find(&mut parent, (order[i + 1] / 3) as u32),
+            );
             if ra != rb {
                 parent[ra.max(rb) as usize] = ra.min(rb);
             }
@@ -145,13 +156,23 @@ pub fn touching_shells(v: &[f64], f: &[u32]) -> Option<Solid> {
     let mut solids: Vec<Solid> = Vec::new();
     for piece in pieces {
         // the piece as its own mesh: its vertices in index order
-        let mut used: Vec<u32> = piece.iter().flat_map(|&t| f[3 * t..3 * t + 3].iter().copied()).collect();
+        let mut used: Vec<u32> = piece
+            .iter()
+            .flat_map(|&t| f[3 * t..3 * t + 3].iter().copied())
+            .collect();
         used.sort_unstable();
         used.dedup();
-        let pv: Vec<f64> = used.iter().flat_map(|&i| v[3 * i as usize..3 * i as usize + 3].iter().copied()).collect();
+        let pv: Vec<f64> = used
+            .iter()
+            .flat_map(|&i| v[3 * i as usize..3 * i as usize + 3].iter().copied())
+            .collect();
         let mut pf: Vec<u32> = piece
             .iter()
-            .flat_map(|&t| f[3 * t..3 * t + 3].iter().map(|i| used.binary_search(i).unwrap_or(0) as u32))
+            .flat_map(|&t| {
+                f[3 * t..3 * t + 3]
+                    .iter()
+                    .map(|i| used.binary_search(i).unwrap_or(0) as u32)
+            })
             .collect();
         fix_winding(&pv, &mut pf);
         let mut m = to_solid(&pv, &pf);

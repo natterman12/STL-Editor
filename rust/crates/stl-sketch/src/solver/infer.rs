@@ -2,10 +2,10 @@
 //! in `web/js/constraints.js`).
 
 use super::constraints::{
-    center, crs, dir, get_param, is_line, is_round, js_max, js_min, js_sign, len, line_ends, or1, params_of, sub, Constraint, Ref,
-    World,
+    Constraint, Ref, World, center, crs, dir, get_param, is_line, is_round, js_max, js_min, js_sign, len, line_ends,
+    or1, params_of, sub,
 };
-use crate::entities::{point, Entity, P2};
+use crate::entities::{Entity, P2, point};
 use serde::Serialize;
 use std::collections::BTreeSet;
 
@@ -26,7 +26,9 @@ fn msg(s: &str) -> Outcome {
 }
 
 fn pk(w: &World, r: &Ref) -> P2 {
-    w.get(&r.e).and_then(|e| point(e, r.k.as_deref().unwrap_or(""))).unwrap_or(NAN2)
+    w.get(&r.e)
+        .and_then(|e| point(e, r.k.as_deref().unwrap_or("")))
+        .unwrap_or(NAN2)
 }
 
 fn dim(kind: &str, a: Ref, b: Option<Ref>) -> Constraint {
@@ -63,12 +65,17 @@ pub fn make_constraint(tool: &str, picks: &[Ref], entities: &[Entity]) -> Outcom
             msg("Pick two points, or a point and a line / circle.")
         }
         "c_hv" => {
-            if let Some(p) = p {
-                if !p.has_k() && is_line(ent(p)) {
-                    let d = dir(ent(p));
-                    let kind = if d[0].abs() >= d[1].abs() { "horizontal" } else { "vertical" };
-                    return Outcome::Constraint(dim(kind, Ref::ent(&p.e), None));
-                }
+            if let Some(p) = p
+                && !p.has_k()
+                && is_line(ent(p))
+            {
+                let d = dir(ent(p));
+                let kind = if d[0].abs() >= d[1].abs() {
+                    "horizontal"
+                } else {
+                    "vertical"
+                };
+                return Outcome::Constraint(dim(kind, Ref::ent(&p.e), None));
             }
             if !need(2) {
                 return match p {
@@ -79,7 +86,11 @@ pub fn make_constraint(tool: &str, picks: &[Ref], entities: &[Entity]) -> Outcom
             let (p, q) = (p.unwrap(), q.unwrap());
             if p.has_k() && q.has_k() {
                 let d = sub(pk(&w, q), pk(&w, p));
-                let kind = if d[0].abs() >= d[1].abs() { "horizontal" } else { "vertical" };
+                let kind = if d[0].abs() >= d[1].abs() {
+                    "horizontal"
+                } else {
+                    "vertical"
+                };
                 return Outcome::Constraint(dim(kind, p.clone(), Some(q.clone())));
             }
             msg("Pick a line, or two points.")
@@ -151,7 +162,9 @@ pub fn make_constraint(tool: &str, picks: &[Ref], entities: &[Entity]) -> Outcom
             let mut c = dim("fix", if p.has_k() { p.clone() } else { Ref::ent(&p.e) }, None);
             if p.has_k() {
                 // JS spreads `point(...)`, which throws on a bad key: treat it like a missing entity.
-                let Some(pt) = point(e, p.k.as_deref().unwrap()) else { return Outcome::Pending };
+                let Some(pt) = point(e, p.k.as_deref().unwrap()) else {
+                    return Outcome::Pending;
+                };
                 c.at = Some(pt.to_vec());
             } else {
                 c.at = Some((0..params_of(e).len()).map(|i| get_param(e, i)).collect());
@@ -291,7 +304,9 @@ pub fn infer_dimension(picks: &[Ref], entities: &[Entity], cursor: Option<P2>, f
     };
     let rs_keys = |p: &Ref| -> [&'static str; 2] { RS[(p.side.unwrap_or(0).rem_euclid(4)) as usize] };
     let side_even = |p: &Ref| p.side.unwrap_or(0) % 2 == 0;
-    let Some(p) = picks.first() else { return Outcome::Pending };
+    let Some(p) = picks.first() else {
+        return Outcome::Pending;
+    };
 
     if picks.len() == 1 {
         let Some(e) = w.get(&p.e) else { return Outcome::Pending };
@@ -303,10 +318,20 @@ pub fn infer_dimension(picks: &[Ref], entities: &[Entity], cursor: Option<P2>, f
             let (p1, p2) = line_ends(Some(e));
             let o = zone(p1, p2);
             if o == 'h' && (p2[1] - p1[1]).abs() > 1e-9 {
-                return Outcome::Constraint(signed("hdistance", Ref::pt(&p.e, "p1"), Ref::pt(&p.e, "p2"), js_sign(p2[0] - p1[0])));
+                return Outcome::Constraint(signed(
+                    "hdistance",
+                    Ref::pt(&p.e, "p1"),
+                    Ref::pt(&p.e, "p2"),
+                    js_sign(p2[0] - p1[0]),
+                ));
             }
             if o == 'v' && (p2[0] - p1[0]).abs() > 1e-9 {
-                return Outcome::Constraint(signed("vdistance", Ref::pt(&p.e, "p1"), Ref::pt(&p.e, "p2"), js_sign(p2[1] - p1[1])));
+                return Outcome::Constraint(signed(
+                    "vdistance",
+                    Ref::pt(&p.e, "p1"),
+                    Ref::pt(&p.e, "p2"),
+                    js_sign(p2[1] - p1[1]),
+                ));
             }
             return Outcome::Constraint(dim("length", Ref::ent(&p.e), None));
         }
@@ -340,7 +365,9 @@ pub fn infer_dimension(picks: &[Ref], entities: &[Entity], cursor: Option<P2>, f
     let is_pt = |k: Option<Kind>| matches!(k, Some(Kind::Pt) | Some(Kind::Rd));
     let is_ln = |k: Option<Kind>| matches!(k, Some(Kind::Ln) | Some(Kind::Rs));
     if is_pt(ka) && is_pt(kb) {
-        let (Some(pa), Some(pb)) = (pt_of(p), pt_of(q)) else { return msg("Pick a line, circle or arc; or two points; a point and a line; or two lines.") };
+        let (Some(pa), Some(pb)) = (pt_of(p), pt_of(q)) else {
+            return msg("Pick a line, circle or arc; or two points; a point and a line; or two lines.");
+        };
         let (a, b) = (pk(&w, &pa), pk(&w, &pb));
         if super::constraints::hypot(&[b[0] - a[0], b[1] - a[1]]) < 1e-9 {
             return msg("Those two points are in the same place.");
@@ -364,7 +391,12 @@ pub fn infer_dimension(picks: &[Ref], entities: &[Entity], cursor: Option<P2>, f
             let a = pk(&w, pt);
             let b = e.and_then(|e| point(e, k1)).unwrap_or(NAN2);
             let s = js_sign(if horiz { b[1] - a[1] } else { b[0] - a[0] });
-            return Ok(signed(if horiz { "vdistance" } else { "hdistance" }, pt.clone(), Ref::pt(&ln.e, k1), s));
+            return Ok(signed(
+                if horiz { "vdistance" } else { "hdistance" },
+                pt.clone(),
+                Ref::pt(&ln.e, k1),
+                s,
+            ));
         }
         let l = w.get(&ln.e);
         let d = dir(l);
@@ -395,14 +427,20 @@ pub fn infer_dimension(picks: &[Ref], entities: &[Entity], cursor: Option<P2>, f
         if par {
             // the distance between them: from a point of one (one that can move) to the other
             let (m, o) = if fixed.contains(&p.e) { (q, p) } else { (p, q) };
-            let mp = if kind(m) == Some(Kind::Ln) { Ref::pt(&m.e, "m") } else { Ref::pt(&m.e, rs_keys(m)[0]) };
+            let mp = if kind(m) == Some(Kind::Ln) {
+                Ref::pt(&m.e, "m")
+            } else {
+                Ref::pt(&m.e, rs_keys(m)[0])
+            };
             return match pt_line(&mp, o) {
                 Ok(c) => Outcome::Constraint(c),
                 Err(_) => msg("Those lines are on top of each other."),
             };
         }
         if ka == Some(Kind::Rs) || kb == Some(Kind::Rs) {
-            return msg("Angles to a rectangle's sides can't be set: its sides are always square. Draw it with lines to angle it.");
+            return msg(
+                "Angles to a rectangle's sides can't be set: its sides are always square. Draw it with lines to angle it.",
+            );
         }
         let c = dim("angle", Ref::ent(&p.e), Some(Ref::ent(&q.e)));
         return Outcome::Constraint(angle_to_w(&c, &w, cur));

@@ -93,6 +93,46 @@ jobs:
       - name: Check the pure-Rust rule
         run: cargo run -p xtask -- pure-rust
 
+  # Formatting and lints for our crates (third_party is outside the workspace). On Windows, the
+  # same host as the development PC, so the code checked here is the code checked there. The
+  # settings are rust/rustfmt.toml and [workspace.lints] in rust/Cargo.toml. To fix a failure:
+  # `cargo fmt --all`, then `cargo clippy --workspace --all-targets` and follow what it says.
+  lint:
+    name: Format and lints
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: rust
+    steps:
+      - name: Keep line endings as committed
+        run: git config --global core.autocrlf false
+        working-directory: .
+
+      - uses: actions/checkout@v7
+
+      - name: Use the GNU host
+        run: rustup set default-host x86_64-pc-windows-gnu
+
+      # rust-toolchain.toml lists rustfmt and clippy as components.
+      - name: Install the pinned toolchain
+        run: |
+          rustup toolchain install --profile minimal
+          rustup show
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
+      - name: Formatting
+        run: cargo fmt --all -- --check
+
+      - name: Lints (desktop)
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Lints (web)
+        run: cargo clippy --target wasm32-unknown-unknown -p stl-kernel -p stl-parity -p stl-mesh -p stl-sketch -p stl-engine -p stl-io -p stl-app -- -D warnings
+
   golden:
     name: Golden files and project round trip (Windows)
     runs-on: windows-latest

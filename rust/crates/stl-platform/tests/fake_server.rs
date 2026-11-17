@@ -16,7 +16,10 @@ fn get(base: &str, path: &str) -> (String, Vec<u8>) {
     // A dropped connection ends the read early; that is the point of the drop test.
     let _ = s.read_to_end(&mut raw);
     let cut = raw.windows(4).position(|w| w == b"\r\n\r\n").expect("header end");
-    (String::from_utf8_lossy(&raw[..cut]).into_owned(), raw[cut + 4..].to_vec())
+    (
+        String::from_utf8_lossy(&raw[..cut]).into_owned(),
+        raw[cut + 4..].to_vec(),
+    )
 }
 
 fn content_length(head: &str) -> usize {
@@ -68,18 +71,39 @@ fn fake_server_injects_faults() {
     let exe = b"hello world".to_vec();
     let assets = vec![("a.exe".to_string(), exe.clone())];
 
-    let size = FakeReleases::start(serde_json::Value::Null, assets.clone(), Faults { wrong_size: true, ..Faults::default() });
+    let size = FakeReleases::start(
+        serde_json::Value::Null,
+        assets.clone(),
+        Faults {
+            wrong_size: true,
+            ..Faults::default()
+        },
+    );
     let (head, body) = get(&size.base_url(), "/assets/a.exe");
     assert_eq!(content_length(&head), body.len());
     assert!(body.len() > exe.len(), "wrong_size should serve extra bytes");
 
-    let digest = FakeReleases::start(serde_json::Value::Null, assets.clone(), Faults { wrong_digest: true, ..Faults::default() });
+    let digest = FakeReleases::start(
+        serde_json::Value::Null,
+        assets.clone(),
+        Faults {
+            wrong_digest: true,
+            ..Faults::default()
+        },
+    );
     let (head, body) = get(&digest.base_url(), "/assets/a.exe");
     assert_eq!(content_length(&head), exe.len());
     assert_eq!(body.len(), exe.len(), "wrong_digest keeps the length");
     assert_ne!(body, exe, "wrong_digest should alter the bytes");
 
-    let dropped = FakeReleases::start(serde_json::Value::Null, assets, Faults { drop_connection: true, ..Faults::default() });
+    let dropped = FakeReleases::start(
+        serde_json::Value::Null,
+        assets,
+        Faults {
+            drop_connection: true,
+            ..Faults::default()
+        },
+    );
     let (head, body) = get(&dropped.base_url(), "/assets/a.exe");
     assert_eq!(content_length(&head), exe.len());
     assert!(body.len() < exe.len(), "drop_connection should cut the body short");

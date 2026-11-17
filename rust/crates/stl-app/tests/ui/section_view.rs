@@ -39,7 +39,12 @@ fn cube() -> (H, std::sync::Arc<stl_app::engine_link::native::NativeLink>) {
 fn pointer(h: &mut H, at: Pos2, pressed: Option<bool>) {
     h.event(Event::PointerMoved(at));
     if let Some(p) = pressed {
-        h.event(Event::PointerButton { pos: at, button: PointerButton::Primary, pressed: p, modifiers: Default::default() });
+        h.event(Event::PointerButton {
+            pos: at,
+            button: PointerButton::Primary,
+            pressed: p,
+            modifiers: Default::default(),
+        });
     }
     h.step();
 }
@@ -72,7 +77,10 @@ fn ribbon_section_opens_the_panel_with_the_cut_on() {
     let d = h.state().section_distance().unwrap();
     assert!((d - 10.0).abs() < 1e-6, "starts at {d}");
     let e = h.state().viewport.active_section().unwrap();
-    assert!(e[0].abs() < 1e-9 && e[1].abs() < 1e-9 && (e[2].abs() - 1.0).abs() < 1e-9 && (e[3].abs() - 10.0).abs() < 1e-9, "{e:?}");
+    assert!(
+        e[0].abs() < 1e-9 && e[1].abs() < 1e-9 && (e[2].abs() - 1.0).abs() < 1e-9 && (e[3].abs() - 10.0).abs() < 1e-9,
+        "{e:?}"
+    );
     // seen from above, the top half is cut away (the half away from the camera stays)
     assert!(kept(&h, [0.0, 0.0, 5.0]) && !kept(&h, [0.0, 0.0, 15.0]));
 
@@ -80,7 +88,10 @@ fn ribbon_section_opens_the_panel_with_the_cut_on() {
     h.get_by_label("Done").click();
     h.run_steps(2);
     assert!(!h.state().section_open());
-    assert!(h.state().viewport.active_section().is_some(), "the cut stays after Done");
+    assert!(
+        h.state().viewport.active_section().is_some(),
+        "the cut stays after Done"
+    );
     assert!(h.state().viewport.drag_plane().is_none());
 }
 
@@ -91,7 +102,10 @@ fn pick_a_side_face_and_drag_the_arrow_moves_the_cut() {
     // the front face (y = -10, normal -Y) where it is still shown (below the Z cut)
     let spot = h.state().viewport.world_to_screen([2.0, -10.0, 4.0]);
     let hit = h.state().viewport.pick(spot, true, false);
-    assert!(matches!(&hit, Some(Hit::Body { normal, .. }) if normal[1] < -0.99), "the spot is on the front face: {hit:?}");
+    assert!(
+        matches!(&hit, Some(Hit::Body { normal, .. }) if normal[1] < -0.99),
+        "the spot is on the front face: {hit:?}"
+    );
     click_at(&mut h, spot);
     h.run_steps(2);
     // the face only touches the cube: the cut starts halfway through it, at y = 0
@@ -99,7 +113,10 @@ fn pick_a_side_face_and_drag_the_arrow_moves_the_cut() {
     assert!((d0 + 10.0).abs() < 1e-6, "a face on the boundary starts halfway: {d0}");
     let p = *h.state().viewport.drag_plane().expect("the drag control");
     assert!((p.normal[1] + 1.0).abs() < 1e-9, "the plane is the face's: {p:?}");
-    assert!(kept(&h, [0.0, 5.0, 10.0]) && !kept(&h, [0.0, -5.0, 10.0]), "the half away from the camera stays");
+    assert!(
+        kept(&h, [0.0, 5.0, 10.0]) && !kept(&h, [0.0, -5.0, 10.0]),
+        "the half away from the camera stays"
+    );
 
     // drag the arrow 60 px along itself: the plane follows, the camera doesn't orbit
     let (cam, rect) = (h.state().viewport.camera().clone(), h.state().viewport.rect());
@@ -108,7 +125,12 @@ fn pick_a_side_face_and_drag_the_arrow_moves_the_cut() {
     let len = ((tip[0] - base[0]).powi(2) + (tip[1] - base[1]).powi(2)).sqrt();
     assert!(len > 20.0, "the arrow is not face on in the iso view ({len} px)");
     let dir = [(tip[0] - base[0]) / len, (tip[1] - base[1]) / len];
-    let at = |t: f64| Pos2::new(rect.min.x + (base[0] + dir[0] * t) as f32, rect.min.y + (base[1] + dir[1] * t) as f32);
+    let at = |t: f64| {
+        Pos2::new(
+            rect.min.x + (base[0] + dir[0] * t) as f32,
+            rect.min.y + (base[1] + dir[1] * t) as f32,
+        )
+    };
     let before = (cam.position, cam.target);
     pointer(&mut h, at(len * 0.5), None);
     assert!(h.state().viewport.drag_plane_hot(), "the pointer is on the arrow");
@@ -121,15 +143,31 @@ fn pick_a_side_face_and_drag_the_arrow_moves_the_cut() {
     pointer(&mut h, at(len * 0.5 + 60.0), Some(false));
     h.run_steps(3);
     let cam_after = h.state().viewport.camera();
-    assert_eq!((cam_after.position, cam_after.target), before, "dragging the arrow orbited the view");
+    assert_eq!(
+        (cam_after.position, cam_after.target),
+        before,
+        "dragging the arrow orbited the view"
+    );
     let d1 = h.state().section_distance().unwrap();
     // the plane is where the pointer's projection on the normal line says (to the f32 pointer)
-    let want = plane_drag::drag_distance(&cam, &p, [base[0] + dir[0] * len * 0.5, base[1] + dir[1] * len * 0.5], [base[0] + dir[0] * (len * 0.5 + 60.0), base[1] + dir[1] * (len * 0.5 + 60.0)], d0);
+    let want = plane_drag::drag_distance(
+        &cam,
+        &p,
+        [base[0] + dir[0] * len * 0.5, base[1] + dir[1] * len * 0.5],
+        [
+            base[0] + dir[0] * (len * 0.5 + 60.0),
+            base[1] + dir[1] * (len * 0.5 + 60.0),
+        ],
+        d0,
+    );
     assert!((d1 - want).abs() < 1e-3, "after the drag {d1}, want {want}");
     // the arrow points out of the face (-Y): the cut moved toward the camera
     let y = -10.0 - d1;
     assert!(y < -1.0, "the cut moved to y = {y}");
-    assert!(kept(&h, [0.0, y + 0.5, 10.0]) && !kept(&h, [0.0, y - 0.5, 10.0]), "the cut is at y = {y}");
+    assert!(
+        kept(&h, [0.0, y + 0.5, 10.0]) && !kept(&h, [0.0, y - 0.5, 10.0]),
+        "the cut is at y = {y}"
+    );
     assert!(h.state().section_open(), "a drag doesn't close the panel");
 }
 
@@ -146,7 +184,8 @@ fn flip_swaps_the_kept_half() {
     h.run_steps(2);
     assert!(kept(&h, lo) && !kept(&h, hi), "Flip again puts it back");
     // Hatch off: the flat cap colour
-    h.get_by_role_and_label(egui::accesskit::Role::CheckBox, "Hatch").click();
+    h.get_by_role_and_label(egui::accesskit::Role::CheckBox, "Hatch")
+        .click();
     h.run_steps(2);
     assert!(!h.state().viewport.section_hatch());
     // Remove cut, then a new cut: Hatch is back to on
@@ -187,7 +226,10 @@ fn x_turns_the_cut_off_and_on_and_remove_cut_clears_it() {
     h.get_by_label("Cancel").click();
     h.run_steps(2);
     assert!(!h.state().section_open());
-    assert!(!h.state().section_has_cut() && h.state().viewport.active_section().is_none(), "Cancel removes a cut it made");
+    assert!(
+        !h.state().section_has_cut() && h.state().viewport.active_section().is_none(),
+        "Cancel removes a cut it made"
+    );
 }
 
 #[test]
@@ -198,7 +240,10 @@ fn the_note_is_1x_word_for_word_and_new_removes_the_cut() {
         section_panel::note_text(),
         "The cut only changes what you see: export, Properties and Measure use the whole part. It stays on after you click Done; turn it off and on with Section in the view bar or the X key."
     );
-    assert!(h.query_by_label(&section_panel::note_text()).is_some(), "the note shows");
+    assert!(
+        h.query_by_label(&section_panel::note_text()).is_some(),
+        "the note shows"
+    );
     h.get_by_label("Done").click();
     h.run_steps(2);
     assert!(h.state().section_has_cut());
@@ -215,28 +260,47 @@ fn the_note_is_1x_word_for_word_and_new_removes_the_cut() {
     h.run_steps(2);
     h.key_press(egui::Key::X);
     h.run_steps(2);
-    assert!(h.state().section_has_cut() && h.state().viewport.active_section().is_none(), "X turned the cut off");
+    assert!(
+        h.state().section_has_cut() && h.state().viewport.active_section().is_none(),
+        "X turned the cut off"
+    );
     h.state_mut().viewport.set_section_enabled(false);
     h.run_steps(2);
-    assert!(!h.state().section_has_cut(), "New removes a cut that was turned off too");
+    assert!(
+        !h.state().section_has_cut(),
+        "New removes a cut that was turned off too"
+    );
     h.key_press(egui::Key::X);
     h.run_steps(3);
-    assert!(h.state().section_open(), "X opens Section View, it doesn't bring the old cut back");
+    assert!(
+        h.state().section_open(),
+        "X opens Section View, it doesn't bring the old cut back"
+    );
 }
 
 /// The Distance box: the panel's only text box, above Remove cut (the top bar's search box is
 /// a text box too, above the panel).
 fn distance_box(h: &H) -> egui::Rect {
     let remove = h.get_by_label("Remove cut").rect();
-    let panel = egui::Rect::from_min_max(egui::pos2(remove.min.x - 120.0, remove.min.y - 400.0), egui::pos2(remove.max.x + 200.0, remove.min.y));
-    let boxes: Vec<egui::Rect> = h.query_all_by_role(egui::accesskit::Role::TextInput).map(|n| n.rect()).filter(|r| panel.contains_rect(*r)).collect();
+    let panel = egui::Rect::from_min_max(
+        egui::pos2(remove.min.x - 120.0, remove.min.y - 400.0),
+        egui::pos2(remove.max.x + 200.0, remove.min.y),
+    );
+    let boxes: Vec<egui::Rect> = h
+        .query_all_by_role(egui::accesskit::Role::TextInput)
+        .map(|n| n.rect())
+        .filter(|r| panel.contains_rect(*r))
+        .collect();
     assert_eq!(boxes.len(), 1, "one text box in the panel: {boxes:?}");
     boxes[0]
 }
 
 fn type_distance(h: &mut H, text: &str) {
     let r = distance_box(h);
-    h.query_all_by_role(egui::accesskit::Role::TextInput).find(|n| n.rect() == r).expect("the Distance box").focus();
+    h.query_all_by_role(egui::accesskit::Role::TextInput)
+        .find(|n| n.rect() == r)
+        .expect("the Distance box")
+        .focus();
     h.run_steps(2);
     h.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::A);
     h.run_steps(1);
@@ -268,6 +332,9 @@ fn distance_takes_inches_and_expressions() {
     let e = h.state().viewport.active_section().unwrap();
     assert!((e[3].abs() - 5.0).abs() < 1e-9, "the cut follows the expression: {e:?}");
     h.run_steps(2);
-    let shown = h.query_all_by_role(egui::accesskit::Role::TextInput).find(|n| n.rect() == distance_box(&h)).and_then(|n| n.value());
+    let shown = h
+        .query_all_by_role(egui::accesskit::Role::TextInput)
+        .find(|n| n.rect() == distance_box(&h))
+        .and_then(|n| n.value());
     assert_eq!(shown.as_deref(), Some("=10/2"), "the box keeps the expression");
 }

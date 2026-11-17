@@ -5,8 +5,7 @@ use std::path::PathBuf;
 use serde_json::Value;
 use stl_kernel::{Frame, MeshArrays, Solid};
 use stl_mesh::refs::{
-    ents_from_polys, fit_circle, outline, outline_entities, ref_geometry_max, round_py,
-    OutlineEntity, RefEntity,
+    OutlineEntity, RefEntity, ents_from_polys, fit_circle, outline, outline_entities, ref_geometry_max, round_py,
 };
 use stl_mesh::weld;
 
@@ -51,7 +50,11 @@ fn plane_frame(o: [f64; 3], n: [f64; 3], xdir: Option<[f64; 3]>) -> Frame {
         a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
     }
     fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
-        [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]
+        [
+            a[1] * b[2] - a[2] * b[1],
+            a[2] * b[0] - a[0] * b[2],
+            a[0] * b[1] - a[1] * b[0],
+        ]
     }
     fn unit(v: [f64; 3]) -> [f64; 3] {
         let n = dot(v, v).sqrt();
@@ -122,7 +125,11 @@ fn compare_ref_entity(got: &RefEntity, want: &Value, case: &str, i: usize) {
     match got {
         RefEntity::Circle { cx, cy, r } => {
             assert_eq!(want["type"], "circle", "{case} entity {i}");
-            assert!(close(*cx, want["cx"].as_f64().unwrap()), "{case} entity {i} cx got={cx} want={}", want["cx"]);
+            assert!(
+                close(*cx, want["cx"].as_f64().unwrap()),
+                "{case} entity {i} cx got={cx} want={}",
+                want["cx"]
+            );
             assert!(close(*cy, want["cy"].as_f64().unwrap()), "{case} entity {i} cy");
             assert!(close(*r, want["r"].as_f64().unwrap()), "{case} entity {i} r");
         }
@@ -144,21 +151,46 @@ fn compare_ref_entity(got: &RefEntity, want: &Value, case: &str, i: usize) {
 
 fn compare_outline_entity(got: &OutlineEntity, want: &Value, case: &str, i: usize) {
     match got {
-        OutlineEntity::Circle { id, cx, cy, r, construction, projected } => {
+        OutlineEntity::Circle {
+            id,
+            cx,
+            cy,
+            r,
+            construction,
+            projected,
+        } => {
             assert_eq!(want["type"], "circle", "{case} entity {i}");
             assert_eq!(*id, want["id"].as_i64().unwrap(), "{case} entity {i} id");
             assert!(close(*cx, want["cx"].as_f64().unwrap()), "{case} entity {i} cx");
             assert!(close(*cy, want["cy"].as_f64().unwrap()), "{case} entity {i} cy");
             assert!(close(*r, want["r"].as_f64().unwrap()), "{case} entity {i} r");
-            assert_eq!(*construction, want.get("construction").and_then(|v| v.as_bool()).unwrap_or(false));
-            assert_eq!(*projected, want.get("projected").and_then(|v| v.as_bool()).unwrap_or(false));
+            assert_eq!(
+                *construction,
+                want.get("construction").and_then(|v| v.as_bool()).unwrap_or(false)
+            );
+            assert_eq!(
+                *projected,
+                want.get("projected").and_then(|v| v.as_bool()).unwrap_or(false)
+            );
         }
-        OutlineEntity::Polyline { id, pts, closed, construction, projected } => {
+        OutlineEntity::Polyline {
+            id,
+            pts,
+            closed,
+            construction,
+            projected,
+        } => {
             assert_eq!(want["type"], "polyline", "{case} entity {i}");
             assert_eq!(*id, want["id"].as_i64().unwrap(), "{case} entity {i} id");
             assert_eq!(*closed, want.get("closed").and_then(|v| v.as_bool()).unwrap_or(true));
-            assert_eq!(*construction, want.get("construction").and_then(|v| v.as_bool()).unwrap_or(false));
-            assert_eq!(*projected, want.get("projected").and_then(|v| v.as_bool()).unwrap_or(false));
+            assert_eq!(
+                *construction,
+                want.get("construction").and_then(|v| v.as_bool()).unwrap_or(false)
+            );
+            assert_eq!(
+                *projected,
+                want.get("projected").and_then(|v| v.as_bool()).unwrap_or(false)
+            );
             let gp = want["pts"].as_array().unwrap();
             assert_eq!(pts.len(), gp.len(), "{case} entity {i} pts len");
             for (k, (a, b)) in pts.iter().zip(gp.iter()).enumerate() {
@@ -197,7 +229,10 @@ fn fit_circle_far_and_collinear() {
     // Collinear: min-norm-ish like np.linalg.lstsq (finite, not NaN).
     let col = [[0.0, 0.0], [1.0, 0.0], [2.0, 0.0], [3.0, 0.0]];
     let (cx, cy, r) = fit_circle(&col);
-    assert!(cx.is_finite() && cy.is_finite() && r.is_finite(), "collinear {cx} {cy} {r}");
+    assert!(
+        cx.is_finite() && cy.is_finite() && r.is_finite(),
+        "collinear {cx} {cy} {r}"
+    );
 }
 
 #[test]
@@ -216,11 +251,15 @@ fn refs_match_golden() {
             let polys = outline(&refs, &frame, mode, tol).unwrap_or_else(|e| panic!("{name}: {e}"));
             let construction = case.get("construction").and_then(|v| v.as_bool()).unwrap_or(false);
             let mut next = 1i64;
-            let got = outline_entities(&polys, || {
-                let id = next;
-                next += 1;
-                id
-            }, construction);
+            let got = outline_entities(
+                &polys,
+                || {
+                    let id = next;
+                    next += 1;
+                    id
+                },
+                construction,
+            );
             let want_ents = want["entities"].as_array().unwrap();
             assert_eq!(got.len(), want_ents.len(), "{name}: entity count");
             for (i, (g, w)) in got.iter().zip(want_ents.iter()).enumerate() {
@@ -247,7 +286,13 @@ fn refs_match_golden() {
             let tol = case.get("tol").and_then(|v| v.as_f64()).unwrap_or(0.005);
             let got = ents_from_polys(&polys, tol);
             let want_ents = want["entities"].as_array().unwrap();
-            assert_eq!(got.len(), want_ents.len(), "{name}: entity count got={:?} want={:?}", got, want_ents);
+            assert_eq!(
+                got.len(),
+                want_ents.len(),
+                "{name}: entity count got={:?} want={:?}",
+                got,
+                want_ents
+            );
             for (i, (g, w)) in got.iter().zip(want_ents.iter()).enumerate() {
                 compare_ref_entity(g, w, name, i);
             }
@@ -268,7 +313,13 @@ fn refs_match_golden() {
             assert_eq!(result.kind, None, "{name} kind");
         }
         let want_ents = want["entities"].as_array().unwrap();
-        assert_eq!(result.entities.len(), want_ents.len(), "{name}: entity count got={:?} want={:?}", result.entities, want_ents);
+        assert_eq!(
+            result.entities.len(),
+            want_ents.len(),
+            "{name}: entity count got={:?} want={:?}",
+            result.entities,
+            want_ents
+        );
         for (i, (g, w)) in result.entities.iter().zip(want_ents.iter()).enumerate() {
             compare_ref_entity(g, w, name, i);
         }

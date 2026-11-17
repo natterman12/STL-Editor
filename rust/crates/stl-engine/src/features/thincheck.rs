@@ -15,12 +15,20 @@ fn fmt_g(x: f64) -> String {
     let e = format!("{:.5e}", x);
     let (mant, exp) = e.split_once('e').unwrap();
     let exp: i32 = exp.parse().unwrap();
-    if exp < -4 || exp >= 6 {
-        let mant = if mant.contains('.') { mant.trim_end_matches('0').trim_end_matches('.') } else { mant };
+    if !(-4..6).contains(&exp) {
+        let mant = if mant.contains('.') {
+            mant.trim_end_matches('0').trim_end_matches('.')
+        } else {
+            mant
+        };
         return format!("{}e{}{:02}", mant, if exp < 0 { '-' } else { '+' }, exp.abs());
     }
     let s = format!("{:.*}", (5 - exp).max(0) as usize, x);
-    if s.contains('.') { s.trim_end_matches('0').trim_end_matches('.').to_string() } else { s }
+    if s.contains('.') {
+        s.trim_end_matches('0').trim_end_matches('.').to_string()
+    } else {
+        s
+    }
 }
 
 fn f_thincheck(

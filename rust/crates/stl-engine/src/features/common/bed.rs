@@ -6,7 +6,7 @@ use serde_json::Value;
 use stl_kernel::Solid;
 
 use super::connectors::split_with_connectors;
-use super::frames::{plane_frame, Vec3};
+use super::frames::{Vec3, plane_frame};
 use crate::FeatureError;
 
 /// Area of the part's cross-section at `pos` along `axis`.
@@ -122,7 +122,14 @@ pub fn split_to_bed(
     }
     let cuts = plan_cuts(solid, usable, optimize)?;
     let mut pieces = vec![solid.clone()];
-    let mut out = BedSplit { pieces: Vec::new(), extras: Vec::new(), connectors: 0, faces_without_connectors: 0, cuts: cuts.clone(), swapped: swap };
+    let mut out = BedSplit {
+        pieces: Vec::new(),
+        extras: Vec::new(),
+        connectors: 0,
+        faces_without_connectors: 0,
+        cuts: cuts.clone(),
+        swapped: swap,
+    };
     for (ax, positions) in cuts {
         let mut nvec = [0.0; 3];
         nvec[ax] = 1.0;

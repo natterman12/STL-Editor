@@ -2,14 +2,21 @@
 
 use std::sync::Arc;
 
+use stl_engine::State;
 use stl_engine::info::body_info;
 use stl_engine::state::Body;
-use stl_engine::State;
 use stl_kernel::Solid;
 
 fn state_with(name: &str, solid: Option<Solid>, mesh: Option<stl_kernel::MeshArrays>) -> State {
     let mut st = State::default();
-    st.bodies.insert("b1".into(), Body { name: name.into(), solid, mesh: mesh.map(Arc::new) });
+    st.bodies.insert(
+        "b1".into(),
+        Body {
+            name: name.into(),
+            solid,
+            mesh: mesh.map(Arc::new),
+        },
+    );
     st
 }
 
@@ -42,7 +49,10 @@ fn info_ring() {
     assert_eq!(i["solid"], true);
     assert_eq!(i["genus"], 1);
     let v = i["volume"].as_f64().unwrap();
-    assert!(v < 8000.0 && v > 8000.0 - 20.0 * std::f64::consts::PI * 16.0 - 1.0, "volume {v}");
+    assert!(
+        v < 8000.0 && v > 8000.0 - 20.0 * std::f64::consts::PI * 16.0 - 1.0,
+        "volume {v}"
+    );
 }
 
 #[test]
@@ -53,8 +63,14 @@ fn info_open_mesh() {
         .filter(|&t| (0..3).all(|k| m.positions[m.triangles[t * 3 + k] as usize * 3 + 2] > 19.0))
         .collect();
     assert_eq!(top.len(), 2, "the top face is two triangles");
-    let triangles: Vec<u32> = (0..m.triangles.len() / 3).filter(|t| !top.contains(t)).flat_map(|t| m.triangles[t * 3..t * 3 + 3].to_vec()).collect();
-    let open = stl_kernel::MeshArrays { positions: m.positions.clone(), triangles };
+    let triangles: Vec<u32> = (0..m.triangles.len() / 3)
+        .filter(|t| !top.contains(t))
+        .flat_map(|t| m.triangles[t * 3..t * 3 + 3].to_vec())
+        .collect();
+    let open = stl_kernel::MeshArrays {
+        positions: m.positions.clone(),
+        triangles,
+    };
     let st = state_with("Open", None, Some(open));
     let i = body_info(&st, "b1").unwrap();
     assert_eq!(i["solid"], false);

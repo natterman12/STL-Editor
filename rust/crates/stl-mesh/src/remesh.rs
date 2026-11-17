@@ -45,11 +45,15 @@ fn nxt(c: u32) -> u32 {
 }
 #[inline(always)]
 fn prv(c: u32) -> u32 {
-    if c % 3 == 0 { c + 2 } else { c - 1 }
+    if c.is_multiple_of(3) { c + 2 } else { c - 1 }
 }
 #[inline(always)]
 fn ekey(a: u32, b: u32) -> u64 {
-    if a < b { ((a as u64) << 32) | b as u64 } else { ((b as u64) << 32) | a as u64 }
+    if a < b {
+        ((a as u64) << 32) | b as u64
+    } else {
+        ((b as u64) << 32) | a as u64
+    }
 }
 #[inline(always)]
 fn norm(n: [f64; 3]) -> f64 {
@@ -107,7 +111,15 @@ impl TriMesh {
         if !m.is_empty() {
             return Err("Remesh needs a closed solid.".into());
         }
-        Ok(TriMesh { p, v: f.to_vec(), o, dead: vec![false; f.len() / 3], vc, vdead: vec![false; nv], feat: FastSet::default() })
+        Ok(TriMesh {
+            p,
+            v: f.to_vec(),
+            o,
+            dead: vec![false; f.len() / 3],
+            vc,
+            vdead: vec![false; nv],
+            feat: FastSet::default(),
+        })
     }
 
     #[inline(always)]
@@ -266,7 +278,8 @@ impl TriMesh {
         let (x, a, b, y) = (self.vert(c), self.vert(nxt(c)), self.vert(prv(c)), self.vert(d));
         let m = self.n_v();
         let (pa, pb) = (self.pos(a), self.pos(b));
-        self.p.extend_from_slice(&[(pa[0] + pb[0]) / 2.0, (pa[1] + pb[1]) / 2.0, (pa[2] + pb[2]) / 2.0]);
+        self.p
+            .extend_from_slice(&[(pa[0] + pb[0]) / 2.0, (pa[1] + pb[1]) / 2.0, (pa[2] + pb[2]) / 2.0]);
         self.vc.push(NONE);
         self.vdead.push(false);
         let (t1, t2, t3) = (c / 3, d / 3, self.n_t());
@@ -441,9 +454,11 @@ struct TriGrid<'a> {
 
 #[inline(always)]
 fn cell_key(i: i64, j: i64, k: i64) -> u64 {
-    (i.wrapping_add(1048576).wrapping_mul(2097152).wrapping_add(j.wrapping_add(1048576)))
+    (i.wrapping_add(1048576)
         .wrapping_mul(2097152)
-        .wrapping_add(k.wrapping_add(1048576)) as u64
+        .wrapping_add(j.wrapping_add(1048576)))
+    .wrapping_mul(2097152)
+    .wrapping_add(k.wrapping_add(1048576)) as u64
 }
 
 impl<'a> TriGrid<'a> {
@@ -463,9 +478,12 @@ impl<'a> TriGrid<'a> {
                 }
             }
             let r = [
-                (lo[0] / h).floor() as i64, (hi[0] / h).floor() as i64,
-                (lo[1] / h).floor() as i64, (hi[1] / h).floor() as i64,
-                (lo[2] / h).floor() as i64, (hi[2] / h).floor() as i64,
+                (lo[0] / h).floor() as i64,
+                (hi[0] / h).floor() as i64,
+                (lo[1] / h).floor() as i64,
+                (hi[1] / h).floor() as i64,
+                (lo[2] / h).floor() as i64,
+                (hi[2] / h).floor() as i64,
             ];
             for i in r[0]..=r[1] {
                 for j in r[2]..=r[3] {
@@ -497,7 +515,16 @@ impl<'a> TriGrid<'a> {
             }
             n += cnt;
         }
-        TriGrid { v, f, h, cells, start, items, stamp: vec![0; nt], qid: 0 }
+        TriGrid {
+            v,
+            f,
+            h,
+            cells,
+            start,
+            items,
+            stamp: vec![0; nt],
+            qid: 0,
+        }
     }
 
     /// nearest surface point to p among triangles within about h/2
@@ -540,7 +567,11 @@ impl<'a> TriGrid<'a> {
 /// closest point of triangle t to p, with the squared distance
 #[inline]
 fn closest_on_tri(p: [f64; 3], v: &[f64], f: &[u32], t: usize) -> (f64, [f64; 3]) {
-    let (ia, ib, ic) = (f[t * 3] as usize * 3, f[t * 3 + 1] as usize * 3, f[t * 3 + 2] as usize * 3);
+    let (ia, ib, ic) = (
+        f[t * 3] as usize * 3,
+        f[t * 3 + 1] as usize * 3,
+        f[t * 3 + 2] as usize * 3,
+    );
     let a = [v[ia], v[ia + 1], v[ia + 2]];
     let b = [v[ib], v[ib + 1], v[ib + 2]];
     let c = [v[ic], v[ic + 1], v[ic + 2]];
@@ -569,11 +600,19 @@ fn closest_on_tri(p: [f64; 3], v: &[f64], f: &[u32], t: usize) -> (f64, [f64; 3]
             q = [a[0] + s * ac[0], a[1] + s * ac[1], a[2] + s * ac[2]];
         } else if va <= 0.0 && d4 - d3 >= 0.0 && d5 - d6 >= 0.0 {
             let s = (d4 - d3) / ((d4 - d3) + (d5 - d6));
-            q = [b[0] + s * (c[0] - b[0]), b[1] + s * (c[1] - b[1]), b[2] + s * (c[2] - b[2])];
+            q = [
+                b[0] + s * (c[0] - b[0]),
+                b[1] + s * (c[1] - b[1]),
+                b[2] + s * (c[2] - b[2]),
+            ];
         } else {
             let den = 1.0 / (va + vb + vc);
             let (s, w) = (vb * den, vc * den);
-            q = [a[0] + ab[0] * s + ac[0] * w, a[1] + ab[1] * s + ac[1] * w, a[2] + ab[2] * s + ac[2] * w];
+            q = [
+                a[0] + ab[0] * s + ac[0] * w,
+                a[1] + ab[1] * s + ac[1] * w,
+                a[2] + ab[2] * s + ac[2] * w,
+            ];
         }
     }
     let d = [p[0] - q[0], p[1] - q[1], p[2] - q[2]];
@@ -583,11 +622,16 @@ fn closest_on_tri(p: [f64; 3], v: &[f64], f: &[u32], t: usize) -> (f64, [f64; 3]
 /// The remesh itself. `positions` (x, y, z per vertex) and `faces` (three vertex indices per
 /// triangle) describe a closed mesh already refined to `edge`. Returns the new positions and
 /// faces, or a plain-English message.
-pub fn remesh_core(positions: &[f32], faces: &[u32], edge: f64, iterations: u32) -> Result<(Vec<f32>, Vec<u32>), String> {
+pub fn remesh_core(
+    positions: &[f32],
+    faces: &[u32],
+    edge: f64,
+    iterations: u32,
+) -> Result<(Vec<f32>, Vec<u32>), String> {
     if !(edge > 0.0) {
         return Err("Edge length must be positive.".into());
     }
-    if positions.len() % 3 != 0 || faces.len() % 3 != 0 {
+    if !positions.len().is_multiple_of(3) || !faces.len().is_multiple_of(3) {
         return Err("Remesh needs three numbers per vertex and three corners per triangle.".into());
     }
     let nv = positions.len() / 3;
@@ -635,6 +679,8 @@ pub fn remesh_core(positions: &[f32], faces: &[u32], edge: f64, iterations: u32)
             }
             let (fa, fb) = (m.feat_count(a)?, m.feat_count(b)?);
             let on_feat = m.feat.contains(&ekey(a, b));
+            // one case per line, in the order the JavaScript remesher tests them
+            #[allow(clippy::if_same_then_else)]
             let (r, k, mid) = if fa == 0 && fb == 0 {
                 (a, b, true)
             } else if fa != 0 && fb == 0 {
@@ -740,54 +786,6 @@ pub fn remesh_core(positions: &[f32], faces: &[u32], edge: f64, iterations: u32)
     Ok((vs, fs))
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn cube(s: f32) -> (Vec<f32>, Vec<u32>) {
-        let v = vec![0., 0., 0., s, 0., 0., s, s, 0., 0., s, 0., 0., 0., s, s, 0., s, s, s, s, 0., s, s];
-        let f = vec![0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7, 0, 1, 5, 0, 5, 4, 1, 2, 6, 1, 6, 5, 2, 3, 7, 2, 7, 6, 3, 0, 4, 3, 4, 7];
-        (v, f)
-    }
-
-    fn watertight(f: &[u32]) -> bool {
-        let mut m: HashMap<(u32, u32), i32> = HashMap::new();
-        for t in f.chunks(3) {
-            for i in 0..3 {
-                let (a, b) = (t[i], t[(i + 1) % 3]);
-                *m.entry((a.min(b), a.max(b))).or_insert(0) += 1;
-            }
-        }
-        m.values().all(|&n| n == 2)
-    }
-
-    fn volume(v: &[f32], f: &[u32]) -> f64 {
-        let p = |i: u32| [v[i as usize * 3] as f64, v[i as usize * 3 + 1] as f64, v[i as usize * 3 + 2] as f64];
-        f.chunks(3)
-            .map(|t| {
-                let (a, b, c) = (p(t[0]), p(t[1]), p(t[2]));
-                (a[0] * (b[1] * c[2] - b[2] * c[1]) - a[1] * (b[0] * c[2] - b[2] * c[0]) + a[2] * (b[0] * c[1] - b[1] * c[0])) / 6.0
-            })
-            .sum()
-    }
-
-    #[test]
-    fn cube_stays_closed_and_keeps_its_volume() {
-        let (v, f) = cube(10.0);
-        let (nv, nf) = remesh_core(&v, &f, 2.0, 5).unwrap();
-        assert!(nf.len() / 3 > 200, "triangles: {}", nf.len() / 3);
-        assert!(watertight(&nf));
-        assert!((volume(&nv, &nf) - 1000.0).abs() < 1e-3, "volume {}", volume(&nv, &nf));
-    }
-
-    #[test]
-    fn open_mesh_is_refused() {
-        let (v, f) = cube(10.0);
-        assert_eq!(remesh_core(&v, &f[..33], 2.0, 5).unwrap_err(), "Remesh needs a closed solid.");
-        assert_eq!(remesh_core(&v, &f, 0.0, 5).unwrap_err(), "Edge length must be positive.");
-    }
-}
-
 /// Isotropic remesh of a solid to triangles of about `edge` mm (web `meshedit.js` `remesh`;
 /// `iterations` is 5 there). Gives back the refined solid if the result doesn't close up.
 pub fn remesh(s: &stl_kernel::Solid, edge: f64, iterations: u32) -> Result<stl_kernel::Solid, crate::MeshError> {
@@ -804,6 +802,75 @@ pub fn remesh(s: &stl_kernel::Solid, edge: f64, iterations: u32) -> Result<stl_k
     let fine = s.refine_to_length(edge);
     let m = fine.to_mesh();
     let (v, f) = remesh_core(&m.positions, &m.triangles, edge, iterations).map_err(MeshError::Message)?;
-    let arrays = stl_kernel::MeshArrays { positions: v, triangles: f };
+    let arrays = stl_kernel::MeshArrays {
+        positions: v,
+        triangles: f,
+    };
     Ok(stl_kernel::Solid::from_mesh(&arrays).unwrap_or(fine))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn cube(s: f32) -> (Vec<f32>, Vec<u32>) {
+        let v = vec![
+            0., 0., 0., s, 0., 0., s, s, 0., 0., s, 0., 0., 0., s, s, 0., s, s, s, s, 0., s, s,
+        ];
+        let f = vec![
+            0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7, 0, 1, 5, 0, 5, 4, 1, 2, 6, 1, 6, 5, 2, 3, 7, 2, 7, 6, 3, 0, 4, 3, 4, 7,
+        ];
+        (v, f)
+    }
+
+    fn watertight(f: &[u32]) -> bool {
+        let mut m: HashMap<(u32, u32), i32> = HashMap::new();
+        for t in f.chunks(3) {
+            for i in 0..3 {
+                let (a, b) = (t[i], t[(i + 1) % 3]);
+                *m.entry((a.min(b), a.max(b))).or_insert(0) += 1;
+            }
+        }
+        m.values().all(|&n| n == 2)
+    }
+
+    fn volume(v: &[f32], f: &[u32]) -> f64 {
+        let p = |i: u32| {
+            [
+                v[i as usize * 3] as f64,
+                v[i as usize * 3 + 1] as f64,
+                v[i as usize * 3 + 2] as f64,
+            ]
+        };
+        f.chunks(3)
+            .map(|t| {
+                let (a, b, c) = (p(t[0]), p(t[1]), p(t[2]));
+                (a[0] * (b[1] * c[2] - b[2] * c[1]) - a[1] * (b[0] * c[2] - b[2] * c[0])
+                    + a[2] * (b[0] * c[1] - b[1] * c[0]))
+                    / 6.0
+            })
+            .sum()
+    }
+
+    #[test]
+    fn cube_stays_closed_and_keeps_its_volume() {
+        let (v, f) = cube(10.0);
+        let (nv, nf) = remesh_core(&v, &f, 2.0, 5).unwrap();
+        assert!(nf.len() / 3 > 200, "triangles: {}", nf.len() / 3);
+        assert!(watertight(&nf));
+        assert!((volume(&nv, &nf) - 1000.0).abs() < 1e-3, "volume {}", volume(&nv, &nf));
+    }
+
+    #[test]
+    fn open_mesh_is_refused() {
+        let (v, f) = cube(10.0);
+        assert_eq!(
+            remesh_core(&v, &f[..33], 2.0, 5).unwrap_err(),
+            "Remesh needs a closed solid."
+        );
+        assert_eq!(
+            remesh_core(&v, &f, 0.0, 5).unwrap_err(),
+            "Edge length must be positive."
+        );
+    }
 }

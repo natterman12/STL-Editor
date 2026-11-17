@@ -1,7 +1,7 @@
 use serde_json::{Map, Value};
 
 use super::common::frames::{cross, dot, unit};
-use super::common::{float, plane_frame, Frame, PlaneDef, Vec3};
+use super::common::{Frame, PlaneDef, Vec3, float, plane_frame};
 use crate::{Ctx, FeatureError, FeatureResult, Registry, State};
 
 fn add(a: Vec3, b: Vec3) -> Vec3 {
@@ -71,7 +71,9 @@ fn plane_size(p: &Map<String, Value>) -> Result<f64, FeatureError> {
         Value::Number(n) => Ok(n.as_f64().unwrap_or(0.0)),
         Value::Bool(true) => Ok(1.0),
         // 1.x leaks Python's "could not convert string to float: '...'"; see EXCEPTIONS.md.
-        Value::String(s) => s.parse::<f64>().map_err(|_| FeatureError("Plane size must be a number.".into())),
+        Value::String(s) => s
+            .parse::<f64>()
+            .map_err(|_| FeatureError("Plane size must be a number.".into())),
         _ => Err(FeatureError("Plane size must be a number.".into())),
     }
 }
@@ -88,7 +90,12 @@ fn f_plane(
         "offset" => {
             let base = state.frame(p.get("base"))?;
             let d = float(p, "distance", Some(0.0))?;
-            Frame { o: add(base.o, scale(base.n, d)), x: base.x, y: base.y, n: base.n }
+            Frame {
+                o: add(base.o, scale(base.n, d)),
+                x: base.x,
+                y: base.y,
+                n: base.n,
+            }
         }
         "angle" => {
             let base = state.frame(p.get("base"))?;
@@ -103,11 +110,21 @@ fn f_plane(
             let mut fr = if axis_is_x {
                 let n2 = add(scale(base.n, a.cos()), scale(neg(base.y), a.sin()));
                 let y2 = cross(n2, base.x);
-                Frame { o: base.o, x: base.x, y: y2, n: n2 }
+                Frame {
+                    o: base.o,
+                    x: base.x,
+                    y: y2,
+                    n: n2,
+                }
             } else {
                 let n2 = add(scale(base.n, a.cos()), scale(base.x, a.sin()));
                 let x2 = cross(base.y, n2);
-                Frame { o: base.o, x: x2, y: base.y, n: n2 }
+                Frame {
+                    o: base.o,
+                    x: x2,
+                    y: base.y,
+                    n: n2,
+                }
             };
             if truthy(p.get("distance")) {
                 let d = float(p, "distance", Some(0.0))?;
@@ -147,10 +164,19 @@ fn f_plane(
         other => return Err(FeatureError(format!("Unknown plane mode {other}."))),
     };
     if truthy(p.get("flip")) {
-        fr = Frame { o: fr.o, x: fr.x, y: neg(fr.y), n: neg(fr.n) };
+        fr = Frame {
+            o: fr.o,
+            x: fr.x,
+            y: neg(fr.y),
+            n: neg(fr.n),
+        };
     }
     let mut extra = Map::new();
-    let name = p.get("name").and_then(Value::as_str).filter(|s| !s.is_empty()).unwrap_or("Plane");
+    let name = p
+        .get("name")
+        .and_then(Value::as_str)
+        .filter(|s| !s.is_empty())
+        .unwrap_or("Plane");
     extra.insert("name".into(), Value::String(name.into()));
     let size = plane_size(p)?;
     extra.insert("size".into(), Value::from(size));

@@ -53,7 +53,11 @@ fn target_dir() -> PathBuf {
     match std::env::var_os("CARGO_TARGET_DIR") {
         Some(dir) => {
             let path = PathBuf::from(dir);
-            if path.is_absolute() { path } else { rust_dir().join(path) }
+            if path.is_absolute() {
+                path
+            } else {
+                rust_dir().join(path)
+            }
         }
         None => rust_dir().join("target"),
     }
@@ -78,7 +82,14 @@ fn build(measure: bool) -> Result<PathBuf, String> {
         flags.push_str("--cfg stl_preview_measure");
     }
     let status = Command::new(&cargo)
-        .args(["build", "-p", "stl-app", "--target", "wasm32-unknown-unknown", "--release"])
+        .args([
+            "build",
+            "-p",
+            "stl-app",
+            "--target",
+            "wasm32-unknown-unknown",
+            "--release",
+        ])
         .current_dir(&rust)
         .env("RUSTFLAGS", &flags)
         .status()
@@ -107,10 +118,7 @@ fn build(measure: bool) -> Result<PathBuf, String> {
     let js_path = out.join("stl-app.js");
     let js = fs::read_to_string(&js_path).map_err(|e| format!("no stl-app.js: {e}"))?;
     if !js.contains("engine_worker") {
-        return Err(
-            "stl-app.js does not export engine_worker. The app binary dropped the web worker entry."
-                .into(),
-        );
+        return Err("stl-app.js does not export engine_worker. The app binary dropped the web worker entry.".into());
     }
     let patched = patch_start(&js)?;
     fs::write(&js_path, patched).map_err(|e| e.to_string())?;
@@ -141,10 +149,10 @@ fn patch_start(js: &str) -> Result<String, String> {
 }
 
 fn wasm_bindgen_bin() -> Result<PathBuf, String> {
-    if let Some(path) = on_path("wasm-bindgen") {
-        if version_ok(&path)? {
-            return Ok(path);
-        }
+    if let Some(path) = on_path("wasm-bindgen")
+        && version_ok(&path)?
+    {
+        return Ok(path);
     }
     let home = std::env::var("CARGO_HOME").or_else(|_| {
         std::env::var("USERPROFILE")
@@ -152,7 +160,11 @@ fn wasm_bindgen_bin() -> Result<PathBuf, String> {
             .map(|h| format!("{h}/.cargo"))
     });
     if let Ok(home) = home {
-        let name = if cfg!(windows) { "wasm-bindgen.exe" } else { "wasm-bindgen" };
+        let name = if cfg!(windows) {
+            "wasm-bindgen.exe"
+        } else {
+            "wasm-bindgen"
+        };
         let path = PathBuf::from(home).join("bin").join(name);
         if path.is_file() && version_ok(&path)? {
             return Ok(path);
@@ -161,7 +173,14 @@ fn wasm_bindgen_bin() -> Result<PathBuf, String> {
     let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".into());
     println!("web: installing wasm-bindgen-cli {BINDGEN_VERSION}");
     let status = Command::new(cargo)
-        .args(["install", "wasm-bindgen-cli", "--version", BINDGEN_VERSION, "--locked", "--force"])
+        .args([
+            "install",
+            "wasm-bindgen-cli",
+            "--version",
+            BINDGEN_VERSION,
+            "--locked",
+            "--force",
+        ])
         .status()
         .map_err(|e| format!("could not install wasm-bindgen-cli: {e}"))?;
     if !status.success() {
@@ -210,22 +229,41 @@ fn headless_check(root: &Path, webgl2: bool) -> Result<(), String> {
     let fixture_bodies = fixture_bodies(&fixture)?;
     let expect = fixture_bodies.len();
     // The block is the body named like a block (the holed block in basic.stlx), else the first.
-    let block = fixture_bodies.iter().find(|(_, n)| n.to_lowercase().contains("block")).unwrap_or(&fixture_bodies[0]).0.clone();
+    let block = fixture_bodies
+        .iter()
+        .find(|(_, n)| n.to_lowercase().contains("block"))
+        .unwrap_or(&fixture_bodies[0])
+        .0
+        .clone();
     let ids: Vec<&str> = fixture_bodies.iter().map(|(id, _)| id.as_str()).collect();
     let fixtures = fixture.parent().unwrap().to_path_buf();
     let name = fixture.file_name().and_then(|s| s.to_str()).unwrap_or("basic.stlx");
     let report = Arc::new(Mutex::new(None));
     let running = Arc::new(AtomicBool::new(true));
     let addr = serve_on(root, &fixtures, &report, &running, "127.0.0.1:0")?;
-    let url = format!("http://{addr}/?project=/fixtures/{name}&report=1&full=1&bodies={}&block={block}", ids.join(","));
-    println!("web: checking {url} (engine bodies: {expect}: {}; block: {block})", describe(&fixture_bodies));
+    let url = format!(
+        "http://{addr}/?project=/fixtures/{name}&report=1&full=1&bodies={}&block={block}",
+        ids.join(",")
+    );
+    println!(
+        "web: checking {url} (engine bodies: {expect}: {}; block: {block})",
+        describe(&fixture_bodies)
+    );
     let chrome = find_chrome()?;
-    let profile = std::env::temp_dir().join(if webgl2 { "stl-editor-web-check-webgl2" } else { "stl-editor-web-check" });
+    let profile = std::env::temp_dir().join(if webgl2 {
+        "stl-editor-web-check-webgl2"
+    } else {
+        "stl-editor-web-check"
+    });
     let _ = fs::create_dir_all(&profile);
     // WebGL2 mode: `--disable-features=WebGPU` alone leaves `navigator.gpu` in Chrome 157. With the GPU off
     // (software WebGL via SwiftShader) `requestAdapter()` finds nothing and wgpu falls back to GL.
     let gpu_flags: &[&str] = if webgl2 {
-        &["--disable-features=WebGPU", "--disable-gpu", "--enable-unsafe-swiftshader"]
+        &[
+            "--disable-features=WebGPU",
+            "--disable-gpu",
+            "--enable-unsafe-swiftshader",
+        ]
     } else {
         &["--enable-unsafe-webgpu", "--enable-features=WebGPU"]
     };
@@ -253,7 +291,9 @@ fn headless_check(root: &Path, webgl2: bool) -> Result<(), String> {
         }
         if let Some(status) = child.try_wait().map_err(|e| e.to_string())? {
             running.store(false, Ordering::SeqCst);
-            return Err(format!("chrome exited ({status}) before the page reported a body count"));
+            return Err(format!(
+                "chrome exited ({status}) before the page reported a body count"
+            ));
         }
         thread::sleep(Duration::from_millis(200));
     }
@@ -267,7 +307,10 @@ fn headless_check(root: &Path, webgl2: bool) -> Result<(), String> {
         return Err(format!("the page reported: {err}"));
     }
     let (count, status) = text.split_once('|').unwrap_or((text.as_str(), ""));
-    let n: usize = count.trim().parse().map_err(|_| format!("the browser tree showed {count:?}, not a count"))?;
+    let n: usize = count
+        .trim()
+        .parse()
+        .map_err(|_| format!("the browser tree showed {count:?}, not a count"))?;
     if n != expect {
         return Err(format!("browser tree shows {n} bodies, the fixture has {expect}"));
     }
@@ -281,27 +324,43 @@ fn headless_check(root: &Path, webgl2: bool) -> Result<(), String> {
     let details = parts.next().unwrap_or("");
     let want = if webgl2 { "Gl" } else { "BrowserWebGpu" };
     if backend != want {
-        return Err(format!("the viewport ran on {backend:?}, expected {want:?}{}", if webgl2 { "" } else { " (does this Chrome have WebGPU?)" }));
+        return Err(format!(
+            "the viewport ran on {backend:?}, expected {want:?}{}",
+            if webgl2 { "" } else { " (does this Chrome have WebGPU?)" }
+        ));
     }
     if !details.contains(&format!("block={block}@centre")) {
-        return Err(format!("the page did not report a pick at the centre of the block {block} that hit it: {details:?}"));
+        return Err(format!(
+            "the page did not report a pick at the centre of the block {block} that hit it: {details:?}"
+        ));
     }
     if !details.contains("section differs in") {
-        return Err(format!("the page did not report the section view readback: {details:?}"));
+        return Err(format!(
+            "the page did not report the section view readback: {details:?}"
+        ));
     }
     println!("web: backend {backend}; {details}");
     Ok(())
 }
 
 fn describe(bodies: &[(String, String)]) -> String {
-    bodies.iter().map(|(id, name)| format!("{id}={name}")).collect::<Vec<_>>().join(", ")
+    bodies
+        .iter()
+        .map(|(id, name)| format!("{id}={name}"))
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 /// The fixture's body ids and names, in order.
 fn fixture_bodies(path: &Path) -> Result<Vec<(String, String)>, String> {
     let bytes = fs::read(path).map_err(|e| format!("could not read {}: {e}", path.display()))?;
     let doc = stl_engine::stlx::from_bytes(&bytes, stl_engine::Registry::builtin()).map_err(|e| e.0)?;
-    let bodies: Vec<(String, String)> = doc.state.bodies.iter().map(|(id, b)| (id.clone(), b.name.clone())).collect();
+    let bodies: Vec<(String, String)> = doc
+        .state
+        .bodies
+        .iter()
+        .map(|(id, b)| (id.clone(), b.name.clone()))
+        .collect();
     if bodies.is_empty() {
         return Err(format!("{} has no bodies", path.display()));
     }
@@ -327,7 +386,11 @@ fn fixture_dir() -> Result<PathBuf, String> {
 
 fn first_stlx(dir: &Path) -> Option<PathBuf> {
     let rd = fs::read_dir(dir).ok()?;
-    let mut names: Vec<PathBuf> = rd.filter_map(|e| e.ok()).map(|e| e.path()).filter(|p| p.extension().is_some_and(|x| x == "stlx")).collect();
+    let mut names: Vec<PathBuf> = rd
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|p| p.extension().is_some_and(|x| x == "stlx"))
+        .collect();
     names.sort();
     names.into_iter().next()
 }
@@ -424,7 +487,11 @@ fn handle(mut sock: TcpStream, root: &Path, fixtures: &Path, report: &Mutex<Opti
             Some(fixtures.join(name))
         }
     } else {
-        let rel = if path == "/" { "index.html" } else { path.trim_start_matches('/') };
+        let rel = if path == "/" {
+            "index.html"
+        } else {
+            path.trim_start_matches('/')
+        };
         if rel.contains("..") { None } else { Some(root.join(rel)) }
     };
     let Some(file) = file.filter(|p| p.is_file()) else {
@@ -660,7 +727,14 @@ fn find_chrome() -> Result<PathBuf, String> {
             return Ok(path);
         }
     }
-    for name in ["chrome", "chrome.exe", "google-chrome", "google-chrome-stable", "msedge", "msedge.exe"] {
+    for name in [
+        "chrome",
+        "chrome.exe",
+        "google-chrome",
+        "google-chrome-stable",
+        "msedge",
+        "msedge.exe",
+    ] {
         if let Some(path) = on_path(name) {
             return Ok(path);
         }

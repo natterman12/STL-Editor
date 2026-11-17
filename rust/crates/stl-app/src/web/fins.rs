@@ -1,6 +1,6 @@
 //! Support Fins in the browser: `globalThis.SupportFinsEngine` (same convention as 1.x web).
 
-use js_sys::{Function, Reflect, JSON};
+use js_sys::{Function, JSON, Reflect};
 use stl_engine::{FinsHost, HostKind};
 use wasm_bindgen::{JsCast, JsValue};
 

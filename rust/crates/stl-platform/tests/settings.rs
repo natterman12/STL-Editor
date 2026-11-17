@@ -5,9 +5,9 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use stl_platform::paths;
-use stl_platform::settings::{keys, log_file, Settings};
+use stl_platform::settings::{Settings, keys, log_file};
 
 static ENV: Mutex<()> = Mutex::new(());
 
@@ -42,14 +42,24 @@ fn fins_engines_and_log_in_own_folders() {
     assert_eq!(stl_platform::fins::engines_dir(), d.join("support-fins"));
     assert_eq!(log_file(), d.join("data").join("log.txt"));
     // the engine check writes its timestamp through the same merged settings.json
-    Settings::open(&paths::config_dir()).set(keys::THEME, json!("dark")).unwrap();
+    Settings::open(&paths::config_dir())
+        .set(keys::THEME, json!("dark"))
+        .unwrap();
     let files = names(&d);
     assert_eq!(files, vec!["settings.json".to_string()]);
     unsafe { std::env::remove_var("STLEDITOR2_CONFIG_DIR") };
     // and without the override: still 2.0's folders, never 1.x's
     for p in [stl_platform::fins::engines_dir(), log_file()] {
-        assert!(p.components().any(|c| c.as_os_str() == "STL Editor 2"), "{}", p.display());
-        assert!(!p.components().any(|c| c.as_os_str() == "STL Editor"), "{}", p.display());
+        assert!(
+            p.components().any(|c| c.as_os_str() == "STL Editor 2"),
+            "{}",
+            p.display()
+        );
+        assert!(
+            !p.components().any(|c| c.as_os_str() == "STL Editor"),
+            "{}",
+            p.display()
+        );
     }
 }
 
@@ -135,12 +145,22 @@ fn corrupt_settings_kept_aside() {
     let s = Settings::open(&d);
     // defaults, and the bad file is kept aside but not touched
     assert_eq!(s.get("theme"), None);
-    assert_eq!(std::fs::read_to_string(d.join("settings.json.bad")).unwrap(), "{ not json, but the user's");
-    assert_eq!(std::fs::read_to_string(&file).unwrap(), "{ not json, but the user's", "not overwritten by a read");
+    assert_eq!(
+        std::fs::read_to_string(d.join("settings.json.bad")).unwrap(),
+        "{ not json, but the user's"
+    );
+    assert_eq!(
+        std::fs::read_to_string(&file).unwrap(),
+        "{ not json, but the user's",
+        "not overwritten by a read"
+    );
     // the next change writes a fresh file; the .bad copy stays
     s.set("theme", json!("dark")).unwrap();
     assert_eq!(Settings::open(&d).get("theme"), Some(json!("dark")));
-    assert_eq!(std::fs::read_to_string(d.join("settings.json.bad")).unwrap(), "{ not json, but the user's");
+    assert_eq!(
+        std::fs::read_to_string(d.join("settings.json.bad")).unwrap(),
+        "{ not json, but the user's"
+    );
     // an array is not a settings object either
     std::fs::write(&file, "[1,2]").unwrap();
     assert_eq!(s.get("theme"), None);
@@ -160,20 +180,30 @@ fn first_bad_copy_is_kept_until_the_file_is_rewritten() {
     // a later read of the same bad file, even through a set that fails to change it, keeps it
     std::fs::write(d.join("settings.json.bad"), "kept copy").unwrap();
     assert_eq!(s.get("a"), None);
-    assert_eq!(std::fs::read_to_string(d.join("settings.json.bad")).unwrap(), "kept copy", "not overwritten by a later read");
+    assert_eq!(
+        std::fs::read_to_string(d.join("settings.json.bad")).unwrap(),
+        "kept copy",
+        "not overwritten by a later read"
+    );
     // once settings.json has been replaced and goes bad again, the new bad file is kept
     s.set("a", json!(1)).unwrap();
     std::thread::sleep(std::time::Duration::from_millis(50));
     std::fs::write(&file, "second {").unwrap();
     assert_eq!(s.get("a"), None);
-    assert_eq!(std::fs::read_to_string(d.join("settings.json.bad")).unwrap(), "second {");
+    assert_eq!(
+        std::fs::read_to_string(d.join("settings.json.bad")).unwrap(),
+        "second {"
+    );
 }
 
 /// Re-run by `two_processes_merge` with the folder and an id in the environment: writes many
 /// keys of its own. Does nothing in a normal run.
 #[test]
 fn child_writer() {
-    let (Some(dir), Some(id)) = (std::env::var_os("STLE2_SETTINGS_CHILD_DIR"), std::env::var_os("STLE2_SETTINGS_CHILD_ID")) else {
+    let (Some(dir), Some(id)) = (
+        std::env::var_os("STLE2_SETTINGS_CHILD_DIR"),
+        std::env::var_os("STLE2_SETTINGS_CHILD_ID"),
+    ) else {
         return;
     };
     let s = Settings::open(Path::new(&dir));

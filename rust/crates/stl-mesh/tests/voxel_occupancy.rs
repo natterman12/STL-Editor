@@ -19,20 +19,17 @@ fn voxel_golden() -> Value {
 /// FIPS 180-4 SHA-256 for checking size-limited boolean grids in `voxel_golden.json`.
 fn sha256_hex(message: &[u8]) -> String {
     const K: [u32; 64] = [
-        0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4,
-        0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe,
-        0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f,
-        0x4a7484aa, 0x5cb0a9dc, 0x76f988da, 0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7,
-        0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc,
-        0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b,
-        0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070, 0x19a4c116,
-        0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
-        0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7,
+        0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98,
+        0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786,
+        0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da, 0x983e5152, 0xa831c66d, 0xb00327c8,
+        0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
+        0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819,
+        0xd6990624, 0xf40e3585, 0x106aa070, 0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a,
+        0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7,
         0xc67178f2,
     ];
     let mut h: [u32; 8] = [
-        0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab,
-        0x5be0cd19,
+        0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
     ];
     let mut data = message.to_vec();
     data.push(0x80);
@@ -54,7 +51,11 @@ fn sha256_hex(message: &[u8]) -> String {
         for i in 0..64 {
             let s1 = v[4].rotate_right(6) ^ v[4].rotate_right(11) ^ v[4].rotate_right(25);
             let ch = (v[4] & v[5]) ^ (!v[4] & v[6]);
-            let t1 = v[7].wrapping_add(s1).wrapping_add(ch).wrapping_add(K[i]).wrapping_add(w[i]);
+            let t1 = v[7]
+                .wrapping_add(s1)
+                .wrapping_add(ch)
+                .wrapping_add(K[i])
+                .wrapping_add(w[i]);
             let s0 = v[0].rotate_right(2) ^ v[0].rotate_right(13) ^ v[0].rotate_right(22);
             let maj = (v[0] & v[1]) ^ (v[0] & v[2]) ^ (v[1] & v[2]);
             let t2 = s0.wrapping_add(maj);
@@ -102,12 +103,24 @@ fn read_stl_soup(name: &str) -> (Vec<[f64; 3]>, Vec<[u32; 3]>) {
 
 fn shape(v: &Value) -> [usize; 3] {
     let s = v.as_array().expect("shape");
-    [s[0].as_u64().unwrap() as usize, s[1].as_u64().unwrap() as usize, s[2].as_u64().unwrap() as usize]
+    [
+        s[0].as_u64().unwrap() as usize,
+        s[1].as_u64().unwrap() as usize,
+        s[2].as_u64().unwrap() as usize,
+    ]
 }
 
 fn grid_from(v: &Value) -> Grid3<bool> {
-    let data = v["data"].as_array().expect("inline grid").iter().map(|b| b.as_bool().unwrap()).collect();
-    Grid3 { n: shape(&v["shape"]), data }
+    let data = v["data"]
+        .as_array()
+        .expect("inline grid")
+        .iter()
+        .map(|b| b.as_bool().unwrap())
+        .collect();
+    Grid3 {
+        n: shape(&v["shape"]),
+        data,
+    }
 }
 
 fn check_grid_against(case: &str, got: &Grid3<bool>, want: &Value) {
@@ -168,7 +181,10 @@ fn mesh_occupancy_matches_golden() {
 struct Lcg(u64);
 impl Lcg {
     fn next(&mut self) -> f64 {
-        self.0 = self.0.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        self.0 = self
+            .0
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
         ((self.0 >> 11) as f64) / ((1u64 << 53) as f64)
     }
     fn point(&mut self, s: f64) -> [f64; 3] {
@@ -210,13 +226,40 @@ fn mesh_occupancy_closes_lid_hole() {
     }
     verts.extend([[4.0, 4.0, 10.0], [6.0, 4.0, 10.0], [4.0, 6.0, 10.0], [6.0, 6.0, 10.0]]);
     let faces: Vec<[u32; 3]> = vec![
-        [4, 5, 9], [4, 9, 8], [5, 7, 11], [5, 11, 9], [7, 6, 10], [7, 10, 11], [6, 4, 8], [6, 8, 10],
-        [0, 2, 1], [1, 2, 3], [0, 1, 5], [0, 5, 4], [1, 3, 7], [1, 7, 5], [3, 2, 6], [3, 6, 7],
-        [2, 0, 4], [2, 4, 6],
+        [4, 5, 9],
+        [4, 9, 8],
+        [5, 7, 11],
+        [5, 11, 9],
+        [7, 6, 10],
+        [7, 10, 11],
+        [6, 4, 8],
+        [6, 8, 10],
+        [0, 2, 1],
+        [1, 2, 3],
+        [0, 1, 5],
+        [0, 5, 4],
+        [1, 3, 7],
+        [1, 7, 5],
+        [3, 2, 6],
+        [3, 6, 7],
+        [2, 0, 4],
+        [2, 4, 6],
     ];
     let cases = [
-        (1.0, 35usize, 1330usize, "57321b9493bfe0f4765ce845b35db511a483b18aa48df96c7c3eb281c8381a39", -12.0),
-        (0.5, 45, 9251, "48deca0131b39f5cdbfa497c08d41f7a0ccbb20533a752331d35c2edc768b606", -6.0),
+        (
+            1.0,
+            35usize,
+            1330usize,
+            "57321b9493bfe0f4765ce845b35db511a483b18aa48df96c7c3eb281c8381a39",
+            -12.0,
+        ),
+        (
+            0.5,
+            45,
+            9251,
+            "48deca0131b39f5cdbfa497c08d41f7a0ccbb20533a752331d35c2edc768b606",
+            -6.0,
+        ),
     ];
     for (pitch, n, count, sha, o) in cases {
         let (occ, origin) = mesh_occupancy(&verts, &faces, pitch).unwrap();
@@ -231,7 +274,10 @@ fn mesh_occupancy_closes_lid_hole() {
 #[test]
 fn morphology_zero_iterations_runs_to_fixpoint() {
     // 1x1x5 line in a 5x1x5 grid: dilation to a fixpoint fills everything; erosion empties it.
-    let mut g = Grid3 { n: [5, 1, 5], data: vec![false; 25] };
+    let mut g = Grid3 {
+        n: [5, 1, 5],
+        data: vec![false; 25],
+    };
     let c = g.idx(2, 0, 2);
     g.data[c] = true;
     assert!(binary_dilation(&g, 0).unwrap().data.iter().all(|&b| b));

@@ -35,7 +35,10 @@ pub(crate) fn to_solid(v: &[f64], f: &[u32]) -> Option<Solid> {
     if f.is_empty() {
         return None;
     }
-    let m = MeshArrays { positions: v.iter().map(|&x| x as f32).collect(), triangles: f.to_vec() };
+    let m = MeshArrays {
+        positions: v.iter().map(|&x| x as f32).collect(),
+        triangles: f.to_vec(),
+    };
     Solid::from_mesh(&m).ok()
 }
 
@@ -153,7 +156,11 @@ pub(crate) fn tri_cross(v: &[f64], t: &[u32]) -> [f64; 3] {
     let (p0, p1, p2) = (point(v, t[0]), point(v, t[1]), point(v, t[2]));
     let a = [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]];
     let b = [p2[0] - p1[0], p2[1] - p1[1], p2[2] - p1[2]];
-    [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]
+    [
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    ]
 }
 
 /// The volume trimesh's `mass_properties` gives for the listed faces (all of them for `None`):
@@ -182,7 +189,11 @@ pub(crate) struct Graph {
 impl Graph {
     /// `nx.from_edgelist`.
     pub fn from_edges(edges: impl IntoIterator<Item = (u32, u32)>) -> Graph {
-        let mut g = Graph { nodes: Vec::new(), slot: HashMap::new(), adj: Vec::new() };
+        let mut g = Graph {
+            nodes: Vec::new(),
+            slot: HashMap::new(),
+            adj: Vec::new(),
+        };
         for (u, w) in edges {
             let su = g.add_node(u);
             let sw = g.add_node(w);

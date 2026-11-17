@@ -15,20 +15,66 @@ const PETG: f64 = 1.27;
 /// warning colour ("No — run Repair"). `None` when `info` is no body's record.
 pub fn info_rows(info: &Value, inch: bool) -> Option<(String, Vec<(Row, bool)>)> {
     let f = |k: &str| info.get(k).and_then(Value::as_f64);
-    let size = info.get("size")?.as_array()?.iter().map(|v| v.as_f64().unwrap_or(0.0)).collect::<Vec<_>>();
+    let size = info
+        .get("size")?
+        .as_array()?
+        .iter()
+        .map(|v| v.as_f64().unwrap_or(0.0))
+        .collect::<Vec<_>>();
     let name = info.get("name").and_then(Value::as_str).unwrap_or("").to_owned();
     let solid = info.get("solid").and_then(Value::as_bool).unwrap_or(false);
     let area = f("area").unwrap_or(0.0);
     let unit = unit_name(inch);
     let mut rows = vec![
-        (Row::new("Watertight", if solid { "✔ Yes" } else { "No — run Repair" }), !solid),
-        (Row::new("Size (X×Y×Z)", format!("{} {unit}", size.iter().map(|v| fmt_len(*v, Some(3), inch)).collect::<Vec<_>>().join(" × "))), false),
-        (Row::new("Triangles", with_commas(info.get("triangles").and_then(Value::as_u64).unwrap_or(0))), false),
-        (Row::new("Surface area", if inch { format!("{} in²", num3(area / 645.16)) } else { format!("{} cm²", num3(area / 100.0)) }), false),
+        (
+            Row::new("Watertight", if solid { "✔ Yes" } else { "No — run Repair" }),
+            !solid,
+        ),
+        (
+            Row::new(
+                "Size (X×Y×Z)",
+                format!(
+                    "{} {unit}",
+                    size.iter()
+                        .map(|v| fmt_len(*v, Some(3), inch))
+                        .collect::<Vec<_>>()
+                        .join(" × ")
+                ),
+            ),
+            false,
+        ),
+        (
+            Row::new(
+                "Triangles",
+                with_commas(info.get("triangles").and_then(Value::as_u64).unwrap_or(0)),
+            ),
+            false,
+        ),
+        (
+            Row::new(
+                "Surface area",
+                if inch {
+                    format!("{} in²", num3(area / 645.16))
+                } else {
+                    format!("{} cm²", num3(area / 100.0))
+                },
+            ),
+            false,
+        ),
     ];
     if let Some(volume) = f("volume") {
         let cm3 = volume / 1000.0;
-        rows.push((Row::new("Volume", if inch { format!("{} in³", num3(volume / 16387.064)) } else { format!("{} cm³", num3(cm3)) }), false));
+        rows.push((
+            Row::new(
+                "Volume",
+                if inch {
+                    format!("{} in³", num3(volume / 16387.064))
+                } else {
+                    format!("{} cm³", num3(cm3))
+                },
+            ),
+            false,
+        ));
         rows.push((Row::new("Weight (PLA)", format!("{} g", num3(cm3 * PLA))), false));
         rows.push((Row::new("Weight (PETG)", format!("{} g", num3(cm3 * PETG))), false));
         let genus = info.get("genus").and_then(Value::as_i64).unwrap_or(-1);
@@ -37,7 +83,16 @@ pub fn info_rows(info: &Value, inch: bool) -> Option<(String, Vec<(Row, bool)>)>
         }
     }
     if let Some(b) = info.get("bbox").and_then(Value::as_array).filter(|b| b.len() == 2) {
-        let corner = |c: &Value| c.as_array().map(|a| a.iter().map(|v| fmt_len(v.as_f64().unwrap_or(0.0), None, inch)).collect::<Vec<_>>().join(", ")).unwrap_or_default();
+        let corner = |c: &Value| {
+            c.as_array()
+                .map(|a| {
+                    a.iter()
+                        .map(|v| fmt_len(v.as_f64().unwrap_or(0.0), None, inch))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                })
+                .unwrap_or_default()
+        };
         rows.push((Row::new("Bounds min", corner(&b[0])), false));
         rows.push((Row::new("Bounds max", corner(&b[1])), false));
     }
@@ -49,7 +104,7 @@ fn with_commas(n: u64) -> String {
     let s = n.to_string();
     let mut out = String::new();
     for (i, c) in s.chars().enumerate() {
-        if i > 0 && (s.len() - i) % 3 == 0 {
+        if i > 0 && (s.len() - i).is_multiple_of(3) {
             out.push(',');
         }
         out.push(c);
@@ -60,16 +115,32 @@ fn with_commas(n: u64) -> String {
 /// The Properties panel; `info` is the engine's answer for the body shown, if there is one.
 pub fn show(ctx: &egui::Context, tk: &Tokens, ws: Rect, info: Option<&Value>, inch: bool) -> PanelAct {
     let shown = info.and_then(|i| info_rows(i, inch));
-    measure_panel::frame(ctx, tk, ws, "info-panel", "Properties", "info", "Close", |ui| match &shown {
-        None => measure_panel::note(ui, tk, "Click a body to see its size, volume and triangle count."),
-        Some((name, rows)) => {
-            measure_panel::section_label(ui, tk, name);
-            for (r, warn) in rows {
-                measure_panel::value_row(ui, tk, &r.label, &r.value, r.bold, if *warn { tk.warn_text } else { tk.text });
-                ui.add_space(6.0);
+    measure_panel::frame(
+        ctx,
+        tk,
+        ws,
+        "info-panel",
+        "Properties",
+        "info",
+        "Close",
+        |ui| match &shown {
+            None => measure_panel::note(ui, tk, "Click a body to see its size, volume and triangle count."),
+            Some((name, rows)) => {
+                measure_panel::section_label(ui, tk, name);
+                for (r, warn) in rows {
+                    measure_panel::value_row(
+                        ui,
+                        tk,
+                        &r.label,
+                        &r.value,
+                        r.bold,
+                        if *warn { tk.warn_text } else { tk.text },
+                    );
+                    ui.add_space(6.0);
+                }
             }
-        }
-    })
+        },
+    )
 }
 
 #[cfg(test)]
@@ -82,7 +153,10 @@ mod tests {
     }
 
     fn get(rows: &[(Row, bool)], label: &str) -> String {
-        rows.iter().find(|(r, _)| r.label == label).map(|(r, _)| r.value.clone()).unwrap_or_else(|| format!("(no {label} row)"))
+        rows.iter()
+            .find(|(r, _)| r.label == label)
+            .map(|(r, _)| r.value.clone())
+            .unwrap_or_else(|| format!("(no {label} row)"))
     }
 
     #[test]

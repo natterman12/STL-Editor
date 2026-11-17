@@ -40,7 +40,10 @@ fn one_x_dirs(profile: &Path) -> (PathBuf, PathBuf) {
         let d = profile.join("Library").join("Application Support");
         (d.clone(), d)
     } else {
-        (profile.join("AppData").join("Roaming"), profile.join("AppData").join("Local"))
+        (
+            profile.join("AppData").join("Roaming"),
+            profile.join("AppData").join("Local"),
+        )
     };
     (roaming.join("STL Editor"), local.join("STL Editor"))
 }
@@ -98,11 +101,26 @@ fn make_1x(profile: &Path) -> (PathBuf, PathBuf) {
         config.join("settings.json"),
         br#"{"recent": ["C:\\parts\\old.stlx"], "last_dir": "C:\\parts", "update_repo": "natterman12/STL-Editor", "update_skip": "1.12.0", "update_check": true}"#,
     );
-    w(config.join("support-fins").join("engine.js"), b"// 1.x's downloaded Support Fins engine\n");
+    w(
+        config.join("support-fins").join("engine.js"),
+        b"// 1.x's downloaded Support Fins engine\n",
+    );
     w(data.join("log.txt"), b"1.x started\n1.x closed normally\n");
-    w(data.join("autosave").join("19700101-aaaa").join("document.json"), br#"{"title":"1.x work","count":3}"#);
-    w(data.join("autosave").join("19700101-aaaa").join("sources").join("s1.stl"), b"solid 1.x\nendsolid\n");
-    w(data.join("webview").join("Default").join("Local State"), &[0, 1, 2, 3, 255, 254]);
+    w(
+        data.join("autosave").join("19700101-aaaa").join("document.json"),
+        br#"{"title":"1.x work","count":3}"#,
+    );
+    w(
+        data.join("autosave")
+            .join("19700101-aaaa")
+            .join("sources")
+            .join("s1.stl"),
+        b"solid 1.x\nendsolid\n",
+    );
+    w(
+        data.join("webview").join("Default").join("Local State"),
+        &[0, 1, 2, 3, 255, 254],
+    );
     (config, data)
 }
 
@@ -118,20 +136,42 @@ fn leaves_1x_alone() {
     std::thread::sleep(Duration::from_millis(30));
 
     let mut child = Command::new(std::env::current_exe().unwrap());
-    child.args(["--exact", "child_runs_every_platform_feature", "--nocapture", "--test-threads=1"]).env(PROFILE_VAR, &profile);
+    child
+        .args([
+            "--exact",
+            "child_runs_every_platform_feature",
+            "--nocapture",
+            "--test-threads=1",
+        ])
+        .env(PROFILE_VAR, &profile);
     profile_env(&mut child, &profile);
     let out = child.output().unwrap();
-    let text = format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+    let text = format!(
+        "{}{}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
     assert!(out.status.success(), "the child run failed:\n{text}");
     assert!(text.contains("1 passed"), "the child test did not run:\n{text}");
 
     // 2.0 wrote to its own folders (so the child really ran in this profile) ...
     let roaming = config.parent().unwrap();
-    assert!(roaming.join("STL Editor 2").join("settings.json").is_file(), "2.0's settings are in its own folder: {text}");
+    assert!(
+        roaming.join("STL Editor 2").join("settings.json").is_file(),
+        "2.0's settings are in its own folder: {text}"
+    );
     // ... and 1.x's are exactly as they were
     let after = (snapshot(&config), snapshot(&data));
-    assert_eq!(before.0.keys().collect::<Vec<_>>(), after.0.keys().collect::<Vec<_>>(), "no file or folder appeared or went in 1.x's settings folder");
-    assert_eq!(before.1.keys().collect::<Vec<_>>(), after.1.keys().collect::<Vec<_>>(), "no file or folder appeared or went in 1.x's data folder");
+    assert_eq!(
+        before.0.keys().collect::<Vec<_>>(),
+        after.0.keys().collect::<Vec<_>>(),
+        "no file or folder appeared or went in 1.x's settings folder"
+    );
+    assert_eq!(
+        before.1.keys().collect::<Vec<_>>(),
+        after.1.keys().collect::<Vec<_>>(),
+        "no file or folder appeared or went in 1.x's data folder"
+    );
     assert_eq!(before.0, after.0, "1.x's settings folder is byte for byte as it was");
     assert_eq!(before.1, after.1, "1.x's data folder is byte for byte as it was");
     let _ = std::fs::remove_dir_all(&profile);
@@ -151,12 +191,17 @@ fn poll<T>(p: &Pending<T>) -> T {
 /// The work: runs only as the parent's child, in the temp profile.
 #[test]
 fn child_runs_every_platform_feature() {
-    let Some(profile) = std::env::var_os(PROFILE_VAR).map(PathBuf::from) else { return };
+    let Some(profile) = std::env::var_os(PROFILE_VAR).map(PathBuf::from) else {
+        return;
+    };
     let (config_1x, data_1x) = one_x_dirs(&profile);
     // 2.0's defaults must be 2.0's own folders, below the temp profile
     let config = stl_platform::paths::config_dir();
     let data = stl_platform::paths::data_dir();
-    assert!(config.starts_with(&profile) && data.starts_with(&profile), "2.0's folders are in the temp profile: {config:?} {data:?}");
+    assert!(
+        config.starts_with(&profile) && data.starts_with(&profile),
+        "2.0's folders are in the temp profile: {config:?} {data:?}"
+    );
     assert_eq!(config.file_name().unwrap(), "STL Editor 2");
     assert_ne!(config, config_1x);
     assert_ne!(data, data_1x);
@@ -171,15 +216,29 @@ fn child_runs_every_platform_feature() {
     platform.set_setting_json("update_skip", json!("2.0.9"));
     platform.set_setting("stle_sf_material", "PETG");
     assert_eq!(platform.setting_json("recent"), Some(json!([part.to_string_lossy()])));
-    assert_eq!(poll(&platform.read_path(&part.to_string_lossy())).unwrap().bytes, b"PROJECT");
+    assert_eq!(
+        poll(&platform.read_path(&part.to_string_lossy())).unwrap().bytes,
+        b"PROJECT"
+    );
     assert!(poll(&platform.read_path(&profile.join("gone.stlx").to_string_lossy())).is_err());
 
     // autosave: write, list as recoverable, load, discard (the default root: data_dir()/autosave)
     let link = NativeLink::new();
     let bytes = std::fs::read(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/projects/basic.stlx")).unwrap();
-    link.send(Cmd::Open { name: "basic.stlx".into(), bytes });
-    link.send(Cmd::AddFeature { kind: "primitive".into(), params: json!({"shape": "box", "size": [4.0, 4.0, 4.0]}), index: None, name: None });
-    link.send(Cmd::Autosave { path: None, title: Some("two".into()) });
+    link.send(Cmd::Open {
+        name: "basic.stlx".into(),
+        bytes,
+    });
+    link.send(Cmd::AddFeature {
+        kind: "primitive".into(),
+        params: json!({"shape": "box", "size": [4.0, 4.0, 4.0]}),
+        index: None,
+        name: None,
+    });
+    link.send(Cmd::Autosave {
+        path: None,
+        title: Some("two".into()),
+    });
     let end = Instant::now() + Duration::from_secs(120);
     while link.is_busy() {
         assert!(Instant::now() < end, "the engine never went idle");
@@ -199,8 +258,14 @@ fn child_runs_every_platform_feature() {
     assert!(poll(&store.load(&id)).is_ok());
     // a second copy, discarded by the user
     let link = NativeLink::new();
-    link.send(Cmd::Import { name: "x.stl".into(), bytes: b"solid x\nendsolid x\n".to_vec() });
-    link.send(Cmd::Autosave { path: None, title: None });
+    link.send(Cmd::Import {
+        name: "x.stl".into(),
+        bytes: b"solid x\nendsolid x\n".to_vec(),
+    });
+    link.send(Cmd::Autosave {
+        path: None,
+        title: None,
+    });
     while link.is_busy() {
         std::thread::sleep(Duration::from_millis(5));
     }
@@ -213,7 +278,12 @@ fn child_runs_every_platform_feature() {
     let rel = json!([{ "tag_name": "v2.0.1", "draft": false, "body": "What changed",
         "assets": [{ "name": ASSET_NAME, "browser_download_url": "https://github.com/natterman12/STL-Editor/releases/download/v2.0.1/x", "size": 10 }] }]);
     let srv = FakeReleases::start(rel, vec![], Faults::default());
-    let mut u = Updates::custom(&format!("{}/releases", srv.base_url()), "2.0.0", None, data.join("windows"));
+    let mut u = Updates::custom(
+        &format!("{}/releases", srv.base_url()),
+        "2.0.0",
+        None,
+        data.join("windows"),
+    );
     u.check_now(&platform, 1_800_000_000.0);
     let end = Instant::now() + Duration::from_secs(20);
     let mut actions: Vec<UpdateAction> = Vec::new();
@@ -223,7 +293,11 @@ fn child_runs_every_platform_feature() {
         std::thread::sleep(Duration::from_millis(10));
     }
     actions.extend(u.poll(&platform, 1_800_000_000.0));
-    assert_eq!(u.banner().map(|b| b.title), Some("STL Editor 2.0.1 is available".to_string()), "{actions:?}");
+    assert_eq!(
+        u.banner().map(|b| b.title),
+        Some("STL Editor 2.0.1 is available".to_string()),
+        "{actions:?}"
+    );
     assert!(u.press(stl_app::updates::BannerButton::Skip, &platform).is_none());
     assert_eq!(platform.setting_json("update_skip"), Some(json!("2.0.1")));
 }

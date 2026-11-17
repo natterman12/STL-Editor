@@ -1,13 +1,13 @@
 //! Coverage Web Worker glue (wasm32): same contract as `web/js/sfcoverage.worker.js`.
 
 #[cfg(target_arch = "wasm32")]
+use crate::supports::coverage::{CoverageInput, CoverageOutput, compute};
+#[cfg(target_arch = "wasm32")]
 use js_sys::{Array, Float32Array, Object, Reflect, Uint32Array};
 #[cfg(target_arch = "wasm32")]
-use crate::supports::coverage::{compute, CoverageInput, CoverageOutput};
+use wasm_bindgen::JsCast;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen::JsCast;
 
 /// Worker entry (`onmessage` in `coverage_worker.js`).
 #[cfg(target_arch = "wasm32")]
@@ -27,9 +27,9 @@ pub fn coverage_worker_entry() {
         let args = Reflect::get(obj, &JsValue::from_str("args")).unwrap_or(JsValue::NULL);
         let out_obj = Object::new();
         let _ = Reflect::set(&out_obj, &JsValue::from_str("seq"), &JsValue::from_f64(seq as f64));
-        match parse_args(&args).and_then(|a| {
+        match parse_args(&args).map(|a| {
             let out = compute(&a);
-            Ok(post_out(&out))
+            post_out(&out)
         }) {
             Ok(out) => {
                 let _ = Reflect::set(&out_obj, &JsValue::from_str("out"), &out);
@@ -49,9 +49,9 @@ fn parse_args(v: &JsValue) -> Result<CoverageInput, String> {
     let o = v
         .dyn_ref::<Object>()
         .ok_or_else(|| "coverage args must be an object".to_string())?;
-    let pos = f32_arr(Reflect::get(o, &JsValue::from_str("pos")).map_err(|e| err_str(e))?)?;
-    let idx = u32_arr(Reflect::get(o, &JsValue::from_str("idx")).map_err(|e| err_str(e))?)?;
-    let over = u32_vec(Reflect::get(o, &JsValue::from_str("over")).map_err(|e| err_str(e))?)?;
+    let pos = f32_arr(Reflect::get(o, &JsValue::from_str("pos")).map_err(err_str)?)?;
+    let idx = u32_arr(Reflect::get(o, &JsValue::from_str("idx")).map_err(err_str)?)?;
+    let over = u32_vec(Reflect::get(o, &JsValue::from_str("over")).map_err(err_str)?)?;
     let gap = Reflect::get(o, &JsValue::from_str("gap"))
         .ok()
         .and_then(|v| v.as_f64())

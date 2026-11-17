@@ -46,10 +46,13 @@ impl StlApp {
     }
 
     /// The body menu's Convert to STEP: that body.
+    // "to STEP" is the tool's name here, not a conversion of `self`
+    #[allow(clippy::wrong_self_convention)]
     pub(super) fn to_step_body(&mut self, id: &str) {
         self.to_step_of(Some(id.to_owned()));
     }
 
+    #[allow(clippy::wrong_self_convention)]
     fn to_step_of(&mut self, id: Option<String>) {
         if self.platform.is_web() {
             return self.desktop_only("This tool");
@@ -65,8 +68,19 @@ impl StlApp {
             self.toasts.push(Level::Error, "SolidCraft isn't installed.".to_owned());
             return;
         }
-        let name = self.bodies.iter().find(|b| b.id == id).map(|b| b.name.clone()).unwrap_or_else(|| "body".to_owned());
-        self.ask_export(Asked::Step { suggested: format!("{name}.step") }, ExportFormat::Stl, Some(vec![id]));
+        let name = self
+            .bodies
+            .iter()
+            .find(|b| b.id == id)
+            .map(|b| b.name.clone())
+            .unwrap_or_else(|| "body".to_owned());
+        self.ask_export(
+            Asked::Step {
+                suggested: format!("{name}.step"),
+            },
+            ExportFormat::Stl,
+            Some(vec![id]),
+        );
     }
 
     /// File › Send to Slicer: the items to add to the File menu (none when nothing is found).
@@ -76,7 +90,11 @@ impl StlApp {
             return Vec::new();
         }
         let mut items = vec![MenuItem::Hdr("Send to Slicer".to_owned())];
-        items.extend(found.into_iter().map(|(key, name)| MenuItem::item(format!("send:{key}"), name).icon("slicer")));
+        items.extend(
+            found
+                .into_iter()
+                .map(|(key, name)| MenuItem::item(format!("send:{key}"), name).icon("slicer")),
+        );
         items
     }
 
@@ -95,7 +113,11 @@ impl StlApp {
         if self.handoff.asked.is_some() {
             return;
         }
-        self.ask_export(Asked::Slicer { key: key.to_owned() }, ExportFormat::ThreeMf, Some(vec![id.to_owned()]));
+        self.ask_export(
+            Asked::Slicer { key: key.to_owned() },
+            ExportFormat::ThreeMf,
+            Some(vec![id.to_owned()]),
+        );
     }
 
     /// Take the engine's answer to a hand-off (its `Update::Exported`) before the file dialogs
@@ -104,7 +126,10 @@ impl StlApp {
         if self.handoff.asked.is_none() {
             return;
         }
-        let Some(i) = updates.iter().position(|u| matches!(u, Update::Exported { .. } | Update::Error(_))) else {
+        let Some(i) = updates
+            .iter()
+            .position(|u| matches!(u, Update::Exported { .. } | Update::Error(_)))
+        else {
             return;
         };
         if matches!(updates[i], Update::Error(_)) {
@@ -172,16 +197,26 @@ impl StlApp {
         let mut items = vec![MenuItem::Hdr(header)];
         let found = self.platform.slicers();
         if found.is_empty() {
-            items.push(MenuItem::item("send:none", "No slicer found: install Bambu Studio or OrcaSlicer").disabled(true));
+            items.push(
+                MenuItem::item("send:none", "No slicer found: install Bambu Studio or OrcaSlicer").disabled(true),
+            );
             return items;
         }
         let (solidcraft, slicers): (Vec<_>, Vec<_>) = found.into_iter().partition(|(key, _)| key == "solidcraft");
         let separate = !slicers.is_empty() && !solidcraft.is_empty();
-        items.extend(slicers.into_iter().map(|(key, name)| MenuItem::item(pick(&key), name).icon("slicer")));
+        items.extend(
+            slicers
+                .into_iter()
+                .map(|(key, name)| MenuItem::item(pick(&key), name).icon("slicer")),
+        );
         if separate {
             items.push(MenuItem::Sep);
         }
-        items.extend(solidcraft.into_iter().map(|(key, name)| MenuItem::item(pick(&key), name)));
+        items.extend(
+            solidcraft
+                .into_iter()
+                .map(|(key, name)| MenuItem::item(pick(&key), name)),
+        );
         items
     }
 
@@ -202,6 +237,8 @@ impl StlApp {
             "{what} runs in the desktop app, which can open your slicer and SolidCraft directly.\n\nSave your project (File › Save) and open it in the desktop app: everything carries over, timeline included."
         );
         let links = vec![("Get the desktop app (Windows, free)".to_owned(), DESKTOP_URL.to_owned())];
-        self.shell.dialogs.open_alert("desktop-only", "Desktop app tool", &text, links);
+        self.shell
+            .dialogs
+            .open_alert("desktop-only", "Desktop app tool", &text, links);
     }
 }

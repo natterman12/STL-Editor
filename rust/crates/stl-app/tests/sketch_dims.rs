@@ -7,11 +7,11 @@ mod test_env;
 
 use std::collections::BTreeMap;
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use stl_app::engine_link::{Command, Level};
 use stl_app::sketch::dims::{self, Layout};
 use stl_app::sketch::solve::{self, Def};
-use stl_app::sketch::{relations, Constraint, Entity, Ref, RefEnt, SketchEffect, SketchInput, SketchSession, ToolCx};
+use stl_app::sketch::{Constraint, Entity, Ref, RefEnt, SketchEffect, SketchInput, SketchSession, ToolCx, relations};
 use stl_app::viewport::{PlaneFrame, Viewport};
 use stl_sketch::solver::World;
 
@@ -19,7 +19,12 @@ const DIMS_1X: &str = r#"{"layouts":{"length":{"lines":[[[-3.7947331922020546,11
 const REL_1X: &str = r#"{"rel":{"c_coincident":{"type":"coincident","a":{"e":"L1","k":"p2"},"b":{"e":"L2","k":"p1"}},"c_hv":{"type":"horizontal","a":{"e":"L3"}},"c_parallel":{"type":"parallel","a":{"e":"L1"},"b":{"e":"L3"}},"c_perpendicular":{"type":"perpendicular","a":{"e":"L1"},"b":{"e":"L2"}},"c_equal":{"type":"equal","a":{"e":"L1"},"b":{"e":"L3"}},"c_tangent":{"type":"tangent","a":{"e":"L1"},"b":{"e":"C1"}},"c_concentric":{"type":"concentric","a":{"e":"C1"},"b":{"e":"C2"}},"c_midpoint":{"type":"midpoint","a":{"e":"P","k":"p"},"b":{"e":"L1"}},"c_fix":{"type":"fix","a":{"e":"L2"},"at":[30,5,30,25]},"c_symmetric":{"type":"symmetric","a":{"e":"L1","k":"p1"},"b":{"e":"L1","k":"p2"},"c":{"e":"L3"}}},"dim":{"circle":{"type":"diameter","a":{"e":"C1"},"ang":-90,"out":12,"value":16},"hdist":{"type":"hdistance","a":{"e":"L1","k":"p1"},"b":{"e":"L1","k":"p2"},"sign":1,"off":-6,"slide":0,"value":20},"angle":{"type":"angle","a":{"e":"L1"},"b":{"e":"L2"},"ra":1,"rb":-1,"sign":-1,"off":3.6055512754639896,"value":90}}}"#;
 
 fn frame() -> PlaneFrame {
-    PlaneFrame { origin: [0.0; 3], x: [1.0, 0.0, 0.0], y: [0.0, 1.0, 0.0], normal: [0.0, 0.0, 1.0] }
+    PlaneFrame {
+        origin: [0.0; 3],
+        x: [1.0, 0.0, 0.0],
+        y: [0.0, 1.0, 0.0],
+        normal: [0.0, 0.0, 1.0],
+    }
 }
 
 fn ent(v: Value) -> Entity {
@@ -71,17 +76,31 @@ fn send(tool: &mut Tool, s: &mut SketchSession, vp: &Viewport, ev: SketchInput) 
     let params = BTreeMap::new();
     let mut out = Vec::new();
     {
-        let mut cx = ToolCx { s, vp, inch: false, params: &params, out: &mut out };
+        let mut cx = ToolCx {
+            s,
+            vp,
+            inch: false,
+            params: &params,
+            out: &mut out,
+        };
         tool.input(&mut cx, &ev);
     }
     out
 }
 
 fn down(uv: [f64; 2]) -> SketchInput {
-    SketchInput::Down { uv, pos: pos(), mods: egui::Modifiers::NONE }
+    SketchInput::Down {
+        uv,
+        pos: pos(),
+        mods: egui::Modifiers::NONE,
+    }
 }
 fn mv(uv: [f64; 2]) -> SketchInput {
-    SketchInput::Move { uv, pos: pos(), mods: egui::Modifiers::NONE }
+    SketchInput::Move {
+        uv,
+        pos: pos(),
+        mods: egui::Modifiers::NONE,
+    }
 }
 
 fn close(a: &Value, b: &Value, path: &str) {
@@ -177,10 +196,19 @@ fn every_relation_tool_makes_the_1x_constraint() {
                 );
             }
         }
-        assert!(last.iter().any(|e| matches!(e, SketchEffect::Changed)), "{key}: not added ({} effects)", last.len());
+        assert!(
+            last.iter().any(|e| matches!(e, SketchEffect::Changed)),
+            "{key}: not added ({} effects)",
+            last.len()
+        );
         assert_eq!(s.constraints.len(), 1, "{key}");
         let c = &s.constraints[0];
-        assert!(c.id.as_ref().and_then(Value::as_str).is_some_and(|i| i.starts_with("et5")), "{key}: id");
+        assert!(
+            c.id.as_ref()
+                .and_then(Value::as_str)
+                .is_some_and(|i| i.starts_with("et5")),
+            "{key}: id"
+        );
         close(&no_id(c), &want[key], key);
         assert_eq!(s.history.len(), 1);
         assert_eq!(tool.hint(&s), *hint, "picks are cleared after the constraint");
@@ -194,7 +222,11 @@ fn relation_messages_follow_1x() {
     // Fix on the axis: it is fixed already.
     let mut t = relations::tool_for("c_fix").unwrap();
     let fx = send(&mut t, &mut s, &vp, down([-30.0, 0.0]));
-    assert!(is_warning(&fx, "Part edges and the origin are fixed already."), "{}", fx.len());
+    assert!(
+        is_warning(&fx, "Part edges and the origin are fixed already."),
+        "{}",
+        fx.len()
+    );
     // Coincident of two shapes (not points): the solver's message.
     let mut t = relations::tool_for("c_coincident").unwrap();
     send(&mut t, &mut s, &vp, down([10.0, 0.0]));
@@ -202,24 +234,39 @@ fn relation_messages_follow_1x() {
     assert!(is_warning(&fx, "Pick two points, or a point and a line / circle."));
     assert!(s.constraints.is_empty());
     // Two things that never move.
-    let refs = vec![RefEnt { ent: ent(json!({"id": "r1", "type": "line", "p1": [0, -10], "p2": [20, -10]})), missing: false }];
+    let refs = vec![RefEnt {
+        ent: ent(json!({"id": "r1", "type": "line", "p1": [0, -10], "p2": [20, -10]})),
+        missing: false,
+    }];
     let mut s = session_with(vec![], vec![], refs);
     let mut t = relations::tool_for("c_parallel").unwrap();
     send(&mut t, &mut s, &vp, down([10.0, -10.0]));
     let fx = send(&mut t, &mut s, &vp, down([-30.0, 0.0]));
-    assert!(is_warning(&fx, "Pick at least one shape of the sketch: part edges and the origin don't move."), "{}", fx.len());
+    assert!(
+        is_warning(
+            &fx,
+            "Pick at least one shape of the sketch: part edges and the origin don't move."
+        ),
+        "{}",
+        fx.len()
+    );
 }
 
 #[test]
 fn conflicting_relation_is_refused() {
     let vp = viewport();
     let mut s = session();
-    s.constraints.push(con(json!({"id": "k1", "type": "perpendicular", "a": {"e": "L1"}, "b": {"e": "L2"}})));
+    s.constraints.push(con(
+        json!({"id": "k1", "type": "perpendicular", "a": {"e": "L1"}, "b": {"e": "L2"}}),
+    ));
     solve::solve_all(&mut s);
     let mut t = relations::tool_for("c_parallel").unwrap();
     send(&mut t, &mut s, &vp, down([10.0, 0.0]));
     let fx = send(&mut t, &mut s, &vp, down([30.0, 15.0]));
-    assert!(is_warning(&fx, "That would conflict with the existing constraints (over-constrained)."));
+    assert!(is_warning(
+        &fx,
+        "That would conflict with the existing constraints (over-constrained)."
+    ));
     assert_eq!(s.constraints.len(), 1);
     assert!(s.history.is_empty());
 }
@@ -227,8 +274,11 @@ fn conflicting_relation_is_refused() {
 #[test]
 fn delete_relation() {
     let mut s = session();
-    s.constraints.push(con(json!({"id": "k1", "type": "horizontal", "a": {"e": "L3"}})));
-    s.constraints.push(con(json!({"id": "k2", "type": "parallel", "a": {"e": "L1"}, "b": {"e": "L3"}})));
+    s.constraints
+        .push(con(json!({"id": "k1", "type": "horizontal", "a": {"e": "L3"}})));
+    s.constraints.push(con(
+        json!({"id": "k2", "type": "parallel", "a": {"e": "L1"}, "b": {"e": "L3"}}),
+    ));
     s.sel_c = Some(1);
     let fx = relations::delete_constraint(&mut s, 1);
     assert!(matches!(fx.as_slice(), [SketchEffect::Changed]));
@@ -252,11 +302,16 @@ fn smart_dimension_linear_radial_angle() {
     // A circle: the diameter follows the pointer, the next click places it.
     let mut s = session();
     let fx = send(&mut tool, &mut s, &vp, down([68.0, 0.0]));
-    assert!(matches!(fx.as_slice(), [SketchEffect::Hint(h)] if h == "Move to place the dimension and click · or click a second item (point, line, circle)"));
+    assert!(
+        matches!(fx.as_slice(), [SketchEffect::Hint(h)] if h == "Move to place the dimension and click · or click a second item (point, line, circle)")
+    );
     assert!(tool.picks_geometry());
     send(&mut tool, &mut s, &vp, mv([60.0, -20.0]));
     let fx = send(&mut tool, &mut s, &vp, down([60.0, -20.0]));
-    assert!(fx.iter().any(|e| matches!(e, SketchEffect::Dialog(stl_app::sketch::SketchDialog::DimValue(0)))));
+    assert!(
+        fx.iter()
+            .any(|e| matches!(e, SketchEffect::Dialog(stl_app::sketch::SketchDialog::DimValue(0))))
+    );
     assert!(fx.iter().any(|e| matches!(e, SketchEffect::Changed)));
     close(&no_id(&s.constraints[0]), &want["circle"], "circle");
     assert_eq!(s.sel_c, Some(0));
@@ -265,7 +320,9 @@ fn smart_dimension_linear_radial_angle() {
     let mut tool = relations::tool_for("c_dimension").unwrap();
     let mut s = session();
     let fx = send(&mut tool, &mut s, &vp, down([0.0, 0.0]));
-    assert!(matches!(fx.as_slice(), [SketchEffect::Hint(h)] if h == "Now click a second item: a point, line or circle"));
+    assert!(
+        matches!(fx.as_slice(), [SketchEffect::Hint(h)] if h == "Now click a second item: a point, line or circle")
+    );
     send(&mut tool, &mut s, &vp, down([20.0, 0.0]));
     send(&mut tool, &mut s, &vp, mv([10.0, -6.0]));
     send(&mut tool, &mut s, &vp, down([10.0, -6.0]));
@@ -284,7 +341,10 @@ fn smart_dimension_linear_radial_angle() {
 #[test]
 fn dimension_to_part_edge() {
     let vp = viewport();
-    let edge = || RefEnt { ent: ent(json!({"id": "r1", "type": "line", "p1": [0, -10], "p2": [20, -10]})), missing: false };
+    let edge = || RefEnt {
+        ent: ent(json!({"id": "r1", "type": "line", "p1": [0, -10], "p2": [20, -10]})),
+        missing: false,
+    };
     let mut s = session_with(base_ents(), vec![], vec![edge()]);
     let mut tool = relations::tool_for("c_dimension").unwrap();
     send(&mut tool, &mut s, &vp, down([20.0, 0.0])); // L1's end
@@ -293,7 +353,10 @@ fn dimension_to_part_edge() {
     send(&mut tool, &mut s, &vp, down([-5.0, -5.0]));
     let c = &s.constraints[0];
     assert_eq!(c.kind, "distance");
-    assert_eq!((c.a.clone().unwrap(), c.b.clone().unwrap()), (Ref::pt("L1", "p2"), Ref::ent("r1")));
+    assert_eq!(
+        (c.a.clone().unwrap(), c.b.clone().unwrap()),
+        (Ref::pt("L1", "p2"), Ref::ent("r1"))
+    );
     assert!((c.value.unwrap() - 10.0).abs() < 1e-9);
     // The step keeps the part edge it measures from.
     let used = s.step_params()["refs"].clone();
@@ -305,18 +368,34 @@ fn dimension_to_part_edge() {
     let mut tool = relations::tool_for("c_dimension").unwrap();
     send(&mut tool, &mut s, &vp, down([10.0, -10.0]));
     let fx = send(&mut tool, &mut s, &vp, down([-30.0, 0.0]));
-    assert!(is_warning(&fx, "Pick at least one shape of the sketch: the origin, the axes and the part edges don't move."), "{}", fx.len());
+    assert!(
+        is_warning(
+            &fx,
+            "Pick at least one shape of the sketch: the origin, the axes and the part edges don't move."
+        ),
+        "{}",
+        fx.len()
+    );
 }
 
 #[test]
 fn dimension_with_parameter() {
     let params: BTreeMap<String, f64> = [("width".to_string(), 20.0)].into();
-    assert_eq!(dims::parse_dim("=width/2", false, false, &params), Ok((10.0, Some("=width/2".to_string()))));
-    assert_eq!(dims::parse_dim("width", false, false, &params), Ok((20.0, Some("=width".to_string()))));
+    assert_eq!(
+        dims::parse_dim("=width/2", false, false, &params),
+        Ok((10.0, Some("=width/2".to_string())))
+    );
+    assert_eq!(
+        dims::parse_dim("width", false, false, &params),
+        Ok((20.0, Some("=width".to_string())))
+    );
     assert_eq!(dims::parse_dim("12.5", false, false, &params), Ok((12.5, None)));
     assert_eq!(dims::parse_dim("1 3/8", false, true, &params), Ok((34.925, None)));
     assert_eq!(dims::parse_dim("45", true, true, &params), Ok((45.0, None)));
-    assert_eq!(dims::parse_dim("((", false, false, &params).unwrap_err(), "Type a number, or a parameter (like width or =width/2).");
+    assert_eq!(
+        dims::parse_dim("((", false, false, &params).unwrap_err(),
+        "Type a number, or a parameter (like width or =width/2)."
+    );
     assert!(dims::parse_dim("=nope", false, false, &params).is_err());
 
     // Storing it: the dimension keeps the expression, and the sketch follows the value.
@@ -347,10 +426,30 @@ fn dimension_text_inch() {
     let len = json!({"type": "length", "a": {"e": "L"}, "value": 12.7});
     assert_eq!(t(len.clone(), false, false), "12.7");
     assert_eq!(t(len, true, false), "0.5");
-    assert_eq!(t(json!({"type": "diameter", "a": {"e": "C"}, "value": 25.4}), true, false), "⌀1");
-    assert_eq!(t(json!({"type": "diameter", "a": {"e": "C"}, "value": 25.4}), false, false), "⌀25.4");
-    assert_eq!(t(json!({"type": "radius", "a": {"e": "C"}, "value": 34.925}), true, false), "R1.375");
-    assert_eq!(t(json!({"type": "angle", "a": {"e": "L"}, "b": {"e": "M"}, "value": 45.126}), true, false), "45.13°");
+    assert_eq!(
+        t(json!({"type": "diameter", "a": {"e": "C"}, "value": 25.4}), true, false),
+        "⌀1"
+    );
+    assert_eq!(
+        t(
+            json!({"type": "diameter", "a": {"e": "C"}, "value": 25.4}),
+            false,
+            false
+        ),
+        "⌀25.4"
+    );
+    assert_eq!(
+        t(json!({"type": "radius", "a": {"e": "C"}, "value": 34.925}), true, false),
+        "R1.375"
+    );
+    assert_eq!(
+        t(
+            json!({"type": "angle", "a": {"e": "L"}, "b": {"e": "M"}, "value": 45.126}),
+            true,
+            false
+        ),
+        "45.13°"
+    );
     // A reference dimension shows what the sketch measures, in brackets.
     let r = json!({"type": "length", "a": {"e": "L"}, "value": 99, "ref": true});
     assert_eq!(t(r.clone(), false, false), "(12.7)");
@@ -371,15 +470,42 @@ fn dims_layout_matches_1x() {
     let w = World::new(&ents);
     let px = 0.1;
     let cases: BTreeMap<&str, Value> = [
-        ("length", json!({"type": "length", "a": {"e": "L"}, "off": 12, "slide": 0})),
-        ("length_short", json!({"type": "length", "a": {"e": "L"}, "off": -5, "slide": 40})),
-        ("hdist", json!({"type": "hdistance", "a": {"e": "L", "k": "p1"}, "b": {"e": "L", "k": "p2"}, "off": 8, "slide": 0})),
-        ("vdist", json!({"type": "vdistance", "a": {"e": "L", "k": "p1"}, "b": {"e": "L", "k": "p2"}, "off": -7, "slide": 0})),
-        ("dist_line", json!({"type": "distance", "a": {"e": "C", "k": "c"}, "b": {"e": "L"}, "off": 3, "slide": 0})),
-        ("diameter", json!({"type": "diameter", "a": {"e": "C"}, "ang": 30, "out": 3})),
-        ("radius_in", json!({"type": "radius", "a": {"e": "C"}, "ang": 200, "out": -2})),
-        ("radius_arc", json!({"type": "radius", "a": {"e": "A"}, "ang": 200, "out": 2})),
-        ("angle", json!({"type": "angle", "a": {"e": "L"}, "b": {"e": "M"}, "off": 5, "ra": 1, "rb": 1, "sign": 1})),
+        (
+            "length",
+            json!({"type": "length", "a": {"e": "L"}, "off": 12, "slide": 0}),
+        ),
+        (
+            "length_short",
+            json!({"type": "length", "a": {"e": "L"}, "off": -5, "slide": 40}),
+        ),
+        (
+            "hdist",
+            json!({"type": "hdistance", "a": {"e": "L", "k": "p1"}, "b": {"e": "L", "k": "p2"}, "off": 8, "slide": 0}),
+        ),
+        (
+            "vdist",
+            json!({"type": "vdistance", "a": {"e": "L", "k": "p1"}, "b": {"e": "L", "k": "p2"}, "off": -7, "slide": 0}),
+        ),
+        (
+            "dist_line",
+            json!({"type": "distance", "a": {"e": "C", "k": "c"}, "b": {"e": "L"}, "off": 3, "slide": 0}),
+        ),
+        (
+            "diameter",
+            json!({"type": "diameter", "a": {"e": "C"}, "ang": 30, "out": 3}),
+        ),
+        (
+            "radius_in",
+            json!({"type": "radius", "a": {"e": "C"}, "ang": 200, "out": -2}),
+        ),
+        (
+            "radius_arc",
+            json!({"type": "radius", "a": {"e": "A"}, "ang": 200, "out": 2}),
+        ),
+        (
+            "angle",
+            json!({"type": "angle", "a": {"e": "L"}, "b": {"e": "M"}, "off": 5, "ra": 1, "rb": 1, "sign": 1}),
+        ),
     ]
     .into();
     for (k, c) in &cases {
@@ -394,12 +520,33 @@ fn dims_layout_matches_1x() {
         }
         Value::Object(m)
     };
-    close(&dp(json!({"type": "length", "a": {"e": "L"}})), &want["default"]["length"], "default.length");
-    close(&dp(json!({"type": "radius", "a": {"e": "C"}})), &want["default"]["radius"], "default.radius");
-    close(&dp(json!({"type": "angle", "a": {"e": "L"}, "b": {"e": "M"}})), &want["default"]["angle"], "default.angle");
-    close(&dp(json!({"type": "hdistance", "a": {"e": "R", "k": "c0"}, "b": {"e": "R", "k": "c1"}})), &want["default"]["hrect"], "default.hrect");
+    close(
+        &dp(json!({"type": "length", "a": {"e": "L"}})),
+        &want["default"]["length"],
+        "default.length",
+    );
+    close(
+        &dp(json!({"type": "radius", "a": {"e": "C"}})),
+        &want["default"]["radius"],
+        "default.radius",
+    );
+    close(
+        &dp(json!({"type": "angle", "a": {"e": "L"}, "b": {"e": "M"}})),
+        &want["default"]["angle"],
+        "default.angle",
+    );
+    close(
+        &dp(json!({"type": "hdistance", "a": {"e": "R", "k": "c0"}, "b": {"e": "R", "k": "c1"}})),
+        &want["default"]["hrect"],
+        "default.hrect",
+    );
     // placeAt: where dragging the label to a point leaves off / slide / ang / out.
-    for (k, cur) in [("length", [12.0, 9.0]), ("hdist", [50.0, -3.0]), ("diameter", [9.0, 12.0]), ("angle", [8.0, 3.0])] {
+    for (k, cur) in [
+        ("length", [12.0, 9.0]),
+        ("hdist", [50.0, -3.0]),
+        ("diameter", [9.0, 12.0]),
+        ("angle", [8.0, 3.0]),
+    ] {
         let mut c = con(cases[k].clone());
         dims::place_at(&mut c, &w, cur);
         for key in ["off", "slide", "ang", "out"] {
@@ -429,7 +576,11 @@ fn line_sketch(extra: Vec<Value>) -> SketchSession {
 #[test]
 fn under_full_over() {
     // A bare circle: three free numbers.
-    let mut s = session_with(vec![ent(json!({"id": "C", "type": "circle", "cx": 1, "cy": 1, "r": 2}))], vec![], vec![]);
+    let mut s = session_with(
+        vec![ent(json!({"id": "C", "type": "circle", "cx": 1, "cy": 1, "r": 2}))],
+        vec![],
+        vec![],
+    );
     let st = solve::solve_all(&mut s);
     assert_eq!(st.def, Def::Under(3));
     assert_eq!(solve::def_text(&st), "Under defined: 3 more dimensions needed");
@@ -440,15 +591,26 @@ fn under_full_over() {
     assert_eq!(st.def, Def::Under(1));
     assert_eq!(solve::def_text(&st), "Under defined: 1 more dimension needed");
     // Pinned down by a length.
-    let mut s = line_sketch(vec![json!({"id": "d1", "type": "length", "a": {"e": "L"}, "value": 10})]);
+    let mut s = line_sketch(vec![
+        json!({"id": "d1", "type": "length", "a": {"e": "L"}, "value": 10}),
+    ]);
     let st = solve::solve_all(&mut s);
     assert_eq!(st.def, Def::Full);
     assert_eq!(solve::def_text(&st), "Fully defined");
     assert!(st.conflicts.is_empty() && st.under.is_empty());
     let Entity::Line(l) = &s.entities[0] else { panic!() };
-    assert!((l.p2[0] - 10.0).abs() < 1e-6 && l.p2[1].abs() < 1e-6 && l.p1[0].abs() < 1e-6, "{l:?}");
+    assert!(
+        (l.p2[0] - 10.0).abs() < 1e-6 && l.p2[1].abs() < 1e-6 && l.p1[0].abs() < 1e-6,
+        "{l:?}"
+    );
     // No shapes (text outlines don't count): nothing to say.
-    let mut s = session_with(vec![ent(json!({"id": "T", "type": "polyline", "pts": [[0, 0], [1, 0], [1, 1]]}))], vec![], vec![]);
+    let mut s = session_with(
+        vec![ent(
+            json!({"id": "T", "type": "polyline", "pts": [[0, 0], [1, 0], [1, 1]]}),
+        )],
+        vec![],
+        vec![],
+    );
     assert_eq!(solve::def_text(&solve::solve_all(&mut s)), "");
 }
 
@@ -462,7 +624,13 @@ fn over_defined_reported() {
     assert_eq!(st.def, Def::Over);
     assert!(!st.conflicts.is_empty());
     let n = st.conflicts.len();
-    assert_eq!(solve::def_text(&st), format!("Over defined: {n} relation{} can't be met (red)", if n > 1 { "s" } else { "" }));
+    assert_eq!(
+        solve::def_text(&st),
+        format!(
+            "Over defined: {n} relation{} can't be met (red)",
+            if n > 1 { "s" } else { "" }
+        )
+    );
     // The conflicting dimension is one of the two lengths, and is marked "bad".
     let i = st.conflicts[0];
     assert_eq!(s.constraints[i].kind, "length", "{:?}", s.constraints[i]);
@@ -475,10 +643,27 @@ fn over_defined_reported() {
 
 #[test]
 fn request_and_apply_match_solve_all() {
-    let mut a = line_sketch(vec![json!({"id": "d1", "type": "length", "a": {"e": "L"}, "value": 10})]);
-    a.locks.push(stl_sketch::solver::Lock { e: "L".into(), k: Some("p2".into()), at: Some(vec![12.0, 1.0]), path: None, value: None });
+    let mut a = line_sketch(vec![
+        json!({"id": "d1", "type": "length", "a": {"e": "L"}, "value": 10}),
+    ]);
+    a.locks.push(stl_sketch::solver::Lock {
+        e: "L".into(),
+        k: Some("p2".into()),
+        at: Some(vec![12.0, 1.0]),
+        path: None,
+        value: None,
+    });
     let mut b = a.clone();
-    let Command::Solve { seq, entities, constraints, locks, fixed } = solve::request(&b, 7) else { panic!("not a Solve") };
+    let Command::Solve {
+        seq,
+        entities,
+        constraints,
+        locks,
+        fixed,
+    } = solve::request(&b, 7)
+    else {
+        panic!("not a Solve")
+    };
     assert_eq!((seq, entities.len(), constraints.len(), locks.len()), (7, 1, 3, 1));
     // The origin, then the (no) part edges, then the two axes.
     let ids: Vec<_> = fixed.iter().map(|e| e.id().unwrap().to_string()).collect();
@@ -492,15 +677,28 @@ fn request_and_apply_match_solve_all() {
 
 #[test]
 fn missing_ref_warned() {
-    let edge = |id: &str, y: f64, missing: bool| RefEnt { ent: ent(json!({"id": id, "type": "line", "p1": [0, y], "p2": [20, y]})), missing };
+    let edge = |id: &str, y: f64, missing: bool| RefEnt {
+        ent: ent(json!({"id": id, "type": "line", "p1": [0, y], "p2": [20, y]})),
+        missing,
+    };
     // One gone: the 1.x words (singular).
     let s = session_with(vec![], vec![], vec![edge("r1", -10.0, true), edge("r2", -20.0, false)]);
-    let Some(SketchEffect::Toast(Level::Warning, m)) = relations::missing_toast(&s) else { panic!("no toast") };
-    assert_eq!(m, "1 part edge this sketch measured from has changed (shown red). Its dimensions hold to where it was: delete them and dimension to the new edge.");
+    let Some(SketchEffect::Toast(Level::Warning, m)) = relations::missing_toast(&s) else {
+        panic!("no toast")
+    };
+    assert_eq!(
+        m,
+        "1 part edge this sketch measured from has changed (shown red). Its dimensions hold to where it was: delete them and dimension to the new edge."
+    );
     // Two gone (plural).
     let s2 = session_with(vec![], vec![], vec![edge("r1", -10.0, true), edge("r2", -20.0, true)]);
-    let Some(SketchEffect::Toast(Level::Warning, m)) = relations::missing_toast(&s2) else { panic!("no toast") };
-    assert_eq!(m, "2 part edges this sketch measured from have changed (shown red). Its dimensions hold to where they were: delete them and dimension to the new edges.");
+    let Some(SketchEffect::Toast(Level::Warning, m)) = relations::missing_toast(&s2) else {
+        panic!("no toast")
+    };
+    assert_eq!(
+        m,
+        "2 part edges this sketch measured from have changed (shown red). Its dimensions hold to where they were: delete them and dimension to the new edges."
+    );
     // None gone: no toast.
     assert!(relations::missing_toast(&session_with(vec![], vec![], vec![edge("r1", -10.0, false)])).is_none());
 
@@ -513,7 +711,10 @@ fn missing_ref_warned() {
         ],
         vec![edge("r1", -10.0, true)],
     );
-    assert!(solve::fixed_ents(&s).iter().any(|e| e.id() == Some("r1")), "a missing edge still holds its dimensions");
+    assert!(
+        solve::fixed_ents(&s).iter().any(|e| e.id() == Some("r1")),
+        "a missing edge still holds its dimensions"
+    );
     solve::solve_all(&mut s);
     let Entity::Line(l) = &s.entities[0] else { panic!() };
     assert!((l.p1[1] - -3.0).abs() < 1e-6 || (l.p1[1] - -17.0).abs() < 1e-6, "{l:?}");
@@ -531,17 +732,24 @@ struct Scene {
 }
 
 fn scene(s: SketchSession) -> egui_kittest::Harness<'static, Scene> {
-    egui_kittest::Harness::builder().with_size(egui::vec2(800.0, 600.0)).with_accessibility_check(false).build_ui_state(
-        |ui, sc: &mut Scene| {
-            stl_app::fonts::install(ui.ctx());
-            let params = BTreeMap::new();
-            let fx = relations::paint(ui, &mut sc.s, &sc.vp, false);
-            sc.effects.extend(fx);
-            let fx = dims::paint(ui, &mut sc.s, &sc.vp, false, &params);
-            sc.effects.extend(fx);
-        },
-        Scene { s, vp: viewport(), effects: vec![] },
-    )
+    egui_kittest::Harness::builder()
+        .with_size(egui::vec2(800.0, 600.0))
+        .with_accessibility_check(false)
+        .build_ui_state(
+            |ui, sc: &mut Scene| {
+                stl_app::fonts::install(ui.ctx());
+                let params = BTreeMap::new();
+                let fx = relations::paint(ui, &mut sc.s, &sc.vp, false);
+                sc.effects.extend(fx);
+                let fx = dims::paint(ui, &mut sc.s, &sc.vp, false, &params);
+                sc.effects.extend(fx);
+            },
+            Scene {
+                s,
+                vp: viewport(),
+                effects: vec![],
+            },
+        )
 }
 
 #[test]
@@ -555,10 +763,15 @@ fn dimension_labels_and_chips_have_names() {
         vec![
             con(json!({"id": "d1", "type": "length", "a": {"e": "L"}, "value": 20})),
             con(json!({"id": "d2", "type": "diameter", "a": {"e": "C"}, "value": 10, "ref": true})),
-            con(json!({"id": "d3", "type": "radius", "a": {"e": "C"}, "value": 5, "expr": "=r", "ang": 200, "out": 30})),
+            con(
+                json!({"id": "d3", "type": "radius", "a": {"e": "C"}, "value": 5, "expr": "=r", "ang": 200, "out": 30}),
+            ),
             con(json!({"id": "k1", "type": "horizontal", "a": {"e": "L"}})),
         ],
-        vec![RefEnt { ent: ent(json!({"id": "r1", "type": "line", "p1": [0, -10], "p2": [20, -10]})), missing: true }],
+        vec![RefEnt {
+            ent: ent(json!({"id": "r1", "type": "line", "p1": [0, -10], "p2": [20, -10]})),
+            missing: true,
+        }],
     );
     s.sel_c = Some(0);
     let mut h = scene(s);
@@ -582,7 +795,9 @@ fn grid() -> (Vec<Entity>, Vec<Constraint>) {
     let mut cons = Vec::new();
     for i in 0..200 {
         let (cx, cy) = ((i % 20) as f64 * 15.0, (i / 20) as f64 * 15.0);
-        ents.push(ent(json!({"id": format!("g{i}"), "type": "rect", "x": cx + 0.3, "y": cy - 0.2, "w": 10.4, "h": 9.7})));
+        ents.push(ent(
+            json!({"id": format!("g{i}"), "type": "rect", "x": cx + 0.3, "y": cy - 0.2, "w": 10.4, "h": 9.7}),
+        ));
     }
     let mut i = 0;
     while cons.len() < 100 {
@@ -622,11 +837,19 @@ fn analyze_timing() {
     let jobs: Vec<Job> = vec![
         ("analyze", Box::new(|| drop(analyze(&ents, &cons, &fixed)))),
         ("unsatisfied", Box::new(|| drop(unsatisfied(&ents, &cons, &fixed)))),
-        ("analyze + unsatisfied (one update)", Box::new(|| {
-            drop(analyze(&ents, &cons, &fixed));
-            drop(unsatisfied(&ents, &cons, &fixed));
-        })),
-        ("is_redundant (placing a dimension)", Box::new(|| { let _ = is_redundant(&ents, &cons, &extra, &fixed); })),
+        (
+            "analyze + unsatisfied (one update)",
+            Box::new(|| {
+                drop(analyze(&ents, &cons, &fixed));
+                drop(unsatisfied(&ents, &cons, &fixed));
+            }),
+        ),
+        (
+            "is_redundant (placing a dimension)",
+            Box::new(|| {
+                let _ = is_redundant(&ents, &cons, &extra, &fixed);
+            }),
+        ),
     ];
     for (label, job) in &jobs {
         let mut times = Vec::new();
@@ -635,6 +858,12 @@ fn analyze_timing() {
             job();
             times.push(t.elapsed().as_secs_f64() * 1000.0);
         }
-        println!("{label}, {} entities, {} constraints: p50 {:.3} ms, p99 {:.3} ms", ents.len(), cons.len(), percentile(&mut times.clone(), 0.5), percentile(&mut times, 0.99));
+        println!(
+            "{label}, {} entities, {} constraints: p50 {:.3} ms, p99 {:.3} ms",
+            ents.len(),
+            cons.len(),
+            percentile(&mut times.clone(), 0.5),
+            percentile(&mut times, 0.99)
+        );
     }
 }

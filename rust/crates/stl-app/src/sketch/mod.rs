@@ -23,7 +23,7 @@ pub mod view;
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use crate::viewport::PlaneFrame;
 
@@ -189,19 +189,38 @@ impl SketchSession {
 }
 
 pub enum SketchInput {
-    Down { uv: [f64; 2], pos: egui::Pos2, mods: egui::Modifiers },
+    Down {
+        uv: [f64; 2],
+        pos: egui::Pos2,
+        mods: egui::Modifiers,
+    },
     /// Hover and drag.
-    Move { uv: [f64; 2], pos: egui::Pos2, mods: egui::Modifiers },
-    Up { uv: [f64; 2], pos: egui::Pos2 },
-    DoubleClick { uv: [f64; 2], pos: egui::Pos2 },
-    Key { key: egui::Key, mods: egui::Modifiers },
+    Move {
+        uv: [f64; 2],
+        pos: egui::Pos2,
+        mods: egui::Modifiers,
+    },
+    Up {
+        uv: [f64; 2],
+        pos: egui::Pos2,
+    },
+    DoubleClick {
+        uv: [f64; 2],
+        pos: egui::Pos2,
+    },
+    Key {
+        key: egui::Key,
+        mods: egui::Modifiers,
+    },
     /// Typed size characters while drawing.
     Typed(String),
 }
 
 pub enum SketchDialog {
     Modify(String),
-    Text { group: Option<String> },
+    Text {
+        group: Option<String>,
+    },
     Offset,
     DimValue(usize),
     /// The Project outline dialog (`sketchProject`): refuses when there are no solid bodies.
@@ -214,11 +233,16 @@ pub enum SketchEffect {
     Hint(String),
     Toast(crate::engine_link::Level, String),
     /// Sent by Task 2 as `Command::SketchOp`.
-    SketchOp { op: String, data: Value },
+    SketchOp {
+        op: String,
+        data: Value,
+    },
     /// Entities or constraints changed: Task 2 re-solves and redraws.
     Changed,
     Dialog(SketchDialog),
-    Finish { extrude: bool },
+    Finish {
+        extrude: bool,
+    },
     Cancel,
 }
 

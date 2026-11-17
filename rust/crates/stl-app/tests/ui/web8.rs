@@ -2,16 +2,28 @@
 //! Counterpart of `tests/ui/web8.js`.
 #![cfg(not(target_arch = "wasm32"))]
 
-use super::harness::{mesh_volume, wait_for, empty_harness, fixture_stl, import_stl, select_first_body, settle, wait_support_open};
+use super::harness::{
+    empty_harness, fixture_stl, import_stl, mesh_volume, select_first_body, settle, wait_for, wait_support_open,
+};
 use egui::{Event, PointerButton, Pos2};
 use serde_json::json;
 use stl_app::supports;
 
 fn click(h: &mut egui_kittest::Harness<'_, stl_app::app::StlApp>, at: Pos2) {
     h.event(Event::PointerMoved(at));
-    h.event(Event::PointerButton { pos: at, button: PointerButton::Primary, pressed: true, modifiers: Default::default() });
+    h.event(Event::PointerButton {
+        pos: at,
+        button: PointerButton::Primary,
+        pressed: true,
+        modifiers: Default::default(),
+    });
     h.step();
-    h.event(Event::PointerButton { pos: at, button: PointerButton::Primary, pressed: false, modifiers: Default::default() });
+    h.event(Event::PointerButton {
+        pos: at,
+        button: PointerButton::Primary,
+        pressed: false,
+        modifiers: Default::default(),
+    });
     h.run_steps(2);
 }
 
@@ -41,7 +53,15 @@ fn web8_draw_walls_line_value() {
         json!([{ "shape": "line", "points": [[0.0, 0.0, 0.0], [10.0, 0.0, 0.0]] }]),
     );
     h.run_steps(2);
-    let walls = h.state().tool().unwrap().values.get("walls").and_then(|v| v.as_array()).cloned().unwrap_or_default();
+    let walls = h
+        .state()
+        .tool()
+        .unwrap()
+        .values
+        .get("walls")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
     assert_eq!(walls.len(), 1);
     assert_eq!(walls[0]["shape"], json!("line"));
     h.state_mut().tool_cancel();
@@ -66,7 +86,11 @@ fn two_points_on_the_part(h: &egui_kittest::Harness<'_, stl_app::app::StlApp>) -
         }
     }
     let p1 = *hits.first().expect("a point on the part");
-    let p2 = *hits.iter().rev().find(|p| (p.x - p1.x).hypot(p.y - p1.y) > 40.0).expect("a second point on the part");
+    let p2 = *hits
+        .iter()
+        .rev()
+        .find(|p| (p.x - p1.x).hypot(p.y - p1.y) > 40.0)
+        .expect("a second point on the part");
     (p1, p2)
 }
 
@@ -79,9 +103,21 @@ fn web8_draw_walls_line_clicks() {
     h.run_steps(3);
     let (p1, p2) = two_points_on_the_part(&h);
     click(&mut h, p1);
-    assert_eq!(h.state().wall_drawer().pending.len(), 1, "the first click starts a wall");
+    assert_eq!(
+        h.state().wall_drawer().pending.len(),
+        1,
+        "the first click starts a wall"
+    );
     click(&mut h, p2);
-    let walls = h.state().tool().unwrap().values.get("walls").and_then(|v| v.as_array()).cloned().unwrap_or_default();
+    let walls = h
+        .state()
+        .tool()
+        .unwrap()
+        .values
+        .get("walls")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
     assert_eq!(walls.len(), 1, "the second click finishes the line");
     assert_eq!(walls[0]["shape"], json!("line"));
     h.state_mut().tool_cancel();
@@ -105,7 +141,10 @@ fn web8_draw_walls_curve_value() {
         }]),
     );
     h.run_steps(2);
-    let walls = h.state().tool().unwrap().values["walls"].as_array().cloned().unwrap_or_default();
+    let walls = h.state().tool().unwrap().values["walls"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
     assert_eq!(walls.len(), 1);
     assert_eq!(walls[0]["shape"], json!("curve"));
     h.state_mut().tool_cancel();
@@ -121,11 +160,26 @@ fn web8_fins_preview_then_ok_grows_volume() {
     h.state_mut().shell.selection = vec![h.state().bodies[0].id.clone()];
     wait_support_open(&mut h, &link, "supportfins");
     // the engine's answer: the fins arrive as preview meshes
-    wait_for(&mut h, &link, "the fins preview", |h| h.state().viewport.preview_meshes().next().is_some());
+    wait_for(&mut h, &link, "the fins preview", |h| {
+        h.state().viewport.preview_meshes().next().is_some()
+    });
     h.state_mut().tool_ok();
-    wait_for(&mut h, &link, "the fins to join the part", |h| h.state().tool().is_none() && h.state().timeline_view.items.iter().any(|i| i.kind == "supportfins"));
-    let item = h.state().timeline_view.items.iter().find(|i| i.kind == "supportfins").unwrap();
+    wait_for(&mut h, &link, "the fins to join the part", |h| {
+        h.state().tool().is_none() && h.state().timeline_view.items.iter().any(|i| i.kind == "supportfins")
+    });
+    let item = h
+        .state()
+        .timeline_view
+        .items
+        .iter()
+        .find(|i| i.kind == "supportfins")
+        .unwrap();
     assert_eq!(item.error, None);
-    let v1 = h.state().bodies.iter().map(|b| mesh_volume(&b.mesh)).fold(0.0, f64::max);
+    let v1 = h
+        .state()
+        .bodies
+        .iter()
+        .map(|b| mesh_volume(&b.mesh))
+        .fold(0.0, f64::max);
     assert!(v1 > v0 + 1.0, "the fins add plastic: {v0:.0} -> {v1:.0}");
 }

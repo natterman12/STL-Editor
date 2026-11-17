@@ -43,11 +43,7 @@ fn contours_match(got: &[Vec<[f64; 2]>], exp: &Value) -> Result<(), String> {
     for (ci, (gc, ec)) in got.iter().zip(exp.iter()).enumerate() {
         let ec = ec.as_array().ok_or_else(|| format!("contour {ci} not array"))?;
         if gc.len() != ec.len() {
-            return Err(format!(
-                "contour {ci} len {} != {}",
-                gc.len(),
-                ec.len()
-            ));
+            return Err(format!("contour {ci} len {} != {}", gc.len(), ec.len()));
         }
         for (pi, (gp, ep)) in gc.iter().zip(ec.iter()).enumerate() {
             let ep = ep.as_array().ok_or_else(|| format!("pt {ci}.{pi}"))?;
@@ -65,20 +61,12 @@ fn contours_match(got: &[Vec<[f64; 2]>], exp: &Value) -> Result<(), String> {
 }
 
 fn run_case(case_path: &Path, golden: &Value) -> Result<(), String> {
-    let case: Value = serde_json::from_str(&fs::read_to_string(case_path).unwrap())
-        .map_err(|e| e.to_string())?;
+    let case: Value = serde_json::from_str(&fs::read_to_string(case_path).unwrap()).map_err(|e| e.to_string())?;
     let name = case
         .get("name")
         .and_then(|v| v.as_str())
-        .unwrap_or_else(|| {
-            case_path
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .unwrap_or("case")
-        });
-    let exp = golden
-        .get(name)
-        .ok_or_else(|| format!("missing golden entry {name}"))?;
+        .unwrap_or_else(|| case_path.file_stem().and_then(|s| s.to_str()).unwrap_or("case"));
+    let exp = golden.get(name).ok_or_else(|| format!("missing golden entry {name}"))?;
 
     if let Some(err) = exp.get("error").and_then(|v| v.as_str()) {
         let font = fs::read(bundled_font_path(
@@ -89,15 +77,8 @@ fn run_case(case_path: &Path, golden: &Value) -> Result<(), String> {
         .map_err(|e| e.to_string())?;
         let opts = TextOpts {
             spacing: case.get("spacing").and_then(|v| v.as_f64()).unwrap_or(0.0),
-            align: case
-                .get("align")
-                .and_then(|v| v.as_str())
-                .unwrap_or("left")
-                .to_string(),
-            line_gap: case
-                .get("line_gap")
-                .and_then(|v| v.as_f64())
-                .unwrap_or(1.2),
+            align: case.get("align").and_then(|v| v.as_str()).unwrap_or("left").to_string(),
+            line_gap: case.get("line_gap").and_then(|v| v.as_f64()).unwrap_or(1.2),
         };
         let size = case.get("size").and_then(|v| v.as_f64()).unwrap_or(10.0);
         let text = case.get("text").and_then(|v| v.as_str()).unwrap_or("");
@@ -107,24 +88,14 @@ fn run_case(case_path: &Path, golden: &Value) -> Result<(), String> {
             Ok(_) => Err(format!("expected error {err:?}, got contours")),
         }
     } else {
-        let family = case
-            .get("family")
-            .and_then(|v| v.as_str())
-            .ok_or("missing family")?;
+        let family = case.get("family").and_then(|v| v.as_str()).ok_or("missing family")?;
         let bold = case.get("bold").and_then(|v| v.as_bool()).unwrap_or(false);
         let italic = case.get("italic").and_then(|v| v.as_bool()).unwrap_or(false);
         let font = fs::read(bundled_font_path(family, bold, italic)).map_err(|e| e.to_string())?;
         let opts = TextOpts {
             spacing: case.get("spacing").and_then(|v| v.as_f64()).unwrap_or(0.0),
-            align: case
-                .get("align")
-                .and_then(|v| v.as_str())
-                .unwrap_or("left")
-                .to_string(),
-            line_gap: case
-                .get("line_gap")
-                .and_then(|v| v.as_f64())
-                .unwrap_or(1.2),
+            align: case.get("align").and_then(|v| v.as_str()).unwrap_or("left").to_string(),
+            line_gap: case.get("line_gap").and_then(|v| v.as_f64()).unwrap_or(1.2),
         };
         let size = case.get("size").and_then(|v| v.as_f64()).unwrap_or(10.0);
         let text = case.get("text").and_then(|v| v.as_str()).unwrap_or("");
@@ -136,10 +107,7 @@ fn run_case(case_path: &Path, golden: &Value) -> Result<(), String> {
         let ew = exp["extent"][0].as_f64().unwrap();
         let eh = exp["extent"][1].as_f64().unwrap();
         if !near(extent[0], ew) || !near(extent[1], eh) {
-            return Err(format!(
-                "extent [{}, {}] != [{ew}, {eh}]",
-                extent[0], extent[1]
-            ));
+            return Err(format!("extent [{}, {}] != [{ew}, {eh}]", extent[0], extent[1]));
         }
         Ok(())
     }
@@ -148,8 +116,7 @@ fn run_case(case_path: &Path, golden: &Value) -> Result<(), String> {
 #[test]
 fn text_matches_golden() {
     let golden_path = tests_dir().join("parity/text_golden.json");
-    let golden: Value =
-        serde_json::from_str(&fs::read_to_string(&golden_path).expect("text_golden.json")).unwrap();
+    let golden: Value = serde_json::from_str(&fs::read_to_string(&golden_path).expect("text_golden.json")).unwrap();
     let cases_dir = tests_dir().join("parity/text");
     let obj = golden.as_object().expect("golden object");
     assert!(!obj.is_empty(), "text_golden.json has no cases");
@@ -161,9 +128,7 @@ fn text_matches_golden() {
         .filter_map(|e| {
             let p = e.path();
             if p.extension().and_then(|x| x.to_str()) == Some("json") {
-                p.file_stem()
-                    .and_then(|s| s.to_str())
-                    .map(|s| s.to_string())
+                p.file_stem().and_then(|s| s.to_str()).map(|s| s.to_string())
             } else {
                 None
             }
@@ -191,11 +156,7 @@ fn text_matches_golden() {
             failures.push(format!("{name}: {e}"));
         }
     }
-    assert!(
-        failures.is_empty(),
-        "text golden mismatches:\n{}",
-        failures.join("\n")
-    );
+    assert!(failures.is_empty(), "text golden mismatches:\n{}", failures.join("\n"));
 }
 
 fn sample_font_bytes() -> Vec<u8> {

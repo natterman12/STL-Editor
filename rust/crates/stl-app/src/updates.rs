@@ -20,7 +20,10 @@ pub fn help_menu_items(web: bool) -> Vec<(&'static str, &'static str)> {
     if web {
         Vec::new()
     } else {
-        vec![("help.check_updates", "Check for Updates…"), ("help.update_settings", "Update Settings…")]
+        vec![
+            ("help.check_updates", "Check for Updates…"),
+            ("help.update_settings", "Update Settings…"),
+        ]
     }
 }
 
@@ -33,7 +36,8 @@ pub const DOWNLOADING: &str = "Downloading update…";
 /// 1.x's note once the new version is in place.
 pub const RESTARTING: &str = "Restarting STL Editor…";
 /// 1.x's banner line for a copy that can update itself (the portable build's).
-pub const INSTALL_LINE: &str = "Update now downloads it, swaps it in and restarts STL Editor. Unsaved work is kept for Recover Unsaved Work.";
+pub const INSTALL_LINE: &str =
+    "Update now downloads it, swaps it in and restarts STL Editor. Unsaved work is kept for Recover Unsaved Work.";
 /// The banner line for a copy that can't (not run from the install folder). 1.x says "Download
 /// the new zip, unzip it, and use it instead of this copy."; 2.0 ships a plain exe.
 pub const DOWNLOAD_LINE: &str = "Download the new version and use it instead of this copy.";
@@ -88,7 +92,10 @@ impl BannerButton {
 
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     fn primary(self) -> bool {
-        matches!(self, BannerButton::UpdateNow | BannerButton::Download | BannerButton::DownloadInstead)
+        matches!(
+            self,
+            BannerButton::UpdateNow | BannerButton::Download | BannerButton::DownloadInstead
+        )
     }
 }
 
@@ -140,8 +147,10 @@ mod desktop {
     use std::sync::atomic::{AtomicU32, Ordering};
     use std::time::Duration;
 
-    use egui::{Align, Align2, Area, CornerRadius, Frame, Id, Key, Layout, Margin, Modifiers, Order, RichText, Stroke, Vec2};
-    use serde_json::{json, Value};
+    use egui::{
+        Align, Align2, Area, CornerRadius, Frame, Id, Key, Layout, Margin, Modifiers, Order, RichText, Stroke, Vec2,
+    };
+    use serde_json::{Value, json};
     use stl_platform::settings::keys;
     use stl_platform::update::{self, Release};
 
@@ -216,7 +225,9 @@ mod desktop {
         /// Tests: another releases list, version, exe (`None`: can't update itself) and windows
         /// folder. Each `Updates` holds a window lock there, so two of them are two windows.
         pub fn custom(api: &str, current: &str, running_exe: Option<PathBuf>, windows_dir: PathBuf) -> Updates {
-            let own = WindowLock::take(&windows_dir).inspect_err(|e| eprintln!("Couldn't take the window lock: {e}")).ok();
+            let own = WindowLock::take(&windows_dir)
+                .inspect_err(|e| eprintln!("Couldn't take the window lock: {e}"))
+                .ok();
             Updates {
                 api: api.to_string(),
                 current: current.to_string(),
@@ -250,7 +261,9 @@ mod desktop {
             }
             let recent = |key: &str, within: f64| {
                 // a time in the future (the clock was changed) counts as stale
-                p.setting_json(key).and_then(|v| v.as_f64()).is_some_and(|t| t <= now && t > now - within)
+                p.setting_json(key)
+                    .and_then(|v| v.as_f64())
+                    .is_some_and(|t| t <= now && t > now - within)
             };
             if recent(keys::UPDATE_LAST, DAY_SECS) || recent(UPDATE_CLAIM, CLAIM_SECS) {
                 if let Some(rel) = p.setting_json(keys::UPDATE_CACHE).as_ref().and_then(from_cache) {
@@ -268,7 +281,11 @@ mod desktop {
         /// A newer engine is downloaded to `config_dir()/support-fins` and used from the next start
         /// (1.x `supportfins.check_update`), so a Support Fins release needs no 2.0 release.
         pub fn start_fins_check(p: &dyn Platform) {
-            let s = fins_settings(p, crate::engine_link::worker::bundled_fins_dir(), stl_platform::paths::config_dir());
+            let s = fins_settings(
+                p,
+                crate::engine_link::worker::bundled_fins_dir(),
+                stl_platform::paths::config_dir(),
+            );
             stl_platform::fins::check_update(&s, false);
         }
 
@@ -294,7 +311,15 @@ mod desktop {
 
         /// A check or a download is running.
         pub fn is_busy(&self) -> bool {
-            self.checking.is_some() || !self.orphans.is_empty() || matches!(self.banner, Some(Banner { phase: Phase::Downloading { .. }, .. }))
+            self.checking.is_some()
+                || !self.orphans.is_empty()
+                || matches!(
+                    self.banner,
+                    Some(Banner {
+                        phase: Phase::Downloading { .. },
+                        ..
+                    })
+                )
         }
 
         /// The busy note for the app's overlay: 1.x's while Check for Updates asks GitHub.
@@ -304,27 +329,30 @@ mod desktop {
 
         /// Collect what the background threads have finished (no drawing).
         pub fn poll(&mut self, p: &dyn Platform, now: f64) -> Option<UpdateAction> {
-            if let Some((pending, manual)) = &self.checking {
-                if let Some(result) = pending.take() {
-                    let manual = *manual;
-                    self.checking = None;
-                    if std::mem::take(&mut self.claimed) {
-                        p.set_setting_json(UPDATE_CLAIM, Value::Null);
-                    }
-                    match result {
-                        Ok(found) => {
-                            p.set_setting_json(keys::UPDATE_LAST, json!(now));
-                            p.set_setting_json(keys::UPDATE_CACHE, to_cache(found.as_ref()));
-                            let shown = found.is_some_and(|rel| self.offer(p, rel, manual));
-                            if manual && !shown {
-                                return Some(UpdateAction::Toast { text: latest_text(&self.current), warn: false });
-                            }
+            if let Some((pending, manual)) = &self.checking
+                && let Some(result) = pending.take()
+            {
+                let manual = *manual;
+                self.checking = None;
+                if std::mem::take(&mut self.claimed) {
+                    p.set_setting_json(UPDATE_CLAIM, Value::Null);
+                }
+                match result {
+                    Ok(found) => {
+                        p.set_setting_json(keys::UPDATE_LAST, json!(now));
+                        p.set_setting_json(keys::UPDATE_CACHE, to_cache(found.as_ref()));
+                        let shown = found.is_some_and(|rel| self.offer(p, rel, manual));
+                        if manual && !shown {
+                            return Some(UpdateAction::Toast {
+                                text: latest_text(&self.current),
+                                warn: false,
+                            });
                         }
-                        // 1.x: a failed background check is quiet; Check for Updates says why
-                        Err(text) => {
-                            if manual {
-                                return Some(UpdateAction::Toast { text, warn: true });
-                            }
+                    }
+                    // 1.x: a failed background check is quiet; Check for Updates says why
+                    Err(text) => {
+                        if manual {
+                            return Some(UpdateAction::Toast { text, warn: true });
                         }
                     }
                 }
@@ -342,7 +370,10 @@ mod desktop {
                 }
             }
             let result = match &self.banner {
-                Some(Banner { phase: Phase::Downloading { pending }, .. }) => pending.take()?,
+                Some(Banner {
+                    phase: Phase::Downloading { pending },
+                    ..
+                }) => pending.take()?,
                 _ => return None,
             };
             let others = result.is_ok() && self.others_open();
@@ -357,7 +388,9 @@ mod desktop {
             // another window opened while the download ran
             if others {
                 let _ = std::fs::remove_file(&new);
-                banner.phase = Phase::Offer { note: Some(OTHER_WINDOWS.to_string()) };
+                banner.phase = Phase::Offer {
+                    note: Some(OTHER_WINDOWS.to_string()),
+                };
                 return None;
             }
             let Some(running) = self.running_exe.clone() else {
@@ -383,24 +416,45 @@ mod desktop {
             if !update::is_newer(&rel.version, &self.current) {
                 return false;
             }
-            let skipped = p.setting_json(keys::UPDATE_SKIP).and_then(|v| v.as_str().map(str::to_owned)) == Some(rel.version.clone());
+            let skipped = p
+                .setting_json(keys::UPDATE_SKIP)
+                .and_then(|v| v.as_str().map(str::to_owned))
+                == Some(rel.version.clone());
             if skipped && !manual {
                 return false;
             }
             // a download already under way keeps its banner
-            if !matches!(self.banner, Some(Banner { phase: Phase::Downloading { .. } | Phase::Restarting, .. })) {
-                self.banner = Some(Banner { rel, phase: Phase::Offer { note: None } });
+            if !matches!(
+                self.banner,
+                Some(Banner {
+                    phase: Phase::Downloading { .. } | Phase::Restarting,
+                    ..
+                })
+            ) {
+                self.banner = Some(Banner {
+                    rel,
+                    phase: Phase::Offer { note: None },
+                });
             }
             true
         }
 
         pub fn banner(&self) -> Option<BannerView> {
             let b = self.banner.as_ref()?;
-            let how = if self.running_exe.is_some() { INSTALL_LINE } else { DOWNLOAD_LINE };
+            let how = if self.running_exe.is_some() {
+                INSTALL_LINE
+            } else {
+                DOWNLOAD_LINE
+            };
             let (note, buttons) = match &b.phase {
                 Phase::Offer { note } => {
                     let btns = if self.running_exe.is_some() {
-                        vec![BannerButton::Skip, BannerButton::Later, BannerButton::WhatsNew, BannerButton::UpdateNow]
+                        vec![
+                            BannerButton::Skip,
+                            BannerButton::Later,
+                            BannerButton::WhatsNew,
+                            BannerButton::UpdateNow,
+                        ]
                     } else {
                         vec![BannerButton::Skip, BannerButton::Later, BannerButton::Download]
                     };
@@ -408,7 +462,10 @@ mod desktop {
                 }
                 Phase::Downloading { .. } => (Some(DOWNLOADING.to_string()), vec![BannerButton::Cancel]),
                 Phase::Restarting => (Some(RESTARTING.to_string()), vec![]),
-                Phase::Failed(e) => (Some(e.clone()), vec![BannerButton::Close, BannerButton::DownloadInstead]),
+                Phase::Failed(e) => (
+                    Some(e.clone()),
+                    vec![BannerButton::Close, BannerButton::DownloadInstead],
+                ),
             };
             Some(BannerView {
                 version: b.rel.version.clone(),
@@ -443,7 +500,11 @@ mod desktop {
                 }
                 // 1.x: Cancel hides the banner at once; the download's file is removed when it ends
                 BannerButton::Cancel => {
-                    if let Some(Banner { phase: Phase::Downloading { pending }, rel }) = self.banner.take() {
+                    if let Some(Banner {
+                        phase: Phase::Downloading { pending },
+                        rel,
+                    }) = self.banner.take()
+                    {
                         self.orphans.push((rel.tag, pending));
                     }
                     None
@@ -452,9 +513,11 @@ mod desktop {
                     if !matches!(b.phase, Phase::Offer { .. } | Phase::Failed(_)) {
                         return None;
                     }
-                    let Some(running) = self.running_exe.clone() else { return None };
+                    let running = self.running_exe.clone()?;
                     if others {
-                        b.phase = Phase::Offer { note: Some(OTHER_WINDOWS.to_string()) };
+                        b.phase = Phase::Offer {
+                            note: Some(OTHER_WINDOWS.to_string()),
+                        };
                         return None;
                     }
                     if let Some(i) = self.orphans.iter().position(|(tag, _)| *tag == b.rel.tag) {
@@ -494,7 +557,10 @@ mod desktop {
                 self.check_now(p, now);
                 None
             } else {
-                Some(UpdateAction::Toast { text: CHECKS_OFF.into(), warn: false })
+                Some(UpdateAction::Toast {
+                    text: CHECKS_OFF.into(),
+                    warn: false,
+                })
             }
         }
 
@@ -506,10 +572,10 @@ mod desktop {
             if let Some(a) = self.poll(p, now) {
                 return Some(a);
             }
-            if let Some(on) = self.settings {
-                if let Some(a) = self.draw_settings(ctx, tk, p, on, now) {
-                    return Some(a);
-                }
+            if let Some(on) = self.settings
+                && let Some(a) = self.draw_settings(ctx, tk, p, on, now)
+            {
+                return Some(a);
             }
             let view = self.banner()?;
             let pressed = draw_banner(ctx, tk, &view)?;
@@ -517,37 +583,55 @@ mod desktop {
             self.press(which, p)
         }
 
-        fn draw_settings(&mut self, ctx: &egui::Context, tk: &Tokens, p: &dyn Platform, mut on: bool, now: f64) -> Option<UpdateAction> {
+        fn draw_settings(
+            &mut self,
+            ctx: &egui::Context,
+            tk: &Tokens,
+            p: &dyn Platform,
+            mut on: bool,
+            now: f64,
+        ) -> Option<UpdateAction> {
             let screen = ctx.content_rect();
-            Area::new(Id::unique("update-settings-scrim")).order(Order::Foreground).fixed_pos(screen.min).show(ctx, |ui| {
-                let (r, _) = ui.allocate_exact_size(screen.size(), egui::Sense::click_and_drag());
-                ui.painter().rect_filled(r, 0.0, tk.scrim);
-            });
+            Area::new(Id::unique("update-settings-scrim"))
+                .order(Order::Foreground)
+                .fixed_pos(screen.min)
+                .show(ctx, |ui| {
+                    let (r, _) = ui.allocate_exact_size(screen.size(), egui::Sense::click_and_drag());
+                    ui.painter().rect_filled(r, 0.0, tk.scrim);
+                });
             let mut ok = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
             let mut cancel = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Escape));
-            Area::new(Id::unique("update-settings")).order(Order::Tooltip).anchor(Align2::CENTER_CENTER, Vec2::ZERO).show(ctx, |ui| {
-                Frame::new()
-                    .fill(tk.panel)
-                    .stroke(Stroke::new(1.0, tk.line))
-                    .corner_radius(CornerRadius::same(9))
-                    .shadow(tk.shadow_lg)
-                    .inner_margin(Margin { left: 20, right: 20, top: 18, bottom: 14 })
-                    .show(ui, |ui| {
-                        ui.set_max_width(400.0);
-                        let bold = egui::FontId::new(15.0, egui::FontFamily::Name("bold".into()));
-                        ui.label(RichText::new(SETTINGS_TITLE).font(bold).color(tk.strong));
-                        ui.add_space(10.0);
-                        ui.checkbox(&mut on, RichText::new(SETTINGS_CHECK).size(12.5).color(tk.text));
-                        ui.add_space(6.0);
-                        ui.label(RichText::new(SETTINGS_NOTE).size(11.5).color(tk.muted));
-                        ui.add_space(14.0);
-                        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                            ui.spacing_mut().item_spacing.x = 8.0;
-                            ok |= button(ui, tk, "OK", true).clicked();
-                            cancel |= button(ui, tk, "Cancel", false).clicked();
+            Area::new(Id::unique("update-settings"))
+                .order(Order::Tooltip)
+                .anchor(Align2::CENTER_CENTER, Vec2::ZERO)
+                .show(ctx, |ui| {
+                    Frame::new()
+                        .fill(tk.panel)
+                        .stroke(Stroke::new(1.0, tk.line))
+                        .corner_radius(CornerRadius::same(9))
+                        .shadow(tk.shadow_lg)
+                        .inner_margin(Margin {
+                            left: 20,
+                            right: 20,
+                            top: 18,
+                            bottom: 14,
+                        })
+                        .show(ui, |ui| {
+                            ui.set_max_width(400.0);
+                            let bold = egui::FontId::new(15.0, egui::FontFamily::Name("bold".into()));
+                            ui.label(RichText::new(SETTINGS_TITLE).font(bold).color(tk.strong));
+                            ui.add_space(10.0);
+                            ui.checkbox(&mut on, RichText::new(SETTINGS_CHECK).size(12.5).color(tk.text));
+                            ui.add_space(6.0);
+                            ui.label(RichText::new(SETTINGS_NOTE).size(11.5).color(tk.muted));
+                            ui.add_space(14.0);
+                            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                                ui.spacing_mut().item_spacing.x = 8.0;
+                                ok |= button(ui, tk, "OK", true).clicked();
+                                cancel |= button(ui, tk, "Cancel", false).clicked();
+                            });
                         });
-                    });
-            });
+                });
             if ok {
                 return self.set_checks(p, on, now);
             }
@@ -560,39 +644,56 @@ mod desktop {
     /// Returns the label of the button pressed.
     fn draw_banner(ctx: &egui::Context, tk: &Tokens, v: &BannerView) -> Option<&'static str> {
         let mut pressed = None;
-        Area::new(Id::unique("update-banner")).order(Order::Foreground).anchor(Align2::RIGHT_TOP, Vec2::new(-14.0, 38.0)).show(ctx, |ui| {
-            let resp = Frame::new()
-                .fill(tk.panel)
-                .stroke(Stroke::new(1.0, tk.line))
-                .corner_radius(CornerRadius::same(tk.radius as u8))
-                .shadow(tk.shadow_lg)
-                .inner_margin(Margin { left: 16, right: 12, top: 10, bottom: 10 })
-                .show(ui, |ui| {
-                    ui.set_max_width(380.0 - 28.0);
-                    ui.label(RichText::new(&v.title).size(12.5).strong().color(tk.strong));
-                    ui.add_space(2.0);
-                    ui.label(RichText::new(&v.line).size(12.0).color(tk.muted));
-                    if let Some(n) = &v.note {
-                        ui.add_space(6.0);
-                        ui.label(RichText::new(n).size(12.0).color(tk.text));
-                    }
-                    if !v.buttons.is_empty() {
-                        ui.add_space(8.0);
-                        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                            ui.spacing_mut().item_spacing.x = 6.0;
-                            for label in v.buttons.iter().rev() {
-                                let primary = BUTTONS.iter().any(|b| b.primary() && b.label() == *label);
-                                if button(ui, tk, label, primary).clicked() {
-                                    pressed = Some(*label);
+        Area::new(Id::unique("update-banner"))
+            .order(Order::Foreground)
+            .anchor(Align2::RIGHT_TOP, Vec2::new(-14.0, 38.0))
+            .show(ctx, |ui| {
+                let resp = Frame::new()
+                    .fill(tk.panel)
+                    .stroke(Stroke::new(1.0, tk.line))
+                    .corner_radius(CornerRadius::same(tk.radius as u8))
+                    .shadow(tk.shadow_lg)
+                    .inner_margin(Margin {
+                        left: 16,
+                        right: 12,
+                        top: 10,
+                        bottom: 10,
+                    })
+                    .show(ui, |ui| {
+                        ui.set_max_width(380.0 - 28.0);
+                        ui.label(RichText::new(&v.title).size(12.5).strong().color(tk.strong));
+                        ui.add_space(2.0);
+                        ui.label(RichText::new(&v.line).size(12.0).color(tk.muted));
+                        if let Some(n) = &v.note {
+                            ui.add_space(6.0);
+                            ui.label(RichText::new(n).size(12.0).color(tk.text));
+                        }
+                        if !v.buttons.is_empty() {
+                            ui.add_space(8.0);
+                            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                                ui.spacing_mut().item_spacing.x = 6.0;
+                                for label in v.buttons.iter().rev() {
+                                    let primary = BUTTONS.iter().any(|b| b.primary() && b.label() == *label);
+                                    if button(ui, tk, label, primary).clicked() {
+                                        pressed = Some(*label);
+                                    }
                                 }
-                            }
-                        });
-                    }
-                });
-            let r = resp.response.rect;
-            let bar = egui::Rect::from_min_size(r.min, Vec2::new(4.0, r.height()));
-            ui.painter().rect_filled(bar, CornerRadius { nw: tk.radius as u8, sw: tk.radius as u8, ne: 0, se: 0 }, tk.accent);
-        });
+                            });
+                        }
+                    });
+                let r = resp.response.rect;
+                let bar = egui::Rect::from_min_size(r.min, Vec2::new(4.0, r.height()));
+                ui.painter().rect_filled(
+                    bar,
+                    CornerRadius {
+                        nw: tk.radius as u8,
+                        sw: tk.radius as u8,
+                        ne: 0,
+                        se: 0,
+                    },
+                    tk.accent,
+                );
+            });
         pressed
     }
 
@@ -610,9 +711,18 @@ mod desktop {
             std::fs::create_dir_all(dir)?;
             let name = format!("{}-{}.lock", std::process::id(), N.fetch_add(1, Ordering::Relaxed));
             let path = dir.join(&name);
-            let file = OpenOptions::new().read(true).write(true).create(true).truncate(false).open(&path)?;
+            let file = OpenOptions::new()
+                .read(true)
+                .write(true)
+                .create(true)
+                .truncate(false)
+                .open(&path)?;
             file.lock()?;
-            Ok(WindowLock { file: Some(file), path, name })
+            Ok(WindowLock {
+                file: Some(file),
+                path,
+                name,
+            })
         }
     }
 
@@ -627,7 +737,9 @@ mod desktop {
     /// file name) doesn't count. A lock that can be taken belongs to a window that has gone: its
     /// file is removed once it is a minute old (a younger one may be a window still starting).
     pub fn other_windows_open(dir: &Path, own: Option<&str>) -> bool {
-        let Ok(entries) = std::fs::read_dir(dir) else { return false };
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return false;
+        };
         let mut found = false;
         for e in entries.flatten() {
             let name = e.file_name();
@@ -635,12 +747,19 @@ mod desktop {
             if !name.ends_with(".lock") || Some(name) == own {
                 continue;
             }
-            let Ok(f) = OpenOptions::new().read(true).write(true).open(e.path()) else { continue };
+            let Ok(f) = OpenOptions::new().read(true).write(true).open(e.path()) else {
+                continue;
+            };
             match f.try_lock() {
                 Err(TryLockError::WouldBlock) => found = true,
                 Ok(()) => {
                     drop(f);
-                    let old = e.metadata().and_then(|m| m.modified()).ok().and_then(|t| t.elapsed().ok()).is_some_and(|age| age > Duration::from_secs(60));
+                    let old = e
+                        .metadata()
+                        .and_then(|m| m.modified())
+                        .ok()
+                        .and_then(|t| t.elapsed().ok())
+                        .is_some_and(|age| age > Duration::from_secs(60));
                     if old {
                         let _ = std::fs::remove_file(e.path());
                     }
@@ -678,12 +797,17 @@ mod desktop {
 
     /// Seconds since 1970, for `now`.
     pub fn now_secs() -> f64 {
-        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs_f64()).unwrap_or(0.0)
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs_f64())
+            .unwrap_or(0.0)
     }
 
     fn to_cache(rel: Option<&Release>) -> Value {
         match rel {
-            Some(r) => json!({ "tag": r.tag, "version": r.version, "url": r.url, "size": r.size, "digest": r.digest, "notes": r.notes }),
+            Some(r) => {
+                json!({ "tag": r.tag, "version": r.version, "url": r.url, "size": r.size, "digest": r.digest, "notes": r.notes })
+            }
             None => json!({ "version": null }),
         }
     }

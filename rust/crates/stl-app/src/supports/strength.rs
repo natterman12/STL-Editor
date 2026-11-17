@@ -4,7 +4,7 @@
 //! still works out the numbers (`strengthOfJson`, `suggestPosesJson`); this module only
 //! asks for them and turns the answer into the words the panel shows.
 
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 
 use crate::tools::Values;
 
@@ -18,7 +18,8 @@ pub const MATERIALS: &[(&str, &str, f64)] = &[
     ("pa", "Nylon", 1.14),
 ];
 
-pub const LOAD_HELP: &str = "Which way the part is pulled or pushed when it's in use. The strength line then says how well this pose takes it.";
+pub const LOAD_HELP: &str =
+    "Which way the part is pulled or pushed when it's in use. The strength line then says how well this pose takes it.";
 pub const POSTURE_TIP: &str = "How the print's layers sit for this pose. Prints are weakest across their layers.";
 pub const SUGGEST_BUSY: &str = "Trying the part every way down\u{2026}";
 pub const PICK_PART: &str = "Pick the part first.";
@@ -34,17 +35,29 @@ const LOADS: &[(&str, [f64; 3])] = &[
 
 /// A known filament, or PLA when the stored name is missing.
 pub fn material_key(key: &str) -> &'static str {
-    MATERIALS.iter().find(|(k, _, _)| *k == key).map(|(k, _, _)| *k).unwrap_or("pla")
+    MATERIALS
+        .iter()
+        .find(|(k, _, _)| *k == key)
+        .map(|(k, _, _)| *k)
+        .unwrap_or("pla")
 }
 
 pub fn material_name(key: &str) -> &'static str {
     let key = material_key(key);
-    MATERIALS.iter().find(|(k, _, _)| *k == key).map(|(_, n, _)| *n).unwrap_or("PLA")
+    MATERIALS
+        .iter()
+        .find(|(k, _, _)| *k == key)
+        .map(|(_, n, _)| *n)
+        .unwrap_or("PLA")
 }
 
 pub fn material_density(key: &str) -> f64 {
     let key = material_key(key);
-    MATERIALS.iter().find(|(k, _, _)| *k == key).map(|(_, _, d)| *d).unwrap_or(1.24)
+    MATERIALS
+        .iter()
+        .find(|(k, _, _)| *k == key)
+        .map(|(_, _, d)| *d)
+        .unwrap_or(1.24)
 }
 
 /// The load direction as a vector. A stored array is a direction that turned with the part.
@@ -87,11 +100,7 @@ pub fn turn_load(load: [f64; 3], rot: [[f64; 3]; 3]) -> Value {
 }
 
 fn round_dir(x: f64) -> f64 {
-    if x.abs() < 1e-6 {
-        0.0
-    } else {
-        (x * 1e4).round() / 1e4
-    }
+    if x.abs() < 1e-6 { 0.0 } else { (x * 1e4).round() / 1e4 }
 }
 
 pub fn posture_text(posture: &str) -> Option<&'static str> {
@@ -126,7 +135,10 @@ pub fn confidence_note(confidence: &str) -> Option<&'static str> {
 pub fn format_candidate(c: &Value, material: &str) -> String {
     let over = c.get("overArea").map(num).unwrap_or(0.0).round();
     let height = c.get("height").map(num).unwrap_or(0.0).round();
-    let mut bits = vec![format!("{over:.0} mm\u{00b2} to support"), format!("{height:.0} mm tall")];
+    let mut bits = vec![
+        format!("{over:.0} mm\u{00b2} to support"),
+        format!("{height:.0} mm tall"),
+    ];
     if let Some(walls) = c.get("walls").filter(|v| !v.is_null()) {
         let walls = walls.as_i64().unwrap_or_else(|| num(walls) as i64);
         bits.push(format!("{walls} fin{}", if walls == 1 { "" } else { "s" }));
@@ -176,25 +188,31 @@ pub fn strength_request(body: &str, options: Value, load: &Value) -> StrengthReq
         Some(v) => json!(v.to_vec()),
         None => Value::Null,
     };
-    StrengthRequest { body: body.to_string(), options, load }
+    StrengthRequest {
+        body: body.to_string(),
+        options,
+        load,
+    }
 }
 
 pub fn suggest_request(body: &str, options: Value) -> SuggestRequest {
-    SuggestRequest { body: body.to_string(), options, top: 3 }
+    SuggestRequest {
+        body: body.to_string(),
+        options,
+        top: 3,
+    }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Default)]
 pub enum SuggestUi {
+    #[default]
     Idle,
     Busy,
     Error(String),
-    Ready { confidence: String, candidates: Vec<Value> },
-}
-
-impl Default for SuggestUi {
-    fn default() -> Self {
-        SuggestUi::Idle
-    }
+    Ready {
+        confidence: String,
+        candidates: Vec<Value>,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -246,7 +264,13 @@ pub fn load_options(selected: &str) -> Vec<(&'static str, &'static str)> {
 }
 
 /// The Orientation block. Empty when this engine has no strength extra.
-pub fn pose_view(orient: bool, values: &Values, suggest: &SuggestUi, strength: Option<&Value>, material: &str) -> PoseView {
+pub fn pose_view(
+    orient: bool,
+    values: &Values,
+    suggest: &SuggestUi,
+    strength: Option<&Value>,
+    material: &str,
+) -> PoseView {
     let selected = load_selected(values.get("_load"));
     let mut view = PoseView {
         available: orient,
@@ -360,14 +384,28 @@ pub struct Status {
     pub fill_gaps: bool,
 }
 
-const PLASTIC_TIP: &str = "The plastic the supports add, from their exact volume. Set your filament under Print check \u{203a} Material.";
+const PLASTIC_TIP: &str =
+    "The plastic the supports add, from their exact volume. Set your filament under Print check \u{203a} Material.";
 
 /// The two readouts. `with_cover` is false for Draw Walls (plastic only).
-pub fn status_cards(values: &Values, cover: Option<&Cover>, plastic: Option<&Plastic>, material: &str, reach: f64, with_cover: bool) -> Status {
+pub fn status_cards(
+    values: &Values,
+    cover: Option<&Cover>,
+    plastic: Option<&Plastic>,
+    material: &str,
+    reach: f64,
+    with_cover: bool,
+) -> Status {
     let has_body = body_chosen(values);
     let plastic_card = plastic_card(has_body, plastic, material);
     if !with_cover {
-        return Status { held: None, plastic: plastic_card, note: String::new(), note_tail: String::new(), fill_gaps: false };
+        return Status {
+            held: None,
+            plastic: plastic_card,
+            note: String::new(),
+            note_tail: String::new(),
+            fill_gaps: false,
+        };
     }
     let (value, tone, sub, note, fill) = held_value(values, cover, has_body);
     let held = Card {
@@ -381,8 +419,18 @@ pub fn status_cards(values: &Values, cover: Option<&Cover>, plastic: Option<&Pla
             js_num(reach)
         ),
     };
-    let note_tail = if fill { "Or click a red spot to drop a fin there.".to_owned() } else { String::new() };
-    Status { held: Some(held), plastic: plastic_card, note, note_tail, fill_gaps: fill }
+    let note_tail = if fill {
+        "Or click a red spot to drop a fin there.".to_owned()
+    } else {
+        String::new()
+    };
+    Status {
+        held: Some(held),
+        plastic: plastic_card,
+        note,
+        note_tail,
+        fill_gaps: fill,
+    }
 }
 
 fn body_chosen(values: &Values) -> bool {
@@ -402,13 +450,32 @@ fn plastic_card(has_body: bool, plastic: Option<&Plastic>, material: &str) -> Ca
             value = "None needed".into();
         } else if has_body {
             let g = sp.volume * material_density(material) / 1000.0;
-            value = format!("{} g", if g < 9.95 { fixed1(g) } else { format!("{:.0}", g.round()) });
+            value = format!(
+                "{} g",
+                if g < 9.95 {
+                    fixed1(g)
+                } else {
+                    format!("{:.0}", g.round())
+                }
+            );
             tone = Tone::Plain;
             let pieces = if sp.pieces == 1 { "piece" } else { "pieces" };
-            sub = format!("{} \u{00b7} {} cm\u{00b3} \u{00b7} {} {pieces}", material_name(material), fixed1(sp.volume / 1000.0), sp.pieces);
+            sub = format!(
+                "{} \u{00b7} {} cm\u{00b3} \u{00b7} {} {pieces}",
+                material_name(material),
+                fixed1(sp.volume / 1000.0),
+                sp.pieces
+            );
         }
     }
-    Card { key: "_plastic", caption: "Support plastic", value, tone, sub, tip: PLASTIC_TIP.into() }
+    Card {
+        key: "_plastic",
+        caption: "Support plastic",
+        value,
+        tone,
+        sub,
+        tip: PLASTIC_TIP.into(),
+    }
 }
 
 fn held_value(values: &Values, cover: Option<&Cover>, has_body: bool) -> (String, Tone, String, String, bool) {
@@ -417,10 +484,22 @@ fn held_value(values: &Values, cover: Option<&Cover>, has_body: bool) -> (String
         return ("\u{2014}".into(), Tone::Muted, String::new(), String::new(), false);
     }
     let Some(c) = cover else {
-        return ("Checking\u{2026}".into(), Tone::Busy, String::new(), String::new(), false);
+        return (
+            "Checking\u{2026}".into(),
+            Tone::Busy,
+            String::new(),
+            String::new(),
+            false,
+        );
     };
     if c.busy {
-        return ("Checking\u{2026}".into(), Tone::Busy, String::new(), String::new(), false);
+        return (
+            "Checking\u{2026}".into(),
+            Tone::Busy,
+            String::new(),
+            String::new(),
+            false,
+        );
     }
     if let Some(err) = &c.error {
         return (err.clone(), Tone::Bad, String::new(), String::new(), false);
@@ -444,7 +523,11 @@ fn held_value(values: &Values, cover: Option<&Cover>, has_body: bool) -> (String
     let worst = match w.far {
         None => "Nothing holds the worst bare spot (bright red) up.".to_string(),
         Some(far) => {
-            let dist = if far < 9.95 { fixed1(far) } else { format!("{:.0}", far.round()) };
+            let dist = if far < 9.95 {
+                fixed1(far)
+            } else {
+                format!("{:.0}", far.round())
+            };
             format!("The worst bare spot (bright red) is {dist} mm from a support.")
         }
     };
@@ -474,5 +557,8 @@ pub fn js_num(v: f64) -> String {
 
 /// Options object inside a feature's params (only the keys the panel saved).
 pub fn options_object(params: &Value) -> Value {
-    params.get("options").cloned().unwrap_or_else(|| Value::Object(Map::new()))
+    params
+        .get("options")
+        .cloned()
+        .unwrap_or_else(|| Value::Object(Map::new()))
 }

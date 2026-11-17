@@ -116,7 +116,12 @@ fn simplify(input: &[P2], tol: f64) -> Vec<P2> {
             break;
         }
     }
-    input.iter().zip(&deleted).filter(|&(_, &d)| !d).map(|(&p, _)| p).collect()
+    input
+        .iter()
+        .zip(&deleted)
+        .filter(|&(_, &d)| !d)
+        .map(|(&p, _)| p)
+        .collect()
 }
 
 // ---------------------------------------------------------------- OffsetSegmentGenerator
@@ -242,19 +247,19 @@ impl SegGen {
     }
 
     fn add_pt(&mut self, p: P2) {
-        if let Some(&l) = self.pts.last() {
-            if dist(p, l) < self.min_vertex_dist {
-                return;
-            }
+        if let Some(&l) = self.pts.last()
+            && dist(p, l) < self.min_vertex_dist
+        {
+            return;
         }
         self.pts.push(p);
     }
 
     fn close_ring(&mut self) {
-        if let (Some(&f), Some(&l)) = (self.pts.first(), self.pts.last()) {
-            if f != l {
-                self.pts.push(f);
-            }
+        if let (Some(&f), Some(&l)) = (self.pts.first(), self.pts.last())
+            && f != l
+        {
+            self.pts.push(f);
         }
     }
 
@@ -315,11 +320,11 @@ impl SegGen {
         }
         // mitre join
         let limit = MITRE_LIMIT * self.dist;
-        if let Some(ip) = line_intersection(self.off0[0], self.off0[1], self.off1[0], self.off1[1]) {
-            if dist(ip, self.s1) <= limit {
-                self.add_pt(ip);
-                return;
-            }
+        if let Some(ip) = line_intersection(self.off0[0], self.off0[1], self.off1[0], self.off1[1])
+            && dist(ip, self.s1) <= limit
+        {
+            self.add_pt(ip);
+            return;
         }
         let bevel_dist = point_to_segment(self.s1, self.off0[1], self.off1[0]);
         if bevel_dist >= limit {
@@ -388,7 +393,7 @@ impl SegGen {
         }
         let inc = total / n as f64;
         for i in 0..n {
-            let (s, c) = sin_cos_snap(start + -1.0 * i as f64 * inc);
+            let (s, c) = sin_cos_snap(start + -(i as f64) * inc);
             self.add_pt([p[0] + radius * c, p[1] + radius * s]);
         }
     }
@@ -485,7 +490,12 @@ fn buffer_polygon(line: &[P2], d: f64) -> Vec<Vec<P2>> {
     let mut best: Option<(f64, usize)> = None;
     for (si, s) in shells.iter().enumerate() {
         let area = ring_area(s).abs()
-            - holes.iter().enumerate().filter(|(hi, _)| owner[*hi] == Some(si)).map(|(_, h)| ring_area(h).abs()).sum::<f64>();
+            - holes
+                .iter()
+                .enumerate()
+                .filter(|(hi, _)| owner[*hi] == Some(si))
+                .map(|(_, h)| ring_area(h).abs())
+                .sum::<f64>();
         if best.is_none_or(|(a, _)| area > a) {
             best = Some((area, si));
         }
@@ -547,7 +557,8 @@ fn compute_curve_sections(ring: &[P2], raw: &[P2], match_distance: f64, sections
         let mut seg_min: Option<(usize, f64)> = None;
         for j in 0..m {
             let (b0, b1) = (ring[j], ring[j + 1]);
-            if b0[0].min(b1[0]) > hi_x || b0[0].max(b1[0]) < lo_x || b0[1].min(b1[1]) > hi_y || b0[1].max(b1[1]) < lo_y {
+            if b0[0].min(b1[0]) > hi_x || b0[0].max(b1[0]) < lo_x || b0[1].min(b1[1]) > hi_y || b0[1].max(b1[1]) < lo_y
+            {
                 continue;
             }
             if match_distance < point_to_segment(b0, r0, r1) || match_distance < point_to_segment(b1, r0, r1) {
@@ -611,7 +622,11 @@ fn extract_sections(ring: &[P2], loc: &[f64], start_index: usize, sections: &mut
         let section_end = find_section_end(loc, section_start, start_index);
         let location = loc[section_start];
         // OffsetCurveSection::create
-        let len = if section_end <= section_start { ring.len() - section_start + section_end } else { section_end - section_start + 1 };
+        let len = if section_end <= section_start {
+            ring.len() - section_start + section_end
+        } else {
+            section_end - section_start + 1
+        };
         let pts: Vec<P2> = (0..len).map(|i| ring[(section_start + i) % (ring.len() - 1)]).collect();
         sections.push(Section { pts, loc: location });
         section_start = find_section_start(loc, section_end);

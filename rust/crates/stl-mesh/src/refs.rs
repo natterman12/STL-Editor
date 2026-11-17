@@ -1,6 +1,6 @@
 //! Part-edge reference geometry for sketches (`stleditor/meshtools.py`).
 
-use stl_kernel::{dot, Frame, Shape2d, Solid};
+use stl_kernel::{Frame, Shape2d, Solid, dot};
 
 /// One ref entity a sketch can measure from (circle or line), in sketch coordinates.
 #[derive(Debug, Clone, PartialEq)]
@@ -165,7 +165,7 @@ fn solve3_min_norm(m: [[f64; 3]; 3], b: [f64; 3]) -> Option<[f64; 3]> {
         let mut piv = None;
         let mut best = 1e-18;
         for r in 0..3 {
-            if pivot_row.iter().any(|&pr| pr == r as i32) {
+            if pivot_row.contains(&(r as i32)) {
                 continue;
             }
             let v = a[r][col].abs();
@@ -246,10 +246,7 @@ pub fn outline_entities<F: FnMut() -> i64>(
                 projected: true,
             });
         } else {
-            let pts: Vec<[f64; 2]> = p
-                .iter()
-                .map(|q| [round_py(q[0], 4), round_py(q[1], 4)])
-                .collect();
+            let pts: Vec<[f64; 2]> = p.iter().map(|q| [round_py(q[0], 4), round_py(q[1], 4)]).collect();
             out.push(OutlineEntity::Polyline {
                 id: new_id(),
                 pts,

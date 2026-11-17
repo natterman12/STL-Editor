@@ -3,13 +3,21 @@
 
 use std::collections::BTreeMap;
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use stl_app::sketch::snap::{self, SnapKind};
-use stl_app::sketch::{draw, modify, typed, Constraint, Entity, Ref, RefEnt, SketchDialog, SketchEffect, SketchInput, SketchSession, SketchTool, ToolCx};
+use stl_app::sketch::{
+    Constraint, Entity, Ref, RefEnt, SketchDialog, SketchEffect, SketchInput, SketchSession, SketchTool, ToolCx, draw,
+    modify, typed,
+};
 use stl_app::viewport::{PlaneFrame, Viewport};
 
 fn frame() -> PlaneFrame {
-    PlaneFrame { origin: [0.0, 0.0, 0.0], x: [1.0, 0.0, 0.0], y: [0.0, 1.0, 0.0], normal: [0.0, 0.0, 1.0] }
+    PlaneFrame {
+        origin: [0.0, 0.0, 0.0],
+        x: [1.0, 0.0, 0.0],
+        y: [0.0, 1.0, 0.0],
+        normal: [0.0, 0.0, 1.0],
+    }
 }
 
 fn ent(v: Value) -> Entity {
@@ -35,7 +43,14 @@ impl H {
         vp.look_at_plane(&frame(), Some(50.0));
         vp.camera_mut().finish_flight();
         snap::set_grid(true, 1.0);
-        H { s, vp, tool: draw::tool_for(key).expect(key), out: Vec::new(), params: BTreeMap::new(), inch: false }
+        H {
+            s,
+            vp,
+            tool: draw::tool_for(key).expect(key),
+            out: Vec::new(),
+            params: BTreeMap::new(),
+            inch: false,
+        }
     }
 
     fn set_tool(&mut self, key: &str) {
@@ -48,12 +63,24 @@ impl H {
     }
 
     fn send(&mut self, ev: SketchInput) -> bool {
-        let mut cx = ToolCx { s: &mut self.s, vp: &self.vp, inch: self.inch, params: &self.params, out: &mut self.out };
+        let mut cx = ToolCx {
+            s: &mut self.s,
+            vp: &self.vp,
+            inch: self.inch,
+            params: &self.params,
+            out: &mut self.out,
+        };
         self.tool.input(&mut cx, &ev)
     }
 
     fn with_cx<R>(&mut self, f: impl FnOnce(&mut ToolCx) -> R) -> R {
-        let mut cx = ToolCx { s: &mut self.s, vp: &self.vp, inch: self.inch, params: &self.params, out: &mut self.out };
+        let mut cx = ToolCx {
+            s: &mut self.s,
+            vp: &self.vp,
+            inch: self.inch,
+            params: &self.params,
+            out: &mut self.out,
+        };
         f(&mut cx)
     }
 
@@ -63,7 +90,11 @@ impl H {
 
     fn mv(&mut self, uv: [f64; 2]) {
         let pos = self.pos(uv);
-        self.send(SketchInput::Move { uv, pos, mods: egui::Modifiers::NONE });
+        self.send(SketchInput::Move {
+            uv,
+            pos,
+            mods: egui::Modifiers::NONE,
+        });
     }
 
     fn click_mods(&mut self, uv: [f64; 2], mods: egui::Modifiers) {
@@ -78,7 +109,10 @@ impl H {
     }
 
     fn key(&mut self, key: egui::Key) -> bool {
-        self.send(SketchInput::Key { key, mods: egui::Modifiers::NONE })
+        self.send(SketchInput::Key {
+            key,
+            mods: egui::Modifiers::NONE,
+        })
     }
 
     fn typed(&mut self, t: &str) -> bool {
@@ -94,11 +128,29 @@ impl H {
     }
 
     fn toasts(&self) -> Vec<String> {
-        self.out.iter().filter_map(|e| if let SketchEffect::Toast(_, t) = e { Some(t.clone()) } else { None }).collect()
+        self.out
+            .iter()
+            .filter_map(|e| {
+                if let SketchEffect::Toast(_, t) = e {
+                    Some(t.clone())
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 
     fn ops(&self) -> Vec<(String, Value)> {
-        self.out.iter().filter_map(|e| if let SketchEffect::SketchOp { op, data } = e { Some((op.clone(), data.clone())) } else { None }).collect()
+        self.out
+            .iter()
+            .filter_map(|e| {
+                if let SketchEffect::SketchOp { op, data } = e {
+                    Some((op.clone(), data.clone()))
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 
     fn changed(&self) -> bool {
@@ -175,7 +227,11 @@ fn draw_arc3() {
     assert_eq!(h.tool.preview(&h.s).len(), 1, "a rubber band while drawing");
     h.click([25.0, 5.0]);
     // through (20,0), (25,5), (30,0): centre (25,0), r 5, counter-clockwise 0° to 180°
-    same(&h.ents(), &json!([{"id": "eg1", "type": "arc", "cx": 25, "cy": 0, "r": 5, "a0": 0, "a1": 180}]), "arc");
+    same(
+        &h.ents(),
+        &json!([{"id": "eg1", "type": "arc", "cx": 25, "cy": 0, "r": 5, "a0": 0, "a1": 180}]),
+        "arc",
+    );
     assert!(h.s.constraints.is_empty());
 
     // three points in a line
@@ -192,7 +248,11 @@ fn draw_rect() {
     let mut h = H::new("rect", vec![]);
     h.click([2.0, 3.0]);
     h.click([12.0, 8.0]);
-    same(&h.ents(), &json!([{"id": "eg1", "type": "rect", "x": 2, "y": 3, "w": 10, "h": 5}]), "rect");
+    same(
+        &h.ents(),
+        &json!([{"id": "eg1", "type": "rect", "x": 2, "y": 3, "w": 10, "h": 5}]),
+        "rect",
+    );
     assert_eq!(h.s.sel.iter().cloned().collect::<Vec<_>>(), vec!["eg1"]);
     assert!(h.changed());
 
@@ -211,7 +271,11 @@ fn draw_rect_center() {
     let mut h = H::new("rect_center", vec![]);
     h.click([20.0, 20.0]);
     h.click([25.0, 23.0]);
-    same(&h.ents(), &json!([{"id": "eg1", "type": "rect", "x": 15, "y": 17, "w": 10, "h": 6}]), "rect");
+    same(
+        &h.ents(),
+        &json!([{"id": "eg1", "type": "rect", "x": 15, "y": 17, "w": 10, "h": 6}]),
+        "rect",
+    );
 }
 
 #[test]
@@ -219,7 +283,11 @@ fn draw_circle() {
     let mut h = H::new("circle", vec![]);
     h.click([5.0, 5.0]);
     h.click([8.0, 9.0]);
-    same(&h.ents(), &json!([{"id": "eg1", "type": "circle", "cx": 5, "cy": 5, "r": 5}]), "circle");
+    same(
+        &h.ents(),
+        &json!([{"id": "eg1", "type": "circle", "cx": 5, "cy": 5, "r": 5}]),
+        "circle",
+    );
 }
 
 #[test]
@@ -227,17 +295,28 @@ fn draw_polygon() {
     let mut h = H::new("polygon", vec![]);
     h.click([30.0, 30.0]);
     h.click([35.0, 30.0]);
-    same(&h.ents(), &json!([{"id": "eg1", "type": "polygon", "cx": 30, "cy": 30, "r": 5, "n": 6, "angle": 0}]), "polygon");
+    same(
+        &h.ents(),
+        &json!([{"id": "eg1", "type": "polygon", "cx": 30, "cy": 30, "r": 5, "n": 6, "angle": 0}]),
+        "polygon",
+    );
     // typed radius and sides: the angle is 90°, and the next polygon keeps the side count
     h.click([60.0, 60.0]);
     assert!(h.typed("4"));
     assert!(h.key(egui::Key::Tab));
     assert!(h.typed("8"));
     assert!(h.key(egui::Key::Enter));
-    same(&serde_json::to_value(&h.s.entities[1]).unwrap(), &json!({"id": "eg2", "type": "polygon", "cx": 60, "cy": 60, "r": 4, "n": 8, "angle": 90}), "typed");
+    same(
+        &serde_json::to_value(&h.s.entities[1]).unwrap(),
+        &json!({"id": "eg2", "type": "polygon", "cx": 60, "cy": 60, "r": 4, "n": 8, "angle": 90}),
+        "typed",
+    );
     h.click([80.0, 80.0]);
     h.click([83.0, 84.0]);
-    assert_eq!(serde_json::to_value(h.s.entities.last().unwrap()).unwrap()["n"].as_f64(), Some(8.0));
+    assert_eq!(
+        serde_json::to_value(h.s.entities.last().unwrap()).unwrap()["n"].as_f64(),
+        Some(8.0)
+    );
 }
 
 #[test]
@@ -246,7 +325,11 @@ fn draw_slot() {
     h.click([40.0, 0.0]);
     h.click([50.0, 0.0]);
     h.click([45.0, 2.0]);
-    same(&h.ents(), &json!([{"id": "eg1", "type": "slot", "x1": 40, "y1": 0, "x2": 50, "y2": 0, "r": 2}]), "slot");
+    same(
+        &h.ents(),
+        &json!([{"id": "eg1", "type": "slot", "x1": 40, "y1": 0, "x2": 50, "y2": 0, "r": 2}]),
+        "slot",
+    );
 }
 
 // ---------------------------------------------------------------- typed sizes
@@ -259,7 +342,11 @@ fn typed_size_mm() {
     assert!(h.key(egui::Key::Tab));
     assert!(h.typed("10"));
     assert!(h.key(egui::Key::Enter));
-    same(&h.ents(), &json!([{"id": "eg1", "type": "rect", "x": 2, "y": 3, "w": 20, "h": 10}]), "rect");
+    same(
+        &h.ents(),
+        &json!([{"id": "eg1", "type": "rect", "x": 2, "y": 3, "w": 20, "h": 10}]),
+        "rect",
+    );
     let px = typed::plane_px(&h.s, &h.vp);
     // the bottom edge's dimension sits below the rectangle (away from its middle)
     same(
@@ -280,7 +367,11 @@ fn typed_size_mm() {
     h.key(egui::Key::Tab);
     h.typed("30");
     h.key(egui::Key::Enter);
-    same(&h.ents(), &json!([{"id": "eg1", "type": "rect", "x": 2, "y": 3, "w": 30, "h": 10}]), "replaced");
+    same(
+        &h.ents(),
+        &json!([{"id": "eg1", "type": "rect", "x": 2, "y": 3, "w": 30, "h": 10}]),
+        "replaced",
+    );
 
     // a circle's typed diameter
     let mut h = H::new("circle", vec![]);
@@ -307,7 +398,11 @@ fn typed_size_inch() {
     assert!((typed::parse_len("1/2", true) - 12.7).abs() < 1e-9);
     assert_eq!(typed::parse_expr("2*3+1"), 7.0);
     assert_eq!(typed::parse_expr("1,5"), 1.5);
-    assert_eq!(typed::parse_expr("3 4"), 3.0, "a JS syntax error falls back to parseFloat");
+    assert_eq!(
+        typed::parse_expr("3 4"),
+        3.0,
+        "a JS syntax error falls back to parseFloat"
+    );
     assert_eq!(typed::parse_expr("12mm"), 12.0);
     assert_eq!(typed::parse_expr("2\""), 2.0);
     assert_eq!(typed::parse_expr("-1 1/2"), -1.5);
@@ -319,7 +414,9 @@ fn typed_size_inch() {
     h.click([5.0, 5.0]);
     h.typed("1/2");
     h.key(egui::Key::Enter);
-    let Entity::Circle(c) = &h.s.entities[0] else { panic!("a circle") };
+    let Entity::Circle(c) = &h.s.entities[0] else {
+        panic!("a circle")
+    };
     assert!((c.r - 6.35).abs() < 1e-9);
     assert!((h.s.constraints[0].value.unwrap() - 12.7).abs() < 1e-9);
 
@@ -331,13 +428,22 @@ fn typed_size_inch() {
     h.typed("1 3/8");
     // the value boxes on the drawing (spec 2.3): the typed length holds its box, the angle follows the pointer
     let boxes = h.tool.dim_boxes();
-    assert_eq!(boxes.iter().map(|b| (b.label, b.value.as_str())).collect::<Vec<_>>(), vec![("Length", "1 3/8"), ("Angle", "0")]);
+    assert_eq!(
+        boxes.iter().map(|b| (b.label, b.value.as_str())).collect::<Vec<_>>(),
+        vec![("Length", "1 3/8"), ("Angle", "0")]
+    );
     assert!(boxes[0].locked && boxes[0].focused);
     assert!(!boxes[1].locked);
     h.key(egui::Key::Enter);
-    let Entity::Line(l) = &h.s.entities[0] else { panic!("a line") };
+    let Entity::Line(l) = &h.s.entities[0] else {
+        panic!("a line")
+    };
     assert!((l.p2[0] - (3.0 + 34.925)).abs() < 1e-9 && (l.p2[1] - 20.0).abs() < 1e-9);
-    let len = h.s.constraints.iter().find(|c| c.kind == "length").expect("a length dimension");
+    let len =
+        h.s.constraints
+            .iter()
+            .find(|c| c.kind == "length")
+            .expect("a length dimension");
     assert!((len.value.unwrap() - 34.925).abs() < 1e-9);
     assert_eq!(typed::fmt_len(34.925, true), "1.375");
 }
@@ -366,7 +472,10 @@ fn line_chain_finish() {
         assert!(h.key(key));
         assert_eq!(h.s.entities.len(), 2, "{key:?} keeps the lines");
         assert!(h.tool.preview(&h.s).is_empty());
-        assert!(!h.key(egui::Key::Escape), "Escape with nothing drawn goes to sketch mode");
+        assert!(
+            !h.key(egui::Key::Escape),
+            "Escape with nothing drawn goes to sketch mode"
+        );
     }
 
     // clicking the first point closes the chain
@@ -377,9 +486,11 @@ fn line_chain_finish() {
     assert_eq!(h.s.entities.len(), 3);
     assert!(h.tool.preview(&h.s).is_empty(), "closed: the chain stops");
     let closing = &h.s.constraints;
-    assert!(closing.iter().any(|c| c.kind == "coincident"
-        && c.a == Some(Ref::pt("eg6", "p2"))
-        && c.b == Some(Ref::pt("eg1", "p1"))));
+    assert!(
+        closing
+            .iter()
+            .any(|c| c.kind == "coincident" && c.a == Some(Ref::pt("eg6", "p2")) && c.b == Some(Ref::pt("eg1", "p1")))
+    );
 }
 
 #[test]
@@ -388,7 +499,10 @@ fn auto_constrain_horizontal_and_coincident() {
     h.click([2.0, 2.0]);
     h.click([12.0, 2.0]);
     h.key(egui::Key::Enter);
-    assert_eq!(h.s.constraints.iter().map(|c| c.kind.as_str()).collect::<Vec<_>>(), vec!["horizontal"]);
+    assert_eq!(
+        h.s.constraints.iter().map(|c| c.kind.as_str()).collect::<Vec<_>>(),
+        vec!["horizontal"]
+    );
     // a rectangle started on the line's end is tied to it
     h.set_tool("rect");
     h.click([12.0, 2.0]);
@@ -401,7 +515,10 @@ fn auto_constrain_horizontal_and_coincident() {
     );
     // a circle centred on a part edge's corner is tied to the edge
     let mut h = H::new("circle", vec![]);
-    h.s.refs = vec![RefEnt { ent: ent(json!({"id": "E1", "type": "line", "p1": [40, 0], "p2": [50, 0]})), missing: false }];
+    h.s.refs = vec![RefEnt {
+        ent: ent(json!({"id": "E1", "type": "line", "p1": [40, 0], "p2": [50, 0]})),
+        missing: false,
+    }];
     h.click([40.0, 0.0]);
     h.click([43.0, 4.0]);
     same(
@@ -428,11 +545,19 @@ fn drag_solves_from_where_it_began() {
         ]))
         .unwrap();
         let p0 = h.pos([10.0, 0.0]);
-        assert!(h.send(SketchInput::Down { uv: [10.0, 0.0], pos: p0, mods }));
+        assert!(h.send(SketchInput::Down {
+            uv: [10.0, 0.0],
+            pos: p0,
+            mods
+        }));
         for &uv in path {
             let pos = h.pos(uv);
             h.send(SketchInput::Move { uv, pos, mods });
-            assert_eq!(h.s.solve_from.as_ref(), Some(&vec![line.clone()]), "every step solves from the drag-start copy");
+            assert_eq!(
+                h.s.solve_from.as_ref(),
+                Some(&vec![line.clone()]),
+                "every step solves from the drag-start copy"
+            );
             stl_app::sketch::solve::solve_all(&mut h.s);
         }
         let last = *path.last().unwrap();
@@ -443,7 +568,10 @@ fn drag_solves_from_where_it_began() {
     };
     let direct = run(&[[0.0, 12.0]]);
     let roundabout = run(&[[-8.0, -6.0], [-9.0, 4.0], [5.0, 9.0], [0.0, 12.0]]);
-    assert_eq!(direct, roundabout, "the same end point gives the same shape, whatever the path");
+    assert_eq!(
+        direct, roundabout,
+        "the same end point gives the same shape, whatever the path"
+    );
 }
 
 #[test]
@@ -458,20 +586,45 @@ fn drag_point_resolves() {
     h.s.constraints = c;
     let (p0, p1) = (h.pos([10.0, 0.0]), h.pos([10.0, 5.0]));
     let mods = egui::Modifiers::NONE;
-    assert!(h.send(SketchInput::Down { uv: [10.0, 0.0], pos: p0, mods }), "grabs the line's end");
-    assert!(h.send(SketchInput::Move { uv: [10.0, 5.0], pos: p1, mods }));
-    assert_eq!(serde_json::to_value(&h.s.locks).unwrap(), json!([{"e": "l", "k": "p2", "at": [10.0, 5.0]}]));
+    assert!(
+        h.send(SketchInput::Down {
+            uv: [10.0, 0.0],
+            pos: p0,
+            mods
+        }),
+        "grabs the line's end"
+    );
+    assert!(h.send(SketchInput::Move {
+        uv: [10.0, 5.0],
+        pos: p1,
+        mods
+    }));
+    assert_eq!(
+        serde_json::to_value(&h.s.locks).unwrap(),
+        json!([{"e": "l", "k": "p2", "at": [10.0, 5.0]}])
+    );
     assert!(h.changed());
     assert_eq!(h.s.history.len(), 1, "one undo step for the drag");
     // the dispatcher's solve: the relations win over the pull
     let r = stl_sketch::solver::solve(&h.s.entities, &h.s.constraints, &h.s.locks, &snap::fixed_ents(&h.s));
     assert!(r.ok);
     let Entity::Line(l) = &r.entities[0] else { panic!() };
-    assert!(l.p1[0].abs() < 1e-6 && l.p1[1].abs() < 1e-6, "p1 stays on the origin: {:?}", l.p1);
+    assert!(
+        l.p1[0].abs() < 1e-6 && l.p1[1].abs() < 1e-6,
+        "p1 stays on the origin: {:?}",
+        l.p1
+    );
     assert!((l.p2[1]).abs() < 1e-6, "p2 stays level: {:?}", l.p2);
-    assert!((l.p2[0] - 10.0).abs() < 1e-6, "p2 follows the pointer along x: {:?}", l.p2);
+    assert!(
+        (l.p2[0] - 10.0).abs() < 1e-6,
+        "p2 follows the pointer along x: {:?}",
+        l.p2
+    );
     h.s.entities = r.entities;
-    h.send(SketchInput::Up { uv: [10.0, 5.0], pos: p1 });
+    h.send(SketchInput::Up {
+        uv: [10.0, 5.0],
+        pos: p1,
+    });
     assert!(h.s.locks.is_empty());
     assert!(h.s.sel.is_empty(), "a drag doesn't select");
 
@@ -479,9 +632,21 @@ fn drag_point_resolves() {
     let rect = ent(json!({"id": "r", "type": "rect", "x": 0, "y": 0, "w": 20, "h": 10}));
     let mut h = H::new("select", vec![rect]);
     let (a, b) = (h.pos([10.0, 10.0]), h.pos([12.0, 13.0]));
-    h.send(SketchInput::Down { uv: [10.0, 10.0], pos: a, mods });
-    h.send(SketchInput::Move { uv: [12.0, 13.0], pos: b, mods });
-    let ks: Vec<(String, Vec<f64>)> = h.s.locks.iter().map(|l| (l.k.clone().unwrap(), l.at.clone().unwrap())).collect();
+    h.send(SketchInput::Down {
+        uv: [10.0, 10.0],
+        pos: a,
+        mods,
+    });
+    h.send(SketchInput::Move {
+        uv: [12.0, 13.0],
+        pos: b,
+        mods,
+    });
+    let ks: Vec<(String, Vec<f64>)> =
+        h.s.locks
+            .iter()
+            .map(|l| (l.k.clone().unwrap(), l.at.clone().unwrap()))
+            .collect();
     assert_eq!(
         ks,
         vec![
@@ -509,13 +674,18 @@ fn select_click_and_shift() {
 }
 
 fn golden(name: &str) -> Value {
-    let p = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/parity/sketchop").join(format!("{name}.json"));
+    let p = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/parity/sketchop")
+        .join(format!("{name}.json"));
     serde_json::from_str(&std::fs::read_to_string(p).unwrap()).unwrap()
 }
 
 fn without_seed(mut v: Value) -> Value {
     let seed = v.as_object_mut().unwrap().remove("seed");
-    assert!(seed.is_some_and(|s| s.as_str().is_some_and(|s| !s.is_empty())), "a fresh seed");
+    assert!(
+        seed.is_some_and(|s| s.as_str().is_some_and(|s| !s.is_empty())),
+        "a fresh seed"
+    );
     v
 }
 
@@ -547,10 +717,17 @@ fn trim_offset_mirror_send_ops() {
     let ents: Vec<Entity> = serde_json::from_value(g["data"]["entities"].clone()).unwrap();
     let mut h = H::new("select", ents);
     assert!(h.with_cx(|cx| modify::action("sk_offset", cx)));
-    assert_eq!(h.toasts(), vec!["Select the shapes to offset first (Select tool, Shift-click for more)."]);
+    assert_eq!(
+        h.toasts(),
+        vec!["Select the shapes to offset first (Select tool, Shift-click for more)."]
+    );
     h.s.sel.insert("r".into());
     h.with_cx(|cx| modify::action("sk_offset", cx));
-    assert!(h.out.iter().any(|e| matches!(e, SketchEffect::Dialog(SketchDialog::Offset))));
+    assert!(
+        h.out
+            .iter()
+            .any(|e| matches!(e, SketchEffect::Dialog(SketchDialog::Offset)))
+    );
     h.with_cx(|cx| modify::offset_send(cx, modify::OFFSET_DEFAULT));
     let ops = h.ops();
     assert_eq!(ops[0].0, "offset");
@@ -558,7 +735,13 @@ fn trim_offset_mirror_send_ops() {
     want.as_object_mut().unwrap().remove("seed");
     same(&without_seed(ops[0].1.clone()), &want, "offset data");
     // the answer comes back through whatever tool is active (here Select), once
-    let mut cx = ToolCx { s: &mut h.s, vp: &h.vp, inch: false, params: &h.params, out: &mut h.out };
+    let mut cx = ToolCx {
+        s: &mut h.s,
+        vp: &h.vp,
+        inch: false,
+        params: &h.params,
+        out: &mut h.out,
+    };
     h.tool.sketch_op_result(&mut cx, "offset", &g["result"]);
     same(&h.ents(), &g["result"]["entities"], "offset");
     assert_eq!(h.s.history.len(), 1);
@@ -572,7 +755,10 @@ fn trim_offset_mirror_send_ops() {
     let mut h = H::new("sk_mirror", ents);
     assert!(h.tool.picks_geometry());
     h.click([0.0, 5.0]);
-    assert_eq!(h.toasts(), vec!["First select the shapes to mirror (Select tool), then choose Mirror and click the mirror line."]);
+    assert_eq!(
+        h.toasts(),
+        vec!["First select the shapes to mirror (Select tool), then choose Mirror and click the mirror line."]
+    );
     h.s.sel.insert("c".into());
     h.click([11.0, 4.0]);
     assert_eq!(h.toasts().last().unwrap(), "Click a straight line to mirror across.");
@@ -590,7 +776,9 @@ fn round_corner() {
     let sq = ent(json!({"id": "p", "type": "polyline", "pts": [[0, 0], [10, 0], [10, 10], [0, 10]], "closed": true}));
     let mut h = H::new("sk_corner", vec![sq]);
     h.click([10.0, 10.0]);
-    let Entity::Polyline(p) = &h.s.entities[0] else { panic!() };
+    let Entity::Polyline(p) = &h.s.entities[0] else {
+        panic!()
+    };
     // a 90° corner, r 2: tangent points (10, 8) and (8, 10), centre (8, 8), 7 points between
     let mut want = vec![[0.0, 0.0], [10.0, 0.0], [10.0, 8.0]];
     for j in 1..8 {
@@ -600,7 +788,10 @@ fn round_corner() {
     want.extend([[8.0, 10.0], [0.0, 10.0]]);
     assert_eq!(p.pts.len(), want.len());
     for (a, b) in p.pts.iter().zip(&want) {
-        assert!((a[0] - b[0]).abs() < 1e-9 && (a[1] - b[1]).abs() < 1e-9, "{a:?} vs {b:?}");
+        assert!(
+            (a[0] - b[0]).abs() < 1e-9 && (a[1] - b[1]).abs() < 1e-9,
+            "{a:?} vs {b:?}"
+        );
     }
     assert!(h.changed());
     assert_eq!(h.s.history.len(), 1);
@@ -611,7 +802,13 @@ fn round_corner() {
     let mut h = H::new("sk_corner", vec![open, circ]);
     h.click([0.0, 30.0]);
     h.click([55.0, 50.0]);
-    assert_eq!(h.toasts(), vec!["Click on a corner in the middle of the shape.", "Click a corner of a polyline (a shape drawn as connected lines)."]);
+    assert_eq!(
+        h.toasts(),
+        vec![
+            "Click on a corner in the middle of the shape.",
+            "Click a corner of a polyline (a shape drawn as connected lines)."
+        ]
+    );
 }
 
 #[test]
@@ -623,7 +820,7 @@ fn construction_toggle() {
     assert!(h.with_cx(|cx| modify::action("construction", cx)));
     assert_eq!(h.ents()[0]["construction"], json!(true));
     assert!(h.ents()[1].get("construction").is_none(), "only the selection");
-    h.with_cx(|cx| modify::toggle_construction(cx));
+    h.with_cx(modify::toggle_construction);
     assert_eq!(h.ents()[0]["construction"], json!(false));
     assert_eq!(h.s.history.len(), 2);
 
@@ -642,8 +839,14 @@ fn snap_priorities() {
     let h = {
         let mut h = H::new("select", vec![line, circle, same_spot]);
         h.s.refs = vec![
-            RefEnt { ent: ent(json!({"id": "E1", "type": "line", "p1": [60, 0], "p2": [70, 0]})), missing: false },
-            RefEnt { ent: ent(json!({"id": "E2", "type": "line", "p1": [80, 0], "p2": [90, 0]})), missing: true },
+            RefEnt {
+                ent: ent(json!({"id": "E1", "type": "line", "p1": [60, 0], "p2": [70, 0]})),
+                missing: false,
+            },
+            RefEnt {
+                ent: ent(json!({"id": "E2", "type": "line", "p1": [80, 0], "p2": [90, 0]})),
+                missing: true,
+            },
         ];
         h
     };
@@ -652,7 +855,10 @@ fn snap_priorities() {
 
     // an end point within 10 px, not at 10.1 px
     let s = sn([20.0 + 9.9 * px, 20.0]);
-    assert_eq!((s.uv, s.kind, s.on.clone()), ([20.0, 20.0], SnapKind::Point, Some(Ref::pt("l", "p1"))));
+    assert_eq!(
+        (s.uv, s.kind, s.on.clone()),
+        ([20.0, 20.0], SnapKind::Point, Some(Ref::pt("l", "p1")))
+    );
     assert!(s.snapped());
     assert_eq!(sn([20.0 - 10.1 * px, 20.3]).kind, SnapKind::Grid);
     // a line's midpoint
@@ -683,7 +889,19 @@ fn snap_priorities() {
 
 #[test]
 fn registry_covers_the_ribbon() {
-    for k in ["line", "arc3", "rect", "rect_center", "circle", "polygon", "slot", "select", "trim", "sk_mirror", "sk_corner"] {
+    for k in [
+        "line",
+        "arc3",
+        "rect",
+        "rect_center",
+        "circle",
+        "polygon",
+        "slot",
+        "select",
+        "trim",
+        "sk_mirror",
+        "sk_corner",
+    ] {
         let t = stl_app::sketch::tool_for(k).unwrap_or_else(|| panic!("{k}"));
         assert_eq!(t.key(), k);
         assert!(!draw::hint_for(k).is_empty(), "{k} has a hint");

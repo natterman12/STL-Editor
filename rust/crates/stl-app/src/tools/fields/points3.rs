@@ -3,7 +3,7 @@
 use egui::Ui;
 use serde_json::Value;
 
-use super::bodies::{handle_box, is_empty_sel, pt4, pt_from, sel_box, Mark, PickOut, ShowOut};
+use super::bodies::{Mark, PickOut, ShowOut, handle_box, is_empty_sel, pt_from, pt4, sel_box};
 use crate::theme::Tokens;
 use crate::tools::{Ctx, Field, FieldKind, ToolDef, Values};
 use crate::viewport::pick::Hit;
@@ -17,10 +17,24 @@ fn points(values: &Values, key: &str) -> Vec<Value> {
     values.get(key).and_then(Value::as_array).cloned().unwrap_or_default()
 }
 
-pub fn show(ui: &mut Ui, tk: &Tokens, f: &Field, values: &mut Values, active: &mut Option<String>, _ctx: &Ctx) -> ShowOut {
+pub fn show(
+    ui: &mut Ui,
+    tk: &Tokens,
+    f: &Field,
+    values: &mut Values,
+    active: &mut Option<String>,
+    _ctx: &Ctx,
+) -> ShowOut {
     let n = points(values, f.key).len();
     let chips = if n > 0 { vec![format!("{n} of {COUNT}")] } else { vec![] };
-    let b = sel_box(ui, tk, egui::Id::unique(("pick", f.key)), active.as_deref() == Some(f.key), &chips, &format!("Click {COUNT} points"));
+    let b = sel_box(
+        ui,
+        tk,
+        egui::Id::unique(("pick", f.key)),
+        active.as_deref() == Some(f.key),
+        &chips,
+        &format!("Click {COUNT} points"),
+    );
     let mut out = ShowOut::default();
     handle_box(&b, f.key, active, &mut out, |_| {
         values.insert(f.key.to_owned(), Value::Array(vec![]));
@@ -42,14 +56,22 @@ pub fn feed_pick(tool: &ToolDef, f: &Field, values: &mut Values, hit: &Hit, _ctx
     }
     pts.push(pt4(point));
     values.insert(f.key.to_owned(), Value::Array(pts));
-    if let Some(id) = body {
-        if tool.fields.iter().any(|x| x.key == "body" && matches!(x.kind, FieldKind::Bodies { .. })) && is_empty_sel(values.get("body")) {
-            values.insert("body".to_owned(), Value::Array(vec![Value::from(id.clone())]));
-        }
+    if let Some(id) = body
+        && tool
+            .fields
+            .iter()
+            .any(|x| x.key == "body" && matches!(x.kind, FieldKind::Bodies { .. }))
+        && is_empty_sel(values.get("body"))
+    {
+        values.insert("body".to_owned(), Value::Array(vec![Value::from(id.clone())]));
     }
     PickOut::changed()
 }
 
 pub fn marks(f: &Field, values: &Values) -> Vec<Mark> {
-    points(values, f.key).iter().filter_map(pt_from).map(|p| Mark::Marker { p, color: MARKER }).collect()
+    points(values, f.key)
+        .iter()
+        .filter_map(pt_from)
+        .map(|p| Mark::Marker { p, color: MARKER })
+        .collect()
 }

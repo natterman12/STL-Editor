@@ -3,12 +3,14 @@
 //! It only draws and reports; `app_section.rs` acts on what it reports.
 
 use egui::text::{LayoutJob, TextFormat};
-use egui::{Align, Area, CornerRadius, FontFamily, FontId, Frame, Id, Layout, Margin, Order, Rect, Sense, Stroke, Ui, Vec2};
+use egui::{
+    Align, Area, CornerRadius, FontFamily, FontId, Frame, Id, Layout, Margin, Order, Rect, Sense, Stroke, Ui, Vec2,
+};
 
 use crate::theme::Tokens;
 use crate::tools::fields::number::{expr_font, input_font, unit_name};
-use crate::tools::fields::{check_box, row_raw, seg_strip, text_commit, unit_label, Bufs, FORM_W};
-use crate::tools::panel::{ctl_button, INSET, PANEL_W};
+use crate::tools::fields::{Bufs, FORM_W, check_box, row_raw, seg_strip, text_commit, unit_label};
+use crate::tools::panel::{INSET, PANEL_W, ctl_button};
 use crate::ui::dialogs::button;
 
 /// The panel's title (`#tool-title`).
@@ -65,31 +67,58 @@ pub fn show(ctx: &egui::Context, tk: &Tokens, ws: Rect, v: &SectionView, bufs: &
     let mut act = SectionAct::None;
     let pos = egui::pos2(ws.max.x - INSET - PANEL_W, ws.min.y + INSET);
     let max_h = (ws.height() - 60.0).max(120.0);
-    Area::new(Id::unique("section-panel")).order(Order::Middle).fixed_pos(pos).show(ctx, |ui| {
-        Frame::new().fill(tk.panel).stroke(Stroke::new(1.0, tk.line)).corner_radius(CornerRadius::same(tk.radius as u8)).shadow(tk.shadow).show(ui, |ui| {
-            ui.set_width(PANEL_W - 2.0);
-            ui.spacing_mut().item_spacing = Vec2::ZERO;
-            title_row(ui, ctx, tk, &mut act);
-            egui::ScrollArea::vertical().max_height((max_h - 36.0 - 46.0).max(60.0)).auto_shrink([false, true]).id_salt("section-form").show(ui, |ui| {
-                Frame::new().inner_margin(Margin { left: 10, right: 10, top: 8, bottom: 8 }).show(ui, |ui| {
-                    ui.set_width(FORM_W);
-                    ui.add_space(6.0);
-                    form(ui, tk, v, bufs, &mut act);
+    Area::new(Id::unique("section-panel"))
+        .order(Order::Middle)
+        .fixed_pos(pos)
+        .show(ctx, |ui| {
+            Frame::new()
+                .fill(tk.panel)
+                .stroke(Stroke::new(1.0, tk.line))
+                .corner_radius(CornerRadius::same(tk.radius as u8))
+                .shadow(tk.shadow)
+                .show(ui, |ui| {
+                    ui.set_width(PANEL_W - 2.0);
+                    ui.spacing_mut().item_spacing = Vec2::ZERO;
+                    title_row(ui, ctx, tk, &mut act);
+                    egui::ScrollArea::vertical()
+                        .max_height((max_h - 36.0 - 46.0).max(60.0))
+                        .auto_shrink([false, true])
+                        .id_salt("section-form")
+                        .show(ui, |ui| {
+                            Frame::new()
+                                .inner_margin(Margin {
+                                    left: 10,
+                                    right: 10,
+                                    top: 8,
+                                    bottom: 8,
+                                })
+                                .show(ui, |ui| {
+                                    ui.set_width(FORM_W);
+                                    ui.add_space(6.0);
+                                    form(ui, tk, v, bufs, &mut act);
+                                });
+                        });
+                    let (rect, _) = ui.allocate_exact_size(Vec2::new(PANEL_W - 2.0, 41.0), Sense::hover());
+                    ui.painter()
+                        .hline(rect.x_range(), rect.min.y, Stroke::new(1.0, tk.divider));
+                    let inner = Rect::from_min_max(
+                        egui::pos2(rect.min.x + 10.0, rect.min.y + 8.0),
+                        egui::pos2(rect.max.x - 10.0, rect.max.y - 9.0),
+                    );
+                    let mut right = ui.new_child(
+                        egui::UiBuilder::new()
+                            .max_rect(inner)
+                            .layout(Layout::right_to_left(Align::Center)),
+                    );
+                    right.spacing_mut().item_spacing.x = 8.0;
+                    if button(&mut right, tk, DONE, true).clicked() {
+                        act = SectionAct::Done;
+                    }
+                    if button(&mut right, tk, "Cancel", false).clicked() {
+                        act = SectionAct::Cancel;
+                    }
                 });
-            });
-            let (rect, _) = ui.allocate_exact_size(Vec2::new(PANEL_W - 2.0, 41.0), Sense::hover());
-            ui.painter().hline(rect.x_range(), rect.min.y, Stroke::new(1.0, tk.divider));
-            let inner = Rect::from_min_max(egui::pos2(rect.min.x + 10.0, rect.min.y + 8.0), egui::pos2(rect.max.x - 10.0, rect.max.y - 9.0));
-            let mut right = ui.new_child(egui::UiBuilder::new().max_rect(inner).layout(Layout::right_to_left(Align::Center)));
-            right.spacing_mut().item_spacing.x = 8.0;
-            if button(&mut right, tk, DONE, true).clicked() {
-                act = SectionAct::Done;
-            }
-            if button(&mut right, tk, "Cancel", false).clicked() {
-                act = SectionAct::Cancel;
-            }
         });
-    });
     act
 }
 
@@ -109,11 +138,18 @@ fn title_row(ui: &mut Ui, ctx: &egui::Context, tk: &Tokens, act: &mut SectionAct
     if resp.hovered() {
         ui.painter().rect_filled(close, CornerRadius::same(4), tk.hover);
     }
-    ui.painter().text(close.center(), egui::Align2::CENTER_CENTER, "×", FontId::proportional(17.0), if resp.hovered() { tk.strong } else { tk.muted });
+    ui.painter().text(
+        close.center(),
+        egui::Align2::CENTER_CENTER,
+        "×",
+        FontId::proportional(17.0),
+        if resp.hovered() { tk.strong } else { tk.muted },
+    );
     if resp.on_hover_text("Close (Esc)").clicked() {
         *act = SectionAct::Cancel;
     }
-    ui.painter().hline(rect.x_range(), rect.max.y, Stroke::new(1.0, tk.divider));
+    ui.painter()
+        .hline(rect.x_range(), rect.max.y, Stroke::new(1.0, tk.divider));
 }
 
 fn form(ui: &mut Ui, tk: &Tokens, v: &SectionView, bufs: &mut Bufs, act: &mut SectionAct) {
@@ -144,9 +180,23 @@ fn form(ui: &mut Ui, tk: &Tokens, v: &SectionView, bufs: &mut Bufs, act: &mut Se
 
     // Distance: a normal number box (an `=` expression, inch mode)
     row_raw(ui, tk, "Distance", None, false, |ui, w| {
-        let (font, colour) = if v.expr { (expr_font(), tk.expr) } else { (input_font(), tk.text) };
+        let (font, colour) = if v.expr {
+            (expr_font(), tk.expr)
+        } else {
+            (input_font(), tk.text)
+        };
         let uw = 22.0 + 4.0;
-        if let Some(t) = text_commit(ui, tk, bufs, DISTANCE_KEY, &v.distance, w - uw, font, colour, v.tip.clone()) {
+        if let Some(t) = text_commit(
+            ui,
+            tk,
+            bufs,
+            DISTANCE_KEY,
+            &v.distance,
+            w - uw,
+            font,
+            colour,
+            v.tip.clone(),
+        ) {
             *act = SectionAct::Distance(t);
         }
         unit_label(ui, tk, if v.expr { "mm" } else { unit_name(v.inch) });
@@ -187,13 +237,29 @@ fn form(ui: &mut Ui, tk: &Tokens, v: &SectionView, bufs: &mut Bufs, act: &mut Se
 fn note(ui: &mut Ui, tk: &Tokens, text: &str) {
     let mut job = LayoutJob::default();
     for (i, part) in text.split("**").enumerate() {
-        let family = if i % 2 == 1 { FontFamily::Name("bold".into()) } else { FontFamily::Proportional };
-        job.append(part, 0.0, TextFormat { font_id: FontId::new(12.0, family), color: tk.info_text, ..Default::default() });
+        let family = if i % 2 == 1 {
+            FontFamily::Name("bold".into())
+        } else {
+            FontFamily::Proportional
+        };
+        job.append(
+            part,
+            0.0,
+            TextFormat {
+                font_id: FontId::new(12.0, family),
+                color: tk.info_text,
+                ..Default::default()
+            },
+        );
     }
-    Frame::new().fill(tk.info_bg).corner_radius(CornerRadius::same(tk.radius_sm as u8)).inner_margin(Margin::symmetric(8, 6)).show(ui, |ui| {
-        ui.set_width(FORM_W - 16.0);
-        ui.add(egui::Label::new(job).wrap());
-    });
+    Frame::new()
+        .fill(tk.info_bg)
+        .corner_radius(CornerRadius::same(tk.radius_sm as u8))
+        .inner_margin(Margin::symmetric(8, 6))
+        .show(ui, |ui| {
+            ui.set_width(FORM_W - 16.0);
+            ui.add(egui::Label::new(job).wrap());
+        });
 }
 
 /// The note as plain text (for the tests): 1.x's words without the bold marks.

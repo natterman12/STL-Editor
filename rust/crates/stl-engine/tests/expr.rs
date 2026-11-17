@@ -14,9 +14,7 @@ fn close(a: f64, b: f64) -> bool {
 fn json_close(a: &Value, b: &Value) -> bool {
     match (a, b) {
         (Value::Number(x), Value::Number(y)) => close(x.as_f64().unwrap(), y.as_f64().unwrap()),
-        (Value::Array(x), Value::Array(y)) => {
-            x.len() == y.len() && x.iter().zip(y).all(|(p, q)| json_close(p, q))
-        }
+        (Value::Array(x), Value::Array(y)) => x.len() == y.len() && x.iter().zip(y).all(|(p, q)| json_close(p, q)),
         (Value::Object(x), Value::Object(y)) => {
             x.len() == y.len() && x.iter().all(|(k, v)| y.get(k).is_some_and(|w| json_close(v, w)))
         }
@@ -93,11 +91,19 @@ fn check_case(case: &Value, want: &Value) -> Result<(), String> {
                 .iter()
                 .map(|v| v.as_str().unwrap().to_string())
                 .collect();
-            if got == w { Ok(()) } else { Err(format!("want {w:?}, got {got:?}")) }
+            if got == w {
+                Ok(())
+            } else {
+                Err(format!("want {w:?}, got {got:?}"))
+            }
         }
         "is_valid_name" => {
             let w = want["valid"].as_bool().unwrap();
-            if is_valid_name(text) == w { Ok(()) } else { Err(format!("want {w}")) }
+            if is_valid_name(text) == w {
+                Ok(())
+            } else {
+                Err(format!("want {w}"))
+            }
         }
         "resolve_deep" => {
             let got = resolve_deep(&case["obj"], &vars_of(case.get("values")));
@@ -117,7 +123,11 @@ fn check_case(case: &Value, want: &Value) -> Result<(), String> {
         }
         "uses_expr" => {
             let w = want["uses"].as_bool().unwrap();
-            if uses_expr(&case["obj"]) == w { Ok(()) } else { Err(format!("want {w}")) }
+            if uses_expr(&case["obj"]) == w {
+                Ok(())
+            } else {
+                Err(format!("want {w}"))
+            }
         }
         k => Err(format!("unknown kind {k}")),
     }
@@ -134,7 +144,12 @@ fn matches_golden() {
             fails.push(format!("{name}: {e}"));
         }
     }
-    assert!(fails.is_empty(), "{} golden mismatches:\n{}", fails.len(), fails.join("\n"));
+    assert!(
+        fails.is_empty(),
+        "{} golden mismatches:\n{}",
+        fails.len(),
+        fails.join("\n")
+    );
 }
 
 fn eval(t: &str) -> Result<f64, ExprError> {
@@ -163,7 +178,11 @@ fn deep_nesting() {
 }
 
 fn param(name: &str, expr: &str) -> Param {
-    Param { name: name.into(), expr: expr.into(), note: String::new() }
+    Param {
+        name: name.into(),
+        expr: expr.into(),
+        note: String::new(),
+    }
 }
 
 #[test]

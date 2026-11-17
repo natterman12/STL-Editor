@@ -13,43 +13,87 @@ use stl_engine::params::Param;
 pub use stl_io::ExportFormat;
 use stl_kernel::MeshArrays;
 
-pub use crate::viewport::overlays::SketchOutline;
 pub use crate::viewport::PreviewPack;
+pub use crate::viewport::overlays::SketchOutline;
 
 #[derive(Clone, Debug)]
 pub enum Command {
-    Open { name: String, bytes: Vec<u8> },
-    Import { name: String, bytes: Vec<u8> },
+    Open {
+        name: String,
+        bytes: Vec<u8>,
+    },
+    Import {
+        name: String,
+        bytes: Vec<u8>,
+    },
     /// `index`: put the step before the one now at that place (1.x `insertBeforeSupports`); the
     /// rollback marker moves one step on. `name`: the step's name (default: made from the kind).
-    AddFeature { kind: String, params: serde_json::Value, index: Option<usize>, name: Option<String> },
+    AddFeature {
+        kind: String,
+        params: serde_json::Value,
+        index: Option<usize>,
+        name: Option<String>,
+    },
     /// `rollback_after`: `Some(marker)` puts the rollback marker there as part of the same edit, so
     /// one Ctrl+Z undoes the whole OK of an edit session (1.x `feature/edit` with `rollback_after`);
     /// `None` leaves the marker alone.
-    EditFeature { id: String, params: serde_json::Value, rollback_after: Option<Option<usize>> },
-    DeleteFeature { id: String },
+    EditFeature {
+        id: String,
+        params: serde_json::Value,
+        rollback_after: Option<Option<usize>>,
+    },
+    DeleteFeature {
+        id: String,
+    },
     /// Switch a step off (or on again): it keeps its place but does nothing. Undoable.
-    SetSuppressed { id: String, suppressed: bool },
-    MoveFeature { id: String, index: usize },
+    SetSuppressed {
+        id: String,
+        suppressed: bool,
+    },
+    MoveFeature {
+        id: String,
+        index: usize,
+    },
     SetParams(Vec<Param>),
     Rollback(Option<usize>),
     Undo,
     Redo,
-    BodyProps { id: String, name: Option<String>, color: Option<String>, hidden: Option<bool> },
+    BodyProps {
+        id: String,
+        name: Option<String>,
+        color: Option<String>,
+        hidden: Option<bool>,
+    },
     Save,
-    Export { format: ExportFormat, ids: Option<Vec<String>>, date: String },
+    Export {
+        format: ExportFormat,
+        ids: Option<Vec<String>>,
+        date: String,
+    },
     /// Evaluate a tool's feature without committing it (1.x `post('preview', ...)`). Never enters
     /// the undo history and never changes the document. `seq` grows with every request: only the
     /// newest answer is shown.
-    Preview { seq: u64, kind: String, params: serde_json::Value, edit_id: Option<String> },
+    Preview {
+        seq: u64,
+        kind: String,
+        params: serde_json::Value,
+        edit_id: Option<String>,
+    },
     /// The tool closed: previews still queued are skipped (native), and any that arrive are dropped.
     ClearPreview,
     /// A question for the Support Fins engine (its schema, the strength of a pose, orientation
     /// suggestions). Never changes the document and shows no Busy overlay; the answer is
     /// [`Update::Fins`] with the same `seq`.
-    Fins { seq: u64, ask: FinsAsk },
+    Fins {
+        seq: u64,
+        ask: FinsAsk,
+    },
     /// 1.x `post('sketch_op', {op, ...data})`: trim, offset, mirror, explode, project, refs, text, faces.
-    SketchOp { seq: u64, op: String, data: serde_json::Value },
+    SketchOp {
+        seq: u64,
+        op: String,
+        data: serde_json::Value,
+    },
     /// Solve a sketch off the UI thread (`stl_sketch::solver::solve`); only the newest `seq` counts.
     Solve {
         seq: u64,
@@ -60,20 +104,34 @@ pub enum Command {
     },
     /// 1.x's `info` route (Properties): one body's size, area, volume and genus. Quiet; the
     /// answer is [`Update::BodyInfo`] with the same `seq`.
-    BodyInfo { seq: u64, id: String },
+    BodyInfo {
+        seq: u64,
+        id: String,
+    },
     Cancel,
     /// The worker writes an autosave if the document changed since the last one. `path` is where
     /// the open project lives on disk (desktop; `None` for a new project and on the web) and
     /// `title` its name; both go into the copy so Recover Unsaved Work can say what it was.
-    Autosave { path: Option<String>, title: Option<String> },
+    Autosave {
+        path: Option<String>,
+        title: Option<String>,
+    },
 }
 
 /// What the Support Fins panel asks the engine (1.x `supportfins/info`, `/strength`, `/suggest`).
 #[derive(Clone, Debug, PartialEq)]
 pub enum FinsAsk {
     Info,
-    Strength { body: String, options: serde_json::Value, load: serde_json::Value },
-    Suggest { body: String, options: serde_json::Value, top: i64 },
+    Strength {
+        body: String,
+        options: serde_json::Value,
+        load: serde_json::Value,
+    },
+    Suggest {
+        body: String,
+        options: serde_json::Value,
+        top: i64,
+    },
 }
 
 impl FinsAsk {
@@ -101,27 +159,65 @@ pub enum Update {
     Params(Vec<ParamView>),
     Planes(Vec<PlaneView>),
     Sketches(Vec<SketchView>),
-    Message { level: Level, text: String },
-    Progress { done: usize, total: usize, label: String },
+    Message {
+        level: Level,
+        text: String,
+    },
+    Progress {
+        done: usize,
+        total: usize,
+        label: String,
+    },
     Busy(bool),
-    Saved { bytes: Vec<u8> },
-    Exported { name: String, bytes: Vec<u8>, count: usize },
+    Saved {
+        bytes: Vec<u8>,
+    },
+    Exported {
+        name: String,
+        bytes: Vec<u8>,
+        count: usize,
+    },
     Error(String),
     /// The answer to `Command::Preview`. `error` is the feature's error text; `msg` is the note to
     /// show (1.x: the warning, else "Cutting into the material (direction flipped)." when flipped,
     /// else the info) and `warn` says which colour it takes. `result` is 1.x's whole `pack.result`
     /// record (Support Fins reads `paint`, `walls`, `pieces`, `support` from it).
-    Preview { seq: u64, pack: PreviewPack, msg: Option<String>, error: Option<String>, warn: bool, result: serde_json::Value },
+    Preview {
+        seq: u64,
+        pack: PreviewPack,
+        msg: Option<String>,
+        error: Option<String>,
+        warn: bool,
+        result: serde_json::Value,
+    },
     /// The answer to [`Command::Fins`]: `ask` is `"info"`, `"strength"` or `"suggest"`.
-    Fins { seq: u64, ask: String, result: Result<serde_json::Value, String> },
+    Fins {
+        seq: u64,
+        ask: String,
+        result: Result<serde_json::Value, String>,
+    },
     /// The answer to [`Command::SketchOp`]: the route's JSON, or its error text.
-    SketchOp { seq: u64, result: Result<serde_json::Value, String> },
+    SketchOp {
+        seq: u64,
+        result: Result<serde_json::Value, String>,
+    },
     /// The answer to [`Command::Solve`] (`SolveReport`'s fields).
-    Solved { seq: u64, entities: Vec<stl_sketch::entities::Entity>, ok: bool, error: f64 },
+    Solved {
+        seq: u64,
+        entities: Vec<stl_sketch::entities::Entity>,
+        ok: bool,
+        error: f64,
+    },
     /// The answer to [`Command::Autosave`] (only when something was written or failed).
-    Autosaved { ok: bool, error: Option<String> },
+    Autosaved {
+        ok: bool,
+        error: Option<String>,
+    },
     /// The answer to [`Command::BodyInfo`]: `stl_engine::info::body_info`'s object, or its error.
-    BodyInfo { seq: u64, result: Result<serde_json::Value, String> },
+    BodyInfo {
+        seq: u64,
+        result: Result<serde_json::Value, String>,
+    },
     EngineLost,
 }
 

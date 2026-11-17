@@ -30,7 +30,12 @@ fn desktop_tools_open_each_named_tool() {
     for key in keys {
         assert!(open_tool(&mut h, key), "{key} opens");
         assert_eq!(h.state().tool().map(|t| t.def.key), Some(key));
-        assert!(h.query_by_label("OK").is_some() || h.query_by_label("Cancel").is_some() || h.query_by_label("Done").is_some(), "{key} panel buttons");
+        assert!(
+            h.query_by_label("OK").is_some()
+                || h.query_by_label("Cancel").is_some()
+                || h.query_by_label("Done").is_some(),
+            "{key} panel buttons"
+        );
         h.state_mut().tool_cancel();
         settle(&mut h, &link);
     }
@@ -110,24 +115,53 @@ fn desktop_tools_hole_countersink_on_a_picked_face() {
     let click = |h: &mut egui_kittest::Harness<'static, stl_app::app::StlApp>, at: Pos2| {
         h.event(Event::PointerMoved(at));
         h.step();
-        h.event(Event::PointerButton { pos: at, button: PointerButton::Primary, pressed: true, modifiers: Default::default() });
+        h.event(Event::PointerButton {
+            pos: at,
+            button: PointerButton::Primary,
+            pressed: true,
+            modifiers: Default::default(),
+        });
         h.step();
-        h.event(Event::PointerButton { pos: at, button: PointerButton::Primary, pressed: false, modifiers: Default::default() });
+        h.event(Event::PointerButton {
+            pos: at,
+            button: PointerButton::Primary,
+            pressed: false,
+            modifiers: Default::default(),
+        });
         h.run_steps(2);
     };
     for p in [[-8.0, -6.0, 20.0], [8.0, 6.0, 20.0]] {
         let at = h.state().viewport.world_to_screen(p);
         let hit = h.state().viewport.pick(at, true, false);
-        assert!(matches!(hit, Some(Hit::Body { .. })), "the spot {p:?} is on the part: {hit:?}");
+        assert!(
+            matches!(hit, Some(Hit::Body { .. })),
+            "the spot {p:?} is on the part: {hit:?}"
+        );
         click(&mut h, at);
     }
-    let pts = h.state().tool().unwrap().values.get("points").cloned().unwrap_or(json!(null));
-    assert!(pts.as_array().is_some_and(|a| a.len() == 2), "two clicks, two hole spots: {pts}");
+    let pts = h
+        .state()
+        .tool()
+        .unwrap()
+        .values
+        .get("points")
+        .cloned()
+        .unwrap_or(json!(null));
+    assert!(
+        pts.as_array().is_some_and(|a| a.len() == 2),
+        "two clicks, two hole spots: {pts}"
+    );
     h.state_mut().tool_set_value("kind", json!("countersink"));
     h.run_steps(2);
     h.state_mut().tool_ok();
     settle(&mut h, &link);
-    let hole = h.state().timeline_view.items.iter().find(|i| i.kind == "hole").expect("the Hole step");
+    let hole = h
+        .state()
+        .timeline_view
+        .items
+        .iter()
+        .find(|i| i.kind == "hole")
+        .expect("the Hole step");
     assert_eq!(hole.error, None);
     assert_eq!(hole.params["kind"], json!("countersink"));
     let v1 = super::harness::mesh_volume(&h.state().bodies[0].mesh);
@@ -170,19 +204,33 @@ fn desktop_tools_timeline_edit_extrude() {
     h.state_mut().tool_set_value("distance", json!(8.0));
     h.state_mut().tool_ok();
     settle(&mut h, &link);
-    let eid = h.state().timeline_view.items.iter().find(|i| i.kind == "extrude").map(|i| i.id.clone()).expect("extrude");
+    let eid = h
+        .state()
+        .timeline_view
+        .items
+        .iter()
+        .find(|i| i.kind == "extrude")
+        .map(|i| i.id.clone())
+        .expect("extrude");
     let v0 = mesh_volume(&h.state().bodies[0].mesh);
 
     assert!(h.state_mut().edit_feature(&eid));
     settle(&mut h, &link);
     assert_eq!(h.state().tool().map(|t| t.def.key), Some("extrude"));
-    assert_eq!(h.state().tool().and_then(|t| t.values.get("distance").cloned()), Some(json!(8.0)));
+    assert_eq!(
+        h.state().tool().and_then(|t| t.values.get("distance").cloned()),
+        Some(json!(8.0))
+    );
     h.state_mut().tool_set_value("distance", json!(12.0));
     h.run_steps(4);
     h.state_mut().tool_ok();
     settle(&mut h, &link);
     let ex = h.state().timeline_view.items.iter().find(|i| i.id == eid).unwrap();
-    assert_eq!(ex.params["distance"], json!(12.0), "1.x timeline edit writes the new distance");
+    assert_eq!(
+        ex.params["distance"],
+        json!(12.0),
+        "1.x timeline edit writes the new distance"
+    );
     assert_eq!(ex.error, None);
     let v1 = mesh_volume(&h.state().bodies[0].mesh);
     // Join from the top face: 20×16 rect, height 8→12 grows volume by 20*16*4.

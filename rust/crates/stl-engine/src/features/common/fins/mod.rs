@@ -18,7 +18,7 @@ pub mod walls;
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex, OnceLock};
 
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 use sha2::{Digest, Sha256};
 
 use stl_kernel::{MeshArrays, Solid};
@@ -33,7 +33,8 @@ pub const SUPPORT_COLOR: &str = "#59d98e";
 /// A removed fin's see-through ghost.
 pub const GHOST_COLOR: &str = "#d64545";
 /// The Boa notice, word for word (milestone 4 shows it in the panel).
-pub const BOA_NOTICE: &str = "Support Fins is running in slow mode because this computer's built-in web engine isn't available.";
+pub const BOA_NOTICE: &str =
+    "Support Fins is running in slow mode because this computer's built-in web engine isn't available.";
 pub const BOA_NOTICE_WINDOWS: &str = " Install the Microsoft Edge WebView2 Runtime to make it fast.";
 
 pub type P3 = [f64; 3];
@@ -63,7 +64,10 @@ pub fn engine_error(msg: &str) -> FeatureError {
 /// `_call`: `SupportFinsEngine.<name>(...args)` with string arguments, which is how 1.x passes
 /// almost all of them. The host takes every argument as JSON text, so each goes over quoted.
 pub fn call(host: &dyn FinsHost, name: &str, args: &[&str]) -> Result<String, FeatureError> {
-    let quoted: Vec<String> = args.iter().map(|a| serde_json::to_string(a).unwrap_or_default()).collect();
+    let quoted: Vec<String> = args
+        .iter()
+        .map(|a| serde_json::to_string(a).unwrap_or_default())
+        .collect();
     call_json(host, name, &quoted.iter().map(String::as_str).collect::<Vec<_>>())
 }
 
@@ -92,7 +96,10 @@ pub fn apply_extras(res: &mut crate::FeatureResult, ex: Extras) {
         res.extra.insert("colors".into(), Value::Object(ex.colors));
     }
     if preview {
-        res.extra.insert("ghosts".into(), Value::Array(ex.ghosts.into_iter().map(Value::String).collect()));
+        res.extra.insert(
+            "ghosts".into(),
+            Value::Array(ex.ghosts.into_iter().map(Value::String).collect()),
+        );
     }
 }
 
@@ -104,7 +111,10 @@ pub fn has(host: &dyn FinsHost, name: &str) -> bool {
 /// The fields of the active engine's `VERSION.json` (empty when the host can't say).
 pub fn engine_info(host: &dyn FinsHost) -> Map<String, Value> {
     match call_json(host, "__info", &[]) {
-        Ok(s) => serde_json::from_str::<Value>(&s).ok().and_then(|v| v.as_object().cloned()).unwrap_or_default(),
+        Ok(s) => serde_json::from_str::<Value>(&s)
+            .ok()
+            .and_then(|v| v.as_object().cloned())
+            .unwrap_or_default(),
         Err(_) => Map::new(),
     }
 }
@@ -156,8 +166,16 @@ pub fn info(host: &dyn FinsHost) -> Result<Value, FeatureError> {
 
 /// `_options`: the engine's options from the panel's values.
 pub fn options(host: &dyn FinsHost, values: &Value) -> Result<String, FeatureError> {
-    let v = if truthy(Some(values)) { values.clone() } else { json!({}) };
-    call(host, "optionsFromDialogJson", &[&serde_json::to_string(&v).unwrap_or_else(|_| "{}".into())])
+    let v = if truthy(Some(values)) {
+        values.clone()
+    } else {
+        json!({})
+    };
+    call(
+        host,
+        "optionsFromDialogJson",
+        &[&serde_json::to_string(&v).unwrap_or_else(|_| "{}".into())],
+    )
 }
 
 // -- the mesh ---------------------------------------------------------------------------------
@@ -229,10 +247,28 @@ pub fn body_mesh(b: &Body) -> MeshData {
         (None, Some(m)) => (**m).clone(),
         (None, None) => Default::default(),
     };
-    let verts = m.positions.chunks_exact(3).map(|p| [p[0] as f64, p[1] as f64, p[2] as f64]).collect();
-    let faces = m.triangles.chunks_exact(3).map(|t| [t[0] as usize, t[1] as usize, t[2] as usize]).collect();
-    let Some(src) = src else { return MeshData { verts, faces, memo: None } };
-    let md = MeshData { verts, faces, memo: Some(Arc::new(MeshMemo::default())) };
+    let verts = m
+        .positions
+        .chunks_exact(3)
+        .map(|p| [p[0] as f64, p[1] as f64, p[2] as f64])
+        .collect();
+    let faces = m
+        .triangles
+        .chunks_exact(3)
+        .map(|t| [t[0] as usize, t[1] as usize, t[2] as usize])
+        .collect();
+    let Some(src) = src else {
+        return MeshData {
+            verts,
+            faces,
+            memo: None,
+        };
+    };
+    let md = MeshData {
+        verts,
+        faces,
+        memo: Some(Arc::new(MeshMemo::default())),
+    };
     let mut memo = mesh_memo().lock().unwrap_or_else(|e| e.into_inner());
     memo.push_back((src, md.clone()));
     while memo.len() > MESH_MEMO {
@@ -310,19 +346,28 @@ fn soup_text(m: &MeshData, quoted: bool) -> String {
             }
         }
     };
-    let blocks: Vec<(&[[usize; 3]], &mut [u8])> = m.faces.chunks(SOUP_BLOCK).zip(body.chunks_mut(SOUP_BLOCK * 96)).collect();
+    let blocks: Vec<(&[[usize; 3]], &mut [u8])> = m
+        .faces
+        .chunks(SOUP_BLOCK)
+        .zip(body.chunks_mut(SOUP_BLOCK * 96))
+        .collect();
     #[cfg(not(target_arch = "wasm32"))]
     {
-        let workers = std::thread::available_parallelism().map_or(1, |p| p.get()).min(blocks.len()).min(8);
+        let workers = std::thread::available_parallelism()
+            .map_or(1, |p| p.get())
+            .min(blocks.len())
+            .min(8);
         if workers > 1 {
             let work = Mutex::new(blocks);
             std::thread::scope(|s| {
                 for _ in 0..workers {
-                    s.spawn(|| loop {
-                        let job = work.lock().unwrap_or_else(|e| e.into_inner()).pop();
-                        match job {
-                            Some((f, d)) => encode(f, d),
-                            None => break,
+                    s.spawn(|| {
+                        loop {
+                            let job = work.lock().unwrap_or_else(|e| e.into_inner()).pop();
+                            match job {
+                                Some((f, d)) => encode(f, d),
+                                None => break,
+                            }
                         }
                     });
                 }
@@ -354,7 +399,11 @@ pub fn b64_encode(data: &[u8]) -> String {
         let n = (c[0] as u32) << 16 | (*c.get(1).unwrap_or(&0) as u32) << 8 | *c.get(2).unwrap_or(&0) as u32;
         out.push(B64[(n >> 18) as usize & 63] as char);
         out.push(B64[(n >> 12) as usize & 63] as char);
-        out.push(if c.len() > 1 { B64[(n >> 6) as usize & 63] as char } else { '=' });
+        out.push(if c.len() > 1 {
+            B64[(n >> 6) as usize & 63] as char
+        } else {
+            '='
+        });
         out.push(if c.len() > 2 { B64[n as usize & 63] as char } else { '=' });
     }
     out
@@ -388,7 +437,10 @@ pub fn b64_decode(s: &str) -> Result<Vec<u8>, FeatureError> {
 /// `np.frombuffer(b64decode(s), "<f4").reshape(-1, 3, 3)`: the triangles, flat xyz in f32.
 pub fn decode_triangles(s: &str) -> Result<Vec<[[f32; 3]; 3]>, FeatureError> {
     let bytes = b64_decode(s)?;
-    let f: Vec<f32> = bytes.chunks_exact(4).map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]])).collect();
+    let f: Vec<f32> = bytes
+        .chunks_exact(4)
+        .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+        .collect();
     Ok(f.chunks_exact(9)
         .map(|t| [[t[0], t[1], t[2]], [t[3], t[4], t[5]], [t[6], t[7], t[8]]])
         .collect())
@@ -406,7 +458,10 @@ pub struct Lru<V> {
 
 impl<V: Clone> Lru<V> {
     pub const fn new(max: usize) -> Self {
-        Lru { max, items: VecDeque::new() }
+        Lru {
+            max,
+            items: VecDeque::new(),
+        }
     }
     pub fn get(&mut self, key: &str) -> Option<V> {
         let i = self.items.iter().position(|(k, _)| k == key)?;
@@ -440,7 +495,12 @@ pub struct Caches {
 
 pub fn caches() -> &'static Mutex<Caches> {
     static C: OnceLock<Mutex<Caches>> = OnceLock::new();
-    C.get_or_init(|| Mutex::new(Caches { fins: Lru::new(CACHE_FINS), wall: Lru::new(CACHE_WALL) }))
+    C.get_or_init(|| {
+        Mutex::new(Caches {
+            fins: Lru::new(CACHE_FINS),
+            wall: Lru::new(CACHE_WALL),
+        })
+    })
 }
 
 /// Empty both caches (tests; or after the engine changes).
@@ -458,7 +518,11 @@ pub fn cached_wall(key: String, build: impl FnOnce() -> Result<Value, FeatureErr
         return Ok(v);
     }
     let v = build()?;
-    caches().lock().unwrap_or_else(|e| e.into_inner()).wall.put(key, v.clone());
+    caches()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .wall
+        .put(key, v.clone());
     Ok(v)
 }
 
@@ -468,7 +532,11 @@ pub fn cached_json(key: String, build: impl FnOnce() -> Result<Value, FeatureErr
         return Ok(v);
     }
     let v = build()?;
-    caches().lock().unwrap_or_else(|e| e.into_inner()).fins.put(key, Cached::Json(v.clone()));
+    caches()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .fins
+        .put(key, Cached::Json(v.clone()));
     Ok(v)
 }
 
@@ -478,7 +546,9 @@ pub fn parse_json(s: &str) -> Result<Value, FeatureError> {
 
 /// `[float(x) for x in v]` of a JSON array (missing or odd entries count as 0).
 pub fn floats(v: Option<&Value>) -> Vec<f64> {
-    v.and_then(Value::as_array).map(|a| a.iter().map(|x| x.as_f64().unwrap_or(0.0)).collect()).unwrap_or_default()
+    v.and_then(Value::as_array)
+        .map(|a| a.iter().map(|x| x.as_f64().unwrap_or(0.0)).collect())
+        .unwrap_or_default()
 }
 
 // -- shared by Support Fins and Draw Walls ---------------------------------------------------------
@@ -506,7 +576,11 @@ pub fn drawn_walls(p: &Map<String, Value>) -> Vec<Value> {
         Some(Value::Array(a)) => a.clone(),
         _ => Vec::new(),
     };
-    if pts.len() == 2 { vec![json!({"shape": "line", "points": pts})] } else { Vec::new() }
+    if pts.len() == 2 {
+        vec![json!({"shape": "line", "points": pts})]
+    } else {
+        Vec::new()
+    }
 }
 
 /// The drawn walls that have enough points to build.
@@ -515,7 +589,11 @@ pub fn usable_walls(p: &Map<String, Value>) -> Vec<Value> {
         .into_iter()
         .filter(|w| {
             let n = w.get("points").and_then(Value::as_array).map_or(0, Vec::len);
-            n >= if w.get("shape").and_then(Value::as_str) == Some("anchor") { 1 } else { 2 }
+            n >= if w.get("shape").and_then(Value::as_str) == Some("anchor") {
+                1
+            } else {
+                2
+            }
         })
         .collect()
 }
@@ -534,13 +612,24 @@ pub fn add_supports(
     preview: bool,
 ) -> Result<(), FeatureError> {
     let b = state.body(bid)?.clone();
-    let fins = if solids.len() == 1 { solids[0].clone() } else { stl_kernel::Solid::union_all(solids) };
+    let fins = if solids.len() == 1 {
+        solids[0].clone()
+    } else {
+        stl_kernel::Solid::union_all(solids)
+    };
     let is_solid = b.solid.is_some();
     if preview && output != Some("separate") && is_solid {
         // the live preview shows the supports next to the untouched part (no union to wait
         // for, and only the supports are sent to the screen); OK joins them for real
         let nid = format!("{fid}~sf");
-        state.bodies.insert(nid.clone(), Body { name: format!("{} {suffix}", b.name), solid: Some(fins), mesh: None });
+        state.bodies.insert(
+            nid.clone(),
+            Body {
+                name: format!("{} {suffix}", b.name),
+                solid: Some(fins),
+                mesh: None,
+            },
+        );
         res.created.push(nid.clone());
         res.preview_only = true;
         extras.colors.insert(nid, Value::String(SUPPORT_COLOR.into()));
@@ -553,18 +642,35 @@ pub fn add_supports(
             n += 1;
             nid = format!("{fid}.{n}");
         }
-        state.bodies.insert(nid.clone(), Body { name: format!("{} {suffix}", b.name), solid: Some(fins), mesh: None });
+        state.bodies.insert(
+            nid.clone(),
+            Body {
+                name: format!("{} {suffix}", b.name),
+                solid: Some(fins),
+                mesh: None,
+            },
+        );
         res.created.push(nid.clone());
         state.attached.insert(nid.clone(), bid.to_string());
         if preview {
             extras.colors.insert(nid, Value::String(SUPPORT_COLOR.into()));
         }
         if !is_solid && output != Some("separate") {
-            res.warning = Some(format!("\"{}\" isn't a watertight solid, so the supports were added as a separate body.", b.name));
+            res.warning = Some(format!(
+                "\"{}\" isn't a watertight solid, so the supports were added as a separate body.",
+                b.name
+            ));
         }
     } else {
         let joined = b.solid.as_ref().map(|s| s.union(&fins));
-        state.bodies.insert(bid.to_string(), Body { name: b.name.clone(), solid: joined, mesh: None });
+        state.bodies.insert(
+            bid.to_string(),
+            Body {
+                name: b.name.clone(),
+                solid: joined,
+                mesh: None,
+            },
+        );
         res.modified.push(bid.to_string());
     }
     Ok(())
@@ -600,9 +706,15 @@ mod tests {
     fn soup_blocks_match_one_encode() {
         // more triangles than one block, so the blocks (and threads) are used
         let n = SOUP_BLOCK.max(KEY_LEAF) * 2 + 7;
-        let verts: Vec<P3> = (0..n + 2).map(|i| [i as f64 * 0.37, -(i as f64) / 3.0, (i % 11) as f64 * 1e-3]).collect();
+        let verts: Vec<P3> = (0..n + 2)
+            .map(|i| [i as f64 * 0.37, -(i as f64) / 3.0, (i % 11) as f64 * 1e-3])
+            .collect();
         let faces: Vec<[usize; 3]> = (0..n).map(|i| [i, i + 1, i + 2]).collect();
-        let m = MeshData { verts, faces, memo: None };
+        let m = MeshData {
+            verts,
+            faces,
+            memo: None,
+        };
         let mut bytes = Vec::new();
         for f in &m.faces {
             for &i in f {
@@ -617,7 +729,13 @@ mod tests {
         // the key: the same for equal meshes, another when a vertex moves or a face changes
         let k = mesh_key(&m);
         assert_eq!(k.len(), 32);
-        assert_eq!(mesh_key(&MeshData { memo: None, ..m.clone() }), k);
+        assert_eq!(
+            mesh_key(&MeshData {
+                memo: None,
+                ..m.clone()
+            }),
+            k
+        );
         let mut moved = m.clone();
         moved.verts[KEY_LEAF + 3][1] += 0.5;
         assert_ne!(mesh_key(&moved), k);
@@ -627,17 +745,32 @@ mod tests {
         let mut fewer = m.clone();
         fewer.verts.pop();
         assert_ne!(mesh_key(&fewer), k);
-        let empty = MeshData { verts: vec![], faces: vec![], memo: None };
+        let empty = MeshData {
+            verts: vec![],
+            faces: vec![],
+            memo: None,
+        };
         assert_eq!(soup(&empty), "");
         assert_eq!(soup_json(&empty), "\"\"");
     }
 
     #[test]
     fn body_mesh_keeps_soup_and_key_per_body() {
-        let arrays = MeshArrays { positions: vec![0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.5], triangles: vec![0, 1, 2] };
-        let body = Body { name: "b".into(), solid: None, mesh: Some(Arc::new(arrays.clone())) };
+        let arrays = MeshArrays {
+            positions: vec![0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.5],
+            triangles: vec![0, 1, 2],
+        };
+        let body = Body {
+            name: "b".into(),
+            solid: None,
+            mesh: Some(Arc::new(arrays.clone())),
+        };
         let a = body_mesh(&body);
-        let plain = MeshData { verts: a.verts.clone(), faces: a.faces.clone(), memo: None };
+        let plain = MeshData {
+            verts: a.verts.clone(),
+            faces: a.faces.clone(),
+            memo: None,
+        };
         assert_eq!(soup_json(&a), serde_json::to_string(&soup(&plain)).unwrap());
         assert_eq!(mesh_key(&a), mesh_key(&plain));
         // the same body again: the same memo, so nothing is made twice
@@ -645,7 +778,11 @@ mod tests {
         assert!(Arc::ptr_eq(a.memo.as_ref().unwrap(), b.memo.as_ref().unwrap()));
         assert_eq!(soup_json(&b), soup_json(&a));
         // another body with equal triangles: its own memo, the same answers
-        let other = Body { name: "c".into(), solid: None, mesh: Some(Arc::new(arrays)) };
+        let other = Body {
+            name: "c".into(),
+            solid: None,
+            mesh: Some(Arc::new(arrays)),
+        };
         let c = body_mesh(&other);
         assert!(!Arc::ptr_eq(a.memo.as_ref().unwrap(), c.memo.as_ref().unwrap()));
         assert_eq!(mesh_key(&c), mesh_key(&a));
@@ -654,6 +791,9 @@ mod tests {
     #[test]
     fn engine_errors_get_the_prefix_once() {
         assert_eq!(engine_error("boom\n  at x").0, "Support Fins: boom");
-        assert_eq!(engine_error("Support Fins: the engine stopped responding.").0, "Support Fins: the engine stopped responding.");
+        assert_eq!(
+            engine_error("Support Fins: the engine stopped responding.").0,
+            "Support Fins: the engine stopped responding."
+        );
     }
 }

@@ -4,8 +4,16 @@
 const LEAF: usize = 8;
 
 enum Node {
-    Leaf { start: usize, end: usize },
-    Split { axis: usize, value: f64, left: usize, right: usize },
+    Leaf {
+        start: usize,
+        end: usize,
+    },
+    Split {
+        axis: usize,
+        value: f64,
+        left: usize,
+        right: usize,
+    },
 }
 
 pub struct PointTree {
@@ -54,7 +62,12 @@ impl PointTree {
                     }
                 }
             }
-            Node::Split { axis, value, left, right } => {
+            Node::Split {
+                axis,
+                value,
+                left,
+                right,
+            } => {
                 let diff = q[*axis] - *value;
                 let (near, far) = if diff <= 0.0 { (*left, *right) } else { (*right, *left) };
                 self.nearest(near, q, best);
@@ -84,7 +97,12 @@ impl PointTree {
                     }
                 }
             }
-            Node::Split { axis, value, left, right } => {
+            Node::Split {
+                axis,
+                value,
+                left,
+                right,
+            } => {
                 let diff = q[*axis] - *value;
                 if diff <= 0.0 || diff * diff <= r2 {
                     self.ball(*left, q, r2, out);
@@ -130,7 +148,12 @@ fn build(points: &[[f64; 3]], order: &mut [usize], start: usize, end: usize, nod
     // Left holds points with coordinate <= value, right holds >= value.
     let left = build(points, order, start, mid, nodes);
     let right = build(points, order, mid, end, nodes);
-    nodes[me] = Node::Split { axis, value, left, right };
+    nodes[me] = Node::Split {
+        axis,
+        value,
+        left,
+        right,
+    };
     me
 }
 
@@ -238,9 +261,20 @@ impl PointGrid {
         }
         // SAFETY: every one of the `total` slots was written exactly once.
         unsafe { pts.set_len(total) };
-        let reach = (0..3).map(|a| lo[a].abs().max((lo[a] + n[a] as f64 * cell).abs())).fold(0.0, f64::max);
+        let reach = (0..3)
+            .map(|a| lo[a].abs().max((lo[a] + n[a] as f64 * cell).abs()))
+            .fold(0.0, f64::max);
         let slack = cell * 1e-9 + 16.0 * f64::EPSILON * reach;
-        Some(Self { lo, inv, cell, n, start, pts, strays: strays.into_inner().unwrap(), slack })
+        Some(Self {
+            lo,
+            inv,
+            cell,
+            n,
+            start,
+            pts,
+            strays: strays.into_inner().unwrap(),
+            slack,
+        })
     }
 
     /// Distance from `q` to the closest point (infinity when there are none).
@@ -354,11 +388,18 @@ const TOL_ZERO: f64 = 1e-13;
 /// `tol.zero` comparisons and its handling of a collapsed AB edge. A degenerate triangle gives
 /// a point on the triangle, never NaN. Unequal counts are trimesh's ValueError
 /// ("need same number of triangles and points!").
-pub fn try_closest_point_on_triangles(triangles: &[[[f64; 3]; 3]], points: &[[f64; 3]]) -> Result<Vec<[f64; 3]>, String> {
+pub fn try_closest_point_on_triangles(
+    triangles: &[[[f64; 3]; 3]],
+    points: &[[f64; 3]],
+) -> Result<Vec<[f64; 3]>, String> {
     if triangles.len() != points.len() {
         return Err("need same number of triangles and points!".into());
     }
-    Ok(triangles.iter().zip(points).map(|(t, p)| closest_point_on_triangle(t[0], t[1], t[2], *p)).collect())
+    Ok(triangles
+        .iter()
+        .zip(points)
+        .map(|(t, p)| closest_point_on_triangle(t[0], t[1], t[2], *p))
+        .collect())
 }
 
 /// [`try_closest_point_on_triangles`] for callers that always pass equal counts; on unequal
@@ -443,7 +484,11 @@ mod triangle_tests {
         let q = closest_point_on_triangle(a, a, c, [0.0, 1.0, 5.0]);
         assert_eq!(q, [0.0, 1.0, 0.0]);
         assert_eq!(closest_point_on_triangle(a, a, a, [1.0, 1.0, 1.0]), a);
-        assert!(closest_point_on_triangle(a, [1.0, 0.0, 0.0], [2.0, 0.0, 0.0], [1.0, 1.0, 0.0]).iter().all(|x| x.is_finite()));
+        assert!(
+            closest_point_on_triangle(a, [1.0, 0.0, 0.0], [2.0, 0.0, 0.0], [1.0, 1.0, 0.0])
+                .iter()
+                .all(|x| x.is_finite())
+        );
         assert!(try_closest_point_on_triangles(&[[a, b, c]], &[]).is_err());
         assert_eq!(closest_point_on_triangle(a, b, c, [3.0, -1.0, 0.0]), b);
         assert_eq!(closest_point_on_triangle(a, b, c, [1.0, -1.0, 0.0]), [1.0, 0.0, 0.0]); // edge ab

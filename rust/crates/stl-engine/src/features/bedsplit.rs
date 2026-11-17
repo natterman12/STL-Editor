@@ -25,8 +25,17 @@ fn f_bedsplit(
         Some(Value::String(s)) => s.as_str(),
         Some(_) => "",
     };
-    let optimize = p.get("optimize").map_or(true, |v| truthy(Some(v)));
-    let r = split_to_bed(&s, bed, margin, connector, p.get("pin_d"), p.get("pin_len"), p.get("clearance"), optimize)?;
+    let optimize = p.get("optimize").is_none_or(|v| truthy(Some(v)));
+    let r = split_to_bed(
+        &s,
+        bed,
+        margin,
+        connector,
+        p.get("pin_d"),
+        p.get("pin_len"),
+        p.get("clearance"),
+        optimize,
+    )?;
     // 1.x res["info"]: the split_to_bed dict (cut positions rounded to 2 places)
     let mut cuts = Map::new();
     for (ax, v) in &r.cuts {
@@ -39,7 +48,10 @@ fn f_bedsplit(
     let mut info = Map::new();
     info.insert("cuts".into(), Value::Object(cuts));
     info.insert("connectors".into(), Value::from(r.connectors));
-    info.insert("faces_without_connectors".into(), Value::from(r.faces_without_connectors));
+    info.insert(
+        "faces_without_connectors".into(),
+        Value::from(r.faces_without_connectors),
+    );
     info.insert("swapped".into(), Value::Bool(r.swapped));
     res.extra.insert("info".into(), Value::Object(info));
     let mut pieces = r.pieces.into_iter();
@@ -49,17 +61,38 @@ fn f_bedsplit(
     }
     let first = pieces.next().expect("a split always keeps at least one piece");
     let name = if n > 1 { format!("{} 1", b.name) } else { b.name.clone() };
-    state.bodies.insert(bid.clone(), Body { name, solid: Some(first), mesh: None });
+    state.bodies.insert(
+        bid.clone(),
+        Body {
+            name,
+            solid: Some(first),
+            mesh: None,
+        },
+    );
     res.modified.push(bid);
     for (i, pc) in pieces.enumerate() {
         let i = i + 2;
         let nid = format!("{fid}.{i}");
-        state.bodies.insert(nid.clone(), Body { name: format!("{} {i}", b.name), solid: Some(pc), mesh: None });
+        state.bodies.insert(
+            nid.clone(),
+            Body {
+                name: format!("{} {i}", b.name),
+                solid: Some(pc),
+                mesh: None,
+            },
+        );
         res.created.push(nid);
     }
     for (i, ex) in r.extras.into_iter().enumerate() {
         let nid = format!("{fid}.pin{}", i + 1);
-        state.bodies.insert(nid.clone(), Body { name: format!("Pin {}", i + 1), solid: Some(ex), mesh: None });
+        state.bodies.insert(
+            nid.clone(),
+            Body {
+                name: format!("Pin {}", i + 1),
+                solid: Some(ex),
+                mesh: None,
+            },
+        );
         res.created.push(nid);
     }
     if r.faces_without_connectors > 0 && connector != "none" {

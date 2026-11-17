@@ -1,9 +1,7 @@
 //! How defined the sketch is: the rank of the constraints' Jacobian (`analyze`, `isRedundant`,
 //! `unsatisfied` in `web/js/constraints.js`).
 
-use super::constraints::{
-    get_param, js_max, params_of, refs_exist, residual, set_param, Constraint, World,
-};
+use super::constraints::{Constraint, World, get_param, js_max, params_of, refs_exist, residual, set_param};
 use crate::entities::Entity;
 use serde::Serialize;
 use std::collections::{BTreeSet, HashMap};
@@ -52,7 +50,8 @@ fn jacobian(w: &mut World, vars: &Vars, cons: &[&Constraint]) -> Vec<Vec<f64>> {
             let fm = residual(cons[i], w).unwrap_or_default();
             set_param(&mut w.ents[ei], pi, x0);
             for r in 0..base[i].len() {
-                j[off[i] + r][col] = (fp.get(r).copied().unwrap_or(0.0) - fm.get(r).copied().unwrap_or(0.0)) / (2.0 * h);
+                j[off[i] + r][col] =
+                    (fp.get(r).copied().unwrap_or(0.0) - fm.get(r).copied().unwrap_or(0.0)) / (2.0 * h);
             }
         }
     }
@@ -149,7 +148,10 @@ pub fn analyze(entities: &[Entity], constraints: &[Constraint], fixed: &[Entity]
     let mut w = World::new(entities);
     w.add_missing(fixed);
     let fx: BTreeSet<&str> = fixed.iter().filter_map(|f| f.id()).collect();
-    let cons: Vec<&Constraint> = constraints.iter().filter(|c| !c.has_ref() && refs_exist(c, &w)).collect();
+    let cons: Vec<&Constraint> = constraints
+        .iter()
+        .filter(|c| !c.has_ref() && refs_exist(c, &w))
+        .collect();
     // shapes tied together by constraints form groups; each group is worked out on its own
     let mut parent: HashMap<String, String> = HashMap::new();
     let free: Vec<&Entity> = entities
@@ -160,7 +162,8 @@ pub fn analyze(entities: &[Entity], constraints: &[Constraint], fixed: &[Entity]
         let id = e.id().unwrap().to_string();
         parent.insert(id.clone(), id);
     }
-    let refs_in = |c: &Constraint| -> Vec<String> { [&c.a, &c.b, &c.c].into_iter().flatten().map(|r| r.e.clone()).collect() };
+    let refs_in =
+        |c: &Constraint| -> Vec<String> { [&c.a, &c.b, &c.c].into_iter().flatten().map(|r| r.e.clone()).collect() };
     for c in &cons {
         let ids: Vec<String> = refs_in(c).into_iter().filter(|e| parent.contains_key(e)).collect();
         for i in 1..ids.len() {

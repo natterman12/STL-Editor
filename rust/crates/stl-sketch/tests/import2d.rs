@@ -48,9 +48,26 @@ fn golden_drawing_size(want_ents: &[Value]) -> f64 {
     for w in want_ents {
         match golden_type(w) {
             "line" => {
-                if let (Some(p1), Some(p2)) = (w.get("p1").and_then(|a| a.as_array()), w.get("p2").and_then(|a| a.as_array())) {
-                    push(p1[0].as_f64().unwrap_or(0.0), p1[1].as_f64().unwrap_or(0.0), &mut min_x, &mut min_y, &mut max_x, &mut max_y);
-                    push(p2[0].as_f64().unwrap_or(0.0), p2[1].as_f64().unwrap_or(0.0), &mut min_x, &mut min_y, &mut max_x, &mut max_y);
+                if let (Some(p1), Some(p2)) = (
+                    w.get("p1").and_then(|a| a.as_array()),
+                    w.get("p2").and_then(|a| a.as_array()),
+                ) {
+                    push(
+                        p1[0].as_f64().unwrap_or(0.0),
+                        p1[1].as_f64().unwrap_or(0.0),
+                        &mut min_x,
+                        &mut min_y,
+                        &mut max_x,
+                        &mut max_y,
+                    );
+                    push(
+                        p2[0].as_f64().unwrap_or(0.0),
+                        p2[1].as_f64().unwrap_or(0.0),
+                        &mut min_x,
+                        &mut min_y,
+                        &mut max_x,
+                        &mut max_y,
+                    );
                 }
             }
             "circle" | "arc" => {
@@ -104,8 +121,14 @@ fn compare_entity_svg(got: &Entity, want: &Value, size: f64, file: &str, i: usiz
         Entity::Line(l) => {
             let p1 = want.get("p1").unwrap().as_array().unwrap();
             let p2 = want.get("p2").unwrap().as_array().unwrap();
-            assert!(close(l.p1[0], p1[0].as_f64().unwrap(), tol) && close(l.p1[1], p1[1].as_f64().unwrap(), tol), "{file} entity {i} p1");
-            assert!(close(l.p2[0], p2[0].as_f64().unwrap(), tol) && close(l.p2[1], p2[1].as_f64().unwrap(), tol), "{file} entity {i} p2");
+            assert!(
+                close(l.p1[0], p1[0].as_f64().unwrap(), tol) && close(l.p1[1], p1[1].as_f64().unwrap(), tol),
+                "{file} entity {i} p1"
+            );
+            assert!(
+                close(l.p2[0], p2[0].as_f64().unwrap(), tol) && close(l.p2[1], p2[1].as_f64().unwrap(), tol),
+                "{file} entity {i} p2"
+            );
         }
         Entity::Circle(c) => {
             assert!(close(c.cx, want["cx"].as_f64().unwrap(), tol), "{file} entity {i} cx");
@@ -120,7 +143,11 @@ fn compare_entity_svg(got: &Entity, want: &Value, size: f64, file: &str, i: usiz
             assert!(close(a.a1, want["a1"].as_f64().unwrap(), tol), "{file} entity {i} a1");
         }
         Entity::Polyline(p) => {
-            assert_eq!(p.is_closed(), want.get("closed").and_then(|c| c.as_bool()).unwrap_or(false), "{file} entity {i} closed");
+            assert_eq!(
+                p.is_closed(),
+                want.get("closed").and_then(|c| c.as_bool()).unwrap_or(false),
+                "{file} entity {i} closed"
+            );
             let gp = golden_pts(want).expect("polyline pts");
             assert_eq!(p.pts.len(), gp.len(), "{file} entity {i} point count");
             for (k, (a, b)) in p.pts.iter().zip(gp.iter()).enumerate() {
@@ -143,8 +170,14 @@ fn compare_entity_dxf(got: &Entity, want: &Value, file: &str, i: usize) {
         Entity::Line(l) => {
             let p1 = want.get("p1").unwrap().as_array().unwrap();
             let p2 = want.get("p2").unwrap().as_array().unwrap();
-            assert!(close(l.p1[0], p1[0].as_f64().unwrap(), tol) && close(l.p1[1], p1[1].as_f64().unwrap(), tol), "{file} entity {i} p1");
-            assert!(close(l.p2[0], p2[0].as_f64().unwrap(), tol) && close(l.p2[1], p2[1].as_f64().unwrap(), tol), "{file} entity {i} p2");
+            assert!(
+                close(l.p1[0], p1[0].as_f64().unwrap(), tol) && close(l.p1[1], p1[1].as_f64().unwrap(), tol),
+                "{file} entity {i} p1"
+            );
+            assert!(
+                close(l.p2[0], p2[0].as_f64().unwrap(), tol) && close(l.p2[1], p2[1].as_f64().unwrap(), tol),
+                "{file} entity {i} p2"
+            );
         }
         Entity::Circle(c) => {
             assert!(close(c.cx, want["cx"].as_f64().unwrap(), tol), "{file} entity {i} cx");
@@ -159,7 +192,11 @@ fn compare_entity_dxf(got: &Entity, want: &Value, file: &str, i: usize) {
             assert!(close(a.a1, want["a1"].as_f64().unwrap(), tol), "{file} entity {i} a1");
         }
         Entity::Polyline(p) => {
-            assert_eq!(p.is_closed(), want.get("closed").and_then(|c| c.as_bool()).unwrap_or(false), "{file} entity {i} closed");
+            assert_eq!(
+                p.is_closed(),
+                want.get("closed").and_then(|c| c.as_bool()).unwrap_or(false),
+                "{file} entity {i} closed"
+            );
             let gp = golden_pts(want).expect("polyline pts");
             assert_eq!(p.pts.len(), gp.len(), "{file} entity {i} point count");
             for (k, (a, b)) in p.pts.iter().zip(gp.iter()).enumerate() {
@@ -190,7 +227,10 @@ fn import2d_matches_golden() {
             assert_eq!(msg, err, "{file} error message");
             continue;
         }
-        let want_ents = want.get("entities").and_then(|e| e.as_array()).unwrap_or_else(|| panic!("{file}: entities"));
+        let want_ents = want
+            .get("entities")
+            .and_then(|e| e.as_array())
+            .unwrap_or_else(|| panic!("{file}: entities"));
         let got = if is_dxf {
             import_dxf(&text).unwrap_or_else(|e| panic!("{file}: {e}"))
         } else {

@@ -2,7 +2,6 @@
 //! triangle is one planar ADVANCED_FACE; vertices and edges are shared. All arithmetic is f64
 //! like the JavaScript (the f32 coordinates are widened first).
 
-
 use super::jsfmt::{js_hypot3, js_number_string};
 use super::{ExportBody, ExportError, ExportOptions};
 
@@ -13,7 +12,11 @@ fn real(x: f64) -> String {
     }
     let s = js_number_string(x);
     if let Some((m, e)) = s.split_once('e') {
-        let m = if m.contains('.') { m.to_string() } else { format!("{m}.") };
+        let m = if m.contains('.') {
+            m.to_string()
+        } else {
+            format!("{m}.")
+        };
         let neg = e.starts_with('-');
         let digits = e.trim_start_matches(['+', '-']);
         format!("{m}E{}{digits}", if neg { "-" } else { "" })
@@ -44,7 +47,11 @@ fn vec(p: V3, q: V3) -> V3 {
     [q[0] - p[0], q[1] - p[1], q[2] - p[2]]
 }
 fn cross(p: V3, q: V3) -> V3 {
-    [p[1] * q[2] - p[2] * q[1], p[2] * q[0] - p[0] * q[2], p[0] * q[1] - p[1] * q[0]]
+    [
+        p[1] * q[2] - p[2] * q[1],
+        p[2] * q[0] - p[0] * q[2],
+        p[0] * q[1] - p[1] * q[0],
+    ]
 }
 fn unit(p: V3) -> V3 {
     let l = js_hypot3(p);
@@ -94,8 +101,10 @@ impl Lines {
         self.n
     }
     fn end(&mut self) {
-        self.out.extend_from_slice(b";
-");
+        self.out.extend_from_slice(
+            b";
+",
+        );
     }
     fn add(&mut self, body: &str) -> u32 {
         let id = self.begin();
@@ -132,7 +141,11 @@ struct EdgeTable {
 impl EdgeTable {
     fn new(expected: usize) -> Self {
         let cap = (expected * 2).max(16).next_power_of_two();
-        EdgeTable { keys: vec![EMPTY; cap], vals: vec![(0, 0, 0); cap], mask: cap - 1 }
+        EdgeTable {
+            keys: vec![EMPTY; cap],
+            vals: vec![(0, 0, 0); cap],
+            mask: cap - 1,
+        }
     }
     fn slot(&self, key: u64) -> usize {
         let mut i = (key.wrapping_mul(0x9E37_79B9_7F4A_7C15) >> 20) as usize & self.mask;
@@ -153,10 +166,17 @@ impl EdgeTable {
 }
 
 pub(super) fn write(bodies: &[ExportBody], opts: &ExportOptions) -> Result<Vec<u8>, ExportError> {
-    let title: &str = if opts.step_title.is_empty() { "model" } else { &opts.step_title };
+    let title: &str = if opts.step_title.is_empty() {
+        "model"
+    } else {
+        &opts.step_title
+    };
     let date: String = opts.step_date.chars().take(19).collect();
     let tris: usize = bodies.iter().map(|b| b.mesh.triangles.len() / 3).sum();
-    let mut l = Lines { out: Vec::with_capacity(1024 + tris * 950), n: 0 };
+    let mut l = Lines {
+        out: Vec::with_capacity(1024 + tris * 950),
+        n: 0,
+    };
 
     l.s("ISO-10303-21;\nHEADER;\nFILE_DESCRIPTION(('faceted STEP: each triangle is a flat face'),'2;1');\n");
     l.s(&format!(
@@ -167,11 +187,15 @@ pub(super) fn write(bodies: &[ExportBody], opts: &ExportOptions) -> Result<Vec<u
     l.s("FILE_SCHEMA(('AUTOMOTIVE_DESIGN { 1 0 10303 214 1 1 1 1 }'));\nENDSEC;\nDATA;\n");
 
     let actx = l.add("APPLICATION_CONTEXT('core data for automotive mechanical design processes')");
-    l.add(&format!("APPLICATION_PROTOCOL_DEFINITION('international standard','automotive_design',2001,#{actx})"));
+    l.add(&format!(
+        "APPLICATION_PROTOCOL_DEFINITION('international standard','automotive_design',2001,#{actx})"
+    ));
     let pctx = l.add(&format!("PRODUCT_CONTEXT('',#{actx},'mechanical')"));
     let prod = l.add(&format!("PRODUCT({},{},'',(#{pctx}))", str_lit(title), str_lit(title)));
     let pdf = l.add(&format!("PRODUCT_DEFINITION_FORMATION('','',#{prod})"));
-    let pdc = l.add(&format!("PRODUCT_DEFINITION_CONTEXT('part definition',#{actx},'design')"));
+    let pdc = l.add(&format!(
+        "PRODUCT_DEFINITION_CONTEXT('part definition',#{actx},'design')"
+    ));
     let pd = l.add(&format!("PRODUCT_DEFINITION('design','',#{pdf},#{pdc})"));
     let pds = l.add(&format!("PRODUCT_DEFINITION_SHAPE('','',#{pd})"));
 
@@ -182,7 +206,9 @@ pub(super) fn write(bodies: &[ExportBody], opts: &ExportOptions) -> Result<Vec<u
     let lu = l.add("( LENGTH_UNIT() NAMED_UNIT(*) SI_UNIT(.MILLI.,.METRE.) )");
     let au = l.add("( NAMED_UNIT(*) PLANE_ANGLE_UNIT() SI_UNIT($,.RADIAN.) )");
     let su = l.add("( NAMED_UNIT(*) SI_UNIT($,.STERADIAN.) SOLID_ANGLE_UNIT() )");
-    let unc = l.add(&format!("UNCERTAINTY_MEASURE_WITH_UNIT(LENGTH_MEASURE(1.E-06),#{lu},'distance_accuracy_value','')"));
+    let unc = l.add(&format!(
+        "UNCERTAINTY_MEASURE_WITH_UNIT(LENGTH_MEASURE(1.E-06),#{lu},'distance_accuracy_value','')"
+    ));
     let ctx = l.add(&format!("( GEOMETRIC_REPRESENTATION_CONTEXT(3) GLOBAL_UNCERTAINTY_ASSIGNED_CONTEXT((#{unc})) GLOBAL_UNIT_ASSIGNED_CONTEXT((#{lu},#{au},#{su})) REPRESENTATION_CONTEXT('Context3D','3D') )"));
 
     let mut breps: Vec<u32> = Vec::new();
@@ -216,7 +242,12 @@ pub(super) fn write(bodies: &[ExportBody], opts: &ExportOptions) -> Result<Vec<u
                 }
             }
         }
-        if uses.keys.iter().zip(&uses.vals).any(|(&k, u)| k != EMPTY && (u.0 != 2 || u.1 != 1)) {
+        if uses
+            .keys
+            .iter()
+            .zip(&uses.vals)
+            .any(|(&k, u)| k != EMPTY && (u.0 != 2 || u.1 != 1))
+        {
             return Err(ExportError::Geometry(format!(
                 "{label} isn't a closed solid (it has holes, or faces that overlap or face the wrong way). Run Repair on it first, then export."
             )));
@@ -346,7 +377,11 @@ pub(super) fn write(bodies: &[ExportBody], opts: &ExportOptions) -> Result<Vec<u
     for b in breps {
         members.push_str(&format!(",#{b}"));
     }
-    let rep = l.add(&format!("ADVANCED_BREP_SHAPE_REPRESENTATION({},({}),#{ctx})", str_lit(title), members));
+    let rep = l.add(&format!(
+        "ADVANCED_BREP_SHAPE_REPRESENTATION({},({}),#{ctx})",
+        str_lit(title),
+        members
+    ));
     l.add(&format!("SHAPE_DEFINITION_REPRESENTATION(#{pds},#{rep})"));
     l.s("ENDSEC;\nEND-ISO-10303-21;\n");
     Ok(l.out)

@@ -38,8 +38,11 @@ fn call(body: &str, args: &[&JsValue]) -> Result<JsValue, JsValue> {
 }
 
 fn element(doc: &Document, tag: &str) -> Result<JsValue, String> {
-    call("return a0.createElement(a1)", &[doc.unchecked_ref(), &JsValue::from_str(tag)])
-        .map_err(|e| js_string(&e))
+    call(
+        "return a0.createElement(a1)",
+        &[doc.unchecked_ref(), &JsValue::from_str(tag)],
+    )
+    .map_err(|e| js_string(&e))
 }
 
 fn append(parent: &JsValue, child: &JsValue) {
@@ -119,13 +122,20 @@ impl Platform for WebPlatform {
     /// `stle_*` / `stle.*` keys on the same site are never read or written.
     fn setting_json(&self, key: &str) -> Option<serde_json::Value> {
         let (store, f) = local_storage_fn("getItem")?;
-        let text = f.call1(&store, &JsValue::from_str(&storage_key(key))).ok()?.as_string()?;
+        let text = f
+            .call1(&store, &JsValue::from_str(&storage_key(key)))
+            .ok()?
+            .as_string()?;
         serde_json::from_str(&text).ok()
     }
 
     fn set_setting_json(&self, key: &str, value: serde_json::Value) {
         if let Some((store, f)) = local_storage_fn("setItem") {
-            let _ = f.call2(&store, &JsValue::from_str(&storage_key(key)), &JsValue::from_str(&value.to_string()));
+            let _ = f.call2(
+                &store,
+                &JsValue::from_str(&storage_key(key)),
+                &JsValue::from_str(&value.to_string()),
+            );
         }
     }
 
@@ -152,14 +162,20 @@ fn local_storage_fn(name: &str) -> Option<(JsValue, js_sys::Function)> {
     if store.is_undefined() || store.is_null() {
         return None;
     }
-    let f = js_sys::Reflect::get(&store, &JsValue::from_str(name)).ok()?.dyn_into::<js_sys::Function>().ok()?;
+    let f = js_sys::Reflect::get(&store, &JsValue::from_str(name))
+        .ok()?
+        .dyn_into::<js_sys::Function>()
+        .ok()?;
     Some((store, f))
 }
 
 fn arm_open(filters: &[(&str, &[&str])], pending: Pending<Option<PickedFile>>) -> Result<(), String> {
     let doc = page()?;
     let el = element(&doc, "input")?;
-    let input: HtmlInputElement = el.clone().dyn_into().map_err(|_| "could not make a file input".to_string())?;
+    let input: HtmlInputElement = el
+        .clone()
+        .dyn_into()
+        .map_err(|_| "could not make a file input".to_string())?;
     input.set_type("file");
     let accept = accept(filters);
     if !accept.is_empty() {
@@ -224,7 +240,10 @@ fn save_download(suggested: &str, bytes: &[u8]) -> Result<bool, String> {
     let blob = Blob::new_with_u8_array_sequence(&parts).map_err(|e| js_string(&e))?;
     let url = Url::create_object_url_with_blob(&blob).map_err(|e| js_string(&e))?;
     let el = element(&doc, "a")?;
-    let a: HtmlAnchorElement = el.clone().dyn_into().map_err(|_| "could not make a download link".to_string())?;
+    let a: HtmlAnchorElement = el
+        .clone()
+        .dyn_into()
+        .map_err(|_| "could not make a download link".to_string())?;
     a.set_href(&url);
     a.set_download(suggested);
     let body = doc.body().ok_or_else(|| "This page has no document.".to_string())?;
@@ -236,10 +255,7 @@ fn save_download(suggested: &str, bytes: &[u8]) -> Result<bool, String> {
         let _ = Url::revoke_object_url(&url2);
     });
     if let Some(win) = web_sys::window() {
-        let _ = win.set_timeout_with_callback_and_timeout_and_arguments_0(
-            revoke.as_ref().unchecked_ref(),
-            60_000,
-        );
+        let _ = win.set_timeout_with_callback_and_timeout_and_arguments_0(revoke.as_ref().unchecked_ref(), 60_000);
         revoke.forget();
     }
     // The browser does not say whether the user kept the file. The download was offered.

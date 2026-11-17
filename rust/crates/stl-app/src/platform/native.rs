@@ -8,7 +8,7 @@ use std::sync::{Arc, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use stl_platform::handoff;
-use stl_platform::settings::{keys, Settings};
+use stl_platform::settings::{Settings, keys};
 
 use super::{Pending, PickedFile, Platform, SaveOutcome};
 
@@ -40,7 +40,12 @@ impl NativePlatform {
     }
 
     fn with_settings(settings: Settings, wake: Option<Arc<dyn Fn() + Send + Sync>>) -> Self {
-        NativePlatform { wake, settings, slicers: OnceLock::new(), step: OnceLock::new() }
+        NativePlatform {
+            wake,
+            settings,
+            slicers: OnceLock::new(),
+            step: OnceLock::new(),
+        }
     }
 
     fn wake_handle(&self) -> Option<Arc<dyn Fn() + Send + Sync>> {
@@ -65,10 +70,13 @@ fn dialog_dir(settings: &Settings) -> Option<PathBuf> {
 }
 
 fn remember_dir(settings: &Settings, picked: &Path) {
-    if let Some(dir) = picked.parent().filter(|d| !d.as_os_str().is_empty()) {
-        if let Err(e) = settings.set(keys::LAST_DIR, serde_json::Value::String(dir.to_string_lossy().into_owned())) {
-            eprintln!("Couldn't save settings: {e}");
-        }
+    if let Some(dir) = picked.parent().filter(|d| !d.as_os_str().is_empty())
+        && let Err(e) = settings.set(
+            keys::LAST_DIR,
+            serde_json::Value::String(dir.to_string_lossy().into_owned()),
+        )
+    {
+        eprintln!("Couldn't save settings: {e}");
     }
 }
 
@@ -96,7 +104,12 @@ fn civil_from_days(z: i64) -> (i64, u32, u32) {
 pub fn iso_from_unix(secs: i64) -> String {
     let (y, m, d) = civil_from_days(secs.div_euclid(86_400));
     let t = secs.rem_euclid(86_400);
-    format!("{y:04}-{m:02}-{d:02}T{:02}:{:02}:{:02}", t / 3600, t % 3600 / 60, t % 60)
+    format!(
+        "{y:04}-{m:02}-{d:02}T{:02}:{:02}:{:02}",
+        t / 3600,
+        t % 3600 / 60,
+        t % 60
+    )
 }
 
 /// A project path always ends in `.stlx` (1.x adds it when the name was typed bare).
@@ -110,8 +123,14 @@ pub fn with_project_ext(path: std::path::PathBuf) -> std::path::PathBuf {
 }
 
 fn write_file(path: &std::path::Path, bytes: &[u8]) -> Result<(), String> {
-    std::fs::write(path, bytes)
-        .map_err(|e| format!("Couldn't write {}: {e}", path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default()))
+    std::fs::write(path, bytes).map_err(|e| {
+        format!(
+            "Couldn't write {}: {e}",
+            path.file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_default()
+        )
+    })
 }
 
 impl Platform for NativePlatform {
@@ -122,8 +141,10 @@ impl Platform for NativePlatform {
     fn open_file_path(&self, filters: &[(&str, &[&str])]) -> Pending<Option<(PickedFile, Option<String>)>> {
         let pending = Pending::new();
         let out = pending.clone();
-        let filters: Vec<(String, Vec<String>)> =
-            filters.iter().map(|(n, e)| (n.to_string(), e.iter().map(|s| s.to_string()).collect())).collect();
+        let filters: Vec<(String, Vec<String>)> = filters
+            .iter()
+            .map(|(n, e)| (n.to_string(), e.iter().map(|s| s.to_string()).collect()))
+            .collect();
         let wake = self.wake_handle();
         let settings = self.settings.clone();
         std::thread::spawn(move || {
@@ -149,7 +170,8 @@ impl Platform for NativePlatform {
     }
 
     fn save_file(&self, suggested: &str, bytes: Vec<u8>) -> Pending<Result<bool, String>> {
-        self.save_file_path(suggested, bytes).map(|r| r.map(|o| o != SaveOutcome::Cancelled))
+        self.save_file_path(suggested, bytes)
+            .map(|r| r.map(|o| o != SaveOutcome::Cancelled))
     }
 
     fn save_to(&self, path: &str, bytes: Vec<u8>) -> Pending<Result<bool, String>> {
@@ -184,7 +206,11 @@ impl Platform for NativePlatform {
                 None => Ok(SaveOutcome::Cancelled),
                 Some(path) => {
                     remember_dir(&settings, &path);
-                    let path = if suggested.to_ascii_lowercase().ends_with(".stlx") { with_project_ext(path) } else { path };
+                    let path = if suggested.to_ascii_lowercase().ends_with(".stlx") {
+                        with_project_ext(path)
+                    } else {
+                        path
+                    };
                     write_file(&path, &bytes).map(|_| SaveOutcome::Done(Some(path.to_string_lossy().into_owned())))
                 }
             };
@@ -197,7 +223,10 @@ impl Platform for NativePlatform {
     }
 
     fn now_iso_utc(&self) -> String {
-        let secs = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
+        let secs = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
         iso_from_unix(secs)
     }
 
@@ -287,7 +316,11 @@ impl Platform for NativePlatform {
 /// Write the file to the hand-off folder and open it in the slicer `key`. A failure reads
 /// "Couldn't open <Slicer>: <reason>".
 fn send_to_slicer_now(key: &str, name: &str, bytes: &[u8]) -> Result<(), String> {
-    let slicer = handoff::SLICERS.iter().find(|(k, _)| *k == key).map(|(_, n)| *n).unwrap_or(key);
+    let slicer = handoff::SLICERS
+        .iter()
+        .find(|(k, _)| *k == key)
+        .map(|(_, n)| *n)
+        .unwrap_or(key);
     let fail = |reason: &str| handoff::launch_failure_message(slicer, reason);
     let Some(cmd) = handoff::find_slicer(key) else {
         return Err(fail("it wasn't found on this computer"));
@@ -305,7 +338,9 @@ fn to_step_now(suggested: &str, stl: &[u8], settings: &Settings) -> Result<SaveO
     if !handoff::step_available() {
         return Err("SolidCraft isn't installed.".to_string());
     }
-    let mut dialog = rfd::FileDialog::new().set_file_name(suggested).add_filter("STEP (*.step;*.stp)", &["step", "stp"]);
+    let mut dialog = rfd::FileDialog::new()
+        .set_file_name(suggested)
+        .add_filter("STEP (*.step;*.stp)", &["step", "stp"]);
     if let Some(dir) = dialog_dir(settings) {
         dialog = dialog.set_directory(dir);
     }
@@ -313,7 +348,10 @@ fn to_step_now(suggested: &str, stl: &[u8], settings: &Settings) -> Result<SaveO
         return Ok(SaveOutcome::Cancelled);
     };
     remember_dir(settings, &path);
-    let nanos = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0);
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
     let work = std::env::temp_dir().join(format!("stle-{}-{nanos}", std::process::id()));
     std::fs::create_dir_all(&work).map_err(|e| format!("Couldn't make a work folder: {e}"))?;
     let stl_path = work.join("body.stl");
@@ -327,7 +365,10 @@ fn to_step_now(suggested: &str, stl: &[u8], settings: &Settings) -> Result<SaveO
 fn read_file(path: &str) -> Result<PickedFile, String> {
     match std::fs::read(path) {
         Ok(bytes) => {
-            let name = Path::new(path).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| path.to_owned());
+            let name = Path::new(path)
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_else(|| path.to_owned());
             Ok(PickedFile { name, bytes })
         }
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Err(missing_file_message(path)),

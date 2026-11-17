@@ -23,17 +23,31 @@ pub fn fmt_g3(x: f64) -> String {
         return "0".into();
     }
     if !x.is_finite() {
-        return if x.is_nan() { "nan".into() } else if x < 0.0 { "-inf".into() } else { "inf".into() };
+        return if x.is_nan() {
+            "nan".into()
+        } else if x < 0.0 {
+            "-inf".into()
+        } else {
+            "inf".into()
+        };
     }
     let e = format!("{:.2e}", x);
     let (mant, exp) = e.split_once('e').unwrap();
     let exp: i32 = exp.parse().unwrap();
-    if exp < -4 || exp >= 3 {
-        let mant = if mant.contains('.') { mant.trim_end_matches('0').trim_end_matches('.') } else { mant };
+    if !(-4..3).contains(&exp) {
+        let mant = if mant.contains('.') {
+            mant.trim_end_matches('0').trim_end_matches('.')
+        } else {
+            mant
+        };
         return format!("{}e{}{:02}", mant, if exp < 0 { '-' } else { '+' }, exp.abs());
     }
     let s = format!("{:.*}", (2 - exp).max(0) as usize, x);
-    if s.contains('.') { s.trim_end_matches('0').trim_end_matches('.').to_string() } else { s }
+    if s.contains('.') {
+        s.trim_end_matches('0').trim_end_matches('.').to_string()
+    } else {
+        s
+    }
 }
 
 #[cfg(test)]

@@ -11,7 +11,12 @@ use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
 /// The slicers 1.x knows: (key, name).
-pub const SLICERS: [(&str, &str); 4] = [("bambu", "Bambu Studio"), ("orca", "OrcaSlicer"), ("prusa", "PrusaSlicer"), ("solidcraft", "SolidCraft")];
+pub const SLICERS: [(&str, &str); 4] = [
+    ("bambu", "Bambu Studio"),
+    ("orca", "OrcaSlicer"),
+    ("prusa", "PrusaSlicer"),
+    ("solidcraft", "SolidCraft"),
+];
 
 /// 1.x `SOLIDCRAFT`.
 const SOLIDCRAFT_DIR: &str = r"C:\Program Files\SolidCraft";
@@ -69,7 +74,13 @@ fn linux_flatpak(key: &str) -> Option<&'static str> {
 /// 1.x `find_slicer(key)` on this computer: the command that opens a file in it.
 pub fn find_slicer(key: &str) -> Option<Vec<String>> {
     let os = std::env::consts::OS;
-    let exists = |p: &str| if os == "windows" { Path::new(p).is_file() } else { Path::new(p).exists() };
+    let exists = |p: &str| {
+        if os == "windows" {
+            Path::new(p).is_file()
+        } else {
+            Path::new(p).exists()
+        }
+    };
     find_slicer_with(key, os, &exists, &which, &flatpak_installed, &list_dir)
 }
 
@@ -106,7 +117,9 @@ pub fn find_slicer_with(
             if let Some(home) = home_dir() {
                 apps.push(format!("{home}/Applications/{name}"));
             }
-            apps.into_iter().find(|app| exists(app)).map(|app| vec!["open".to_string(), "-a".to_string(), app])
+            apps.into_iter()
+                .find(|app| exists(app))
+                .map(|app| vec!["open".to_string(), "-a".to_string(), app])
         }
         _ => {
             for cmd in linux_cmds(key) {
@@ -163,14 +176,18 @@ pub fn to_step(stl: &Path, step: &Path) -> Result<(), String> {
     if !Path::new(&cli).is_file() {
         return Err("SolidCraft isn't installed.".to_string());
     }
-    let dir = stl.parent().filter(|d| !d.as_os_str().is_empty()).unwrap_or(Path::new("."));
+    let dir = stl
+        .parent()
+        .filter(|d| !d.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
     let script = serde_json::json!({"commands": [
         {"command": "file.insert_mesh", "params": {"path": path_text(stl)}},
         {"command": "mesh.convert", "params": {"body": "body", "tolerance": 0.05}},
         {"command": "file.export", "params": {"path": path_text(step)}},
     ]});
     let script_path = dir.join("convert.json");
-    std::fs::write(&script_path, script.to_string()).map_err(|e| format!("Couldn't write convert.json: {}", plain(e)))?;
+    std::fs::write(&script_path, script.to_string())
+        .map_err(|e| format!("Couldn't write convert.json: {}", plain(e)))?;
     let log_path = dir.join("convert.log");
     let log = File::create(&log_path).map_err(plain)?;
 
@@ -207,7 +224,10 @@ pub fn to_step(stl: &Path, step: &Path) -> Result<(), String> {
     let text = std::fs::read_to_string(&log_path).unwrap_or_default();
     let last = text.trim().lines().last().unwrap_or("").trim();
     let last = if last.is_empty() { "unknown error" } else { last };
-    Err(format!("SolidCraft couldn't convert this mesh: {}", last.replace("error: ", "")))
+    Err(format!(
+        "SolidCraft couldn't convert this mesh: {}",
+        last.replace("error: ", "")
+    ))
 }
 
 /// "Couldn't open <name>: <reason>": the message for a slicer that could not be started.
@@ -228,17 +248,20 @@ pub fn temp_file_name(name: &str) -> String {
         Some(i) if i > 0 => (&name[..i], Some(&name[i + 1..])),
         _ => (name, None),
     };
-    let mut safe: String = stem.chars().filter(|c| c.is_alphanumeric() || " -_()".contains(*c)).collect();
+    let mut safe: String = stem
+        .chars()
+        .filter(|c| c.is_alphanumeric() || " -_()".contains(*c))
+        .collect();
     if safe.trim().is_empty() {
         safe = "model".to_string();
     }
     // The extension keeps letters and digits only, so no separator or dot can come through it.
-    let ext: String = ext.unwrap_or("").chars().filter(|c| c.is_ascii_alphanumeric()).collect();
-    if ext.is_empty() {
-        safe
-    } else {
-        format!("{safe}.{ext}")
-    }
+    let ext: String = ext
+        .unwrap_or("")
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric())
+        .collect();
+    if ext.is_empty() { safe } else { format!("{safe}.{ext}") }
 }
 
 fn path_text(p: &Path) -> String {
@@ -255,7 +278,9 @@ fn plain(e: std::io::Error) -> String {
 }
 
 fn home_dir() -> Option<String> {
-    std::env::var_os("HOME").map(|h| h.to_string_lossy().into_owned()).filter(|h| !h.is_empty())
+    std::env::var_os("HOME")
+        .map(|h| h.to_string_lossy().into_owned())
+        .filter(|h| !h.is_empty())
 }
 
 /// A program on the PATH: the first file of that name that can run.
@@ -274,7 +299,9 @@ fn is_runnable(p: &Path) -> bool {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        p.metadata().map(|m| m.permissions().mode() & 0o111 != 0).unwrap_or(false)
+        p.metadata()
+            .map(|m| m.permissions().mode() & 0o111 != 0)
+            .unwrap_or(false)
     }
     #[cfg(not(unix))]
     {
@@ -311,7 +338,10 @@ fn flatpak_installed(app_id: &str) -> bool {
 /// The names in a folder; none when it is not a folder.
 fn list_dir(folder: &str) -> Vec<String> {
     match std::fs::read_dir(folder) {
-        Ok(entries) => entries.filter_map(|e| e.ok()).map(|e| e.file_name().to_string_lossy().into_owned()).collect(),
+        Ok(entries) => entries
+            .filter_map(|e| e.ok())
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .collect(),
         Err(_) => Vec::new(),
     }
 }

@@ -36,7 +36,10 @@ fn linspace_closed(stop: f64, num: usize) -> Vec<f64> {
 
 fn circle_points(cx: f64, cy: f64, r: f64) -> Vec<P2> {
     let n = segs(r) as usize;
-    linspace_open(2.0 * PI, n).into_iter().map(|a| [cx + r * a.cos(), cy + r * a.sin()]).collect()
+    linspace_open(2.0 * PI, n)
+        .into_iter()
+        .map(|a| [cx + r * a.cos(), cy + r * a.sin()])
+        .collect()
 }
 
 /// Closed contours (counter-clockwise) of a closed entity; empty for open and construction entities.
@@ -57,9 +60,12 @@ pub fn entity_contours(e: &Entity) -> Vec<Vec<P2>> {
             let c: Vec<P2> = if r > 1e-6 {
                 let n = 8.max(segs(r) / 4);
                 let mut pts = vec![];
-                for (cx, cy, a0) in
-                    [(x1 - r, y0 + r, -90.0), (x1 - r, y1 - r, 0.0), (x0 + r, y1 - r, 90.0), (x0 + r, y0 + r, 180.0)]
-                {
+                for (cx, cy, a0) in [
+                    (x1 - r, y0 + r, -90.0),
+                    (x1 - r, y1 - r, 0.0),
+                    (x0 + r, y1 - r, 90.0),
+                    (x0 + r, y0 + r, 180.0),
+                ] {
                     for i in 0..=n {
                         let a = (a0 + 90.0 * i as f64 / n as f64).to_radians();
                         pts.push([cx + r * a.cos(), cy + r * a.sin()]);
@@ -83,7 +89,12 @@ pub fn entity_contours(e: &Entity) -> Vec<Vec<P2>> {
                 return vec![];
             }
             let a0 = p.angle.unwrap_or(0.0).to_radians();
-            vec![(0..n).map(|i| a0 + i as f64 * 2.0 * PI / n as f64).map(|a| [p.cx + p.r * a.cos(), p.cy + p.r * a.sin()]).collect()]
+            vec![
+                (0..n)
+                    .map(|i| a0 + i as f64 * 2.0 * PI / n as f64)
+                    .map(|a| [p.cx + p.r * a.cos(), p.cy + p.r * a.sin()])
+                    .collect(),
+            ]
         }
         Entity::Slot(s) => {
             if s.r <= 0.0 {
@@ -139,7 +150,11 @@ pub fn arc_points(cx: f64, cy: f64, r: f64, a0_deg: f64, a1_deg: f64, n: Option<
         sweep = 2.0 * PI;
     }
     let n = n.unwrap_or_else(|| 8.max((segs(r) as f64 * sweep / (2.0 * PI)) as i64) as usize);
-    linspace_closed(sweep, n).into_iter().map(|t| a0 + t).map(|a| [cx + r * a.cos(), cy + r * a.sin()]).collect()
+    linspace_closed(sweep, n)
+        .into_iter()
+        .map(|t| a0 + t)
+        .map(|a| [cx + r * a.cos(), cy + r * a.sin()])
+        .collect()
 }
 
 /// The outline of any entity and whether it is closed (1.x `entity_path`). Used for linework,
@@ -153,7 +168,11 @@ pub fn entity_path(e: &Entity) -> (Vec<P2>, bool) {
             let mut e = e.clone();
             set_construction(&mut e, false);
             let mut c = entity_contours(&e);
-            if c.is_empty() { (vec![], false) } else { (c.swap_remove(0), true) }
+            if c.is_empty() {
+                (vec![], false)
+            } else {
+                (c.swap_remove(0), true)
+            }
         }
     }
 }
@@ -176,7 +195,10 @@ pub(crate) fn set_construction(e: &mut Entity, v: bool) {
 /// come back unchanged (13, not 13.000000000000002), as in 1.x web, which never moves points.
 fn quantize(p: P2) -> P2 {
     let tol = 1e-5;
-    [(p[0] / tol).round_ties_even() / 1e5, (p[1] / tol).round_ties_even() / 1e5]
+    [
+        (p[0] / tol).round_ties_even() / 1e5,
+        (p[1] / tol).round_ties_even() / 1e5,
+    ]
 }
 
 fn wanted(e: &Entity, only: Option<&[String]>) -> bool {

@@ -37,7 +37,13 @@ pub struct SolveState {
 
 impl Default for SolveState {
     fn default() -> Self {
-        SolveState { def: Def::Full, msg: None, conflicts: Vec::new(), under: BTreeSet::new(), bad: BTreeSet::new() }
+        SolveState {
+            def: Def::Full,
+            msg: None,
+            conflicts: Vec::new(),
+            under: BTreeSet::new(),
+            bad: BTreeSet::new(),
+        }
     }
 }
 
@@ -83,13 +89,21 @@ pub fn all_ents(s: &SketchSession) -> Vec<Entity> {
 
 /// Ids that never move (`fixedIds`).
 pub fn fixed_ids(s: &SketchSession) -> BTreeSet<String> {
-    fixed_ents(s).iter().filter_map(|e| e.id().map(str::to_string)).collect()
+    fixed_ents(s)
+        .iter()
+        .filter_map(|e| e.id().map(str::to_string))
+        .collect()
 }
 
 /// Solve with the session's locks and write the result back (`solveAll`), then analyse.
 pub fn solve_all(s: &mut SketchSession) -> SolveState {
     let fixed = fixed_ents(s);
-    let r = solve(s.solve_from.as_ref().unwrap_or(&s.entities), &s.constraints, &s.locks, &fixed);
+    let r = solve(
+        s.solve_from.as_ref().unwrap_or(&s.entities),
+        &s.constraints,
+        &s.locks,
+        &fixed,
+    );
     s.entities = r.entities;
     state_of(s, &fixed)
 }
@@ -124,8 +138,13 @@ fn same(a: &Constraint, b: &Constraint) -> bool {
 fn state_of(s: &SketchSession, fixed: &[Entity]) -> SolveState {
     let an = analyze(&s.entities, &s.constraints, fixed);
     let bad = unsatisfied(&s.entities, &s.constraints, fixed);
-    let conflicts: Vec<usize> =
-        s.constraints.iter().enumerate().filter(|(_, c)| bad.iter().any(|b| same(b, c))).map(|(i, _)| i).collect();
+    let conflicts: Vec<usize> = s
+        .constraints
+        .iter()
+        .enumerate()
+        .filter(|(_, c)| bad.iter().any(|b| same(b, c)))
+        .map(|(i, _)| i)
+        .collect();
     let fx: BTreeSet<&str> = fixed.iter().filter_map(|e| e.id()).collect();
     let mut bad_ents = BTreeSet::new();
     for c in &bad {
@@ -143,7 +162,13 @@ fn state_of(s: &SketchSession, fixed: &[Entity]) -> SolveState {
         Def::Full
     };
     let shown = s.entities.iter().any(|e| !matches!(e, Entity::Polyline(_)));
-    let mut st = SolveState { def, msg: None, conflicts, under: an.under, bad: bad_ents };
+    let mut st = SolveState {
+        def,
+        msg: None,
+        conflicts,
+        under: an.under,
+        bad: bad_ents,
+    };
     if shown {
         st.msg = Some(text_of(&st));
     }

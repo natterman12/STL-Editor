@@ -8,7 +8,7 @@ use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::sync::OnceLock;
 
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 
 use super::strength::{self, Cover, Plastic, Status, SuggestUi};
 use crate::engine_link::TimelineItem;
@@ -26,14 +26,23 @@ pub const REMOVE_HINT: &str = "Click a fin to remove it; click a red one to brin
 pub const MAT_HELP: &str = "The filament you print the supports in, for the weight under Support plastic.";
 pub const REACH_HELP: &str = "Overhangs further than this from a fin, or from the part itself, are shown bright red: they'd sag or fail. Bridging over a few mm works; over 5 mm usually droops.";
 pub const CREDIT_TITLE: &str = "Support Fins by gittrahan, MIT licence (Help \u{203a} About Support Fins)";
-pub const NO_OVERHANG_MSG: &str = "No overhangs in this position: nothing needs support. Rotate the part the way you want to print it.";
+pub const NO_OVERHANG_MSG: &str =
+    "No overhangs in this position: nothing needs support. Rotate the part the way you want to print it.";
 pub const OVERHANG_RED: [u8; 3] = [0xd6, 0x45, 0x45];
 pub const BUSY_FINS: &str = "Building supports\u{2026}";
 pub const BUSY_WALLS: &str = "Building the walls\u{2026}";
 pub const LOADING: &str = "Loading Support Fins\u{2026}";
 
 const OUTPUTS: &[(&str, &str)] = &[("join", "Part of the body"), ("separate", "Separate body")];
-const WALL_KEYS: &[&str] = &["threshold", "nozzle", "gap", "tines", "tineDensity", "layerHeight", "plateOnly"];
+const WALL_KEYS: &[&str] = &[
+    "threshold",
+    "nozzle",
+    "gap",
+    "tines",
+    "tineDensity",
+    "layerHeight",
+    "plateOnly",
+];
 const MAX_OPTS: usize = 64;
 const MAX_HDRS: usize = 24;
 
@@ -139,20 +148,97 @@ fn hdr_n<const N: usize>(v: &Values) -> bool {
 }
 
 const OPT_SHOW: [fn(&Values) -> bool; MAX_OPTS] = [
-    show_n::<0>, show_n::<1>, show_n::<2>, show_n::<3>, show_n::<4>, show_n::<5>, show_n::<6>, show_n::<7>,
-    show_n::<8>, show_n::<9>, show_n::<10>, show_n::<11>, show_n::<12>, show_n::<13>, show_n::<14>, show_n::<15>,
-    show_n::<16>, show_n::<17>, show_n::<18>, show_n::<19>, show_n::<20>, show_n::<21>, show_n::<22>, show_n::<23>,
-    show_n::<24>, show_n::<25>, show_n::<26>, show_n::<27>, show_n::<28>, show_n::<29>, show_n::<30>, show_n::<31>,
-    show_n::<32>, show_n::<33>, show_n::<34>, show_n::<35>, show_n::<36>, show_n::<37>, show_n::<38>, show_n::<39>,
-    show_n::<40>, show_n::<41>, show_n::<42>, show_n::<43>, show_n::<44>, show_n::<45>, show_n::<46>, show_n::<47>,
-    show_n::<48>, show_n::<49>, show_n::<50>, show_n::<51>, show_n::<52>, show_n::<53>, show_n::<54>, show_n::<55>,
-    show_n::<56>, show_n::<57>, show_n::<58>, show_n::<59>, show_n::<60>, show_n::<61>, show_n::<62>, show_n::<63>,
+    show_n::<0>,
+    show_n::<1>,
+    show_n::<2>,
+    show_n::<3>,
+    show_n::<4>,
+    show_n::<5>,
+    show_n::<6>,
+    show_n::<7>,
+    show_n::<8>,
+    show_n::<9>,
+    show_n::<10>,
+    show_n::<11>,
+    show_n::<12>,
+    show_n::<13>,
+    show_n::<14>,
+    show_n::<15>,
+    show_n::<16>,
+    show_n::<17>,
+    show_n::<18>,
+    show_n::<19>,
+    show_n::<20>,
+    show_n::<21>,
+    show_n::<22>,
+    show_n::<23>,
+    show_n::<24>,
+    show_n::<25>,
+    show_n::<26>,
+    show_n::<27>,
+    show_n::<28>,
+    show_n::<29>,
+    show_n::<30>,
+    show_n::<31>,
+    show_n::<32>,
+    show_n::<33>,
+    show_n::<34>,
+    show_n::<35>,
+    show_n::<36>,
+    show_n::<37>,
+    show_n::<38>,
+    show_n::<39>,
+    show_n::<40>,
+    show_n::<41>,
+    show_n::<42>,
+    show_n::<43>,
+    show_n::<44>,
+    show_n::<45>,
+    show_n::<46>,
+    show_n::<47>,
+    show_n::<48>,
+    show_n::<49>,
+    show_n::<50>,
+    show_n::<51>,
+    show_n::<52>,
+    show_n::<53>,
+    show_n::<54>,
+    show_n::<55>,
+    show_n::<56>,
+    show_n::<57>,
+    show_n::<58>,
+    show_n::<59>,
+    show_n::<60>,
+    show_n::<61>,
+    show_n::<62>,
+    show_n::<63>,
 ];
 
 const HDR_SHOW: [fn(&Values) -> bool; MAX_HDRS] = [
-    hdr_n::<0>, hdr_n::<1>, hdr_n::<2>, hdr_n::<3>, hdr_n::<4>, hdr_n::<5>, hdr_n::<6>, hdr_n::<7>,
-    hdr_n::<8>, hdr_n::<9>, hdr_n::<10>, hdr_n::<11>, hdr_n::<12>, hdr_n::<13>, hdr_n::<14>, hdr_n::<15>,
-    hdr_n::<16>, hdr_n::<17>, hdr_n::<18>, hdr_n::<19>, hdr_n::<20>, hdr_n::<21>, hdr_n::<22>, hdr_n::<23>,
+    hdr_n::<0>,
+    hdr_n::<1>,
+    hdr_n::<2>,
+    hdr_n::<3>,
+    hdr_n::<4>,
+    hdr_n::<5>,
+    hdr_n::<6>,
+    hdr_n::<7>,
+    hdr_n::<8>,
+    hdr_n::<9>,
+    hdr_n::<10>,
+    hdr_n::<11>,
+    hdr_n::<12>,
+    hdr_n::<13>,
+    hdr_n::<14>,
+    hdr_n::<15>,
+    hdr_n::<16>,
+    hdr_n::<17>,
+    hdr_n::<18>,
+    hdr_n::<19>,
+    hdr_n::<20>,
+    hdr_n::<21>,
+    hdr_n::<22>,
+    hdr_n::<23>,
 ];
 
 fn leak(s: impl Into<String>) -> &'static str {
@@ -200,7 +286,11 @@ pub fn field_visible(spec: &FieldSpec, values: &Values) -> bool {
 }
 
 pub fn shown_keys(tool: &str, values: &Values) -> Vec<&'static str> {
-    fields(tool).iter().filter(|f| f.kind != SpecKind::Hdr && field_visible(f, values)).map(|f| f.key).collect()
+    fields(tool)
+        .iter()
+        .filter(|f| f.kind != SpecKind::Hdr && field_visible(f, values))
+        .map(|f| f.key)
+        .collect()
 }
 
 /// `gizmo: 'pose'` in 1.x. [`ToolFlags::gizmo`] is only a bool, so the pose kind lives here.
@@ -218,8 +308,18 @@ pub struct EngineFeatures {
 
 pub fn engine_features() -> EngineFeatures {
     installed()
-        .map(|g| EngineFeatures { orient: g.orient, curves: g.curves, gussets: g.gussets, anchors: g.anchors })
-        .unwrap_or(EngineFeatures { orient: false, curves: false, gussets: false, anchors: false })
+        .map(|g| EngineFeatures {
+            orient: g.orient,
+            curves: g.curves,
+            gussets: g.gussets,
+            anchors: g.anchors,
+        })
+        .unwrap_or(EngineFeatures {
+            orient: false,
+            curves: false,
+            gussets: false,
+            anchors: false,
+        })
 }
 
 pub fn orient_available() -> bool {
@@ -249,18 +349,23 @@ fn holds(g: &Installed, values: &Values, c: &Value) -> bool {
     if let Some(any) = c.get("any").and_then(Value::as_array) {
         return any.iter().any(|x| holds(g, values, x));
     }
-    let Some(key) = c.get("key").and_then(Value::as_str) else { return false };
-    let Some(list) = c.get("in").and_then(Value::as_array) else { return false };
+    let Some(key) = c.get("key").and_then(Value::as_str) else {
+        return false;
+    };
+    let Some(list) = c.get("in").and_then(Value::as_array) else {
+        return false;
+    };
     let got = get_opt(g, values, key);
     list.iter().any(|item| item == got.as_ref())
 }
 
 fn get_opt<'a>(g: &'a Installed, values: &'a Values, key: &str) -> Cow<'a, Value> {
     if let Some(o) = g.options.iter().find(|o| o.key == key) {
-        if let Some(x) = values.get(o.field_key) {
-            if !x.is_null() && x.as_str() != Some("") {
-                return Cow::Borrowed(x);
-            }
+        if let Some(x) = values.get(o.field_key)
+            && !x.is_null()
+            && x.as_str() != Some("")
+        {
+            return Cow::Borrowed(x);
         }
         return Cow::Borrowed(&o.default_raw);
     }
@@ -271,18 +376,32 @@ fn show_walls(v: &Values) -> bool {
     v.get("_mode").and_then(Value::as_str) == Some("add")
 }
 fn show_removed(v: &Values) -> bool {
-    v.get("_mode").and_then(Value::as_str) == Some("remove") || v.get("removed").and_then(Value::as_array).is_some_and(|a| !a.is_empty())
+    v.get("_mode").and_then(Value::as_str) == Some("remove")
+        || v.get("removed")
+            .and_then(Value::as_array)
+            .is_some_and(|a| !a.is_empty())
 }
 fn show_pose(v: &Values) -> bool {
     v.get("_mode").and_then(Value::as_str).unwrap_or("rotate") == "rotate"
 }
 
 fn build(info: &Value) -> Result<Installed, String> {
-    let schema = info.get("schema").ok_or("Support Fins: the engine info has no options schema.")?;
-    let options_v = schema.get("options").and_then(Value::as_array).ok_or("Support Fins: the options schema has no settings list.")?;
-    let sections_v = schema.get("sections").and_then(Value::as_array).ok_or("Support Fins: the options schema has no sections.")?;
+    let schema = info
+        .get("schema")
+        .ok_or("Support Fins: the engine info has no options schema.")?;
+    let options_v = schema
+        .get("options")
+        .and_then(Value::as_array)
+        .ok_or("Support Fins: the options schema has no settings list.")?;
+    let sections_v = schema
+        .get("sections")
+        .and_then(Value::as_array)
+        .ok_or("Support Fins: the options schema has no sections.")?;
     if options_v.len() > MAX_OPTS {
-        return Err(format!("Support Fins: this engine has {} settings and the panel can show {MAX_OPTS}.", options_v.len()));
+        return Err(format!(
+            "Support Fins: this engine has {} settings and the panel can show {MAX_OPTS}.",
+            options_v.len()
+        ));
     }
     let mut options = Vec::with_capacity(options_v.len());
     for (slot, o) in options_v.iter().enumerate() {
@@ -299,8 +418,19 @@ fn build(info: &Value) -> Result<Installed, String> {
     }
     let mut headers = Vec::new();
     let fins_specs = assemble("supportfins", &options, &sections, None, 2, true, &mut headers)?;
-    let wall_specs = assemble("supportwall", &options, &sections, Some(WALL_KEYS), 1, false, &mut headers)?;
-    let tools = vec![tool_def("supportfins", &fins_specs), tool_def("supportwall", &wall_specs)];
+    let wall_specs = assemble(
+        "supportwall",
+        &options,
+        &sections,
+        Some(WALL_KEYS),
+        1,
+        false,
+        &mut headers,
+    )?;
+    let tools = vec![
+        tool_def("supportfins", &fins_specs),
+        tool_def("supportwall", &wall_specs),
+    ];
     let feat = info.get("features");
     let flag = |k: &str| feat.and_then(|f| f.get(k)).and_then(Value::as_bool).unwrap_or(false);
     Ok(Installed {
@@ -311,13 +441,21 @@ fn build(info: &Value) -> Result<Installed, String> {
         version: leak(json_str(info, "version")),
         commit: leak(json_str(info, "commit")),
         source: leak(json_str(info, "source")),
-        pending: info.get("pending").and_then(Value::as_str).filter(|s| !s.is_empty()).map(|s| leak(s.to_string())),
+        pending: info
+            .get("pending")
+            .and_then(Value::as_str)
+            .filter(|s| !s.is_empty())
+            .map(|s| leak(s.to_string())),
         orient: flag("orient"),
         curves: flag("curves"),
         gussets: flag("gussets"),
         anchors: flag("anchors"),
         host: leak(json_str(info, "host")),
-        notice: info.get("notice").and_then(Value::as_str).filter(|s| !s.is_empty()).map(|s| leak(s.to_string())),
+        notice: info
+            .get("notice")
+            .and_then(Value::as_str)
+            .filter(|s| !s.is_empty())
+            .map(|s| leak(s.to_string())),
     })
 }
 
@@ -335,7 +473,11 @@ fn parse_opt(_slot: usize, o: &Value) -> Result<Opt, String> {
         return Err("Support Fins: a setting in the schema has no name.".into());
     }
     let label = o.get("label").and_then(Value::as_str).unwrap_or("").to_string();
-    let help = o.get("tooltip").and_then(Value::as_str).filter(|s| !s.is_empty()).map(|s| leak(s.to_string()));
+    let help = o
+        .get("tooltip")
+        .and_then(Value::as_str)
+        .filter(|s| !s.is_empty())
+        .map(|s| leak(s.to_string()));
     let section = leak(o.get("section").and_then(Value::as_str).unwrap_or("").to_string());
     let percent = o.get("percent").and_then(Value::as_bool).unwrap_or(false);
     let hint = o.get("hint").and_then(Value::as_str).unwrap_or("");
@@ -347,11 +489,17 @@ fn parse_opt(_slot: usize, o: &Value) -> Result<Opt, String> {
         _ => OptKind::Number,
     };
     let choices: &'static [(&'static str, &'static str)] = if kind == OptKind::Choice {
-        let pairs = o.get("choices").and_then(Value::as_array).into_iter().flatten().filter_map(|c| {
-            let value = c.get("value").and_then(value_to_string)?;
-            let label = c.get("label").and_then(Value::as_str).unwrap_or("").to_string();
-            Some((value, label))
-        }).collect::<Vec<_>>();
+        let pairs = o
+            .get("choices")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(|c| {
+                let value = c.get("value").and_then(value_to_string)?;
+                let label = c.get("label").and_then(Value::as_str).unwrap_or("").to_string();
+                Some((value, label))
+            })
+            .collect::<Vec<_>>();
         leak_pairs(pairs)
     } else {
         &[]
@@ -407,16 +555,16 @@ fn is_word(b: u8) -> bool {
 }
 
 fn shown_default(percent: bool, default_raw: &Value) -> Value {
-    if percent {
-        if let Some(n) = as_f64(default_raw) {
-            return num_value((n * 100.0 * 1000.0).round() / 1000.0);
-        }
+    if percent && let Some(n) = as_f64(default_raw) {
+        return num_value((n * 100.0 * 1000.0).round() / 1000.0);
     }
     default_raw.clone()
 }
 
 fn as_f64(v: &Value) -> Option<f64> {
-    v.as_f64().or_else(|| v.as_i64().map(|n| n as f64)).or_else(|| v.as_u64().map(|n| n as f64))
+    v.as_f64()
+        .or_else(|| v.as_i64().map(|n| n as f64))
+        .or_else(|| v.as_u64().map(|n| n as f64))
 }
 
 fn num_value(x: f64) -> Value {
@@ -427,7 +575,9 @@ fn num_value(x: f64) -> Value {
     if (x - r).abs() < 1e-9 && r.abs() < 1e15 {
         Value::Number((r as i64).into())
     } else {
-        serde_json::Number::from_f64(x).map(Value::Number).unwrap_or_else(|| Value::from(0))
+        serde_json::Number::from_f64(x)
+            .map(Value::Number)
+            .unwrap_or_else(|| Value::from(0))
     }
 }
 
@@ -483,7 +633,12 @@ fn assemble(
     }
     let mut opened = 0usize;
     for (id, label) in sections {
-        let slots: Vec<usize> = options.iter().enumerate().filter(|(_, o)| o.section == *id && keys.is_none_or(|k| k.contains(&o.key))).map(|(i, _)| i).collect();
+        let slots: Vec<usize> = options
+            .iter()
+            .enumerate()
+            .filter(|(_, o)| o.section == *id && keys.is_none_or(|k| k.contains(&o.key)))
+            .map(|(i, _)| i)
+            .collect();
         if slots.is_empty() {
             continue;
         }
@@ -505,14 +660,48 @@ fn assemble(
             specs.push(option_spec_at(&options[s], s));
         }
     }
-    specs.push(FieldSpec { key: "_hdr_check", label: "Print check", kind: SpecKind::Hdr, default_open: true, show: None, ..blank() });
-    specs.push(FieldSpec { key: "_status", label: "", kind: SpecKind::Status, cover, show: None, ..blank() });
+    specs.push(FieldSpec {
+        key: "_hdr_check",
+        label: "Print check",
+        kind: SpecKind::Hdr,
+        default_open: true,
+        show: None,
+        ..blank()
+    });
+    specs.push(FieldSpec {
+        key: "_status",
+        label: "",
+        kind: SpecKind::Status,
+        cover,
+        show: None,
+        ..blank()
+    });
     if cover {
-        specs.push(FieldSpec { key: "_pose", label: "Orientation", kind: SpecKind::Pose, show: Some(show_pose), ..blank() });
+        specs.push(FieldSpec {
+            key: "_pose",
+            label: "Orientation",
+            kind: SpecKind::Pose,
+            show: Some(show_pose),
+            ..blank()
+        });
     }
-    specs.push(FieldSpec { key: "_mat", label: "Material", kind: SpecKind::Material, help: Some(MAT_HELP), show: None, ..blank() });
+    specs.push(FieldSpec {
+        key: "_mat",
+        label: "Material",
+        kind: SpecKind::Material,
+        help: Some(MAT_HELP),
+        show: None,
+        ..blank()
+    });
     if cover {
-        specs.push(FieldSpec { key: "_reach", label: "Bare beyond", kind: SpecKind::Reach, help: Some(REACH_HELP), show: None, ..blank() });
+        specs.push(FieldSpec {
+            key: "_reach",
+            label: "Bare beyond",
+            kind: SpecKind::Reach,
+            help: Some(REACH_HELP),
+            show: None,
+            ..blank()
+        });
     }
     Ok(specs)
 }
@@ -539,7 +728,11 @@ fn spec_body(tool: &str) -> FieldSpec {
         key: "body",
         label: "Body",
         kind: SpecKind::Bodies,
-        placeholder: if tool == "supportwall" { Some("The part you draw on") } else { None },
+        placeholder: if tool == "supportwall" {
+            Some("The part you draw on")
+        } else {
+            None
+        },
         multi: false,
         ..blank()
     }
@@ -582,9 +775,18 @@ fn tool_def(key: &'static str, specs: &[FieldSpec]) -> ToolDef {
         kind: key,
         fields: specs.iter().filter_map(to_field).collect(),
         // 1.x sets Draw Walls' hint to `walls.hint()` when the tool is built. The default shape is line.
-        hint: if fins { Some(FINS_HINT) } else { Some(super::walls::hint_for("line")) },
+        hint: if fins {
+            Some(FINS_HINT)
+        } else {
+            Some(super::walls::hint_for("line"))
+        },
         extra: None,
-        flags: ToolFlags { paint: true, wall_tool: !fins, gizmo: fins, ..ToolFlags::default() },
+        flags: ToolFlags {
+            paint: true,
+            wall_tool: !fins,
+            gizmo: fins,
+            ..ToolFlags::default()
+        },
         defaults: if fins { defaults_fins } else { defaults_wall },
         to_params: if fins { to_params_fins } else { to_params_wall },
         from_params: if fins { from_params_fins } else { from_params_wall },
@@ -623,10 +825,10 @@ pub fn field_meta(spec: &FieldSpec) -> Value {
     m.insert("key".into(), json!(spec.key));
     m.insert("label".into(), json!(spec.label));
     m.insert("kind".into(), json!(spec.kind_name()));
-    if let Some(u) = spec.unit {
-        if !u.is_empty() {
-            m.insert("unit".into(), json!(u));
-        }
+    if let Some(u) = spec.unit
+        && !u.is_empty()
+    {
+        m.insert("unit".into(), json!(u));
     }
     if spec.kind == SpecKind::Bodies {
         m.insert("multi".into(), Value::Bool(spec.multi));
@@ -638,7 +840,10 @@ pub fn field_meta(spec: &FieldSpec) -> Value {
         m.insert("help".into(), json!(h));
     }
     if !spec.options.is_empty() {
-        m.insert("options".into(), Value::Array(spec.options.iter().map(|(a, b)| json!([*a, *b])).collect()));
+        m.insert(
+            "options".into(),
+            Value::Array(spec.options.iter().map(|(a, b)| json!([*a, *b])).collect()),
+        );
     }
     if spec.show.is_some() {
         m.insert("hasShow".into(), Value::Bool(true));
@@ -696,7 +901,11 @@ fn one_body(ctx: &Ctx) -> Value {
         }
     }
     let shown: Vec<_> = ctx.bodies.iter().filter(|b| !b.hidden).collect();
-    if shown.len() == 1 { json!([shown[0].id]) } else { json!([]) }
+    if shown.len() == 1 {
+        json!([shown[0].id])
+    } else {
+        json!([])
+    }
 }
 
 pub fn to_params(tool: &str, values: &Values, _ctx: &Ctx) -> Value {
@@ -705,7 +914,14 @@ pub fn to_params(tool: &str, values: &Values, _ctx: &Ctx) -> Value {
         p.insert("body".into(), body);
     }
     if tool == "supportwall" {
-        p.insert("walls".into(), values.get("walls").cloned().filter(js_truthy).unwrap_or_else(|| json!([])));
+        p.insert(
+            "walls".into(),
+            values
+                .get("walls")
+                .cloned()
+                .filter(js_truthy)
+                .unwrap_or_else(|| json!([])),
+        );
     }
     if let Some(output) = values.get("output") {
         p.insert("output".into(), output.clone());
@@ -713,22 +929,27 @@ pub fn to_params(tool: &str, values: &Values, _ctx: &Ctx) -> Value {
     let keys = if tool == "supportwall" { Some(WALL_KEYS) } else { None };
     p.insert("options".into(), Value::Object(to_options(values, keys)));
     if tool != "supportwall" {
-        if let Some(Value::Array(w)) = values.get("walls") {
-            if !w.is_empty() {
-                p.insert("walls".into(), Value::Array(w.clone()));
-            }
+        if let Some(Value::Array(w)) = values.get("walls")
+            && !w.is_empty()
+        {
+            p.insert("walls".into(), Value::Array(w.clone()));
         }
-        if let Some(Value::Array(r)) = values.get("removed") {
-            if !r.is_empty() {
-                p.insert("removed".into(), Value::Array(r.clone()));
-            }
+        if let Some(Value::Array(r)) = values.get("removed")
+            && !r.is_empty()
+        {
+            p.insert("removed".into(), Value::Array(r.clone()));
         }
     }
     Value::Object(p)
 }
 
 fn params_body(values: &Values) -> Option<Value> {
-    values.get("body")?.as_array()?.first().filter(|v| !v.is_null()).cloned()
+    values
+        .get("body")?
+        .as_array()?
+        .first()
+        .filter(|v| !v.is_null())
+        .cloned()
 }
 
 fn to_options(values: &Values, keys: Option<&[&str]>) -> Map<String, Value> {
@@ -800,7 +1021,9 @@ fn from_options(options: &Value, into: &mut Values) {
             continue;
         };
         let shown = if o.percent {
-            as_f64(x).map(|n| num_value((n * 100.0 * 1000.0).round() / 1000.0)).unwrap_or_else(|| x.clone())
+            as_f64(x)
+                .map(|n| num_value((n * 100.0 * 1000.0).round() / 1000.0))
+                .unwrap_or_else(|| x.clone())
         } else {
             x.clone()
         };
@@ -833,10 +1056,10 @@ fn wall_tool_walls(p: &Map<String, Value>) -> Value {
     if let Some(Value::Array(a)) = p.get("walls") {
         return Value::Array(a.clone());
     }
-    if let Some(Value::Array(pts)) = p.get("points") {
-        if pts.len() == 2 {
-            return json!([{ "shape": "line", "points": pts }]);
-        }
+    if let Some(Value::Array(pts)) = p.get("points")
+        && pts.len() == 2
+    {
+        return json!([{ "shape": "line", "points": pts }]);
     }
     json!([])
 }
@@ -867,12 +1090,12 @@ fn parse_num_str(raw: &str) -> f64 {
     if s.is_empty() {
         return 0.0;
     }
-    if s.bytes().all(|c| matches!(c, b'0'..=b'9' | b'+' | b'-' | b'*' | b'/' | b'(' | b')' | b'.' | b' ')) {
-        if let Some(v) = eval_arith(&s) {
-            if v.is_finite() {
-                return v;
-            }
-        }
+    if s.bytes()
+        .all(|c| matches!(c, b'0'..=b'9' | b'+' | b'-' | b'*' | b'/' | b'(' | b')' | b'.' | b' '))
+        && let Some(v) = eval_arith(&s)
+        && v.is_finite()
+    {
+        return v;
     }
     parse_float_js(&s).unwrap_or(0.0)
 }
@@ -1068,11 +1291,11 @@ fn strip_rotate_warning(warn: &str) -> String {
     let mut out = String::new();
     let mut i = 0;
     while i < warn.len() {
-        if warn.as_bytes()[i] == b'"' {
-            if let Some(end) = rotate_span(warn, i) {
-                i = end;
-                continue;
-            }
+        if warn.as_bytes()[i] == b'"'
+            && let Some(end) = rotate_span(warn, i)
+        {
+            i = end;
+            continue;
         }
         let ch = warn[i..].chars().next().unwrap();
         out.push(ch);
@@ -1120,7 +1343,11 @@ pub fn reopen_supports(timeline: &[TimelineItem], body: &str) -> Option<String> 
 /// Same search, plus which tool to open and the mode 1.x sets from the button that was clicked.
 pub fn reopen_plan(timeline: &[TimelineItem], opening: &str, body: &str, body_name: &str) -> Option<Reopen> {
     let f = find_support(timeline, body)?;
-    let tool_key: &'static str = if f.kind == "supportwall" { "supportwall" } else { "supportfins" };
+    let tool_key: &'static str = if f.kind == "supportwall" {
+        "supportwall"
+    } else {
+        "supportfins"
+    };
     let mode = if opening == "supportwall" && tool_key == "supportfins" {
         Some("add")
     } else if opening == "supportfins" && tool_key == "supportfins" {
@@ -1130,11 +1357,19 @@ pub fn reopen_plan(timeline: &[TimelineItem], opening: &str, body: &str, body_na
     };
     let name = if body_name.is_empty() { body } else { body_name };
     let toast = format!("{name} already has {}: opened it to change it", f.label);
-    Some(Reopen { feature_id: f.id.clone(), tool_key, mode, toast })
+    Some(Reopen {
+        feature_id: f.id.clone(),
+        tool_key,
+        mode,
+        toast,
+    })
 }
 
 fn find_support<'a>(timeline: &'a [TimelineItem], body: &str) -> Option<&'a TimelineItem> {
-    timeline.iter().rev().find(|f| (f.kind == "supportfins" || f.kind == "supportwall") && f.active && !f.suppressed && on_body(f, body))
+    timeline
+        .iter()
+        .rev()
+        .find(|f| (f.kind == "supportfins" || f.kind == "supportwall") && f.active && !f.suppressed && on_body(f, body))
 }
 
 fn on_body(f: &TimelineItem, body: &str) -> bool {
@@ -1142,7 +1377,9 @@ fn on_body(f: &TimelineItem, body: &str) -> bool {
     if p.get("body").and_then(Value::as_str) == Some(body) {
         return true;
     }
-    p.get("bodies").and_then(Value::as_array).is_some_and(|a| a.iter().any(|v| v.as_str() == Some(body)))
+    p.get("bodies")
+        .and_then(Value::as_array)
+        .is_some_and(|a| a.iter().any(|v| v.as_str() == Some(body)))
 }
 
 /// Instant red overhangs. Task 4 draws them; this only asks.
@@ -1165,19 +1402,39 @@ pub fn quick_paint(values: &Values, wall_tool: bool, overlay: &mut dyn OverhangO
     overlay.clear_support_paint();
     let body = body_id(values);
     let Some(body) = body else {
-        return QuickPaint { clear_cover: true, body: None, threshold_deg: 45.0, faces: 0, message: None };
+        return QuickPaint {
+            clear_cover: true,
+            body: None,
+            threshold_deg: 45.0,
+            faces: 0,
+            message: None,
+        };
     };
     let thr = values.get("sf:threshold").map(parse_num).unwrap_or(0.0);
     let thr = if thr.is_finite() && thr > 0.0 { thr } else { 45.0 };
     let faces = overlay.overhang_faces(&body, thr);
-    let message = if faces.is_empty() && !wall_tool { Some(NO_OVERHANG_MSG) } else { None };
+    let message = if faces.is_empty() && !wall_tool {
+        Some(NO_OVERHANG_MSG)
+    } else {
+        None
+    };
     overlay.highlight_overhangs(&body, &faces, OVERHANG_RED);
-    QuickPaint { clear_cover: true, body: Some(body), threshold_deg: thr, faces: faces.len(), message }
+    QuickPaint {
+        clear_cover: true,
+        body: Some(body),
+        threshold_deg: thr,
+        faces: faces.len(),
+        message,
+    }
 }
 
 pub fn body_id(values: &Values) -> Option<String> {
     match values.get("body") {
-        Some(Value::Array(a)) => a.first().and_then(Value::as_str).filter(|s| !s.is_empty()).map(str::to_string),
+        Some(Value::Array(a)) => a
+            .first()
+            .and_then(Value::as_str)
+            .filter(|s| !s.is_empty())
+            .map(str::to_string),
         Some(Value::String(s)) if !s.is_empty() => Some(s.clone()),
         _ => None,
     }
@@ -1198,7 +1455,12 @@ pub fn preview_ask(tool: &str, values: &Values, ctx: &Ctx) -> Option<PreviewAsk>
         "supportwall" => ("supportwall", BUSY_WALLS),
         _ => return None,
     };
-    Some(PreviewAsk { kind, params: to_params(tool, values, ctx), fins_only: true, busy })
+    Some(PreviewAsk {
+        kind,
+        params: to_params(tool, values, ctx),
+        fins_only: true,
+        busy,
+    })
 }
 
 pub fn strength_ask(tool: &str, values: &Values) -> Option<strength::StrengthRequest> {
@@ -1208,7 +1470,11 @@ pub fn strength_ask(tool: &str, values: &Values) -> Option<strength::StrengthReq
     }
     let params = to_params(tool, values, &empty_ctx());
     let load = values.get("_load").cloned().unwrap_or(Value::Null);
-    Some(strength::strength_request(&body, strength::options_object(&params), &load))
+    Some(strength::strength_request(
+        &body,
+        strength::options_object(&params),
+        &load,
+    ))
 }
 
 pub fn suggest_ask(tool: &str, values: &Values) -> Result<strength::SuggestRequest, &'static str> {
@@ -1218,10 +1484,26 @@ pub fn suggest_ask(tool: &str, values: &Values) -> Result<strength::SuggestReque
 }
 
 fn empty_ctx() -> Ctx<'static> {
-    Ctx { bodies: &[], planes: &[], sketches: &[], features: &[], selection: &[], last_sketch: None, sketch_on_body: false, inch: false }
+    Ctx {
+        bodies: &[],
+        planes: &[],
+        sketches: &[],
+        features: &[],
+        selection: &[],
+        last_sketch: None,
+        sketch_on_body: false,
+        inch: false,
+    }
 }
 
-pub fn status_of(values: &Values, cover: Option<&Cover>, plastic: Option<&Plastic>, material: &str, reach: f64, with_cover: bool) -> Status {
+pub fn status_of(
+    values: &Values,
+    cover: Option<&Cover>,
+    plastic: Option<&Plastic>,
+    material: &str,
+    reach: f64,
+    with_cover: bool,
+) -> Status {
     strength::status_cards(values, cover, plastic, material, reach, with_cover)
 }
 
@@ -1251,13 +1533,22 @@ pub fn about(web: bool) -> Option<About> {
     }
     if let Some(pending) = g.pending {
         let ver = pending.strip_prefix('v').unwrap_or(pending);
-        paragraphs.push(format!("Support Fins {ver} has been downloaded and is used from the next time you start STL Editor. Restart now"));
+        paragraphs.push(format!(
+            "Support Fins {ver} has been downloaded and is used from the next time you start STL Editor. Restart now"
+        ));
     }
-    let source = if g.source.is_empty() { "https://github.com/gittrahan/support-fins" } else { g.source };
+    let source = if g.source.is_empty() {
+        "https://github.com/gittrahan/support-fins"
+    } else {
+        g.source
+    };
     Some(About {
         title: "Support Fins",
         paragraphs,
-        links: vec![("github.com/gittrahan/support-fins".into(), source.into()), ("printfins.com".into(), "https://printfins.com".into())],
+        links: vec![
+            ("github.com/gittrahan/support-fins".into(), source.into()),
+            ("printfins.com".into(), "https://printfins.com".into()),
+        ],
     })
 }
 
@@ -1288,7 +1579,10 @@ impl SectionMemory {
         Value::Object(self.map.iter().map(|(k, v)| (k.clone(), Value::Bool(*v))).collect()).to_string()
     }
     pub fn is_open(&self, tool: &str, header: &str, default_open: bool) -> bool {
-        self.map.get(&format!("{tool}:{header}")).copied().unwrap_or(default_open)
+        self.map
+            .get(&format!("{tool}:{header}"))
+            .copied()
+            .unwrap_or(default_open)
     }
     pub fn toggle(&mut self, tool: &str, header: &str, default_open: bool) {
         let key = format!("{tool}:{header}");
@@ -1298,11 +1592,23 @@ impl SectionMemory {
 }
 
 pub fn section_default_open(tool: &str, header: &str) -> bool {
-    fields(tool).iter().find(|f| f.key == header).map(|f| f.default_open).unwrap_or(true)
+    fields(tool)
+        .iter()
+        .find(|f| f.key == header)
+        .map(|f| f.default_open)
+        .unwrap_or(true)
 }
 
 /// `Some("2 changed")` when the section is closed and something inside it is not the default.
-pub fn section_badge(tool: &str, header: &str, values: &Values, defs: &Values, mem: &SectionMemory, material: &str, reach: f64) -> Option<String> {
+pub fn section_badge(
+    tool: &str,
+    header: &str,
+    values: &Values,
+    defs: &Values,
+    mem: &SectionMemory,
+    material: &str,
+    reach: f64,
+) -> Option<String> {
     let specs = fields(tool);
     let start = specs.iter().position(|f| f.kind == SpecKind::Hdr && f.key == header)?;
     if !field_visible(&specs[start], values) {
@@ -1315,7 +1621,10 @@ pub fn section_badge(tool: &str, header: &str, values: &Values, defs: &Values, m
     while end < specs.len() && specs[end].kind != SpecKind::Hdr {
         end += 1;
     }
-    let n = specs[start + 1..end].iter().filter(|f| field_visible(f, values) && field_changed(f, values, defs, material, reach)).count();
+    let n = specs[start + 1..end]
+        .iter()
+        .filter(|f| field_visible(f, values) && field_changed(f, values, defs, material, reach))
+        .count();
     if n == 0 { None } else { Some(format!("{n} changed")) }
 }
 
@@ -1474,7 +1783,15 @@ pub fn show(ui: &mut egui::Ui, tk: &Tokens, session: &mut Session, wall_hint: &s
                 continue;
             }
             let open = session.sections.is_open(&tool, spec.key, spec.default_open);
-            let badge = section_badge(&tool, spec.key, &session.values, &session.defs, &session.sections, &session.material, session.reach);
+            let badge = section_badge(
+                &tool,
+                spec.key,
+                &session.values,
+                &session.defs,
+                &session.sections,
+                &session.material,
+                session.reach,
+            );
             ui.add_space(2.0); // the 6 px after the row above plus 2 = the header's 8 px margin
             if fold_header(ui, tk, spec.label, open, badge.as_deref()) {
                 session.sections.toggle(&tool, spec.key, spec.default_open);
@@ -1518,19 +1835,35 @@ fn fold_header(ui: &mut egui::Ui, tk: &Tokens, label: &str, open: bool, badge: O
     if hot {
         ui.painter().rect_filled(full, 0.0, tk.hover);
     }
-    ui.painter().hline(full.x_range(), full.min.y, Stroke::new(1.0, tk.divider));
+    ui.painter()
+        .hline(full.x_range(), full.min.y, Stroke::new(1.0, tk.divider));
     let ink = if hot { tk.text } else { tk.muted };
     // the chevron points right when the section is closed and down when open
     let c = egui::pos2(full.min.x + 10.0 + 5.0, full.center().y + 0.5);
     let st = Stroke::new(1.4, ink);
-    let pts = if open { [c + egui::vec2(-3.5, -1.5), c + egui::vec2(0.0, 2.5), c + egui::vec2(3.5, -1.5)] } else { [c + egui::vec2(-1.5, -3.5), c + egui::vec2(2.5, 0.0), c + egui::vec2(-1.5, 3.5)] };
+    let pts = if open {
+        [
+            c + egui::vec2(-3.5, -1.5),
+            c + egui::vec2(0.0, 2.5),
+            c + egui::vec2(3.5, -1.5),
+        ]
+    } else {
+        [
+            c + egui::vec2(-1.5, -3.5),
+            c + egui::vec2(2.5, 0.0),
+            c + egui::vec2(-1.5, 3.5),
+        ]
+    };
     ui.painter().line_segment([pts[0], pts[1]], st);
     ui.painter().line_segment([pts[1], pts[2]], st);
     let mut right = full.max.x - 10.0;
     if let Some(b) = badge {
-        let g = ui.painter().layout_no_wrap(b.to_owned(), FontId::proportional(10.5), tk.muted);
+        let g = ui
+            .painter()
+            .layout_no_wrap(b.to_owned(), FontId::proportional(10.5), tk.muted);
         right -= g.size().x;
-        ui.painter().galley(egui::pos2(right, full.center().y - g.size().y / 2.0), g, tk.muted);
+        ui.painter()
+            .galley(egui::pos2(right, full.center().y - g.size().y / 2.0), g, tk.muted);
         right -= 6.0;
     }
     let text = label.to_uppercase();
@@ -1543,19 +1876,29 @@ fn fold_header(ui: &mut egui::Ui, tk: &Tokens, label: &str, open: bool, badge: O
             break;
         }
         let w = g.size().x;
-        ui.painter().galley(egui::pos2(x, full.center().y - g.size().y / 2.0), g, ink);
+        ui.painter()
+            .galley(egui::pos2(x, full.center().y - g.size().y / 2.0), g, ink);
         x += w + 0.5;
     }
     let _ = Align2::LEFT_CENTER;
     resp.clicked()
 }
 
-fn draw_field(ui: &mut egui::Ui, tk: &Tokens, session: &mut Session, spec: &FieldSpec, wall_hint: &str, out: &mut Vec<PanelEvent>) {
+fn draw_field(
+    ui: &mut egui::Ui,
+    tk: &Tokens,
+    session: &mut Session,
+    spec: &FieldSpec,
+    wall_hint: &str,
+    out: &mut Vec<PanelEvent>,
+) {
     match spec.kind {
         SpecKind::Select if spec.key == "_mode" => draw_modes(ui, tk, session, wall_hint, out),
         SpecKind::Bool => {
             let mut on = session.values.get(spec.key).and_then(Value::as_bool).unwrap_or(false);
-            let changed = fields::row_raw(ui, tk, spec.label, spec.help, false, |ui, _| fields::check_box(ui, tk, &mut on).changed());
+            let changed = fields::row_raw(ui, tk, spec.label, spec.help, false, |ui, _| {
+                fields::check_box(ui, tk, &mut on).changed()
+            });
             if changed {
                 apply_edit(session, spec.key, Value::Bool(on), wall_hint, out);
             }
@@ -1567,13 +1910,26 @@ fn draw_field(ui: &mut egui::Ui, tk: &Tokens, session: &mut Session, spec: &Fiel
         SpecKind::Pose => draw_pose(ui, tk, session, out),
         SpecKind::Walls => draw_walls(ui, tk, session, spec, out),
         SpecKind::Removed => {
-            let n = session.values.get("removed").and_then(Value::as_array).map(|a| a.len()).unwrap_or(0);
+            let n = session
+                .values
+                .get("removed")
+                .and_then(Value::as_array)
+                .map(|a| a.len())
+                .unwrap_or(0);
             let mut restore = false;
             fields::row_raw(ui, tk, spec.label, None, false, |ui, _| {
                 if n == 0 {
-                    ui.label(egui::RichText::new("None: click a fin to remove it").size(12.0).color(tk.muted));
+                    ui.label(
+                        egui::RichText::new("None: click a fin to remove it")
+                            .size(12.0)
+                            .color(tk.muted),
+                    );
                 } else {
-                    ui.label(egui::RichText::new(format!("{n} fin{}", if n > 1 { "s" } else { "" })).size(12.0).color(tk.text));
+                    ui.label(
+                        egui::RichText::new(format!("{n} fin{}", if n > 1 { "s" } else { "" }))
+                            .size(12.0)
+                            .color(tk.text),
+                    );
                     restore = crate::tools::panel::ctl_button(ui, tk, "Bring all back", true).clicked();
                 }
             });
@@ -1589,11 +1945,28 @@ fn draw_field(ui: &mut egui::Ui, tk: &Tokens, session: &mut Session, spec: &Fiel
                 Some(Value::String(s)) if !s.is_empty() => vec![s.clone()],
                 _ => Vec::new(),
             };
-            let chips: Vec<String> = ids.iter().map(|id| session.body_names.get(id).cloned().unwrap_or_else(|| id.clone())).collect();
+            let chips: Vec<String> = ids
+                .iter()
+                .map(|id| session.body_names.get(id).cloned().unwrap_or_else(|| id.clone()))
+                .collect();
             let ph = spec.placeholder.unwrap_or("Click a body");
-            let b = fields::row_raw(ui, tk, spec.label, spec.help, false, |ui, _| fields::bodies::sel_box(ui, tk, egui::Id::unique(("sf-pick", spec.key)), session.body_active, &chips, ph));
+            let b = fields::row_raw(ui, tk, spec.label, spec.help, false, |ui, _| {
+                fields::bodies::sel_box(
+                    ui,
+                    tk,
+                    egui::Id::unique(("sf-pick", spec.key)),
+                    session.body_active,
+                    &chips,
+                    ph,
+                )
+            });
             if let Some(i) = b.removed {
-                let rest: Vec<Value> = ids.iter().enumerate().filter(|(j, _)| *j != i).map(|(_, s)| Value::from(s.clone())).collect();
+                let rest: Vec<Value> = ids
+                    .iter()
+                    .enumerate()
+                    .filter(|(j, _)| *j != i)
+                    .map(|(_, s)| Value::from(s.clone()))
+                    .collect();
                 session.body_active = true;
                 apply_edit(session, spec.key, Value::Array(rest), "", out);
             } else if b.clicked {
@@ -1606,11 +1979,27 @@ fn draw_field(ui: &mut egui::Ui, tk: &Tokens, session: &mut Session, spec: &Fiel
 
 /// Draw Walls' controls (1.x `WallDrawer.fieldHTML`): the shape buttons, the count, Undo and Clear all.
 fn draw_walls(ui: &mut egui::Ui, tk: &Tokens, session: &mut Session, spec: &FieldSpec, out: &mut Vec<PanelEvent>) {
-    let shapes = super::walls::visible_shapes(engine_features().gussets, engine_features().anchors, session.tool_key == "supportfins");
+    let shapes = super::walls::visible_shapes(
+        engine_features().gussets,
+        engine_features().anchors,
+        session.tool_key == "supportfins",
+    );
     if !shapes.contains(&session.wall_shape.as_str()) {
         session.wall_shape = "line".into();
     }
-    let pairs: Vec<(String, String)> = shapes.iter().map(|k| ((*k).to_string(), super::walls::ALL_SHAPES.iter().find(|(x, _)| x == k).map(|(_, l)| (*l).to_string()).unwrap_or_else(|| (*k).to_string()))).collect();
+    let pairs: Vec<(String, String)> = shapes
+        .iter()
+        .map(|k| {
+            (
+                (*k).to_string(),
+                super::walls::ALL_SHAPES
+                    .iter()
+                    .find(|(x, _)| x == k)
+                    .map(|(_, l)| (*l).to_string())
+                    .unwrap_or_else(|| (*k).to_string()),
+            )
+        })
+        .collect();
     let cur = session.wall_shape.clone();
     let hint = super::walls::hint_for(&cur);
     let fits = fields::select::seg_fits(ui, &pairs, false);
@@ -1619,7 +2008,11 @@ fn draw_walls(ui: &mut egui::Ui, tk: &Tokens, session: &mut Session, spec: &Fiel
         if fits {
             pick = fields::seg_strip(ui, tk, ui.scope_id().with("wshape"), w, &pairs, &cur);
         } else {
-            let text = pairs.iter().find(|(k, _)| *k == cur).map(|(_, l)| l.clone()).unwrap_or_default();
+            let text = pairs
+                .iter()
+                .find(|(k, _)| *k == cur)
+                .map(|(_, l)| l.clone())
+                .unwrap_or_default();
             fields::framed_combo(ui, tk, "wshape-sel", w, &text, |ui| {
                 for (k, l) in &pairs {
                     if ui.selectable_label(*k == cur, l).clicked() {
@@ -1630,17 +2023,26 @@ fn draw_walls(ui: &mut egui::Ui, tk: &Tokens, session: &mut Session, spec: &Fiel
         }
         pick
     });
-    if let Some(k) = pick {
-        if k != cur {
-            out.push(PanelEvent::WallShape(k));
-        }
+    if let Some(k) = pick
+        && k != cur
+    {
+        out.push(PanelEvent::WallShape(k));
     }
     ui.add_space(6.0);
-    let n = session.values.get("walls").and_then(Value::as_array).map(|a| a.len()).unwrap_or(0);
+    let n = session
+        .values
+        .get("walls")
+        .and_then(Value::as_array)
+        .map(|a| a.len())
+        .unwrap_or(0);
     let bad = session.wall_ok.iter().filter(|ok| !**ok).count();
     fields::row_raw(ui, tk, spec.label, None, false, |ui, _| {
         if n == 0 {
-            ui.label(egui::RichText::new("None yet: click on the part").size(12.0).color(tk.muted));
+            ui.label(
+                egui::RichText::new("None yet: click on the part")
+                    .size(12.0)
+                    .color(tk.muted),
+            );
         } else {
             let mut t = format!("{n} wall{}", if n > 1 { "s" } else { "" });
             if bad > 0 {
@@ -1649,7 +2051,15 @@ fn draw_walls(ui: &mut egui::Ui, tk: &Tokens, session: &mut Session, spec: &Fiel
             ui.label(egui::RichText::new(t).size(12.0).color(tk.text));
         }
         if session.wall_pending > 0 {
-            ui.label(egui::RichText::new(format!("· drawing ({} point{})", session.wall_pending, if session.wall_pending > 1 { "s" } else { "" })).size(12.0).color(tk.text));
+            ui.label(
+                egui::RichText::new(format!(
+                    "· drawing ({} point{})",
+                    session.wall_pending,
+                    if session.wall_pending > 1 { "s" } else { "" }
+                ))
+                .size(12.0)
+                .color(tk.text),
+            );
         }
     });
     ui.add_space(6.0);
@@ -1659,7 +2069,10 @@ fn draw_walls(ui: &mut egui::Ui, tk: &Tokens, session: &mut Session, spec: &Fiel
         if path_ready && crate::tools::panel::ctl_button(ui, tk, "Finish wall", true).clicked() {
             out.push(PanelEvent::WallFinish);
         }
-        if crate::tools::panel::ctl_button(ui, tk, "Undo", n > 0 || pending > 0).on_hover_text("Ctrl+Z").clicked() {
+        if crate::tools::panel::ctl_button(ui, tk, "Undo", n > 0 || pending > 0)
+            .on_hover_text("Ctrl+Z")
+            .clicked()
+        {
             out.push(PanelEvent::WallUndo);
         }
         if crate::tools::panel::ctl_button(ui, tk, "Clear all", n > 0).clicked() {
@@ -1670,22 +2083,48 @@ fn draw_walls(ui: &mut egui::Ui, tk: &Tokens, session: &mut Session, spec: &Fiel
 
 fn draw_modes(ui: &mut egui::Ui, tk: &Tokens, session: &mut Session, wall_hint: &str, out: &mut Vec<PanelEvent>) {
     let cur = mode_of(&session.values).to_string();
-    let pairs: Vec<(String, String)> = MODES.iter().map(|(k, l)| ((*k).to_string(), (*l).to_string())).collect();
+    let pairs: Vec<(String, String)> = MODES
+        .iter()
+        .map(|(k, l)| ((*k).to_string(), (*l).to_string()))
+        .collect();
     // `.field.wide.nolabel`: the strip takes the whole row, the help is the hover text
-    let pick = fields::row_raw(ui, tk, "", Some(MODE_HELP), true, |ui, w| fields::seg_strip(ui, tk, ui.scope_id().with("mode"), w, &pairs, &cur));
-    if let Some(k) = pick {
-        if k != cur {
-            let fx = set_mode(&mut session.values, &k, wall_hint);
-            push_effects(fx, out);
-            out.push(PanelEvent::Edited("_mode".into()));
-        }
+    let pick = fields::row_raw(ui, tk, "", Some(MODE_HELP), true, |ui, w| {
+        fields::seg_strip(ui, tk, ui.scope_id().with("mode"), w, &pairs, &cur)
+    });
+    if let Some(k) = pick
+        && k != cur
+    {
+        let fx = set_mode(&mut session.values, &k, wall_hint);
+        push_effects(fx, out);
+        out.push(PanelEvent::Edited("_mode".into()));
     }
 }
 
-fn draw_select(ui: &mut egui::Ui, tk: &Tokens, session: &mut Session, spec: &FieldSpec, wall_hint: &str, out: &mut Vec<PanelEvent>) {
-    let cur = session.values.get(spec.key).and_then(Value::as_str).unwrap_or("").to_string();
-    let text = spec.options.iter().find(|(k, _)| *k == cur).map(|(_, l)| *l).unwrap_or("");
-    let pairs: Vec<(String, String)> = spec.options.iter().map(|(k, l)| ((*k).to_string(), (*l).to_string())).collect();
+fn draw_select(
+    ui: &mut egui::Ui,
+    tk: &Tokens,
+    session: &mut Session,
+    spec: &FieldSpec,
+    wall_hint: &str,
+    out: &mut Vec<PanelEvent>,
+) {
+    let cur = session
+        .values
+        .get(spec.key)
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
+    let text = spec
+        .options
+        .iter()
+        .find(|(k, _)| *k == cur)
+        .map(|(_, l)| *l)
+        .unwrap_or("");
+    let pairs: Vec<(String, String)> = spec
+        .options
+        .iter()
+        .map(|(k, l)| ((*k).to_string(), (*l).to_string()))
+        .collect();
     let seg = spec.options.len() <= 4 && fields::select::seg_fits(ui, &pairs, spec.nolabel);
     let picked = fields::row_raw(ui, tk, spec.label, spec.help, spec.nolabel, |ui, w| {
         let mut picked = None;
@@ -1702,17 +2141,32 @@ fn draw_select(ui: &mut egui::Ui, tk: &Tokens, session: &mut Session, spec: &Fie
         }
         picked
     });
-    if let Some(k) = picked {
-        if k != cur {
-            apply_edit(session, spec.key, Value::String(k), wall_hint, out);
-        }
+    if let Some(k) = picked
+        && k != cur
+    {
+        apply_edit(session, spec.key, Value::String(k), wall_hint, out);
     }
 }
 
-fn draw_number(ui: &mut egui::Ui, tk: &Tokens, session: &mut Session, spec: &FieldSpec, wall_hint: &str, out: &mut Vec<PanelEvent>) {
-    let shown = if spec.kind == SpecKind::Reach { strength::js_num(session.reach) } else { display_value(session.values.get(spec.key)) };
+fn draw_number(
+    ui: &mut egui::Ui,
+    tk: &Tokens,
+    session: &mut Session,
+    spec: &FieldSpec,
+    wall_hint: &str,
+    out: &mut Vec<PanelEvent>,
+) {
+    let shown = if spec.kind == SpecKind::Reach {
+        strength::js_num(session.reach)
+    } else {
+        display_value(session.values.get(spec.key))
+    };
     let expr = shown.trim_start().starts_with('=');
-    let (font, colour) = if expr { (fields::number::expr_font(), tk.expr) } else { (fields::number::input_font(), tk.text) };
+    let (font, colour) = if expr {
+        (fields::number::expr_font(), tk.expr)
+    } else {
+        (fields::number::input_font(), tk.text)
+    };
     let uw = if spec.unit.is_some() { 22.0 + 4.0 } else { 0.0 };
     let buffers = &mut session.buffers;
     let edited = fields::row_raw(ui, tk, spec.label, spec.help, false, |ui, w| {
@@ -1724,11 +2178,11 @@ fn draw_number(ui: &mut egui::Ui, tk: &Tokens, session: &mut Session, spec: &Fie
     });
     if let Some(text) = edited {
         if spec.kind == SpecKind::Reach {
-            if let Some(v) = parse_float_js(&text) {
-                if v > 0.0 {
-                    session.reach = v;
-                    out.push(PanelEvent::Reach(v));
-                }
+            if let Some(v) = parse_float_js(&text)
+                && v > 0.0
+            {
+                session.reach = v;
+                out.push(PanelEvent::Reach(v));
             }
         } else if text.trim().starts_with('=') {
             apply_edit(session, spec.key, Value::String(text), wall_hint, out);
@@ -1761,16 +2215,23 @@ fn draw_material(ui: &mut egui::Ui, tk: &Tokens, session: &mut Session, out: &mu
         });
         picked
     });
-    if let Some(k) = picked {
-        if k != cur {
-            session.material = k.clone();
-            out.push(PanelEvent::Material(k));
-        }
+    if let Some(k) = picked
+        && k != cur
+    {
+        session.material = k.clone();
+        out.push(PanelEvent::Material(k));
     }
 }
 
 fn draw_status(ui: &mut egui::Ui, tk: &Tokens, session: &mut Session, cover: bool, out: &mut Vec<PanelEvent>) {
-    let status = status_of(&session.values, session.cover.as_ref(), session.plastic.as_ref(), &session.material, session.reach, cover);
+    let status = status_of(
+        &session.values,
+        session.cover.as_ref(),
+        session.plastic.as_ref(),
+        &session.material,
+        session.reach,
+        cover,
+    );
     ui.add_space(2.0); // .sf-status { margin: 8px 0 }
     let mut cards: Vec<&strength::Card> = Vec::new();
     if let Some(held) = &status.held {
@@ -1806,7 +2267,11 @@ fn cards_row(ui: &mut egui::Ui, tk: &Tokens, cards: &[&strength::Card]) {
     for (i, c) in cards.iter().enumerate() {
         let x = top.x + i as f32 * (cw + 6.0);
         let r = Rect::from_min_size(egui::pos2(x + 8.0, top.y + 6.0), egui::vec2(cw - 16.0, 0.0));
-        let mut child = ui.new_child(egui::UiBuilder::new().max_rect(Rect::from_min_max(r.min, egui::pos2(r.max.x, top.y + 400.0))).layout(egui::Layout::top_down(egui::Align::LEFT)));
+        let mut child = ui.new_child(
+            egui::UiBuilder::new()
+                .max_rect(Rect::from_min_max(r.min, egui::pos2(r.max.x, top.y + 400.0)))
+                .layout(egui::Layout::top_down(egui::Align::LEFT)),
+        );
         child.spacing_mut().item_spacing.y = 0.0;
         card(&mut child, tk, c);
         h = h.max(child.min_rect().height() + 12.0);
@@ -1814,7 +2279,16 @@ fn cards_row(ui: &mut egui::Ui, tk: &Tokens, cards: &[&strength::Card]) {
     for (i, bg) in bgs.into_iter().enumerate() {
         let x = top.x + i as f32 * (cw + 6.0);
         let r = Rect::from_min_size(egui::pos2(x, top.y), egui::vec2(cw, h));
-        ui.painter().set(bg, Shape::Rect(egui::epaint::RectShape::new(r, 6.0, tk.input, Stroke::new(1.0, tk.input_line), egui::StrokeKind::Inside)));
+        ui.painter().set(
+            bg,
+            Shape::Rect(egui::epaint::RectShape::new(
+                r,
+                6.0,
+                tk.input,
+                Stroke::new(1.0, tk.input_line),
+                egui::StrokeKind::Inside,
+            )),
+        );
         let resp = ui.interact(r, ui.scope_id().with(("sfcard", i)), Sense::hover());
         if !cards[i].tip.is_empty() {
             resp.on_hover_text(cards[i].tip.clone());
@@ -1836,7 +2310,18 @@ fn card(ui: &mut egui::Ui, tk: &Tokens, card: &strength::Card) {
         if card.tone == strength::Tone::Busy {
             ui.add(egui::Spinner::new().size(10.0).color(tk.accent));
         }
-        ui.add(egui::Label::new(egui::RichText::new(&card.value).size(if card.tone == strength::Tone::Bad && card.value.len() > 14 { 12.0 } else { 14.0 }).color(color)).wrap());
+        ui.add(
+            egui::Label::new(
+                egui::RichText::new(&card.value)
+                    .size(if card.tone == strength::Tone::Bad && card.value.len() > 14 {
+                        12.0
+                    } else {
+                        14.0
+                    })
+                    .color(color),
+            )
+            .wrap(),
+        );
     });
     if !card.sub.is_empty() {
         ui.add(egui::Label::new(egui::RichText::new(&card.sub).size(11.0).color(tk.muted)).wrap());
@@ -1848,7 +2333,13 @@ fn draw_pose(ui: &mut egui::Ui, tk: &Tokens, session: &mut Session, out: &mut Ve
         return;
     }
     use crate::tools::panel::ctl_button;
-    let view = strength::pose_view(true, &session.values, &session.suggest, session.strength.as_ref(), &session.material);
+    let view = strength::pose_view(
+        true,
+        &session.values,
+        &session.suggest,
+        session.strength.as_ref(),
+        &session.material,
+    );
     // `.sf-pose`: buttons, then notes and candidates, 6 px apart
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing.x = 6.0;
@@ -1879,30 +2370,56 @@ fn draw_pose(ui: &mut egui::Ui, tk: &Tokens, session: &mut Session, out: &mut Ve
     }
     for row in &view.rows {
         ui.add_space(6.0);
-        egui::Frame::new().stroke(egui::Stroke::new(1.0, tk.line)).corner_radius(egui::CornerRadius::same(tk.radius_sm as u8)).inner_margin(egui::Margin { left: 7, right: 4, top: 3, bottom: 3 }).show(ui, |ui| {
-            ui.set_width(fields::FORM_W - 13.0);
-            ui.horizontal(|ui| {
-                ui.spacing_mut().item_spacing.x = 8.0;
-                let used = ui.available_width();
-                ui.allocate_ui_with_layout(egui::vec2(used - 40.0, 0.0), egui::Layout::top_down(egui::Align::LEFT), |ui| {
-                    ui.add(egui::Label::new(egui::RichText::new(format!("{} \u{00b7} {}", row.title, row.detail)).size(12.0).color(tk.text)).wrap());
-                });
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ctl_button(ui, tk, "Use", true).clicked() {
-                        out.push(PanelEvent::UseCandidate(row.index));
-                    }
+        egui::Frame::new()
+            .stroke(egui::Stroke::new(1.0, tk.line))
+            .corner_radius(egui::CornerRadius::same(tk.radius_sm as u8))
+            .inner_margin(egui::Margin {
+                left: 7,
+                right: 4,
+                top: 3,
+                bottom: 3,
+            })
+            .show(ui, |ui| {
+                ui.set_width(fields::FORM_W - 13.0);
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing.x = 8.0;
+                    let used = ui.available_width();
+                    ui.allocate_ui_with_layout(
+                        egui::vec2(used - 40.0, 0.0),
+                        egui::Layout::top_down(egui::Align::LEFT),
+                        |ui| {
+                            ui.add(
+                                egui::Label::new(
+                                    egui::RichText::new(format!("{} \u{00b7} {}", row.title, row.detail))
+                                        .size(12.0)
+                                        .color(tk.text),
+                                )
+                                .wrap(),
+                            );
+                        },
+                    );
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ctl_button(ui, tk, "Use", true).clicked() {
+                            out.push(PanelEvent::UseCandidate(row.index));
+                        }
+                    });
                 });
             });
-        });
     }
     if let Some(p) = view.posture {
         ui.add_space(6.0);
-        ui.add(egui::Label::new(egui::RichText::new(p).size(12.0).color(tk.muted))).on_hover_text(view.posture_tip);
+        ui.add(egui::Label::new(egui::RichText::new(p).size(12.0).color(tk.muted)))
+            .on_hover_text(view.posture_tip);
     }
     ui.add_space(6.0);
     let mut picked = None;
     let sel = view.load_selected.clone();
-    let label = view.load_options.iter().find(|(k, _)| *k == sel).map(|(_, l)| *l).unwrap_or("Not set");
+    let label = view
+        .load_options
+        .iter()
+        .find(|(k, _)| *k == sel)
+        .map(|(_, l)| *l)
+        .unwrap_or("Not set");
     fields::row_raw(ui, tk, "Load in use", Some(view.load_help), false, |ui, w| {
         fields::framed_combo(ui, tk, "sf-load", w, label, |ui| {
             for (k, l) in &view.load_options {
@@ -1912,10 +2429,11 @@ fn draw_pose(ui: &mut egui::Ui, tk: &Tokens, session: &mut Session, out: &mut Ve
             }
         });
     });
-    if let Some(k) = picked {
-        if k != view.load_selected && k != "turned" {
-            apply_edit(session, "_load", Value::String(k), "", out);
-        }
+    if let Some(k) = picked
+        && k != view.load_selected
+        && k != "turned"
+    {
+        apply_edit(session, "_load", Value::String(k), "", out);
     }
     if let Some(text) = &view.verdict {
         let (bg, fg) = match view.verdict_quality.as_deref() {
@@ -1925,10 +2443,14 @@ fn draw_pose(ui: &mut egui::Ui, tk: &Tokens, session: &mut Session, out: &mut Ve
             _ => (tk.info_bg, tk.info_text),
         };
         ui.add_space(6.0);
-        egui::Frame::new().fill(bg).corner_radius(egui::CornerRadius::same(4)).inner_margin(egui::Margin::symmetric(7, 5)).show(ui, |ui| {
-            ui.set_width(fields::FORM_W - 14.0);
-            ui.add(egui::Label::new(egui::RichText::new(text).size(12.0).color(fg)).wrap());
-        });
+        egui::Frame::new()
+            .fill(bg)
+            .corner_radius(egui::CornerRadius::same(4))
+            .inner_margin(egui::Margin::symmetric(7, 5))
+            .show(ui, |ui| {
+                ui.set_width(fields::FORM_W - 14.0);
+                ui.add(egui::Label::new(egui::RichText::new(text).size(12.0).color(fg)).wrap());
+            });
     }
 }
 

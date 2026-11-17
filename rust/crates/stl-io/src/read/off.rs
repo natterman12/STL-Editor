@@ -16,10 +16,10 @@ fn comment_strip(text: &str) -> String {
     let lead = if text.starts_with('#') { "" } else { split[0] };
     let mut rest = Vec::new();
     for chunk in &split {
-        if let Some((_, after)) = chunk.split_once('\n') {
-            if !after.is_empty() {
-                rest.push(after);
-            }
+        if let Some((_, after)) = chunk.split_once('\n')
+            && !after.is_empty()
+        {
+            rest.push(after);
         }
     }
     format!("{lead}\n{}", rest.join("\n")).trim().to_string()
@@ -81,11 +81,7 @@ pub fn read(data: &[u8], base: &str) -> Result<Vec<Part>, ReadError> {
         return Err(bad());
     };
 
-    let splits: Vec<&str> = after
-        .lines()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .collect();
+    let splits: Vec<&str> = after.lines().map(str::trim).filter(|s| !s.is_empty()).collect();
     if splits.is_empty() {
         return Err(bad());
     }
@@ -141,5 +137,9 @@ pub fn read(data: &[u8], base: &str) -> Result<Vec<Part>, ReadError> {
     if triangles.is_empty() {
         return Ok(Vec::new());
     }
-    Ok(vec![Part { name: base.to_string(), positions, triangles }])
+    Ok(vec![Part {
+        name: base.to_string(),
+        positions,
+        triangles,
+    }])
 }

@@ -18,13 +18,23 @@ fn hinge(
     let slot = float(p, "slot", Some(1.0))?;
     let web = float(p, "thickness", Some(0.5))?;
     if slot <= 0.0 || web <= 0.0 {
-        return Err(FeatureError("The slot width and the hinge thickness must be more than zero.".into()));
+        return Err(FeatureError(
+            "The slot width and the hinge thickness must be more than zero.".into(),
+        ));
     }
     let targets = p.get("targets");
     let ids: Vec<String> = if truthy(targets) {
-        strings(targets).into_iter().filter(|t| state.bodies.contains_key(t)).collect()
+        strings(targets)
+            .into_iter()
+            .filter(|t| state.bodies.contains_key(t))
+            .collect()
     } else {
-        state.bodies.iter().filter(|(_, b)| b.solid.is_some()).map(|(k, _)| k.clone()).collect()
+        state
+            .bodies
+            .iter()
+            .filter(|(_, b)| b.solid.is_some())
+            .map(|(k, _)| k.clone())
+            .collect()
     };
     if ids.is_empty() {
         return Err(FeatureError("Choose the block to put the living hinge in.".into()));
@@ -43,7 +53,11 @@ fn hinge(
             (None, None) => continue,
         };
         for c in m.positions.chunks_exact(3) {
-            let rel = [c[0] as f64 - frame.o[0], c[1] as f64 - frame.o[1], c[2] as f64 - frame.o[2]];
+            let rel = [
+                c[0] as f64 - frame.o[0],
+                c[1] as f64 - frame.o[1],
+                c[2] as f64 - frame.o[2],
+            ];
             let d = dot(rel, frame.n);
             lo = lo.min(d);
             hi = hi.max(d);
@@ -51,11 +65,13 @@ fn hinge(
         }
     }
     if web >= hi - lo {
-        return Err(FeatureError("The hinge is as thick as the block, so there is nothing to cut.".into()));
+        return Err(FeatureError(
+            "The hinge is as thick as the block, so there is nothing to cut.".into(),
+        ));
     }
     let bb = reach + 10.0;
-    let strip = Solid::cube([slot, 2.0 * bb, hi - lo - web + 1.0], false)
-        .translate([float(p, "x", Some(0.0))?, -bb, lo + web]);
+    let strip =
+        Solid::cube([slot, 2.0 * bb, hi - lo - web + 1.0], false).translate([float(p, "x", Some(0.0))?, -bb, lo + web]);
     let tool = place(&strip, &frame, [0.0; 3]);
     res.set_cutter(ctx.preview, &tool);
     apply_tool(state, fid, tool, "cut", targets, "Living hinge", res)

@@ -3,13 +3,13 @@
 //! on their own thread and carry its updates to the UI.
 
 use std::collections::BTreeSet;
-use std::panic::{catch_unwind, AssertUnwindSafe};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use web_time::{SystemTime, UNIX_EPOCH};
 
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 use stl_engine::stlx;
 use stl_engine::{Document, FeatureError, Registry, RollbackAfter};
 use stl_io::ExportOptions;
@@ -54,7 +54,12 @@ pub struct Worker {
 pub enum AutosaveOut {
     /// The project as `.stlx` bytes (with the keys Recover reads), its title, step count and the
     /// snapshot key (equal keys are the same project).
-    Copy { bytes: Vec<u8>, title: String, steps: usize, key: String },
+    Copy {
+        bytes: Vec<u8>,
+        title: String,
+        steps: usize,
+        key: String,
+    },
     /// Saved or opened another project: nothing to recover from this tab any more.
     Clear,
 }
@@ -116,7 +121,11 @@ impl Worker {
         self.doc.set_cancel(self.cancel.clone());
         let sink = self.sink.clone();
         self.doc.set_progress(Box::new(move |done, total, label| {
-            sink(Update::Progress { done, total, label: label.to_string() });
+            sink(Update::Progress {
+                done,
+                total,
+                label: label.to_string(),
+            });
         }));
     }
 
@@ -152,10 +161,18 @@ impl Worker {
             }
             return;
         }
-        if let Command::Preview { seq, kind, params, edit_id } = c {
+        if let Command::Preview {
+            seq,
+            kind,
+            params,
+            edit_id,
+        } = c
+        {
             self.ensure_fins(&kind);
             // A preview is not a change: no Busy overlay, no refresh, nothing in the history.
-            let run = catch_unwind(AssertUnwindSafe(|| self.preview(seq, &kind, params, edit_id.as_deref())));
+            let run = catch_unwind(AssertUnwindSafe(|| {
+                self.preview(seq, &kind, params, edit_id.as_deref())
+            }));
             if run.is_err() {
                 self.lost = true;
                 self.send(Update::EngineLost);
@@ -163,7 +180,12 @@ impl Worker {
             return;
         }
         if let Command::BodyInfo { seq, id } = c {
-            let run = catch_unwind(AssertUnwindSafe(|| self.send(Update::BodyInfo { seq, result: self.doc.body_info(&id).map_err(|e| e.0) })));
+            let run = catch_unwind(AssertUnwindSafe(|| {
+                self.send(Update::BodyInfo {
+                    seq,
+                    result: self.doc.body_info(&id).map_err(|e| e.0),
+                })
+            }));
             if run.is_err() {
                 self.lost = true;
                 self.send(Update::EngineLost);
@@ -179,9 +201,18 @@ impl Worker {
             }
             return;
         }
-        if let Command::Solve { seq, entities, constraints, locks, fixed } = c {
+        if let Command::Solve {
+            seq,
+            entities,
+            constraints,
+            locks,
+            fixed,
+        } = c
+        {
             // Quiet, like SketchOp: a solve does not change the document, so no Busy overlay and no refresh.
-            let run = catch_unwind(AssertUnwindSafe(|| self.answer_solve(seq, &entities, &constraints, &locks, &fixed)));
+            let run = catch_unwind(AssertUnwindSafe(|| {
+                self.answer_solve(seq, &entities, &constraints, &locks, &fixed)
+            }));
             if run.is_err() {
                 self.lost = true;
                 self.send(Update::EngineLost);
@@ -231,7 +262,12 @@ impl Worker {
     /// A project that has Support Fins steps is read on the empty host; start the engine and run
     /// those steps again (1.x started it with the app).
     fn fins_for_loaded(&mut self) {
-        if !self.doc.features.iter().any(|f| matches!(f.kind.as_str(), "supportfins" | "supportwall")) {
+        if !self
+            .doc
+            .features
+            .iter()
+            .any(|f| matches!(f.kind.as_str(), "supportfins" | "supportwall"))
+        {
             return;
         }
         let host = match &self.fins {
@@ -286,12 +322,26 @@ impl Worker {
         let (state, res) = self.doc.preview(kind, object(params), edit_id);
         let result = views::result_json(&res);
         if let Some(e) = res.error.clone() {
-            self.send(Update::Preview { seq, pack: Default::default(), msg: None, error: Some(e), warn: false, result });
+            self.send(Update::Preview {
+                seq,
+                pack: Default::default(),
+                msg: None,
+                error: Some(e),
+                warn: false,
+                result,
+            });
             return;
         }
         let pack = views::preview_pack(&state, &res);
         let (msg, warn) = views::preview_msg(&res);
-        self.send(Update::Preview { seq, pack, msg, error: None, warn, result });
+        self.send(Update::Preview {
+            seq,
+            pack,
+            msg,
+            error: None,
+            warn,
+            result,
+        });
     }
 
     /// The answer to `Command::SketchOp`. The document is not changed.
@@ -310,12 +360,20 @@ impl Worker {
         fixed: &[stl_sketch::entities::Entity],
     ) {
         let r = stl_sketch::solver::solve(entities, constraints, locks, fixed);
-        self.send(Update::Solved { seq, entities: r.entities, ok: r.ok, error: r.error });
+        self.send(Update::Solved {
+            seq,
+            entities: r.entities,
+            ok: r.ok,
+            error: r.error,
+        });
     }
 
     fn fail(&self, e: FeatureError) {
         if e.0 == "Cancelled." {
-            self.send(Update::Message { level: Level::Info, text: e.0 });
+            self.send(Update::Message {
+                level: Level::Info,
+                text: e.0,
+            });
         } else {
             self.send(Update::Error(e.0));
         }
@@ -336,7 +394,12 @@ impl Worker {
         match c {
             Command::Open { name, bytes } => self.open(&name, bytes),
             Command::Import { name, bytes } => self.doc.transact(|d| import(d, &name, bytes)),
-            Command::AddFeature { kind, params, index, name } => {
+            Command::AddFeature {
+                kind,
+                params,
+                index,
+                name,
+            } => {
                 if kind == TEST_PANIC_KIND {
                     panic!("test panic");
                 }
@@ -363,23 +426,38 @@ impl Worker {
                 })?;
                 self.report(&r);
                 for text in notes {
-                    self.send(Update::Message { level: Level::Info, text });
+                    self.send(Update::Message {
+                        level: Level::Info,
+                        text,
+                    });
                 }
                 Ok(())
             }
-            Command::EditFeature { id, params, rollback_after } => {
+            Command::EditFeature {
+                id,
+                params,
+                rollback_after,
+            } => {
                 if let Some(k) = self.doc.features.iter().find(|f| f.id == id).map(|f| f.kind.clone()) {
                     self.ensure_fins(&k);
                 }
                 let params = object(params);
-                self.doc.transact(|d| d.edit_feature(&id, Some(params), None, None, rollback_after.map_or(RollbackAfter::Keep, RollbackAfter::Set)))?;
+                self.doc.transact(|d| {
+                    d.edit_feature(
+                        &id,
+                        Some(params),
+                        None,
+                        None,
+                        rollback_after.map_or(RollbackAfter::Keep, RollbackAfter::Set),
+                    )
+                })?;
                 self.report(&id);
                 Ok(())
             }
             Command::DeleteFeature { id } => self.doc.transact(|d| d.delete_feature(&id)),
-            Command::SetSuppressed { id, suppressed } => {
-                self.doc.transact(|d| d.edit_feature(&id, None, None, Some(suppressed), RollbackAfter::Keep))
-            }
+            Command::SetSuppressed { id, suppressed } => self
+                .doc
+                .transact(|d| d.edit_feature(&id, None, None, Some(suppressed), RollbackAfter::Keep)),
             Command::MoveFeature { id, index } => self.doc.transact(|d| d.move_feature(&id, index)),
             Command::SetParams(list) => self.doc.transact(|d| d.set_params(list)),
             Command::Rollback(i) => self.doc.transact(|d| {
@@ -394,7 +472,12 @@ impl Worker {
                 d.redo();
                 Ok(())
             }),
-            Command::BodyProps { id, name, color, hidden } => self.doc.transact(|d| {
+            Command::BodyProps {
+                id,
+                name,
+                color,
+                hidden,
+            } => self.doc.transact(|d| {
                 d.set_body_props(&id, name, color, hidden);
                 Ok(())
             }),
@@ -409,21 +492,39 @@ impl Worker {
             Command::Export { format, ids, date } => {
                 let ids = self.doc.export_bodies_for(ids.as_deref())?;
                 let title = self.doc.export_base_name(&ids, None);
-                let opts = ExportOptions { uuid_seed: seed(&title, &date), step_title: title.clone(), step_date: date };
+                let opts = ExportOptions {
+                    uuid_seed: seed(&title, &date),
+                    step_title: title.clone(),
+                    step_date: date,
+                };
                 let (bytes, count) = self.doc.export_bytes(format, Some(&ids), &opts)?;
-                self.send(Update::Exported { name: format!("{title}.{}", format.ext()), bytes, count });
+                self.send(Update::Exported {
+                    name: format!("{title}.{}", format.ext()),
+                    bytes,
+                    count,
+                });
                 Ok(())
             }
             Command::SketchOp { seq, op, data } => {
                 self.answer_sketch(seq, &op, &data);
                 Ok(())
             }
-            Command::Solve { seq, entities, constraints, locks, fixed } => {
+            Command::Solve {
+                seq,
+                entities,
+                constraints,
+                locks,
+                fixed,
+            } => {
                 self.answer_solve(seq, &entities, &constraints, &locks, &fixed);
                 Ok(())
             }
             Command::Autosave { .. } => Ok(()), // answered in `handle`, before it gets here
-            Command::Cancel | Command::ClearPreview | Command::Preview { .. } | Command::Fins { .. } | Command::BodyInfo { .. } => Ok(()),
+            Command::Cancel
+            | Command::ClearPreview
+            | Command::Preview { .. }
+            | Command::Fins { .. }
+            | Command::BodyInfo { .. } => Ok(()),
         }
     }
 
@@ -433,7 +534,11 @@ impl Worker {
         self.doc.transact(|d| {
             let b = |w: f64| object(json!({"shape": "box", "size": [w, 10.0, 10.0]}));
             d.add_feature("primitive", b(3.0), None)?;
-            sink(Update::Progress { done: 0, total: 1, label: "slow".into() });
+            sink(Update::Progress {
+                done: 0,
+                total: 1,
+                label: "slow".into(),
+            });
             let end = std::time::Instant::now() + std::time::Duration::from_millis(400);
             while std::time::Instant::now() < end && !cancel.load(Ordering::SeqCst) {
                 std::thread::sleep(std::time::Duration::from_millis(5));
@@ -467,10 +572,20 @@ impl Worker {
             self.name = Some(file_stem(name));
             self.clear_autosave();
             self.saved = if recovered { None } else { Some(bytes) };
-            let end = self.doc.rollback.map_or(self.doc.features.len(), |r| r.min(self.doc.features.len()));
+            let end = self
+                .doc
+                .rollback
+                .map_or(self.doc.features.len(), |r| r.min(self.doc.features.len()));
             for (i, f) in self.doc.features[..end].iter().enumerate() {
-                let label = f.name.clone().unwrap_or_else(|| stl_engine::labels::label(&f.kind).to_string());
-                self.send(Update::Progress { done: i + 1, total: end, label });
+                let label = f
+                    .name
+                    .clone()
+                    .unwrap_or_else(|| stl_engine::labels::label(&f.kind).to_string());
+                self.send(Update::Progress {
+                    done: i + 1,
+                    total: end,
+                    label,
+                });
             }
             return Ok(());
         }
@@ -502,20 +617,34 @@ impl Worker {
             return;
         }
         let Ok(mut json) = stlx::document_json(&self.doc) else {
-            self.send(Update::Autosaved { ok: false, error: Some("Couldn't save an autosave copy: the project can't be written.".into()) });
+            self.send(Update::Autosaved {
+                ok: false,
+                error: Some("Couldn't save an autosave copy: the project can't be written.".into()),
+            });
             return;
         };
         let snap = serde_json::to_string(&json).unwrap_or_default();
         if !force && self.autosave.last.as_deref() == Some(snap.as_str()) {
             return; // nothing changed since the last copy
         }
-        let title = self.autosave.title.clone().or_else(|| self.doc.title.clone()).or_else(|| self.name.clone()).unwrap_or_else(|| "Untitled".to_string());
+        let title = self
+            .autosave
+            .title
+            .clone()
+            .or_else(|| self.doc.title.clone())
+            .or_else(|| self.name.clone())
+            .unwrap_or_else(|| "Untitled".to_string());
         let steps = self.doc.features.len();
-        let saved = SystemTime::now().duration_since(UNIX_EPOCH).map_or(0.0, |d| d.as_secs_f64());
+        let saved = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_or(0.0, |d| d.as_secs_f64());
         if let Value::Object(m) = &mut json {
             // 1.x's autosave fields; `recovered` and `title` tell the worker that opens the copy
             m.insert("title".into(), json!(title));
-            m.insert("path".into(), self.autosave.path.clone().map_or(Value::Null, Value::String));
+            m.insert(
+                "path".into(),
+                self.autosave.path.clone().map_or(Value::Null, Value::String),
+            );
             m.insert("saved".into(), json!(saved));
             m.insert("count".into(), json!(steps));
             m.insert("recovered".into(), json!(true));
@@ -528,14 +657,29 @@ impl Worker {
         use stl_platform::autosave::{Autosaver, Source};
         let result = (|| -> Result<(), String> {
             if self.autosave.saver.is_none() {
-                let root = self.autosave.root.clone().unwrap_or_else(|| stl_platform::paths::data_dir().join("autosave"));
+                let root = self
+                    .autosave
+                    .root
+                    .clone()
+                    .unwrap_or_else(|| stl_platform::paths::data_dir().join("autosave"));
                 self.autosave.saver = Some(Autosaver::begin(&root).map_err(|e| e.to_string())?);
             }
-            let used: Vec<String> = json.get("sources").and_then(Value::as_object).map(|m| m.keys().cloned().collect()).unwrap_or_default();
+            let used: Vec<String> = json
+                .get("sources")
+                .and_then(Value::as_object)
+                .map(|m| m.keys().cloned().collect())
+                .unwrap_or_default();
             let fresh: Vec<Source> = used
                 .iter()
                 .filter(|id| !self.autosave.written.contains(*id))
-                .filter_map(|id| self.doc.sources.get(id).map(|s| Source { id: id.clone(), name: s.name.clone(), ext: s.ext.clone(), data: s.data.clone() }))
+                .filter_map(|id| {
+                    self.doc.sources.get(id).map(|s| Source {
+                        id: id.clone(),
+                        name: s.name.clone(),
+                        ext: s.ext.clone(),
+                        data: s.data.clone(),
+                    })
+                })
                 .collect();
             let saver = self.autosave.saver.as_ref().ok_or("no autosave folder")?;
             saver.write(&json, &fresh).map_err(|e| e.to_string())?;
@@ -547,7 +691,10 @@ impl Worker {
                 self.autosave.last = Some(snap);
                 self.send(Update::Autosaved { ok: true, error: None });
             }
-            Err(e) => self.send(Update::Autosaved { ok: false, error: Some(format!("Couldn't save an autosave copy: {e}")) }),
+            Err(e) => self.send(Update::Autosaved {
+                ok: false,
+                error: Some(format!("Couldn't save an autosave copy: {e}")),
+            }),
         }
     }
 
@@ -559,14 +706,27 @@ impl Worker {
             .and_then(Value::as_object)
             .into_iter()
             .flatten()
-            .filter_map(|(id, _)| self.doc.sources.get(id).map(|s| (id.clone(), s.name.clone(), s.ext.clone(), s.data.clone())))
+            .filter_map(|(id, _)| {
+                self.doc
+                    .sources
+                    .get(id)
+                    .map(|s| (id.clone(), s.name.clone(), s.ext.clone(), s.data.clone()))
+            })
             .collect();
         match stlx::parts_to_bytes(&json, &sources) {
             Ok(bytes) => {
                 self.autosave.last = Some(snap.clone());
-                out(AutosaveOut::Copy { bytes, title, steps, key: snap });
+                out(AutosaveOut::Copy {
+                    bytes,
+                    title,
+                    steps,
+                    key: snap,
+                });
             }
-            Err(e) => self.send(Update::Autosaved { ok: false, error: Some(format!("Couldn't save an autosave copy: {}", e.0)) }),
+            Err(e) => self.send(Update::Autosaved {
+                ok: false,
+                error: Some(format!("Couldn't save an autosave copy: {}", e.0)),
+            }),
         }
     }
 
@@ -629,13 +789,21 @@ impl Worker {
 
     /// A feature's warning or note, as a message.
     fn report(&self, id: &str) {
-        let Some(i) = self.doc.features.iter().position(|f| f.id == id) else { return };
+        let Some(i) = self.doc.features.iter().position(|f| f.id == id) else {
+            return;
+        };
         let Some(r) = self.doc.results().get(i) else { return };
         if let Some(w) = &r.warning {
-            self.send(Update::Message { level: Level::Warning, text: w.clone() });
+            self.send(Update::Message {
+                level: Level::Warning,
+                text: w.clone(),
+            });
         }
         if let Some(t) = &r.info {
-            self.send(Update::Message { level: Level::Info, text: t.clone() });
+            self.send(Update::Message {
+                level: Level::Info,
+                text: t.clone(),
+            });
         }
     }
 

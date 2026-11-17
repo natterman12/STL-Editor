@@ -13,12 +13,14 @@ mod solid;
 mod triangulate;
 
 pub use error::KernelError;
-pub use frame::{cross, dot, Frame, Vec3};
+pub use frame::{Frame, Vec3, cross, dot};
 pub use mesh::{Aabb, MeshArrays};
 pub use minkowski::{minkowski_batch_path_hits, with_minkowski_batch_threads, with_stock_minkowski};
-pub use scratch::{release_scratch, touch as touch_scratch, scratch_held_bytes, set_idle_timeout, ScratchGuard, DEFAULT_IDLE_TIMEOUT};
 #[cfg(target_arch = "wasm32")]
 pub use scratch::set_clock;
+pub use scratch::{
+    DEFAULT_IDLE_TIMEOUT, ScratchGuard, release_scratch, scratch_held_bytes, set_idle_timeout, touch as touch_scratch,
+};
 pub use shape2d::Shape2d;
 pub use solid::Solid;
 pub use triangulate::triangulate;

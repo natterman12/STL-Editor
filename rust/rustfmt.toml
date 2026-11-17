@@ -1,0 +1,3 @@
+# Formatting for our crates (third_party is outside the workspace and is left as vendored).
+# 120 columns: the code was written with long lines, and 100 breaks far more of them.
+max_width = 120

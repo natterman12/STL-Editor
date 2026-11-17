@@ -41,13 +41,23 @@ fn web7_edit_from_timeline_keeps_grip() {
     }
     h.state_mut().tool_ok();
     settle(&mut h, &link);
-    let id = h.state().timeline_view.items.iter().find(|i| i.kind == "supportfins").map(|i| i.id.clone()).expect("sf step");
+    let id = h
+        .state()
+        .timeline_view
+        .items
+        .iter()
+        .find(|i| i.kind == "supportfins")
+        .map(|i| i.id.clone())
+        .expect("sf step");
     assert!(h.state_mut().edit_feature(&id));
     h.run_steps(4);
     let t = h.state().tool().expect("edit");
     assert_eq!(t.edit_id.as_deref(), Some(id.as_str()));
     if let Some(v) = t.values.get("sf:tineDensity") {
-        assert!((v.as_f64().unwrap_or(0.0) - 80.0).abs() < 1e-6 || v.as_i64() == Some(80), "grip restored: {v}");
+        assert!(
+            (v.as_f64().unwrap_or(0.0) - 80.0).abs() < 1e-6 || v.as_i64() == Some(80),
+            "grip restored: {v}"
+        );
     }
     h.state_mut().tool_ok();
     settle(&mut h, &link);
@@ -69,9 +79,18 @@ fn web7_draw_walls_adds_wall_step() {
     h.state_mut().tool_ok();
     settle(&mut h, &link);
     assert!(
-        h.state().timeline_view.items.iter().any(|i| i.kind == "supportwall" || i.kind == "supportfins"),
+        h.state()
+            .timeline_view
+            .items
+            .iter()
+            .any(|i| i.kind == "supportwall" || i.kind == "supportfins"),
         "wall / fins step after OK: {:?}",
-        h.state().timeline_view.items.iter().map(|i| &i.kind).collect::<Vec<_>>()
+        h.state()
+            .timeline_view
+            .items
+            .iter()
+            .map(|i| &i.kind)
+            .collect::<Vec<_>>()
     );
 }
 

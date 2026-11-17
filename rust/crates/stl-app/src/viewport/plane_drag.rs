@@ -30,11 +30,7 @@ pub fn start_distance(origin: V3, normal: V3, span: &Aabb) -> f64 {
         hi = hi.max(s);
     }
     let eps = 1e-6 * (hi - lo).max(1.0);
-    if lo < -eps && hi > eps {
-        0.0
-    } else {
-        (lo + hi) / 2.0
-    }
+    if lo < -eps && hi > eps { 0.0 } else { (lo + hi) / 2.0 }
 }
 
 /// The arrow's length on screen (points).
@@ -132,11 +128,7 @@ pub fn drag_distance_in(cam: &Camera, p: &DragPlane, from: [f64; 2], to: [f64; 2
             _ => vertical(),
         },
     };
-    if d.is_finite() {
-        d
-    } else {
-        d0
-    }
+    if d.is_finite() { d } else { d0 }
 }
 
 /// The arrow's tip on screen.
@@ -156,7 +148,11 @@ pub fn hits_handle(cam: &Camera, p: &DragPlane, ptr: [f64; 2]) -> bool {
     let ab = [b[0] - a[0], b[1] - a[1]];
     let ap = [ptr[0] - a[0], ptr[1] - a[1]];
     let len2 = ab[0] * ab[0] + ab[1] * ab[1];
-    let t = if len2 > 1e-12 { ((ap[0] * ab[0] + ap[1] * ab[1]) / len2).clamp(0.0, 1.0) } else { 0.0 };
+    let t = if len2 > 1e-12 {
+        ((ap[0] * ab[0] + ap[1] * ab[1]) / len2).clamp(0.0, 1.0)
+    } else {
+        0.0
+    };
     let q = [a[0] + ab[0] * t - ptr[0], a[1] + ab[1] * t - ptr[1]];
     let near_shaft = (q[0] * q[0] + q[1] * q[1]).sqrt() <= HIT_PX;
     let near_tip = ((b[0] - ptr[0]).powi(2) + (b[1] - ptr[1]).powi(2)).sqrt() <= HIT_PX * 1.5;

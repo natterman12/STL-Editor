@@ -3,7 +3,7 @@
 use serde_json::Value;
 
 use super::number::input_font;
-use super::{row, text_commit, Bufs, Edit, FieldEnv};
+use super::{Bufs, Edit, FieldEnv, row, text_commit};
 use crate::tools::Field;
 
 /// The grey text in an empty box: 1.x always shows "optional" (app.js:735), whatever the tool says.
@@ -12,7 +12,14 @@ pub fn placeholder_text(_tool_says: Option<&str>) -> &'static str {
 }
 
 /// 1.x always shows `placeholder="optional"`, whatever the tool says.
-pub fn show(ui: &mut egui::Ui, env: &FieldEnv, f: &Field, placeholder: Option<&str>, val: &Value, bufs: &mut Bufs) -> Option<Edit> {
+pub fn show(
+    ui: &mut egui::Ui,
+    env: &FieldEnv,
+    f: &Field,
+    placeholder: Option<&str>,
+    val: &Value,
+    bufs: &mut Bufs,
+) -> Option<Edit> {
     let tk = env.tk;
     let shown = match val {
         Value::String(s) => s.clone(),
@@ -27,8 +34,17 @@ pub fn show(ui: &mut egui::Ui, env: &FieldEnv, f: &Field, placeholder: Option<&s
         if empty && !ui.memory(|m| m.has_focus(id)) {
             let r = ui.min_rect();
             let at = egui::pos2(r.max.x - w + 6.0, r.center().y);
-            ui.painter().text(at, egui::Align2::LEFT_CENTER, placeholder_text(placeholder), input_font(), tk.muted);
+            ui.painter().text(
+                at,
+                egui::Align2::LEFT_CENTER,
+                placeholder_text(placeholder),
+                input_font(),
+                tk.muted,
+            );
         }
-        typed.map(|t| Edit { key: f.key.to_owned(), value: Value::String(t) })
+        typed.map(|t| Edit {
+            key: f.key.to_owned(),
+            value: Value::String(t),
+        })
     })
 }

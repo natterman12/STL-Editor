@@ -4,8 +4,8 @@
 use serde::Deserialize;
 use stl_kernel::{MeshArrays, Solid};
 
-use crate::nearest::PointTree;
 use crate::MeshError;
+use crate::nearest::PointTree;
 
 fn d_radius() -> f64 {
     5.0
@@ -84,7 +84,11 @@ fn vertex_normals(v: &[[f64; 3]], f: &[[usize; 3]]) -> Vec<[f64; 3]> {
         let (a, b, c) = (v[t[0]], v[t[1]], v[t[2]]);
         let u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
         let w = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
-        let n = [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]];
+        let n = [
+            u[1] * w[2] - u[2] * w[1],
+            u[2] * w[0] - u[0] * w[2],
+            u[0] * w[1] - u[1] * w[0],
+        ];
         for &i in t {
             for k in 0..3 {
                 vn[i][k] += n[k];
@@ -148,7 +152,11 @@ fn smallest_eigvec(mut a: [[f64; 3]; 3]) -> [f64; 3] {
                 continue;
             }
             let theta = (a[q][q] - a[p][p]) / (2.0 * a[p][q]);
-            let t = if theta == 0.0 { 1.0 } else { theta.signum() / (theta.abs() + (theta * theta + 1.0).sqrt()) };
+            let t = if theta == 0.0 {
+                1.0
+            } else {
+                theta.signum() / (theta.abs() + (theta * theta + 1.0).sqrt())
+            };
             let c = 1.0 / (t * t + 1.0).sqrt();
             let s = t * c;
             for k in 0..3 {
@@ -181,9 +189,16 @@ fn smallest_eigvec(mut a: [[f64; 3]; 3]) -> [f64; 3] {
 /// result that no longer closes up.
 pub fn sculpt(s: &Solid, strokes: &[Stroke]) -> Result<Solid, MeshError> {
     let mm = s.to_mesh();
-    let mut v: Vec<[f64; 3]> = mm.positions.chunks_exact(3).map(|p| [p[0] as f64, p[1] as f64, p[2] as f64]).collect();
-    let f: Vec<[usize; 3]> =
-        mm.triangles.chunks_exact(3).map(|t| [t[0] as usize, t[1] as usize, t[2] as usize]).collect();
+    let mut v: Vec<[f64; 3]> = mm
+        .positions
+        .chunks_exact(3)
+        .map(|p| [p[0] as f64, p[1] as f64, p[2] as f64])
+        .collect();
+    let f: Vec<[usize; 3]> = mm
+        .triangles
+        .chunks_exact(3)
+        .map(|t| [t[0] as usize, t[1] as usize, t[2] as usize])
+        .collect();
     let adj = adjacency(&f, v.len());
     let lap = |v: &[[f64; 3]], idx: &[usize]| -> Vec<[f64; 3]> {
         idx.iter()

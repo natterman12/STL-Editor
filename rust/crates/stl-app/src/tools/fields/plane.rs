@@ -5,14 +5,14 @@
 use std::collections::HashMap;
 
 use egui::Ui;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use stl_kernel::MeshArrays;
 
-use super::bodies::{advance_field, body_name, handle_box, pt_from, sel_box, Mark, PickOut, ShowOut};
+use super::bodies::{Mark, PickOut, ShowOut, advance_field, body_name, handle_box, pt_from, sel_box};
 use crate::theme::Tokens;
 use crate::tools::{Ctx, Field, FieldKind, ToolDef, Values};
-use crate::viewport::pick::Hit;
 use crate::viewport::PlaneFrame;
+use crate::viewport::pick::Hit;
 
 // ------------------------------------------------------------------ the face finder
 
@@ -25,15 +25,15 @@ fn dot(a: V3, b: V3) -> f64 {
     a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }
 fn cross(a: V3, b: V3) -> V3 {
-    [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]
+    [
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    ]
 }
 fn unit(a: V3) -> V3 {
     let l = dot(a, a).sqrt();
-    if l > 0.0 {
-        [a[0] / l, a[1] / l, a[2] / l]
-    } else {
-        a
-    }
+    if l > 0.0 { [a[0] / l, a[1] / l, a[2] / l] } else { a }
 }
 
 struct Tris<'a> {
@@ -46,12 +46,21 @@ struct Tris<'a> {
 
 impl<'a> Tris<'a> {
     fn new(m: &'a MeshArrays) -> Self {
-        let mut t = Tris { pos: &m.positions, idx: &m.triangles, n: Vec::new(), area: Vec::new() };
+        let mut t = Tris {
+            pos: &m.positions,
+            idx: &m.triangles,
+            n: Vec::new(),
+            area: Vec::new(),
+        };
         for i in 0..t.count() {
             let [a, b, c] = t.corners(i);
             let c = cross(sub(b, a), sub(c, a));
             let l = dot(c, c).sqrt();
-            t.n.push(if l > 0.0 { [c[0] / l, c[1] / l, c[2] / l] } else { [0.0; 3] });
+            t.n.push(if l > 0.0 {
+                [c[0] / l, c[1] / l, c[2] / l]
+            } else {
+                [0.0; 3]
+            });
             t.area.push(l / 2.0);
         }
         t
@@ -64,7 +73,11 @@ impl<'a> Tris<'a> {
         [self.pos[p] as f64, self.pos[p + 1] as f64, self.pos[p + 2] as f64]
     }
     fn corners(&self, t: usize) -> [V3; 3] {
-        [self.vert(self.idx[t * 3]), self.vert(self.idx[t * 3 + 1]), self.vert(self.idx[t * 3 + 2])]
+        [
+            self.vert(self.idx[t * 3]),
+            self.vert(self.idx[t * 3 + 1]),
+            self.vert(self.idx[t * 3 + 2]),
+        ]
     }
     /// Triangle neighbours across shared edges, among `cand`.
     fn neighbours(&self, cand: &[usize]) -> HashMap<usize, Vec<usize>> {
@@ -147,7 +160,8 @@ fn region_boundary(t: &Tris, region: &[usize]) -> Vec<(u32, u32)> {
     let key = |a: u32, b: u32| (a.min(b), a.max(b));
     for &u in region {
         for k in 0..3 {
-            *cnt.entry(key(t.idx[u * 3 + k], t.idx[u * 3 + (k + 1) % 3])).or_default() += 1;
+            *cnt.entry(key(t.idx[u * 3 + k], t.idx[u * 3 + (k + 1) % 3]))
+                .or_default() += 1;
         }
     }
     let mut out = Vec::new();
@@ -193,10 +207,10 @@ fn face_planar(t: &Tris, region: &[usize], normal: V3, tol: f64) -> bool {
         }
         let d = dot(t.n[u], normal);
         for k in 0..3 {
-            if let Some(s) = across.get_mut(&key(t.idx[u * 3 + k], t.idx[u * 3 + (k + 1) % 3])) {
-                if d < s.0 {
-                    *s = (d, u as i64);
-                }
+            if let Some(s) = across.get_mut(&key(t.idx[u * 3 + k], t.idx[u * 3 + (k + 1) % 3]))
+                && d < s.0
+            {
+                *s = (d, u as i64);
             }
         }
     }
@@ -216,8 +230,12 @@ fn face_planar(t: &Tris, region: &[usize], normal: V3, tol: f64) -> bool {
         return true;
     }
     let max_l = soft.iter().map(|s| s.0).fold(0.0, f64::max);
-    let Some(next) = soft.iter().filter(|s| s.0 >= max_l - 1e-9).map(|s| s.1).min() else { return true };
-    let Some((other, _, _)) = face_region(t, next as usize, tol) else { return true };
+    let Some(next) = soft.iter().filter(|s| s.0 >= max_l - 1e-9).map(|s| s.1).min() else {
+        return true;
+    };
+    let Some((other, _, _)) = face_region(t, next as usize, tol) else {
+        return true;
+    };
     let a: f64 = region.iter().map(|&u| t.area[u]).sum();
     let b: f64 = other.iter().map(|&u| t.area[u]).sum();
     b < 0.5 * a
@@ -253,8 +271,21 @@ pub fn face_info(mesh: &MeshArrays, tri: usize, outline: bool) -> Option<FaceInf
     }
     let fr = stl_engine::features::common::frames::plane_frame(origin, n, None).ok()?;
     let planar = face_planar(&t, &region, normal, 1.0);
-    let contours = if outline && region.len() <= 400_000 { outline_rings(&t, &region, fr.o, fr.x, fr.y) } else { Vec::new() };
-    Some(FaceInfo { origin: fr.o, normal: fr.n, xdir: fr.x, ydir: fr.y, centroid, tris: region.iter().take(200_000).map(|&u| u as u32).collect(), planar, contours })
+    let contours = if outline && region.len() <= 400_000 {
+        outline_rings(&t, &region, fr.o, fr.x, fr.y)
+    } else {
+        Vec::new()
+    };
+    Some(FaceInfo {
+        origin: fr.o,
+        normal: fr.n,
+        xdir: fr.x,
+        ydir: fr.y,
+        centroid,
+        tris: region.iter().take(200_000).map(|&u| u as u32).collect(),
+        planar,
+        contours,
+    })
 }
 
 fn outline_rings(t: &Tris, region: &[usize], o: V3, x: V3, y: V3) -> Vec<Vec<[f64; 2]>> {
@@ -279,15 +310,24 @@ fn outline_rings(t: &Tris, region: &[usize], o: V3, x: V3, y: V3) -> Vec<Vec<[f6
                 break;
             }
             ring.push(b);
-            let Some(n) = next.get(&b).and_then(|v| v.iter().copied().find(|&c| !used.contains(&(b, c)))) else { break };
+            let Some(n) = next
+                .get(&b)
+                .and_then(|v| v.iter().copied().find(|&c| !used.contains(&(b, c))))
+            else {
+                break;
+            };
             a = b;
             b = n;
         }
         if ring.len() >= 3 {
-            rings.push(ring.iter().map(|&i| {
-                let q = sub(t.vert(i), o);
-                [(dot(q, x) * 1e5).round() / 1e5, (dot(q, y) * 1e5).round() / 1e5]
-            }).collect());
+            rings.push(
+                ring.iter()
+                    .map(|&i| {
+                        let q = sub(t.vert(i), o);
+                        [(dot(q, x) * 1e5).round() / 1e5, (dot(q, y) * 1e5).round() / 1e5]
+                    })
+                    .collect(),
+            );
         }
     }
     rings
@@ -303,7 +343,12 @@ pub fn frame_of(r: &Value, ctx: &Ctx) -> Option<PlaneFrame> {
             "XY" => f([0.0; 3], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]),
             "XZ" => f([0.0; 3], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, -1.0, 0.0]),
             "YZ" => f([0.0; 3], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0]),
-            id => ctx.planes.iter().find(|p| p.id == id).map(|p| PlaneFrame { origin: p.origin, x: p.x, y: p.y, normal: p.normal }),
+            id => ctx.planes.iter().find(|p| p.id == id).map(|p| PlaneFrame {
+                origin: p.origin,
+                x: p.x,
+                y: p.y,
+                normal: p.normal,
+            }),
         },
         Value::Object(o) => {
             let origin = pt_from(o.get("origin")?)?;
@@ -322,9 +367,18 @@ pub fn plane_label(v: Option<&Value>, ctx: &Ctx) -> String {
             "XY" => "XY plane".into(),
             "XZ" => "XZ plane".into(),
             "YZ" => "YZ plane".into(),
-            id => ctx.planes.iter().find(|p| p.id == id).map(|p| p.name.clone()).unwrap_or_else(|| id.to_owned()),
+            id => ctx
+                .planes
+                .iter()
+                .find(|p| p.id == id)
+                .map(|p| p.name.clone())
+                .unwrap_or_else(|| id.to_owned()),
         },
-        Some(Value::Object(o)) => o.get("label").and_then(Value::as_str).map(str::to_owned).unwrap_or_else(|| "Face".into()),
+        Some(Value::Object(o)) => o
+            .get("label")
+            .and_then(Value::as_str)
+            .map(str::to_owned)
+            .unwrap_or_else(|| "Face".into()),
         _ => String::new(),
     }
 }
@@ -332,10 +386,24 @@ pub fn plane_label(v: Option<&Value>, ctx: &Ctx) -> String {
 // ------------------------------------------------------------------ the field
 
 /// `fieldHTML` `'plane'`.
-pub fn show(ui: &mut Ui, tk: &Tokens, f: &Field, values: &mut Values, active: &mut Option<String>, ctx: &Ctx) -> ShowOut {
+pub fn show(
+    ui: &mut Ui,
+    tk: &Tokens,
+    f: &Field,
+    values: &mut Values,
+    active: &mut Option<String>,
+    ctx: &Ctx,
+) -> ShowOut {
     let label = plane_label(values.get(f.key), ctx);
     let chips: Vec<String> = if label.is_empty() { vec![] } else { vec![label] };
-    let b = sel_box(ui, tk, egui::Id::unique(("pick", f.key)), active.as_deref() == Some(f.key), &chips, "Click a plane or flat face");
+    let b = sel_box(
+        ui,
+        tk,
+        egui::Id::unique(("pick", f.key)),
+        active.as_deref() == Some(f.key),
+        &chips,
+        "Click a plane or flat face",
+    );
     let mut out = ShowOut::default();
     handle_box(&b, f.key, active, &mut out, |_| {
         values.insert(f.key.to_owned(), Value::Null);
@@ -361,7 +429,11 @@ pub fn target_field<'a>(tool: &'a ToolDef, active: Option<&str>, hit: &Hit) -> O
 /// Planes must be shown and pickable: the plane field is active, or the tool places on a face,
 /// or it is the 3-point plane (`wantPlanes`).
 pub fn wants_planes(tool: &ToolDef, active: Option<&str>) -> bool {
-    tool.fields.iter().any(|f| matches!(f.kind, FieldKind::Plane { .. }) && active == Some(f.key)) || tool.flags.place_on_face || tool.key == "plane_3pt"
+    tool.fields
+        .iter()
+        .any(|f| matches!(f.kind, FieldKind::Plane { .. }) && active == Some(f.key))
+        || tool.flags.place_on_face
+        || tool.key == "plane_3pt"
 }
 
 /// `feedPick` for `plane`. A plane hit stores its id; a face hit stores the face as
@@ -377,8 +449,12 @@ pub fn feed_pick(tool: &ToolDef, f: &Field, values: &mut Values, hit: &Hit, ctx:
             if tool.key == "thread" && super::place_refs::thread_feed_pick(values, ctx, id, *point).is_some() {
                 return PickOut::changed();
             }
-            let Some(b) = ctx.bodies.iter().find(|b| &b.id == id) else { return PickOut::used() };
-            let Some(fi) = face_info(&b.mesh, *face as usize, false) else { return PickOut::used() };
+            let Some(b) = ctx.bodies.iter().find(|b| &b.id == id) else {
+                return PickOut::used();
+            };
+            let Some(fi) = face_info(&b.mesh, *face as usize, false) else {
+                return PickOut::used();
+            };
             values.insert(
                 f.key.to_owned(),
                 json!({ "origin": fi.origin, "normal": fi.normal, "xdir": fi.xdir, "label": format!("Face of {}", body_name(ctx, id)), "body": id }),
@@ -386,7 +462,10 @@ pub fn feed_pick(tool: &ToolDef, f: &Field, values: &mut Values, hit: &Hit, ctx:
             if tool.flags.place_on_face {
                 let d = sub(*point, fi.origin);
                 let r3 = |x: f64| (x * 1e3).round() / 1e3;
-                values.insert("offset".to_owned(), json!([r3(dot(d, fi.xdir)), r3(dot(d, fi.ydir)), 0.0]));
+                values.insert(
+                    "offset".to_owned(),
+                    json!([r3(dot(d, fi.xdir)), r3(dot(d, fi.ydir)), 0.0]),
+                );
                 if tool.key == "thread" {
                     super::place_refs::thread_after_place(values, ctx, id);
                 }

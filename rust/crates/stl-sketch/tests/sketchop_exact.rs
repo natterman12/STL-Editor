@@ -12,7 +12,11 @@ fn case(name: &str) -> Value {
 }
 
 fn entities(v: &Value) -> Vec<Entity> {
-    v.as_array().unwrap().iter().map(|e| serde_json::from_value(e.clone()).unwrap()).collect()
+    v.as_array()
+        .unwrap()
+        .iter()
+        .map(|e| serde_json::from_value(e.clone()).unwrap())
+        .collect()
 }
 
 fn pt(v: &Value) -> [f64; 2] {
@@ -41,7 +45,9 @@ fn trim_arc_cuts_at_the_exact_crossings() {
     let got = ops::trim(&entities(&d["entities"]), d["id"].as_str().unwrap(), pt(&d["point"])).unwrap();
     let want = &c["result"]["entities"];
     for i in 0..2 {
-        let Entity::Arc(a) = &got[i] else { panic!("piece {i} is not an arc") };
+        let Entity::Arc(a) = &got[i] else {
+            panic!("piece {i} is not an arc")
+        };
         assert_eq!(a.a0, want[i]["a0"].as_f64().unwrap(), "piece {i} a0");
         assert_eq!(a.a1, want[i]["a1"].as_f64().unwrap(), "piece {i} a1");
     }
@@ -55,14 +61,27 @@ fn trim_arc_cuts_at_the_exact_crossings() {
 fn offset_open_chain_matches_js() {
     let c = case("offset_open");
     let d = &c["data"];
-    let ids: Vec<String> = d["ids"].as_array().unwrap().iter().map(|x| x.as_str().unwrap().into()).collect();
+    let ids: Vec<String> = d["ids"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|x| x.as_str().unwrap().into())
+        .collect();
     let mut n = 0;
     let mut nid = || {
         n += 1;
         format!("eg{n}")
     };
-    let got = ops::offset(&entities(&d["entities"]), &ids, d["distance"].as_f64().unwrap(), &mut nid).unwrap();
-    let Entity::Polyline(p) = got.last().unwrap() else { panic!("no offset polyline") };
+    let got = ops::offset(
+        &entities(&d["entities"]),
+        &ids,
+        d["distance"].as_f64().unwrap(),
+        &mut nid,
+    )
+    .unwrap();
+    let Entity::Polyline(p) = got.last().unwrap() else {
+        panic!("no offset polyline")
+    };
     let want: Vec<[f64; 2]> = c["result"]["entities"].as_array().unwrap().last().unwrap()["pts"]
         .as_array()
         .unwrap()

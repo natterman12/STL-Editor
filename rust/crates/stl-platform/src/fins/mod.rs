@@ -13,8 +13,8 @@ mod webview;
 
 pub use boa::BoaHost;
 pub use update::{
-    check_update, choose_engine, digest, engines_dir, finish_update_check, published_url, reset_fins_state, EngineInfo, FinsState,
-    Settings,
+    EngineInfo, FinsState, Settings, check_update, choose_engine, digest, engines_dir, finish_update_check,
+    published_url, reset_fins_state,
 };
 #[cfg(any(windows, target_os = "linux"))]
 pub use webview::WebviewHost;
@@ -37,7 +37,10 @@ pub fn start_fins_host(engine_js: &Path) -> Arc<dyn FinsHost> {
 
 /// `host` answering `__info` from the `VERSION.json` beside `engine_js`, as `start_fins_host`'s does.
 pub fn with_info(host: Arc<dyn FinsHost>, engine_js: &Path) -> Arc<dyn FinsHost> {
-    Arc::new(InfoHost { inner: host, version_json: engine_js.with_file_name("VERSION.json") })
+    Arc::new(InfoHost {
+        inner: host,
+        version_json: engine_js.with_file_name("VERSION.json"),
+    })
 }
 
 fn host_for(engine_js: &Path) -> Arc<dyn FinsHost> {

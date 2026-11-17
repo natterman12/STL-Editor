@@ -1,6 +1,6 @@
 use serde_json::{Map, Value};
 
-use super::common::{affine, pivot, transform_body, Vec3};
+use super::common::{Vec3, affine, pivot, transform_body};
 use crate::{Ctx, FeatureError, FeatureResult, Registry, State};
 
 fn string_list(v: Option<&Value>) -> Vec<String> {
@@ -41,13 +41,18 @@ fn factor3(p: &Map<String, Value>) -> Result<Vec3, FeatureError> {
     match p.get("factor") {
         None | Some(Value::Null) => Ok([1.0, 1.0, 1.0]),
         Some(Value::Number(n)) => {
-            let k = n.as_f64().ok_or_else(|| FeatureError("factor must be a number.".into()))?;
+            let k = n
+                .as_f64()
+                .ok_or_else(|| FeatureError("factor must be a number.".into()))?;
             Ok([k, k, k])
         }
         Some(Value::Array(a)) if a.len() == 3 => Ok([
-            a[0].as_f64().ok_or_else(|| FeatureError("factor must be a number.".into()))?,
-            a[1].as_f64().ok_or_else(|| FeatureError("factor must be a number.".into()))?,
-            a[2].as_f64().ok_or_else(|| FeatureError("factor must be a number.".into()))?,
+            a[0].as_f64()
+                .ok_or_else(|| FeatureError("factor must be a number.".into()))?,
+            a[1].as_f64()
+                .ok_or_else(|| FeatureError("factor must be a number.".into()))?,
+            a[2].as_f64()
+                .ok_or_else(|| FeatureError("factor must be a number.".into()))?,
         ]),
         Some(Value::Bool(b)) => {
             let k = if *b { 1.0 } else { 0.0 };
@@ -61,9 +66,12 @@ fn vec3_size(p: &Map<String, Value>, fallback: Vec3) -> Result<Vec3, FeatureErro
     match p.get("size") {
         None | Some(Value::Null) => Ok(fallback),
         Some(Value::Array(a)) if a.len() == 3 => Ok([
-            a[0].as_f64().ok_or_else(|| FeatureError("size must be a number.".into()))?,
-            a[1].as_f64().ok_or_else(|| FeatureError("size must be a number.".into()))?,
-            a[2].as_f64().ok_or_else(|| FeatureError("size must be a number.".into()))?,
+            a[0].as_f64()
+                .ok_or_else(|| FeatureError("size must be a number.".into()))?,
+            a[1].as_f64()
+                .ok_or_else(|| FeatureError("size must be a number.".into()))?,
+            a[2].as_f64()
+                .ok_or_else(|| FeatureError("size must be a number.".into()))?,
         ]),
         _ => Err(FeatureError("size must be a number.".into())),
     }
@@ -123,12 +131,14 @@ fn f_scale(
                         Some(Value::Number(n)) => {
                             n.as_i64().or_else(|| n.as_f64().map(|f| f as i64)).unwrap_or(0) as isize
                         }
-                        Some(Value::Bool(b)) => if *b { 1 } else { 0 },
-                        Some(Value::String(s)) => s
-                            .trim()
-                            .parse::<i64>()
-                            .map(|i| i as isize)
-                            .unwrap_or(0),
+                        Some(Value::Bool(b)) => {
+                            if *b {
+                                1
+                            } else {
+                                0
+                            }
+                        }
+                        Some(Value::String(s)) => s.trim().parse::<i64>().map(|i| i as isize).unwrap_or(0),
                         _ => {
                             let mut best = 0usize;
                             let mut best_abs = (target[0] - size[0]).abs();
@@ -144,7 +154,7 @@ fn f_scale(
                     };
                     let axis = if axis < 0 {
                         let wrapped = axis + 3;
-                        if wrapped < 0 || wrapped > 2 {
+                        if !(0..=2).contains(&wrapped) {
                             return Err(FeatureError(format!(
                                 "index {axis} is out of bounds for axis 0 with size 3"
                             )));

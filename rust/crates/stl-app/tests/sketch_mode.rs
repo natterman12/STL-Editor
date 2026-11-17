@@ -10,15 +10,15 @@ mod test_env;
 use std::sync::{Arc, Mutex};
 
 use egui::Pos2;
-use egui_kittest::kittest::Queryable;
 use egui_kittest::Harness;
-use serde_json::{json, Value};
+use egui_kittest::kittest::Queryable;
+use serde_json::{Value, json};
 use stl_app::app::StlApp;
 use stl_app::engine_link::{BodyView, Command, EngineLink, TimelineItem, TimelineView, Update};
 use stl_app::platform::NullPlatform;
 use stl_app::sketch::{Entity, SketchSession};
-use stl_app::ui::ribbon;
 use stl_app::ui::ThemePref;
+use stl_app::ui::ribbon;
 use stl_kernel::MeshArrays;
 
 #[derive(Clone, Default)]
@@ -57,21 +57,56 @@ impl Rec {
 
 fn cube(s: f32) -> Arc<MeshArrays> {
     let h = s / 2.0;
-    let p = [[-h, -h, 0.0], [h, -h, 0.0], [h, h, 0.0], [-h, h, 0.0], [-h, -h, s], [h, -h, s], [h, h, s], [-h, h, s]];
-    let t: [u32; 36] = [0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7, 0, 1, 5, 0, 5, 4, 1, 2, 6, 1, 6, 5, 2, 3, 7, 2, 7, 6, 3, 0, 4, 3, 4, 7];
-    Arc::new(MeshArrays { positions: p.iter().flatten().copied().collect(), triangles: t.to_vec() })
+    let p = [
+        [-h, -h, 0.0],
+        [h, -h, 0.0],
+        [h, h, 0.0],
+        [-h, h, 0.0],
+        [-h, -h, s],
+        [h, -h, s],
+        [h, h, s],
+        [-h, h, s],
+    ];
+    let t: [u32; 36] = [
+        0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7, 0, 1, 5, 0, 5, 4, 1, 2, 6, 1, 6, 5, 2, 3, 7, 2, 7, 6, 3, 0, 4, 3, 4, 7,
+    ];
+    Arc::new(MeshArrays {
+        positions: p.iter().flatten().copied().collect(),
+        triangles: t.to_vec(),
+    })
 }
 
 fn body(id: &str) -> BodyView {
-    BodyView { id: id.into(), name: id.into(), color: Some("#9aa7b4".into()), hidden: false, solid: true, mesh: cube(20.0), revision: 1, holds_up: None }
+    BodyView {
+        id: id.into(),
+        name: id.into(),
+        color: Some("#9aa7b4".into()),
+        hidden: false,
+        solid: true,
+        mesh: cube(20.0),
+        revision: 1,
+        holds_up: None,
+    }
 }
 
 fn item(id: &str, kind: &str, params: Value) -> TimelineItem {
-    TimelineItem { id: id.into(), kind: kind.into(), label: format!("{kind} {id}"), active: true, params, ..Default::default() }
+    TimelineItem {
+        id: id.into(),
+        kind: kind.into(),
+        label: format!("{kind} {id}"),
+        active: true,
+        params,
+        ..Default::default()
+    }
 }
 
 fn timeline(items: Vec<TimelineItem>, marker: Option<usize>) -> Update {
-    Update::Timeline(TimelineView { items, marker, can_undo: true, can_redo: false })
+    Update::Timeline(TimelineView {
+        items,
+        marker,
+        can_undo: true,
+        can_redo: false,
+    })
 }
 
 /// The app on a recording link with one cube, drawn for a few frames (the viewport has flushed).
@@ -79,17 +114,20 @@ fn scene(rec: &Rec) -> Harness<'static, StlApp> {
     let app = StlApp::new(&egui::Context::default(), Box::new(NullPlatform), Box::new(rec.clone()));
     rec.push(Update::Bodies(vec![body("b1")]));
     let mut init = false;
-    let mut h = Harness::builder().with_size(egui::vec2(1280.0, 800.0)).with_accessibility_check(false).build_ui_state(
-        move |ui, a: &mut StlApp| {
-            if !init {
-                init = true;
-                stl_app::fonts::install(ui.ctx());
-                a.set_theme(ui.ctx(), ThemePref::Dark);
-            }
-            a.layout(ui)
-        },
-        app,
-    );
+    let mut h = Harness::builder()
+        .with_size(egui::vec2(1280.0, 800.0))
+        .with_accessibility_check(false)
+        .build_ui_state(
+            move |ui, a: &mut StlApp| {
+                if !init {
+                    init = true;
+                    stl_app::fonts::install(ui.ctx());
+                    a.set_theme(ui.ctx(), ThemePref::Dark);
+                }
+                a.layout(ui)
+            },
+            app,
+        );
     h.run_steps(3);
     h.state_mut().viewport.flush();
     h.run_steps(1);
@@ -105,7 +143,8 @@ fn rect(id: &str) -> Entity {
 }
 
 fn polyline_open(id: &str) -> Entity {
-    serde_json::from_value(json!({ "id": id, "type": "polyline", "closed": false, "pts": [[0, 0], [5, 0], [5, 5]] })).unwrap()
+    serde_json::from_value(json!({ "id": id, "type": "polyline", "closed": false, "pts": [[0, 0], [5, 0], [5, 5]] }))
+        .unwrap()
 }
 
 fn sess<'a>(h: &'a mut Harness<'_, StlApp>) -> &'a mut SketchSession {
@@ -118,10 +157,32 @@ fn sess<'a>(h: &'a mut Harness<'_, StlApp>) -> &'a mut SketchSession {
 fn search_lists_sketch_tools() {
     // while a sketch is open the tool search offers the sketch tools (app.js:165) and nothing else
     let keys: Vec<String> = ribbon::all_commands_in(true).into_iter().map(|c| c.k).collect();
-    for k in ["line", "arc3", "rect", "rect_center", "circle", "polygon", "slot", "text", "trim", "select", "c_dimension", "c_hv", "finish", "finish_extrude", "sk_cancel", "look"] {
+    for k in [
+        "line",
+        "arc3",
+        "rect",
+        "rect_center",
+        "circle",
+        "polygon",
+        "slot",
+        "text",
+        "trim",
+        "select",
+        "c_dimension",
+        "c_hv",
+        "finish",
+        "finish_extrude",
+        "sk_cancel",
+        "look",
+    ] {
         assert!(keys.iter().any(|x| x == k), "{k} is searchable in a sketch");
     }
-    assert!(!keys.iter().any(|k| k == "primitive_box" || k == "extrude" || k == "hole"), "model tools are not listed: {keys:?}");
+    assert!(
+        !keys
+            .iter()
+            .any(|k| k == "primitive_box" || k == "extrude" || k == "hole"),
+        "model tools are not listed: {keys:?}"
+    );
     assert!(ribbon::search_in("trim", true).iter().any(|c| c.k == "trim"));
     assert!(ribbon::search_in("constr", true).iter().any(|c| c.k == "construction"));
     assert!(ribbon::search_in("box", true).is_empty());
@@ -145,10 +206,19 @@ fn begin_prompts_for_a_plane() {
     assert_eq!(t.def.key, "sketch");
     assert_eq!(t.title(), "Create Sketch");
     assert_eq!(t.ok_label, "Start");
-    assert!(h.state().viewport.base_planes_visible(), "the origin planes show, to be picked");
+    assert!(
+        h.state().viewport.base_planes_visible(),
+        "the origin planes show, to be picked"
+    );
     assert_eq!(h.state().shell.hint, "Select a plane or flat face to sketch on");
     assert!(h.query_by_label("Start").is_some(), "the Start button");
-    assert!(h.query_by_label_contains("Click a flat face of a body, a construction plane, or one of the origin planes (XY, XZ, YZ).").is_some(), "the info line, word for word");
+    assert!(
+        h.query_by_label_contains(
+            "Click a flat face of a body, a construction plane, or one of the origin planes (XY, XZ, YZ)."
+        )
+        .is_some(),
+        "the info line, word for word"
+    );
     // nothing is added by choosing a plane: Start enters the sketch
     h.state_mut().tool_set_value("plane", json!("XZ"));
     h.state_mut().tool_ok();
@@ -157,7 +227,10 @@ fn begin_prompts_for_a_plane() {
     let s = h.state().sketch().expect("the sketch opened on the plane");
     assert_eq!(s.plane_ref, json!("XZ"));
     assert!(rec.adds().is_empty());
-    assert!(!h.state().viewport.base_planes_visible(), "the planes go once the sketch is open");
+    assert!(
+        !h.state().viewport.base_planes_visible(),
+        "the planes go once the sketch is open"
+    );
 }
 
 #[test]
@@ -179,7 +252,10 @@ fn enter_from_face_and_origin_plane() {
         _ => None,
     });
     let ask = ask.expect("refs was asked");
-    assert_eq!(ask["frame"], json!([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]));
+    assert_eq!(
+        ask["frame"],
+        json!([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
+    );
     assert_eq!(ask["entities"], json!([]));
     // the panel, the hint and the ribbon are the sketch's
     assert_eq!(h.state().ribbon_tab(), "sketch");
@@ -249,12 +325,19 @@ fn edit_then_cancel_restores() {
     let mut h = scene(&rec);
     let params = json!({ "plane": "XY", "entities": [{ "id": "a", "type": "line", "p1": [0, 0], "p2": [10, 0] }], "refs": [], "constraints": [] });
     // the model is rolled back to the end of the second step; the sketch is the first
-    rec.push(timeline(vec![item("f1", "sketch", params.clone()), item("f2", "hole", json!({}))], Some(2)));
+    rec.push(timeline(
+        vec![item("f1", "sketch", params.clone()), item("f2", "hole", json!({}))],
+        Some(2),
+    ));
     h.run_steps(2);
     let tl_before = h.state().timeline_view.clone();
     assert!(h.state_mut().edit_feature("f1"));
     h.run_steps(2);
-    assert!(rec.commands().iter().any(|c| matches!(c, Command::Rollback(Some(0)))), "the timeline rolls back to the sketch: {:?}", rec.commands());
+    assert!(
+        rec.commands().iter().any(|c| matches!(c, Command::Rollback(Some(0)))),
+        "the timeline rolls back to the sketch: {:?}",
+        rec.commands()
+    );
     {
         let s = h.state().sketch().expect("editing");
         assert_eq!(s.feature_id.as_deref(), Some("f1"));
@@ -267,13 +350,26 @@ fn edit_then_cancel_restores() {
     h.state_mut().cancel_sketch();
     h.run_steps(2);
     assert!(h.state().sketch().is_none());
-    assert!(matches!(rec.commands().last(), Some(Command::Rollback(Some(2)))), "Cancel puts the rollback back: {:?}", rec.commands().last());
-    assert!(rec.commands().iter().all(|c| !matches!(c, Command::EditFeature { .. })), "nothing was sent as an edit");
+    assert!(
+        matches!(rec.commands().last(), Some(Command::Rollback(Some(2)))),
+        "Cancel puts the rollback back: {:?}",
+        rec.commands().last()
+    );
+    assert!(
+        rec.commands().iter().all(|c| !matches!(c, Command::EditFeature { .. })),
+        "nothing was sent as an edit"
+    );
     // the step is what it was
     assert_eq!(h.state().timeline_view.items[0].params, params);
-    assert_eq!(format!("{:?}", h.state().timeline_view.items), format!("{:?}", tl_before.items));
+    assert_eq!(
+        format!("{:?}", h.state().timeline_view.items),
+        format!("{:?}", tl_before.items)
+    );
     // the step is edited again, and Finish sends one edit that puts the old rollback back
-    rec.push(timeline(vec![item("f1", "sketch", params.clone()), item("f2", "hole", json!({}))], Some(2)));
+    rec.push(timeline(
+        vec![item("f1", "sketch", params.clone()), item("f2", "hole", json!({}))],
+        Some(2),
+    ));
     h.run_steps(2);
     assert!(h.state_mut().edit_feature("f1"));
     h.state_mut().finish_sketch(false);
@@ -299,8 +395,14 @@ fn ctrl_z_in_sketch_is_local() {
     }
     h.key_press_modifiers(egui::Modifiers::CTRL, egui::Key::Z);
     h.run_steps(2);
-    assert!(h.state().sketch().expect("still open").entities.is_empty(), "the sketch's last edit is undone");
-    assert!(rec.commands().iter().all(|c| !matches!(c, Command::Undo)), "the document's history is not touched");
+    assert!(
+        h.state().sketch().expect("still open").entities.is_empty(),
+        "the sketch's last edit is undone"
+    );
+    assert!(
+        rec.commands().iter().all(|c| !matches!(c, Command::Undo)),
+        "the document's history is not touched"
+    );
     // Finish; then Ctrl+Z undoes the sketch step
     {
         let s = sess(&mut h);
@@ -309,12 +411,18 @@ fn ctrl_z_in_sketch_is_local() {
     }
     h.state_mut().finish_sketch(false);
     let params = rec.adds()[0].1.clone();
-    rec.push(timeline(vec![item("f0", "primitive", json!({})), item("f1", "sketch", params)], None));
+    rec.push(timeline(
+        vec![item("f0", "primitive", json!({})), item("f1", "sketch", params)],
+        None,
+    ));
     h.run_steps(2);
     assert!(h.state().sketch().is_none());
     h.key_press_modifiers(egui::Modifiers::CTRL, egui::Key::Z);
     h.run_steps(2);
-    assert!(rec.commands().iter().any(|c| matches!(c, Command::Undo)), "after Finish Ctrl+Z is the document's");
+    assert!(
+        rec.commands().iter().any(|c| matches!(c, Command::Undo)),
+        "after Finish Ctrl+Z is the document's"
+    );
 }
 
 #[test]
@@ -337,7 +445,13 @@ fn finish_empty_and_open_profile() {
     sess(&mut h).entities.push(polyline_open("p"));
     h.state_mut().finish_sketch(true);
     assert_eq!(rec.adds().len(), 2);
-    rec.push(timeline(vec![item("f1", "sketch", json!({})), item("f2", "sketch", rec.adds()[1].1.clone())], None));
+    rec.push(timeline(
+        vec![
+            item("f1", "sketch", json!({})),
+            item("f2", "sketch", rec.adds()[1].1.clone()),
+        ],
+        None,
+    ));
     h.run_steps(2);
     assert!(h.state().sketch().is_none());
     assert!(h.state().tool().is_none(), "no closed profile: Extrude stays shut");
@@ -347,7 +461,14 @@ fn finish_empty_and_open_profile() {
     sess(&mut h).entities.push(rect("r"));
     h.state_mut().finish_sketch(true);
     assert_eq!(rec.adds().len(), 3);
-    rec.push(timeline(vec![item("f1", "sketch", json!({})), item("f2", "sketch", json!({})), item("f3", "sketch", rec.adds()[2].1.clone())], None));
+    rec.push(timeline(
+        vec![
+            item("f1", "sketch", json!({})),
+            item("f2", "sketch", json!({})),
+            item("f3", "sketch", rec.adds()[2].1.clone()),
+        ],
+        None,
+    ));
     h.run_steps(3);
     let t = h.state().tool().expect("Extrude opened");
     assert_eq!(t.def.key, "extrude");
@@ -363,13 +484,69 @@ fn ribbon_is_sketch_tab() {
     assert_eq!(d.tabs, vec![("sketch", "Sketch")]);
     assert!(d.pinned.items.is_empty(), "no Inspect group in a sketch");
     let labels = |g: usize| d.groups[g].tools().iter().map(|t| t.label).collect::<Vec<_>>();
-    assert_eq!(labels(0), ["Line", "Arc", "Rectangle", "Center Rectangle", "Circle", "Polygon", "Slot", "Text", "Project", "Use Edge", "Import SVG / DXF"]);
-    assert_eq!(labels(1), ["Select", "Trim", "Offset", "Mirror", "Round corner", "Delete", "Construction", "Look At"]);
+    assert_eq!(
+        labels(0),
+        [
+            "Line",
+            "Arc",
+            "Rectangle",
+            "Center Rectangle",
+            "Circle",
+            "Polygon",
+            "Slot",
+            "Text",
+            "Project",
+            "Use Edge",
+            "Import SVG / DXF"
+        ]
+    );
+    assert_eq!(
+        labels(1),
+        [
+            "Select",
+            "Trim",
+            "Offset",
+            "Mirror",
+            "Round corner",
+            "Delete",
+            "Construction",
+            "Look At"
+        ]
+    );
     assert_eq!(labels(2), ["Smart Dimension"]);
-    assert_eq!(labels(3), ["Coincident", "Horiz / Vert", "Parallel", "Perpendicular", "Equal", "Tangent", "Concentric", "Midpoint", "Fix", "Symmetric"]);
+    assert_eq!(
+        labels(3),
+        [
+            "Coincident",
+            "Horiz / Vert",
+            "Parallel",
+            "Perpendicular",
+            "Equal",
+            "Tangent",
+            "Concentric",
+            "Midpoint",
+            "Fix",
+            "Symmetric"
+        ]
+    );
     assert_eq!(labels(4), ["Finish", "Finish & Extrude", "Cancel"]);
     let keys: Vec<&str> = d.groups[0].tools().iter().map(|t| t.key).collect();
-    assert_eq!(keys, ["line", "arc3", "rect", "rect_center", "circle", "polygon", "slot", "text", "sk_project", "sk_useedge", "sk_import"]);
+    assert_eq!(
+        keys,
+        [
+            "line",
+            "arc3",
+            "rect",
+            "rect_center",
+            "circle",
+            "polygon",
+            "slot",
+            "text",
+            "sk_project",
+            "sk_useedge",
+            "sk_import"
+        ]
+    );
     match &d.groups[3].items[0] {
         ribbon::Item::Grid { tools, cols } => assert_eq!((*cols, tools.len()), (5, 10)),
         other => panic!("the relations are a 5-column grid: {other:?}"),
@@ -384,7 +561,15 @@ fn ribbon_is_sketch_tab() {
     assert!(h.query_by_label("Extrude").is_some(), "the model tab before");
     h.state_mut().enter_sketch(Some(json!("XY")), None);
     h.run_steps(3);
-    for l in ["Line", "Trim", "Smart Dimension", "Finish", "Finish & Extrude", "Cancel", "Coincident"] {
+    for l in [
+        "Line",
+        "Trim",
+        "Smart Dimension",
+        "Finish",
+        "Finish & Extrude",
+        "Cancel",
+        "Coincident",
+    ] {
         assert!(h.query_all_by_label(l).next().is_some(), "the {l} button");
     }
     assert!(h.query_by_label("Extrude").is_none(), "no model tools in a sketch");
@@ -404,7 +589,12 @@ fn ribbon_is_sketch_tab() {
         h.event(egui::Event::PointerMoved(p));
         h.run_steps(1);
         for pressed in [true, false] {
-            h.event(egui::Event::PointerButton { pos: p, button: egui::PointerButton::Primary, pressed, modifiers: egui::Modifiers::NONE });
+            h.event(egui::Event::PointerButton {
+                pos: p,
+                button: egui::PointerButton::Primary,
+                pressed,
+                modifiers: egui::Modifiers::NONE,
+            });
             h.run_steps(1);
         }
         h.run_steps(1);
@@ -412,7 +602,11 @@ fn ribbon_is_sketch_tab() {
     // (the sketch panel's Tool options also show "Center Rectangle" once the tool is a rectangle)
     let shown = |h: &Harness<'static, StlApp>| h.query_all_by_label("Center Rectangle").count();
     click(&mut h, Pos2::new(r.center().x, r.min.y + 12.0));
-    assert_eq!(h.state().sketch().unwrap().tool, "rect", "the icon starts the rectangle");
+    assert_eq!(
+        h.state().sketch().unwrap().tool,
+        "rect",
+        "the icon starts the rectangle"
+    );
     let in_panel = shown(&h);
     assert!(in_panel <= 1, "and opens no list");
     click(&mut h, Pos2::new(r.center().x, r.max.y - 6.0));
@@ -431,7 +625,10 @@ fn gizmo_hidden_in_sketch() {
     h.state_mut().begin_sketch(Some(json!("XY")));
     h.run_steps(3);
     assert!(h.state().sketch().is_some());
-    assert!(h.state().viewport.gizmo().is_none(), "no handles while a sketch is open");
+    assert!(
+        h.state().viewport.gizmo().is_none(),
+        "no handles while a sketch is open"
+    );
     assert!(h.state().tool().is_none());
 }
 
@@ -482,7 +679,9 @@ fn project_dialog_as_1x() {
     // the answer replaces the shapes and says how many outlines came in
     rec.push(Update::SketchOp {
         seq,
-        result: Ok(json!({ "entities": [{ "id": "p1", "type": "circle", "cx": 0, "cy": 0, "r": 5 }], "added": ["p1"] })),
+        result: Ok(
+            json!({ "entities": [{ "id": "p1", "type": "circle", "cx": 0, "cy": 0, "r": 5 }], "added": ["p1"] }),
+        ),
     });
     h.run_steps(3);
     assert_eq!(h.state().sketch().unwrap().entities.len(), 1);
@@ -491,7 +690,7 @@ fn project_dialog_as_1x() {
 
 #[test]
 fn over_defined_dimension_asks_first() {
-    use stl_app::sketch::{dims, Constraint, SketchEffect};
+    use stl_app::sketch::{Constraint, SketchEffect, dims};
     let rec = Rec::default();
     let mut h = scene(&rec);
     h.state_mut().enter_sketch(Some(json!("XY")), None);
@@ -506,7 +705,10 @@ fn over_defined_dimension_asks_first() {
     }
     // the same size again: the sketch already sets it, so it asks
     let fx = dims::place_dimension(sess(&mut h), &dim("k2"), String::new());
-    assert!(fx.iter().any(|e| matches!(e, SketchEffect::Dialog(stl_app::sketch::SketchDialog::OverDefined(_)))));
+    assert!(
+        fx.iter()
+            .any(|e| matches!(e, SketchEffect::Dialog(stl_app::sketch::SketchDialog::OverDefined(_))))
+    );
     assert_eq!(sess(&mut h).constraints.len(), 1, "nothing added until it is answered");
     h.state_mut().sketch_apply(fx);
     h.run_steps(2);
@@ -536,7 +738,7 @@ fn over_defined_dimension_asks_first() {
 
 #[test]
 fn dialog_blocks_sketch_keys() {
-    use stl_app::sketch::{dims, Constraint, SketchEffect};
+    use stl_app::sketch::{Constraint, SketchEffect, dims};
     let rec = Rec::default();
     let mut h = scene(&rec);
     h.state_mut().enter_sketch(Some(json!("XY")), None);
@@ -551,14 +753,20 @@ fn dialog_blocks_sketch_keys() {
         s.sel.insert("L".into());
     }
     let fx = dims::place_dimension(sess(&mut h), &dim("k2"), String::new());
-    assert!(fx.iter().any(|e| matches!(e, SketchEffect::Dialog(stl_app::sketch::SketchDialog::OverDefined(_)))));
+    assert!(
+        fx.iter()
+            .any(|e| matches!(e, SketchEffect::Dialog(stl_app::sketch::SketchDialog::OverDefined(_))))
+    );
     h.state_mut().sketch_apply(fx);
     h.run_steps(2);
     assert!(h.query_by_label("Over defined").is_some());
     // Delete would remove the selected line; the open question takes the key instead
     h.key_press(egui::Key::Delete);
     h.run_steps(2);
-    assert!(sess(&mut h).entities.iter().any(|e| e.id() == Some("L")), "the sketch tools got no key");
+    assert!(
+        sess(&mut h).entities.iter().any(|e| e.id() == Some("L")),
+        "the sketch tools got no key"
+    );
     assert!(h.query_by_label("Over defined").is_some(), "still asking");
     // once answered, keys reach the sketch again
     h.key_press(egui::Key::Escape);
@@ -566,7 +774,10 @@ fn dialog_blocks_sketch_keys() {
     assert!(h.query_by_label("Over defined").is_none());
     h.key_press(egui::Key::Delete);
     h.run_steps(2);
-    assert!(!sess(&mut h).entities.iter().any(|e| e.id() == Some("L")), "Delete works again");
+    assert!(
+        !sess(&mut h).entities.iter().any(|e| e.id() == Some("L")),
+        "Delete works again"
+    );
 }
 
 #[test]
@@ -582,17 +793,32 @@ fn dimension_box_applies_on_outside_press() {
         let c: Constraint = serde_json::from_value(json!({ "id": "k1", "type": "hdistance", "a": { "e": "L", "k": "p1" }, "b": { "e": "L", "k": "p2" }, "off": 8, "slide": 0, "value": 10 })).unwrap();
         s.constraints.push(c);
     }
-    h.state_mut().sketch_mode_mut().unwrap().panel.modify = Some(stl_app::sketch::panel::Modify { idx: 0, text: "20".into(), fresh: true });
+    h.state_mut().sketch_mode_mut().unwrap().panel.modify = Some(stl_app::sketch::panel::Modify {
+        idx: 0,
+        text: "20".into(),
+        fresh: true,
+    });
     h.run_steps(3);
-    assert!(h.state_mut().sketch_mode_mut().unwrap().panel.modify.is_some(), "the box stays open until something happens");
+    assert!(
+        h.state_mut().sketch_mode_mut().unwrap().panel.modify.is_some(),
+        "the box stays open until something happens"
+    );
     // a press elsewhere applies the typed value
     let pos = Pos2::new(640.0, 700.0);
     for pressed in [true, false] {
-        h.event(egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers: egui::Modifiers::NONE });
+        h.event(egui::Event::PointerButton {
+            pos,
+            button: egui::PointerButton::Primary,
+            pressed,
+            modifiers: egui::Modifiers::NONE,
+        });
         h.run_steps(1);
     }
     h.run_steps(2);
-    assert!(h.state_mut().sketch_mode_mut().unwrap().panel.modify.is_none(), "the box closed");
+    assert!(
+        h.state_mut().sketch_mode_mut().unwrap().panel.modify.is_none(),
+        "the box closed"
+    );
     assert_eq!(sess(&mut h).constraints[0].value, Some(20.0), "the value was applied");
 }
 
@@ -609,7 +835,10 @@ fn inch_mode_snaps_to_a_sixteenth() {
     h.run_steps(2);
     assert!(h.state().shell.inch);
     assert_eq!(h.state().sketch_mode().unwrap().panel.snap_step, 25.4 / 16.0);
-    assert!(h.query_by_label("Showing inches. Models are still saved in millimetres.").is_some());
+    assert!(
+        h.query_by_label("Showing inches. Models are still saved in millimetres.")
+            .is_some()
+    );
     h.state_mut().cancel_sketch();
     h.state_mut().enter_sketch(Some(json!("XY")), None);
     h.run_steps(2);
@@ -631,7 +860,9 @@ fn seeded_dims_solve_to_size() {
     h.run_steps(2);
     {
         let s = sess(&mut h);
-        s.entities.push(serde_json::from_value(json!({"id": "ea", "type": "rect", "x": 5, "y": 5, "w": 20, "h": 10})).unwrap());
+        s.entities.push(
+            serde_json::from_value(json!({"id": "ea", "type": "rect", "x": 5, "y": 5, "w": 20, "h": 10})).unwrap(),
+        );
         for c in [
             json!({"id": "dw", "type": "hdistance", "a": {"e": "ea", "k": "c0"}, "b": {"e": "ea", "k": "c1"}, "value": 30}),
             json!({"id": "dh", "type": "vdistance", "a": {"e": "ea", "k": "c1"}, "b": {"e": "ea", "k": "c2"}, "value": 12}),
@@ -644,9 +875,21 @@ fn seeded_dims_solve_to_size() {
     h.run_steps(2);
     let m = h.state().sketch_mode().unwrap();
     assert_eq!(m.state.msg.as_deref(), Some("Fully defined"));
-    let Entity::Rect(r) = &m.s.entities[0] else { panic!("rect") };
-    assert!((r.w.abs() - 30.0).abs() < 1e-6 && (r.h.abs() - 12.0).abs() < 1e-6, "{} × {}", r.w, r.h);
-    assert!(r.x.abs() < 1e-6 && r.y.abs() < 1e-6, "corner on the origin: {}, {}", r.x, r.y);
+    let Entity::Rect(r) = &m.s.entities[0] else {
+        panic!("rect")
+    };
+    assert!(
+        (r.w.abs() - 30.0).abs() < 1e-6 && (r.h.abs() - 12.0).abs() < 1e-6,
+        "{} × {}",
+        r.w,
+        r.h
+    );
+    assert!(
+        r.x.abs() < 1e-6 && r.y.abs() < 1e-6,
+        "corner on the origin: {}, {}",
+        r.x,
+        r.y
+    );
 }
 
 /// The `missing_ref` flow: the box grows (40×20 to 55×28) and a saved top-edge reference is
@@ -684,14 +927,22 @@ fn closed_rect_produces_a_fill() {
         let s = sess(&mut h);
         s.entities.push(rect("r"));
         s.entities.push(polyline_open("p"));
-        s.entities.push(serde_json::from_value(json!({ "id": "c", "type": "rect", "x": 20, "y": 0, "w": 4, "h": 4, "construction": true })).unwrap());
+        s.entities.push(
+            serde_json::from_value(
+                json!({ "id": "c", "type": "rect", "x": 20, "y": 0, "w": 4, "h": 4, "construction": true }),
+            )
+            .unwrap(),
+        );
     }
     h.state_mut().sketch_mode_mut().unwrap().dirty = true;
     h.run_steps(2);
 
     let peach = [0x78, 0x96, 0xc8, 40];
     let area = fill_area(&h);
-    assert!((area - 50.0).abs() < 1e-3, "10×5 rect, not the open curve or the construction rect: {area}");
+    assert!(
+        (area - 50.0).abs() < 1e-3,
+        "10×5 rect, not the open curve or the construction rect: {area}"
+    );
     assert!(fill_is_peach_under_strokes(&h, peach));
 
     {
@@ -703,7 +954,10 @@ fn closed_rect_produces_a_fill() {
     h.state_mut().viewport.set_theme(false);
     h.run_steps(2);
     assert!((fill_area(&h) - 50.0).abs() < 1e-3);
-    assert!(fill_is_peach_under_strokes(&h, peach), "fill stays blue when selected, under-defined, or in the light theme");
+    assert!(
+        fill_is_peach_under_strokes(&h, peach),
+        "fill stays blue when selected, under-defined, or in the light theme"
+    );
 }
 
 fn fill_area(h: &Harness<'_, StlApp>) -> f64 {
@@ -725,8 +979,14 @@ fn fill_area(h: &Harness<'_, StlApp>) -> f64 {
 
 fn fill_is_peach_under_strokes(h: &Harness<'_, StlApp>, peach: [u8; 4]) -> bool {
     let items = h.state().viewport.overlay_items();
-    let fills: Vec<_> = items.iter().filter(|o| o.tag == "sketch:ents" && !o.tris.is_empty()).collect();
-    let strokes: Vec<_> = items.iter().filter(|o| o.tag == "sketch:ents" && !o.lines.is_empty()).collect();
+    let fills: Vec<_> = items
+        .iter()
+        .filter(|o| o.tag == "sketch:ents" && !o.tris.is_empty())
+        .collect();
+    let strokes: Vec<_> = items
+        .iter()
+        .filter(|o| o.tag == "sketch:ents" && !o.lines.is_empty())
+        .collect();
     fills.len() == 1
         && fills[0].order == 8
         && fills[0].depth == stl_app::viewport::overlays::Depth::Off
@@ -749,10 +1009,16 @@ fn status_line_shows_pointer_and_definition() {
         m.state.msg = Some("Under defined: 4 more dimensions needed".into());
     }
     h.run_steps(2);
-    assert_eq!(h.state().status_text, "Sketch  X 25  Y 15 mm   ·   Under defined: 4 more dimensions needed");
+    assert_eq!(
+        h.state().status_text,
+        "Sketch  X 25  Y 15 mm   ·   Under defined: 4 more dimensions needed"
+    );
     h.state_mut().sketch_mode_mut().unwrap().snapped = true;
     h.run_steps(2);
-    assert_eq!(h.state().status_text, "Sketch  X 25  Y 15 mm  · snapped   ·   Under defined: 4 more dimensions needed");
+    assert_eq!(
+        h.state().status_text,
+        "Sketch  X 25  Y 15 mm  · snapped   ·   Under defined: 4 more dimensions needed"
+    );
     h.state_mut().set_units_inch(true);
     h.run_steps(2);
     {
@@ -761,7 +1027,10 @@ fn status_line_shows_pointer_and_definition() {
         m.snapped = false;
     }
     h.run_steps(2);
-    assert_eq!(h.state().status_text, "Sketch  X 1  Y 0.5 in   ·   Under defined: 4 more dimensions needed");
+    assert_eq!(
+        h.state().status_text,
+        "Sketch  X 1  Y 0.5 in   ·   Under defined: 4 more dimensions needed"
+    );
 }
 
 #[test]
@@ -786,16 +1055,38 @@ fn engine_names_sketches_one_and_two() {
     use stl_app::engine_link::worker::Worker;
     let log: Arc<Mutex<Vec<Update>>> = Arc::new(Mutex::new(Vec::new()));
     let sink = log.clone();
-    let mut w = Worker::new(Arc::new(move |u| sink.lock().unwrap().push(u)), Arc::new(AtomicBool::new(false)));
+    let mut w = Worker::new(
+        Arc::new(move |u| sink.lock().unwrap().push(u)),
+        Arc::new(AtomicBool::new(false)),
+    );
     let params = json!({"plane": "XY", "entities": [{"id": "r1", "type": "rect", "x": 0, "y": 0, "w": 20, "h": 10}]});
     let names = |log: &Arc<Mutex<Vec<Update>>>| {
         let ups = std::mem::take(&mut *log.lock().unwrap());
-        ups.into_iter().rev().find_map(|u| if let Update::Sketches(s) = u { Some(s) } else { None }).unwrap()
+        ups.into_iter()
+            .rev()
+            .find_map(|u| if let Update::Sketches(s) = u { Some(s) } else { None })
+            .unwrap()
     };
-    w.handle(Command::AddFeature { kind: "sketch".into(), params: params.clone(), index: None, name: None });
-    assert_eq!(names(&log).iter().map(|s| s.name.clone()).collect::<Vec<_>>(), ["Sketch1"]);
-    w.handle(Command::AddFeature { kind: "sketch".into(), params, index: None, name: None });
-    assert_eq!(names(&log).iter().map(|s| s.name.clone()).collect::<Vec<_>>(), ["Sketch1", "Sketch2"]);
+    w.handle(Command::AddFeature {
+        kind: "sketch".into(),
+        params: params.clone(),
+        index: None,
+        name: None,
+    });
+    assert_eq!(
+        names(&log).iter().map(|s| s.name.clone()).collect::<Vec<_>>(),
+        ["Sketch1"]
+    );
+    w.handle(Command::AddFeature {
+        kind: "sketch".into(),
+        params,
+        index: None,
+        name: None,
+    });
+    assert_eq!(
+        names(&log).iter().map(|s| s.name.clone()).collect::<Vec<_>>(),
+        ["Sketch1", "Sketch2"]
+    );
 }
 
 #[test]
@@ -803,7 +1094,11 @@ fn browser_sketch_row_has_a_count_tag() {
     use stl_app::engine_link::{SketchOutline, SketchView};
     let rec = Rec::default();
     let mut h = scene(&rec);
-    let o = SketchOutline { pts: vec![[0.0, 0.0], [5.0, 0.0], [5.0, 5.0]], closed: false, construction: false };
+    let o = SketchOutline {
+        pts: vec![[0.0, 0.0], [5.0, 0.0], [5.0, 5.0]],
+        closed: false,
+        construction: false,
+    };
     rec.push(Update::Sketches(vec![SketchView {
         id: "s1".into(),
         name: "Sketch1".into(),
@@ -813,5 +1108,8 @@ fn browser_sketch_row_has_a_count_tag() {
     }]));
     h.run_steps(3);
     assert!(h.query_by_label("Sketch1").is_some());
-    assert!(h.query_by_label("7").is_some(), "the shape count sits at the end of the row");
+    assert!(
+        h.query_by_label("7").is_some(),
+        "the shape count sits at the end of the row"
+    );
 }

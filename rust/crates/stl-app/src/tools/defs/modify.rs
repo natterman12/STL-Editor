@@ -1,9 +1,9 @@
 //! MODEL modify tools (hole through shell).
 
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 
 use super::fields::{connector_fields_split, ops_options, show_targets};
-use super::tables::{self, axv, THREAD_SIZES};
+use super::tables::{self, THREAD_SIZES, axv};
 use super::util::*;
 use super::{Ctx, DragSpec, Field, FieldKind, ToolDef, ToolFlags, Values};
 
@@ -69,7 +69,10 @@ fn to_params_hole(v: &Values, _: &Ctx) -> Value {
     m.remove("point");
     // M7: `point_refs` is saved only when a point was measured from something (older projects
     // and plain holes keep exactly the params they had); `_from_pick` goes in `params_cleanup`
-    if m.get("point_refs").and_then(Value::as_array).is_some_and(|a| a.iter().all(|l| l.as_array().is_none_or(Vec::is_empty))) {
+    if m.get("point_refs")
+        .and_then(Value::as_array)
+        .is_some_and(|a| a.iter().all(|l| l.as_array().is_none_or(Vec::is_empty)))
+    {
         m.remove("point_refs");
     }
     params_cleanup(Value::Object(m))
@@ -127,7 +130,12 @@ pub fn hole() -> ToolDef {
             Field {
                 key: "kind",
                 label: "Type",
-                kind: super::fields::opts(&[("simple", "Simple"), ("counterbore", "C-bore"), ("countersink", "C-sink"), ("hex", "Nut trap")]),
+                kind: super::fields::opts(&[
+                    ("simple", "Simple"),
+                    ("counterbore", "C-bore"),
+                    ("countersink", "C-sink"),
+                    ("hex", "Nut trap"),
+                ]),
                 help: None,
                 placeholder: None,
                 show: None,
@@ -221,7 +229,9 @@ pub fn hole() -> ToolDef {
                 show: None,
             },
         ],
-        hint: Some("Click faces to place holes (click again to add more). Presets size inserts, screws, nut traps and magnets with print tolerance"),
+        hint: Some(
+            "Click faces to place holes (click again to add more). Presets size inserts, screws, nut traps and magnets with print tolerance",
+        ),
         extra: None,
         flags: ToolFlags::default(),
         defaults: defaults_hole,
@@ -295,7 +305,9 @@ pub fn combine() -> ToolDef {
                 key: "clearance",
                 label: "Clearance",
                 kind: FieldKind::Number { unit: Some("mm") },
-                help: Some("Grow the tool bodies first, so a part made to fit this cut-out isn't too tight. 0.2–0.3 mm suits most FDM printers."),
+                help: Some(
+                    "Grow the tool bodies first, so a part made to fit this cut-out isn't too tight. 0.2–0.3 mm suits most FDM printers.",
+                ),
                 placeholder: None,
                 show: Some(show_combine_clearance),
             },
@@ -437,9 +449,18 @@ pub fn split() -> ToolDef {
         icon: "split",
         kind: "split",
         fields,
-        hint: Some("Pick a body, then a plane or flat face to cut it with · add connectors so the pieces line up when you glue them"),
+        hint: Some(
+            "Pick a body, then a plane or flat face to cut it with · add connectors so the pieces line up when you glue them",
+        ),
         extra: None,
-        flags: ToolFlags { drag: Some(DragSpec { plane: "plane", distance: "offset", body: "body" }), ..ToolFlags::default() },
+        flags: ToolFlags {
+            drag: Some(DragSpec {
+                plane: "plane",
+                distance: "offset",
+                body: "body",
+            }),
+            ..ToolFlags::default()
+        },
         defaults: defaults_split,
         to_params: to_params_split,
         from_params: from_params_split,
@@ -466,7 +487,9 @@ fn defaults_thread(_: &Ctx) -> Values {
 
 fn to_params_thread(v: &Values, _: &Ctx) -> Value {
     let mut m = v.clone();
-    let row = THREAD_SIZES.iter().find(|(id, _, _, _, _)| Some(*id) == get_str(v, "size") && *id != "custom");
+    let row = THREAD_SIZES
+        .iter()
+        .find(|(id, _, _, _, _)| Some(*id) == get_str(v, "size") && *id != "custom");
     if let Some(t) = row {
         if get_str(v, "kind") == Some("external") {
             m.insert("body_name".into(), json!(format!("{} screw", t.0)));
@@ -627,9 +650,14 @@ pub fn thread() -> ToolDef {
                 show: Some(show_targets),
             },
         ],
-        hint: Some("Click a face to put the thread there (tapped holes go into the face, screws stand on it). For FDM, pitches of 1 mm or more and 0.2–0.4 mm clearance print best"),
+        hint: Some(
+            "Click a face to put the thread there (tapped holes go into the face, screws stand on it). For FDM, pitches of 1 mm or more and 0.2–0.4 mm clearance print best",
+        ),
         extra: None,
-        flags: ToolFlags { place_on_face: true, ..ToolFlags::default() },
+        flags: ToolFlags {
+            place_on_face: true,
+            ..ToolFlags::default()
+        },
         defaults: defaults_thread,
         to_params: to_params_thread,
         from_params: from_params_thread,
@@ -669,9 +697,14 @@ pub fn offset_tool() -> ToolDef {
                 show: None,
             },
         ],
-        hint: Some("Makes the whole body bigger or smaller by the same distance everywhere: for fit adjustments, moulds and clearance. Detailed meshes take a few seconds"),
+        hint: Some(
+            "Makes the whole body bigger or smaller by the same distance everywhere: for fit adjustments, moulds and clearance. Detailed meshes take a few seconds",
+        ),
         extra: None,
-        flags: ToolFlags { no_live_preview: true, ..ToolFlags::default() },
+        flags: ToolFlags {
+            no_live_preview: true,
+            ..ToolFlags::default()
+        },
         defaults: |ctx| {
             values(&[
                 ("bodies", json!(sel_body(ctx))),
@@ -729,7 +762,9 @@ pub fn thincheck() -> ToolDef {
                 show: None,
             },
         ],
-        hint: Some("Finds walls, pins and ribs thinner than the minimum, which may not print. The result shows below and nothing is changed. 0.8 mm suits a 0.4 mm nozzle. Click Apply to keep the check in the timeline"),
+        hint: Some(
+            "Finds walls, pins and ribs thinner than the minimum, which may not print. The result shows below and nothing is changed. 0.8 mm suits a 0.4 mm nozzle. Click Apply to keep the check in the timeline",
+        ),
         extra: None,
         flags: ToolFlags::default(),
         defaults: |ctx| {
@@ -800,7 +835,9 @@ pub fn fittest() -> ToolDef {
                 show: None,
             },
         ],
-        hint: Some("Makes one plate with pegs and matching holes at stepped clearances (e.g. 0.05 to 0.30 mm). Print it, try each peg in its hole, and use the loosest snug fit as your printer’s clearance"),
+        hint: Some(
+            "Makes one plate with pegs and matching holes at stepped clearances (e.g. 0.05 to 0.30 mm). Print it, try each peg in its hole, and use the loosest snug fit as your printer’s clearance",
+        ),
         extra: None,
         flags: ToolFlags::default(),
         defaults: |_| {
@@ -909,7 +946,34 @@ pub fn resizehole() -> ToolDef {
             Field {
                 key: "size",
                 label: "Size",
-                kind: super::fields::opts(&[("custom", "Custom"), ("m16", "M1.6 screw clearance (1.8)"), ("m2", "M2 screw clearance (2.4)"), ("m25", "M2.5 screw clearance (2.9)"), ("m3", "M3 screw clearance (3.4)"), ("m4", "M4 screw clearance (4.5)"), ("m5", "M5 screw clearance (5.5)"), ("m6", "M6 screw clearance (6.6)"), ("m2tap", "M2 self-tapping into plastic (1.7)"), ("m25tap", "M2.5 self-tapping into plastic (2.1)"), ("m3tap", "M3 self-tapping into plastic (2.6)"), ("m2ins", "M2 heat-set insert (3.2)"), ("m3ins", "M3 heat-set insert (4.0)"), ("m4ins", "M4 heat-set insert (5.6)"), ("i4", "#4 screw clearance (3.26)"), ("i6", "#6 screw clearance (3.8)"), ("i8", "#8 screw clearance (4.5)"), ("i10", "#10 screw clearance (5.11)"), ("i14", "1/4\" screw clearance (6.76)"), ("i4ins", "#4-40 heat-set insert (4.09)"), ("i6ins", "#6-32 heat-set insert (5.11)"), ("mag6", "6 mm magnet (6.2)"), ("mag8", "8 mm magnet (8.2)"), ("mag10", "10 mm magnet (10.2)"), ("fil", "1.75 mm filament pin (1.9)"), ("b608", "608 bearing seat (22.1)")]),
+                kind: super::fields::opts(&[
+                    ("custom", "Custom"),
+                    ("m16", "M1.6 screw clearance (1.8)"),
+                    ("m2", "M2 screw clearance (2.4)"),
+                    ("m25", "M2.5 screw clearance (2.9)"),
+                    ("m3", "M3 screw clearance (3.4)"),
+                    ("m4", "M4 screw clearance (4.5)"),
+                    ("m5", "M5 screw clearance (5.5)"),
+                    ("m6", "M6 screw clearance (6.6)"),
+                    ("m2tap", "M2 self-tapping into plastic (1.7)"),
+                    ("m25tap", "M2.5 self-tapping into plastic (2.1)"),
+                    ("m3tap", "M3 self-tapping into plastic (2.6)"),
+                    ("m2ins", "M2 heat-set insert (3.2)"),
+                    ("m3ins", "M3 heat-set insert (4.0)"),
+                    ("m4ins", "M4 heat-set insert (5.6)"),
+                    ("i4", "#4 screw clearance (3.26)"),
+                    ("i6", "#6 screw clearance (3.8)"),
+                    ("i8", "#8 screw clearance (4.5)"),
+                    ("i10", "#10 screw clearance (5.11)"),
+                    ("i14", "1/4\" screw clearance (6.76)"),
+                    ("i4ins", "#4-40 heat-set insert (4.09)"),
+                    ("i6ins", "#6-32 heat-set insert (5.11)"),
+                    ("mag6", "6 mm magnet (6.2)"),
+                    ("mag8", "8 mm magnet (8.2)"),
+                    ("mag10", "10 mm magnet (10.2)"),
+                    ("fil", "1.75 mm filament pin (1.9)"),
+                    ("b608", "608 bearing seat (22.1)"),
+                ]),
                 help: None,
                 placeholder: None,
                 show: Some(show_resize_size),
@@ -923,7 +987,9 @@ pub fn resizehole() -> ToolDef {
                 show: Some(show_resize_size),
             },
         ],
-        hint: Some("Click the inside wall of a round hole (or the side of a pin). It is measured, then type the diameter you need"),
+        hint: Some(
+            "Click the inside wall of a round hole (or the side of a pin). It is measured, then type the diameter you need",
+        ),
         extra: None,
         flags: ToolFlags::default(),
         defaults: defaults_resizehole,
@@ -984,7 +1050,11 @@ fn show_mirror_bodies(v: &Values) -> bool {
 fn defaults_mirror(ctx: &Ctx) -> Values {
     let last = last_repeatable(ctx);
     let s = sel_body(ctx);
-    let kind = if !s.is_empty() || last.is_none() { "bodies" } else { "features" };
+    let kind = if !s.is_empty() || last.is_none() {
+        "bodies"
+    } else {
+        "features"
+    };
     values(&[
         ("kind", json!(kind)),
         ("features", json!(last.map(|x| vec![x]).unwrap_or_default())),
@@ -1056,7 +1126,9 @@ pub fn mirror() -> ToolDef {
                 show: Some(show_mirror_bodies),
             },
         ],
-        hint: Some("Features: repeats a cut, hole or extrude on the other side of the plane (tick them below or click them on the timeline). Bodies: mirrors whole bodies"),
+        hint: Some(
+            "Features: repeats a cut, hole or extrude on the other side of the plane (tick them below or click them on the timeline). Bodies: mirrors whole bodies",
+        ),
         extra: None,
         flags: ToolFlags::default(),
         defaults: defaults_mirror,
@@ -1085,7 +1157,9 @@ pub fn move_tool() -> ToolDef {
                 key: "_gizmo",
                 label: "Drag handles",
                 kind: super::fields::opts(&[("move", "Move (W)"), ("rotate", "Rotate (R)")]),
-                help: Some("Which handles show on the part: arrows to move it, or rings to turn it (5° steps; hold Shift to turn freely)"),
+                help: Some(
+                    "Which handles show on the part: arrows to move it, or rings to turn it (5° steps; hold Shift to turn freely)",
+                ),
                 placeholder: None,
                 show: None,
             },
@@ -1117,7 +1191,9 @@ pub fn move_tool() -> ToolDef {
                 key: "bed",
                 label: "Land on bed",
                 kind: FieldKind::Bool,
-                help: Some("After a rotation the part rests on the bed instead of hanging through it (Move Z then lifts it off the bed)"),
+                help: Some(
+                    "After a rotation the part rests on the bed instead of hanging through it (Move Z then lifts it off the bed)",
+                ),
                 placeholder: None,
                 show: None,
             },
@@ -1132,7 +1208,10 @@ pub fn move_tool() -> ToolDef {
         ],
         hint: Some("Drag the arrows to move and the rings to rotate, or type distances and angles"),
         extra: Some("dropToBed"),
-        flags: ToolFlags { gizmo: true, ..ToolFlags::default() },
+        flags: ToolFlags {
+            gizmo: true,
+            ..ToolFlags::default()
+        },
         defaults: |ctx| {
             values(&[
                 ("bodies", json!(sel_body(ctx))),
@@ -1217,7 +1296,9 @@ fn to_params_scale(v: &Values, _: &Ctx) -> Value {
                 .enumerate()
                 .map(|(i, s)| (js_to_number(s) - sz0.get(i).map_or(f64::NAN, js_to_number)).abs())
                 .collect();
-            let max = d.iter().copied().fold(f64::NEG_INFINITY, |a, b| if a.is_nan() || b.is_nan() { f64::NAN } else { a.max(b) });
+            let max = d.iter().copied().fold(f64::NEG_INFINITY, |a, b| {
+                if a.is_nan() || b.is_nan() { f64::NAN } else { a.max(b) }
+            });
             let axis = d.iter().position(|x| *x == max).map_or(-1, |i| i as i64);
             m.insert("axis".into(), json!(axis));
         }
@@ -1232,7 +1313,10 @@ fn from_params_scale(p: Value) -> Values {
         (json!(1), factor.cloned().unwrap_or(json!([1, 1, 1])))
     } else {
         // JS `p.factor ?? 1`
-        (factor.filter(|f| !f.is_null()).cloned().unwrap_or(json!(1)), json!([1, 1, 1]))
+        (
+            factor.filter(|f| !f.is_null()).cloned().unwrap_or(json!(1)),
+            json!([1, 1, 1]),
+        )
     };
     let mut out = o.cloned().unwrap_or_default();
     out.insert("factor".into(), factor);
@@ -1302,7 +1386,12 @@ pub fn scale_tool() -> ToolDef {
             Field {
                 key: "units",
                 label: "Convert",
-                kind: super::fields::opts(&[("in_to_mm", "inch → mm"), ("mm_to_in", "mm → inch"), ("cm_to_mm", "cm → mm"), ("m_to_mm", "m → mm")]),
+                kind: super::fields::opts(&[
+                    ("in_to_mm", "inch → mm"),
+                    ("mm_to_in", "mm → inch"),
+                    ("cm_to_mm", "cm → mm"),
+                    ("m_to_mm", "m → mm"),
+                ]),
                 help: None,
                 placeholder: None,
                 show: Some(show_scale_units),
@@ -1316,9 +1405,14 @@ pub fn scale_tool() -> ToolDef {
                 show: None,
             },
         ],
-        hint: Some("Drag the handles on the part to stretch it (the middle one scales evenly), or type factors and sizes. To size with Uniform on: change one dimension and the others follow"),
+        hint: Some(
+            "Drag the handles on the part to stretch it (the middle one scales evenly), or type factors and sizes. To size with Uniform on: change one dimension and the others follow",
+        ),
         extra: None,
-        flags: ToolFlags { gizmo: true, ..ToolFlags::default() },
+        flags: ToolFlags {
+            gizmo: true,
+            ..ToolFlags::default()
+        },
         defaults: defaults_scale,
         to_params: to_params_scale,
         from_params: from_params_scale,
@@ -1349,7 +1443,11 @@ fn show_pattern_join(v: &Values) -> bool {
 fn defaults_pattern(ctx: &Ctx) -> Values {
     let last = last_repeatable(ctx);
     let s = sel_body(ctx);
-    let source = if !s.is_empty() || last.is_none() { "bodies" } else { "features" };
+    let source = if !s.is_empty() || last.is_none() {
+        "bodies"
+    } else {
+        "features"
+    };
     values(&[
         ("source", json!(source)),
         ("features", json!(last.map(|x| vec![x]).unwrap_or_default())),
@@ -1366,7 +1464,9 @@ fn defaults_pattern(ctx: &Ctx) -> Values {
 
 fn to_params_pattern(v: &Values, _: &Ctx) -> Value {
     let mut m = Map::new();
-    for k in ["source", "features", "bodies", "kind", "count", "spacing", "angle", "center", "join"] {
+    for k in [
+        "source", "features", "bodies", "kind", "count", "spacing", "angle", "center", "join",
+    ] {
         put_opt(&mut m, k, v.get(k));
     }
     // AXV[v.axisname]: undefined for an unknown name, so both vectors are dropped
@@ -1401,7 +1501,9 @@ fn from_params_pattern(p: Value) -> Values {
                 if nums.is_empty() {
                     o.remove("axisname");
                 } else {
-                    let max = nums.iter().copied().fold(f64::NEG_INFINITY, |a, b| if a.is_nan() || b.is_nan() { f64::NAN } else { a.max(b) });
+                    let max = nums.iter().copied().fold(f64::NEG_INFINITY, |a, b| {
+                        if a.is_nan() || b.is_nan() { f64::NAN } else { a.max(b) }
+                    });
                     match nums.iter().position(|x| *x == max).and_then(|i| ["x", "y", "z"].get(i)) {
                         Some(n) => {
                             o.insert("axisname".into(), json!(n));
@@ -1505,7 +1607,9 @@ pub fn pattern() -> ToolDef {
                 show: Some(show_pattern_join),
             },
         ],
-        hint: Some("Features: repeats a cut, hole or extrude (tick them below or click them on the timeline). Bodies: copies whole bodies"),
+        hint: Some(
+            "Features: repeats a cut, hole or extrude (tick them below or click them on the timeline). Bodies: copies whole bodies",
+        ),
         extra: None,
         flags: ToolFlags::default(),
         defaults: defaults_pattern,
@@ -1567,7 +1671,10 @@ pub fn hollow() -> ToolDef {
         ],
         hint: Some("Shells the body inward. Add a hole afterwards to drain resin or save filament"),
         extra: None,
-        flags: ToolFlags { no_live_preview: true, ..ToolFlags::default() },
+        flags: ToolFlags {
+            no_live_preview: true,
+            ..ToolFlags::default()
+        },
         defaults: |ctx| {
             values(&[
                 ("body", json!(sel_body(ctx).into_iter().take(1).collect::<Vec<_>>())),
@@ -1624,7 +1731,10 @@ pub fn lattice() -> ToolDef {
         ],
         hint: Some("Keeps a solid wall and fills the inside with a grid of thin struts, to save plastic"),
         extra: None,
-        flags: ToolFlags { no_live_preview: true, ..ToolFlags::default() },
+        flags: ToolFlags {
+            no_live_preview: true,
+            ..ToolFlags::default()
+        },
         defaults: |ctx| {
             values(&[
                 ("body", json!(sel_body(ctx).into_iter().take(1).collect::<Vec<_>>())),
@@ -1679,7 +1789,12 @@ fn to_params_shell(v: &Values, _: &Ctx) -> Value {
 
 fn from_params_shell(p: Value) -> Values {
     let o = p.as_object().cloned().unwrap_or_default();
-    let faces = o.get("faces").filter(|f| js_truthy(f)).and_then(Value::as_array).cloned().unwrap_or_default();
+    let faces = o
+        .get("faces")
+        .filter(|f| js_truthy(f))
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     let mut out = o.clone();
     out.insert("body".into(), wrap_truthy(o.get("body")));
     out.insert("openings".into(), json!(faces.len().to_string()));
@@ -1756,9 +1871,14 @@ pub fn shell() -> ToolDef {
                 show: None,
             },
         ],
-        hint: Some("Click the flat faces to leave open; the rest of the part becomes a wall of this thickness, measured inward"),
+        hint: Some(
+            "Click the flat faces to leave open; the rest of the part becomes a wall of this thickness, measured inward",
+        ),
         extra: None,
-        flags: ToolFlags { no_live_preview: true, ..ToolFlags::default() },
+        flags: ToolFlags {
+            no_live_preview: true,
+            ..ToolFlags::default()
+        },
         defaults: |ctx| {
             values(&[
                 ("body", json!(sel_body(ctx).into_iter().take(1).collect::<Vec<_>>())),

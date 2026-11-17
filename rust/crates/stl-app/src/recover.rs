@@ -23,7 +23,11 @@ pub const NOTHING_TO_RECOVER: &str = "There is no unsaved work to recover.";
 pub const REPLACE_CONFIRM: &str = "Replace the current unsaved work with the recovered project?";
 /// Asked before "Discard all" deletes every copy (Nathan, 2026-11-16).
 pub fn discard_all_confirm(n: usize) -> String {
-    if n == 1 { "Delete this copy? It can't be recovered afterwards.".into() } else { format!("Delete all {n} copies? They can't be recovered afterwards.") }
+    if n == 1 {
+        "Delete this copy? It can't be recovered afterwards.".into()
+    } else {
+        format!("Delete all {n} copies? They can't be recovered afterwards.")
+    }
 }
 /// 1.x busy note while a project is rebuilt.
 pub const RECOVERING_MSG: &str = "Recovering…";
@@ -73,13 +77,26 @@ pub trait RecoverStore {
 enum State {
     Closed,
     /// Waiting for the list. `manual`: the user asked, so "nothing" is answered.
-    Listing { pending: Pending<Vec<RecoverEntry>>, manual: bool },
-    Open { entries: Vec<RecoverEntry> },
+    Listing {
+        pending: Pending<Vec<RecoverEntry>>,
+        manual: bool,
+    },
+    Open {
+        entries: Vec<RecoverEntry>,
+    },
     /// Recover was pressed while the open project has unsaved changes.
-    Confirm { entries: Vec<RecoverEntry>, id: String },
+    Confirm {
+        entries: Vec<RecoverEntry>,
+        id: String,
+    },
     /// "Discard all" was pressed: asks once before deleting every copy.
-    ConfirmAll { entries: Vec<RecoverEntry> },
-    Loading { pending: Pending<Result<Vec<u8>, String>>, entry: RecoverEntry },
+    ConfirmAll {
+        entries: Vec<RecoverEntry>,
+    },
+    Loading {
+        pending: Pending<Result<Vec<u8>, String>>,
+        entry: RecoverEntry,
+    },
 }
 
 pub struct Recover {
@@ -90,13 +107,22 @@ pub struct Recover {
 
 impl Recover {
     pub fn new(store: Box<dyn RecoverStore>, web: bool) -> Recover {
-        Recover { store, web, state: State::Closed }
+        Recover {
+            store,
+            web,
+            state: State::Closed,
+        }
     }
 
     /// The desktop store: autosave folders under `paths::data_dir()/autosave`.
     #[cfg(not(target_arch = "wasm32"))]
     pub fn desktop() -> Recover {
-        Recover::new(Box::new(DesktopStore { root: stl_platform::paths::data_dir().join("autosave") }), false)
+        Recover::new(
+            Box::new(DesktopStore {
+                root: stl_platform::paths::data_dir().join("autosave"),
+            }),
+            false,
+        )
     }
 
     /// The browser store: IndexedDB database `stle2`.
@@ -108,14 +134,20 @@ impl Recover {
     /// Start-up offer: lists what an earlier session left and opens the dialog if there is any.
     pub fn start(&mut self) {
         if matches!(self.state, State::Closed) {
-            self.state = State::Listing { pending: self.store.list(), manual: false };
+            self.state = State::Listing {
+                pending: self.store.list(),
+                manual: false,
+            };
         }
     }
 
     /// Help > Recover Unsaved Work: the same, and a toast when there is nothing.
     pub fn open_manual(&mut self) {
         if matches!(self.state, State::Closed) {
-            self.state = State::Listing { pending: self.store.list(), manual: true };
+            self.state = State::Listing {
+                pending: self.store.list(),
+                manual: true,
+            };
         }
     }
 
@@ -135,7 +167,10 @@ impl Recover {
                 let manual = *manual;
                 if entries.is_empty() {
                     self.state = State::Closed;
-                    return manual.then(|| RecoverAction::Message { text: NOTHING_TO_RECOVER.into(), warn: false });
+                    return manual.then(|| RecoverAction::Message {
+                        text: NOTHING_TO_RECOVER.into(),
+                        warn: false,
+                    });
                 }
                 self.state = State::Open { entries };
                 ctx.request_repaint();
@@ -149,7 +184,11 @@ impl Recover {
                 let entry = entry.clone();
                 self.state = State::Closed;
                 return Some(match result {
-                    Ok(bytes) => RecoverAction::Open(Recovered { name: format!("{}.stlx", entry.title), bytes, path: entry.path }),
+                    Ok(bytes) => RecoverAction::Open(Recovered {
+                        name: format!("{}.stlx", entry.title),
+                        bytes,
+                        path: entry.path,
+                    }),
                     Err(text) => RecoverAction::Message { text, warn: true },
                 });
             }
@@ -160,10 +199,13 @@ impl Recover {
 
     fn draw(&mut self, ctx: &egui::Context, tk: &Tokens, dirty: bool) -> Option<RecoverAction> {
         let screen = ctx.content_rect();
-        Area::new(Id::unique("recover-scrim")).order(Order::Foreground).fixed_pos(screen.min).show(ctx, |ui| {
-            let (r, _) = ui.allocate_exact_size(screen.size(), egui::Sense::click_and_drag());
-            ui.painter().rect_filled(r, 0.0, tk.scrim);
-        });
+        Area::new(Id::unique("recover-scrim"))
+            .order(Order::Foreground)
+            .fixed_pos(screen.min)
+            .show(ctx, |ui| {
+                let (r, _) = ui.allocate_exact_size(screen.size(), egui::Sense::click_and_drag());
+                ui.painter().rect_filled(r, 0.0, tk.scrim);
+            });
         let esc = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Escape));
         let web = self.web;
         let mut next: Option<State> = None;
@@ -180,79 +222,100 @@ impl Recover {
         let confirming_all = matches!(self.state, State::ConfirmAll { .. });
         let mut ask_all = false;
         let mut all_ok = false;
-        Area::new(Id::unique("recover-card")).order(Order::Tooltip).anchor(egui::Align2::CENTER_CENTER, Vec2::ZERO).show(ctx, |ui| {
-            Frame::new()
-                .fill(tk.panel)
-                .stroke(Stroke::new(1.0, tk.line))
-                .corner_radius(CornerRadius::same(9))
-                .shadow(tk.shadow_lg)
-                .inner_margin(Margin { left: 20, right: 20, top: 18, bottom: 14 })
-                .show(ui, |ui| {
-                    ui.set_min_width(300.0);
-                    ui.set_max_width(480.0);
-                    let bold = egui::FontId::new(15.0, egui::FontFamily::Name("bold".into()));
-                    if confirming {
-                        ui.label(RichText::new("STL Editor").font(bold).color(tk.strong));
-                        ui.add_space(8.0);
-                        ui.label(RichText::new(REPLACE_CONFIRM).size(12.0).color(tk.text));
-                        ui.add_space(14.0);
-                        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                            ui.spacing_mut().item_spacing.x = 8.0;
-                            confirm_ok = button(ui, tk, "OK", true).clicked();
-                            confirm_cancel = button(ui, tk, "Cancel", false).clicked();
-                        });
-                        return;
-                    }
-                    if confirming_all {
-                        ui.label(RichText::new("Discard all").font(bold).color(tk.strong));
-                        ui.add_space(8.0);
-                        ui.label(RichText::new(discard_all_confirm(entries.len())).size(12.0).color(tk.text));
-                        ui.add_space(14.0);
-                        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                            ui.spacing_mut().item_spacing.x = 8.0;
-                            all_ok = button(ui, tk, "Delete", true).clicked();
-                            confirm_cancel = button(ui, tk, "Cancel", false).clicked();
-                        });
-                        return;
-                    }
-                    ui.label(RichText::new("Recover unsaved work?").font(bold).color(tk.strong));
-                    ui.add_space(8.0);
-                    ui.label(RichText::new(intro(web)).size(12.0).color(tk.text));
-                    ui.add_space(4.0);
-                    for e in &entries {
-                        Frame::new().stroke(Stroke::new(1.0, tk.line)).corner_radius(CornerRadius::same(tk.radius as u8)).inner_margin(Margin::symmetric(10, 8)).outer_margin(Margin::symmetric(0, 3)).show(ui, |ui| {
-                            ui.horizontal(|ui| {
-                                ui.vertical(|ui| {
-                                    let name = ui.label(RichText::new(&e.title).size(12.5).strong().color(tk.strong));
-                                    if let Some(p) = &e.path {
-                                        name.on_hover_text(p);
-                                    }
-                                    ui.label(RichText::new(detail(e)).size(11.5).color(tk.muted));
-                                });
-                                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                                    ui.spacing_mut().item_spacing.x = 6.0;
-                                    if button(ui, tk, "Recover", true).clicked() {
-                                        recover = Some(e.id.clone());
-                                    }
-                                    if button(ui, tk, "Discard", false).clicked() {
-                                        discard = Some(e.id.clone());
-                                    }
-                                });
+        Area::new(Id::unique("recover-card"))
+            .order(Order::Tooltip)
+            .anchor(egui::Align2::CENTER_CENTER, Vec2::ZERO)
+            .show(ctx, |ui| {
+                Frame::new()
+                    .fill(tk.panel)
+                    .stroke(Stroke::new(1.0, tk.line))
+                    .corner_radius(CornerRadius::same(9))
+                    .shadow(tk.shadow_lg)
+                    .inner_margin(Margin {
+                        left: 20,
+                        right: 20,
+                        top: 18,
+                        bottom: 14,
+                    })
+                    .show(ui, |ui| {
+                        ui.set_min_width(300.0);
+                        ui.set_max_width(480.0);
+                        let bold = egui::FontId::new(15.0, egui::FontFamily::Name("bold".into()));
+                        if confirming {
+                            ui.label(RichText::new("STL Editor").font(bold).color(tk.strong));
+                            ui.add_space(8.0);
+                            ui.label(RichText::new(REPLACE_CONFIRM).size(12.0).color(tk.text));
+                            ui.add_space(14.0);
+                            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                                ui.spacing_mut().item_spacing.x = 8.0;
+                                confirm_ok = button(ui, tk, "OK", true).clicked();
+                                confirm_cancel = button(ui, tk, "Cancel", false).clicked();
                             });
+                            return;
+                        }
+                        if confirming_all {
+                            ui.label(RichText::new("Discard all").font(bold).color(tk.strong));
+                            ui.add_space(8.0);
+                            ui.label(
+                                RichText::new(discard_all_confirm(entries.len()))
+                                    .size(12.0)
+                                    .color(tk.text),
+                            );
+                            ui.add_space(14.0);
+                            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                                ui.spacing_mut().item_spacing.x = 8.0;
+                                all_ok = button(ui, tk, "Delete", true).clicked();
+                                confirm_cancel = button(ui, tk, "Cancel", false).clicked();
+                            });
+                            return;
+                        }
+                        ui.label(RichText::new("Recover unsaved work?").font(bold).color(tk.strong));
+                        ui.add_space(8.0);
+                        ui.label(RichText::new(intro(web)).size(12.0).color(tk.text));
+                        ui.add_space(4.0);
+                        for e in &entries {
+                            Frame::new()
+                                .stroke(Stroke::new(1.0, tk.line))
+                                .corner_radius(CornerRadius::same(tk.radius as u8))
+                                .inner_margin(Margin::symmetric(10, 8))
+                                .outer_margin(Margin::symmetric(0, 3))
+                                .show(ui, |ui| {
+                                    ui.horizontal(|ui| {
+                                        ui.vertical(|ui| {
+                                            let name =
+                                                ui.label(RichText::new(&e.title).size(12.5).strong().color(tk.strong));
+                                            if let Some(p) = &e.path {
+                                                name.on_hover_text(p);
+                                            }
+                                            ui.label(RichText::new(detail(e)).size(11.5).color(tk.muted));
+                                        });
+                                        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                                            ui.spacing_mut().item_spacing.x = 6.0;
+                                            if button(ui, tk, "Recover", true).clicked() {
+                                                recover = Some(e.id.clone());
+                                            }
+                                            if button(ui, tk, "Discard", false).clicked() {
+                                                discard = Some(e.id.clone());
+                                            }
+                                        });
+                                    });
+                                });
+                        }
+                        ui.add_space(14.0);
+                        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                            ui.spacing_mut().item_spacing.x = 8.0;
+                            if button(ui, tk, "Later", false).clicked() {
+                                later = true;
+                            }
+                            if button(ui, tk, "Discard all", false)
+                                .on_hover_text("Delete every copy listed here")
+                                .clicked()
+                            {
+                                ask_all = true;
+                            }
                         });
-                    }
-                    ui.add_space(14.0);
-                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        ui.spacing_mut().item_spacing.x = 8.0;
-                        if button(ui, tk, "Later", false).clicked() {
-                            later = true;
-                        }
-                        if button(ui, tk, "Discard all", false).on_hover_text("Delete every copy listed here").clicked() {
-                            ask_all = true;
-                        }
                     });
-                });
-        });
+            });
 
         if confirming_all {
             if all_ok {
@@ -264,11 +327,9 @@ impl Recover {
                 next = Some(State::Open { entries });
             }
         } else if confirming {
-            if confirm_ok {
-                if let State::Confirm { id, .. } = &self.state {
-                    let id = id.clone();
-                    return self.begin_load(&id, &entries);
-                }
+            if confirm_ok && let State::Confirm { id, .. } = &self.state {
+                let id = id.clone();
+                return self.begin_load(&id, &entries);
             }
             if confirm_cancel || esc {
                 next = Some(State::Open { entries });
@@ -278,7 +339,11 @@ impl Recover {
         } else if let Some(id) = discard {
             self.store.discard(&id);
             let left: Vec<RecoverEntry> = entries.into_iter().filter(|e| e.id != id).collect();
-            next = Some(if left.is_empty() { State::Closed } else { State::Open { entries: left } });
+            next = Some(if left.is_empty() {
+                State::Closed
+            } else {
+                State::Open { entries: left }
+            });
         } else if let Some(id) = recover {
             if dirty {
                 next = Some(State::Confirm { entries, id });
@@ -296,7 +361,10 @@ impl Recover {
 
     fn begin_load(&mut self, id: &str, entries: &[RecoverEntry]) -> Option<RecoverAction> {
         let entry = entries.iter().find(|e| e.id == id)?.clone();
-        self.state = State::Loading { pending: self.store.load(id), entry };
+        self.state = State::Loading {
+            pending: self.store.load(id),
+            entry,
+        };
         None
     }
 
@@ -317,7 +385,12 @@ fn intro(web: bool) -> &'static str {
 
 /// 1.x's second line: `3 steps · autosaved <when>`.
 fn detail(e: &RecoverEntry) -> String {
-    format!("{} step{} · autosaved {}", e.steps, if e.steps == 1 { "" } else { "s" }, when(e.saved))
+    format!(
+        "{} step{} · autosaved {}",
+        e.steps,
+        if e.steps == 1 { "" } else { "s" },
+        when(e.saved)
+    )
 }
 
 /// `2026-11-14 10:32` in the computer's time zone (1.x used the browser's locale format).
@@ -373,7 +446,18 @@ fn local_offset_secs(utc: f64) -> i64 {
         fn localtime_r(t: *const i64, out: *mut Tm) -> *mut Tm;
     }
     let t = utc.floor() as i64;
-    let mut tm = Tm { sec: 0, min: 0, hour: 0, mday: 0, mon: 0, year: 0, wday: 0, yday: 0, isdst: 0, rest: [0; 2] };
+    let mut tm = Tm {
+        sec: 0,
+        min: 0,
+        hour: 0,
+        mday: 0,
+        mon: 0,
+        year: 0,
+        wday: 0,
+        yday: 0,
+        isdst: 0,
+        rest: [0; 2],
+    };
     // SAFETY: both functions fill `tm` (at least the nine ints, at most 56 bytes) and read `t`.
     let ok = unsafe {
         #[cfg(windows)]
@@ -413,7 +497,13 @@ impl RecoverStore for DesktopStore {
         std::thread::spawn(move || {
             let list = stl_platform::autosave::recoverable(&root, None)
                 .into_iter()
-                .map(|s| RecoverEntry { id: s.id, title: s.title, path: s.path, saved: s.saved, steps: s.steps })
+                .map(|s| RecoverEntry {
+                    id: s.id,
+                    title: s.title,
+                    path: s.path,
+                    saved: s.saved,
+                    steps: s.steps,
+                })
                 .collect();
             answer.set(list);
         });
@@ -442,7 +532,9 @@ impl RecoverStore for DesktopStore {
 /// The autosave folder as the project file the engine opens (nothing is evaluated here).
 #[cfg(not(target_arch = "wasm32"))]
 pub fn project_bytes(root: &std::path::Path, id: &str) -> Result<Vec<u8>, String> {
-    let (json, sources) = stl_platform::autosave::load(root, id).map_err(|e| format!("Couldn't recover that copy: {e}"))?;
-    let parts: Vec<(String, String, String, Vec<u8>)> = sources.into_iter().map(|s| (s.id, s.name, s.ext, s.data)).collect();
+    let (json, sources) =
+        stl_platform::autosave::load(root, id).map_err(|e| format!("Couldn't recover that copy: {e}"))?;
+    let parts: Vec<(String, String, String, Vec<u8>)> =
+        sources.into_iter().map(|s| (s.id, s.name, s.ext, s.data)).collect();
     stl_engine::stlx::parts_to_bytes(&json, &parts).map_err(|e| e.0)
 }

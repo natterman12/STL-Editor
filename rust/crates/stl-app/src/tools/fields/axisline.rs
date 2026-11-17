@@ -12,9 +12,17 @@ use crate::tools::{Ctx, Field, Values};
 /// `[value, label]` rows: the two axes, then each unclosed polyline and line of the sketch
 /// `values.sketch` ("Line 1", "Construction line 2", ...).
 pub fn options(values: &Values, ctx: &Ctx) -> Vec<(String, String)> {
-    let mut out = vec![("x".to_owned(), "Sketch X axis".to_owned()), ("y".to_owned(), "Sketch Y axis".to_owned())];
+    let mut out = vec![
+        ("x".to_owned(), "Sketch X axis".to_owned()),
+        ("y".to_owned(), "Sketch Y axis".to_owned()),
+    ];
     let sk = values.get("sketch").and_then(Value::as_str).unwrap_or("");
-    let ents = ctx.features.iter().find(|f| f.id == sk).and_then(|f| f.params.get("entities")).and_then(Value::as_array);
+    let ents = ctx
+        .features
+        .iter()
+        .find(|f| f.id == sk)
+        .and_then(|f| f.params.get("entities"))
+        .and_then(Value::as_array);
     let lines = ents.into_iter().flatten().filter(|e| {
         let t = e.get("type").and_then(Value::as_str);
         (t == Some("polyline") && !e.get("closed").and_then(Value::as_bool).unwrap_or(false)) || t == Some("line")
@@ -22,7 +30,10 @@ pub fn options(values: &Values, ctx: &Ctx) -> Vec<(String, String)> {
     for (i, e) in lines.enumerate() {
         let id = e.get("id").and_then(Value::as_str).unwrap_or("");
         let constr = e.get("construction").and_then(Value::as_bool).unwrap_or(false);
-        out.push((id.to_owned(), format!("{} {}", if constr { "Construction line" } else { "Line" }, i + 1)));
+        out.push((
+            id.to_owned(),
+            format!("{} {}", if constr { "Construction line" } else { "Line" }, i + 1),
+        ));
     }
     out
 }
@@ -31,10 +42,21 @@ pub fn options(values: &Values, ctx: &Ctx) -> Vec<(String, String)> {
 pub fn selected_label(values: &Values, key: &str, ctx: &Ctx) -> String {
     let cur = values.get(key).and_then(Value::as_str).unwrap_or("");
     let rows = options(values, ctx);
-    rows.iter().find(|r| r.0 == cur).or(rows.first()).map(|r| r.1.clone()).unwrap_or_default()
+    rows.iter()
+        .find(|r| r.0 == cur)
+        .or(rows.first())
+        .map(|r| r.1.clone())
+        .unwrap_or_default()
 }
 
-pub fn show(ui: &mut Ui, tk: &Tokens, f: &Field, values: &mut Values, _active: &mut Option<String>, ctx: &Ctx) -> ShowOut {
+pub fn show(
+    ui: &mut Ui,
+    tk: &Tokens,
+    f: &Field,
+    values: &mut Values,
+    _active: &mut Option<String>,
+    ctx: &Ctx,
+) -> ShowOut {
     let cur = values.get(f.key).and_then(Value::as_str).unwrap_or("").to_owned();
     let rows = options(values, ctx);
     let mut pick: Option<String> = None;

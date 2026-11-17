@@ -38,7 +38,10 @@ pub fn compare_mesh(golden: &MeshStats, got: &MeshStats, ex: Exactness) -> Vec<S
         num(format!("bbox_max[{k}]"), golden.bbox_max[k], got.bbox_max[k]);
     }
     if golden.watertight != got.watertight {
-        out.push(format!("watertight: golden {} got {}", golden.watertight, got.watertight));
+        out.push(format!(
+            "watertight: golden {} got {}",
+            golden.watertight, got.watertight
+        ));
     }
     out
 }

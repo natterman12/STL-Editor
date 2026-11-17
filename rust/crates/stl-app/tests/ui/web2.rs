@@ -3,8 +3,8 @@
 #![cfg(not(target_arch = "wasm32"))]
 
 use super::harness::{
-    enter_sketch_plane, finish_sketch_settle, fixture_stl, import_stl, mesh_volume, open_tool, select_first_body, settle, sketch_add_rect,
-    FakePlatform,
+    FakePlatform, enter_sketch_plane, finish_sketch_settle, fixture_stl, import_stl, mesh_volume, open_tool,
+    select_first_body, settle, sketch_add_rect,
 };
 use egui_kittest::kittest::Queryable;
 use serde_json::json;

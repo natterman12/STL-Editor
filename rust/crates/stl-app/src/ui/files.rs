@@ -14,8 +14,10 @@ pub const RECENT_KEY: &str = "recent";
 const MISSING: &str = "That file isn\u{2019}t there any more (";
 
 /// What the open dialog lists (`.stlx` and the mesh formats), as in the 1.x open dialog.
-pub const OPEN_FILTERS: &[(&str, &[&str])] =
-    &[("STL Editor project or mesh", &["stlx", "stl", "obj", "3mf", "ply", "off", "glb", "gltf"])];
+pub const OPEN_FILTERS: &[(&str, &[&str])] = &[(
+    "STL Editor project or mesh",
+    &["stlx", "stl", "obj", "3mf", "ply", "off", "glb", "gltf"],
+)];
 /// What the Insert Mesh dialog lists (1.x `MESH_ACCEPT`).
 pub const MESH_FILTERS: &[(&str, &[&str])] = &[("Mesh", &["stl", "obj", "3mf", "ply", "off", "glb", "gltf"])];
 
@@ -144,24 +146,37 @@ impl Files {
 
     /// The file names of the recent files, newest first.
     pub fn recent_names(&self) -> Vec<String> {
-        self.recent.iter().map(|f| f.key.rsplit(['/', '\\']).next().unwrap_or(&f.key).to_owned()).collect()
+        self.recent
+            .iter()
+            .map(|f| f.key.rsplit(['/', '\\']).next().unwrap_or(&f.key).to_owned())
+            .collect()
     }
 
     /// Read the remembered list (call once at start-up).
     pub fn load_recent(&mut self, platform: &dyn Platform) {
-        let Some(serde_json::Value::Array(list)) = platform.setting_json(RECENT_KEY) else { return };
+        let Some(serde_json::Value::Array(list)) = platform.setting_json(RECENT_KEY) else {
+            return;
+        };
         self.recent = list
             .iter()
             .filter_map(|v| v.as_str())
             .filter(|p| !p.is_empty())
             .take(RECENT_MAX)
-            .map(|p| RecentFile { key: p.to_owned(), bytes: None })
+            .map(|p| RecentFile {
+                key: p.to_owned(),
+                bytes: None,
+            })
             .collect();
     }
 
     fn save_recent(&self, platform: &dyn Platform) {
         // only paths last; a web session's list (names and bytes) is not stored
-        let paths: Vec<_> = self.recent.iter().filter(|f| f.bytes.is_none()).map(|f| serde_json::Value::String(f.key.clone())).collect();
+        let paths: Vec<_> = self
+            .recent
+            .iter()
+            .filter(|f| f.bytes.is_none())
+            .map(|f| serde_json::Value::String(f.key.clone()))
+            .collect();
         platform.set_setting_json(RECENT_KEY, serde_json::Value::Array(paths));
     }
 
@@ -169,8 +184,14 @@ impl Files {
     /// with its bytes.
     fn remember(&mut self, platform: &dyn Platform, name: &str, path: Option<&str>, bytes: &[u8]) {
         let entry = match path {
-            Some(p) => RecentFile { key: p.to_owned(), bytes: None },
-            None => RecentFile { key: name.to_owned(), bytes: Some(bytes.to_vec()) },
+            Some(p) => RecentFile {
+                key: p.to_owned(),
+                bytes: None,
+            },
+            None => RecentFile {
+                key: name.to_owned(),
+                bytes: Some(bytes.to_vec()),
+            },
         };
         self.recent.retain(|f| f.key != entry.key);
         self.recent.insert(0, entry);
@@ -182,22 +203,39 @@ impl Files {
     /// that is gone is dropped from the list there); a name is opened from the session's bytes.
     /// False when it isn't in the list.
     pub fn open_recent(&mut self, platform: &dyn Platform, link: &dyn EngineLink, key: &str) -> bool {
-        let Some(f) = self.recent.iter().find(|f| f.key == key).cloned() else { return false };
+        let Some(f) = self.recent.iter().find(|f| f.key == key).cloned() else {
+            return false;
+        };
         match f.bytes {
             Some(bytes) => {
                 let file = PickedFile { name: f.key, bytes };
                 self.open_bytes(link, file, None);
             }
-            None => self.waiting.push(Waiting::Recent(f.key.clone(), platform.read_path(&f.key))),
+            None => self
+                .waiting
+                .push(Waiting::Recent(f.key.clone(), platform.read_path(&f.key))),
         }
         true
     }
 
     /// File > New: an empty project replaces the document (the engine has no separate "new").
     pub fn new_document(&mut self, link: &dyn EngineLink) {
-        let bytes = stl_engine::stlx::to_bytes(&stl_engine::Document::new(stl_engine::Registry::builtin())).unwrap_or_default();
-        self.opening = Some(Opening { title: None, project_name: None, project_path: None, recent: None, recent_path: None, seen: false, failed: false, ahead: usize::from(self.engine_busy) });
-        link.send(Command::Open { name: "Untitled.stlx".to_string(), bytes });
+        let bytes =
+            stl_engine::stlx::to_bytes(&stl_engine::Document::new(stl_engine::Registry::builtin())).unwrap_or_default();
+        self.opening = Some(Opening {
+            title: None,
+            project_name: None,
+            project_path: None,
+            recent: None,
+            recent_path: None,
+            seen: false,
+            failed: false,
+            ahead: usize::from(self.engine_busy),
+        });
+        link.send(Command::Open {
+            name: "Untitled.stlx".to_string(),
+            bytes,
+        });
     }
 
     /// Where the open project lives on disk (desktop). `None` for a new project, a mesh, and on
@@ -213,17 +251,29 @@ impl Files {
 
     /// Start a file action. `ids` limits an export to those bodies (`None`: the selection is
     /// the app's business; pass `None` for all visible bodies).
-    pub fn start(&mut self, platform: &dyn Platform, link: &dyn EngineLink, action: FileAction, ids: Option<Vec<String>>) {
+    pub fn start(
+        &mut self,
+        platform: &dyn Platform,
+        link: &dyn EngineLink,
+        action: FileAction,
+        ids: Option<Vec<String>>,
+    ) {
         match action {
             FileAction::Open => self.waiting.push(Waiting::Open(platform.open_file_path(OPEN_FILTERS))),
-            FileAction::Import => self.waiting.push(Waiting::Import(platform.open_file_path(MESH_FILTERS))),
+            FileAction::Import => self
+                .waiting
+                .push(Waiting::Import(platform.open_file_path(MESH_FILTERS))),
             // The engine answers with `Update::Saved`; `poll` then writes it to the known path
             // (Save) or asks where (Save As, or no path yet).
             FileAction::Save | FileAction::SaveAs => {
                 self.save_as = action == FileAction::SaveAs;
                 link.send(Command::Save);
             }
-            FileAction::Export(format) => link.send(Command::Export { format, ids, date: platform.now_iso_utc() }),
+            FileAction::Export(format) => link.send(Command::Export {
+                format,
+                ids,
+                date: platform.now_iso_utc(),
+            }),
         }
     }
 
@@ -268,20 +318,41 @@ impl Files {
             match u {
                 Update::Saved { bytes } => {
                     let name = format!("{}.stlx", self.project_name.as_deref().unwrap_or("Untitled"));
-                    let recent = PickedFile { name: name.clone(), bytes: bytes.clone() };
+                    let recent = PickedFile {
+                        name: name.clone(),
+                        bytes: bytes.clone(),
+                    };
                     let ask = std::mem::take(&mut self.save_as);
                     let pending = match (&self.project_path, ask) {
-                        (Some(path), false) => platform.save_to(path, bytes.clone()).map(|r| r.map(|_| SaveOutcome::Done(None))),
+                        (Some(path), false) => platform
+                            .save_to(path, bytes.clone())
+                            .map(|r| r.map(|_| SaveOutcome::Done(None))),
                         _ => platform.save_file_path(&name, bytes.clone()),
                     };
-                    self.saving.push(Saving { recent: Some(recent), pending, project: true, done: format!("Saved {name}") });
+                    self.saving.push(Saving {
+                        recent: Some(recent),
+                        pending,
+                        project: true,
+                        done: format!("Saved {name}"),
+                    });
                 }
                 Update::Exported { name, bytes, count } => {
                     let done = format!("Exported {count} bod{} to {name}", if *count > 1 { "ies" } else { "y" });
-                    let pending = platform
-                        .save_file(name, bytes.clone())
-                        .map(|r| r.map(|ok| if ok { SaveOutcome::Done(None) } else { SaveOutcome::Cancelled }));
-                    self.saving.push(Saving { recent: None, pending, project: false, done });
+                    let pending = platform.save_file(name, bytes.clone()).map(|r| {
+                        r.map(|ok| {
+                            if ok {
+                                SaveOutcome::Done(None)
+                            } else {
+                                SaveOutcome::Cancelled
+                            }
+                        })
+                    });
+                    self.saving.push(Saving {
+                        recent: None,
+                        pending,
+                        project: false,
+                        done,
+                    });
                 }
                 Update::Error(_) => {
                     self.save_as = false;
@@ -354,14 +425,25 @@ impl Files {
         out
     }
 
-    fn send_file(&mut self, link: &dyn EngineLink, file: PickedFile, path: Option<String>, import: bool, out: &mut FileOutcome) {
+    fn send_file(
+        &mut self,
+        link: &dyn EngineLink,
+        file: PickedFile,
+        path: Option<String>,
+        import: bool,
+        out: &mut FileOutcome,
+    ) {
         if import {
             if is_project(&file.name) {
-                out.messages.push((Level::Warning, "Use File › Open for projects.".to_string()));
+                out.messages
+                    .push((Level::Warning, "Use File › Open for projects.".to_string()));
                 return;
             }
             self.fit_after_bodies = true;
-            link.send(Command::Import { name: file.name, bytes: file.bytes });
+            link.send(Command::Import {
+                name: file.name,
+                bytes: file.bytes,
+            });
         } else {
             self.open_bytes(link, file, path);
         }
@@ -380,7 +462,10 @@ impl Files {
             failed: false,
             ahead: usize::from(self.engine_busy),
         });
-        link.send(Command::Open { name: file.name, bytes: file.bytes });
+        link.send(Command::Open {
+            name: file.name,
+            bytes: file.bytes,
+        });
     }
 
     /// Dropped files, as 1.x: a project is refused with a hint; any other file is inserted.
@@ -395,7 +480,11 @@ impl Files {
         {
             let mut out = FileOutcome::default();
             for f in dropped {
-                let name = f.path().file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+                let name = f
+                    .path()
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_default();
                 match f.bytes() {
                     Err(e) => out.messages.push((Level::Error, format!("{name}: {e}"))),
                     Ok(bytes) => self.accept_dropped(link, name, bytes, &mut out),
@@ -421,12 +510,27 @@ impl Files {
         if !self.dragging {
             return;
         }
-        let painter = ctx.layer_painter(egui::LayerId::new(egui::Order::Foreground, egui::Id::unique("drop-overlay")));
+        let painter = ctx.layer_painter(egui::LayerId::new(
+            egui::Order::Foreground,
+            egui::Id::unique("drop-overlay"),
+        ));
         painter.rect_filled(rect, 0.0, t.accent_soft);
         let stroke = egui::Stroke::new(3.0, t.accent);
         let r = rect.shrink(1.5);
-        let pts = [r.left_top(), r.right_top(), r.right_bottom(), r.left_bottom(), r.left_top()];
+        let pts = [
+            r.left_top(),
+            r.right_top(),
+            r.right_bottom(),
+            r.left_bottom(),
+            r.left_top(),
+        ];
         painter.extend(egui::Shape::dashed_line(&pts, stroke, 8.0, 5.0));
-        painter.text(rect.center(), egui::Align2::CENTER_CENTER, DROP_TEXT, egui::FontId::proportional(18.0), t.accent);
+        painter.text(
+            rect.center(),
+            egui::Align2::CENTER_CENTER,
+            DROP_TEXT,
+            egui::FontId::proportional(18.0),
+            t.accent,
+        );
     }
 }

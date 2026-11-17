@@ -116,8 +116,16 @@ struct Shared {
 }
 
 enum Ui {
-    Create { id: u64, shared: Arc<Shared>, tx: Sender<Msg>, reply: Sender<Result<Option<u32>, String>> },
-    Run { id: u64, seq: u64 },
+    Create {
+        id: u64,
+        shared: Arc<Shared>,
+        tx: Sender<Msg>,
+        reply: Sender<Result<Option<u32>, String>>,
+    },
+    Run {
+        id: u64,
+        seq: u64,
+    },
     /// Reloads the page, as a renderer reset would (tests only).
     #[cfg(test)]
     Reload(u64),
@@ -188,11 +196,17 @@ fn profiles_dir() -> PathBuf {
 /// Removes profile folders (`<pid>-<id>`) left by app processes that are no longer running.
 /// Best effort: anything that can't be read or removed is left alone.
 fn clean_stale_profiles() {
-    let Ok(entries) = std::fs::read_dir(profiles_dir()) else { return };
+    let Ok(entries) = std::fs::read_dir(profiles_dir()) else {
+        return;
+    };
     let me = std::process::id();
     for e in entries.flatten() {
         let name = e.file_name();
-        let Some(pid) = name.to_str().and_then(|n| n.split('-').next()).and_then(|p| p.parse::<u32>().ok()) else {
+        let Some(pid) = name
+            .to_str()
+            .and_then(|n| n.split('-').next())
+            .and_then(|p| p.parse::<u32>().ok())
+        else {
             continue;
         };
         if pid != me && !process_running(pid) {
@@ -225,48 +239,53 @@ fn start_ui_thread() -> Result<UiThread, String> {
     let alive = Arc::new(AtomicBool::new(true));
     let guard = AliveGuard(alive.clone());
     let (tx, rx) = channel::<Result<EventLoopProxy<Ui>, String>>();
-    let spawned = std::thread::Builder::new().name("support-fins-webview".into()).spawn(move || {
-        let _guard = guard;
-        let made = std::panic::catch_unwind(|| {
-            let mut b = EventLoopBuilder::<Ui>::with_user_event();
-            #[cfg(windows)]
-            {
-                use tao::platform::windows::EventLoopBuilderExtWindows;
-                b.with_any_thread(true);
-            }
-            #[cfg(target_os = "linux")]
-            {
-                use tao::platform::unix::EventLoopBuilderExtUnix;
-                b.with_any_thread(true);
-            }
-            b.build()
+    let spawned = std::thread::Builder::new()
+        .name("support-fins-webview".into())
+        .spawn(move || {
+            let _guard = guard;
+            let made = std::panic::catch_unwind(|| {
+                let mut b = EventLoopBuilder::<Ui>::with_user_event();
+                #[cfg(windows)]
+                {
+                    use tao::platform::windows::EventLoopBuilderExtWindows;
+                    b.with_any_thread(true);
+                }
+                #[cfg(target_os = "linux")]
+                {
+                    use tao::platform::unix::EventLoopBuilderExtUnix;
+                    b.with_any_thread(true);
+                }
+                b.build()
+            });
+            let mut event_loop = match made {
+                Ok(el) => el,
+                Err(_) => {
+                    let _ = tx.send(Err("could not start the window thread".into()));
+                    return;
+                }
+            };
+            let _ = tx.send(Ok(event_loop.create_proxy()));
+            let mut slots: HashMap<u64, Slot> = HashMap::new();
+            // run_return, not run: tao's `run` exits the whole process when its loop ends.
+            event_loop.run_return(move |event, target, flow| {
+                *flow = ControlFlow::Wait;
+                if let Event::UserEvent(Ui::Exit) = event {
+                    slots.clear();
+                    *flow = ControlFlow::Exit;
+                } else if let Event::UserEvent(ev) = event {
+                    // A panic in the platform code must not take the thread (and every host) down.
+                    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| handle(ev, target, &mut slots)));
+                }
+            });
         });
-        let mut event_loop = match made {
-            Ok(el) => el,
-            Err(_) => {
-                let _ = tx.send(Err("could not start the window thread".into()));
-                return;
-            }
-        };
-        let _ = tx.send(Ok(event_loop.create_proxy()));
-        let mut slots: HashMap<u64, Slot> = HashMap::new();
-        // run_return, not run: tao's `run` exits the whole process when its loop ends.
-        event_loop.run_return(move |event, target, flow| {
-            *flow = ControlFlow::Wait;
-            if let Event::UserEvent(Ui::Exit) = event {
-                slots.clear();
-                *flow = ControlFlow::Exit;
-            } else if let Event::UserEvent(ev) = event {
-                // A panic in the platform code must not take the thread (and every host) down.
-                let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| handle(ev, target, &mut slots)));
-            }
-        });
-    });
     if let Err(e) = spawned {
         return Err(format!("could not start the window thread: {e}"));
     }
     match rx.recv_timeout(START_LIMIT) {
-        Ok(Ok(p)) => Ok(UiThread { proxy: Mutex::new(p), alive }),
+        Ok(Ok(p)) => Ok(UiThread {
+            proxy: Mutex::new(p),
+            alive,
+        }),
         Ok(Err(e)) => Err(e),
         Err(_) => Err("the window thread did not start".into()),
     }
@@ -288,10 +307,10 @@ fn handle(ev: Ui, target: &EventLoopWindowTarget<Ui>, slots: &mut HashMap<u64, S
             let _ = reply.send(r);
         }
         Ui::Run { id, seq } => {
-            if let Some(slot) = slots.get(&id) {
-                if let Err(e) = slot.webview.evaluate_script(&format!("__sfRun({seq})")) {
-                    let _ = slot.tx.send(Msg::Done(seq, Err(format!("Error: {e}"))));
-                }
+            if let Some(slot) = slots.get(&id)
+                && let Err(e) = slot.webview.evaluate_script(&format!("__sfRun({seq})"))
+            {
+                let _ = slot.tx.send(Msg::Done(seq, Err(format!("Error: {e}"))));
             }
         }
         #[cfg(test)]
@@ -365,7 +384,13 @@ fn build(id: u64, shared: Arc<Shared>, tx: Sender<Msg>, target: &EventLoopWindow
         }
     };
     let webview = webview.map_err(|e| format!("could not start the web engine: {e}"))?;
-    Ok(Slot { webview, _window: window, _context: context, tx, data_dir })
+    Ok(Slot {
+        webview,
+        _window: window,
+        _context: context,
+        tx,
+        data_dir,
+    })
 }
 
 fn serve(shared: &Shared, req: Request<Vec<u8>>) -> Response<Cow<'static, [u8]>> {
@@ -379,7 +404,10 @@ fn serve(shared: &Shared, req: Request<Vec<u8>>) -> Response<Cow<'static, [u8]>>
     };
     match path {
         "" | "index.html" => ok("text/html; charset=utf-8", Cow::Borrowed(PAGE.as_bytes())),
-        "engine.js" => ok("text/javascript; charset=utf-8", Cow::Owned(shared.engine.as_ref().clone())),
+        "engine.js" => ok(
+            "text/javascript; charset=utf-8",
+            Cow::Owned(shared.engine.as_ref().clone()),
+        ),
         p if p.starts_with("call/") => {
             let seq: Option<u64> = p["call/".len()..].parse().ok();
             let mut pending = shared.pending.lock().unwrap_or_else(|e| e.into_inner());
@@ -409,7 +437,9 @@ fn not_found() -> Response<Cow<'static, [u8]>> {
 
 /// Our own page: `sf://localhost/...` (Linux), shown as `http(s)://sf.localhost/...` by WebView2.
 fn page_url(url: &str) -> bool {
-    ["sf://localhost/", "http://sf.localhost/", "https://sf.localhost/"].iter().any(|p| url.starts_with(p))
+    ["sf://localhost/", "http://sf.localhost/", "https://sf.localhost/"]
+        .iter()
+        .any(|p| url.starts_with(p))
 }
 
 /// The page's messages, exactly: `{"ready": bool}`, `{"seq": n, "miss": key}`, or `{"seq": n, "ok": true, "v": str}` /
@@ -476,7 +506,9 @@ impl ProcWatch {
     #[cfg(windows)]
     fn new(pid: Option<u32>) -> Self {
         // SAFETY: OpenProcess with a pid; a null result just means "can't watch".
-        let h = pid.map(|p| unsafe { win::OpenProcess(win::SYNCHRONIZE, 0, p) } as usize).unwrap_or(0);
+        let h = pid
+            .map(|p| unsafe { win::OpenProcess(win::SYNCHRONIZE, 0, p) } as usize)
+            .unwrap_or(0);
         ProcWatch { handle: h }
     }
     #[cfg(not(windows))]
@@ -589,7 +621,12 @@ impl WebviewHost {
 
     /// The WebView2 browser process of the current webview (Windows; `None` elsewhere).
     pub fn browser_pid(&self) -> Option<u32> {
-        self.state.lock().unwrap_or_else(|e| e.into_inner()).live.as_ref().and_then(|l| l.pid)
+        self.state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .live
+            .as_ref()
+            .and_then(|l| l.pid)
     }
 
     /// Ends the UI thread, as if it had crashed, and waits until it has gone (tests only).
@@ -609,7 +646,9 @@ impl WebviewHost {
     #[cfg(test)]
     fn big_sends(&self) -> u64 {
         let st = self.state.lock().unwrap_or_else(|e| e.into_inner());
-        st.live.as_ref().map_or(0, |l| l.shared.big_sends.load(Ordering::SeqCst))
+        st.live
+            .as_ref()
+            .map_or(0, |l| l.shared.big_sends.load(Ordering::SeqCst))
     }
 
     /// Reloads the page and waits until it is ready again (tests only). The host is not told,
@@ -630,11 +669,20 @@ impl WebviewHost {
 
     fn spawn(&self) -> Result<Live, String> {
         let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
-        let shared = Arc::new(Shared { engine: self.engine.clone(), pending: Mutex::new(None), big_sends: AtomicU64::new(0) });
+        let shared = Arc::new(Shared {
+            engine: self.engine.clone(),
+            pending: Mutex::new(None),
+            big_sends: AtomicU64::new(0),
+        });
         let (tx, rx) = channel();
         let (reply_tx, reply_rx) = channel();
         let ui = ui()?;
-        ui.send(Ui::Create { id, shared: shared.clone(), tx, reply: reply_tx })?;
+        ui.send(Ui::Create {
+            id,
+            shared: shared.clone(),
+            tx,
+            reply: reply_tx,
+        })?;
         let pid = match reply_rx.recv_timeout(START_LIMIT) {
             Ok(Ok(pid)) => pid,
             Ok(Err(e)) => return Err(e),
@@ -643,7 +691,15 @@ impl WebviewHost {
                 return Err("the web engine did not start in time".into());
             }
         };
-        let live = Live { id, ui, shared, rx, pid, watch: ProcWatch::new(pid), store: PageStore::default() };
+        let live = Live {
+            id,
+            ui,
+            shared,
+            rx,
+            pid,
+            watch: ProcWatch::new(pid),
+            store: PageStore::default(),
+        };
         let deadline = Instant::now() + START_LIMIT;
         loop {
             match live.rx.recv_timeout(POLL) {
@@ -726,10 +782,13 @@ impl WebviewHost {
 /// by one quick scan when they are a plain string; anything else gets a real parse.
 fn valid_json(a: &str) -> bool {
     let b = a.as_bytes();
-    if b.len() > 4096 && b.len() >= 2 && b[0] == b'"' && b[b.len() - 1] == b'"' {
-        if b[1..b.len() - 1].iter().all(|&c| c != b'"' && c != 92 && c >= 0x20) {
-            return true;
-        }
+    if b.len() > 4096
+        && b.len() >= 2
+        && b[0] == b'"'
+        && b[b.len() - 1] == b'"'
+        && b[1..b.len() - 1].iter().all(|&c| c != b'"' && c != 92 && c >= 0x20)
+    {
+        return true;
     }
     serde_json::from_str::<serde_json::Value>(a).is_ok()
 }
@@ -747,7 +806,9 @@ fn call_body(name: &str, args: &[&str], keys: &[Option<String>], store: &mut Pag
     let name = serde_json::to_string(name).unwrap_or_else(|_| "\"\"".into());
     let key = |i: usize| keys.get(i).and_then(Option::as_deref);
     // A held argument was valid JSON when it was kept (same key, same text).
-    let held: Vec<bool> = (0..args.len()).map(|i| key(i).is_some_and(|k| store.holds(k))).collect();
+    let held: Vec<bool> = (0..args.len())
+        .map(|i| key(i).is_some_and(|k| store.holds(k)))
+        .collect();
     let mut out = String::new();
     if !args.iter().zip(&held).all(|(a, &h)| h || valid_json(a)) {
         out.push_str("{\"op\":\"call\",\"name\":");
@@ -757,7 +818,13 @@ fn call_body(name: &str, args: &[&str], keys: &[Option<String>], store: &mut Pag
         out.push('}');
         return out;
     }
-    let cap = 160 + name.len() + args.iter().zip(&held).map(|(a, &h)| if h { 40 } else { a.len() + 40 }).sum::<usize>();
+    let cap = 160
+        + name.len()
+        + args
+            .iter()
+            .zip(&held)
+            .map(|(a, &h)| if h { 40 } else { a.len() + 40 })
+            .sum::<usize>();
     out.reserve(cap);
     out.push_str("{\"op\":\"call\",\"name\":");
     out.push_str(&name);
@@ -932,7 +999,12 @@ mod store_tests {
         let s = 100.0 / n as f64;
         for i in 0..n {
             for k in 0..n {
-                let (x0, y0, x1, y1) = (i as f64 * s - 50.0, k as f64 * s - 50.0, (i + 1) as f64 * s - 50.0, (k + 1) as f64 * s - 50.0);
+                let (x0, y0, x1, y1) = (
+                    i as f64 * s - 50.0,
+                    k as f64 * s - 50.0,
+                    (i + 1) as f64 * s - 50.0,
+                    (k + 1) as f64 * s - 50.0,
+                );
                 for z in [10.0, 15.0] {
                     let (a, b, c, d) = ([x0, y0, z], [x1, y0, z], [x1, y1, z], [x0, y1, z]);
                     if z > 12.0 {
@@ -953,13 +1025,26 @@ mod store_tests {
         let opts = serde_json::to_string(&h.call("optionsFromDialogJson", &["\"{}\""]).unwrap()).unwrap();
         let wall = |a: &str, b: &str| {
             let t = Instant::now();
-            let r = h.call("drawWallB64", &[&soup, &serde_json::to_string(a).unwrap(), &serde_json::to_string(b).unwrap(), &opts]).unwrap();
+            let r = h
+                .call(
+                    "drawWallB64",
+                    &[
+                        &soup,
+                        &serde_json::to_string(a).unwrap(),
+                        &serde_json::to_string(b).unwrap(),
+                        &opts,
+                    ],
+                )
+                .unwrap();
             (r, t.elapsed())
         };
         let (r1, t1) = wall("[-20,0,10]", "[20,0,10]");
         let (r2, t2) = wall("[0,-20,10]", "[0,20,10]");
         let (r3, t3) = wall("[-20,0,10]", "[20,0,10]");
-        println!("large_arg_real_engine: soup {} bytes; cold {t1:?}, warm {t2:?}, {t3:?}", soup.len());
+        println!(
+            "large_arg_real_engine: soup {} bytes; cold {t1:?}, warm {t2:?}, {t3:?}",
+            soup.len()
+        );
         assert_eq!(r1, r3, "the same arguments give the same answer");
         assert_ne!(r1, r2);
         assert_eq!(h.big_sends(), 1, "the soup crosses sf:// once");

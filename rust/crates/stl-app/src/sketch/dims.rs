@@ -8,12 +8,10 @@
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 
-use egui::{pos2, vec2, Color32, FontId, Rect, Sense, Shape, Stroke, StrokeKind};
+use egui::{Color32, FontId, Rect, Sense, Shape, Stroke, StrokeKind, pos2, vec2};
 use serde_json::Value;
-use stl_sketch::entities::{point, P2};
-use stl_sketch::solver::{
-    angle_to, is_redundant, line_meet, measure, refs_exist, Constraint, Ref, World,
-};
+use stl_sketch::entities::{P2, point};
+use stl_sketch::solver::{Constraint, Ref, World, angle_to, is_redundant, line_meet, measure, refs_exist};
 
 use super::solve::{all_ents, fixed_ents};
 use super::{Entity, SketchDialog, SketchEffect, SketchSession};
@@ -79,11 +77,7 @@ fn len(a: P2) -> f64 {
 }
 fn unit(a: P2) -> P2 {
     let l = len(a);
-    if l > 1e-12 {
-        [a[0] / l, a[1] / l]
-    } else {
-        [1.0, 0.0]
-    }
+    if l > 1e-12 { [a[0] / l, a[1] / l] } else { [1.0, 0.0] }
 }
 /// JS `Math.sign(x) || 1`.
 fn sign1(x: f64) -> f64 {
@@ -135,7 +129,12 @@ pub fn linear_base(c: &Constraint, w: &World) -> Option<LinearBase> {
             Entity::Line(l) => (l.p1, l.p2),
             _ => return None,
         };
-        return Some(LinearBase { p, q, u: unit(sub(q, p)), line: None });
+        return Some(LinearBase {
+            p,
+            q,
+            u: unit(sub(q, p)),
+            line: None,
+        });
     }
     let p = point(a, ar.k.as_deref().unwrap_or(""))?;
     let br = c.b.as_ref()?;
@@ -143,8 +142,17 @@ pub fn linear_base(c: &Constraint, w: &World) -> Option<LinearBase> {
         let Entity::Line(l) = w.get(&br.e)? else { return None };
         let d = unit(sub(l.p2, l.p1));
         let q = add(l.p1, mul(d, dot(sub(p, l.p1), d)));
-        let u = if len(sub(q, p)) > 1e-12 { unit(sub(q, p)) } else { [-d[1], d[0]] };
-        return Some(LinearBase { p, q, u, line: Some((l.p1, l.p2)) });
+        let u = if len(sub(q, p)) > 1e-12 {
+            unit(sub(q, p))
+        } else {
+            [-d[1], d[0]]
+        };
+        return Some(LinearBase {
+            p,
+            q,
+            u,
+            line: Some((l.p1, l.p2)),
+        });
     }
     let q = point(w.get(&br.e)?, br.k.as_deref().unwrap_or(""))?;
     let u = match c.kind.as_str() {
@@ -210,7 +218,10 @@ pub fn place_at(c: &mut Constraint, w: &World, cur: P2) {
         set(c, "ang", d[1].atan2(d[0]) / D2R);
         set(c, "out", len(d) - r);
     } else if c.kind == "angle" {
-        let (Some(a), Some(b)) = (c.a.as_ref().and_then(|r| w.get(&r.e)), c.b.as_ref().and_then(|r| w.get(&r.e))) else {
+        let (Some(a), Some(b)) = (
+            c.a.as_ref().and_then(|r| w.get(&r.e)),
+            c.b.as_ref().and_then(|r| w.get(&r.e)),
+        ) else {
             return;
         };
         if let Some(v) = line_meet(a, b) {
@@ -278,16 +289,25 @@ pub fn layout(c: &Constraint, w: &World, px: f64) -> Option<Layout> {
         let wv = dot(sub(b, a), u);
         let dir_ab = sign1(wv);
         let uu = mul(u, dir_ab);
-        let t = add(mul(add(a, b), 0.5), mul(u, get(c, "slide").filter(|s| *s != 0.0).unwrap_or(0.0)));
+        let t = add(
+            mul(add(a, b), 0.5),
+            mul(u, get(c, "slide").filter(|s| *s != 0.0).unwrap_or(0.0)),
+        );
         out.text = t;
         out.lines.push([a, b]);
         if wv.abs() > 2.6 * arrow + 14.0 * px {
-            out.arrows.push(Arrow { at: a, d: mul(uu, -1.0) });
+            out.arrows.push(Arrow {
+                at: a,
+                d: mul(uu, -1.0),
+            });
             out.arrows.push(Arrow { at: b, d: uu });
         } else {
             // too short for arrows inside: put them outside, pointing in
             out.arrows.push(Arrow { at: a, d: uu });
-            out.arrows.push(Arrow { at: b, d: mul(uu, -1.0) });
+            out.arrows.push(Arrow {
+                at: b,
+                d: mul(uu, -1.0),
+            });
             out.lines.push([a, sub(a, mul(uu, 2.2 * arrow))]);
             out.lines.push([b, add(b, mul(uu, 2.2 * arrow))]);
         }
@@ -315,7 +335,10 @@ pub fn layout(c: &Constraint, w: &World, px: f64) -> Option<Layout> {
             let r2 = sub(cc, mul(d, r));
             out.lines.push([r2, if o >= 0.0 { t } else { rr }]);
             out.arrows.push(Arrow { at: rr, d });
-            out.arrows.push(Arrow { at: r2, d: mul(d, -1.0) });
+            out.arrows.push(Arrow {
+                at: r2,
+                d: mul(d, -1.0),
+            });
         } else {
             out.lines.push([cc, if o >= 0.0 { t } else { rr }]);
             out.arrows.push(Arrow { at: rr, d });
@@ -333,15 +356,22 @@ pub fn layout(c: &Constraint, w: &World, px: f64) -> Option<Layout> {
                 let to_start = 360.0 - rel;
                 let to_end = rel - sw;
                 let (a0, a1) = if to_end < to_start { (arc.a1, at) } else { (at, arc.a0) };
-                out.arcs.push(ArcSeg { c: cc, r, a0: a0 * D2R, a1: (a0 + deg(a1 - a0)) * D2R, thin: true });
+                out.arcs.push(ArcSeg {
+                    c: cc,
+                    r,
+                    a0: a0 * D2R,
+                    a1: (a0 + deg(a1 - a0)) * D2R,
+                    thin: true,
+                });
             }
         }
         return Some(out);
     }
     if c.kind == "angle" {
-        let (Some(Entity::Line(la)), Some(Entity::Line(lb))) =
-            (c.a.as_ref().and_then(|r| w.get(&r.e)), c.b.as_ref().and_then(|r| w.get(&r.e)))
-        else {
+        let (Some(Entity::Line(la)), Some(Entity::Line(lb))) = (
+            c.a.as_ref().and_then(|r| w.get(&r.e)),
+            c.b.as_ref().and_then(|r| w.get(&r.e)),
+        ) else {
             return None;
         };
         let (ea, eb) = (&Entity::Line(la.clone()), &Entity::Line(lb.clone()));
@@ -363,9 +393,21 @@ pub fn layout(c: &Constraint, w: &World, px: f64) -> Option<Layout> {
         while a1 < a0 {
             a1 += 2.0 * std::f64::consts::PI;
         }
-        out.arcs.push(ArcSeg { c: v, r: rad, a0, a1, thin: false });
-        out.arrows.push(Arrow { at: add(v, mul([a0.cos(), a0.sin()], rad)), d: [a0.sin(), -a0.cos()] });
-        out.arrows.push(Arrow { at: add(v, mul([a1.cos(), a1.sin()], rad)), d: [-a1.sin(), a1.cos()] });
+        out.arcs.push(ArcSeg {
+            c: v,
+            r: rad,
+            a0,
+            a1,
+            thin: false,
+        });
+        out.arrows.push(Arrow {
+            at: add(v, mul([a0.cos(), a0.sin()], rad)),
+            d: [a0.sin(), -a0.cos()],
+        });
+        out.arrows.push(Arrow {
+            at: add(v, mul([a1.cos(), a1.sin()], rad)),
+            d: [-a1.sin(), a1.cos()],
+        });
         let mid = (a0 + a1) / 2.0;
         out.text = add(v, mul([mid.cos(), mid.sin()], rad));
         // extension lines from the lines out to the arc
@@ -402,11 +444,7 @@ pub fn dim_text(c: &Constraint, ents: &[Entity], inch: bool, bare: bool) -> Stri
         };
         format!("{pre}{}", fmt_len(v, None, inch))
     };
-    if bare || !is_ref_dim(c) {
-        t
-    } else {
-        format!("({t})")
-    }
+    if bare || !is_ref_dim(c) { t } else { format!("({t})") }
 }
 
 /// `dimClass`: the class names 1.x gives the label.
@@ -428,7 +466,12 @@ pub fn dim_class(c: &Constraint, selected: bool, bad: bool, preview: bool) -> St
 
 /// `parseDim`: a value as typed, in display units (degrees for angles), or a parameter
 /// expression. Returns the value (mm or degrees) and the expression, if it was one.
-pub fn parse_dim(text: &str, is_ang: bool, inch: bool, params: &BTreeMap<String, f64>) -> Result<(f64, Option<String>), String> {
+pub fn parse_dim(
+    text: &str,
+    is_ang: bool,
+    inch: bool,
+    params: &BTreeMap<String, f64>,
+) -> Result<(f64, Option<String>), String> {
     let t = text.trim();
     if expr_text(t) {
         let expr = expr_of(t);
@@ -473,7 +516,9 @@ pub fn set_dim_value(s: &mut SketchSession, idx: usize, v: f64, expr: Option<Str
     if !r.ok {
         s.constraints[idx] = old;
         s.history.pop();
-        return vec![warn("The sketch can't take that size: it conflicts with its other dimensions and relations.")];
+        return vec![warn(
+            "The sketch can't take that size: it conflicts with its other dimensions and relations.",
+        )];
     }
     s.entities = r.entities;
     vec![SketchEffect::Changed]
@@ -481,7 +526,9 @@ pub fn set_dim_value(s: &mut SketchSession, idx: usize, v: f64, expr: Option<Str
 
 /// `setDimRef`: reference (driven) dimensions show a size; driving ones set it.
 pub fn set_dim_ref(s: &mut SketchSession, idx: usize, is_ref: bool) -> Vec<SketchEffect> {
-    let Some(c) = s.constraints.get(idx).cloned() else { return vec![] };
+    let Some(c) = s.constraints.get(idx).cloned() else {
+        return vec![];
+    };
     if c.has_ref() == is_ref {
         return vec![];
     }
@@ -490,7 +537,13 @@ pub fn set_dim_ref(s: &mut SketchSession, idx: usize, is_ref: bool) -> Vec<Sketc
         let mut test = c.clone();
         test.ref_ = None;
         test.value = measure(&c, &ents);
-        let others: Vec<Constraint> = s.constraints.iter().enumerate().filter(|(i, _)| *i != idx).map(|(_, x)| x.clone()).collect();
+        let others: Vec<Constraint> = s
+            .constraints
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| *i != idx)
+            .map(|(_, x)| x.clone())
+            .collect();
         if is_redundant(&s.entities, &others, &test, &fixed_ents(s)) {
             return vec![
                 warn("That would over-define the sketch: other dimensions and relations already set this size."),
@@ -521,7 +574,8 @@ pub fn edit_dimension(s: &mut SketchSession, idx: usize) -> Vec<SketchEffect> {
             SketchEffect::Changed,
             SketchEffect::Toast(
                 Level::Info,
-                "A reference dimension follows the sketch. Untick Reference in the panel to make it set the size.".into(),
+                "A reference dimension follows the sketch. Untick Reference in the panel to make it set the size."
+                    .into(),
             ),
         ];
     }
@@ -655,7 +709,13 @@ fn px_of(s: &SketchSession, vp: &Viewport) -> f64 {
 }
 
 /// Dimension colours by class: (line, label text, label border).
-fn colours(t: &crate::theme::Tokens, c: &Constraint, sel: bool, bad: bool, preview: bool) -> (Color32, Color32, Option<Color32>) {
+fn colours(
+    t: &crate::theme::Tokens,
+    c: &Constraint,
+    sel: bool,
+    bad: bool,
+    preview: bool,
+) -> (Color32, Color32, Option<Color32>) {
     let (mut line, mut text, mut border) = (t.dim_ink, t.dim_text, None);
     if is_ref_dim(c) {
         line = t.dim_ref;
@@ -695,7 +755,15 @@ fn arrow_head(sc: &impl Fn(P2) -> egui::Pos2, a: &Arrow, px: f64, col: Color32) 
     }
     let (k, w) = (9.0, 3.2);
     let c = tip - u * k;
-    Shape::convex_polygon(vec![tip, pos2(c.x - u.y * w, c.y + u.x * w), pos2(c.x + u.y * w, c.y - u.x * w)], col, Stroke::NONE)
+    Shape::convex_polygon(
+        vec![
+            tip,
+            pos2(c.x - u.y * w, c.y + u.x * w),
+            pos2(c.x + u.y * w, c.y - u.x * w),
+        ],
+        col,
+        Stroke::NONE,
+    )
 }
 
 fn arc_points(sc: &impl Fn(P2) -> egui::Pos2, a: &ArcSeg) -> Vec<egui::Pos2> {
@@ -710,7 +778,13 @@ fn arc_points(sc: &impl Fn(P2) -> egui::Pos2, a: &ArcSeg) -> Vec<egui::Pos2> {
 
 /// The dimension labels, arrows and extension lines; drag a label to place it, click to select,
 /// double-click to change. Reference dimensions are in brackets; conflicting ones red.
-pub fn paint(ui: &egui::Ui, s: &mut SketchSession, vp: &Viewport, inch: bool, params: &BTreeMap<String, f64>) -> Vec<SketchEffect> {
+pub fn paint(
+    ui: &egui::Ui,
+    s: &mut SketchSession,
+    vp: &Viewport,
+    inch: bool,
+    params: &BTreeMap<String, f64>,
+) -> Vec<SketchEffect> {
     let _ = params;
     let mut out = Vec::new();
     let t = crate::theme::tokens(ui.visuals().dark_mode);
@@ -760,7 +834,11 @@ pub fn paint(ui: &egui::Ui, s: &mut SketchSession, vp: &Viewport, inch: bool, pa
         }
         // the label
         let label = dim_text(&c, &ents, inch, false);
-        let shown = if expr_of_dim(&c).is_some() { format!("ƒ {label}") } else { label.clone() };
+        let shown = if expr_of_dim(&c).is_some() {
+            format!("ƒ {label}")
+        } else {
+            label.clone()
+        };
         let font = FontId::proportional(11.5);
         let shown = drawable(ui.ctx(), &font, &shown);
         let galley = painter.layout_no_wrap(shown, font, text_col);
@@ -769,7 +847,11 @@ pub fn paint(ui: &egui::Ui, s: &mut SketchSession, vp: &Viewport, inch: bool, pa
         let (mut hover, mut resp) = (false, None);
         if !preview {
             let i = idx.unwrap();
-            let sense = if is_passive { Sense::hover() } else { Sense::click_and_drag() };
+            let sense = if is_passive {
+                Sense::hover()
+            } else {
+                Sense::click_and_drag()
+            };
             let r = ui.interact(rect, ui.scope_id().with(("sk_dim", i)), sense);
             let name = label.clone();
             r.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, name.clone()));
@@ -798,21 +880,20 @@ pub fn paint(ui: &egui::Ui, s: &mut SketchSession, vp: &Viewport, inch: bool, pa
         if r.drag_started() {
             s.push();
         }
-        if r.dragged() {
-            if let Some(pos) = r.interact_pointer_pos() {
-                if let Some(p3) = vp.ray_to_plane(pos, &s.frame) {
-                    let uv = s.to_uv(p3);
-                    let mut c2 = s.constraints[i].clone();
-                    place_at(&mut c2, &w, uv);
-                    if c2.kind == "angle" && c2.has_ref() {
-                        let n = angle_to(&c2, &ents, uv);
-                        c2.ra = n.ra;
-                        c2.rb = n.rb;
-                        c2.sign = n.sign;
-                    }
-                    s.constraints[i] = c2;
-                }
+        if r.dragged()
+            && let Some(pos) = r.interact_pointer_pos()
+            && let Some(p3) = vp.ray_to_plane(pos, &s.frame)
+        {
+            let uv = s.to_uv(p3);
+            let mut c2 = s.constraints[i].clone();
+            place_at(&mut c2, &w, uv);
+            if c2.kind == "angle" && c2.has_ref() {
+                let n = angle_to(&c2, &ents, uv);
+                c2.ra = n.ra;
+                c2.rb = n.rb;
+                c2.sign = n.sign;
             }
+            s.constraints[i] = c2;
         }
         if r.drag_stopped() {
             out.push(SketchEffect::Changed);

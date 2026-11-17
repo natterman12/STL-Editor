@@ -26,20 +26,32 @@ fn skdim_smart_dimension_edges_useedge_params() {
     {
         let s = h.state_mut().sketch_mode_mut().unwrap();
         // Width 30, height 12 (1.x typed into modify).
-        s.s.constraints.push(serde_json::from_value(json!({
-            "id": "dw", "type": "hdistance", "a": {"e":"r0","k":"c0"}, "b": {"e":"r0","k":"c1"},
-            "off": -4.0, "slide": 0.0, "value": 30.0
-        })).unwrap());
-        s.s.constraints.push(serde_json::from_value(json!({
-            "id": "dh", "type": "vdistance", "a": {"e":"r0","k":"c0"}, "b": {"e":"r0","k":"c3"},
-            "off": 4.0, "slide": 0.0, "value": 12.0
-        })).unwrap());
-        s.s.entities.push(serde_json::from_value(json!({
-            "id": "c0", "type": "circle", "cx": 33.0, "cy": 12.0, "r": 2.5
-        })).unwrap());
-        s.s.constraints.push(serde_json::from_value(json!({
-            "id": "dd", "type": "diameter", "a": {"e":"c0"}, "ang": -90.0, "out": 8.0, "value": 5.0
-        })).unwrap());
+        s.s.constraints.push(
+            serde_json::from_value(json!({
+                "id": "dw", "type": "hdistance", "a": {"e":"r0","k":"c0"}, "b": {"e":"r0","k":"c1"},
+                "off": -4.0, "slide": 0.0, "value": 30.0
+            }))
+            .unwrap(),
+        );
+        s.s.constraints.push(
+            serde_json::from_value(json!({
+                "id": "dh", "type": "vdistance", "a": {"e":"r0","k":"c0"}, "b": {"e":"r0","k":"c3"},
+                "off": 4.0, "slide": 0.0, "value": 12.0
+            }))
+            .unwrap(),
+        );
+        s.s.entities.push(
+            serde_json::from_value(json!({
+                "id": "c0", "type": "circle", "cx": 33.0, "cy": 12.0, "r": 2.5
+            }))
+            .unwrap(),
+        );
+        s.s.constraints.push(
+            serde_json::from_value(json!({
+                "id": "dd", "type": "diameter", "a": {"e":"c0"}, "ang": -90.0, "out": 8.0, "value": 5.0
+            }))
+            .unwrap(),
+        );
     }
     h.state_mut().sketch_set_tool("c_dimension");
     h.run_steps(3);
@@ -49,8 +61,13 @@ fn skdim_smart_dimension_edges_useedge_params() {
     let redundant = serde_json::from_value(json!({
         "id": "dw2", "type": "hdistance", "a": {"e":"r0","k":"c0"}, "b": {"e":"r0","k":"c1"},
         "off": -8.0, "slide": 0.0, "value": 30.0
-    })).unwrap();
-    let fx = dims::place_dimension(&mut h.state_mut().sketch_mode_mut().unwrap().s, &redundant, String::new());
+    }))
+    .unwrap();
+    let fx = dims::place_dimension(
+        &mut h.state_mut().sketch_mode_mut().unwrap().s,
+        &redundant,
+        String::new(),
+    );
     h.state_mut().sketch_apply(fx);
     h.run_steps(3);
     if h.query_by_label("Over defined").is_some() {
@@ -61,11 +78,13 @@ fn skdim_smart_dimension_edges_useedge_params() {
     }
 
     // Parameter `w` in a dimension (1.x params/set then openModify).
-    h.state_mut().link.send(Command::SetParams(vec![stl_engine::params::Param {
-        name: "w".into(),
-        expr: "28".into(),
-        note: String::new(),
-    }]));
+    h.state_mut()
+        .link
+        .send(Command::SetParams(vec![stl_engine::params::Param {
+            name: "w".into(),
+            expr: "28".into(),
+            note: String::new(),
+        }]));
     settle(&mut h, &link);
     {
         let s = h.state_mut().sketch_mode_mut().unwrap();
@@ -82,7 +101,14 @@ fn skdim_smart_dimension_edges_useedge_params() {
     assert!(h.state().shell.hint.to_lowercase().contains("edge") || h.state().shell.hint.contains("orange"));
 
     finish_sketch_settle(&mut h, &link, false);
-    let sk = h.state().timeline_view.items.iter().rev().find(|i| i.kind == "sketch").expect("sketch saved");
+    let sk = h
+        .state()
+        .timeline_view
+        .items
+        .iter()
+        .rev()
+        .find(|i| i.kind == "sketch")
+        .expect("sketch saved");
     assert!(sk.params["constraints"].as_array().unwrap().len() >= 3);
     assert_eq!(sk.error, None);
 }

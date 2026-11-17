@@ -14,16 +14,33 @@ pub const REPEATABLE: [&str; 4] = ["extrude", "revolve", "hole", "primitive"];
 
 /// `repeatableFeatures(state)`: switched on, no error, not suppressed.
 pub fn repeatable<'a>(ctx: &'a Ctx) -> Vec<&'a TimelineItem> {
-    ctx.features.iter().filter(|f| REPEATABLE.contains(&f.kind.as_str()) && f.active && f.error.is_none() && !f.suppressed).collect()
+    ctx.features
+        .iter()
+        .filter(|f| REPEATABLE.contains(&f.kind.as_str()) && f.active && f.error.is_none() && !f.suppressed)
+        .collect()
 }
 
 fn ids(values: &Values, key: &str) -> Vec<String> {
-    values.get(key).and_then(Value::as_array).map(|a| a.iter().filter_map(|x| x.as_str().map(str::to_owned)).collect()).unwrap_or_default()
+    values
+        .get(key)
+        .and_then(Value::as_array)
+        .map(|a| a.iter().filter_map(|x| x.as_str().map(str::to_owned)).collect())
+        .unwrap_or_default()
 }
 
 /// The right-hand word of a row: the step's operation (a hole cuts).
 pub fn operation(item: &TimelineItem) -> String {
-    item.params.get("operation").and_then(Value::as_str).map(str::to_owned).unwrap_or_else(|| if item.kind == "hole" { "cut".into() } else { String::new() })
+    item.params
+        .get("operation")
+        .and_then(Value::as_str)
+        .map(str::to_owned)
+        .unwrap_or_else(|| {
+            if item.kind == "hole" {
+                "cut".into()
+            } else {
+                String::new()
+            }
+        })
 }
 
 /// Tick or untick a step (the checkbox, and a click on that step in the timeline).
@@ -42,10 +59,17 @@ pub fn toggle(values: &mut Values, key: &str, id: &str) {
 pub fn show(ui: &mut Ui, tk: &Tokens, f: &Field, values: &mut Values, ctx: &Ctx, edit_id: Option<&str>) -> ShowOut {
     ui.label(RichText::new(f.label).size(11.0).color(tk.label));
     let sel = ids(values, f.key);
-    let list: Vec<&TimelineItem> = repeatable(ctx).into_iter().filter(|x| Some(x.id.as_str()) != edit_id).collect();
+    let list: Vec<&TimelineItem> = repeatable(ctx)
+        .into_iter()
+        .filter(|x| Some(x.id.as_str()) != edit_id)
+        .collect();
     let mut out = ShowOut::default();
     if list.is_empty() {
-        ui.label(RichText::new("No cuts, holes or extrudes yet").size(11.0).color(tk.muted));
+        ui.label(
+            RichText::new("No cuts, holes or extrudes yet")
+                .size(11.0)
+                .color(tk.muted),
+        );
     }
     for item in list {
         let mut on = sel.contains(&item.id);

@@ -2,7 +2,7 @@
 //! idle timer so they are still released. One test only: the pool is process-wide.
 
 use std::time::{Duration, Instant};
-use stl_kernel::{release_scratch, scratch_held_bytes, set_idle_timeout, touch_scratch, Solid};
+use stl_kernel::{Solid, release_scratch, scratch_held_bytes, set_idle_timeout, touch_scratch};
 
 #[test]
 fn touch_arms_the_timer_after_a_drop_outside_a_guard() {

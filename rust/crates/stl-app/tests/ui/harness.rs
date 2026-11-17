@@ -30,10 +30,12 @@ pub struct FakePlatform {
 
 impl Platform for FakePlatform {
     fn open_file(&self, filters: &[(&str, &[&str])]) -> Pending<Option<PickedFile>> {
-        self.opens
-            .lock()
-            .unwrap()
-            .push(filters.iter().flat_map(|(_, e)| e.iter().map(|s| s.to_string())).collect());
+        self.opens.lock().unwrap().push(
+            filters
+                .iter()
+                .flat_map(|(_, e)| e.iter().map(|s| s.to_string()))
+                .collect(),
+        );
         let next = self.picks.lock().unwrap().pop().unwrap_or(None);
         Pending::ready(next)
     }
@@ -76,12 +78,20 @@ impl RecordPlatform {
     /// `slicers` are (key, name); `step` says SolidCraft's command-line tool is installed.
     pub fn new(slicers: &[(&str, &str)], step: bool) -> Self {
         let slicers = slicers.iter().map(|(k, n)| (k.to_string(), n.to_string())).collect();
-        RecordPlatform { log: Arc::new(Mutex::new(Vec::new())), slicers, step, web: false }
+        RecordPlatform {
+            log: Arc::new(Mutex::new(Vec::new())),
+            slicers,
+            step,
+            web: false,
+        }
     }
 
     /// The same, as the web edition.
     pub fn web() -> Self {
-        RecordPlatform { web: true, ..RecordPlatform::new(&[], false) }
+        RecordPlatform {
+            web: true,
+            ..RecordPlatform::new(&[], false)
+        }
     }
 
     fn record(&self, entry: String) {
@@ -157,7 +167,9 @@ pub fn fixture_stl(name: &str) -> PathBuf {
 }
 
 pub fn project(name: &str) -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/projects").join(name)
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/projects")
+        .join(name)
 }
 
 /// Starts the app with a fake platform and a real native engine link. When `project` is set,
@@ -174,35 +186,50 @@ pub fn app_harness_ex(project: Option<&Path>, size: egui::Vec2) -> (Harness<'sta
 }
 
 /// [`app_harness_ex`] on a platform the caller keeps a handle to (its settings, saved files).
-pub fn app_harness_with(project: Option<&Path>, size: egui::Vec2, platform: FakePlatform) -> (Harness<'static, StlApp>, Arc<NativeLink>) {
+pub fn app_harness_with(
+    project: Option<&Path>,
+    size: egui::Vec2,
+    platform: FakePlatform,
+) -> (Harness<'static, StlApp>, Arc<NativeLink>) {
     app_harness_on(project, size, platform)
 }
 
 /// [`app_harness_ex`] on any platform, such as [`RecordPlatform`]. The app keeps the platform;
 /// read it back with `h.state().platform`.
-pub fn app_harness_on(project: Option<&Path>, size: egui::Vec2, platform: impl Platform + 'static) -> (Harness<'static, StlApp>, Arc<NativeLink>) {
+pub fn app_harness_on(
+    project: Option<&Path>,
+    size: egui::Vec2,
+    platform: impl Platform + 'static,
+) -> (Harness<'static, StlApp>, Arc<NativeLink>) {
     let link = Arc::new(NativeLink::new());
     let ctx = egui::Context::default();
     let app = StlApp::new(&ctx, Box::new(platform), Box::new(SharedLink { inner: link.clone() }));
 
     if let Some(path) = project {
         let bytes = std::fs::read(path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
-        let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("project.stlx").to_owned();
+        let name = path
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("project.stlx")
+            .to_owned();
         link.send(Command::Open { name, bytes });
     }
 
     let mut init = false;
-    let mut h = Harness::builder().with_size(size).with_accessibility_check(false).build_ui_state(
-        move |ui, app: &mut StlApp| {
-            if !init {
-                init = true;
-                stl_app::fonts::install(ui.ctx());
-                app.set_theme(ui.ctx(), ThemePref::Dark);
-            }
-            app.layout(ui);
-        },
-        app,
-    );
+    let mut h = Harness::builder()
+        .with_size(size)
+        .with_accessibility_check(false)
+        .build_ui_state(
+            move |ui, app: &mut StlApp| {
+                if !init {
+                    init = true;
+                    stl_app::fonts::install(ui.ctx());
+                    app.set_theme(ui.ctx(), ThemePref::Dark);
+                }
+                app.layout(ui);
+            },
+            app,
+        );
 
     settle(&mut h, &link);
     (h, link)
@@ -216,10 +243,18 @@ pub fn empty_harness() -> (Harness<'static, StlApp>, Arc<NativeLink>) {
 /// Import an STL through the real engine and wait until a body appears.
 pub fn import_stl(h: &mut Harness<'static, StlApp>, link: &NativeLink, path: &Path) {
     let bytes = std::fs::read(path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
-    let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("part.stl").to_owned();
+    let name = path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("part.stl")
+        .to_owned();
     h.state_mut().link.send(Command::Import { name, bytes });
     settle(h, link);
-    assert!(!h.state().bodies.is_empty(), "import produced no body ({})", path.display());
+    assert!(
+        !h.state().bodies.is_empty(),
+        "import produced no body ({})",
+        path.display()
+    );
 }
 
 /// Select the first body (if any).
@@ -239,9 +274,7 @@ pub fn open_tool(h: &mut Harness<'static, StlApp>, key: &str) -> bool {
 /// Wait until Support Fins schema is installed (and the tool panel opens if waiting).
 pub fn wait_support_open(h: &mut Harness<'static, StlApp>, link: &NativeLink, key: &str) {
     let end = Instant::now() + Duration::from_secs(60);
-    if !stl_app::supports::is_installed() {
-        let _ = h.state_mut().open_tool(key, None);
-    } else if h.state().tool().is_none() {
+    if !stl_app::supports::is_installed() || h.state().tool().is_none() {
         let _ = h.state_mut().open_tool(key, None);
     }
     while Instant::now() < end {
@@ -255,7 +288,10 @@ pub fn wait_support_open(h: &mut Harness<'static, StlApp>, link: &NativeLink, ke
         }
         std::thread::sleep(Duration::from_millis(20));
     }
-    panic!("Support tool {key} never opened (installed={})", stl_app::supports::is_installed());
+    panic!(
+        "Support tool {key} never opened (installed={})",
+        stl_app::supports::is_installed()
+    );
 }
 
 /// Step the harness until the engine is idle and a follow-up poll finds nothing new.
@@ -286,7 +322,12 @@ pub fn settle(h: &mut Harness<'static, StlApp>, link: &NativeLink) {
 }
 
 /// Step until `ready` is true (the engine's answers arrive on their own time).
-pub fn wait_for(h: &mut Harness<'static, StlApp>, link: &NativeLink, what: &str, ready: impl Fn(&mut Harness<'static, StlApp>) -> bool) {
+pub fn wait_for(
+    h: &mut Harness<'static, StlApp>,
+    link: &NativeLink,
+    what: &str,
+    ready: impl Fn(&mut Harness<'static, StlApp>) -> bool,
+) {
     let end = Instant::now() + Duration::from_secs(90);
     loop {
         settle(h, link);
@@ -304,9 +345,19 @@ pub fn click_at(h: &mut Harness<'static, StlApp>, at: egui::Pos2) {
     use egui::{Event, PointerButton};
     h.event(Event::PointerMoved(at));
     h.step();
-    h.event(Event::PointerButton { pos: at, button: PointerButton::Primary, pressed: true, modifiers: Default::default() });
+    h.event(Event::PointerButton {
+        pos: at,
+        button: PointerButton::Primary,
+        pressed: true,
+        modifiers: Default::default(),
+    });
     h.step();
-    h.event(Event::PointerButton { pos: at, button: PointerButton::Primary, pressed: false, modifiers: Default::default() });
+    h.event(Event::PointerButton {
+        pos: at,
+        button: PointerButton::Primary,
+        pressed: false,
+        modifiers: Default::default(),
+    });
     h.run_steps(2);
 }
 
@@ -316,9 +367,19 @@ pub fn dblclick_at(h: &mut Harness<'static, StlApp>, at: egui::Pos2) {
     for _ in 0..2 {
         h.event(Event::PointerMoved(at));
         h.step();
-        h.event(Event::PointerButton { pos: at, button: PointerButton::Primary, pressed: true, modifiers: Default::default() });
+        h.event(Event::PointerButton {
+            pos: at,
+            button: PointerButton::Primary,
+            pressed: true,
+            modifiers: Default::default(),
+        });
         h.step();
-        h.event(Event::PointerButton { pos: at, button: PointerButton::Primary, pressed: false, modifiers: Default::default() });
+        h.event(Event::PointerButton {
+            pos: at,
+            button: PointerButton::Primary,
+            pressed: false,
+            modifiers: Default::default(),
+        });
         h.step();
     }
     h.run_steps(2);
@@ -351,9 +412,12 @@ pub fn enter_sketch_plane(h: &mut Harness<'static, StlApp>, link: &NativeLink, p
 pub fn sketch_add_rect(h: &mut Harness<'static, StlApp>, id: &str, x: f64, y: f64, w: f64, hgt: f64) {
     let m = h.state_mut().sketch_mode_mut().expect("sketch open");
     m.s.push();
-    m.s.entities.push(serde_json::from_value(serde_json::json!({
-        "id": id, "type": "rect", "x": x, "y": y, "w": w, "h": hgt
-    })).unwrap());
+    m.s.entities.push(
+        serde_json::from_value(serde_json::json!({
+            "id": id, "type": "rect", "x": x, "y": y, "w": w, "h": hgt
+        }))
+        .unwrap(),
+    );
 }
 
 /// Finish the sketch (and optionally open Extrude); settle until the sketch closes.
@@ -367,13 +431,19 @@ pub fn finish_sketch_settle(h: &mut Harness<'static, StlApp>, link: &NativeLink,
 pub fn mesh_volume(m: &stl_kernel::MeshArrays) -> f64 {
     let p = |i: u32| {
         let k = i as usize * 3;
-        [m.positions[k] as f64, m.positions[k + 1] as f64, m.positions[k + 2] as f64]
+        [
+            m.positions[k] as f64,
+            m.positions[k + 1] as f64,
+            m.positions[k + 2] as f64,
+        ]
     };
     m.triangles
         .chunks(3)
         .map(|t| {
             let (a, b, c) = (p(t[0]), p(t[1]), p(t[2]));
-            (a[0] * (b[1] * c[2] - b[2] * c[1]) - a[1] * (b[0] * c[2] - b[2] * c[0]) + a[2] * (b[0] * c[1] - b[1] * c[0])) / 6.0
+            (a[0] * (b[1] * c[2] - b[2] * c[1]) - a[1] * (b[0] * c[2] - b[2] * c[0])
+                + a[2] * (b[0] * c[1] - b[1] * c[0]))
+                / 6.0
         })
         .sum::<f64>()
         .abs()

@@ -4,13 +4,14 @@ use std::borrow::Cow;
 use std::cell::OnceCell;
 use std::f64::consts::TAU;
 
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 use stl_kernel::Solid;
 
 use super::orient::nearest_face;
 use super::results::solids;
 use super::{
-    cached_wall, call, call_json, decode_triangles, floats, has, mesh_key, options, parse_json, soup_json, truthy, MeshData, P3,
+    MeshData, P3, cached_wall, call, call_json, decode_triangles, floats, has, mesh_key, options, parse_json,
+    soup_json, truthy,
 };
 use crate::{FeatureError, FinsHost};
 
@@ -25,7 +26,11 @@ pub fn arc_path(a: P3, b: P3, m: P3, step: f64) -> Option<Vec<P3>> {
     if d.abs() < 1e-9 {
         return None;
     }
-    let (sa, sb, sm) = (a[0] * a[0] + a[1] * a[1], b[0] * b[0] + b[1] * b[1], m[0] * m[0] + m[1] * m[1]);
+    let (sa, sb, sm) = (
+        a[0] * a[0] + a[1] * a[1],
+        b[0] * b[0] + b[1] * b[1],
+        m[0] * m[0] + m[1] * m[1],
+    );
     let cx = (sa * (b[1] - m[1]) + sb * (m[1] - a[1]) + sm * (a[1] - b[1])) / d;
     let cy = (sa * (m[0] - b[0]) + sb * (a[0] - m[0]) + sm * (b[0] - a[0])) / d;
     let r = (a[0] - cx).hypot(a[1] - cy);
@@ -36,7 +41,11 @@ pub fn arc_path(a: P3, b: P3, m: P3, step: f64) -> Option<Vec<P3>> {
     let a0 = ang(a);
     let (to_b, to_m) = (pymod(ang(b) - a0, TAU), pymod(ang(m) - a0, TAU));
     let sweep = if to_m < to_b { to_b } else { to_b - TAU };
-    let fm = if sweep > 0.0 { to_m / sweep } else { (TAU - to_m) / -sweep };
+    let fm = if sweep > 0.0 {
+        to_m / sweep
+    } else {
+        (TAU - to_m) / -sweep
+    };
     let n = ((sweep.abs() * r / step).ceil() as i64).max(2);
     let mut out = Vec::new();
     for k in 0..=n {
@@ -56,11 +65,18 @@ pub fn arc_path(a: P3, b: P3, m: P3, step: f64) -> Option<Vec<P3>> {
 pub type Section = (P3, P3, Option<P3>);
 
 fn p3(v: &[f64]) -> P3 {
-    [v.first().copied().unwrap_or(0.0), v.get(1).copied().unwrap_or(0.0), v.get(2).copied().unwrap_or(0.0)]
+    [
+        v.first().copied().unwrap_or(0.0),
+        v.get(1).copied().unwrap_or(0.0),
+        v.get(2).copied().unwrap_or(0.0),
+    ]
 }
 
 fn points_of(w: &Value) -> Vec<Vec<f64>> {
-    w.get("points").and_then(Value::as_array).map(|a| a.iter().map(|q| floats(Some(q))).collect()).unwrap_or_default()
+    w.get("points")
+        .and_then(Value::as_array)
+        .map(|a| a.iter().map(|q| floats(Some(q))).collect())
+        .unwrap_or_default()
 }
 
 /// `wall_sections`: the pieces a drawn wall is built from.
@@ -113,7 +129,12 @@ fn fail(reason: &str) -> Value {
 }
 
 /// `walls`: hand-drawn walls (Support Fins' Draw mode): lines, lines of several sections, curves.
-pub fn walls(host: &dyn FinsHost, mesh: &MeshData, wall_list: &[Value], values: &Value) -> Result<WallsResult, FeatureError> {
+pub fn walls(
+    host: &dyn FinsHost,
+    mesh: &MeshData,
+    wall_list: &[Value],
+    values: &Value,
+) -> Result<WallsResult, FeatureError> {
     let opts = options(host, values)?;
     let mk = mesh_key(mesh);
     let curves = has(host, "drawWallThroughB64");
@@ -136,7 +157,11 @@ pub fn walls(host: &dyn FinsHost, mesh: &MeshData, wall_list: &[Value], values: 
         };
         let shape = w.get("shape").and_then(Value::as_str).unwrap_or("");
         let hand = shape == "gusset" || shape == "anchor";
-        let sections: Vec<Option<Section>> = if hand { vec![None] } else { wall_sections(w, curves).into_iter().map(Some).collect() };
+        let sections: Vec<Option<Section>> = if hand {
+            vec![None]
+        } else {
+            wall_sections(w, curves).into_iter().map(Some).collect()
+        };
         for sec in sections {
             let r: Value = match sec {
                 None => hand_piece(host, mesh, &mk, &soup_cache, w, values, &opts)?,
@@ -146,8 +171,8 @@ pub fn walls(host: &dyn FinsHost, mesh: &MeshData, wall_list: &[Value], values: 
                         // every argument is JSON text: the soup already quoted, the rest quoted here
                         let s = get_soup(mesh, &soup_cache);
                         let (qa, qb, qo) = (j(&j(&a)), j(&j(&b)), j(&opts));
-                        let r = if m.is_some() && curves {
-                            call_json(host, "drawWallThroughB64", &[s, &qa, &qb, &j(&j(&m.unwrap())), &qo])?
+                        let r = if let Some(through) = m.as_ref().filter(|_| curves) {
+                            call_json(host, "drawWallThroughB64", &[s, &qa, &qb, &j(&j(through)), &qo])?
                         } else {
                             call_json(host, "drawWallB64", &[s, &qa, &qb, &qo])?
                         };
@@ -185,7 +210,12 @@ pub fn walls(host: &dyn FinsHost, mesh: &MeshData, wall_list: &[Value], values: 
         report.push(st);
         by_wall.push(mine);
     }
-    Ok(WallsResult { solids: all, by_wall, walls: report, version: super::version(host) })
+    Ok(WallsResult {
+        solids: all,
+        by_wall,
+        walls: report,
+        version: super::version(host),
+    })
 }
 
 /// A gusset (off a side, out to an overhang) or an anchor fin (against a side), by hand.
@@ -246,11 +276,21 @@ fn hand_piece<'m>(
 }
 
 /// `wall`: one hand-drawn wall between two points on the body (kept for older callers).
-pub fn wall(host: &dyn FinsHost, mesh: &MeshData, a: P3, b: P3, values: &Value) -> Result<(Vec<Solid>, WallStat, String), FeatureError> {
+pub fn wall(
+    host: &dyn FinsHost,
+    mesh: &MeshData,
+    a: P3,
+    b: P3,
+    values: &Value,
+) -> Result<(Vec<Solid>, WallStat, String), FeatureError> {
     let r = walls(host, mesh, &[json!({"shape": "line", "points": [a, b]})], values)?;
     let w = r.walls[0].clone();
     if !w.ok {
-        return Err(FeatureError(w.reason.clone().unwrap_or_else(|| "Support Fins couldn't place a wall there.".into())));
+        return Err(FeatureError(
+            w.reason
+                .clone()
+                .unwrap_or_else(|| "Support Fins couldn't place a wall there.".into()),
+        ));
     }
     Ok((r.solids, w, r.version))
 }

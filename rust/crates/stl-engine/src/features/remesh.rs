@@ -18,7 +18,14 @@ fn f_remesh(
     let s = b.require_solid()?;
     let edge = float(p, "edge", Some(1.0))?;
     let out = stl_mesh::remesh::remesh(s, edge, 5).map_err(|e| FeatureError(e.to_string()))?;
-    state.bodies.insert(bid.clone(), Body { name: b.name, solid: Some(out), mesh: None });
+    state.bodies.insert(
+        bid.clone(),
+        Body {
+            name: b.name,
+            solid: Some(out),
+            mesh: None,
+        },
+    );
     res.modified.push(bid);
     Ok(())
 }

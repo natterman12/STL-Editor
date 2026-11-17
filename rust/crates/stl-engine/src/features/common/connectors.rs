@@ -5,7 +5,7 @@ use serde_json::{Map, Value};
 use stl_kernel::Solid;
 
 use super::float;
-use super::frames::{dot, plane_frame, unit, Vec3};
+use super::frames::{Vec3, dot, plane_frame, unit};
 use crate::FeatureError;
 
 /// `(pin diameter, total pin length, hole clearance per side)` for a connector mode.
@@ -58,7 +58,13 @@ pub fn split_with_connectors(
 ) -> Result<SplitResult, FeatureError> {
     let n = unit(n)?;
     let (above, below) = solid.split_by_plane(n, dot(n, o));
-    let mut out = SplitResult { above, below, extras: Vec::new(), connectors: 0, skipped: false };
+    let mut out = SplitResult {
+        above,
+        below,
+        extras: Vec::new(),
+        connectors: 0,
+        skipped: false,
+    };
     if matches!(mode, "" | "none") || out.above.is_empty() || out.below.is_empty() {
         return Ok(out);
     }
@@ -112,10 +118,24 @@ pub fn split_with_connectors(
         match mode {
             "pins" => {
                 let pin = make_cylinder(p, neg_n, len / 2.0 - 0.2, r, r, 48)?;
-                let tip = make_cylinder(add_scaled(p, n, -(len / 2.0 - 0.2)), neg_n, 0.5, r, (r - 0.5).max(0.2), 48)?;
+                let tip = make_cylinder(
+                    add_scaled(p, n, -(len / 2.0 - 0.2)),
+                    neg_n,
+                    0.5,
+                    r,
+                    (r - 0.5).max(0.2),
+                    48,
+                )?;
                 add_above.push(pin);
                 add_above.push(tip);
-                cut_below.push(make_cylinder(add_scaled(p, n, 0.01), neg_n, len / 2.0 + 0.4, hole_r, hole_r, 48)?);
+                cut_below.push(make_cylinder(
+                    add_scaled(p, n, 0.01),
+                    neg_n,
+                    len / 2.0 + 0.4,
+                    hole_r,
+                    hole_r,
+                    48,
+                )?);
             }
             "magnets" => {
                 let depth = len + c + 0.1;
@@ -127,7 +147,14 @@ pub fn split_with_connectors(
                 cut_above.push(make_cylinder(add_scaled(p, n, -0.01), n, half, hole_r, hole_r, 48)?);
                 cut_below.push(make_cylinder(add_scaled(p, n, 0.01), neg_n, half, hole_r, hole_r, 48)?);
                 if mode == "dowels" {
-                    out.extras.push(make_cylinder(add_scaled(p, n, -(len / 2.0 - 0.2)), n, len - 0.4, r - 0.05, r - 0.05, 48)?);
+                    out.extras.push(make_cylinder(
+                        add_scaled(p, n, -(len / 2.0 - 0.2)),
+                        n,
+                        len - 0.4,
+                        r - 0.05,
+                        r - 0.05,
+                        48,
+                    )?);
                 }
             }
         }
@@ -298,7 +325,12 @@ fn connector_points(solid: &Solid, o: Vec3, n: Vec3, radius: f64, wall: f64) -> 
         for _ in 1..n_here {
             let dmin: Vec<f64> = cand
                 .iter()
-                .map(|c| chosen.iter().map(|q| ((c[0] - q[0]) * (c[0] - q[0]) + (c[1] - q[1]) * (c[1] - q[1])).sqrt()).fold(f64::INFINITY, f64::min))
+                .map(|c| {
+                    chosen
+                        .iter()
+                        .map(|q| ((c[0] - q[0]) * (c[0] - q[0]) + (c[1] - q[1]) * (c[1] - q[1])).sqrt())
+                        .fold(f64::INFINITY, f64::min)
+                })
                 .collect();
             let k = argmax(&dmin);
             if dmin[k] < radius * 4.0 {
@@ -314,7 +346,13 @@ fn connector_points(solid: &Solid, o: Vec3, n: Vec3, radius: f64, wall: f64) -> 
 
     Ok(pts
         .into_iter()
-        .map(|[u, v]| [f.o[0] + u * f.x[0] + v * f.y[0], f.o[1] + u * f.x[1] + v * f.y[1], f.o[2] + u * f.x[2] + v * f.y[2]])
+        .map(|[u, v]| {
+            [
+                f.o[0] + u * f.x[0] + v * f.y[0],
+                f.o[1] + u * f.x[1] + v * f.y[1],
+                f.o[2] + u * f.x[2] + v * f.y[2],
+            ]
+        })
         .collect())
 }
 

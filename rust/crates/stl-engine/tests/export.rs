@@ -2,8 +2,8 @@
 
 use std::path::PathBuf;
 
-use serde_json::{json, Value};
-use stl_engine::{iso_utc_now, Document, Registry};
+use serde_json::{Value, json};
+use stl_engine::{Document, Registry, iso_utc_now};
 use stl_io::{ExportFormat, ExportOptions};
 
 fn export_dir() -> PathBuf {
@@ -28,13 +28,21 @@ fn build(case: &Value) -> Document {
     for m in case["models"].as_array().unwrap() {
         let file = m["file"].as_str().unwrap();
         let sid = doc.add_source(file, find_model(file));
-        let params = json!({"source": sid, "repair": false, "place": "keep"}).as_object().unwrap().clone();
+        let params = json!({"source": sid, "repair": false, "place": "keep"})
+            .as_object()
+            .unwrap()
+            .clone();
         doc.add_feature("import", params, None).unwrap();
         let bid = doc.state.bodies.keys().last().unwrap().clone();
         doc.set_body_props(&bid, Some(m["name"].as_str().unwrap().to_string()), None, None);
         ids.push(bid);
     }
-    let hidden: Vec<&str> = case["hidden"].as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect();
+    let hidden: Vec<&str> = case["hidden"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect();
     for bid in ids {
         if hidden.contains(&doc.body_name(&bid).as_str()) {
             doc.set_body_props(&bid, None, None, Some(true));
@@ -47,7 +55,12 @@ fn body_ids(doc: &Document, case: &Value) -> Option<Vec<String>> {
     case["body_ids"].as_array().map(|a| {
         a.iter()
             .map(|n| {
-                doc.state.bodies.keys().find(|b| doc.body_name(b) == n.as_str().unwrap()).unwrap().clone()
+                doc.state
+                    .bodies
+                    .keys()
+                    .find(|b| doc.body_name(b) == n.as_str().unwrap())
+                    .unwrap()
+                    .clone()
             })
             .collect()
     })
@@ -79,10 +92,12 @@ fn zip_entry(bytes: &[u8], name: &str) -> String {
 
 #[test]
 fn export_cases_match_1x() {
-    let cases: Value = serde_json::from_str(&std::fs::read_to_string(export_dir().join("cases.json")).unwrap()).unwrap();
+    let cases: Value =
+        serde_json::from_str(&std::fs::read_to_string(export_dir().join("cases.json")).unwrap()).unwrap();
     for (name, case) in cases.as_object().unwrap() {
         let g: Value =
-            serde_json::from_str(&std::fs::read_to_string(export_dir().join(name).join("golden.json")).unwrap()).unwrap();
+            serde_json::from_str(&std::fs::read_to_string(export_dir().join(name).join("golden.json")).unwrap())
+                .unwrap();
         let doc = build(case);
         let ids = body_ids(&doc, case);
         let opts = |base: &str| ExportOptions {
@@ -92,7 +107,9 @@ fn export_cases_match_1x() {
         };
         // error, count and base name
         if let Some(err) = g["error"].as_str() {
-            let e = doc.export_bytes(ExportFormat::Stl, ids.as_deref(), &opts("")).unwrap_err();
+            let e = doc
+                .export_bytes(ExportFormat::Stl, ids.as_deref(), &opts(""))
+                .unwrap_err();
             assert_eq!(e.0, err, "{name}: error");
             continue;
         }
@@ -115,10 +132,17 @@ fn export_cases_match_1x() {
             assert_eq!(parts.len(), want.len(), "{name}/{key}: part count");
             for (p, w) in parts.iter().zip(want) {
                 let s = &w["stats"];
-                assert_eq!(p.triangles.len() / 3, s["triangles"].as_u64().unwrap() as usize, "{name}/{key}: triangles");
+                assert_eq!(
+                    p.triangles.len() / 3,
+                    s["triangles"].as_u64().unwrap() as usize,
+                    "{name}/{key}: triangles"
+                );
                 let (vol, area) = volume_area(&p.positions, &p.triangles);
                 let close = |what: &str, a: f64, b: f64, abs: f64| {
-                    assert!((a - b).abs() <= abs.max(0.001 * b.abs()), "{name}/{key}: {what}: got {a}, golden {b}");
+                    assert!(
+                        (a - b).abs() <= abs.max(0.001 * b.abs()),
+                        "{name}/{key}: {what}: got {a}, golden {b}"
+                    );
                 };
                 close("volume", vol, s["volume"].as_f64().unwrap(), 0.0);
                 close("area", area, s["area"].as_f64().unwrap(), 0.0);
@@ -133,16 +157,28 @@ fn export_cases_match_1x() {
         }
         // Bytes of a real 1.x Document.export: STL and OBJ whole, the 3MF model XML after UUID/CRLF normalising.
         let d = &g["document"];
-        let (stl, _) = doc.export_bytes(ExportFormat::Stl, ids.as_deref(), &opts(&base)).unwrap();
-        let (obj, _) = doc.export_bytes(ExportFormat::Obj, ids.as_deref(), &opts(&base)).unwrap();
-        let (mf, _) = doc.export_bytes(ExportFormat::ThreeMf, ids.as_deref(), &opts(&base)).unwrap();
+        let (stl, _) = doc
+            .export_bytes(ExportFormat::Stl, ids.as_deref(), &opts(&base))
+            .unwrap();
+        let (obj, _) = doc
+            .export_bytes(ExportFormat::Obj, ids.as_deref(), &opts(&base))
+            .unwrap();
+        let (mf, _) = doc
+            .export_bytes(ExportFormat::ThreeMf, ids.as_deref(), &opts(&base))
+            .unwrap();
         let xml = uuid_normalize(&zip_entry(&mf, "3D/3dmodel.model")).replace("\r\n", "\n");
         for (key, bytes) in [("stl", stl), ("obj", obj), ("3mf_model_xml", xml.into_bytes())] {
-            assert_eq!(bytes.len() as u64, d[key]["size"].as_u64().unwrap(), "{name}/{key}: size");
+            assert_eq!(
+                bytes.len() as u64,
+                d[key]["size"].as_u64().unwrap(),
+                "{name}/{key}: size"
+            );
             assert_eq!(sha(&bytes), d[key]["sha256"].as_str().unwrap(), "{name}/{key}: sha256");
         }
         // 3MF structure: the three entries, with the same text apart from the mesh numbers' order.
-        let (got, _) = doc.export_bytes(ExportFormat::ThreeMf, ids.as_deref(), &opts(&base)).unwrap();
+        let (got, _) = doc
+            .export_bytes(ExportFormat::ThreeMf, ids.as_deref(), &opts(&base))
+            .unwrap();
         for (entry, file) in [("_rels/.rels", ".rels"), ("[Content_Types].xml", "[Content_Types].xml")] {
             let want = std::fs::read_to_string(export_dir().join(name).join(file)).unwrap();
             assert_eq!(uuid_normalize(&zip_entry(&got, entry)), want, "{name}: 3mf {entry}");
@@ -152,7 +188,10 @@ fn export_cases_match_1x() {
             Ok((got, _)) => {
                 assert!(g["step_error"].is_null(), "{name}: STEP should have failed");
                 let text = String::from_utf8(got).unwrap();
-                assert!(text.starts_with("ISO-10303-21;") && text.contains("FILE_NAME("), "{name}: step header");
+                assert!(
+                    text.starts_with("ISO-10303-21;") && text.contains("FILE_NAME("),
+                    "{name}: step header"
+                );
             }
             Err(e) => assert_eq!(Some(e.0.as_str()), g["step_error"].as_str(), "{name}: step error"),
         }
@@ -167,14 +206,17 @@ fn temp_dir(tag: &str) -> PathBuf {
 }
 
 fn one_body() -> Document {
-    let cases: Value = serde_json::from_str(&std::fs::read_to_string(export_dir().join("cases.json")).unwrap()).unwrap();
+    let cases: Value =
+        serde_json::from_str(&std::fs::read_to_string(export_dir().join("cases.json")).unwrap()).unwrap();
     build(&cases["one_body"])
 }
 
 #[test]
 fn export_adds_extension() {
     let d = temp_dir("ext");
-    let (p, n) = one_body().export(&d.join("part"), ExportFormat::ThreeMf, None, None).unwrap();
+    let (p, n) = one_body()
+        .export(&d.join("part"), ExportFormat::ThreeMf, None, None)
+        .unwrap();
     assert_eq!(p, d.join("part.3mf"));
     assert_eq!(n, 1);
     assert!(std::fs::read(&p).unwrap().starts_with(b"PK"));
@@ -183,7 +225,9 @@ fn export_adds_extension() {
 #[test]
 fn export_ext_case() {
     let d = temp_dir("case");
-    let (p, _) = one_body().export(&d.join("PART.STL"), ExportFormat::ThreeMf, None, None).unwrap();
+    let (p, _) = one_body()
+        .export(&d.join("PART.STL"), ExportFormat::ThreeMf, None, None)
+        .unwrap();
     assert_eq!(p, d.join("PART.STL"));
     let bytes = std::fs::read(&p).unwrap();
     assert!(bytes.starts_with(b"STL Editor binary STL"));
@@ -192,7 +236,9 @@ fn export_ext_case() {
 #[test]
 fn export_unknown_ext() {
     let d = temp_dir("bad");
-    let e = one_body().export(&d.join("a.ply"), ExportFormat::Stl, None, None).unwrap_err();
+    let e = one_body()
+        .export(&d.join("a.ply"), ExportFormat::Stl, None, None)
+        .unwrap_err();
     assert_eq!(e.0, "Can't export .ply files.");
     assert!(!d.join("a.ply").exists());
 }
@@ -223,7 +269,11 @@ fn volume_area(pos: &[f64], tri: &[u32]) -> (f64, f64) {
         let (a, b, c) = (v(t[0]), v(t[1]), v(t[2]));
         let u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
         let w = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
-        let n = [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]];
+        let n = [
+            u[1] * w[2] - u[2] * w[1],
+            u[2] * w[0] - u[0] * w[2],
+            u[0] * w[1] - u[1] * w[0],
+        ];
         area += 0.5 * (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]).sqrt();
         vol += (a[0] * (b[1] * c[2] - b[2] * c[1]) - a[1] * (b[0] * c[2] - b[2] * c[0])
             + a[2] * (b[0] * c[1] - b[1] * c[0]))

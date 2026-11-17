@@ -8,7 +8,10 @@ use serde_json::json;
 use stl_app::engine_link::Command;
 use stl_app::supports::{self, MODES};
 
-fn start_box(h: &mut egui_kittest::Harness<'static, stl_app::app::StlApp>, link: &stl_app::engine_link::native::NativeLink) {
+fn start_box(
+    h: &mut egui_kittest::Harness<'static, stl_app::app::StlApp>,
+    link: &stl_app::engine_link::native::NativeLink,
+) {
     h.state_mut().link.send(Command::AddFeature {
         kind: "primitive".into(),
         params: json!({
@@ -38,7 +41,7 @@ fn sfpanel_modes_credit_and_held_card() {
     let mode_labels: Vec<&str> = MODES.iter().map(|(_, l)| *l).collect();
     assert_eq!(mode_labels, vec!["Rotate", "Add fins", "Remove fins"]);
     for (_, label) in MODES {
-        assert!(h.query_by_label(*label).is_some(), "mode button {label}");
+        assert!(h.query_by_label(label).is_some(), "mode button {label}");
     }
 
     // Footer credit
@@ -48,7 +51,10 @@ fn sfpanel_modes_credit_and_held_card() {
         "credit: {credit:?}"
     );
     // Hint has no credit
-    assert!(!h.state().shell.hint.contains("gittrahan"), "hint must not carry the credit");
+    assert!(
+        !h.state().shell.hint.contains("gittrahan"),
+        "hint must not carry the credit"
+    );
 
     // Held card / status: a plain box has nothing to hold up (coverage may still be running)
     let end = std::time::Instant::now() + std::time::Duration::from_secs(30);
@@ -78,10 +84,20 @@ fn sfpanel_body_then_output_order() {
     start_box(&mut h, &link);
     wait_support_open(&mut h, &link, "supportfins");
     let specs = supports::fields("supportfins");
-    let visible: Vec<_> = specs.iter().filter(|f| supports::field_visible(f, &h.state().tool().unwrap().values)).map(|f| f.key).collect();
+    let visible: Vec<_> = specs
+        .iter()
+        .filter(|f| supports::field_visible(f, &h.state().tool().unwrap().values))
+        .map(|f| f.key)
+        .collect();
     assert!(visible.first().is_some_and(|k| *k == "body"), "body first: {visible:?}");
-    assert!(visible.get(1).is_some_and(|k| *k == "output"), "output second: {visible:?}");
-    assert!(specs.iter().any(|f| f.key == "_hdr_check"), "Print check section present");
+    assert!(
+        visible.get(1).is_some_and(|k| *k == "output"),
+        "output second: {visible:?}"
+    );
+    assert!(
+        specs.iter().any(|f| f.key == "_hdr_check"),
+        "Print check section present"
+    );
 }
 
 #[test]
@@ -101,21 +117,34 @@ fn sfpanel_hole_has_no_sf_credit() {
 /// 1.x kept `stle_sections` in `localStorage`, 2.0 keeps it in the platform's setting store.
 #[test]
 fn sfpanel_section_memory_across_reopen() {
-    use super::harness::{app_harness_with, FakePlatform};
+    use super::harness::{FakePlatform, app_harness_with};
     let platform = FakePlatform::default();
     let (mut h, link) = app_harness_with(None, egui::vec2(1280.0, 1500.0), platform.clone());
     start_box(&mut h, &link);
     wait_support_open(&mut h, &link, "supportfins");
     h.run_steps(3);
-    let spec = supports::fields("supportfins").iter().find(|f| f.key == "_hdr_check").expect("Print check section");
+    let spec = supports::fields("supportfins")
+        .iter()
+        .find(|f| f.key == "_hdr_check")
+        .expect("Print check section");
     let open = |h: &egui_kittest::Harness<'static, stl_app::app::StlApp>| {
-        h.state().tool().and_then(|t| t.sf.as_ref()).map(|s| s.sections.is_open("supportfins", "_hdr_check", spec.default_open))
+        h.state()
+            .tool()
+            .and_then(|t| t.sf.as_ref())
+            .map(|s| s.sections.is_open("supportfins", "_hdr_check", spec.default_open))
     };
     assert_eq!(open(&h), Some(true), "Print check starts open");
     h.get_by_label_contains(spec.label).click();
     h.run_steps(3);
     assert_eq!(open(&h), Some(false), "a click on the header folds it");
-    assert!(platform.settings.lock().unwrap().get("stle_sections").is_some_and(|v| v.contains("supportfins:_hdr_check")));
+    assert!(
+        platform
+            .settings
+            .lock()
+            .unwrap()
+            .get("stle_sections")
+            .is_some_and(|v| v.contains("supportfins:_hdr_check"))
+    );
 
     // closed and opened again
     h.state_mut().tool_cancel();

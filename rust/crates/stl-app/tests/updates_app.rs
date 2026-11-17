@@ -14,9 +14,9 @@ use std::sync::{Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
 use fake_releases::{FakeReleases, Faults};
-use serde_json::{json, Value};
-use stl_app::platform::native::NativePlatform;
+use serde_json::{Value, json};
 use stl_app::platform::Platform;
+use stl_app::platform::native::NativePlatform;
 use stl_app::updates::{self, BannerButton, UpdateAction, Updates};
 use stl_platform::update::ASSET_NAME;
 
@@ -59,7 +59,11 @@ fn gh(tag: &str) -> String {
 
 /// A port nothing listens on: any check against it fails.
 fn dead_api() -> String {
-    let port = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
+    let port = std::net::TcpListener::bind("127.0.0.1:0")
+        .unwrap()
+        .local_addr()
+        .unwrap()
+        .port();
     format!("http://127.0.0.1:{port}/releases")
 }
 
@@ -77,7 +81,16 @@ fn settle(u: &mut Updates, p: &dyn Platform, now: f64) -> Vec<UpdateAction> {
 }
 
 fn toasts(actions: &[UpdateAction]) -> Vec<String> {
-    actions.iter().filter_map(|a| if let UpdateAction::Toast { text, .. } = a { Some(text.clone()) } else { None }).collect()
+    actions
+        .iter()
+        .filter_map(|a| {
+            if let UpdateAction::Toast { text, .. } = a {
+                Some(text.clone())
+            } else {
+                None
+            }
+        })
+        .collect()
 }
 
 fn platform(dir: &Path) -> NativePlatform {
@@ -91,7 +104,10 @@ fn ignores_older_and_skipped() {
     let p = platform(&cfg);
     let root = temp("skip-autosave");
     let srv = FakeReleases::start(
-        json!([release("v2.0.1", &gh("v2.0.1"), 10), release("v1.30.0", &gh("v1.30.0"), 10)]),
+        json!([
+            release("v2.0.1", &gh("v2.0.1"), 10),
+            release("v1.30.0", &gh("v1.30.0"), 10)
+        ]),
         vec![],
         Faults::default(),
     );
@@ -112,7 +128,10 @@ fn ignores_older_and_skipped() {
     let mut u = Updates::custom(&api, "2.0.0", None, root.clone());
     u.start_background(&p, now + 2.0 * DAY);
     settle(&mut u, &p, now + 2.0 * DAY);
-    assert!(u.banner().is_none(), "a skipped version is not offered by the daily check");
+    assert!(
+        u.banner().is_none(),
+        "a skipped version is not offered by the daily check"
+    );
     // ...from the cache too
     let mut u = Updates::custom(&api, "2.0.0", None, root.clone());
     u.start_background(&p, now + 2.0 * DAY + 60.0);
@@ -122,7 +141,10 @@ fn ignores_older_and_skipped() {
     u.check_now(&p, now + 2.0 * DAY + 120.0);
     assert_eq!(u.busy_note(), Some(updates::CHECKING));
     settle(&mut u, &p, now + 2.0 * DAY + 120.0);
-    assert_eq!(u.banner().expect("manual check shows a skipped version").version, "2.0.1");
+    assert_eq!(
+        u.banner().expect("manual check shows a skipped version").version,
+        "2.0.1"
+    );
 
     // older or the same: nothing, and a manual check says so in 1.x's words; 1.x releases ignored
     for current in ["2.0.1", "2.1.0"] {
@@ -150,7 +172,10 @@ fn checks_once_a_day() {
     settle(&mut a, &pa, now);
     assert!(a.banner().is_some());
     assert_eq!(pa.setting_json("update_last").and_then(|v| v.as_f64()), Some(now));
-    assert_eq!(pa.setting_json("update_cache").and_then(|c| c.get("version").cloned()), Some(json!("2.0.1")));
+    assert_eq!(
+        pa.setting_json("update_cache").and_then(|c| c.get("version").cloned()),
+        Some(json!("2.0.1"))
+    );
 
     // the other window, an hour later: no network (its server is dead), the cached answer
     let mut b = Updates::custom(&dead_api(), "2.0.0", None, root.clone());
@@ -165,9 +190,17 @@ fn checks_once_a_day() {
     b.start_background(&pb, later);
     assert!(b.is_busy());
     let acts = settle(&mut b, &pb, later);
-    assert!(acts.is_empty(), "the background check never toasts: {:?}", toasts(&acts));
+    assert!(
+        acts.is_empty(),
+        "the background check never toasts: {:?}",
+        toasts(&acts)
+    );
     assert_eq!(pb.setting_json("update_last").and_then(|v| v.as_f64()), Some(now));
-    assert_eq!(pb.setting_json(updates::UPDATE_CLAIM), Some(Value::Null), "the claim is rolled back");
+    assert_eq!(
+        pb.setting_json(updates::UPDATE_CLAIM),
+        Some(Value::Null),
+        "the claim is rolled back"
+    );
     let mut c = Updates::custom(&dead_api(), "2.0.0", None, root.clone());
     c.start_background(&pa, later + 60.0);
     assert!(c.is_busy(), "retried after a failed check");
@@ -220,7 +253,11 @@ fn check_runs_off_ui_thread() {
     let t = Instant::now();
     u.start_background(&p, 1_800_000_000.0);
     assert!(u.poll(&p, 1_800_000_000.0).is_none());
-    assert!(t.elapsed() < Duration::from_millis(100), "start and poll returned at once ({:?})", t.elapsed());
+    assert!(
+        t.elapsed() < Duration::from_millis(100),
+        "start and poll returned at once ({:?})",
+        t.elapsed()
+    );
     assert!(u.is_busy());
 }
 
@@ -237,7 +274,11 @@ fn refuses_with_other_window_open() {
 
     let assets = FakeReleases::start(json!([]), vec![(ASSET_NAME.into(), new_exe.clone())], Faults::default());
     let asset = format!("{}/assets/{ASSET_NAME}", assets.base_url());
-    let srv = FakeReleases::start(json!([release("v2.0.1", &asset, new_exe.len())]), vec![], Faults::default());
+    let srv = FakeReleases::start(
+        json!([release("v2.0.1", &asset, new_exe.len())]),
+        vec![],
+        Faults::default(),
+    );
 
     let api = format!("{}/releases", srv.base_url());
     // a window that closed without cleaning up (its lock file is left, nobody holds it)
@@ -248,7 +289,10 @@ fn refuses_with_other_window_open() {
     u.check_now(&p, 1_800_000_000.0);
     settle(&mut u, &p, 1_800_000_000.0);
     let b = u.banner().expect("banner");
-    assert_eq!(b.buttons, vec!["Skip this version", "Later", "What’s new", "Update now"]);
+    assert_eq!(
+        b.buttons,
+        vec!["Skip this version", "Later", "What’s new", "Update now"]
+    );
 
     // another 2.0 window is open: refused in plain words, nothing downloaded or changed
     assert!(u.press(BannerButton::UpdateNow, &p).is_none());
@@ -263,11 +307,24 @@ fn refuses_with_other_window_open() {
     assert_eq!(u.banner().unwrap().note.as_deref(), Some(updates::DOWNLOADING));
     assert_eq!(u.banner().unwrap().buttons, vec!["Cancel"]);
     let acts = settle(&mut u, &p, 1_800_000_000.0);
-    let exe = acts.iter().find_map(|a| if let UpdateAction::Restart { exe } = a { Some(exe.clone()) } else { None });
-    assert_eq!(exe.as_deref(), Some(running.as_path()), "restart the swapped-in exe: {acts:?}");
+    let exe = acts.iter().find_map(|a| {
+        if let UpdateAction::Restart { exe } = a {
+            Some(exe.clone())
+        } else {
+            None
+        }
+    });
+    assert_eq!(
+        exe.as_deref(),
+        Some(running.as_path()),
+        "restart the swapped-in exe: {acts:?}"
+    );
     assert_eq!(u.banner().unwrap().note.as_deref(), Some(updates::RESTARTING));
     assert_eq!(std::fs::read(&running).unwrap(), new_exe);
-    assert_eq!(std::fs::read(install.join("stl-editor-2.old.exe")).unwrap(), b"the installed exe");
+    assert_eq!(
+        std::fs::read(install.join("stl-editor-2.old.exe")).unwrap(),
+        b"the installed exe"
+    );
 }
 
 #[test]
@@ -280,8 +337,21 @@ fn cancel_hides_banner_and_removes_download() {
     std::fs::write(&running, b"installed").unwrap();
     let data = vec![3u8; 300_000];
     let assets = FakeReleases::start(json!([]), vec![(ASSET_NAME.into(), data.clone())], Faults::default());
-    let srv = FakeReleases::start(json!([release("v2.0.1", &format!("{}/assets/{ASSET_NAME}", assets.base_url()), data.len())]), vec![], Faults::default());
-    let mut u = Updates::custom(&format!("{}/releases", srv.base_url()), "2.0.0", Some(running.clone()), temp("cancel-windows"));
+    let srv = FakeReleases::start(
+        json!([release(
+            "v2.0.1",
+            &format!("{}/assets/{ASSET_NAME}", assets.base_url()),
+            data.len()
+        )]),
+        vec![],
+        Faults::default(),
+    );
+    let mut u = Updates::custom(
+        &format!("{}/releases", srv.base_url()),
+        "2.0.0",
+        Some(running.clone()),
+        temp("cancel-windows"),
+    );
     u.check_now(&p, 1_800_000_000.0);
     settle(&mut u, &p, 1_800_000_000.0);
     u.press(BannerButton::UpdateNow, &p);
@@ -290,7 +360,10 @@ fn cancel_hides_banner_and_removes_download() {
     let acts = settle(&mut u, &p, 1_800_000_000.0);
     assert!(acts.is_empty());
     assert_eq!(std::fs::read(&running).unwrap(), b"installed");
-    let left: Vec<_> = std::fs::read_dir(&install).unwrap().map(|e| e.unwrap().file_name()).collect();
+    let left: Vec<_> = std::fs::read_dir(&install)
+        .unwrap()
+        .map(|e| e.unwrap().file_name())
+        .collect();
     assert_eq!(left.len(), 1, "the cancelled download is removed: {left:?}");
 }
 
@@ -305,11 +378,28 @@ fn cancelled_download_reused_only_for_same_release() {
     // 2.0.1's download never finishes (the server accepts and says nothing)
     let silent = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let stuck = format!("http://{}/assets/{ASSET_NAME}", silent.local_addr().unwrap());
-    let api1 = FakeReleases::start(json!([release("v2.0.1", &stuck, data.len())]), vec![], Faults::default());
+    let api1 = FakeReleases::start(
+        json!([release("v2.0.1", &stuck, data.len())]),
+        vec![],
+        Faults::default(),
+    );
     let assets = FakeReleases::start(json!([]), vec![(ASSET_NAME.into(), data.clone())], Faults::default());
-    let api2 = FakeReleases::start(json!([release("v2.0.2", &format!("{}/assets/{ASSET_NAME}", assets.base_url()), data.len())]), vec![], Faults::default());
+    let api2 = FakeReleases::start(
+        json!([release(
+            "v2.0.2",
+            &format!("{}/assets/{ASSET_NAME}", assets.base_url()),
+            data.len()
+        )]),
+        vec![],
+        Faults::default(),
+    );
     let now = 1_800_000_000.0;
-    let mut u = Updates::custom(&format!("{}/releases", api1.base_url()), "2.0.0", Some(running.clone()), temp("orphan-windows"));
+    let mut u = Updates::custom(
+        &format!("{}/releases", api1.base_url()),
+        "2.0.0",
+        Some(running.clone()),
+        temp("orphan-windows"),
+    );
     u.check_now(&p, now);
     settle(&mut u, &p, now);
     u.press(BannerButton::UpdateNow, &p);
@@ -329,7 +419,10 @@ fn cancelled_download_reused_only_for_same_release() {
     u.press(BannerButton::UpdateNow, &p);
     let t = Instant::now();
     let exe = loop {
-        assert!(t.elapsed() < Duration::from_secs(20), "the 2.0.2 download never finished");
+        assert!(
+            t.elapsed() < Duration::from_secs(20),
+            "the 2.0.2 download never finished"
+        );
         if let Some(UpdateAction::Restart { exe }) = u.poll(&p, now) {
             break exe;
         }
@@ -348,10 +441,26 @@ fn failed_update_shows_why_and_keeps_exe() {
     let running = install.join("stl-editor-2.exe");
     std::fs::write(&running, b"installed").unwrap();
     let data = vec![7u8; 4000];
-    let srv = FakeReleases::start(json!([]), vec![(ASSET_NAME.into(), data.clone())], Faults { wrong_size: true, ..Faults::default() });
+    let srv = FakeReleases::start(
+        json!([]),
+        vec![(ASSET_NAME.into(), data.clone())],
+        Faults {
+            wrong_size: true,
+            ..Faults::default()
+        },
+    );
     let asset = format!("{}/assets/{ASSET_NAME}", srv.base_url());
-    let api_srv = FakeReleases::start(json!([release("v2.0.1", &asset, data.len())]), vec![], Faults::default());
-    let mut u = Updates::custom(&format!("{}/releases", api_srv.base_url()), "2.0.0", Some(running.clone()), temp("fail-autosave"));
+    let api_srv = FakeReleases::start(
+        json!([release("v2.0.1", &asset, data.len())]),
+        vec![],
+        Faults::default(),
+    );
+    let mut u = Updates::custom(
+        &format!("{}/releases", api_srv.base_url()),
+        "2.0.0",
+        Some(running.clone()),
+        temp("fail-autosave"),
+    );
     u.check_now(&p, 1_800_000_000.0);
     settle(&mut u, &p, 1_800_000_000.0);
     u.press(BannerButton::UpdateNow, &p);
@@ -362,13 +471,21 @@ fn failed_update_shows_why_and_keeps_exe() {
     assert_eq!(b.buttons, vec!["Close", "Download instead"]);
     assert_eq!(std::fs::read(&running).unwrap(), b"installed");
     assert_eq!(std::fs::read_dir(&install).unwrap().count(), 1);
-    assert!(matches!(u.press(BannerButton::DownloadInstead, &p), Some(UpdateAction::OpenUrl(url)) if url == "https://github.com/natterman12/STL-Editor/releases/tag/v2.0.1"));
+    assert!(
+        matches!(u.press(BannerButton::DownloadInstead, &p), Some(UpdateAction::OpenUrl(url)) if url == "https://github.com/natterman12/STL-Editor/releases/tag/v2.0.1")
+    );
 }
 
 #[test]
 fn help_menu_items() {
     let (_g, _d) = env(false);
-    assert_eq!(updates::help_menu_items(false), vec![("help.check_updates", "Check for Updates…"), ("help.update_settings", "Update Settings…")]);
+    assert_eq!(
+        updates::help_menu_items(false),
+        vec![
+            ("help.check_updates", "Check for Updates…"),
+            ("help.update_settings", "Update Settings…")
+        ]
+    );
     assert!(updates::help_menu_items(true).is_empty(), "hidden on the web edition");
 
     // 1.x's banner and toasts
@@ -384,13 +501,24 @@ fn help_menu_items() {
     let srv = FakeReleases::start(json!([release("v2.0.1", &gh("v2.0.1"), 10)]), vec![], Faults::default());
     let api = format!("{}/releases", srv.base_url());
     // installed: Update now
-    let mut u = Updates::custom(&api, "2.0.0", Some(cfg.join("stl-editor-2.exe")), temp("texts-autosave"));
+    let mut u = Updates::custom(
+        &api,
+        "2.0.0",
+        Some(cfg.join("stl-editor-2.exe")),
+        temp("texts-autosave"),
+    );
     u.check_now(&p, 1_800_000_000.0);
     settle(&mut u, &p, 1_800_000_000.0);
     let b = u.banner().unwrap();
     assert_eq!(b.title, "STL Editor 2.0.1 is available");
-    assert_eq!(b.line, "You have 2.0.0. Update now downloads it, swaps it in and restarts STL Editor. Unsaved work is kept for Recover Unsaved Work.");
-    assert!(matches!(u.press(BannerButton::WhatsNew, &p), Some(UpdateAction::OpenUrl(_))));
+    assert_eq!(
+        b.line,
+        "You have 2.0.0. Update now downloads it, swaps it in and restarts STL Editor. Unsaved work is kept for Recover Unsaved Work."
+    );
+    assert!(matches!(
+        u.press(BannerButton::WhatsNew, &p),
+        Some(UpdateAction::OpenUrl(_))
+    ));
     assert!(u.banner().is_some(), "What’s new keeps the banner");
     assert!(u.press(BannerButton::Later, &p).is_none());
     assert!(u.banner().is_none());
@@ -398,8 +526,14 @@ fn help_menu_items() {
     let mut u = Updates::custom(&api, "2.0.0", None, temp("texts-autosave2"));
     u.check_now(&p, 1_800_000_000.0);
     settle(&mut u, &p, 1_800_000_000.0);
-    assert_eq!(u.banner().unwrap().buttons, vec!["Skip this version", "Later", "Download"]);
-    assert_eq!(u.banner().unwrap().line, format!("You have 2.0.0. {}", updates::DOWNLOAD_LINE));
+    assert_eq!(
+        u.banner().unwrap().buttons,
+        vec!["Skip this version", "Later", "Download"]
+    );
+    assert_eq!(
+        u.banner().unwrap().line,
+        format!("You have 2.0.0. {}", updates::DOWNLOAD_LINE)
+    );
 
     // Update Settings: off says so and stops the checks; on checks straight away (1.x)
     u.open_settings(&p);

@@ -6,7 +6,7 @@
 use std::collections::BTreeMap;
 
 use serde_json::Value;
-use stl_sketch::entities::{parse_entities, Entity};
+use stl_sketch::entities::{Entity, parse_entities};
 use web_time::Instant;
 
 use super::solve::{self, SolveState};
@@ -32,7 +32,11 @@ pub struct Snap {
 
 impl Snap {
     pub fn of(s: &SketchSession) -> Snap {
-        Snap { hist: s.history.len(), ids: s.entities.iter().map(|e| e.id().map(str::to_owned)).collect(), cons: s.constraints.clone() }
+        Snap {
+            hist: s.history.len(),
+            ids: s.entities.iter().map(|e| e.id().map(str::to_owned)).collect(),
+            cons: s.constraints.clone(),
+        }
     }
 }
 
@@ -50,7 +54,13 @@ pub struct SolveCtl {
 
 impl Default for SolveCtl {
     fn default() -> Self {
-        SolveCtl { last_ms: 0.0, seq: 0, inflight: None, stale: false, warn_inflight: false }
+        SolveCtl {
+            last_ms: 0.0,
+            seq: 0,
+            inflight: None,
+            stale: false,
+            warn_inflight: false,
+        }
     }
 }
 
@@ -173,7 +183,7 @@ impl SketchMode {
     /// `Update::Solved`: apply it when it is the answer to the solve in flight and nothing but
     /// the locks changed since; then send the next one if the session changed meanwhile.
     pub fn solved(&mut self, seq: u64, entities: Vec<Entity>, ok: bool, error: f64) -> Option<Command> {
-        let Some((want, snap, sent)) = self.solve.inflight.take() else { return None };
+        let (want, snap, sent) = self.solve.inflight.take()?;
         if want != seq {
             self.solve.inflight = Some((want, snap, sent));
             return None;
@@ -218,15 +228,24 @@ impl SketchMode {
 
 /// `hasProfile` (app.js `finishSketch`): something that is not construction and not an open polyline.
 pub fn has_profile(entities: &[Entity]) -> bool {
-    entities.iter().any(|e| !e.construction() && !matches!(e, Entity::Polyline(p) if p.closed != Some(true)))
+    entities
+        .iter()
+        .any(|e| !e.construction() && !matches!(e, Entity::Polyline(p) if p.closed != Some(true)))
 }
 
 /// The part-edge entities of a `sketch_op refs` answer.
 pub fn refs_of(result: &Value) -> (Vec<Entity>, Option<String>) {
-    let list: Vec<Value> = result.get("refs").and_then(Value::as_array).cloned().unwrap_or_default();
+    let list: Vec<Value> = result
+        .get("refs")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     // the route's entities carry only what a line or circle has; anything else is dropped as 1.x does
     let list: Vec<Value> = list.into_iter().filter(|v| v.get("type").is_some()).collect();
-    (parse_entities(&list).unwrap_or_default(), result.get("kind").and_then(Value::as_str).map(str::to_owned))
+    (
+        parse_entities(&list).unwrap_or_default(),
+        result.get("kind").and_then(Value::as_str).map(str::to_owned),
+    )
 }
 
 // ------------------------------------------------------------------ matchRefs (sketcher.js)
@@ -272,7 +291,9 @@ fn score(s: &Entity, f: &Entity) -> Option<(f64, bool)> {
 
 /// A moved edge: how far it moved sideways, plus a little for sliding along or changing length.
 fn near(s: &Entity, f: &Entity) -> Option<(f64, bool)> {
-    let (Some((s1, s2)), Some((f1, f2))) = (ends(s), ends(f)) else { return score(s, f) };
+    let (Some((s1, s2)), Some((f1, f2))) = (ends(s), ends(f)) else {
+        return score(s, f);
+    };
     let u = [s2[0] - s1[0], s2[1] - s1[1]];
     let l = u[0].hypot(u[1]);
     let l1 = if l == 0.0 { 1.0 } else { l };
@@ -287,7 +308,9 @@ fn near(s: &Entity, f: &Entity) -> Option<(f64, bool)> {
 }
 
 fn parallel(s: &Entity, f: &Entity) -> bool {
-    let (Some((s1, s2)), Some((f1, f2))) = (ends(s), ends(f)) else { return true };
+    let (Some((s1, s2)), Some((f1, f2))) = (ends(s), ends(f)) else {
+        return true;
+    };
     let a = [s2[0] - s1[0], s2[1] - s1[1]];
     let b = [f2[0] - f1[0], f2[1] - f1[1]];
     let den = a[0].hypot(a[1]) * b[0].hypot(b[1]);
@@ -325,8 +348,14 @@ pub fn match_refs(fresh: &[Entity], saved: &[Entity]) -> (Vec<Entity>, Vec<Entit
     if !pts.is_empty() {
         let xs = pts.iter().map(|p| p[0]);
         let ys = pts.iter().map(|p| p[1]);
-        let (x0, x1) = (xs.clone().fold(f64::INFINITY, f64::min), xs.fold(f64::NEG_INFINITY, f64::max));
-        let (y0, y1) = (ys.clone().fold(f64::INFINITY, f64::min), ys.fold(f64::NEG_INFINITY, f64::max));
+        let (x0, x1) = (
+            xs.clone().fold(f64::INFINITY, f64::min),
+            xs.fold(f64::NEG_INFINITY, f64::max),
+        );
+        let (y0, y1) = (
+            ys.clone().fold(f64::INFINITY, f64::min),
+            ys.fold(f64::NEG_INFINITY, f64::max),
+        );
         size = (x1 - x0).hypot(y1 - y0).max(1.0);
     }
     let mut taken = vec![false; list.len()];
@@ -343,10 +372,10 @@ pub fn match_refs(fresh: &[Entity], saved: &[Entity]) -> (Vec<Entity>, Vec<Entit
             if taken[i] {
                 continue;
             }
-            if let Some((d, flip)) = score(s, f) {
-                if best.map_or(true, |b| d < b.1) {
-                    best = Some((i, d, flip));
-                }
+            if let Some((d, flip)) = score(s, f)
+                && best.is_none_or(|b| d < b.1)
+            {
+                best = Some((i, d, flip));
             }
         }
         match best {
@@ -369,10 +398,10 @@ pub fn match_refs(fresh: &[Entity], saved: &[Entity]) -> (Vec<Entity>, Vec<Entit
             if taken[i] || !parallel(s, f) {
                 continue;
             }
-            if let Some((d, flip)) = near(s, f) {
-                if d < size * 0.35 {
-                    pairs.push((si, i, d, flip));
-                }
+            if let Some((d, flip)) = near(s, f)
+                && d < size * 0.35
+            {
+                pairs.push((si, i, d, flip));
             }
         }
     }
@@ -397,7 +426,11 @@ pub fn match_refs(fresh: &[Entity], saved: &[Entity]) -> (Vec<Entity>, Vec<Entit
     }
     let mut n = 0u32;
     for s in saved {
-        if let Some(num) = s.id().and_then(|id| id.strip_prefix('r')).and_then(|d| d.parse::<u32>().ok()) {
+        if let Some(num) = s
+            .id()
+            .and_then(|id| id.strip_prefix('r'))
+            .and_then(|d| d.parse::<u32>().ok())
+        {
             n = n.max(num + 1);
         }
     }
@@ -445,7 +478,23 @@ pub fn tool_hint(tool: &str) -> String {
 
 /// The tools the ribbon switches to (`onRibbon`'s first list, plus `sk_project`).
 pub fn is_tool_key(k: &str) -> bool {
-    matches!(k, "line" | "arc3" | "rect" | "rect_center" | "circle" | "polygon" | "slot" | "select" | "trim" | "sk_mirror" | "sk_corner" | "text" | "sk_useedge" | "sk_project") || k.starts_with("c_")
+    matches!(
+        k,
+        "line"
+            | "arc3"
+            | "rect"
+            | "rect_center"
+            | "circle"
+            | "polygon"
+            | "slot"
+            | "select"
+            | "trim"
+            | "sk_mirror"
+            | "sk_corner"
+            | "text"
+            | "sk_useedge"
+            | "sk_project"
+    ) || k.starts_with("c_")
 }
 
 /// Everything a tool call needs from the app.
@@ -476,14 +525,25 @@ impl SketchMode {
     pub fn set_tool(&mut self, key: &str, env: &Env) -> Vec<SketchEffect> {
         let mut out = Vec::new();
         if let Some(mut t) = self.tool.take() {
-            let mut cx = ToolCx { s: &mut self.s, vp: env.vp, inch: env.inch, params: env.params, out: &mut out };
+            let mut cx = ToolCx {
+                s: &mut self.s,
+                vp: env.vp,
+                inch: env.inch,
+                params: env.params,
+                out: &mut out,
+            };
             t.cancel(&mut cx);
         }
         super::dims::set_pending(Default::default());
         self.s.tool = key.to_owned();
         self.s.sel_c = None;
         self.tool = super::tool_for(key);
-        self.hint = self.tool.as_ref().map(|t| t.hint(&self.s)).filter(|h| !h.is_empty()).unwrap_or_else(|| tool_hint(key));
+        self.hint = self
+            .tool
+            .as_ref()
+            .map(|t| t.hint(&self.s))
+            .filter(|h| !h.is_empty())
+            .unwrap_or_else(|| tool_hint(key));
         self.dirty = true;
         out.push(SketchEffect::Hint(self.hint.clone()));
         out
@@ -499,7 +559,13 @@ impl SketchMode {
             self.snapped = sn.snapped();
         }
         if let Some(t) = self.tool.as_mut() {
-            let mut cx = ToolCx { s: &mut self.s, vp: env.vp, inch: env.inch, params: env.params, out: &mut out };
+            let mut cx = ToolCx {
+                s: &mut self.s,
+                vp: env.vp,
+                inch: env.inch,
+                params: env.params,
+                out: &mut out,
+            };
             handled = t.input(&mut cx, ev);
         }
         if handled {
@@ -512,7 +578,13 @@ impl SketchMode {
     pub fn op_result(&mut self, op: &str, result: &Value, env: &Env) -> Vec<SketchEffect> {
         let mut out = Vec::new();
         if let Some(t) = self.tool.as_mut() {
-            let mut cx = ToolCx { s: &mut self.s, vp: env.vp, inch: env.inch, params: env.params, out: &mut out };
+            let mut cx = ToolCx {
+                s: &mut self.s,
+                vp: env.vp,
+                inch: env.inch,
+                params: env.params,
+                out: &mut out,
+            };
             t.sketch_op_result(&mut cx, op, result);
         }
         self.dirty = true;

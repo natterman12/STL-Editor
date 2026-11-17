@@ -1,7 +1,7 @@
 //! Constraint kinds and residuals (`constraints.js`: PARAMS, residual, measure, refsExist,
 //! glyphSpots) plus the JS number helpers the port needs.
 
-use crate::entities::{point, point_keys, Entity, P2};
+use crate::entities::{Entity, P2, point, point_keys};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::collections::HashMap;
@@ -45,11 +45,7 @@ pub fn hypot(v: &[f64]) -> f64 {
 
 /// `x || 1` for a number: 0 and NaN become 1.
 pub fn or1(x: f64) -> f64 {
-    if x == 0.0 || x.is_nan() {
-        1.0
-    } else {
-        x
-    }
+    if x == 0.0 || x.is_nan() { 1.0 } else { x }
 }
 
 /// `Math.sign` (NaN stays NaN, 0 stays 0).
@@ -65,20 +61,12 @@ pub fn js_sign(x: f64) -> f64 {
 
 /// `Math.max(a, b)`: NaN propagates.
 pub fn js_max(a: f64, b: f64) -> f64 {
-    if a.is_nan() || b.is_nan() {
-        f64::NAN
-    } else {
-        a.max(b)
-    }
+    if a.is_nan() || b.is_nan() { f64::NAN } else { a.max(b) }
 }
 
 /// `Math.min(a, b)`: NaN propagates.
 pub fn js_min(a: f64, b: f64) -> f64 {
-    if a.is_nan() || b.is_nan() {
-        f64::NAN
-    } else {
-        a.min(b)
-    }
+    if a.is_nan() || b.is_nan() { f64::NAN } else { a.min(b) }
 }
 
 pub fn sub(a: P2, b: P2) -> P2 {
@@ -152,7 +140,9 @@ pub fn params_of(e: &Entity) -> Vec<String> {
         Entity::Polygon(_) => s(&["cx", "cy", "r"]),
         Entity::Slot(_) => s(&["x1", "y1", "x2", "y2", "r"]),
         Entity::Point(_) => s(&["x", "y"]),
-        Entity::Polyline(p) => (0..p.pts.len()).flat_map(|i| [format!("pts.{i}.0"), format!("pts.{i}.1")]).collect(),
+        Entity::Polyline(p) => (0..p.pts.len())
+            .flat_map(|i| [format!("pts.{i}.0"), format!("pts.{i}.1")])
+            .collect(),
     }
 }
 
@@ -235,7 +225,9 @@ pub fn get_path(e: &Entity, path: &str) -> f64 {
     if let Some(i) = params_of(e).iter().position(|p| p == path) {
         return get_param(e, i);
     }
-    let Ok(mut v) = serde_json::to_value(e) else { return f64::NAN };
+    let Ok(mut v) = serde_json::to_value(e) else {
+        return f64::NAN;
+    };
     for k in path.split('.') {
         let next = match &v {
             Value::Object(o) => o.get(k).cloned(),
@@ -264,10 +256,18 @@ pub struct Ref {
 
 impl Ref {
     pub fn ent(e: &str) -> Ref {
-        Ref { e: e.to_string(), k: None, side: None }
+        Ref {
+            e: e.to_string(),
+            k: None,
+            side: None,
+        }
     }
     pub fn pt(e: &str, k: &str) -> Ref {
-        Ref { e: e.to_string(), k: Some(k.to_string()), side: None }
+        Ref {
+            e: e.to_string(),
+            k: Some(k.to_string()),
+            side: None,
+        }
     }
     /// JS truthiness of `r.k` (undefined and "" are false).
     pub fn has_k(&self) -> bool {
@@ -352,7 +352,10 @@ pub struct World {
 
 impl World {
     pub fn new(entities: &[Entity]) -> World {
-        let mut w = World { ents: Vec::new(), idx: HashMap::new() };
+        let mut w = World {
+            ents: Vec::new(),
+            idx: HashMap::new(),
+        };
         for e in entities {
             if let Some(id) = e.id() {
                 match w.idx.get(id) {
@@ -369,11 +372,11 @@ impl World {
     /// `for (const f of fixed) if (!E[f.id]) E[f.id] = f;`
     pub fn add_missing(&mut self, fixed: &[Entity]) {
         for f in fixed {
-            if let Some(id) = f.id() {
-                if !self.idx.contains_key(id) {
-                    self.idx.insert(id.to_string(), self.ents.len());
-                    self.ents.push(f.clone());
-                }
+            if let Some(id) = f.id()
+                && !self.idx.contains_key(id)
+            {
+                self.idx.insert(id.to_string(), self.ents.len());
+                self.ents.push(f.clone());
             }
         }
     }
@@ -441,8 +444,16 @@ pub fn residual(c: &Constraint, w: &World) -> Option<Vec<f64>> {
             }
             Some(vec![0.0])
         }
-        "horizontal" => Some(vec![if c.b.is_some() { pt(w, a_ref)[1] - pt(w, b_ref)[1] } else { la.1[1] - la.0[1] }]),
-        "vertical" => Some(vec![if c.b.is_some() { pt(w, a_ref)[0] - pt(w, b_ref)[0] } else { la.1[0] - la.0[0] }]),
+        "horizontal" => Some(vec![if c.b.is_some() {
+            pt(w, a_ref)[1] - pt(w, b_ref)[1]
+        } else {
+            la.1[1] - la.0[1]
+        }]),
+        "vertical" => Some(vec![if c.b.is_some() {
+            pt(w, a_ref)[0] - pt(w, b_ref)[0]
+        } else {
+            la.1[0] - la.0[0]
+        }]),
         "parallel" => {
             let (a, b) = (dir(ea), dir(eb));
             Some(vec![crs(a, b) / or1(len(a) * len(b))])
@@ -472,7 +483,11 @@ pub fn residual(c: &Constraint, w: &World) -> Option<Vec<f64>> {
             if is_round(ea) && is_round(eb) {
                 let dd = len(sub(center(ea), center(eb)));
                 let (ra, rb) = (radius(ea), radius(eb));
-                return Some(vec![if c.inner.unwrap_or(false) { dd - (ra - rb).abs() } else { dd - (ra + rb) }]);
+                return Some(vec![if c.inner.unwrap_or(false) {
+                    dd - (ra - rb).abs()
+                } else {
+                    dd - (ra + rb)
+                }]);
             }
             Some(vec![0.0])
         }
@@ -509,8 +524,12 @@ pub fn residual(c: &Constraint, w: &World) -> Option<Vec<f64>> {
             }
             Some(vec![len(sub(pt(w, a_ref), pt(w, b_ref))) - value])
         }
-        "hdistance" => Some(vec![(pt(w, b_ref)[0] - pt(w, a_ref)[0]) * or1(c.sign.unwrap_or(0.0)) - value]),
-        "vdistance" => Some(vec![(pt(w, b_ref)[1] - pt(w, a_ref)[1]) * or1(c.sign.unwrap_or(0.0)) - value]),
+        "hdistance" => Some(vec![
+            (pt(w, b_ref)[0] - pt(w, a_ref)[0]) * or1(c.sign.unwrap_or(0.0)) - value,
+        ]),
+        "vdistance" => Some(vec![
+            (pt(w, b_ref)[1] - pt(w, a_ref)[1]) * or1(c.sign.unwrap_or(0.0)) - value,
+        ]),
         "length" => {
             if is_line(ea) {
                 return Some(vec![len(dir(ea)) - value]);
@@ -528,7 +547,9 @@ pub fn residual(c: &Constraint, w: &World) -> Option<Vec<f64>> {
             let db = dir(eb);
             let a = [da[0] * ra, da[1] * ra];
             let b = [db[0] * rb, db[1] * rb];
-            Some(vec![wrap(crs(a, b).atan2(dot(a, b)) - or1(c.sign.unwrap_or(0.0)) * value * D2R)])
+            Some(vec![wrap(
+                crs(a, b).atan2(dot(a, b)) - or1(c.sign.unwrap_or(0.0)) * value * D2R,
+            )])
         }
         _ => None,
     }

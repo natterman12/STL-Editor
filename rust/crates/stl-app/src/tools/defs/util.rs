@@ -1,7 +1,7 @@
 //! Helpers shared across tool definitions (1.x `tools.js` behaviours).
 
-use serde_json::{json, Number, Value};
 use serde_json::Map;
+use serde_json::{Number, Value, json};
 
 use crate::engine_link::{BodyView, TimelineItem};
 
@@ -29,18 +29,13 @@ pub fn repeatable_features(features: &[TimelineItem]) -> Vec<&TimelineItem> {
     features
         .iter()
         .filter(|f| {
-            super::tables::REPEATABLE.contains(&f.kind.as_str())
-                && f.active
-                && f.error.is_none()
-                && !f.suppressed
+            super::tables::REPEATABLE.contains(&f.kind.as_str()) && f.active && f.error.is_none() && !f.suppressed
         })
         .collect()
 }
 
 pub fn last_repeatable<'a>(ctx: &Ctx<'a>) -> Option<&'a str> {
-    repeatable_features(ctx.features)
-        .last()
-        .map(|f| f.id.as_str())
+    repeatable_features(ctx.features).last().map(|f| f.id.as_str())
 }
 
 /// Bbox from mesh positions (fixture / scale defaults).
@@ -127,11 +122,7 @@ pub fn json_f64(n: f64) -> Value {
 /// JS `+v.tol || 0`
 pub fn tol_or_zero(v: &Values) -> f64 {
     let t = get_f64(v, "tol");
-    if t.is_nan() {
-        0.0
-    } else {
-        t
-    }
+    if t.is_nan() { 0.0 } else { t }
 }
 
 /// JS truthiness.
@@ -182,7 +173,9 @@ fn str_to_number(s: &str) -> f64 {
             return u64::from_str_radix(rest, radix).map_or(f64::NAN, |n| n as f64);
         }
     }
-    if s.chars().all(|c| c.is_ascii_digit() || matches!(c, '+' | '-' | '.' | 'e' | 'E')) {
+    if s.chars()
+        .all(|c| c.is_ascii_digit() || matches!(c, '+' | '-' | '.' | 'e' | 'E'))
+    {
         s.parse::<f64>().unwrap_or(f64::NAN)
     } else {
         f64::NAN

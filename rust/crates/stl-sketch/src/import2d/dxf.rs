@@ -2,8 +2,8 @@
 
 use serde_json::Map;
 
-use crate::entities::{Arc, Circle, Entity, Line, Polyline, P2};
 use crate::SketchError;
+use crate::entities::{Arc, Circle, Entity, Line, P2, Polyline};
 
 /// Points of a DXF bulge arc from `a` to `b` (bulge = tan(sweep / 4)), without `a`.
 fn bulge_pts(a: P2, b: P2, bulge: f64, out: &mut Vec<P2>) {
@@ -73,10 +73,10 @@ pub fn import_dxf(text: &str) -> Result<Vec<Entity>, SketchError> {
                 break;
             }
             ents.push((v, Vec::new()));
-        } else if c.is_finite() {
-            if let Some((_, g)) = ents.last_mut() {
-                g.push((c, v));
-            }
+        } else if c.is_finite()
+            && let Some((_, g)) = ents.last_mut()
+        {
+            g.push((c, v));
         }
         // NaN codes: 1.x still pushes them into g, but every `c === N` test fails — skip.
     }
@@ -119,11 +119,11 @@ pub fn import_dxf(text: &str) -> Result<Vec<Entity>, SketchError> {
                             let y = js_plus(s);
                             last.1 = if y.is_finite() { y } else { 0.0 };
                         }
-                    } else if *c == 42.0 {
-                        if let Some(last) = v.last_mut() {
-                            let b = js_plus(s);
-                            last.2 = if b.is_finite() { b } else { 0.0 };
-                        }
+                    } else if *c == 42.0
+                        && let Some(last) = v.last_mut()
+                    {
+                        let b = js_plus(s);
+                        last.2 = if b.is_finite() { b } else { 0.0 };
                     }
                 }
                 if v.len() < 2 {

@@ -26,13 +26,19 @@ fn root(test: &str) -> PathBuf {
 }
 
 fn doc(title: &str, steps: usize) -> Value {
-    let features: Vec<Value> = (0..steps).map(|i| json!({"id": format!("f{}", i + 1), "type": "primitive", "params": {}})).collect();
+    let features: Vec<Value> = (0..steps)
+        .map(|i| json!({"id": format!("f{}", i + 1), "type": "primitive", "params": {}}))
+        .collect();
     json!({"format": 1, "app": "STL Editor", "features": features, "rollback": null, "ui": {}, "params": [],
            "sources": {}, "path": null, "title": title, "saved": 1_700_000_000.5, "count": steps})
 }
 
 fn folders(root: &PathBuf) -> Vec<String> {
-    let mut v: Vec<String> = std::fs::read_dir(root).unwrap().flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect();
+    let mut v: Vec<String> = std::fs::read_dir(root)
+        .unwrap()
+        .flatten()
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .collect();
     v.sort();
     v
 }
@@ -44,7 +50,13 @@ fn folder_is_named_for_the_time() {
     let id = a.id().to_string();
     let b = id.as_bytes();
     assert_eq!(id.len(), "yyyymmdd-hhmmss-xxxxxx".len(), "{id}");
-    assert!(b[..8].iter().all(u8::is_ascii_digit) && b[8] == b'-' && b[9..15].iter().all(u8::is_ascii_digit) && b[15] == b'-', "{id}");
+    assert!(
+        b[..8].iter().all(u8::is_ascii_digit)
+            && b[8] == b'-'
+            && b[9..15].iter().all(u8::is_ascii_digit)
+            && b[15] == b'-',
+        "{id}"
+    );
     assert!(r.join(&id).join("lock").is_file());
     let other = Autosaver::begin(&r).unwrap();
     assert_ne!(other.id(), a.id());
@@ -57,7 +69,16 @@ fn sources_kept() {
     let bytes: Vec<u8> = (0..70_000u32).map(|i| (i * 31 % 251) as u8).collect();
     let mut d = doc("Bracket", 2);
     d["sources"] = json!({"s1": {"name": "part.stl", "ext": ".stl"}});
-    a.write(&d, &[Source { id: "s1".into(), name: "part.stl".into(), ext: ".stl".into(), data: bytes.clone() }]).unwrap();
+    a.write(
+        &d,
+        &[Source {
+            id: "s1".into(),
+            name: "part.stl".into(),
+            ext: ".stl".into(),
+            data: bytes.clone(),
+        }],
+    )
+    .unwrap();
     // a second write that doesn't pass the source again keeps it
     a.write(&d, &[]).unwrap();
     let id = a.id().to_string();
@@ -65,10 +86,20 @@ fn sources_kept() {
     let (back, sources) = load(&r, &id).unwrap();
     assert_eq!(back, d);
     assert_eq!(sources.len(), 1);
-    assert_eq!((sources[0].id.as_str(), sources[0].name.as_str(), sources[0].ext.as_str()), ("s1", "part.stl", ".stl"));
+    assert_eq!(
+        (
+            sources[0].id.as_str(),
+            sources[0].name.as_str(),
+            sources[0].ext.as_str()
+        ),
+        ("s1", "part.stl", ".stl")
+    );
     assert_eq!(sources[0].data, bytes, "the imported mesh comes back byte for byte");
     assert!(r.join(&id).join("sources").join("s1.stl").is_file());
-    assert!(!r.join(&id).join("document.json.tmp").exists(), "written to a .tmp and renamed");
+    assert!(
+        !r.join(&id).join("document.json.tmp").exists(),
+        "written to a .tmp and renamed"
+    );
 }
 
 #[test]
@@ -88,7 +119,16 @@ fn clear_removes_the_copy_but_keeps_the_session() {
     let a = Autosaver::begin(&r).unwrap();
     let mut d = doc("x", 1);
     d["sources"] = json!({"s1": {"name": "p.stl", "ext": ".stl"}});
-    a.write(&d, &[Source { id: "s1".into(), name: "p.stl".into(), ext: ".stl".into(), data: vec![1, 2, 3] }]).unwrap();
+    a.write(
+        &d,
+        &[Source {
+            id: "s1".into(),
+            name: "p.stl".into(),
+            ext: ".stl".into(),
+            data: vec![1, 2, 3],
+        }],
+    )
+    .unwrap();
     a.clear();
     let dir = r.join(a.id());
     assert!(dir.join("lock").is_file());
@@ -104,10 +144,16 @@ fn live_session_not_offered() {
     live.write(&doc("Open in a window", 3), &[]).unwrap();
     // a second window starting up sees the first one's lock and leaves it alone
     let second = Autosaver::begin(&r).unwrap();
-    assert!(recoverable(&r, Some(second.id())).is_empty(), "the other window's live session is not offered");
+    assert!(
+        recoverable(&r, Some(second.id())).is_empty(),
+        "the other window's live session is not offered"
+    );
     assert!(recoverable(&r, None).is_empty(), "nor is this window's own");
     discard(&r, live.id());
-    assert!(r.join(live.id()).join("document.json").is_file(), "discard leaves a running window's folder");
+    assert!(
+        r.join(live.id()).join("document.json").is_file(),
+        "discard leaves a running window's folder"
+    );
     // once it ends cleanly there is nothing left either
     live.end();
     assert!(recoverable(&r, Some(second.id())).is_empty());
@@ -141,13 +187,19 @@ fn crashed_session_offered() {
         }
     };
     // while the child runs, its session is live
-    assert!(recoverable(&r, None).is_empty(), "a running window's session is not offered");
+    assert!(
+        recoverable(&r, None).is_empty(),
+        "a running window's session is not offered"
+    );
     child.kill().unwrap();
     child.wait().unwrap();
     let found = recoverable(&r, None);
     assert_eq!(found.len(), 1, "{found:?}");
     let s = &found[0];
-    assert_eq!((s.id.as_str(), s.title.as_str(), s.steps, s.path.as_deref()), (id.as_str(), "Crashed work", 4, None));
+    assert_eq!(
+        (s.id.as_str(), s.title.as_str(), s.steps, s.path.as_deref()),
+        (id.as_str(), "Crashed work", 4, None)
+    );
     assert_eq!(s.saved, 1_700_000_000.5);
     let (back, _) = load(&r, &id).unwrap();
     assert_eq!(back["title"], "Crashed work");

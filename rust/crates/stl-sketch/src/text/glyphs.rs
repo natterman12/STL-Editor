@@ -30,8 +30,7 @@ const STEPS: i32 = 8;
 fn py_is_whitespace(c: char) -> bool {
     matches!(
         c,
-        '\t'
-            | '\n'
+        '\t' | '\n'
             | '\x0B'
             | '\x0C'
             | '\r'
@@ -43,12 +42,7 @@ fn py_is_whitespace(c: char) -> bool {
             | '\u{0085}'
             | '\u{00A0}'
             | '\u{1680}'
-            | '\u{2000}'..='\u{200A}'
-            | '\u{2028}'
-            | '\u{2029}'
-            | '\u{202F}'
-            | '\u{205F}'
-            | '\u{3000}'
+            | '\u{2000}'..='\u{200A}' | '\u{2028}' | '\u{2029}' | '\u{202F}' | '\u{205F}' | '\u{3000}'
     )
 }
 
@@ -58,19 +52,12 @@ fn py_strip(s: &str) -> &str {
 
 /// Outline contours of `text` in mm; baseline of the first line is y = 0.
 /// Even-odd fill. Matches `meshtools.text_contours` when given the same font bytes.
-pub fn text_contours(
-    font: &[u8],
-    text: &str,
-    size: f64,
-    opts: &TextOpts,
-) -> Result<Vec<Vec<P2>>, SketchError> {
+pub fn text_contours(font: &[u8], text: &str, size: f64, opts: &TextOpts) -> Result<Vec<Vec<P2>>, SketchError> {
     if py_strip(text).is_empty() {
         return Ok(Vec::new());
     }
     if !size.is_finite() || size <= 0.0 {
-        return Err(SketchError::new(
-            "The text size must be more than 0.",
-        ));
+        return Err(SketchError::new("The text size must be more than 0."));
     }
     let face = Face::parse(font, 0).map_err(|_| SketchError::new("Could not read this font."))?;
     let upm = face.units_per_em() as f64;
@@ -111,17 +98,10 @@ pub fn text_contours(
                 let shifted: Vec<P2> = c.iter().map(|p| [p[0] + x, p[1]]).collect();
                 conts.push(shifted);
             }
-            let adv = face
-                .glyph_hor_advance(gid)
-                .map(|a| a as f64)
-                .unwrap_or(upm * 0.5);
+            let adv = face.glyph_hor_advance(gid).map(|a| a as f64).unwrap_or(upm * 0.5);
             x += adv + spacing / scale;
         }
-        let width = if line.is_empty() {
-            x
-        } else {
-            x - spacing / scale
-        };
+        let width = if line.is_empty() { x } else { x - spacing / scale };
         widths.push(width);
         per_line.push(conts);
     }
@@ -147,12 +127,7 @@ pub fn text_contours(
 }
 
 /// Width and height of the text outlines in mm (`hi - lo` of 1.x `text_extent`).
-pub fn text_extent(
-    font: &[u8],
-    text: &str,
-    size: f64,
-    opts: &TextOpts,
-) -> Result<[f64; 2], SketchError> {
+pub fn text_extent(font: &[u8], text: &str, size: f64, opts: &TextOpts) -> Result<[f64; 2], SketchError> {
     let contours = text_contours(font, text, size, opts)?;
     if contours.is_empty() {
         return Ok([0.0, 0.0]);
@@ -216,11 +191,7 @@ impl OutlineBuilder for FlatPen {
     fn line_to(&mut self, x: f32, y: f32) {
         let p = [x as f64, y as f64];
         if let Some(&first) = self.cur.first() {
-            let already_at_start = self
-                .cur
-                .last()
-                .map(|l| points_eq(*l, first))
-                .unwrap_or(false);
+            let already_at_start = self.cur.last().map(|l| points_eq(*l, first)).unwrap_or(false);
             if points_eq(p, first) && already_at_start {
                 // Redundant glyf close after an explicit end-at-start: ignore it so
                 // the explicit closing point is kept (fontTools keeps it).
@@ -263,14 +234,8 @@ impl OutlineBuilder for FlatPen {
             let t = k as f64 / STEPS as f64;
             let mt = 1.0 - t;
             self.push(
-                mt * mt * mt * p0[0]
-                    + 3.0 * mt * mt * t * c1[0]
-                    + 3.0 * mt * t * t * c2[0]
-                    + t * t * t * p3[0],
-                mt * mt * mt * p0[1]
-                    + 3.0 * mt * mt * t * c1[1]
-                    + 3.0 * mt * t * t * c2[1]
-                    + t * t * t * p3[1],
+                mt * mt * mt * p0[0] + 3.0 * mt * mt * t * c1[0] + 3.0 * mt * t * t * c2[0] + t * t * t * p3[0],
+                mt * mt * mt * p0[1] + 3.0 * mt * mt * t * c1[1] + 3.0 * mt * t * t * c2[1] + t * t * t * p3[1],
             );
         }
         self.last_op = LastOp::Curve;

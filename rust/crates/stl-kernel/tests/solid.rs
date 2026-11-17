@@ -75,7 +75,10 @@ fn from_mesh_rejects_bad_input() {
     inf.positions[0] = f32::INFINITY;
     assert!(invalid(&inf));
 
-    assert!(invalid(&MeshArrays { positions: vec![], triangles: vec![] }));
+    assert!(invalid(&MeshArrays {
+        positions: vec![],
+        triangles: vec![]
+    }));
 
     let mut no_tris = cube_mesh();
     no_tris.triangles.clear();
@@ -123,7 +126,11 @@ fn transforms_and_measures() {
     assert!(rel(c.surface_area(), 52.0) < 1e-12);
     assert_eq!((c.num_tri(), c.num_vert(), c.genus()), (12, 8, 0));
     assert!(!c.is_empty());
-    assert!(Solid::cube([1.0; 3], false).intersection(&c.translate([5.0, 0.0, 0.0])).is_empty());
+    assert!(
+        Solid::cube([1.0; 3], false)
+            .intersection(&c.translate([5.0, 0.0, 0.0]))
+            .is_empty()
+    );
 
     let moved = c.translate([1.0, 0.0, 0.0]).scale([2.0, 1.0, 1.0]);
     let b = moved.bounding_box();
@@ -156,7 +163,10 @@ fn transforms_and_measures() {
 
 #[test]
 fn hulls() {
-    let two = Solid::compose(&[Solid::cube([1.0; 3], false), Solid::cube([1.0; 3], false).translate([3.0, 0.0, 0.0])]);
+    let two = Solid::compose(&[
+        Solid::cube([1.0; 3], false),
+        Solid::cube([1.0; 3], false).translate([3.0, 0.0, 0.0]),
+    ]);
     assert!(rel(two.hull().volume(), 4.0) < 1e-9);
     let tet = Solid::hull_points(&[[0.0, 0.0, 0.0], [6.0, 0.0, 0.0], [0.0, 6.0, 0.0], [0.0, 0.0, 6.0]]);
     assert!(rel(tet.volume(), 36.0) < 1e-9);
@@ -175,7 +185,9 @@ fn slice_extrude_revolve() {
     assert!(c.slice(99.0).extrude(5.0).is_empty());
 
     // a 1 x 2 rectangle 1 mm from the axis, turned all the way round: pi * (2^2 - 1^2) * 2
-    let ring = stl_kernel::Shape2d { contours: vec![vec![[1.0, 0.0], [2.0, 0.0], [2.0, 2.0], [1.0, 2.0]]] };
+    let ring = stl_kernel::Shape2d {
+        contours: vec![vec![[1.0, 0.0], [2.0, 0.0], [2.0, 2.0], [1.0, 2.0]]],
+    };
     let v = ring.revolve(128, 360.0).volume();
     assert!(rel(v, std::f64::consts::PI * 6.0) < 2e-3, "{v}");
 }
@@ -199,16 +211,27 @@ fn clone_is_cheap_and_shared() {
 fn shape2d_offset_decompose_bounds() {
     use stl_kernel::Shape2d;
     let sq = |x0: f64, x1: f64| vec![[x0, 0.0], [x1, 0.0], [x1, 10.0], [x0, 10.0]];
-    let s = Shape2d { contours: vec![sq(0.0, 10.0), sq(30.0, 40.0)] };
+    let s = Shape2d {
+        contours: vec![sq(0.0, 10.0), sq(30.0, 40.0)],
+    };
     assert!((s.area() - 200.0).abs() < 1e-9);
     assert_eq!(s.bounds(), Some(([0.0, 0.0], [40.0, 10.0])));
     let parts = s.decompose();
     assert_eq!(parts.len(), 2);
     assert!((parts[0].area() - 100.0).abs() < 1e-9);
     // shrinking by 2 leaves 6 x 6 squares; shrinking by 6 leaves nothing
-    let inner = Shape2d { contours: vec![sq(0.0, 10.0)] }.offset_round(-2.0);
+    let inner = Shape2d {
+        contours: vec![sq(0.0, 10.0)],
+    }
+    .offset_round(-2.0);
     assert!((inner.area() - 36.0).abs() < 1e-6);
-    assert!(Shape2d { contours: vec![sq(0.0, 10.0)] }.offset_round(-6.0).is_empty());
+    assert!(
+        Shape2d {
+            contours: vec![sq(0.0, 10.0)]
+        }
+        .offset_round(-6.0)
+        .is_empty()
+    );
     assert_eq!(Shape2d::default().bounds(), None);
 }
 
@@ -232,7 +255,11 @@ fn decompose_in_kernel_order_matches_1x() {
         m.triangles.extend(cube.triangles.iter().map(|i| i + 8 * k as u32));
     }
     let s = Solid::from_mesh(&m).unwrap();
-    let volumes: Vec<f64> = s.decompose_in_kernel_order().iter().map(|p| p.volume().round()).collect();
+    let volumes: Vec<f64> = s
+        .decompose_in_kernel_order()
+        .iter()
+        .map(|p| p.volume().round())
+        .collect();
     assert_eq!(volumes, vec![1000.0, 27.0, 3375.0, 125.0, 8000.0]);
     // the sorted one is unchanged: largest first
     let sorted: Vec<f64> = s.decompose().iter().map(|p| p.volume().round()).collect();
@@ -276,7 +303,10 @@ fn from_mesh_separates_a_shared_edge_without_moving_corners() {
     assert_eq!((b.min, b.max), ([0.0; 3], [20.0, 20.0, 10.0]));
     let out = s.to_mesh();
     for p in out.positions.chunks_exact(3) {
-        assert!(m.positions.chunks_exact(3).any(|q| q == p), "{p:?} is not a vertex of the mesh");
+        assert!(
+            m.positions.chunks_exact(3).any(|q| q == p),
+            "{p:?} is not a vertex of the mesh"
+        );
     }
     assert_eq!(s.decompose().len(), 2);
 }
@@ -320,6 +350,10 @@ fn pending_transform_is_the_same_solid() {
     assert_eq!(all.decompose().len(), 3);
     assert_eq!(all.num_tri(), 3 * post.num_tri());
     // a second matrix on a pending solid is applied together with the first
-    let twice = post.transform_pending(m(0.0)).transform_pending([[1.0, 0.0, 0.0, 10.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0]]);
+    let twice = post.transform_pending(m(0.0)).transform_pending([
+        [1.0, 0.0, 0.0, 10.0],
+        [0.0, 1.0, 0.0, 0.0],
+        [0.0, 0.0, 1.0, 0.0],
+    ]);
     assert_eq!(twice.to_mesh().positions, applied.to_mesh().positions);
 }

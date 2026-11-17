@@ -1,9 +1,9 @@
 //! Typed sizes while drawing (`sketcher.js` `readTyped`, `addTypedDims`, `addDims`) and the
 //! display units they are typed in (`web/js/units.js` `U`, `parseExpr`).
 
-use serde_json::{json, Value};
-use stl_sketch::entities::{point, Entity, P2};
-use stl_sketch::solver::{is_redundant, measure, Constraint, Ref};
+use serde_json::{Value, json};
+use stl_sketch::entities::{Entity, P2, point};
+use stl_sketch::solver::{Constraint, Ref, is_redundant, measure};
 
 use super::SketchSession;
 
@@ -65,12 +65,11 @@ pub fn parse_expr(text: &str) -> f64 {
     if let Some(v) = mixed_fraction(s) {
         return v;
     }
-    if s.chars().all(|c| "0123456789+-*/(). ".contains(c)) {
-        if let Some(r) = Arith::eval(s) {
-            if r.is_finite() {
-                return r;
-            }
-        }
+    if s.chars().all(|c| "0123456789+-*/(). ".contains(c))
+        && let Some(r) = Arith::eval(s)
+        && r.is_finite()
+    {
+        return r;
     }
     let f = parse_float(s);
     if f.is_finite() { f } else { f64::NAN }
@@ -78,7 +77,10 @@ pub fn parse_expr(text: &str) -> f64 {
 
 /// `.replace(/["″]|in$|mm$/i, '')`: the leftmost of a quote mark or a trailing "in" / "mm".
 fn strip_unit(s: &str) -> String {
-    let quote = s.char_indices().find(|(_, c)| *c == '"' || *c == '″').map(|(i, c)| (i, c.len_utf8()));
+    let quote = s
+        .char_indices()
+        .find(|(_, c)| *c == '"' || *c == '″')
+        .map(|(i, c)| (i, c.len_utf8()));
     let lower = s.to_ascii_lowercase();
     let suffix = (s.len() >= 2 && (lower.ends_with("in") || lower.ends_with("mm"))).then(|| (s.len() - 2, 2));
     let hit = match (quote, suffix) {
@@ -117,7 +119,11 @@ pub(crate) fn parse_float(s: &str) -> f64 {
         i += 1;
     }
     if s[i..].starts_with("Infinity") {
-        return if b.first() == Some(&b'-') { f64::NEG_INFINITY } else { f64::INFINITY };
+        return if b.first() == Some(&b'-') {
+            f64::NEG_INFINITY
+        } else {
+            f64::INFINITY
+        };
     }
     let start_digits = i;
     while i < b.len() && b[i].is_ascii_digit() {
@@ -188,7 +194,10 @@ impl<'a> Arith<'a> {
                 }
                 let n = &s[st..i];
                 // one dot at most, not a lone dot, no legacy octal ("01" is an error in strict mode)
-                if n.matches('.').count() > 1 || n == "." || (n.len() > 1 && n.starts_with('0') && n.as_bytes()[1].is_ascii_digit()) {
+                if n.matches('.').count() > 1
+                    || n == "."
+                    || (n.len() > 1 && n.starts_with('0') && n.as_bytes()[1].is_ascii_digit())
+                {
                     return None;
                 }
                 t.push(Tok::Num(n));
@@ -267,8 +276,12 @@ impl<'a> Arith<'a> {
         match self.peek()? {
             Tok::Num(n) => {
                 self.i += 1;
-                let n = if n.ends_with('.') { &n[..n.len() - 1] } else { n };
-                let n = if n.starts_with('.') { format!("0{n}") } else { n.to_string() };
+                let n = n.strip_suffix('.').unwrap_or(n);
+                let n = if n.starts_with('.') {
+                    format!("0{n}")
+                } else {
+                    n.to_string()
+                };
                 n.parse().ok()
             }
             Tok::Op("(") => {
@@ -373,7 +386,13 @@ pub fn default_placement(c: &mut Constraint, all: &[Entity], px: f64) {
         };
         let d = sub(m, mid);
         let dt = d[0] * n[0] + d[1] * n[1];
-        let s = if dt > 0.0 { 1.0 } else if dt < 0.0 { -1.0 } else { 1.0 };
+        let s = if dt > 0.0 {
+            1.0
+        } else if dt < 0.0 {
+            -1.0
+        } else {
+            1.0
+        };
         c.extra.insert("off".into(), json!(s * 26.0 * px));
         c.extra.insert("slide".into(), json!(0));
     } else if matches!(kind, "radius" | "diameter") {
@@ -418,15 +437,33 @@ pub fn spec(kind: &str, a: Ref, b: Option<Ref>, sign: Option<f64>) -> Constraint
 pub fn add_typed_dims(s: &mut SketchSession, e: &Entity, t: &Typed, slot_len: bool, px: f64) {
     let (ha, hb) = t.read();
     let Some(id) = e.id().map(str::to_string) else { return };
-    let sgn = |x: f64| if x > 0.0 { 1.0 } else if x < 0.0 { -1.0 } else { 1.0 };
+    let sgn = |x: f64| {
+        if x > 0.0 {
+            1.0
+        } else if x < 0.0 {
+            -1.0
+        } else {
+            1.0
+        }
+    };
     let mut specs = Vec::new();
     match e {
         Entity::Rect(r) => {
             if ha {
-                specs.push(spec("hdistance", Ref::pt(&id, "c0"), Some(Ref::pt(&id, "c1")), Some(sgn(r.w))));
+                specs.push(spec(
+                    "hdistance",
+                    Ref::pt(&id, "c0"),
+                    Some(Ref::pt(&id, "c1")),
+                    Some(sgn(r.w)),
+                ));
             }
             if hb {
-                specs.push(spec("vdistance", Ref::pt(&id, "c1"), Some(Ref::pt(&id, "c2")), Some(sgn(r.h))));
+                specs.push(spec(
+                    "vdistance",
+                    Ref::pt(&id, "c1"),
+                    Some(Ref::pt(&id, "c2")),
+                    Some(sgn(r.h)),
+                ));
             }
         }
         Entity::Circle(_) if ha => specs.push(spec("diameter", Ref::ent(&id), None, None)),

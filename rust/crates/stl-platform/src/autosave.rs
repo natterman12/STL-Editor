@@ -68,7 +68,11 @@ impl Autosaver {
                     if !dir.is_dir() {
                         continue;
                     }
-                    return Ok(Autosaver { dir, id, lock: Some(lock) });
+                    return Ok(Autosaver {
+                        dir,
+                        id,
+                        lock: Some(lock),
+                    });
                 }
                 Err(e) => last = Some(e),
             }
@@ -118,7 +122,11 @@ impl Autosaver {
 /// are removed.
 pub fn recoverable(root: &Path, exclude: Option<&str>) -> Vec<SessionInfo> {
     let mut names: Vec<String> = match std::fs::read_dir(root) {
-        Ok(rd) => rd.flatten().filter(|e| e.path().is_dir()).filter_map(|e| e.file_name().into_string().ok()).collect(),
+        Ok(rd) => rd
+            .flatten()
+            .filter(|e| e.path().is_dir())
+            .filter_map(|e| e.file_name().into_string().ok())
+            .collect(),
         Err(_) => return Vec::new(),
     };
     names.sort();
@@ -189,7 +197,12 @@ fn session_dir(root: &Path, id: &str) -> Option<PathBuf> {
 }
 
 fn open_lock(dir: &Path) -> std::io::Result<File> {
-    OpenOptions::new().read(true).write(true).create(true).truncate(false).open(dir.join("lock"))
+    OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(dir.join("lock"))
 }
 
 fn write_atomic(file: &Path, bytes: &[u8]) -> std::io::Result<()> {
@@ -223,7 +236,12 @@ fn read_sources(dir: &Path, doc: &Value) -> Result<Vec<Source>, String> {
             };
             let file = dir.join("sources").join(format!("{id}{ext}"));
             let data = std::fs::read(&file).map_err(|e| format!("source {id} is missing: {e}"))?;
-            out.push(Source { id: id.clone(), name, ext, data });
+            out.push(Source {
+                id: id.clone(),
+                name,
+                ext,
+                data,
+            });
         }
     }
     Ok(out)
@@ -234,19 +252,39 @@ fn read_session(dir: &Path, name: &str) -> Result<SessionInfo, String> {
     // a half-written copy (a source that didn't make it) can't be recovered: check without keeping the bytes
     if let Some(Value::Object(meta)) = doc.get("sources") {
         for (id, m) in meta {
-            let ext = m.get("ext").and_then(Value::as_str).ok_or_else(|| format!("source {id} has no name"))?;
+            let ext = m
+                .get("ext")
+                .and_then(Value::as_str)
+                .ok_or_else(|| format!("source {id} has no name"))?;
             let file = dir.join("sources").join(format!("{id}{ext}"));
             if !file.is_file() {
                 return Err(format!("source {id} is missing"));
             }
         }
     }
-    let features = doc.get("features").and_then(Value::as_array).ok_or("document.json has no steps")?;
-    let steps = doc.get("count").and_then(Value::as_u64).map_or(features.len(), |n| n as usize);
-    let title = doc.get("title").and_then(Value::as_str).filter(|t| !t.is_empty()).unwrap_or("Untitled").to_string();
+    let features = doc
+        .get("features")
+        .and_then(Value::as_array)
+        .ok_or("document.json has no steps")?;
+    let steps = doc
+        .get("count")
+        .and_then(Value::as_u64)
+        .map_or(features.len(), |n| n as usize);
+    let title = doc
+        .get("title")
+        .and_then(Value::as_str)
+        .filter(|t| !t.is_empty())
+        .unwrap_or("Untitled")
+        .to_string();
     let path = doc.get("path").and_then(Value::as_str).map(str::to_string);
     let saved = doc.get("saved").and_then(Value::as_f64).unwrap_or(0.0);
-    Ok(SessionInfo { id: name.to_string(), title, path, saved, steps })
+    Ok(SessionInfo {
+        id: name.to_string(),
+        title,
+        path,
+        saved,
+        steps,
+    })
 }
 
 /// Seconds since the time in a folder name (`yyyymmdd-hhmmss-xxxxxx`, UTC); `None` if it isn't one.
@@ -262,7 +300,9 @@ fn age_secs(name: &str) -> Option<f64> {
 }
 
 fn now_secs() -> f64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).map_or(0.0, |d| d.as_secs_f64())
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0.0, |d| d.as_secs_f64())
 }
 
 fn new_id() -> String {
@@ -273,10 +313,20 @@ fn new_id() -> String {
     // six hex digits from the time, the process, a counter and the OS's per-process random keys
     use std::hash::{BuildHasher, Hasher, RandomState};
     let mut h = RandomState::new().build_hasher();
-    h.write_u64(SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_nanos() as u64));
+    h.write_u64(
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_or(0, |d| d.as_nanos() as u64),
+    );
     h.write_u32(std::process::id());
     h.write_u64(COUNTER.fetch_add(1, Ordering::Relaxed));
-    format!("{y:04}{m:02}{d:02}-{:02}{:02}{:02}-{:06x}", rem / 3600, rem % 3600 / 60, rem % 60, h.finish() & 0xff_ffff)
+    format!(
+        "{y:04}{m:02}{d:02}-{:02}{:02}{:02}-{:06x}",
+        rem / 3600,
+        rem % 3600 / 60,
+        rem % 60,
+        h.finish() & 0xff_ffff
+    )
 }
 
 /// Days since 1970-01-01 for a civil date (proleptic Gregorian).

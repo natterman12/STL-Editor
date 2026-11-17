@@ -139,7 +139,11 @@ impl<'a> SurfaceSampler<'a> {
             let (t0, t1, t2) = (verts[i0], verts[i1], verts[i2]);
             let edge = edge_len(t1, t0).max(edge_len(t2, t1)).max(edge_len(t0, t2));
             let raw = (edge / spacing).ceil();
-            let kk = if raw.is_finite() { (raw as i64).clamp(1, MAX_K as i64) as usize } else { 1 };
+            let kk = if raw.is_finite() {
+                (raw as i64).clamp(1, MAX_K as i64) as usize
+            } else {
+                1
+            };
             face_k.push(kk as u16);
             used[kk] = true;
         }
@@ -150,16 +154,25 @@ impl<'a> SurfaceSampler<'a> {
                 steps[kk] = (0..=kk).map(|i| (i as f64) / denom).collect();
             }
         }
-        Self { verts, faces, face_k, steps }
+        Self {
+            verts,
+            faces,
+            face_k,
+            steps,
+        }
     }
 
     /// How many points the sampler produces in all.
     pub fn point_count(&self) -> usize {
-        let per_face: usize = self.face_k.iter().map(|&k| match k {
-            0 => 0,
-            1 => 1,
-            k => (k as usize + 1) * (k as usize + 2) / 2,
-        }).sum();
+        let per_face: usize = self
+            .face_k
+            .iter()
+            .map(|&k| match k {
+                0 => 0,
+                1 => 1,
+                k => (k as usize + 1) * (k as usize + 2) / 2,
+            })
+            .sum();
         self.verts.len() + per_face
     }
 
@@ -181,9 +194,17 @@ impl<'a> SurfaceSampler<'a> {
             return;
         }
         let tri = self.faces[fi];
-        let (t0, t1, t2) = (self.verts[tri[0] as usize], self.verts[tri[1] as usize], self.verts[tri[2] as usize]);
+        let (t0, t1, t2) = (
+            self.verts[tri[0] as usize],
+            self.verts[tri[1] as usize],
+            self.verts[tri[2] as usize],
+        );
         if kk == 1 {
-            f([(t0[0] + t1[0] + t2[0]) / 3.0, (t0[1] + t1[1] + t2[1]) / 3.0, (t0[2] + t1[2] + t2[2]) / 3.0]);
+            f([
+                (t0[0] + t1[0] + t2[0]) / 3.0,
+                (t0[1] + t1[1] + t2[1]) / 3.0,
+                (t0[2] + t1[2] + t2[2]) / 3.0,
+            ]);
             return;
         }
         let st = &self.steps[kk];
@@ -268,14 +289,23 @@ impl<'a> SampleIndex<'a> {
             build_bvh(&face_box, &mut order, 0, n, &mut nodes)?;
         }
         let vtree = crate::nearest::PointTree::new(verts);
-        Some(Self { sampler, nodes, order, vtree })
+        Some(Self {
+            sampler,
+            nodes,
+            order,
+            vtree,
+        })
     }
 
     /// Distance from `q` to the closest sample (infinity when there are none).
     pub fn nearest_dist(&self, q: [f64; 3]) -> f64 {
         let vd = self.vtree.nearest_dist(q);
         // a slightly generous bound for pruning; `best` only drops below it for a real sample
-        let mut best = if vd.is_finite() { vd * vd * (1.0 + 1e-12) } else { f64::INFINITY };
+        let mut best = if vd.is_finite() {
+            vd * vd * (1.0 + 1e-12)
+        } else {
+            f64::INFINITY
+        };
         let mut stack: Vec<u32> = Vec::with_capacity(64);
         if !self.nodes.is_empty() {
             stack.push(0);
@@ -312,9 +342,17 @@ impl<'a> SampleIndex<'a> {
             return;
         }
         let tri = sm.faces[fi];
-        let (t0, t1, t2) = (sm.verts[tri[0] as usize], sm.verts[tri[1] as usize], sm.verts[tri[2] as usize]);
+        let (t0, t1, t2) = (
+            sm.verts[tri[0] as usize],
+            sm.verts[tri[1] as usize],
+            sm.verts[tri[2] as usize],
+        );
         if kk == 1 {
-            let p = [(t0[0] + t1[0] + t2[0]) / 3.0, (t0[1] + t1[1] + t2[1]) / 3.0, (t0[2] + t1[2] + t2[2]) / 3.0];
+            let p = [
+                (t0[0] + t1[0] + t2[0]) / 3.0,
+                (t0[1] + t1[1] + t2[1]) / 3.0,
+                (t0[2] + t1[2] + t2[2]) / 3.0,
+            ];
             let d = d2(&p, q);
             if d < *best {
                 *best = d;
@@ -370,7 +408,11 @@ impl<'a> SampleIndex<'a> {
             if !best.is_finite() {
                 // no bound yet: start from the lattice point nearest the projection of q
                 let ii = i0.round().clamp(0.0, k) as usize;
-                let rem = [q0[0] - ii as f64 * e1[0], q0[1] - ii as f64 * e1[1], q0[2] - ii as f64 * e1[2]];
+                let rem = [
+                    q0[0] - ii as f64 * e1[0],
+                    q0[1] - ii as f64 * e1[1],
+                    q0[2] - ii as f64 * e1[2],
+                ];
                 let jj = (dot(rem, e2) / g22).round().clamp(0.0, (kk - ii) as f64) as usize;
                 *best = best.min(sample(ii, jj));
             }
@@ -444,7 +486,13 @@ fn build_bvh(
         }
     }
     if end - start <= LEAF_TRIS || !(0..3).any(|a| chi[a] > clo[a]) {
-        nodes.push(BNode { lo, hi, a: start as u32, b: end as u32, left: u32::MAX });
+        nodes.push(BNode {
+            lo,
+            hi,
+            a: start as u32,
+            b: end as u32,
+            left: u32::MAX,
+        });
         return Some(me as u32);
     }
     let axis = (0..3).fold(0, |b, a| if chi[a] - clo[a] > chi[b] - clo[b] { a } else { b });
@@ -453,7 +501,13 @@ fn build_bvh(
         let (bp, bq) = (&boxes[p as usize], &boxes[q as usize]);
         (bp.0[axis] + bp.1[axis]).total_cmp(&(bq.0[axis] + bq.1[axis]))
     });
-    nodes.push(BNode { lo, hi, a: 0, b: 0, left: 0 });
+    nodes.push(BNode {
+        lo,
+        hi,
+        a: 0,
+        b: 0,
+        left: 0,
+    });
     let left = build_bvh(boxes, order, start, mid, nodes)?;
     let right = build_bvh(boxes, order, mid, end, nodes)?;
     nodes[me].left = left;

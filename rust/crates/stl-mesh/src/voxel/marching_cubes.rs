@@ -124,7 +124,11 @@ impl Cell {
                 fy += dy2 as f64 * tmpf2;
                 fz += dz2 as f64 * tmpf2;
                 ff += tmpf2;
-                [self.x as f64 + fx / ff, self.y as f64 + fy / ff, self.z as f64 + fz / ff]
+                [
+                    self.x as f64 + fx / ff,
+                    self.y as f64 + fy / ff,
+                    self.z as f64 + fz / ff,
+                ]
             };
             self.vertices.push([p[0] as f32, p[1] as f32, p[2] as f32]);
             let created = (self.vertices.len() - 1) as i32;
@@ -196,7 +200,11 @@ impl Cell {
             fz += POS[c][2] * w[c];
             ff += w[c];
         }
-        self.v12 = [self.x as f64 + fx / ff, self.y as f64 + fy / ff, self.z as f64 + fz / ff];
+        self.v12 = [
+            self.x as f64 + fx / ff,
+            self.y as f64 + fy / ff,
+            self.z as f64 + fz / ff,
+        ];
         self.v12_calculated = true;
     }
 }
@@ -349,9 +357,23 @@ fn the_big_switch(cell: &mut Cell, case: i32, config: usize) {
         9 => cell.add_triangles(&TILING9, config, 4),
         10 | 12 => {
             let (test, t1_1_, t2, t2_, t1_1, t1_2) = if case == 10 {
-                (&TEST10, &TILING10_1_1_, &TILING10_2, &TILING10_2_, &TILING10_1_1, &TILING10_1_2)
+                (
+                    &TEST10,
+                    &TILING10_1_1_,
+                    &TILING10_2,
+                    &TILING10_2_,
+                    &TILING10_1_1,
+                    &TILING10_1_2,
+                )
             } else {
-                (&TEST12, &TILING12_1_1_, &TILING12_2, &TILING12_2_, &TILING12_1_1, &TILING12_1_2)
+                (
+                    &TEST12,
+                    &TILING12_1_1_,
+                    &TILING12_2,
+                    &TILING12_2_,
+                    &TILING12_1_1,
+                    &TILING12_1_2,
+                )
             };
             if test_face(cell, test.get2(config, 0)) {
                 if test_face(cell, test.get2(config, 1)) {
@@ -443,8 +465,11 @@ pub fn marching_cubes(field: &Grid3<f32>, level: f32, spacing: f64) -> (Vec<[f64
             }
         }
     }
-    let verts: Vec<[f64; 3]> =
-        cell.vertices.iter().map(|p| [p[2] as f64 * spacing, p[1] as f64 * spacing, p[0] as f64 * spacing]).collect();
+    let verts: Vec<[f64; 3]> = cell
+        .vertices
+        .iter()
+        .map(|p| [p[2] as f64 * spacing, p[1] as f64 * spacing, p[0] as f64 * spacing])
+        .collect();
     let faces: Vec<[u32; 3]> = cell.faces.chunks_exact(3).map(|t| [t[2], t[1], t[0]]).collect();
     (verts, faces)
 }

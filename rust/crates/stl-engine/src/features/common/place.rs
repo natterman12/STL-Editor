@@ -3,9 +3,9 @@ use std::sync::Arc;
 use serde_json::Value;
 use stl_kernel::{MeshArrays, Solid};
 
-use super::frames::{cross, dot, unit, Frame, Vec3};
-use crate::state::Body;
+use super::frames::{Frame, Vec3, cross, dot, unit};
 use crate::FeatureError;
+use crate::state::Body;
 
 /// 1.x `_rotation`: degrees about X, then Y, then Z, as `Rz @ Ry @ Rx`.
 pub fn rotation(rx: f64, ry: f64, rz: f64) -> [[f64; 3]; 3] {
@@ -57,7 +57,10 @@ fn body_points(b: &Body) -> Vec<Vec3> {
         (None, Some(m)) => m,
         (None, None) => return Vec::new(),
     };
-    mesh.positions.chunks_exact(3).map(|p| [p[0] as f64, p[1] as f64, p[2] as f64]).collect()
+    mesh.positions
+        .chunks_exact(3)
+        .map(|p| [p[0] as f64, p[1] as f64, p[2] as f64])
+        .collect()
 }
 
 fn bounds(pts: &[Vec3]) -> (Vec3, Vec3) {
@@ -94,7 +97,11 @@ fn det3(m: &[[f64; 4]; 3]) -> f64 {
 /// 1.x `_transform_body`: move a solid or a raw mesh (a mirror flips a raw mesh's triangles).
 pub fn transform_body(b: &Body, m: [[f64; 4]; 3]) -> Body {
     if let Some(s) = &b.solid {
-        return Body { name: b.name.clone(), solid: Some(s.transform(m)), mesh: None };
+        return Body {
+            name: b.name.clone(),
+            solid: Some(s.transform(m)),
+            mesh: None,
+        };
     }
     let Some(mesh) = &b.mesh else {
         return b.clone();
@@ -112,7 +119,11 @@ pub fn transform_body(b: &Body, m: [[f64; 4]; 3]) -> Body {
             t.swap(0, 2);
         }
     }
-    Body { name: b.name.clone(), solid: None, mesh: Some(Arc::new(MeshArrays { positions, triangles })) }
+    Body {
+        name: b.name.clone(),
+        solid: None,
+        mesh: Some(Arc::new(MeshArrays { positions, triangles })),
+    }
 }
 
 /// 1.x `_mirror_matrix`: reflection across the plane of a frame.

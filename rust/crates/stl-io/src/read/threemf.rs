@@ -126,7 +126,10 @@ fn parse_model(data: &[u8]) -> Result<Model, ReadError> {
                 b"object" => {
                     let a = attrs(e)?;
                     let id = a.get("id").cloned().ok_or_else(bad)?;
-                    let o = Obj { id, ..Default::default() };
+                    let o = Obj {
+                        id,
+                        ..Default::default()
+                    };
                     if is_empty {
                         m.objects.push(o);
                     } else if is_start {
@@ -375,7 +378,12 @@ pub fn read(data: &[u8], base: &str) -> Result<Vec<Part>, ReadError> {
     // graph insertion order in trimesh: build items first, then components
     let mut g = Graph::default();
     for it in &model.items {
-        g.add_edge("\u{0}world", &it.objectid, it.partnumber.clone(), transform(&it.transform)?);
+        g.add_edge(
+            "\u{0}world",
+            &it.objectid,
+            it.partnumber.clone(),
+            transform(&it.transform)?,
+        );
     }
     for (u, v, m) in &comp_edges {
         g.add_edge(u, v, None, *m);
@@ -422,8 +430,16 @@ pub fn read(data: &[u8], base: &str) -> Result<Vec<Part>, ReadError> {
     let mut parts = Vec::new();
     for (i, (v, f)) in dump.into_iter().enumerate() {
         if !f.is_empty() {
-            let name = if n == 1 { base.to_string() } else { format!("{base} {}", i + 1) };
-            parts.push(Part { name, positions: v, triangles: f });
+            let name = if n == 1 {
+                base.to_string()
+            } else {
+                format!("{base} {}", i + 1)
+            };
+            parts.push(Part {
+                name,
+                positions: v,
+                triangles: f,
+            });
         }
     }
     Ok(parts)

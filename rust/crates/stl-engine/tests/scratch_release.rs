@@ -3,8 +3,8 @@
 
 use serde_json::{Map, Value};
 use std::time::Duration;
-use stl_engine::{Body, Ctx, Document, FeatureError, RollbackAfter, FeatureResult, Registry, State};
-use stl_kernel::{release_scratch, scratch_held_bytes, set_idle_timeout, Solid};
+use stl_engine::{Body, Ctx, Document, FeatureError, FeatureResult, Registry, RollbackAfter, State};
+use stl_kernel::{Solid, release_scratch, scratch_held_bytes, set_idle_timeout};
 
 type P = Map<String, Value>;
 
@@ -16,7 +16,14 @@ fn big_boolean() -> Solid {
 
 fn ev_cut(st: &mut State, fid: &str, _: &P, res: &mut FeatureResult, _: &Ctx) -> Result<(), FeatureError> {
     let bid = format!("b{fid}");
-    st.bodies.insert(bid.clone(), Body { name: "Cut".into(), solid: Some(big_boolean()), mesh: None });
+    st.bodies.insert(
+        bid.clone(),
+        Body {
+            name: "Cut".into(),
+            solid: Some(big_boolean()),
+            mesh: None,
+        },
+    );
     res.created.push(bid);
     Ok(())
 }
@@ -42,7 +49,8 @@ fn pool_is_kept_between_features_and_released_on_rebuild_end_and_close() {
     doc.add_feature("cut", Map::new(), None).unwrap();
     let mut p = Map::new();
     p.insert("x".into(), Value::from(1));
-    doc.edit_feature(&first, Some(p), None, None, RollbackAfter::Keep).unwrap();
+    doc.edit_feature(&first, Some(p), None, None, RollbackAfter::Keep)
+        .unwrap();
     assert_eq!(scratch_held_bytes(), 0, "after a rebuild");
     // closing (dropping) the document empties it too
     doc.add_feature("cut", Map::new(), None).unwrap();

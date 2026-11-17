@@ -1,6 +1,6 @@
 //! Draw Walls — port of `web/js/drawwalls.js`.
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 /// Session storage key for the remembered shape (1.x `SHAPE_KEY`).
 pub const SHAPE_STORAGE_KEY: &str = "stle_draw_shape";
@@ -22,14 +22,12 @@ pub const ALL_SHAPES: &[(&str, &str)] = &[
 pub fn hint_for(shape: &str) -> &'static str {
     match shape {
         "drop" => "Click a red (bare) spot under an overhang: a wall is dropped across it.",
-        "line" => {
-            "Click two points under an overhang for each wall. Keep clicking to add more walls."
-        }
-        "path" => {
-            "Click each corner of the wall; double-click (or press Enter) on the last point to finish it."
-        }
+        "line" => "Click two points under an overhang for each wall. Keep clicking to add more walls.",
+        "path" => "Click each corner of the wall; double-click (or press Enter) on the last point to finish it.",
         "curve" => "Click the two ends of the wall, then a point on the curve between them.",
-        "gusset" => "Gusset: a fin off a side of the part instead of the plate. Click the side (low enough for the fin to climb out at 50°), then the overhang it should reach.",
+        "gusset" => {
+            "Gusset: a fin off a side of the part instead of the plate. Click the side (low enough for the fin to climb out at 50°), then the overhang it should reach."
+        }
         "anchor" => {
             "Anchor fin: a rib that holds a tall side or a back that leans up. Click the side where it should stand."
         }
@@ -61,8 +59,7 @@ pub fn walls_to_params(walls: &[Wall]) -> Value {
 
 /// The circle through `a`, `b` and `m` in plan, sampled from `a` to `b` (`null` when colinear).
 pub fn arc_path(a: [f64; 3], b: [f64; 3], m: [f64; 3], step: f64) -> Option<(Vec<[f64; 3]>, f64)> {
-    let d = 2.0
-        * (a[0] * (b[1] - m[1]) + b[0] * (m[1] - a[1]) + m[0] * (a[1] - b[1]));
+    let d = 2.0 * (a[0] * (b[1] - m[1]) + b[0] * (m[1] - a[1]) + m[0] * (a[1] - b[1]));
     if d.abs() < 1e-9 {
         return None;
     }
@@ -121,11 +118,7 @@ pub fn wall_line(w: &Wall) -> Vec<[f64; 3]> {
 pub fn visible_shapes(gussets: bool, anchors: bool, drop: bool) -> Vec<&'static str> {
     ALL_SHAPES
         .iter()
-        .filter(|(k, _)| {
-            (*k != "gusset" || gussets)
-                && (*k != "anchor" || anchors)
-                && (*k != "drop" || drop)
-        })
+        .filter(|(k, _)| (*k != "gusset" || gussets) && (*k != "anchor" || anchors) && (*k != "drop" || drop))
         .map(|(k, _)| *k)
         .collect()
 }
@@ -198,9 +191,17 @@ impl WallDrawer {
         }
         let pts = std::mem::take(&mut self.pending);
         let w = if pts.len() == 2 {
-            Wall { shape: "line".into(), points: pts, normal: None }
+            Wall {
+                shape: "line".into(),
+                points: pts,
+                normal: None,
+            }
         } else {
-            Wall { shape: "path".into(), points: pts, normal: None }
+            Wall {
+                shape: "path".into(),
+                points: pts,
+                normal: None,
+            }
         };
         walls.push(w);
         true
@@ -224,21 +225,19 @@ impl WallDrawer {
         screen_near: bool,
     ) -> (Option<Vec<Wall>>, WallClickMsg) {
         let Some(hit) = hit else {
+            return (None, WallClickMsg::Warn("Click on the part, under an overhang.".into()));
+        };
+        if let Some(b) = body
+            && b != hit.body_id
+            && !walls.is_empty()
+        {
             return (
                 None,
-                WallClickMsg::Warn("Click on the part, under an overhang.".into()),
+                WallClickMsg::Warn(format!(
+                    "These walls are on {}. Finish (OK) them first, then draw on another body.",
+                    body_name(b)
+                )),
             );
-        };
-        if let Some(b) = body {
-            if b != hit.body_id && !walls.is_empty() {
-                return (
-                    None,
-                    WallClickMsg::Warn(format!(
-                        "These walls are on {}. Finish (OK) them first, then draw on another body.",
-                        body_name(b)
-                    )),
-                );
-            }
         }
         let p = hit.point.map(|x| (x * 1e4).round() / 1e4);
         let n = hit.normal.map(|x| (x * 1e5).round() / 1e5);
@@ -247,8 +246,7 @@ impl WallDrawer {
                 return (
                     None,
                     WallClickMsg::Warn(
-                        "Click a side of the part (or a back that leans up), not a floor or a ceiling."
-                            .into(),
+                        "Click a side of the part (or a back that leans up), not a floor or a ceiling.".into(),
                     ),
                 );
             }
@@ -285,12 +283,20 @@ impl WallDrawer {
         match self.shape.as_str() {
             "line" if self.pending.len() == 2 => {
                 let pts = std::mem::take(&mut self.pending);
-                list.push(Wall { shape: "line".into(), points: pts, normal: None });
+                list.push(Wall {
+                    shape: "line".into(),
+                    points: pts,
+                    normal: None,
+                });
                 (Some(list), WallClickMsg::None)
             }
             "curve" if self.pending.len() == 3 => {
                 let pts = std::mem::take(&mut self.pending);
-                list.push(Wall { shape: "curve".into(), points: pts, normal: None });
+                list.push(Wall {
+                    shape: "curve".into(),
+                    points: pts,
+                    normal: None,
+                });
                 (Some(list), WallClickMsg::None)
             }
             "gusset" if self.pending.len() == 2 => {

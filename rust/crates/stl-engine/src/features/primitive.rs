@@ -1,7 +1,7 @@
 use serde_json::{Map, Value};
 use stl_kernel::{Shape2d, Solid};
 
-use super::common::{affine, apply_tool, float, place, rotation, Vec3};
+use super::common::{Vec3, affine, apply_tool, float, place, rotation};
 use crate::{Ctx, FeatureError, FeatureResult, Registry, State};
 
 fn capitalize(s: &str) -> String {
@@ -16,9 +16,12 @@ fn vec3(p: &Map<String, Value>, k: &str, default: Vec3) -> Result<Vec3, FeatureE
     match p.get(k) {
         None | Some(Value::Null) => Ok(default),
         Some(Value::Array(a)) if a.len() == 3 => Ok([
-            a[0].as_f64().ok_or_else(|| FeatureError(format!("{k} must be a number.")))?,
-            a[1].as_f64().ok_or_else(|| FeatureError(format!("{k} must be a number.")))?,
-            a[2].as_f64().ok_or_else(|| FeatureError(format!("{k} must be a number.")))?,
+            a[0].as_f64()
+                .ok_or_else(|| FeatureError(format!("{k} must be a number.")))?,
+            a[1].as_f64()
+                .ok_or_else(|| FeatureError(format!("{k} must be a number.")))?,
+            a[2].as_f64()
+                .ok_or_else(|| FeatureError(format!("{k} must be a number.")))?,
         ]),
         _ => Err(FeatureError(format!("{k} must be a number."))),
     }
@@ -27,11 +30,7 @@ fn vec3(p: &Map<String, Value>, k: &str, default: Vec3) -> Result<Vec3, FeatureE
 /// Clamp a signed segment count for Manifold: negatives become 0 (auto, same as <3).
 /// Without this, `i as u32` wraps to ~4e9 and hangs.
 fn seg_u32(i: i64) -> u32 {
-    if i < 0 {
-        0
-    } else {
-        i as u32
-    }
+    if i < 0 { 0 } else { i as u32 }
 }
 
 /// 1.x `int(p.get("segments", 96))` — numeric strings like `"64"` parse; truncates toward zero.

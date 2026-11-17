@@ -19,10 +19,20 @@ pub fn sketch_prompt() -> &'static ToolDef {
         label: "Create Sketch",
         icon: "sketch",
         kind: "sketch",
-        fields: vec![Field { key: "plane", label: "Plane", kind: FieldKind::Plane { any_face: false }, help: None, show: None, placeholder: None }],
+        fields: vec![Field {
+            key: "plane",
+            label: "Plane",
+            kind: FieldKind::Plane { any_face: false },
+            help: None,
+            show: None,
+            placeholder: None,
+        }],
         hint: Some("Select a plane or flat face to sketch on"),
         extra: None,
-        flags: ToolFlags { no_live_preview: true, ..Default::default() },
+        flags: ToolFlags {
+            no_live_preview: true,
+            ..Default::default()
+        },
         defaults: |_| {
             let mut v = Values::new();
             v.insert("plane".into(), serde_json::Value::Null);

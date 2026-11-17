@@ -4,8 +4,8 @@
 
 use stl_kernel::Aabb;
 
-use super::camera::{self, Camera, V3};
 use super::MouseMode;
+use super::camera::{self, Camera, V3};
 
 /// Settings › Navigation › Orbit around (setting `"orbit_around"`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -94,7 +94,11 @@ pub fn wheel_action(unit: egui::MouseWheelUnit, delta: egui::Vec2, modifiers: eg
         if modifiers.ctrl {
             return WheelAction::Zoom(zoom_factor(-dy * 5.0));
         }
-        return if modifiers.shift { WheelAction::Orbit(dx, dy) } else { WheelAction::Pan(dx, dy) };
+        return if modifiers.shift {
+            WheelAction::Orbit(dx, dy)
+        } else {
+            WheelAction::Pan(dx, dy)
+        };
     }
     // WheelEvent.deltaY points the other way; a notch is 100 in Chromium
     let mut d = -delta.y as f64
@@ -139,7 +143,10 @@ fn view_centre(cam: &Camera, scene: Option<Aabb>) -> V3 {
     }
     let (_, _, back) = cam.basis();
     let ahead = camera::add(cam.position, camera::scale(back, -100.0));
-    match scene.filter(|b| !camera::box_is_empty(b)).map(|b| camera::box_center(&b)) {
+    match scene
+        .filter(|b| !camera::box_is_empty(b))
+        .map(|b| camera::box_center(&b))
+    {
         Some(c) if finite(c) && depth(cam, c) > 1e-9 => c,
         _ => ahead,
     }
@@ -147,7 +154,13 @@ fn view_centre(cam: &Camera, scene: Option<Aabb>) -> V3 {
 
 /// The point a turn goes around. `under_cursor`: the model point under the cursor when the drag
 /// started (only asked for with `OrbitAround::Cursor`); `kept`: the pivot this drag used last frame.
-pub fn orbit_pivot(cam: &Camera, around: OrbitAround, scene: Option<Aabb>, under_cursor: Option<V3>, kept: Option<V3>) -> V3 {
+pub fn orbit_pivot(
+    cam: &Camera,
+    around: OrbitAround,
+    scene: Option<Aabb>,
+    under_cursor: Option<V3>,
+    kept: Option<V3>,
+) -> V3 {
     if let Some(k) = kept.filter(|k| finite(*k)) {
         return k;
     }
@@ -156,9 +169,9 @@ pub fn orbit_pivot(cam: &Camera, around: OrbitAround, scene: Option<Aabb>, under
         OrbitAround::ViewCentre => view_centre(cam, scene),
         // over empty space (or a point behind the eye): about the middle of the part in view,
         // never a far-off point (SolidCraft #2616)
-        OrbitAround::Cursor => {
-            under_cursor.filter(|p| finite(*p) && depth(cam, *p) > 1e-9).unwrap_or_else(|| view_centre(cam, scene))
-        }
+        OrbitAround::Cursor => under_cursor
+            .filter(|p| finite(*p) && depth(cam, *p) > 1e-9)
+            .unwrap_or_else(|| view_centre(cam, scene)),
     }
 }
 

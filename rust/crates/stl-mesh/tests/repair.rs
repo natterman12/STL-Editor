@@ -6,8 +6,8 @@ use std::path::PathBuf;
 use serde_json::Value;
 use stl_kernel::{MeshArrays, Solid};
 use stl_mesh::{
-    cap_holes, fill_holes, fix_inversion, fix_winding, local_repair, merge_overlapping_shells, process,
-    quick_repair, touching_shells, weld,
+    cap_holes, fill_holes, fix_inversion, fix_winding, local_repair, merge_overlapping_shells, process, quick_repair,
+    touching_shells, weld,
 };
 use stl_parity::{Exactness, MeshStats, compare_mesh, mesh_stats};
 
@@ -65,11 +65,21 @@ fn variant(soup: &[f32], name: &str) -> (Vec<f64>, Vec<u32>) {
     let mut tris: Vec<[u32; 3]> = f.chunks_exact(3).map(|t| [t[0], t[1], t[2]]).collect();
     if name.contains("drop7") {
         // leave out every triangle whose index is 3 mod 7
-        tris = tris.into_iter().enumerate().filter(|(i, _)| i % 7 != 3).map(|(_, t)| t).collect();
+        tris = tris
+            .into_iter()
+            .enumerate()
+            .filter(|(i, _)| i % 7 != 3)
+            .map(|(_, t)| t)
+            .collect();
     }
     if name.contains("drop4") {
         // leave out every triangle whose index is 2 mod 4
-        tris = tris.into_iter().enumerate().filter(|(i, _)| i % 4 != 2).map(|(_, t)| t).collect();
+        tris = tris
+            .into_iter()
+            .enumerate()
+            .filter(|(i, _)| i % 4 != 2)
+            .map(|(_, t)| t)
+            .collect();
     }
     if name.contains("flip3") {
         // reverse every triangle whose index is 1 mod 3
@@ -85,7 +95,10 @@ fn variant(soup: &[f32], name: &str) -> (Vec<f64>, Vec<u32>) {
         v.extend_from_slice(&[f32::NAN; 9]);
         tris.push([n, n + 1, n + 2]);
     }
-    (v.iter().map(|&x| x as f64).collect(), tris.into_iter().flatten().collect())
+    (
+        v.iter().map(|&x| x as f64).collect(),
+        tris.into_iter().flatten().collect(),
+    )
 }
 
 /// As `_stats` in `make_repair_golden.py`: a vertex that no triangle uses and that is not
@@ -114,14 +127,20 @@ fn solid_stats(s: &Solid) -> MeshStats {
 }
 
 fn as_solid(v: &[f64], f: &[u32]) -> Option<Solid> {
-    let m = MeshArrays { positions: v.iter().map(|&x| x as f32).collect(), triangles: f.to_vec() };
+    let m = MeshArrays {
+        positions: v.iter().map(|&x| x as f32).collect(),
+        triangles: f.to_vec(),
+    };
     Solid::from_mesh(&m).ok()
 }
 
 /// Compare one step with its golden record; the differences go into `failures`.
 fn check(failures: &mut Vec<String>, case: &str, step: &str, golden: &Value, got: Option<MeshStats>) {
-    let want: Option<MeshStats> =
-        if golden.is_null() { None } else { Some(serde_json::from_value(golden.clone()).expect("MeshStats")) };
+    let want: Option<MeshStats> = if golden.is_null() {
+        None
+    } else {
+        Some(serde_json::from_value(golden.clone()).expect("MeshStats"))
+    };
     match (want, got) {
         (None, None) => {}
         (Some(w), Some(g)) => {
@@ -150,7 +169,14 @@ struct Exception {
 }
 
 const fn exc(case: &'static str, triangles: usize, area: f64, volume: f64) -> Exception {
-    Exception { case, step: "local_repair", watertight: true, triangles, area, volume: Some(volume) }
+    Exception {
+        case,
+        step: "local_repair",
+        watertight: true,
+        triangles,
+        area,
+        volume: Some(volume),
+    }
 }
 
 /// All of these are the last try of `local_repair` (close the holes, then `Solid::from_mesh`)
@@ -165,14 +191,29 @@ const EXCEPTIONS: [Exception; 12] = [
     exc("holed_block.stl@drop4", 362, 3555.988152843922, 5119.26953568131),
     exc("holed_block.stl@nan_drop4", 398, 3684.319332926697, 5120.083131037832),
     exc("holed_block.stl@nan_drop7", 370, 3039.110675062361, 4772.937645639244),
-    exc("holed_block.stl@nan_flip3_drop7", 356, 3076.2166897348643, 4754.6374873557115),
+    exc(
+        "holed_block.stl@nan_flip3_drop7",
+        356,
+        3076.2166897348643,
+        4754.6374873557115,
+    ),
     exc("touching_cubes.stl@drop4", 28, 1194.6402240201066, 1397.4359035491943),
-    exc("touching_cubes.stl@nan_drop4", 28, 1194.6402240201066, 1397.4359035491943),
+    exc(
+        "touching_cubes.stl@nan_drop4",
+        28,
+        1194.6402240201066,
+        1397.4359035491943,
+    ),
     exc("two_blobs.stl@drop4", 1436, 529.7561167535657, 610.9778847351932),
     exc("two_blobs.stl@flip3_drop7", 1294, 438.3077748192302, 399.9885095540398),
     exc("two_blobs.stl@nan_drop4", 1540, 534.7157494749523, 611.0262675430705),
     exc("two_blobs.stl@nan_drop7", 1318, 429.00274888315107, 621.7575590671026),
-    exc("two_blobs.stl@nan_flip3_drop7", 1336, 448.0995339360819, 620.8840702129651),
+    exc(
+        "two_blobs.stl@nan_flip3_drop7",
+        1336,
+        448.0995339360819,
+        620.8840702129651,
+    ),
     exc("two_blobs.stl@x5_drop7", 6464, 2148.8970050015664, 3108.5454920097277),
 ];
 
@@ -183,7 +224,9 @@ fn same(pinned: f64, got: f64) -> bool {
 
 /// What differs between an exception's pinned numbers and what 2.0 gave.
 fn exception_diffs(e: &Exception, got: Option<&MeshStats>) -> Vec<String> {
-    let Some(g) = got else { return vec!["got no mesh".to_string()] };
+    let Some(g) = got else {
+        return vec!["got no mesh".to_string()];
+    };
     let mut out = Vec::new();
     if g.watertight != e.watertight {
         out.push(format!("watertight: pinned {} got {}", e.watertight, g.watertight));
@@ -194,10 +237,10 @@ fn exception_diffs(e: &Exception, got: Option<&MeshStats>) -> Vec<String> {
     if !same(e.area, g.area) {
         out.push(format!("area: pinned {} got {}", e.area, g.area));
     }
-    if let Some(v) = e.volume {
-        if !same(v, g.volume) {
-            out.push(format!("volume: pinned {v} got {}", g.volume));
-        }
+    if let Some(v) = e.volume
+        && !same(v, g.volume)
+    {
+        out.push(format!("volume: pinned {v} got {}", g.volume));
     }
     out
 }
@@ -291,7 +334,10 @@ fn steps_match_golden() {
     failures.append(&mut counts);
     for e in &EXCEPTIONS {
         if !cases.contains_key(e.case) || cases[e.case].get(e.step).is_none() {
-            failures.push(format!("{} {}: EXCEPTIONS names a step that is not in the golden file", e.case, e.step));
+            failures.push(format!(
+                "{} {}: EXCEPTIONS names a step that is not in the golden file",
+                e.case, e.step
+            ));
         }
     }
     println!(
@@ -299,7 +345,12 @@ fn steps_match_golden() {
         cases.len(),
         failures.len()
     );
-    assert!(failures.is_empty(), "{} mismatches:\n{}", failures.len(), failures.join("\n"));
+    assert!(
+        failures.is_empty(),
+        "{} mismatches:\n{}",
+        failures.len(),
+        failures.join("\n")
+    );
 }
 
 /// Review Focus 3: a mesh no step can fix gives "no solid" from every step, never a panic.
@@ -318,7 +369,10 @@ fn repair_gives_up_cleanly() {
         (vec![], vec![]),
         (vec![0.0; 9], vec![0, 1, 2]),
         (vec![0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 2.0, 0.0, 0.0], vec![0, 1, 2]),
-        (vec![nan, 0.0, 0.0, 1.0, nan, 0.0, 0.0, 1.0, f64::INFINITY], vec![0, 1, 2]),
+        (
+            vec![nan, 0.0, 0.0, 1.0, nan, 0.0, 0.0, 1.0, f64::INFINITY],
+            vec![0, 1, 2],
+        ),
     ];
     // a triangle that names a vertex that is not there
     let square = vec![0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0];

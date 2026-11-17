@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Instant;
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use crate::app::StlApp;
 use crate::engine_link::native::NativeLink;
@@ -91,7 +91,11 @@ struct ScenarioStat {
 
 impl ScenarioStat {
     fn new() -> Self {
-        Self { times_ms: Vec::new(), idle_frames: 0, uploads_end: 0 }
+        Self {
+            times_ms: Vec::new(),
+            idle_frames: 0,
+            uploads_end: 0,
+        }
     }
 
     fn record(&mut self, dt_ms: f64) {
@@ -148,7 +152,7 @@ struct TraceRow {
 }
 
 impl TraceRow {
-    fn to_json(&self) -> Value {
+    fn to_json(self) -> Value {
         json!({
             "at_ms": self.at_ms,
             "dt_ms": self.dt_ms,
@@ -189,7 +193,11 @@ impl TraceRow {
             self.vp.paint_ms,
             self.vp.paints,
             if self.vp.upload_pending { ", uploading" } else { "" },
-            if self.vp.uploads_done > 0 { ", upload finished" } else { "" },
+            if self.vp.uploads_done > 0 {
+                ", upload finished"
+            } else {
+                ""
+            },
             self.other_ms,
             self.egui_ms,
             self.wait_ms,
@@ -426,7 +434,10 @@ impl BenchApp {
                 "fillet_rebuild": self.rebuild.to_json(),
             }
         });
-        if let Err(e) = std::fs::write(&self.out, serde_json::to_string_pretty(&report).unwrap_or_else(|_| "{}".into())) {
+        if let Err(e) = std::fs::write(
+            &self.out,
+            serde_json::to_string_pretty(&report).unwrap_or_else(|_| "{}".into()),
+        ) {
             eprintln!("uibench: could not write {}: {e}", self.out.display());
         } else {
             eprintln!("uibench: wrote {}", self.out.display());
@@ -438,7 +449,10 @@ impl BenchApp {
     fn trace_row(&self, frame: &eframe::Frame, dt_ms: f64, vp: FrameTrace, last_poll: f64, last_ui: f64) -> TraceRow {
         let cpu_ms = frame.info().cpu_usage.map_or(0.0, |s| s as f64 * 1000.0);
         TraceRow {
-            at_ms: self.rebuild_started.map(|t| t.elapsed().as_secs_f64() * 1000.0).unwrap_or(0.0),
+            at_ms: self
+                .rebuild_started
+                .map(|t| t.elapsed().as_secs_f64() * 1000.0)
+                .unwrap_or(0.0),
             dt_ms,
             poll_ms: last_poll,
             ui_ms: last_ui,
@@ -489,7 +503,11 @@ impl BenchApp {
     /// The tools the open tool row goes through (a few in a quick run).
     fn open_tool_keys(&self) -> Vec<&'static str> {
         let keys = crate::tools::tools().iter().map(|d| d.key);
-        if self.quick { keys.take(6).collect() } else { keys.collect() }
+        if self.quick {
+            keys.take(6).collect()
+        } else {
+            keys.collect()
+        }
     }
 
     /// One frame of the open tool row, before the layout draws it: open the next tool, or count
@@ -498,7 +516,9 @@ impl BenchApp {
         let keys = self.open_tool_keys();
         let Some((key, started, saw_wait)) = self.open_cur else {
             let Some(&key) = keys.get(self.open_idx) else { return };
-            let Some(id) = self.app.bodies.first().map(|b| b.id.clone()) else { return };
+            let Some(id) = self.app.bodies.first().map(|b| b.id.clone()) else {
+                return;
+            };
             self.app.shell.selection = vec![id];
             if let Some(def) = crate::tools::tool(key) {
                 self.app.open_tool_def(def, None, None);
@@ -552,7 +572,9 @@ impl BenchApp {
 
     /// Put the Move handles on the part and grab the X arrow (after the overhang frames).
     fn gizmo_grab(&mut self) {
-        let Some(id) = self.app.bodies.first().map(|b| b.id.clone()) else { return };
+        let Some(id) = self.app.bodies.first().map(|b| b.id.clone()) else {
+            return;
+        };
         let vp = &mut self.app.viewport;
         let values = serde_json::from_value(json!({
             "bodies": [id], "_gizmo": "move", "translate": [0, 0, 0], "rotate": [0, 0, 0],
@@ -575,7 +597,13 @@ impl BenchApp {
         self.gizmo_renders = vp.stats().renders();
         self.gizmo_gpu_errors = vp.stats().gpu_errors();
         let _ = vp.take_trace();
-        self.gizmo = Some(GizmoRun { gizmo, grab, unit, started: Instant::now(), uploads_before });
+        self.gizmo = Some(GizmoRun {
+            gizmo,
+            grab,
+            unit,
+            started: Instant::now(),
+            uploads_before,
+        });
         self.gizmo_note = "Move tool, X arrow held and swung ±0.4 handle units at 0.5 Hz; the part follows through its transform (no mesh upload). The drag is not let go during the row.".into();
     }
 
@@ -616,24 +644,33 @@ impl BenchApp {
         for i in 0..200 {
             let x = (i % 20) as f64 * 2.0;
             let y = (i / 20) as f64 * 2.0;
-            ents.push(serde_json::from_value(json!({
-                "id": format!("L{i}"), "type": "line", "p1": [x, y], "p2": [x + 1.5, y]
-            })).unwrap());
+            ents.push(
+                serde_json::from_value(json!({
+                    "id": format!("L{i}"), "type": "line", "p1": [x, y], "p2": [x + 1.5, y]
+                }))
+                .unwrap(),
+            );
             if i < 100 {
-                cons.push(serde_json::from_value(json!({
-                    "id": format!("d{i}"),
-                    "type": "distance",
-                    "a": {"e": format!("L{i}"), "k": "p1"},
-                    "b": {"e": format!("L{i}"), "k": "p2"},
-                    "value": 1.5,
-                    "off": 2.0,
-                    "slide": 0.0
-                })).unwrap());
+                cons.push(
+                    serde_json::from_value(json!({
+                        "id": format!("d{i}"),
+                        "type": "distance",
+                        "a": {"e": format!("L{i}"), "k": "p1"},
+                        "b": {"e": format!("L{i}"), "k": "p2"},
+                        "value": 1.5,
+                        "off": 2.0,
+                        "slide": 0.0
+                    }))
+                    .unwrap(),
+                );
             }
         }
-        ents.push(serde_json::from_value(json!({
-            "id": "Pdrag", "type": "point", "x": 5.0, "y": 5.0
-        })).unwrap());
+        ents.push(
+            serde_json::from_value(json!({
+                "id": "Pdrag", "type": "point", "x": 5.0, "y": 5.0
+            }))
+            .unwrap(),
+        );
         m.s.entities = ents;
         m.s.constraints = cons;
         self.sketch_drag_pt = m.s.to_3([5.0, 5.0]);
@@ -646,7 +683,10 @@ impl BenchApp {
     fn sketch_drag_frame(&mut self) {
         let Some(m) = self.app.sketch_mode_mut() else { return };
         let t = self.phase_started.elapsed().as_secs_f64();
-        let uv = [5.0 + 3.0 * (t * std::f64::consts::PI).sin(), 5.0 + 2.0 * (t * std::f64::consts::PI * 0.7).cos()];
+        let uv = [
+            5.0 + 3.0 * (t * std::f64::consts::PI).sin(),
+            5.0 + 2.0 * (t * std::f64::consts::PI * 0.7).cos(),
+        ];
         if let Some(crate::sketch::Entity::Point(p)) = m.s.entities.iter_mut().find(|e| e.id() == Some("Pdrag")) {
             p.x = uv[0];
             p.y = uv[1];
@@ -666,12 +706,20 @@ impl eframe::App for BenchApp {
         self.last_frame = now;
         // The viewport's timings since the last frame started: that frame's layout and paint.
         let vp = self.app.viewport.take_trace();
-        let (last_poll, last_ui) = (std::mem::take(&mut self.last_poll_ms), std::mem::take(&mut self.last_ui_ms));
+        let (last_poll, last_ui) = (
+            std::mem::take(&mut self.last_poll_ms),
+            std::mem::take(&mut self.last_ui_ms),
+        );
 
         if !self.open_sent {
             match std::fs::read(&self.mesh_path) {
                 Ok(bytes) => {
-                    let name = self.mesh_path.file_name().and_then(|s| s.to_str()).unwrap_or("test_mesh.stl").to_owned();
+                    let name = self
+                        .mesh_path
+                        .file_name()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("test_mesh.stl")
+                        .to_owned();
                     self.link.send(Command::Import { name, bytes });
                     self.open_sent = true;
                     self.phase_started = Instant::now();
@@ -757,7 +805,9 @@ impl eframe::App for BenchApp {
                 }
                 let causes = ui.ctx().repaint_causes();
                 let only_bench = !causes.is_empty()
-                    && causes.iter().all(|c| c.file.rsplit(['/', '\\']).next() == Some("bench.rs"));
+                    && causes
+                        .iter()
+                        .all(|c| c.file.rsplit(['/', '\\']).next() == Some("bench.rs"));
                 if only_bench {
                     eprintln!(
                         "uibench: idle wake not counted ({dt_ms:.2} ms) {}",
@@ -874,19 +924,27 @@ impl eframe::App for BenchApp {
                 if !self.autosave_sent {
                     self.autosave_sent = true;
                     self.link.set_autosave_root(self.autosave_root.clone());
-                    self.link.send(Command::Autosave { path: None, title: Some("bench".into()) });
+                    self.link.send(Command::Autosave {
+                        path: None,
+                        title: Some("bench".into()),
+                    });
                     self.autosave_started = Some(Instant::now());
                 }
                 self.autosave_written = autosave_copy_exists(&self.autosave_root);
                 if self.autosave_written && self.autosave_ms == 0.0 {
-                    self.autosave_ms = self.autosave_started.map_or(0.0, |t| t.elapsed().as_secs_f64() * 1000.0);
+                    self.autosave_ms = self
+                        .autosave_started
+                        .map_or(0.0, |t| t.elapsed().as_secs_f64() * 1000.0);
                 }
                 let long_enough = self.phase_started.elapsed().as_secs_f64() >= self.phase_secs(AUTOSAVE_S);
                 let gave_up = self.phase_started.elapsed().as_secs_f64() > 60.0;
                 if (long_enough && !self.link.is_busy()) || gave_up {
                     self.autosave.uploads_end = self.app.viewport.stats().uploads();
                     if !self.autosave_written {
-                        eprintln!("uibench: the autosave copy was not written under {}", self.autosave_root.display());
+                        eprintln!(
+                            "uibench: the autosave copy was not written under {}",
+                            self.autosave_root.display()
+                        );
                     }
                     let _ = std::fs::remove_dir_all(&self.autosave_root);
                     self.gizmo_start();
@@ -941,14 +999,22 @@ impl eframe::App for BenchApp {
             }
             Phase::Rebuild if self.rebuild_sent => {
                 let uploads = self.app.viewport.stats().uploads();
-                let pending = self.app.viewport.stats().upload_pending.load(std::sync::atomic::Ordering::Relaxed);
+                let pending = self
+                    .app
+                    .viewport
+                    .stats()
+                    .upload_pending
+                    .load(std::sync::atomic::Ordering::Relaxed);
                 // `uploads` ticks when the new revision's last chunk has been copied, and that
                 // same paint draws it. Seen here on the following frame, once the engine is idle.
                 let shown = uploads > self.rebuild_uploads_before && !pending && !self.link.is_busy();
                 let gave_up = self.phase_started.elapsed().as_secs_f64() > REBUILD_GIVE_UP_S;
                 if shown || gave_up {
                     self.rebuild.uploads_end = uploads;
-                    self.rebuild_ms = self.rebuild_started.map(|t| t.elapsed().as_secs_f64() * 1000.0).unwrap_or(0.0);
+                    self.rebuild_ms = self
+                        .rebuild_started
+                        .map(|t| t.elapsed().as_secs_f64() * 1000.0)
+                        .unwrap_or(0.0);
                     self.rebuild_gave_up = gave_up && !shown;
                     if self.rebuild_gave_up {
                         eprintln!(
@@ -976,12 +1042,19 @@ impl eframe::App for BenchApp {
 
 /// Has an autosave copy (a session folder with a `document.json`) landed under `root`?
 fn autosave_copy_exists(root: &Path) -> bool {
-    std::fs::read_dir(root).into_iter().flatten().flatten().any(|e| e.path().join("document.json").is_file())
+    std::fs::read_dir(root)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .any(|e| e.path().join("document.json").is_file())
 }
 
 fn chrono_date() -> String {
     // Local YYYY-MM-DD without pulling in chrono.
-    let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
     let days = (secs / 86400) as i64;
     let (y, m, d) = civil_from_days(days);
     format!("{y:04}-{m:02}-{d:02}")

@@ -3,7 +3,10 @@
 
 use crate::icons;
 use crate::theme::Tokens;
-use egui::{Align2, Color32, CornerRadius, FontFamily, FontId, Id, Key, Modifiers, Pos2, Rangef, Rect, Sense, Stroke, StrokeKind, Ui, Vec2};
+use egui::{
+    Align2, Color32, CornerRadius, FontFamily, FontId, Id, Key, Modifiers, Pos2, Rangef, Rect, Sense, Stroke,
+    StrokeKind, Ui, Vec2,
+};
 
 pub const HEIGHT: f32 = 30.0;
 pub const MENUS: [(&str, &str); 4] = [("file", "File"), ("edit", "Edit"), ("view", "View"), ("help", "Help")];
@@ -24,7 +27,13 @@ pub struct TopbarOut {
 
 impl TopbarOut {
     pub fn empty() -> Self {
-        TopbarOut { menu: None, quick: None, search_changed: false, search_rect: Rect::NOTHING, search_key: None }
+        TopbarOut {
+            menu: None,
+            quick: None,
+            search_changed: false,
+            search_rect: Rect::NOTHING,
+            search_key: None,
+        }
     }
 }
 
@@ -54,14 +63,28 @@ pub fn show(ui: &mut Ui, tk: &Tokens, st: &mut TopbarState) -> TopbarOut {
     // brand: the logo is a 135-degree gradient square (#5fa8ff, #1f6fd1, #0e3f7d)
     let logo = Rect::from_center_size(Pos2::new(x + 8.0, cy), Vec2::splat(16.0));
     let mut mesh = egui::Mesh::default();
-    let (a, m, z) = (Color32::from_rgb(0x5f, 0xa8, 0xff), Color32::from_rgb(0x1f, 0x6f, 0xd1), Color32::from_rgb(0x0e, 0x3f, 0x7d));
-    for (p, c) in [(logo.left_top(), a), (logo.right_top(), m), (logo.right_bottom(), z), (logo.left_bottom(), m)] {
+    let (a, m, z) = (
+        Color32::from_rgb(0x5f, 0xa8, 0xff),
+        Color32::from_rgb(0x1f, 0x6f, 0xd1),
+        Color32::from_rgb(0x0e, 0x3f, 0x7d),
+    );
+    for (p, c) in [
+        (logo.left_top(), a),
+        (logo.right_top(), m),
+        (logo.right_bottom(), z),
+        (logo.left_bottom(), m),
+    ] {
         mesh.colored_vertex(p, c);
     }
     mesh.add_triangle(0, 1, 2);
     mesh.add_triangle(0, 2, 3);
     ui.painter().add(mesh);
-    ui.painter().rect_stroke(logo, CornerRadius::same(4), Stroke::new(1.0, Color32::from_white_alpha(64)), StrokeKind::Inside);
+    ui.painter().rect_stroke(
+        logo,
+        CornerRadius::same(4),
+        Stroke::new(1.0, Color32::from_white_alpha(64)),
+        StrokeKind::Inside,
+    );
     x += 16.0 + 7.0;
     let g = ui.painter().layout_no_wrap("STL Editor".into(), bold(12.0), tk.strong);
     let gw = g.size().x;
@@ -70,18 +93,24 @@ pub fn show(ui: &mut Ui, tk: &Tokens, st: &mut TopbarState) -> TopbarOut {
 
     // menus
     for (k, l) in MENUS {
-        let tw = ui.painter().layout_no_wrap(l.into(), FontId::proportional(12.0), tk.chrome_text).size().x;
+        let tw = ui
+            .painter()
+            .layout_no_wrap(l.into(), FontId::proportional(12.0), tk.chrome_text)
+            .size()
+            .x;
         let r = Rect::from_min_size(Pos2::new(x, cy - 12.0), Vec2::new(tw + 18.0, 24.0));
         let resp = ui.interact(r, ui.scope_id().with(("menu-btn", k)), Sense::click());
         resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, l));
         let open = st.open_menu == Some(k);
         let col = if open || resp.hovered() {
-            ui.painter().rect_filled(r, CornerRadius::same(tk.radius_sm as u8), tk.chrome_hover);
+            ui.painter()
+                .rect_filled(r, CornerRadius::same(tk.radius_sm as u8), tk.chrome_hover);
             tk.strong
         } else {
             tk.chrome_text
         };
-        ui.painter().text(r.center(), Align2::CENTER_CENTER, l, FontId::proportional(12.0), col);
+        ui.painter()
+            .text(r.center(), Align2::CENTER_CENTER, l, FontId::proportional(12.0), col);
         if resp.clicked() {
             out.menu = Some((k, r));
         }
@@ -99,16 +128,22 @@ pub fn show(ui: &mut Ui, tk: &Tokens, st: &mut TopbarState) -> TopbarOut {
     ];
     for (n, (key, ic, tip, enabled)) in quick.iter().enumerate() {
         if n == 3 {
-            ui.painter().vline(x + 4.5, Rangef::new(cy - 8.0, cy + 8.0), Stroke::new(1.0, tk.line));
+            ui.painter()
+                .vline(x + 4.5, Rangef::new(cy - 8.0, cy + 8.0), Stroke::new(1.0, tk.line));
             x += 9.0;
         }
         let r = Rect::from_min_size(Pos2::new(x, cy - 12.0), Vec2::new(26.0, 24.0));
-        let resp = ui.interact(r, ui.scope_id().with(("quick", *key)), if *enabled { Sense::click() } else { Sense::hover() });
+        let resp = ui.interact(
+            r,
+            ui.scope_id().with(("quick", *key)),
+            if *enabled { Sense::click() } else { Sense::hover() },
+        );
         let label = tip.split(" (").next().unwrap_or(tip);
         resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, *enabled, label));
         let hot = *enabled && resp.hovered();
         if hot {
-            ui.painter().rect_filled(r, CornerRadius::same(tk.radius_sm as u8), tk.chrome_hover);
+            ui.painter()
+                .rect_filled(r, CornerRadius::same(tk.radius_sm as u8), tk.chrome_hover);
         }
         let mut col = if hot { tk.strong } else { tk.chrome_text };
         if !*enabled {
@@ -134,11 +169,14 @@ pub fn show(ui: &mut Ui, tk: &Tokens, st: &mut TopbarState) -> TopbarOut {
     let title = format!("{}{}", st.title, if st.dirty { " •" } else { "" });
     let maxw = (sr.min.x - 10.0 - x).clamp(0.0, 320.0);
     if maxw > 30.0 {
-        let g = ui.painter().layout(title, FontId::proportional(12.0), tk.strong, maxw - 20.0);
+        let g = ui
+            .painter()
+            .layout(title, FontId::proportional(12.0), tk.strong, maxw - 20.0);
         let w = g.size().x + 20.0;
         let r = Rect::from_min_size(Pos2::new(x, cy - 10.0), Vec2::new(w, 20.0));
         ui.painter().rect_filled(r, CornerRadius::same(5), tk.doc_tab);
-        ui.painter().galley(Pos2::new(r.min.x + 10.0, cy - g.size().y / 2.0), g, tk.strong);
+        ui.painter()
+            .galley(Pos2::new(r.min.x + 10.0, cy - g.size().y / 2.0), g, tk.strong);
     }
 
     // keys the search box owns while it has focus (before the text field sees them)
@@ -151,14 +189,28 @@ pub fn show(ui: &mut Ui, tk: &Tokens, st: &mut TopbarState) -> TopbarOut {
             }
         }
     }
-    ui.painter().rect(sr, CornerRadius::same(11), tk.input, Stroke::new(1.0, if focused { tk.accent } else { tk.input_line }), StrokeKind::Inside);
+    ui.painter().rect(
+        sr,
+        CornerRadius::same(11),
+        tk.input,
+        Stroke::new(1.0, if focused { tk.accent } else { tk.input_line }),
+        StrokeKind::Inside,
+    );
     // the magnifier of the 1.x background image: 12px, circle (11,11) r6 and a handle, stroke 2 of 24
     let o = Pos2::new(sr.min.x + 8.0, sr.center().y - 6.0);
     let ms = Stroke::new(1.0, tk.muted);
     ui.painter().circle_stroke(o + Vec2::splat(5.5), 3.0, ms);
-    ui.painter().line_segment([o + Vec2::splat(7.75), o + Vec2::splat(10.0)], ms);
-    let inner = Rect::from_min_max(Pos2::new(sr.min.x + 25.0, sr.min.y + 1.0), Pos2::new(sr.max.x - 8.0, sr.max.y - 1.0));
-    let mut child = ui.new_child(egui::UiBuilder::new().max_rect(inner).layout(egui::Layout::left_to_right(egui::Align::Center)));
+    ui.painter()
+        .line_segment([o + Vec2::splat(7.75), o + Vec2::splat(10.0)], ms);
+    let inner = Rect::from_min_max(
+        Pos2::new(sr.min.x + 25.0, sr.min.y + 1.0),
+        Pos2::new(sr.max.x - 8.0, sr.max.y - 1.0),
+    );
+    let mut child = ui.new_child(
+        egui::UiBuilder::new()
+            .max_rect(inner)
+            .layout(egui::Layout::left_to_right(egui::Align::Center)),
+    );
     let te = egui::TextEdit::singleline(st.query)
         .id(sid)
         .hint_text(egui::RichText::new("Search tools  Ctrl+K").size(11.5).color(tk.muted))

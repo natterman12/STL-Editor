@@ -28,12 +28,12 @@
 use std::sync::Arc;
 
 use egui::Pos2;
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 use stl_kernel::{Aabb, MeshArrays};
 
+use crate::viewport::Viewport;
 use crate::viewport::camera::{self, M4, V3};
 use crate::viewport::gizmo_draw::{self, GizmoMode, GizmoShape, Handle};
-use crate::viewport::Viewport;
 
 pub type Values = Map<String, Value>;
 /// A quaternion, three's order: x, y, z, w.
@@ -81,7 +81,9 @@ pub fn jnum(n: f64) -> Value {
     if n.is_finite() && n == n.trunc() && n.abs() < 9.0e15 {
         json!(n as i64)
     } else {
-        serde_json::Number::from_f64(n).map(Value::Number).unwrap_or(Value::Null)
+        serde_json::Number::from_f64(n)
+            .map(Value::Number)
+            .unwrap_or(Value::Null)
     }
 }
 
@@ -92,7 +94,7 @@ fn jvec(v: [f64; 3]) -> Value {
 fn vec3_of(v: Option<&Value>, d: [f64; 3]) -> Option<[f64; 3]> {
     match v {
         Some(Value::Array(a)) => Some([0, 1, 2].map(|i| a.get(i).map(js_number).unwrap_or(f64::NAN))),
-        Some(Value::Null) | None => Some(d).filter(|_| true),
+        Some(Value::Null) | None => Some(d),
         _ => None,
     }
 }
@@ -158,7 +160,11 @@ pub fn euler_zyx_of_mat(m: &M4) -> [f64; 3] {
     let (m11, m12, m21, m22) = (m[0][0], m[1][0], m[0][1], m[1][1]);
     let (m31, m32, m33) = (m[0][2], m[1][2], m[2][2]);
     let y = (-m31.clamp(-1.0, 1.0)).asin();
-    if m31.abs() < 0.9999999 { [m32.atan2(m33), y, m21.atan2(m11)] } else { [0.0, y, (-m12).atan2(m22)] }
+    if m31.abs() < 0.9999999 {
+        [m32.atan2(m33), y, m21.atan2(m11)]
+    } else {
+        [0.0, y, (-m12).atan2(m22)]
+    }
 }
 
 /// 1.x `rotOf(q)`: degrees about X, Y, Z, to 0.001.
@@ -236,11 +242,21 @@ fn angle_to(a: V3, b: V3) -> f64 {
 // ---------------------------------------------------------------------------- matrices
 
 fn translation(t: V3) -> M4 {
-    [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [t[0], t[1], t[2], 1.0]]
+    [
+        [1.0, 0.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0, 0.0],
+        [0.0, 0.0, 1.0, 0.0],
+        [t[0], t[1], t[2], 1.0],
+    ]
 }
 
 fn scaling(k: V3) -> M4 {
-    [[k[0], 0.0, 0.0, 0.0], [0.0, k[1], 0.0, 0.0], [0.0, 0.0, k[2], 0.0], [0.0, 0.0, 0.0, 1.0]]
+    [
+        [k[0], 0.0, 0.0, 0.0],
+        [0.0, k[1], 0.0, 0.0],
+        [0.0, 0.0, k[2], 0.0],
+        [0.0, 0.0, 0.0, 1.0],
+    ]
 }
 
 /// A point through a column-major matrix.
@@ -287,7 +303,10 @@ pub enum GizmoEvent {
 pub enum GizmoDrop {
     /// Merge into the tool's values, re-render the form, `sync`, then (with `auto_accept`)
     /// add or edit the step at once, as 1.x's `autoAccept`.
-    Values { patch: Values, auto_accept: bool },
+    Values {
+        patch: Values,
+        auto_accept: bool,
+    },
     /// Support Fins: put this turn (column-major) on the part (`poseDrop(m)`).
     Pose(M4),
     Nothing,
@@ -342,7 +361,11 @@ impl Gizmo {
     pub fn new(kind: GizmoKind) -> Self {
         Gizmo {
             kind,
-            obj: Obj { pos: [0.0; 3], quat: [0.0, 0.0, 0.0, 1.0], scale: [1.0; 3] },
+            obj: Obj {
+                pos: [0.0; 3],
+                quat: [0.0, 0.0, 0.0, 1.0],
+                scale: [1.0; 3],
+            },
             shown: false,
             hover: None,
             drag: None,
@@ -405,7 +428,11 @@ impl Gizmo {
 
     /// The bodies the tool acts on: Support Fins' `body`, the others' `bodies`.
     fn body_ids(&self, values: &Values) -> Vec<String> {
-        let v = if self.kind == GizmoKind::Pose { values.get("body") } else { values.get("bodies") };
+        let v = if self.kind == GizmoKind::Pose {
+            values.get("body")
+        } else {
+            values.get("bodies")
+        };
         match v {
             Some(Value::Array(a)) => a.iter().filter_map(|x| x.as_str().map(str::to_owned)).collect(),
             Some(Value::String(s)) if !s.is_empty() => vec![s.clone()],
@@ -425,7 +452,9 @@ impl Gizmo {
         }
         let mut v = values.clone();
         if self.kind == GizmoKind::Scale {
-            let size = first.map(|b| [0, 1, 2].map(|i| b.bbox.max[i] - b.bbox.min[i])).unwrap_or([1.0; 3]);
+            let size = first
+                .map(|b| [0, 1, 2].map(|i| b.bbox.max[i] - b.bbox.min[i]))
+                .unwrap_or([1.0; 3]);
             let mode = v.get("mode").and_then(Value::as_str).unwrap_or("");
             let uniform = truthy(v.get("uniform"));
             let mut k = [1.0; 3];
@@ -434,7 +463,9 @@ impl Gizmo {
                     let f = or(v.get("factor").map(js_number).unwrap_or(f64::NAN), 1.0);
                     [f; 3]
                 } else {
-                    vec3_of(v.get("factor3"), [1.0; 3]).unwrap_or([1.0; 3]).map(|x| or(x, 1.0))
+                    vec3_of(v.get("factor3"), [1.0; 3])
+                        .unwrap_or([1.0; 3])
+                        .map(|x| or(x, 1.0))
                 };
             } else if mode == "fit" {
                 let target = match v.get("size") {
@@ -482,12 +513,18 @@ impl Gizmo {
         if self.kind == GizmoKind::Scale {
             let c = Self::pivot(&b.bbox, str_or(vals.get("pivot"), "base"));
             let k = Self::k_of(vals);
-            return camera::mul(&camera::mul(&translation(c), &scaling(k)), &translation(camera::scale(c, -1.0)));
+            return camera::mul(
+                &camera::mul(&translation(c), &scaling(k)),
+                &translation(camera::scale(c, -1.0)),
+            );
         }
         let c = Self::pivot(&b.bbox, str_or(vals.get("pivot"), "center"));
         let tr = vec3_of(vals.get("translate"), [0.0; 3]).unwrap_or([0.0; 3]);
         let q = quat_of_value(vals.get("rotate"));
-        let mut m = camera::mul(&camera::mul(&translation(camera::add(c, tr)), &mat_of_quat(q)), &translation(camera::scale(c, -1.0)));
+        let mut m = camera::mul(
+            &camera::mul(&translation(camera::add(c, tr)), &mat_of_quat(q)),
+            &translation(camera::scale(c, -1.0)),
+        );
         let turned = match vals.get("rotate") {
             Some(Value::Array(a)) => a.iter().any(|x| js_number(x).abs() > 1e-9),
             _ => false,
@@ -533,7 +570,10 @@ impl Gizmo {
         let key = format!(
             "{}|{}",
             serde_json::to_string(values).unwrap_or_default(),
-            ids.iter().map(|id| format!("{id}:{:?}", vp.shown_revision(id))).collect::<Vec<_>>().join(",")
+            ids.iter()
+                .map(|id| format!("{id}:{:?}", vp.shown_revision(id)))
+                .collect::<Vec<_>>()
+                .join(",")
         );
         if self.shown && self.sync_key.as_deref() == Some(key.as_str()) {
             self.publish(vp, values);
@@ -548,12 +588,24 @@ impl Gizmo {
         let b = self.bodies[0].clone();
         let vals = self.values_for(values, Some(&b));
         let m = self.matrix_for(&b, &vals);
-        let kind = if self.kind == GizmoKind::Scale { str_or(vals.get("pivot"), "base") } else { str_or(vals.get("pivot"), "center") };
+        let kind = if self.kind == GizmoKind::Scale {
+            str_or(vals.get("pivot"), "base")
+        } else {
+            str_or(vals.get("pivot"), "center")
+        };
         let p0 = Self::pivot(&b.bbox, kind);
         let c = apply(&m, p0);
         self.obj.pos = c;
-        self.obj.quat = if self.kind == GizmoKind::Scale { [0.0, 0.0, 0.0, 1.0] } else { quat_of_value(vals.get("rotate")) };
-        self.obj.scale = if self.kind == GizmoKind::Scale { Self::k_of(&vals) } else { [1.0; 3] };
+        self.obj.quat = if self.kind == GizmoKind::Scale {
+            [0.0, 0.0, 0.0, 1.0]
+        } else {
+            quat_of_value(vals.get("rotate"))
+        };
+        self.obj.scale = if self.kind == GizmoKind::Scale {
+            Self::k_of(&vals)
+        } else {
+            [1.0; 3]
+        };
         let tz = vec3_of(vals.get("translate"), [0.0; 3]).unwrap_or([0.0; 3])[2];
         self.land = c[2] - p0[2] - or(tz, 0.0);
         self.shown = true;
@@ -643,7 +695,11 @@ impl Gizmo {
                 _ => [0.0; 3],
             },
         };
-        if camera::length(dir) == 0.0 { facing } else { camera::normalize(dir) }
+        if camera::length(dir) == 0.0 {
+            facing
+        } else {
+            camera::normalize(dir)
+        }
     }
 
     fn plane_hit(&self, vp: &Viewport, pos: Pos2, mode: GizmoMode, h: Handle) -> Option<V3> {
@@ -665,9 +721,15 @@ impl Gizmo {
         }
         let Some(h) = vp.gizmo_handle_at(pos) else { return false };
         let mode = self.mode(&self.values);
-        let Some(hit) = self.plane_hit(vp, pos, mode, h) else { return false };
+        let Some(hit) = self.plane_hit(vp, pos, mode, h) else {
+            return false;
+        };
         let px = vp.pixel_size(self.obj.pos);
-        let (t_start, low0) = if self.kind == GizmoKind::Move && mode == GizmoMode::Translate { self.move_start() } else { ([0.0; 3], None) };
+        let (t_start, low0) = if self.kind == GizmoKind::Move && mode == GizmoMode::Translate {
+            self.move_start()
+        } else {
+            ([0.0; 3], None)
+        };
         self.drag = Some(Drag {
             handle: h,
             pos_start: self.obj.pos,
@@ -781,12 +843,15 @@ impl Gizmo {
     /// Move's numbers right now (as [`Gizmo::drag_values`] works them out, unrounded) and the
     /// lowest point of the moved parts with Move Z at 0.
     fn move_start(&self) -> (V3, Option<f64>) {
-        let Some(b) = self.bodies.first() else { return ([0.0; 3], None) };
+        let Some(b) = self.bodies.first() else {
+            return ([0.0; 3], None);
+        };
         let vals = self.values_for(&self.values, Some(b));
         let c = Self::pivot(&b.bbox, str_or(vals.get("pivot"), "center"));
         let p = self.obj.pos;
         let t = [p[0] - c[0], p[1] - c[1], p[2] - c[2] - self.land];
-        let low = Self::lowest(&self.bodies, &vals).map(|lo| lo - or(vec3_of(vals.get("translate"), [0.0; 3]).unwrap_or([0.0; 3])[2], 0.0));
+        let low = Self::lowest(&self.bodies, &vals)
+            .map(|lo| lo - or(vec3_of(vals.get("translate"), [0.0; 3]).unwrap_or([0.0; 3])[2], 0.0));
         (t, low)
     }
 
@@ -817,12 +882,11 @@ impl Gizmo {
                 t[k] = snap(t[k]);
             }
         }
-        if d.handle.has('Z') {
-            if let Some(low0) = d.low0 {
-                if (low0 + d.t_start[2] + off[2]).abs() <= d.plate_tol {
-                    t[2] = -low0;
-                }
-            }
+        if d.handle.has('Z')
+            && let Some(low0) = d.low0
+            && (low0 + d.t_start[2] + off[2]).abs() <= d.plate_tol
+        {
+            t[2] = -low0;
         }
         for (k, c) in ['X', 'Y', 'Z'].into_iter().enumerate() {
             if d.handle.has(c) {
@@ -835,7 +899,9 @@ impl Gizmo {
     /// Drop to plate: Move's numbers with Move Z changed so the parts' lowest point rests on
     /// the build plate (turns and Land on bed included). `None` with no parts.
     pub fn drop_to_plate(bodies: &[GizmoBody], values: &Values) -> Option<[f64; 3]> {
-        let mut t = vec3_of(values.get("translate"), [0.0; 3]).unwrap_or([0.0; 3]).map(|x| or(x, 0.0));
+        let mut t = vec3_of(values.get("translate"), [0.0; 3])
+            .unwrap_or([0.0; 3])
+            .map(|x| or(x, 0.0));
         let lo = Self::lowest(bodies, values)?;
         t[2] = js_round((t[2] - lo) * 1e4) / 1e4;
         if t[2] == 0.0 {
@@ -854,8 +920,14 @@ impl Gizmo {
         for b in self.bodies.clone() {
             let m = self.matrix_for(&b, vals);
             // a moved part's fins (a body of their own) go with it, as the engine moves them
-            let fins = if self.kind == GizmoKind::Scale { Vec::new() } else { vp.held_by(&b.id) };
-            for id in std::iter::once(b.id.clone()).chain(fins.into_iter().filter(|f| !self.bodies.iter().any(|o| &o.id == f))) {
+            let fins = if self.kind == GizmoKind::Scale {
+                Vec::new()
+            } else {
+                vp.held_by(&b.id)
+            };
+            for id in std::iter::once(b.id.clone())
+                .chain(fins.into_iter().filter(|f| !self.bodies.iter().any(|o| &o.id == f)))
+            {
                 vp.set_body_transform(&id, Some(m));
                 if !self.moved.contains(&id) {
                     self.moved.push(id);
@@ -872,7 +944,13 @@ impl Gizmo {
             let mut k = self.obj.scale.map(|x| (js_round(x * 10000.0) / 10000.0).max(1e-4));
             if truthy(v.get("uniform")) {
                 let prev = Self::k_of(&v);
-                let i = (0..3).fold(0, |a, j| if (k[j] - prev[j]).abs() > (k[a] - prev[a]).abs() { j } else { a });
+                let i = (0..3).fold(0, |a, j| {
+                    if (k[j] - prev[j]).abs() > (k[a] - prev[a]).abs() {
+                        j
+                    } else {
+                        a
+                    }
+                });
                 k = [k[i]; 3];
                 self.obj.scale = k;
             }
@@ -901,7 +979,9 @@ impl Gizmo {
         vp.set_camera_locked(false);
         let out = match self.kind {
             GizmoKind::Pose => {
-                let Some(b) = self.bodies.first().cloned() else { return GizmoDrop::Nothing };
+                let Some(b) = self.bodies.first().cloned() else {
+                    return GizmoDrop::Nothing;
+                };
                 let m = self.matrix_for(&b, &v);
                 let rot = vec3_of(v.get("rotate"), [0.0; 3]).unwrap_or([0.0; 3]);
                 if rot.iter().all(|a| a.abs() < 1e-9) {
@@ -933,7 +1013,10 @@ impl Gizmo {
                     patch.insert("uniform".into(), json!(false));
                     patch.insert("factor3".into(), jvec(k));
                 }
-                GizmoDrop::Values { patch, auto_accept: true }
+                GizmoDrop::Values {
+                    patch,
+                    auto_accept: true,
+                }
             }
             GizmoKind::Move => {
                 let mut patch = Values::new();
@@ -942,7 +1025,10 @@ impl Gizmo {
                         patch.insert(key.into(), x.clone());
                     }
                 }
-                GizmoDrop::Values { patch, auto_accept: true }
+                GizmoDrop::Values {
+                    patch,
+                    auto_accept: true,
+                }
             }
         };
         let values = self.values.clone();
@@ -952,30 +1038,42 @@ impl Gizmo {
 
     /// Everything for one frame, from egui's input. Call right after `viewport.show(ui)` with
     /// its response and the tool's resolved values.
-    pub fn update(&mut self, vp: &mut Viewport, ui: &egui::Ui, response: &egui::Response, values: &Values) -> GizmoEvent {
+    pub fn update(
+        &mut self,
+        vp: &mut Viewport,
+        ui: &egui::Ui,
+        response: &egui::Response,
+        values: &Values,
+    ) -> GizmoEvent {
         if self.drag.is_none() {
             self.sync(vp, values);
         }
         let (hover, pressed, released, down, shift) = ui.input(|i| {
-            (i.pointer.hover_pos(), i.pointer.primary_pressed(), i.pointer.primary_released(), i.pointer.primary_down(), i.modifiers.shift)
+            (
+                i.pointer.hover_pos(),
+                i.pointer.primary_pressed(),
+                i.pointer.primary_released(),
+                i.pointer.primary_down(),
+                i.modifiers.shift,
+            )
         });
         if self.drag.is_some() {
             if released || !down {
                 return GizmoEvent::Dropped(self.release(vp));
             }
-            if let Some(p) = hover {
-                if let Some(v) = self.drag_to(vp, p, shift) {
-                    return GizmoEvent::Moved(v);
-                }
+            if let Some(p) = hover
+                && let Some(v) = self.drag_to(vp, p, shift)
+            {
+                return GizmoEvent::Moved(v);
             }
             return GizmoEvent::None;
         }
-        if pressed && response.contains_pointer() {
-            if let Some(p) = hover {
-                if self.press(vp, p) {
-                    return GizmoEvent::Started;
-                }
-            }
+        if pressed
+            && response.contains_pointer()
+            && let Some(p) = hover
+            && self.press(vp, p)
+        {
+            return GizmoEvent::Started;
         }
         self.hover_at(vp, if response.contains_pointer() { hover } else { None });
         GizmoEvent::None

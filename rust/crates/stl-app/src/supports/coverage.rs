@@ -65,8 +65,7 @@ pub struct CoverageOutput {
 pub fn bare_points(out: &CoverageOutput) -> Vec<[f64; 3]> {
     let mut v: Vec<_> = out.spots.iter().map(|s| s.at).collect();
     v.sort_by(|a, b| {
-        a[0]
-            .partial_cmp(&b[0])
+        a[0].partial_cmp(&b[0])
             .unwrap()
             .then(a[1].partial_cmp(&b[1]).unwrap())
             .then(a[2].partial_cmp(&b[2]).unwrap())
@@ -144,14 +143,7 @@ pub fn point_tri(p: [f64; 3], a: [f64; 3], b: [f64; 3], c: [f64; 3]) -> f64 {
     let vc = d1 * d4 - d3 * d2;
     if vc <= 0.0 && d1 >= 0.0 && d3 <= 0.0 {
         let v = d1 / (d1 - d3);
-        return len(sub(
-            p,
-            [
-                a[0] + ab[0] * v,
-                a[1] + ab[1] * v,
-                a[2] + ab[2] * v,
-            ],
-        ));
+        return len(sub(p, [a[0] + ab[0] * v, a[1] + ab[1] * v, a[2] + ab[2] * v]));
     }
     let cp = sub(p, c);
     let d5 = dot(ab, cp);
@@ -162,14 +154,7 @@ pub fn point_tri(p: [f64; 3], a: [f64; 3], b: [f64; 3], c: [f64; 3]) -> f64 {
     let vb = d5 * d2 - d1 * d6;
     if vb <= 0.0 && d2 >= 0.0 && d6 <= 0.0 {
         let w = d2 / (d2 - d6);
-        return len(sub(
-            p,
-            [
-                a[0] + ac[0] * w,
-                a[1] + ac[1] * w,
-                a[2] + ac[2] * w,
-            ],
-        ));
+        return len(sub(p, [a[0] + ac[0] * w, a[1] + ac[1] * w, a[2] + ac[2] * w]));
     }
     let va = d3 * d6 - d5 * d4;
     if va <= 0.0 && d4 - d3 >= 0.0 && d5 - d6 >= 0.0 {
@@ -529,7 +514,7 @@ pub fn compute_cancellable(input: &CoverageInput, cancel: Option<&ComputeCancel>
         for j in 0..3 {
             let a = idx[f as usize * 3 + j];
             let b = idx[f as usize * 3 + (j + 1) % 3];
-            if edge_of.get(&ek(a, b)).is_none() {
+            if !edge_of.contains_key(&ek(a, b)) {
                 continue;
             }
             let third = p(idx[f as usize * 3 + (j + 2) % 3]);
@@ -555,14 +540,14 @@ pub fn compute_cancellable(input: &CoverageInput, cancel: Option<&ComputeCancel>
     let nearest = |m: [f64; 3], contacts: &Grid| -> f64 {
         let [ci, cj, ck] = contacts.cell_of(m);
         let mut best = f64::INFINITY;
-        for k in 0..=3 {
+        for k in 0i32..=3 {
             if best <= (k as f64 - 1.0) * reach || (k == 3 && best <= far_lim) {
                 break;
             }
-            for a in -(k as i32)..=(k as i32) {
-                for b in -(k as i32)..=(k as i32) {
-                    for d in -(k as i32)..=(k as i32) {
-                        if a.abs().max(b.abs()).max(d.abs()) != k as i32 {
+            for a in -k..=k {
+                for b in -k..=k {
+                    for d in -k..=k {
+                        if a.abs().max(b.abs()).max(d.abs()) != k {
                             continue;
                         }
                         let key = Grid::key(ci + a, cj + b, ck + d);
@@ -611,7 +596,11 @@ pub fn compute_cancellable(input: &CoverageInput, cancel: Option<&ComputeCancel>
 
     let mut put = |p: [f64; 3], q: [f64; 3], r: [f64; 3]| {
         let ar = len(crs(sub(q, p), sub(r, p))) / 2.0;
-        let m = [(p[0] + q[0] + r[0]) / 3.0, (p[1] + q[1] + r[1]) / 3.0, (p[2] + q[2] + r[2]) / 3.0];
+        let m = [
+            (p[0] + q[0] + r[0]) / 3.0,
+            (p[1] + q[1] + r[1]) / 3.0,
+            (p[2] + q[2] + r[2]) / 3.0,
+        ];
         out.total += ar;
         let dp = dist_at(p, &contacts, &mut memo);
         let dq2 = dist_at(q, &contacts, &mut memo);
@@ -641,9 +630,7 @@ pub fn compute_cancellable(input: &CoverageInput, cancel: Option<&ComputeCancel>
             let l = e0.max(e1).max(e2);
             if l * l > h2 * 2.0 && guard < 200_000 {
                 guard += 1;
-                let mid = |u: [f64; 3], v: [f64; 3]| {
-                    [(u[0] + v[0]) / 2.0, (u[1] + v[1]) / 2.0, (u[2] + v[2]) / 2.0]
-                };
+                let mid = |u: [f64; 3], v: [f64; 3]| [(u[0] + v[0]) / 2.0, (u[1] + v[1]) / 2.0, (u[2] + v[2]) / 2.0];
                 if l == e0 {
                     let m = mid(p, q);
                     stack.push([p, m, r]);
@@ -746,11 +733,7 @@ pub fn compute_cancellable(input: &CoverageInput, cancel: Option<&ComputeCancel>
                 hi = Some(*v);
             }
         }
-        if ph > pl {
-            Some([lo?, hi?])
-        } else {
-            None
-        }
+        if ph > pl { Some([lo?, hi?]) } else { None }
     };
 
     let min_area = (reach * reach / 2.0).max(4.0);
@@ -764,13 +747,7 @@ pub fn compute_cancellable(input: &CoverageInput, cancel: Option<&ComputeCancel>
             let far = if has_contacts && f < far_lim { Some(f) } else { None };
             let abc: [[f64; 3]; 3] = worst
                 .get(&r)
-                .and_then(|v| {
-                    if v.len() >= 3 {
-                        Some([v[0], v[1], v[2]])
-                    } else {
-                        None
-                    }
-                })
+                .and_then(|v| if v.len() >= 3 { Some([v[0], v[1], v[2]]) } else { None })
                 .unwrap_or([[0.0; 3]; 3]);
             BareSpot {
                 area: s.0,
@@ -784,9 +761,7 @@ pub fn compute_cancellable(input: &CoverageInput, cancel: Option<&ComputeCancel>
     out.spots.sort_by(|a, b| {
         let fa = a.far.unwrap_or(f64::INFINITY);
         let fb = b.far.unwrap_or(f64::INFINITY);
-        fb.partial_cmp(&fa)
-            .unwrap()
-            .then(b.area.partial_cmp(&a.area).unwrap())
+        fb.partial_cmp(&fa).unwrap().then(b.area.partial_cmp(&a.area).unwrap())
     });
 
     if !alive() {
@@ -945,8 +920,7 @@ impl CoverageJob {
     #[cfg(target_arch = "wasm32")]
     pub fn start_with(&self, seq: u64, make: Box<dyn FnOnce() -> CoverageInput + Send>) {
         *self.slot.lock().expect("slot") = None;
-        self.web
-            .start(self.generation.clone(), self.slot.clone(), seq, make());
+        self.web.start(self.generation.clone(), self.slot.clone(), seq, make());
     }
 
     /// Thread running coverage (desktop only), after [`Self::start`].

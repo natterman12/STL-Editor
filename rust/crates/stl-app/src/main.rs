@@ -41,7 +41,9 @@ fn main() -> eframe::Result {
     if let Some((out, quick)) = stl_app::bench::parse_args(args.iter().cloned()) {
         let launched = std::time::Instant::now();
         let mut options = eframe::NativeOptions {
-            viewport: egui::ViewportBuilder::default().with_title("STL Editor (uibench)").with_inner_size([1280.0, 800.0]),
+            viewport: egui::ViewportBuilder::default()
+                .with_title("STL Editor (uibench)")
+                .with_inner_size([1280.0, 800.0]),
             ..Default::default()
         };
         stl_app::viewport::renderer::ask_for_stencil(&mut options.wgpu_options);
@@ -53,7 +55,9 @@ fn main() -> eframe::Result {
     }
 
     let mut options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_title(stl_app::build_info::title()).with_inner_size([1280.0, 800.0]),
+        viewport: egui::ViewportBuilder::default()
+            .with_title(stl_app::build_info::title())
+            .with_inner_size([1280.0, 800.0]),
         ..Default::default()
     };
     stl_app::viewport::renderer::ask_for_stencil(&mut options.wgpu_options);
@@ -76,7 +80,9 @@ fn main() -> eframe::Result {
             let wake = ctx.clone();
             let mut app = StlApp::new(
                 &cc.egui_ctx,
-                Box::new(stl_app::platform::native::NativePlatform::with_waker(move || wake.request_repaint())),
+                Box::new(stl_app::platform::native::NativePlatform::with_waker(move || {
+                    wake.request_repaint()
+                })),
                 Box::new(link),
             );
             app.viewport = viewport;
@@ -104,7 +110,11 @@ fn main() -> eframe::Result {
 #[cfg(not(target_arch = "wasm32"))]
 fn restart_after_device_loss(mut app: StlApp) {
     let saved = app.save_after_device_loss(std::time::Duration::from_secs(20));
-    let text = if saved { StlApp::DRIVER_RESTARTED } else { StlApp::DRIVER_RESTARTED_NOT_SAVED };
+    let text = if saved {
+        StlApp::DRIVER_RESTARTED
+    } else {
+        StlApp::DRIVER_RESTARTED_NOT_SAVED
+    };
     log_line(text);
     let _ = rfd::MessageDialog::new()
         .set_level(rfd::MessageLevel::Warning)
@@ -124,7 +134,11 @@ fn restart_after_device_loss(mut app: StlApp) {
 fn log_line(text: &str) {
     use std::io::Write;
     eprintln!("{text}");
-    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(stl_platform::settings::log_file()) {
+    if let Ok(mut f) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(stl_platform::settings::log_file())
+    {
         let _ = writeln!(f, "{text}");
     }
 }
@@ -137,8 +151,8 @@ mod web_main {
     use stl_app::engine_link::web::WebLink;
     use stl_app::engine_link::{Command, EngineLink, NullLink};
     use stl_app::platform::web::WebPlatform;
-    use wasm_bindgen::prelude::*;
     use wasm_bindgen::JsCast;
+    use wasm_bindgen::prelude::*;
 
     thread_local! {
         /// Bodies in the egui browser tree. `-1` until an opened project has drawn.
@@ -174,13 +188,19 @@ mod web_main {
     fn request_grab(label: &'static str, ctx: &egui::Context, rect: egui::Rect) {
         let ppp = ctx.pixels_per_point();
         let (x, y) = ((rect.min.x * ppp).round().max(0.0), (rect.min.y * ppp).round().max(0.0));
-        let (w, h) = ((rect.width() * ppp).round().max(1.0), (rect.height() * ppp).round().max(1.0));
+        let (w, h) = (
+            (rect.width() * ppp).round().max(1.0),
+            (rect.height() * ppp).round().max(1.0),
+        );
         GRAB.with(|g| *g.borrow_mut() = None);
         wasm_bindgen_futures::spawn_local(async move {
             let result = (|| {
                 let win = web_sys::window().ok_or("no window")?;
-                let f = js_sys::Reflect::get(&win, &JsValue::from_str("__stlGrab")).map_err(|_| "the page has no __stlGrab".to_string())?;
-                let f = f.dyn_into::<js_sys::Function>().map_err(|_| "the page has no __stlGrab".to_string())?;
+                let f = js_sys::Reflect::get(&win, &JsValue::from_str("__stlGrab"))
+                    .map_err(|_| "the page has no __stlGrab".to_string())?;
+                let f = f
+                    .dyn_into::<js_sys::Function>()
+                    .map_err(|_| "the page has no __stlGrab".to_string())?;
                 let args = js_sys::Array::of5(
                     &JsValue::from_str(label),
                     &JsValue::from_f64(x as f64),
@@ -188,7 +208,9 @@ mod web_main {
                     &JsValue::from_f64(w as f64),
                     &JsValue::from_f64(h as f64),
                 );
-                let out = f.apply(&win, &args).map_err(|e| format!("reading the canvas failed: {e:?}"))?;
+                let out = f
+                    .apply(&win, &args)
+                    .map_err(|e| format!("reading the canvas failed: {e:?}"))?;
                 let text = out.as_string().ok_or("__stlGrab returned no text")?;
                 serde_json::from_str::<serde_json::Value>(&text).map_err(|e| e.to_string())
             })();
@@ -202,7 +224,10 @@ mod web_main {
             let mut it = pair.splitn(2, '=');
             if it.next() == Some(name) {
                 let raw = it.next().unwrap_or("");
-                let decoded = js_sys::decode_uri_component(raw).ok().and_then(|s| s.as_string()).unwrap_or_else(|| raw.to_string());
+                let decoded = js_sys::decode_uri_component(raw)
+                    .ok()
+                    .and_then(|s| s.as_string())
+                    .unwrap_or_else(|| raw.to_string());
                 if !decoded.is_empty() {
                     return Some(decoded);
                 }
@@ -225,9 +250,18 @@ mod web_main {
         PreOff(u32, String),
         AwaitOff(String),
         /// `renders` before the section was turned on; frames since it drew.
-        Section { renders: u64, drawn: Option<u32>, frames: u32, details: String },
+        Section {
+            renders: u64,
+            drawn: Option<u32>,
+            frames: u32,
+            details: String,
+        },
         AwaitOn(String),
-        Settle { frames: u32, since: web_time::Instant, details: String },
+        Settle {
+            frames: u32,
+            since: web_time::Instant,
+            details: String,
+        },
         Done,
     }
 
@@ -256,14 +290,21 @@ mod web_main {
         let mut min = egui::pos2(f32::MAX, f32::MAX);
         let mut max = egui::pos2(f32::MIN, f32::MIN);
         for i in 0..8 {
-            let c = [if i & 1 == 0 { lo[0] } else { hi[0] }, if i & 2 == 0 { lo[1] } else { hi[1] }, if i & 4 == 0 { lo[2] } else { hi[2] }];
+            let c = [
+                if i & 1 == 0 { lo[0] } else { hi[0] },
+                if i & 2 == 0 { lo[1] } else { hi[1] },
+                if i & 4 == 0 { lo[2] } else { hi[2] },
+            ];
             let s = app.viewport.world_to_screen(c);
             min = min.min(s);
             max = max.max(s);
         }
         for iy in 1..24 {
             for ix in 1..24 {
-                let pos = egui::pos2(min.x + (max.x - min.x) * ix as f32 / 24.0, min.y + (max.y - min.y) * iy as f32 / 24.0);
+                let pos = egui::pos2(
+                    min.x + (max.x - min.x) * ix as f32 / 24.0,
+                    min.y + (max.y - min.y) * iy as f32 / 24.0,
+                );
                 if hits(pos) {
                     return Some("scan");
                 }
@@ -291,21 +332,47 @@ mod web_main {
                     *check = Check::Waiting;
                     return;
                 }
-                let expect: Vec<String> = page_param("bodies").unwrap_or_default().split(',').filter(|s| !s.is_empty()).map(str::to_owned).collect();
+                let expect: Vec<String> = page_param("bodies")
+                    .unwrap_or_default()
+                    .split(',')
+                    .filter(|s| !s.is_empty())
+                    .map(str::to_owned)
+                    .collect();
                 let block = page_param("block").unwrap_or_default();
                 let shown: Vec<String> = app.bodies.iter().map(|b| b.id.clone()).collect();
                 if expect.is_empty() || block.is_empty() || !expect.contains(&block) {
                     return fail(check, backend, "the page URL names no fixture bodies (bodies=, block=)");
                 }
                 if let Some(missing) = expect.iter().find(|e| !shown.contains(e)) {
-                    return fail(check, backend, &format!("the fixture body {missing} is not in the viewport (viewport has {})", shown.join(",")));
+                    return fail(
+                        check,
+                        backend,
+                        &format!(
+                            "the fixture body {missing} is not in the viewport (viewport has {})",
+                            shown.join(",")
+                        ),
+                    );
                 }
                 // Only a pick at the block's projected centre counts. A hit found by scanning the
                 // box (or no hit) means the projection or the picking is off.
                 let how = match pick_body(app, &block) {
                     Some("centre") => "centre",
-                    Some(_) => return fail(check, backend, &format!("a pick at the centre of the block {block} missed it; only a scan of its box hit it")),
-                    None => return fail(check, backend, &format!("no pick hit the block {block}, not even a scan of its box")),
+                    Some(_) => {
+                        return fail(
+                            check,
+                            backend,
+                            &format!(
+                                "a pick at the centre of the block {block} missed it; only a scan of its box hit it"
+                            ),
+                        );
+                    }
+                    None => {
+                        return fail(
+                            check,
+                            backend,
+                            &format!("no pick hit the block {block}, not even a scan of its box"),
+                        );
+                    }
                 };
                 let others: Vec<String> = expect
                     .iter()
@@ -315,7 +382,11 @@ mod web_main {
                 let details = format!(
                     "bodies={};block={block}@{how}{}",
                     expect.join(","),
-                    if others.is_empty() { String::new() } else { format!(";others={}", others.join(",")) }
+                    if others.is_empty() {
+                        String::new()
+                    } else {
+                        format!(";others={}", others.join(","))
+                    }
                 );
                 *check = Check::PreOff(4, details);
             }
@@ -333,13 +404,27 @@ mod web_main {
                 Some(Ok(off)) => {
                     let mode = off["mode"].as_f64().unwrap_or(1.0);
                     if mode > 0.995 || off["distinct"].as_u64().unwrap_or(0) < 4 {
-                        return fail(check, backend, "the viewport read back blank before the section view was turned on");
+                        return fail(
+                            check,
+                            backend,
+                            "the viewport read back blank before the section view was turned on",
+                        );
                     }
                     app.viewport.set_section_enabled(true);
-                    *check = Check::Section { renders: stats.renders(), drawn: None, frames: 0, details };
+                    *check = Check::Section {
+                        renders: stats.renders(),
+                        drawn: None,
+                        frames: 0,
+                        details,
+                    };
                 }
             },
-            Check::Section { renders, mut drawn, mut frames, details } => {
+            Check::Section {
+                renders,
+                mut drawn,
+                mut frames,
+                details,
+            } => {
                 frames += 1;
                 if drawn.is_none() && stats.renders() > renders && app.viewport.active_section().is_some() {
                     drawn = Some(0);
@@ -356,7 +441,12 @@ mod web_main {
                 if frames > 900 {
                     return fail(check, backend, "the section view did not draw");
                 }
-                *check = Check::Section { renders, drawn, frames, details };
+                *check = Check::Section {
+                    renders,
+                    drawn,
+                    frames,
+                    details,
+                };
             }
             Check::AwaitOn(details) => match GRAB.with(|g| g.borrow_mut().take()) {
                 None => *check = Check::AwaitOn(details),
@@ -372,11 +462,17 @@ mod web_main {
                         return fail(
                             check,
                             backend,
-                            &format!("the section view looks the same as the view without it ({differ} pixels differ in the middle of the view)"),
+                            &format!(
+                                "the section view looks the same as the view without it ({differ} pixels differ in the middle of the view)"
+                            ),
                         );
                     }
                     let details = format!("{details};section differs in {differ} px of the view, {distinct} colours");
-                    *check = Check::Settle { frames: 0, since: web_time::Instant::now(), details };
+                    *check = Check::Settle {
+                        frames: 0,
+                        since: web_time::Instant::now(),
+                        details,
+                    };
                 }
             },
             Check::Settle { frames, since, details } => {
@@ -385,7 +481,11 @@ mod web_main {
                     set_check_status(format!("ok:{backend}:{details}"));
                     *check = Check::Done;
                 } else {
-                    *check = Check::Settle { frames: frames + 1, since, details };
+                    *check = Check::Settle {
+                        frames: frames + 1,
+                        since,
+                        details,
+                    };
                 }
             }
         }
@@ -403,7 +503,10 @@ mod web_main {
             let mut it = pair.splitn(2, '=');
             if it.next() == Some("project") {
                 let raw = it.next().unwrap_or("");
-                let decoded = js_sys::decode_uri_component(raw).ok().and_then(|s| s.as_string()).unwrap_or_else(|| raw.to_string());
+                let decoded = js_sys::decode_uri_component(raw)
+                    .ok()
+                    .and_then(|s| s.as_string())
+                    .unwrap_or_else(|| raw.to_string());
                 if !decoded.is_empty() {
                     return Some(decoded);
                 }
@@ -425,18 +528,29 @@ mod web_main {
 
     async fn fetch_bytes(url: &str) -> Result<Vec<u8>, String> {
         let win = web_sys::window().ok_or_else(|| "This page has no window.".to_string())?;
-        let fetch = js_sys::Reflect::get(&win, &JsValue::from_str("fetch")).map_err(|_| "This page has no fetch.".to_string())?;
-        let fetch = fetch.dyn_into::<js_sys::Function>().map_err(|_| "This page has no fetch.".to_string())?;
-        let prom = fetch.call1(&win, &JsValue::from_str(url)).map_err(|_| format!("Could not fetch {url}."))?;
+        let fetch = js_sys::Reflect::get(&win, &JsValue::from_str("fetch"))
+            .map_err(|_| "This page has no fetch.".to_string())?;
+        let fetch = fetch
+            .dyn_into::<js_sys::Function>()
+            .map_err(|_| "This page has no fetch.".to_string())?;
+        let prom = fetch
+            .call1(&win, &JsValue::from_str(url))
+            .map_err(|_| format!("Could not fetch {url}."))?;
         let resp = wasm_bindgen_futures::JsFuture::from(js_sys::Promise::from(prom))
             .await
             .map_err(|_| format!("Could not fetch {url}."))?;
-        let ok = js_sys::Reflect::get(&resp, &JsValue::from_str("ok")).ok().and_then(|v| v.as_bool()).unwrap_or(false);
+        let ok = js_sys::Reflect::get(&resp, &JsValue::from_str("ok"))
+            .ok()
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
         if !ok {
             return Err(format!("Could not fetch {url}."));
         }
-        let ab = js_sys::Reflect::get(&resp, &JsValue::from_str("arrayBuffer")).map_err(|_| format!("Could not read {url}."))?;
-        let ab = ab.dyn_into::<js_sys::Function>().map_err(|_| format!("Could not read {url}."))?;
+        let ab = js_sys::Reflect::get(&resp, &JsValue::from_str("arrayBuffer"))
+            .map_err(|_| format!("Could not read {url}."))?;
+        let ab = ab
+            .dyn_into::<js_sys::Function>()
+            .map_err(|_| format!("Could not read {url}."))?;
         let buf_prom = ab.call0(&resp).map_err(|_| format!("Could not read {url}."))?;
         let buf = wasm_bindgen_futures::JsFuture::from(js_sys::Promise::from(buf_prom))
             .await
@@ -523,7 +637,12 @@ mod web_main {
                             .as_ref()
                             .map(|rs| format!("{:?}", rs.adapter.get_info().backend))
                             .unwrap_or_else(|| "none".into());
-                        Ok(Box::new(WebShell { app, track, backend, check: Check::default() }))
+                        Ok(Box::new(WebShell {
+                            app,
+                            track,
+                            backend,
+                            check: Check::default(),
+                        }))
                     }),
                 )
                 .await;

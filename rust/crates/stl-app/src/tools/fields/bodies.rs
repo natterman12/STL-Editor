@@ -12,7 +12,7 @@ use crate::engine_link::{Level, SketchOutline};
 use crate::theme::Tokens;
 use crate::tools::{Ctx, Field, FieldKind, ToolDef, Values};
 use crate::viewport::pick::Hit;
-use crate::viewport::{scene, PlaneFrame, Viewport};
+use crate::viewport::{PlaneFrame, Viewport, scene};
 
 // ------------------------------------------------------------------ shared pieces
 
@@ -48,27 +48,56 @@ pub struct PickOut {
 
 impl PickOut {
     pub fn used() -> Self {
-        PickOut { used: true, ..Default::default() }
+        PickOut {
+            used: true,
+            ..Default::default()
+        }
     }
     pub fn changed() -> Self {
-        PickOut { used: true, changed: true, ..Default::default() }
+        PickOut {
+            used: true,
+            changed: true,
+            ..Default::default()
+        }
     }
     pub fn said(level: Level, text: impl Into<String>) -> Self {
-        PickOut { used: true, message: Some((level, text.into())), ..Default::default() }
+        PickOut {
+            used: true,
+            message: Some((level, text.into())),
+            ..Default::default()
+        }
     }
 }
 
 /// What a field wants in the viewport (`renderOverlayForTool`, `drawRegionOverlay`).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Mark {
-    Marker { p: [f64; 3], color: u32 },
+    Marker {
+        p: [f64; 3],
+        color: u32,
+    },
     PlaneGhost(PlaneFrame),
-    Regions { frame: PlaneFrame, faces: Vec<Vec<Vec<[f64; 2]>>> },
-    SketchLines { frame: PlaneFrame, outlines: std::sync::Arc<[SketchOutline]> },
+    Regions {
+        frame: PlaneFrame,
+        faces: Vec<Vec<Vec<[f64; 2]>>>,
+    },
+    SketchLines {
+        frame: PlaneFrame,
+        outlines: std::sync::Arc<[SketchOutline]>,
+    },
     /// A straight guide line (the living hinge's line).
-    Line { a: [f64; 3], b: [f64; 3], color: u32 },
+    Line {
+        a: [f64; 3],
+        b: [f64; 3],
+        color: u32,
+    },
     /// An arrow from `p` along `dir` (the living hinge's flex arrow).
-    Arrow { p: [f64; 3], dir: [f64; 3], len: f64, color: u32 },
+    Arrow {
+        p: [f64; 3],
+        dir: [f64; 3],
+        len: f64,
+        color: u32,
+    },
 }
 
 /// The colour of the living hinge's line and flex arrow.
@@ -88,7 +117,9 @@ pub fn apply_marks(vp: &mut Viewport, marks: &[Mark]) {
             Mark::Marker { p, color } => vp.add_marker(*p, hex_color(*color), "marker", None),
             Mark::PlaneGhost(f) => vp.add_plane_ghost(f, "plane-ghost", hex_color(scene::PLANE_COL)),
             Mark::Regions { frame, faces } => vp.add_regions(frame, faces, "regions"),
-            Mark::SketchLines { frame, outlines } => vp.add_sketch_lines(frame, outlines, hex_color(0xd9480f), 0.9, true, "sk"),
+            Mark::SketchLines { frame, outlines } => {
+                vp.add_sketch_lines(frame, outlines, hex_color(0xd9480f), 0.9, true, "sk")
+            }
             Mark::Line { a, b, color } => vp.add_line(*a, *b, hex_color(*color), "hinge"),
             Mark::Arrow { p, dir, len, color } => vp.add_arrow(*p, *dir, *len, hex_color(*color), "hinge"),
         }
@@ -143,9 +174,16 @@ fn optional_pick(f: &Field) -> bool {
 /// `advanceField(after)`: the next visible pick field that is still empty. `None` closes the
 /// active field.
 pub fn advance_field(tool: &ToolDef, values: &Values, after: &str) -> Option<String> {
-    let fields: Vec<&Field> = tool.fields.iter().filter(|f| is_sel_kind(&f.kind) && f.show.is_none_or(|s| s(values))).collect();
+    let fields: Vec<&Field> = tool
+        .fields
+        .iter()
+        .filter(|f| is_sel_kind(&f.kind) && f.show.is_none_or(|s| s(values)))
+        .collect();
     let i = fields.iter().position(|f| f.key == after)?;
-    fields[i + 1..].iter().find(|f| is_empty_sel(values.get(f.key)) && !matches!(f.kind, FieldKind::Regions) && !optional_pick(f)).map(|f| f.key.to_owned())
+    fields[i + 1..]
+        .iter()
+        .find(|f| is_empty_sel(values.get(f.key)) && !matches!(f.kind, FieldKind::Regions) && !optional_pick(f))
+        .map(|f| f.key.to_owned())
 }
 
 /// The field to open first (`openTool`'s `activeField`): the first empty pick field; when every
@@ -156,14 +194,28 @@ pub fn first_active(tool: &ToolDef, values: &Values) -> Option<String> {
     tool.fields
         .iter()
         .filter(visible)
-        .find(|f| is_sel_kind(&f.kind) && !matches!(f.kind, FieldKind::Regions) && f.placeholder.is_none() && is_empty_sel(values.get(f.key)))
-        .or_else(|| tool.fields.iter().filter(visible).find(|f| matches!(f.kind, FieldKind::Plane { .. })))
+        .find(|f| {
+            is_sel_kind(&f.kind)
+                && !matches!(f.kind, FieldKind::Regions)
+                && f.placeholder.is_none()
+                && is_empty_sel(values.get(f.key))
+        })
+        .or_else(|| {
+            tool.fields
+                .iter()
+                .filter(visible)
+                .find(|f| matches!(f.kind, FieldKind::Plane { .. }))
+        })
         .map(|f| f.key.to_owned())
 }
 
 /// `bodyName(id)`.
 pub fn body_name(ctx: &Ctx, id: &str) -> String {
-    ctx.bodies.iter().find(|b| b.id == id).map(|b| b.name.clone()).unwrap_or_else(|| id.to_owned())
+    ctx.bodies
+        .iter()
+        .find(|b| b.id == id)
+        .map(|b| b.name.clone())
+        .unwrap_or_else(|| id.to_owned())
 }
 
 /// Round to 4 places, as `+x.toFixed(4)`.
@@ -194,48 +246,85 @@ pub struct BoxOut {
 }
 
 pub fn sel_box(ui: &mut Ui, tk: &Tokens, id: Id, active: bool, chips: &[String], placeholder: &str) -> BoxOut {
-    let mut out = BoxOut { clicked: false, removed: None };
+    let mut out = BoxOut {
+        clicked: false,
+        removed: None,
+    };
     // `.sel-box { border: 1px dashed }`, `.active { border: 1.5px solid accent }`: the dashed edge is
     // painted after the frame, since a frame stroke can't be dashed
-    let (fill, stroke) = if active { (tk.accent_soft, Stroke::new(1.5, tk.accent)) } else { (tk.input, Stroke::NONE) };
+    let (fill, stroke) = if active {
+        (tk.accent_soft, Stroke::new(1.5, tk.accent))
+    } else {
+        (tk.input, Stroke::NONE)
+    };
     let mut x_rects: Vec<Rect> = Vec::new();
-    let resp = egui::Frame::new().fill(fill).stroke(stroke).corner_radius(CornerRadius::same(tk.radius_sm as u8)).inner_margin(egui::Margin::symmetric(6, 3)).show(ui, |ui| {
-        ui.set_min_height(20.0);
-        ui.set_width(ui.available_width());
-        ui.horizontal_wrapped(|ui| {
-            ui.spacing_mut().item_spacing = Vec2::new(3.0, 3.0);
-            if chips.is_empty() {
-                ui.label(egui::RichText::new(placeholder).size(11.5).color(tk.muted));
-            }
-            for (i, c) in chips.iter().enumerate() {
-                let g = ui.painter().layout_no_wrap(c.clone(), font(11.5), tk.text);
-                let w = g.size().x + 8.0 + 4.0 + 10.0 + 8.0;
-                let (r, _) = ui.allocate_exact_size(Vec2::new(w, 18.0), Sense::hover());
-                ui.painter().rect_filled(r, CornerRadius::same(9), tk.chip);
-                ui.painter().galley(egui::pos2(r.min.x + 8.0, r.center().y - g.size().y / 2.0), g, tk.text);
-                let xr = Rect::from_center_size(egui::pos2(r.max.x - 12.0, r.center().y), Vec2::splat(14.0));
-                let xresp = ui.interact(xr, id.with(("x", i)), Sense::click());
-                xresp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, format!("Remove {c}")));
-                let col = if xresp.hovered() { tk.text } else { tk.muted };
-                ui.painter().text(xr.center(), Align2::CENTER_CENTER, "×", font(12.0), col);
-                x_rects.push(xr);
-                if xresp.clicked() {
-                    out.removed = Some(i);
+    let resp = egui::Frame::new()
+        .fill(fill)
+        .stroke(stroke)
+        .corner_radius(CornerRadius::same(tk.radius_sm as u8))
+        .inner_margin(egui::Margin::symmetric(6, 3))
+        .show(ui, |ui| {
+            ui.set_min_height(20.0);
+            ui.set_width(ui.available_width());
+            ui.horizontal_wrapped(|ui| {
+                ui.spacing_mut().item_spacing = Vec2::new(3.0, 3.0);
+                if chips.is_empty() {
+                    ui.label(egui::RichText::new(placeholder).size(11.5).color(tk.muted));
                 }
-            }
+                for (i, c) in chips.iter().enumerate() {
+                    let g = ui.painter().layout_no_wrap(c.clone(), font(11.5), tk.text);
+                    let w = g.size().x + 8.0 + 4.0 + 10.0 + 8.0;
+                    let (r, _) = ui.allocate_exact_size(Vec2::new(w, 18.0), Sense::hover());
+                    ui.painter().rect_filled(r, CornerRadius::same(9), tk.chip);
+                    ui.painter()
+                        .galley(egui::pos2(r.min.x + 8.0, r.center().y - g.size().y / 2.0), g, tk.text);
+                    let xr = Rect::from_center_size(egui::pos2(r.max.x - 12.0, r.center().y), Vec2::splat(14.0));
+                    let xresp = ui.interact(xr, id.with(("x", i)), Sense::click());
+                    xresp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, format!("Remove {c}")));
+                    let col = if xresp.hovered() { tk.text } else { tk.muted };
+                    ui.painter()
+                        .text(xr.center(), Align2::CENTER_CENTER, "×", font(12.0), col);
+                    x_rects.push(xr);
+                    if xresp.clicked() {
+                        out.removed = Some(i);
+                    }
+                }
+            });
         });
-    });
     let rect = resp.response.rect;
     if !active {
         let r = rect.shrink(0.5);
-        let pts = [r.left_top(), r.right_top(), r.right_bottom(), r.left_bottom(), r.left_top()];
-        ui.painter().extend(egui::Shape::dashed_line(&pts, Stroke::new(1.0, tk.input_line), 3.0, 3.0));
+        let pts = [
+            r.left_top(),
+            r.right_top(),
+            r.right_bottom(),
+            r.left_bottom(),
+            r.left_top(),
+        ];
+        ui.painter().extend(egui::Shape::dashed_line(
+            &pts,
+            Stroke::new(1.0, tk.input_line),
+            3.0,
+            3.0,
+        ));
     }
     let bresp = ui.interact(rect, id, Sense::hover());
-    bresp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, if chips.is_empty() { placeholder.to_owned() } else { chips.join(", ") }));
+    bresp.widget_info(|| {
+        egui::WidgetInfo::labeled(
+            egui::Role::Button,
+            true,
+            if chips.is_empty() {
+                placeholder.to_owned()
+            } else {
+                chips.join(", ")
+            },
+        )
+    });
     if out.removed.is_none() && bresp.hovered() {
         ui.output_mut(|o| o.cursor_icon = egui::CursorIcon::PointingHand);
-        let over_x = ui.input(|i| i.pointer.interact_pos()).is_some_and(|p| x_rects.iter().any(|r| r.contains(p)));
+        let over_x = ui
+            .input(|i| i.pointer.interact_pos())
+            .is_some_and(|p| x_rects.iter().any(|r| r.contains(p)));
         if !over_x && ui.input(|i| i.pointer.primary_clicked()) {
             out.clicked = true;
         }
@@ -245,14 +334,24 @@ pub fn sel_box(ui: &mut Ui, tk: &Tokens, id: Id, active: bool, chips: &[String],
 
 /// What the box's clicks do to the active field and values; shared by the simple kinds.
 /// `unpick` is run when a chip's cross was clicked.
-pub(crate) fn handle_box(b: &BoxOut, key: &str, active: &mut Option<String>, out: &mut ShowOut, unpick: impl FnOnce(usize) -> bool) {
+pub(crate) fn handle_box(
+    b: &BoxOut,
+    key: &str,
+    active: &mut Option<String>,
+    out: &mut ShowOut,
+    unpick: impl FnOnce(usize) -> bool,
+) {
     if let Some(i) = b.removed {
         if unpick(i) {
             out.changed = true;
             *active = Some(key.to_owned());
         }
     } else if b.clicked {
-        *active = if active.as_deref() == Some(key) { None } else { Some(key.to_owned()) };
+        *active = if active.as_deref() == Some(key) {
+            None
+        } else {
+            Some(key.to_owned())
+        };
     }
 }
 
@@ -267,15 +366,36 @@ fn ids_of(v: Option<&Value>) -> Vec<String> {
 }
 
 /// `fieldHTML` `'bodies'`: the chips are the body names; a cross removes that body.
-pub fn show(ui: &mut Ui, tk: &Tokens, f: &Field, values: &mut Values, active: &mut Option<String>, ctx: &Ctx) -> ShowOut {
+pub fn show(
+    ui: &mut Ui,
+    tk: &Tokens,
+    f: &Field,
+    values: &mut Values,
+    active: &mut Option<String>,
+    ctx: &Ctx,
+) -> ShowOut {
     let multi = matches!(f.kind, FieldKind::Bodies { multi: true });
     let ids = ids_of(values.get(f.key));
     let chips: Vec<String> = ids.iter().map(|id| body_name(ctx, id)).collect();
-    let ph = f.placeholder.unwrap_or(if multi { "Click bodies" } else { "Click a body" });
-    let b = sel_box(ui, tk, Id::unique(("pick", f.key)), active.as_deref() == Some(f.key), &chips, ph);
+    let ph = f
+        .placeholder
+        .unwrap_or(if multi { "Click bodies" } else { "Click a body" });
+    let b = sel_box(
+        ui,
+        tk,
+        Id::unique(("pick", f.key)),
+        active.as_deref() == Some(f.key),
+        &chips,
+        ph,
+    );
     let mut out = ShowOut::default();
     handle_box(&b, f.key, active, &mut out, |i| {
-        let rest: Vec<Value> = ids.iter().enumerate().filter(|(j, _)| *j != i).map(|(_, s)| Value::from(s.clone())).collect();
+        let rest: Vec<Value> = ids
+            .iter()
+            .enumerate()
+            .filter(|(j, _)| *j != i)
+            .map(|(_, s)| Value::from(s.clone()))
+            .collect();
         values.insert(f.key.to_owned(), Value::Array(rest));
         true
     });
@@ -285,7 +405,9 @@ pub fn show(ui: &mut Ui, tk: &Tokens, f: &Field, values: &mut Values, active: &m
 /// `feedPick` for `bodies`. Not a body: the click is used and does nothing. A single-body field
 /// takes the body and moves on; a multi field toggles it.
 pub fn feed_pick(tool: &ToolDef, f: &Field, values: &mut Values, hit: &Hit, _ctx: &Ctx) -> PickOut {
-    let Hit::Body { id, .. } = hit else { return PickOut::used() };
+    let Hit::Body { id, .. } = hit else {
+        return PickOut::used();
+    };
     let multi = matches!(f.kind, FieldKind::Bodies { multi: true });
     let mut cur = ids_of(values.get(f.key));
     if multi {
@@ -297,7 +419,10 @@ pub fn feed_pick(tool: &ToolDef, f: &Field, values: &mut Values, hit: &Hit, _ctx
     } else {
         cur = vec![id.clone()];
     }
-    values.insert(f.key.to_owned(), Value::Array(cur.into_iter().map(Value::from).collect()));
+    values.insert(
+        f.key.to_owned(),
+        Value::Array(cur.into_iter().map(Value::from).collect()),
+    );
     let mut out = PickOut::changed();
     out.advance = !multi;
     if matches!(tool.key, "supportfins" | "supportwall") {
@@ -316,7 +441,15 @@ pub fn marks(_f: &Field, _values: &Values, _ctx: &Ctx) -> Vec<Mark> {
 
 /// Draw any pick-kind field's control. `None` when the field is not one of the ten pick kinds.
 /// `edit_id` is the timeline step being edited (the `features` list leaves it out).
-pub fn show_pick(ui: &mut Ui, tk: &Tokens, f: &Field, values: &mut Values, active: &mut Option<String>, ctx: &Ctx, edit_id: Option<&str>) -> Option<ShowOut> {
+pub fn show_pick(
+    ui: &mut Ui,
+    tk: &Tokens,
+    f: &Field,
+    values: &mut Values,
+    active: &mut Option<String>,
+    ctx: &Ctx,
+    edit_id: Option<&str>,
+) -> Option<ShowOut> {
     use super::{axisline, cylface, facepoints, features, pface, plane, points3, regions, sketch};
     Some(match f.kind {
         FieldKind::Bodies { .. } => show(ui, tk, f, values, active, ctx),
@@ -337,7 +470,9 @@ pub fn show_pick(ui: &mut Ui, tk: &Tokens, f: &Field, values: &mut Values, activ
 /// `used == false` means the click is not the tool's (it falls through to plain selection).
 pub fn feed(tool: &ToolDef, active: Option<&str>, values: &mut Values, hit: &Hit, ctx: &Ctx) -> PickOut {
     use super::{cylface, facepoints, pface, plane, points3};
-    let Some(f) = plane::target_field(tool, active, hit) else { return PickOut::default() };
+    let Some(f) = plane::target_field(tool, active, hit) else {
+        return PickOut::default();
+    };
     match f.kind {
         FieldKind::Bodies { .. } => feed_pick(tool, f, values, hit, ctx),
         FieldKind::Plane { .. } => plane::feed_pick(tool, f, values, hit, ctx),
@@ -354,9 +489,23 @@ pub fn feed(tool: &ToolDef, active: Option<&str>, values: &mut Values, hit: &Hit
 /// A body row in the browser tree was picked (2.11): it fills the active Bodies field the same way
 /// a viewport click on that body does. `None` when the active field is not a Bodies field, so the
 /// row keeps its plain selection.
-pub fn feed_tree_body(tool: &ToolDef, active: Option<&str>, values: &mut Values, id: &str, ctx: &Ctx) -> Option<PickOut> {
-    let f = tool.fields.iter().find(|f| Some(f.key) == active && matches!(f.kind, FieldKind::Bodies { .. }))?;
-    let hit = Hit::Body { id: id.to_owned(), face: 0, point: [0.0; 3], normal: [0.0; 3] };
+pub fn feed_tree_body(
+    tool: &ToolDef,
+    active: Option<&str>,
+    values: &mut Values,
+    id: &str,
+    ctx: &Ctx,
+) -> Option<PickOut> {
+    let f = tool
+        .fields
+        .iter()
+        .find(|f| Some(f.key) == active && matches!(f.kind, FieldKind::Bodies { .. }))?;
+    let hit = Hit::Body {
+        id: id.to_owned(),
+        face: 0,
+        point: [0.0; 3],
+        normal: [0.0; 3],
+    };
     Some(feed_pick(tool, f, values, &hit, ctx))
 }
 
@@ -366,7 +515,9 @@ pub fn feed_tree_body(tool: &ToolDef, active: Option<&str>, values: &mut Values,
 /// numbers as the engine's `hinge`).
 fn hinge_marks(values: &Values, ctx: &Ctx) -> Vec<Mark> {
     use super::plane;
-    let Some(fr) = values.get("plane").and_then(|v| plane::frame_of(v, ctx)) else { return Vec::new() };
+    let Some(fr) = values.get("plane").and_then(|v| plane::frame_of(v, ctx)) else {
+        return Vec::new();
+    };
     let num = |k: &str, d: f64| values.get(k).and_then(Value::as_f64).unwrap_or(d);
     let (x, slot, web) = (num("x", 0.0), num("slot", 1.0), num("thickness", 0.5));
     if slot <= 0.0 || web <= 0.0 {
@@ -374,8 +525,18 @@ fn hinge_marks(values: &Values, ctx: &Ctx) -> Vec<Mark> {
     }
     let targets = ids_of(values.get("targets"));
     let (mut lo, mut hi, mut reach) = (f64::INFINITY, f64::NEG_INFINITY, 0.0_f64);
-    let rel = |c: &[f32]| [c[0] as f64 - fr.origin[0], c[1] as f64 - fr.origin[1], c[2] as f64 - fr.origin[2]];
-    for b in ctx.bodies.iter().filter(|b| targets.is_empty() || targets.contains(&b.id)) {
+    let rel = |c: &[f32]| {
+        [
+            c[0] as f64 - fr.origin[0],
+            c[1] as f64 - fr.origin[1],
+            c[2] as f64 - fr.origin[2],
+        ]
+    };
+    for b in ctx
+        .bodies
+        .iter()
+        .filter(|b| targets.is_empty() || targets.contains(&b.id))
+    {
         for c in b.mesh.positions.chunks_exact(3) {
             let r = rel(c);
             let d = r[0] * fr.normal[0] + r[1] * fr.normal[1] + r[2] * fr.normal[2];
@@ -395,8 +556,17 @@ fn hinge_marks(values: &Values, ctx: &Ctx) -> Vec<Mark> {
     let u = x + slot / 2.0;
     let web_top = lo + web;
     vec![
-        Mark::Line { a: at(u, -reach - 1.0, web_top), b: at(u, reach + 1.0, web_top), color: HINGE_COL },
-        Mark::Arrow { p: at(u, 0.0, web_top), dir: fr.normal, len: ((hi - web_top) * 0.6).max(1.0), color: HINGE_COL },
+        Mark::Line {
+            a: at(u, -reach - 1.0, web_top),
+            b: at(u, reach + 1.0, web_top),
+            color: HINGE_COL,
+        },
+        Mark::Arrow {
+            p: at(u, 0.0, web_top),
+            dir: fr.normal,
+            len: ((hi - web_top) * 0.6).max(1.0),
+            color: HINGE_COL,
+        },
     ]
 }
 

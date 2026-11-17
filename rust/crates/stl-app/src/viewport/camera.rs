@@ -34,7 +34,11 @@ pub fn dot(a: V3, b: V3) -> f64 {
     a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }
 pub fn cross(a: V3, b: V3) -> V3 {
-    [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]
+    [
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    ]
 }
 pub fn length(a: V3) -> f64 {
     dot(a, a).sqrt()
@@ -53,7 +57,10 @@ pub fn box_is_empty(b: &Aabb) -> bool {
     b.max[0] < b.min[0] || b.max[1] < b.min[1] || b.max[2] < b.min[2]
 }
 pub fn empty_box() -> Aabb {
-    Aabb { min: [f64::INFINITY; 3], max: [f64::NEG_INFINITY; 3] }
+    Aabb {
+        min: [f64::INFINITY; 3],
+        max: [f64::NEG_INFINITY; 3],
+    }
 }
 pub fn box_union(a: &Aabb, b: &Aabb) -> Aabb {
     Aabb {
@@ -91,7 +98,15 @@ pub struct Camera {
 
 impl Default for Camera {
     fn default() -> Self {
-        Camera { position: START_POSITION, target: [0.0; 3], up: [0.0, 0.0, 1.0], width: 1.0, height: 1.0, fly: None, now: 0.0 }
+        Camera {
+            position: START_POSITION,
+            target: [0.0; 3],
+            up: [0.0, 0.0, 1.0],
+            width: 1.0,
+            height: 1.0,
+            fly: None,
+            now: 0.0,
+        }
     }
 }
 
@@ -157,7 +172,12 @@ impl Camera {
         let f = 1.0 / (FOV_DEG.to_radians() / 2.0).tan();
         let a = NEAR / (FAR - NEAR);
         let b = FAR * NEAR / (FAR - NEAR);
-        [[f / self.aspect(), 0.0, 0.0, 0.0], [0.0, f, 0.0, 0.0], [0.0, 0.0, a, -1.0], [0.0, 0.0, b, 0.0]]
+        [
+            [f / self.aspect(), 0.0, 0.0, 0.0],
+            [0.0, f, 0.0, 0.0],
+            [0.0, 0.0, a, -1.0],
+            [0.0, 0.0, b, 0.0],
+        ]
     }
 
     pub fn view_projection(&self) -> M4 {
@@ -254,7 +274,11 @@ impl Camera {
     /// The look up or down stops just short of straight up or down.
     pub fn orbit_about(&mut self, pivot: V3, dx: f64, dy: f64) {
         self.fly = None;
-        let pivot = if pivot.iter().all(|v| v.is_finite()) { pivot } else { self.target };
+        let pivot = if pivot.iter().all(|v| v.is_finite()) {
+            pivot
+        } else {
+            self.target
+        };
         let tau = std::f64::consts::TAU;
         let (d_yaw, d_pitch) = (-tau * dx / self.height, -tau * dy / self.height);
         // the view now: right, up and back axes, and which way it looks
@@ -301,7 +325,11 @@ impl Camera {
         let reach = length(sub(self.target, self.position));
         // a camera on its target (or a broken one) has no distance to clamp: don't zoom in
         let s = if s < 1.0 {
-            if reach > 0.0 && reach.is_finite() { s.max(MIN_RADIUS / reach).min(1.0) } else { 1.0 }
+            if reach > 0.0 && reach.is_finite() {
+                s.max(MIN_RADIUS / reach).min(1.0)
+            } else {
+                1.0
+            }
         } else {
             s
         };
@@ -327,7 +355,10 @@ impl Camera {
             b = scene.unwrap_or_else(empty_box);
         }
         if box_is_empty(&b) {
-            b = Aabb { min: [-50.0, -50.0, 0.0], max: [50.0, 50.0, 50.0] };
+            b = Aabb {
+                min: [-50.0, -50.0, 0.0],
+                max: [50.0, 50.0, 50.0],
+            };
         }
         let c = box_center(&b);
         let mut r = box_diagonal(&b) / 2.0;
@@ -357,7 +388,11 @@ impl Camera {
             None => ([0.0; 3], 60.0),
         };
         let dist = r / self.half_fov().sin() * 1.05;
-        let up = if d[2].abs() > 0.99 { [0.0, if d[2] > 0.0 { 1.0 } else { -1.0 }, 0.0] } else { [0.0, 0.0, 1.0] };
+        let up = if d[2].abs() > 0.99 {
+            [0.0, if d[2] > 0.0 { 1.0 } else { -1.0 }, 0.0]
+        } else {
+            [0.0, 0.0, 1.0]
+        };
         self.fly_to(c, add(c, scale(d, dist)), up);
         true
     }
@@ -387,7 +422,11 @@ impl Camera {
     }
 
     fn fly_to(&mut self, target: V3, pos: V3, up: V3) {
-        self.fly = Some(Fly { start: self.now, from: (self.target, self.position, self.up), to: (target, pos, up) });
+        self.fly = Some(Fly {
+            start: self.now,
+            from: (self.target, self.position, self.up),
+            to: (target, pos, up),
+        });
     }
 
     /// Where the running flight ends: (target, position, up).

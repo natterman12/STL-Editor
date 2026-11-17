@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 
 use stl_kernel::Solid;
 
-use super::frames::{cross, dot, unit, Vec3};
+use super::frames::{Vec3, cross, dot, unit};
 use crate::FeatureError;
 
 /// Rotation matrix taking unit vector `a` onto unit vector `b`.
@@ -15,7 +15,11 @@ pub fn rotation_to(a: Vec3, b: Vec3) -> Result<[[f64; 3]; 3], FeatureError> {
     let c = dot(a, b);
     if c < -0.999999 {
         // opposite: half turn about any axis perpendicular to a
-        let axis = if a[0].abs() < 0.9 { unit(cross(a, [1.0, 0.0, 0.0]))? } else { unit(cross(a, [0.0, 1.0, 0.0]))? };
+        let axis = if a[0].abs() < 0.9 {
+            unit(cross(a, [1.0, 0.0, 0.0]))?
+        } else {
+            unit(cross(a, [0.0, 1.0, 0.0]))?
+        };
         let mut r = [[0.0; 3]; 3];
         for i in 0..3 {
             for j in 0..3 {
@@ -42,15 +46,26 @@ pub fn rotation_to(a: Vec3, b: Vec3) -> Result<[[f64; 3]; 3], FeatureError> {
 /// the part on the bed.
 pub fn best_rest_normal(solid: &Solid) -> Result<Vec3, FeatureError> {
     let hull = solid.hull().to_mesh();
-    let v: Vec<Vec3> = hull.positions.chunks_exact(3).map(|p| [p[0] as f64, p[1] as f64, p[2] as f64]).collect();
+    let v: Vec<Vec3> = hull
+        .positions
+        .chunks_exact(3)
+        .map(|p| [p[0] as f64, p[1] as f64, p[2] as f64])
+        .collect();
     // np.unique(np.round(n, 3)) sorts the keys lexicographically; a BTreeMap on the same
     // rounded values keeps that order. (key -> (total area, triangle indices))
     let mut groups: BTreeMap<[i64; 3], (f64, Vec<(Vec3, f64)>)> = BTreeMap::new();
     for t in hull.triangles.chunks_exact(3) {
         let (p0, p1, p2) = (v[t[0] as usize], v[t[1] as usize], v[t[2] as usize]);
-        let c = cross([p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]], [p2[0] - p0[0], p2[1] - p0[1], p2[2] - p0[2]]);
+        let c = cross(
+            [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]],
+            [p2[0] - p0[0], p2[1] - p0[1], p2[2] - p0[2]],
+        );
         let area = (c[0] * c[0] + c[1] * c[1] + c[2] * c[2]).sqrt() / 2.0;
-        let n = if area > 0.0 { [c[0] / (2.0 * area), c[1] / (2.0 * area), c[2] / (2.0 * area)] } else { [0.0; 3] };
+        let n = if area > 0.0 {
+            [c[0] / (2.0 * area), c[1] / (2.0 * area), c[2] / (2.0 * area)]
+        } else {
+            [0.0; 3]
+        };
         let key = [0, 1, 2].map(|i| (n[i] * 1000.0).round_ties_even() as i64);
         let g = groups.entry(key).or_insert((0.0, Vec::new()));
         g.0 += area;
@@ -58,7 +73,7 @@ pub fn best_rest_normal(solid: &Solid) -> Result<Vec3, FeatureError> {
     }
     let mut best: Option<&(f64, Vec<(Vec3, f64)>)> = None;
     for g in groups.values() {
-        if best.map_or(true, |b| g.0 > b.0) {
+        if best.is_none_or(|b| g.0 > b.0) {
             best = Some(g);
         }
     }
@@ -106,13 +121,15 @@ pub fn par_map<R: Send>(n: usize, f: impl Fn(usize) -> R + Sync) -> Vec<R> {
             let done = std::sync::Mutex::new(&mut out);
             std::thread::scope(|s| {
                 for _ in 0..workers {
-                    s.spawn(|| loop {
-                        let i = next.fetch_add(1, Ordering::Relaxed);
-                        if i >= n {
-                            break;
+                    s.spawn(|| {
+                        loop {
+                            let i = next.fetch_add(1, Ordering::Relaxed);
+                            if i >= n {
+                                break;
+                            }
+                            let r = f(i);
+                            done.lock().unwrap()[i] = Some(r);
                         }
-                        let r = f(i);
-                        done.lock().unwrap()[i] = Some(r);
                     });
                 }
             });

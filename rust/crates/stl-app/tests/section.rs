@@ -15,14 +15,14 @@ use std::time::{Duration, Instant};
 use egui_kittest::Harness;
 use stl_app::engine_link::BodyView;
 use stl_app::viewport::renderer::Headless;
-use stl_app::viewport::section::{self, SectionAxis, CAP_KEEP, CAP_WGSL, UPLOAD_BUDGET_BYTES};
+use stl_app::viewport::section::{self, CAP_KEEP, CAP_WGSL, SectionAxis, UPLOAD_BUDGET_BYTES};
 use stl_app::viewport::{PreviewMesh, PreviewPack, Viewport};
 use stl_kernel::MeshArrays;
 
-#[path = "support/wgpu_renderer.rs"]
-mod wgpu_renderer;
 #[path = "support/gpu.rs"]
 mod gpu;
+#[path = "support/wgpu_renderer.rs"]
+mod wgpu_renderer;
 
 /// Names the adapter in the test log (run with `--nocapture`): snapshots are compared only on
 /// the one in `tests/snapshots/adapter.txt` (see `support/gpu.rs`).
@@ -51,12 +51,26 @@ fn cube_mesh() -> Arc<MeshArrays> {
         [10.0, 10.0, 20.0],
         [-10.0, 10.0, 20.0],
     ];
-    let t: [u32; 36] = [0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7, 0, 1, 5, 0, 5, 4, 1, 2, 6, 1, 6, 5, 2, 3, 7, 2, 7, 6, 3, 0, 4, 3, 4, 7];
-    Arc::new(MeshArrays { positions: p.iter().flatten().map(|&v| v as f32).collect(), triangles: t.to_vec() })
+    let t: [u32; 36] = [
+        0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7, 0, 1, 5, 0, 5, 4, 1, 2, 6, 1, 6, 5, 2, 3, 7, 2, 7, 6, 3, 0, 4, 3, 4, 7,
+    ];
+    Arc::new(MeshArrays {
+        positions: p.iter().flatten().map(|&v| v as f32).collect(),
+        triangles: t.to_vec(),
+    })
 }
 
 fn cube(revision: u64) -> BodyView {
-    BodyView { id: "b1".into(), name: "Cube".into(), color: Some("#9aa7b4".into()), hidden: false, solid: true, mesh: cube_mesh(), revision, holds_up: None }
+    BodyView {
+        id: "b1".into(),
+        name: "Cube".into(),
+        color: Some("#9aa7b4".into()),
+        hidden: false,
+        solid: true,
+        mesh: cube_mesh(),
+        revision,
+        holds_up: None,
+    }
 }
 
 fn close4(a: [f64; 4], b: [f64; 4]) -> bool {
@@ -111,7 +125,11 @@ fn section_plane_matches_viewer_js() {
     empty.set_section(true);
     let cam = empty.camera();
     let expect = section::cut_plane(SectionAxis::Z, 0.0, false, cam.position, cam.target);
-    assert!(close4(empty.section_plane().unwrap(), expect), "{:?}", empty.section_plane());
+    assert!(
+        close4(empty.section_plane().unwrap(), expect),
+        "{:?}",
+        empty.section_plane()
+    );
 
     assert!(CAP_WGSL.contains("fn fs_cap"));
     assert!(CAP_WGSL.contains("cap_body.color"), "the cap takes the body's colour");
@@ -148,7 +166,10 @@ fn section_cap_on_dimmed_bodies_not_previews() {
     vp.flush();
     vp.set_dimmed(&["b1".to_owned()], true);
     vp.show_preview(&PreviewPack {
-        meshes: vec![PreviewMesh { id: "fin".into(), mesh: cube_mesh() }],
+        meshes: vec![PreviewMesh {
+            id: "fin".into(),
+            mesh: cube_mesh(),
+        }],
         ..PreviewPack::default()
     });
     vp.flush(); // the preview's meshes are prepared on a worker thread
@@ -156,7 +177,11 @@ fn section_cap_on_dimmed_bodies_not_previews() {
     let frame = vp.frame_for_size(64.0, 48.0, 1.0);
     let body = frame.bodies.iter().find(|d| d.key == "b1").expect("the body");
     assert!(body.transparent && body.cap, "a dimmed body keeps its cap");
-    let fin = frame.bodies.iter().find(|d| d.key.ends_with("preview:fin")).expect("the preview");
+    let fin = frame
+        .bodies
+        .iter()
+        .find(|d| d.key.ends_with("preview:fin"))
+        .expect("the preview");
     assert!(!fin.cap, "a preview mesh has no cap");
 }
 
@@ -166,15 +191,20 @@ fn section_toggle_always_repaints() {
     vp.borrow_mut().sync_bodies(&[cube(1)]);
     vp.borrow_mut().flush();
     let shown = vp.clone();
-    let mut harness = Harness::builder().with_size(egui::vec2(160.0, 120.0)).build_ui(move |ui| {
-        shown.borrow_mut().show(ui);
-    });
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(160.0, 120.0))
+        .build_ui(move |ui| {
+            shown.borrow_mut().show(ui);
+        });
     harness.run();
     assert!(!harness.ctx.has_requested_repaint(), "idle before the toggle");
     for on in [true, true, false, false, true] {
         vp.borrow_mut().set_section_enabled(on);
         assert_eq!(vp.borrow().section_enabled(), on);
-        assert!(harness.ctx.has_requested_repaint(), "set_section_enabled({on}) asked for no frame");
+        assert!(
+            harness.ctx.has_requested_repaint(),
+            "set_section_enabled({on}) asked for no frame"
+        );
         harness.run();
         let flags = vp.borrow_mut().frame_for_size(160.0, 120.0, 1.0).globals.flags[0];
         assert_eq!(flags, if on { 1.0 } else { 0.0 });
@@ -218,7 +248,11 @@ fn section_picture(gpu: &Headless, dark: bool, section: bool, name: Option<&str>
     hidden.id = "b2".into();
     hidden.hidden = true;
     hidden.mesh = Arc::new(MeshArrays {
-        positions: cube_mesh().positions.chunks_exact(3).flat_map(|p| [p[0] + 30.0, p[1], p[2]]).collect(),
+        positions: cube_mesh()
+            .positions
+            .chunks_exact(3)
+            .flat_map(|p| [p[0] + 30.0, p[1], p[2]])
+            .collect(),
         triangles: cube_mesh().triangles.clone(),
     });
     vp.sync_bodies(&[cube(1), hidden]);
@@ -228,20 +262,35 @@ fn section_picture(gpu: &Headless, dark: bool, section: bool, name: Option<&str>
     vp.camera_mut().finish_flight();
     vp.set_section(section);
     let renderer = wgpu_renderer::WgpuRenderer::new(gpu.render_state.clone());
-    let mut harness = Harness::builder().with_size(egui::vec2(320.0, 240.0)).with_render_cursor(false).renderer(renderer).build_ui(move |ui| {
-        egui::CentralPanel::default().frame(egui::Frame::NONE).show(ui, |ui| {
-            vp.show(ui);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(320.0, 240.0))
+        .with_render_cursor(false)
+        .renderer(renderer)
+        .build_ui(move |ui| {
+            egui::CentralPanel::default().frame(egui::Frame::NONE).show(ui, |ui| {
+                vp.show(ui);
+            });
         });
-    });
     harness.run();
     if let Some(name) = name {
         gpu::snapshot(&mut harness, gpu, name);
     }
     let picture = harness.render().expect("section picture");
     // this test makes several harnesses: check each one's snapshot here
-    let errors: Vec<String> = harness.take_snapshot_results().into_inner().iter().map(|e| e.to_string()).collect();
-    assert!(errors.is_empty(), "{}", errors.join("
-"));
+    let errors: Vec<String> = harness
+        .take_snapshot_results()
+        .into_inner()
+        .iter()
+        .map(|e| e.to_string())
+        .collect();
+    assert!(
+        errors.is_empty(),
+        "{}",
+        errors.join(
+            "
+"
+        )
+    );
     gpu::assert_view_toolbar(&picture, dark, gpu::top_band(&picture), name.unwrap_or("section"));
     picture
 }
@@ -258,26 +307,47 @@ fn section_snapshot() {
     let dark_caps = cap_pixels(&dark);
     let light_caps = cap_pixels(&light);
     let open_caps = cap_pixels(&open);
-    assert!(dark_caps >= 2000, "dark section shows {dark_caps} cap pixels, image {}x{}", dark.width(), dark.height());
+    assert!(
+        dark_caps >= 2000,
+        "dark section shows {dark_caps} cap pixels, image {}x{}",
+        dark.width(),
+        dark.height()
+    );
     assert!(light_caps >= 2000, "light section shows {light_caps} cap pixels");
-    assert!(open_caps * 4 < dark_caps, "section off has {open_caps} cap-coloured pixels, on has {dark_caps}");
+    assert!(
+        open_caps * 4 < dark_caps,
+        "section off has {open_caps} cap-coloured pixels, on has {dark_caps}"
+    );
     // no red cut face: what red is left is the X axis' thin line
     for (name, img) in [("dark", &dark), ("light", &light)] {
         let red = red_pixels(img);
-        assert!(red < 400, "{name}: {red} red-dominant pixels; the cut face must not be red");
+        assert!(
+            red < 400,
+            "{name}: {red} red-dominant pixels; the cut face must not be red"
+        );
     }
-    assert_ne!(dark.as_raw(), light.as_raw(), "dark and light section views are the same picture");
+    assert_ne!(
+        dark.as_raw(),
+        light.as_raw(),
+        "dark and light section views are the same picture"
+    );
 }
 
 /// A hatch line pixel: the cut face darkened again, with the plain cut face a few pixels to
 /// both sides (the dark background has pixels of the same colour, but not beside the cut face).
 fn hatch_at(img: &image::RgbaImage, x: u32, y: u32) -> bool {
     let (w, _) = img.dimensions();
-    near(img.get_pixel(x, y), LINE_RGB, 8) && x >= 3 && x + 3 < w && near(img.get_pixel(x - 3, y), CAP_RGB, 6) && near(img.get_pixel(x + 3, y), CAP_RGB, 6)
+    near(img.get_pixel(x, y), LINE_RGB, 8)
+        && x >= 3
+        && x + 3 < w
+        && near(img.get_pixel(x - 3, y), CAP_RGB, 6)
+        && near(img.get_pixel(x + 3, y), CAP_RGB, 6)
 }
 
 fn hatch_pixels(img: &image::RgbaImage) -> usize {
-    (0..img.height()).map(|y| (0..img.width()).filter(|&x| hatch_at(img, x, y)).count()).sum()
+    (0..img.height())
+        .map(|y| (0..img.width()).filter(|&x| hatch_at(img, x, y)).count())
+        .sum()
 }
 
 /// The cube cut on Z (from the default iso view), with or without Hatch.
@@ -293,21 +363,39 @@ fn hatch_picture(gpu: &Headless, dark: bool, hatch: bool, grid: bool, name: Opti
     vp.set_grid_visible(grid);
     vp.set_section(true);
     vp.set_section_hatch(hatch);
-    assert_eq!(vp.frame_for_size(320.0, 240.0, 1.0).globals.flags[1], if hatch { 1.0 } else { 0.0 });
+    assert_eq!(
+        vp.frame_for_size(320.0, 240.0, 1.0).globals.flags[1],
+        if hatch { 1.0 } else { 0.0 }
+    );
     let renderer = wgpu_renderer::WgpuRenderer::new(gpu.render_state.clone());
-    let mut harness = Harness::builder().with_size(egui::vec2(320.0, 240.0)).with_render_cursor(false).renderer(renderer).build_ui(move |ui| {
-        egui::CentralPanel::default().frame(egui::Frame::NONE).show(ui, |ui| {
-            vp.show(ui);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(320.0, 240.0))
+        .with_render_cursor(false)
+        .renderer(renderer)
+        .build_ui(move |ui| {
+            egui::CentralPanel::default().frame(egui::Frame::NONE).show(ui, |ui| {
+                vp.show(ui);
+            });
         });
-    });
     harness.run();
     if let Some(name) = name {
         gpu::snapshot(&mut harness, gpu, name);
     }
     let picture = harness.render().expect("hatch picture");
-    let errors: Vec<String> = harness.take_snapshot_results().into_inner().iter().map(|e| e.to_string()).collect();
-    assert!(errors.is_empty(), "{}", errors.join("
-"));
+    let errors: Vec<String> = harness
+        .take_snapshot_results()
+        .into_inner()
+        .iter()
+        .map(|e| e.to_string())
+        .collect();
+    assert!(
+        errors.is_empty(),
+        "{}",
+        errors.join(
+            "
+"
+        )
+    );
     picture
 }
 
@@ -326,15 +414,25 @@ fn section_hatch_snapshot() {
         let on = hatch_picture(&gpu, dark, true, true, Some(&format!("section_hatch_on_{theme}")));
         let off = hatch_picture(&gpu, dark, false, true, Some(&format!("section_hatch_off_{theme}")));
         let name = format!("section_hatch_{theme}");
-        assert_ne!(on.as_raw(), off.as_raw(), "{name}: Hatch on and off are the same picture");
+        assert_ne!(
+            on.as_raw(),
+            off.as_raw(),
+            "{name}: Hatch on and off are the same picture"
+        );
         let (lines_on, lines_off) = (hatch_pixels(&on), hatch_pixels(&off));
         let (cap_on, cap_off) = (cap_pixels(&on), cap_pixels(&off));
         eprintln!("{name}: hatch pixels {lines_on} (off {lines_off}), cap pixels {cap_on} (off {cap_off})");
         assert!(cap_off >= 2000, "{name}: the plain cut face shows {cap_off} pixels");
         assert!(lines_on >= 300, "{name}: only {lines_on} hatch-line pixels");
-        assert!(lines_off * 4 < lines_on, "{name}: hatch-coloured pixels without Hatch: {lines_off}, with: {lines_on}");
+        assert!(
+            lines_off * 4 < lines_on,
+            "{name}: hatch-coloured pixels without Hatch: {lines_off}, with: {lines_on}"
+        );
         // the lines are drawn on the cut face, in place of some of its plain colour
-        assert!(cap_on < cap_off && cap_on * 3 > cap_off, "{name}: cut face {cap_on} with lines, {cap_off} plain");
+        assert!(
+            cap_on < cap_off && cap_on * 3 > cap_off,
+            "{name}: cut face {cap_on} with lines, {cap_off} plain"
+        );
         // no red cut face
         for (what, img) in [("on", &on), ("off", &off)] {
             let red = red_pixels(img);
@@ -342,13 +440,20 @@ fn section_hatch_snapshot() {
         }
         // diagonal: along a row through the cut face, line pixels repeat every HATCH_SPACING pixels
         // (12; 6 until Nathan asked for wider spacing, 2026-11-16)
-        let y = (0..on.height()).max_by_key(|&y| (0..on.width()).filter(|&x| hatch_at(&on, x, y)).count()).unwrap();
-        let xs: Vec<u32> = (0..on.width()).filter(|&x| hatch_at(&on, x, y) && !(x > 0 && hatch_at(&on, x - 1, y))).collect();
+        let y = (0..on.height())
+            .max_by_key(|&y| (0..on.width()).filter(|&x| hatch_at(&on, x, y)).count())
+            .unwrap();
+        let xs: Vec<u32> = (0..on.width())
+            .filter(|&x| hatch_at(&on, x, y) && !(x > 0 && hatch_at(&on, x - 1, y)))
+            .collect();
         let gaps: Vec<u32> = xs.windows(2).map(|w| w[1] - w[0]).collect();
         assert!(gaps.len() >= 4, "{name}: too few lines on row {y}: {xs:?}");
         let mean = gaps.iter().sum::<u32>() as f64 / gaps.len() as f64;
         let want = stl_app::viewport::section::HATCH_SPACING;
-        assert!((mean - want).abs() < 1.0, "{name}: lines {mean:.2} px apart on row {y}, not {want}: {xs:?}");
+        assert!(
+            (mean - want).abs() < 1.0,
+            "{name}: lines {mean:.2} px apart on row {y}, not {want}: {xs:?}"
+        );
         // the grid never shows in the cut face: with the grid off, those pixels are the same.
         // The face is found in the plain (Hatch off) picture, well inside its edge, where the
         // pixels blend with whatever is behind the face.
@@ -361,8 +466,18 @@ fn section_hatch_snapshot() {
         assert!(face.len() >= 1500, "{name}: only {} cut-face pixels", face.len());
         for (what, hatch, with_grid) in [("on", true, &on), ("off", false, &off)] {
             let without = hatch_picture(&gpu, dark, hatch, false, None);
-            let moved = face.iter().filter(|&&(x, y)| (0..3).any(|k| with_grid.get_pixel(x, y).0[k].abs_diff(without.get_pixel(x, y).0[k]) > 2)).count();
-            assert_eq!(moved, 0, "{name} {what}: the grid changes {moved} of {} cut-face pixels", face.len());
+            let moved = face
+                .iter()
+                .filter(|&&(x, y)| {
+                    (0..3).any(|k| with_grid.get_pixel(x, y).0[k].abs_diff(without.get_pixel(x, y).0[k]) > 2)
+                })
+                .count();
+            assert_eq!(
+                moved,
+                0,
+                "{name} {what}: the grid changes {moved} of {} cut-face pixels",
+                face.len()
+            );
         }
     }
 }
@@ -378,8 +493,21 @@ fn pocket_preview() -> (BodyView, PreviewPack) {
     doc.add_feature("primitive", obj(boxp), None).unwrap();
     let sk = json!({"plane": {"origin": [0, 0, 20], "normal": [0, 0, 1]}, "entities": [{"type": "rect", "id": "r1", "x": 5, "y": 5, "w": 10, "h": 10}]});
     doc.add_feature("sketch", obj(sk), None).unwrap();
-    let body = BodyView { id: "f1".into(), name: "Box".into(), color: Some("#9aa7b4".into()), hidden: false, solid: true, mesh: Arc::new(doc.state.bodies["f1"].solid.as_ref().unwrap().to_mesh()), revision: 1, holds_up: None };
-    let (state, res) = doc.preview("extrude", obj(json!({"sketch": "f2", "operation": "cut", "distance": 8, "direction": "one", "targets": ["f1"]})), None);
+    let body = BodyView {
+        id: "f1".into(),
+        name: "Box".into(),
+        color: Some("#9aa7b4".into()),
+        hidden: false,
+        solid: true,
+        mesh: Arc::new(doc.state.bodies["f1"].solid.as_ref().unwrap().to_mesh()),
+        revision: 1,
+        holds_up: None,
+    };
+    let (state, res) = doc.preview(
+        "extrude",
+        obj(json!({"sketch": "f2", "operation": "cut", "distance": 8, "direction": "one", "targets": ["f1"]})),
+        None,
+    );
     assert_eq!(res.error, None);
     let pack = stl_app::engine_link::views::preview_pack(&state, &res);
     assert!(pack.cutter.is_some(), "the preview carries the cutter");
@@ -404,17 +532,32 @@ fn tint_picture(gpu: &Headless, tint: bool, name: &str) -> image::RgbaImage {
     vp.fit_all();
     vp.camera_mut().finish_flight();
     let renderer = wgpu_renderer::WgpuRenderer::new(gpu.render_state.clone());
-    let mut harness = Harness::builder().with_size(egui::vec2(320.0, 240.0)).with_render_cursor(false).renderer(renderer).build_ui(move |ui| {
-        egui::CentralPanel::default().frame(egui::Frame::NONE).show(ui, |ui| {
-            vp.show(ui);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(320.0, 240.0))
+        .with_render_cursor(false)
+        .renderer(renderer)
+        .build_ui(move |ui| {
+            egui::CentralPanel::default().frame(egui::Frame::NONE).show(ui, |ui| {
+                vp.show(ui);
+            });
         });
-    });
     harness.run();
     gpu::snapshot(&mut harness, gpu, name);
     let picture = harness.render().expect("cut tint picture");
-    let errors: Vec<String> = harness.take_snapshot_results().into_inner().iter().map(|e| e.to_string()).collect();
-    assert!(errors.is_empty(), "{}", errors.join("
-"));
+    let errors: Vec<String> = harness
+        .take_snapshot_results()
+        .into_inner()
+        .iter()
+        .map(|e| e.to_string())
+        .collect();
+    assert!(
+        errors.is_empty(),
+        "{}",
+        errors.join(
+            "
+"
+        )
+    );
     picture
 }
 
@@ -430,7 +573,10 @@ fn cut_tint_pocket_preview() {
     let off = tint_picture(&gpu, false, "cut_tint_pocket_preview_off");
     let (red_on, red_off) = (red_pixels(&on), red_pixels(&off));
     eprintln!("cut tint: {red_on} red pixels (off: {red_off})");
-    assert!(red_on > red_off + 150, "the tint shows: {red_on} red-dominant pixels with it, {red_off} without");
+    assert!(
+        red_on > red_off + 150,
+        "the tint shows: {red_on} red-dominant pixels with it, {red_off} without"
+    );
     assert!(red_off < 400, "nothing red without the tint: {red_off}");
 }
 
@@ -501,7 +647,12 @@ fn idle_draws_no_frames() {
         harness.input_mut().time = Some(now);
         harness.step();
     }
-    assert_eq!(paints, 0, "idle requested {paints} repaints within 5 s (next in {:?})", repaint_delay(&harness));
+    assert_eq!(
+        paints,
+        0,
+        "idle requested {paints} repaints within 5 s (next in {:?})",
+        repaint_delay(&harness)
+    );
 
     // Forced frames (the OS repainting the window): painted, but the scene is not drawn again.
     for _ in 0..5 {
@@ -570,7 +721,10 @@ fn rebuild_never_stalls() {
         times.len(),
         vp.stats().uploads()
     );
-    assert!(vp.stats().uploads() > uploads_before, "the rebuilt mesh was never uploaded");
+    assert!(
+        vp.stats().uploads() > uploads_before,
+        "the rebuilt mesh was never uploaded"
+    );
     // a frame budget for a GPU: a software rasterizer (WARP on the CI runner) draws the bench
     // mesh at 1280 x 800 on the CPU, far slower with or without a rebuild
     if gpu::is_software(&gpu) {

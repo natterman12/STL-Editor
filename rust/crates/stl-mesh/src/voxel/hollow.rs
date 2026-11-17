@@ -3,7 +3,7 @@
 
 use stl_kernel::Solid;
 
-use super::{Grid3, distance_transform_edt, field_to_solid, solid_occupancy, SampleIndex, SurfaceSampler};
+use super::{Grid3, SampleIndex, SurfaceSampler, distance_transform_edt, field_to_solid, solid_occupancy};
 use crate::MeshError;
 
 const CAP_MSG: &str = "Resolution too fine for this model size. Use a coarser setting.";
@@ -21,7 +21,9 @@ pub fn sample_distances(index: &SampleIndex<'_>, centers: &[[f64; 3]]) -> Result
     #[cfg(not(target_arch = "wasm32"))]
     {
         use rayon::prelude::*;
-        out.par_iter_mut().zip(centers.par_iter()).for_each(|(o, &c)| *o = index.nearest_dist(c));
+        out.par_iter_mut()
+            .zip(centers.par_iter())
+            .for_each(|(o, &c)| *o = index.nearest_dist(c));
     }
     #[cfg(target_arch = "wasm32")]
     {
@@ -84,7 +86,11 @@ pub fn hollow(s: &Solid, thickness: f64, pitch: Option<f64>, cavity_only: bool) 
         centers.extend(band.iter().map(|&i| {
             let (k, ij) = (i % n2, i / n2);
             let (j, ii) = (ij % n1, ij / n1);
-            [origin[0] + ii as f64 * pitch, origin[1] + j as f64 * pitch, origin[2] + k as f64 * pitch]
+            [
+                origin[0] + ii as f64 * pitch,
+                origin[1] + j as f64 * pitch,
+                origin[2] + k as f64 * pitch,
+            ]
         }));
         let dd = match SampleIndex::new(&sampler) {
             Some(index) => sample_distances(&index, &centers)?,
@@ -143,5 +149,3 @@ mod tests {
         assert_eq!(f32_norm([3.0, 4.0, 0.0]), 5.0);
     }
 }
-
-

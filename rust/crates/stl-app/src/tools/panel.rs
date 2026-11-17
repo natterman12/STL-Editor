@@ -8,14 +8,16 @@
 
 use std::collections::BTreeMap;
 
-use egui::{Align, Align2, Area, CornerRadius, Frame, Id, Layout, Margin, Order, Rect, RichText, Sense, Stroke, Ui, Vec2};
+use egui::{
+    Align, Align2, Area, CornerRadius, Frame, Id, Layout, Margin, Order, Rect, RichText, Sense, Stroke, Ui, Vec2,
+};
 use serde_json::{Map, Value};
 use stl_engine::params::resolve_deep;
 
 use super::fields::bool::truthy;
-use super::gizmo::{Gizmo, GizmoBody};
 use super::fields::number::{expr_title, is_expr, num_value, parse_num};
-use super::fields::{self, Bufs, FieldEnv, FORM_W};
+use super::fields::{self, Bufs, FORM_W, FieldEnv};
+use super::gizmo::{Gizmo, GizmoBody};
 use super::preview::{MsgKind, PreviewState, ToolMsg};
 use super::{Ctx, Field, FieldKind, ToolDef, Values};
 use crate::theme::Tokens;
@@ -59,7 +61,19 @@ pub struct PanelEnv<'a> {
 /// the drawing changes; the tool's fields and what it sends stay as defined.
 pub fn panel_layout(key: &str) -> (&'static [&'static str], &'static [&'static str]) {
     match key {
-        "extrude" => (&["regions", "sketch", "direction", "through_all", "distance", "distance2", "operation", "targets"], &["start_offset", "taper"]),
+        "extrude" => (
+            &[
+                "regions",
+                "sketch",
+                "direction",
+                "through_all",
+                "distance",
+                "distance2",
+                "operation",
+                "targets",
+            ],
+            &["start_offset", "taper"],
+        ),
         "revolve" => (&["regions", "sketch", "axis", "angle", "operation", "targets"], &[]),
         "thread" => (&[], &["tolerance", "hand", "chamfer"]),
         "combine" => (&[], &["clearance", "keep_tools"]),
@@ -71,9 +85,19 @@ pub fn panel_layout(key: &str) -> (&'static [&'static str], &'static [&'static s
 /// The fields in the order the panel draws them: (the main ones, the folded ones).
 pub fn laid_out(def: &'static ToolDef) -> (Vec<&'static Field>, Vec<&'static Field>) {
     let (first, more) = panel_layout(def.key);
-    let mut main: Vec<&'static Field> = first.iter().filter_map(|k| def.fields.iter().find(|f| f.key == *k)).collect();
-    main.extend(def.fields.iter().filter(|f| !first.contains(&f.key) && !more.contains(&f.key)));
-    let folded = more.iter().filter_map(|k| def.fields.iter().find(|f| f.key == *k)).collect();
+    let mut main: Vec<&'static Field> = first
+        .iter()
+        .filter_map(|k| def.fields.iter().find(|f| f.key == *k))
+        .collect();
+    main.extend(
+        def.fields
+            .iter()
+            .filter(|f| !first.contains(&f.key) && !more.contains(&f.key)),
+    );
+    let folded = more
+        .iter()
+        .filter_map(|k| def.fields.iter().find(|f| f.key == *k))
+        .collect();
     (main, folded)
 }
 
@@ -145,7 +169,12 @@ fn arr_len(v: Option<&Value>) -> usize {
 }
 
 impl OpenTool {
-    pub fn new(def: &'static ToolDef, values: Values, edit_id: Option<String>, prev_rollback: Option<usize>) -> OpenTool {
+    pub fn new(
+        def: &'static ToolDef,
+        values: Values,
+        edit_id: Option<String>,
+        prev_rollback: Option<usize>,
+    ) -> OpenTool {
         let active_field = fields::bodies::first_active(def, &values);
         OpenTool {
             def,
@@ -177,21 +206,27 @@ impl OpenTool {
 
     /// The panel's title: `Edit ` before the name when a step is edited.
     pub fn title(&self) -> String {
-        format!("{}{}", if self.edit_id.is_some() { "Edit " } else { "" }, self.def.label)
+        format!(
+            "{}{}",
+            if self.edit_id.is_some() { "Edit " } else { "" },
+            self.def.label
+        )
     }
 
     /// `setValue(key, val)`: store it, run `onChange` and schedule a preview.
     pub fn set_value(&mut self, key: &str, val: Value, ctx: &Ctx) {
         self.values.insert(key.to_owned(), val);
         self.after_set(key, ctx);
-        self.preview.schedule(super::preview::DELAY_MS, self.def.flags.no_live_preview);
+        self.preview
+            .schedule(super::preview::DELAY_MS, self.def.flags.no_live_preview);
     }
 
     /// `setValue` without `onChange` (the wall editor, the keys W / R and Support Fins' picks).
     pub fn set_value_plain(&mut self, key: &str, val: Value) {
         self.values.insert(key.to_owned(), val);
         self.changed.push(key.to_owned());
-        self.preview.schedule(super::preview::DELAY_MS, self.def.flags.no_live_preview);
+        self.preview
+            .schedule(super::preview::DELAY_MS, self.def.flags.no_live_preview);
     }
 
     /// Several values at once (the gizmo writes `translate`, `rotate` or `size`): `onChange` runs for
@@ -201,16 +236,17 @@ impl OpenTool {
             self.values.insert(k.clone(), v);
             self.after_set(&k, ctx);
         }
-        self.preview.schedule(super::preview::DELAY_MS, self.def.flags.no_live_preview);
+        self.preview
+            .schedule(super::preview::DELAY_MS, self.def.flags.no_live_preview);
     }
 
     fn after_set(&mut self, key: &str, ctx: &Ctx) {
         self.changed.push(key.to_owned());
-        if let Some(oc) = self.def.on_change {
-            if let Some(patch) = oc(key, &self.values, ctx) {
-                for (k, v) in patch {
-                    self.values.insert(k, v);
-                }
+        if let Some(oc) = self.def.on_change
+            && let Some(patch) = oc(key, &self.values, ctx)
+        {
+            for (k, v) in patch {
+                self.values.insert(k, v);
             }
         }
         if self.def.key == "scale" && key == "size" {
@@ -220,20 +256,30 @@ impl OpenTool {
 
     /// Scale: with "uniform" on, an edit of one axis scales the others from `_size0` (app.js:826).
     fn keep_proportions(&mut self) {
-        let nums = |v: Option<&Value>| -> Option<Vec<f64>> { v.and_then(Value::as_array).map(|a| a.iter().map(|x| x.as_f64().unwrap_or(f64::NAN)).collect()) };
-        let Some(val) = nums(self.values.get("size")) else { return };
+        let nums = |v: Option<&Value>| -> Option<Vec<f64>> {
+            v.and_then(Value::as_array)
+                .map(|a| a.iter().map(|x| x.as_f64().unwrap_or(f64::NAN)).collect())
+        };
+        let Some(val) = nums(self.values.get("size")) else {
+            return;
+        };
         let uniform = self.values.get("uniform").is_some_and(truthy);
-        let Some(s0) = nums(self.values.get("_size0")) else { return };
+        let Some(s0) = nums(self.values.get("_size0")) else {
+            return;
+        };
         if !uniform {
             return;
         }
         let prev = self.last_size.clone().unwrap_or_else(|| s0.clone());
-        if let Some(i) = val.iter().enumerate().position(|(j, x)| (x - prev.get(j).copied().unwrap_or(f64::NAN)).abs() > 1e-9) {
-            if s0.get(i).copied().unwrap_or(0.0) > 0.0 {
-                let k = val[i] / s0[i];
-                let size: Vec<Value> = s0.iter().map(|x| num_value((x * k * 1e4).round() / 1e4)).collect();
-                self.values.insert("size".into(), Value::Array(size));
-            }
+        if let Some(i) = val
+            .iter()
+            .enumerate()
+            .position(|(j, x)| (x - prev.get(j).copied().unwrap_or(f64::NAN)).abs() > 1e-9)
+            && s0.get(i).copied().unwrap_or(0.0) > 0.0
+        {
+            let k = val[i] / s0[i];
+            let size: Vec<Value> = s0.iter().map(|x| num_value((x * k * 1e4).round() / 1e4)).collect();
+            self.values.insert("size".into(), Value::Array(size));
         }
         self.last_size = nums(self.values.get("size"));
     }
@@ -281,13 +327,12 @@ impl OpenTool {
     pub fn params(&self, ctx: &Ctx) -> Value {
         let mut v = self.values.clone();
         for f in &self.def.fields {
-            if matches!(f.kind, FieldKind::Number { .. }) {
-                if let Some(x) = v.get(f.key) {
-                    if !is_expr(x) {
-                        let n = parse_num(x);
-                        v.insert(f.key.to_owned(), num_value(n));
-                    }
-                }
+            if matches!(f.kind, FieldKind::Number { .. })
+                && let Some(x) = v.get(f.key)
+                && !is_expr(x)
+            {
+                let n = parse_num(x);
+                v.insert(f.key.to_owned(), num_value(n));
             }
         }
         let mut p = (self.def.to_params)(&v, ctx);
@@ -318,30 +363,56 @@ impl OpenTool {
         let mut out = PanelOut::default();
         let pos = egui::pos2(env.ws.max.x - INSET - PANEL_W, env.ws.min.y + INSET);
         let max_h = (env.ws.height() - 60.0).max(120.0);
-        Area::new(Id::unique("tool-panel")).order(Order::Middle).fixed_pos(pos).show(egui_ctx, |ui| {
-            Frame::new().fill(tk.panel).stroke(Stroke::new(1.0, tk.line)).corner_radius(CornerRadius::same(tk.radius as u8)).shadow(tk.shadow).show(ui, |ui| {
-                ui.set_width(PANEL_W - 2.0);
-                ui.spacing_mut().item_spacing = Vec2::new(0.0, 0.0);
-                self.title_row(ui, egui_ctx, tk, &mut out);
-                let msg_h = self.msg.as_ref().map_or(0.0, |_| 40.0);
-                let form_h = (max_h - 36.0 - 46.0 - msg_h - 2.0).max(60.0);
-                egui::ScrollArea::vertical().max_height(form_h).auto_shrink([false, true]).id_salt("tool-form").show(ui, |ui| {
-                    // `#tool-form { padding: 8px 10px }`, then the first field's own 6 px margin
-                    Frame::new().inner_margin(Margin { left: 10, right: 10, top: 8, bottom: 8 }).show(ui, |ui| {
-                        ui.set_width(FORM_W);
-                        self.form(ui, env, &mut out);
+        Area::new(Id::unique("tool-panel"))
+            .order(Order::Middle)
+            .fixed_pos(pos)
+            .show(egui_ctx, |ui| {
+                Frame::new()
+                    .fill(tk.panel)
+                    .stroke(Stroke::new(1.0, tk.line))
+                    .corner_radius(CornerRadius::same(tk.radius as u8))
+                    .shadow(tk.shadow)
+                    .show(ui, |ui| {
+                        ui.set_width(PANEL_W - 2.0);
+                        ui.spacing_mut().item_spacing = Vec2::new(0.0, 0.0);
+                        self.title_row(ui, egui_ctx, tk, &mut out);
+                        let msg_h = self.msg.as_ref().map_or(0.0, |_| 40.0);
+                        let form_h = (max_h - 36.0 - 46.0 - msg_h - 2.0).max(60.0);
+                        egui::ScrollArea::vertical()
+                            .max_height(form_h)
+                            .auto_shrink([false, true])
+                            .id_salt("tool-form")
+                            .show(ui, |ui| {
+                                // `#tool-form { padding: 8px 10px }`, then the first field's own 6 px margin
+                                Frame::new()
+                                    .inner_margin(Margin {
+                                        left: 10,
+                                        right: 10,
+                                        top: 8,
+                                        bottom: 8,
+                                    })
+                                    .show(ui, |ui| {
+                                        ui.set_width(FORM_W);
+                                        self.form(ui, env, &mut out);
+                                    });
+                            });
+                        if let Some(m) = &self.msg {
+                            Frame::new()
+                                .inner_margin(Margin {
+                                    left: 10,
+                                    right: 10,
+                                    top: 0,
+                                    bottom: 0,
+                                })
+                                .show(ui, |ui| {
+                                    ui.set_width(FORM_W);
+                                    message(ui, tk, m);
+                                    ui.add_space(6.0);
+                                });
+                        }
+                        self.actions(ui, tk, &mut out);
                     });
-                });
-                if let Some(m) = &self.msg {
-                    Frame::new().inner_margin(Margin { left: 10, right: 10, top: 0, bottom: 0 }).show(ui, |ui| {
-                        ui.set_width(FORM_W);
-                        message(ui, tk, m);
-                        ui.add_space(6.0);
-                    });
-                }
-                self.actions(ui, tk, &mut out);
             });
-        });
         out
     }
 
@@ -357,19 +428,29 @@ impl OpenTool {
         let font = egui::FontId::new(12.0, egui::FontFamily::Name("bold".into()));
         let close = Rect::from_center_size(egui::pos2(rect.max.x - 8.0 - 11.0, cy), Vec2::splat(22.0));
         let title = self.title();
-        let galley = ui.painter().layout(title.clone(), font, tk.strong, (close.min.x - 7.0 - x).max(10.0));
-        ui.painter().galley(egui::pos2(x, cy - galley.size().y / 2.0), galley, tk.strong);
+        let galley = ui
+            .painter()
+            .layout(title.clone(), font, tk.strong, (close.min.x - 7.0 - x).max(10.0));
+        ui.painter()
+            .galley(egui::pos2(x, cy - galley.size().y / 2.0), galley, tk.strong);
         let resp = ui.interact(close, Id::unique("tool-close"), Sense::click());
         resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, "Close"));
         if resp.hovered() {
             ui.painter().rect_filled(close, CornerRadius::same(4), tk.hover);
         }
-        ui.painter().text(close.center(), Align2::CENTER_CENTER, "×", egui::FontId::proportional(17.0), if resp.hovered() { tk.strong } else { tk.muted });
+        ui.painter().text(
+            close.center(),
+            Align2::CENTER_CENTER,
+            "×",
+            egui::FontId::proportional(17.0),
+            if resp.hovered() { tk.strong } else { tk.muted },
+        );
         resp.on_hover_text("Cancel (Esc)");
         if ui.interact(close, Id::unique("tool-close"), Sense::click()).clicked() {
             out.cancel = true;
         }
-        ui.painter().hline(rect.x_range(), rect.max.y, Stroke::new(1.0, tk.divider));
+        ui.painter()
+            .hline(rect.x_range(), rect.max.y, Stroke::new(1.0, tk.divider));
     }
 
     /// Support Fins and Draw Walls: Support Fins' own settings, drawn by `supports::show`.
@@ -385,14 +466,18 @@ impl OpenTool {
         if sess.body_active != was_active {
             self.active_field = sess.body_active.then(|| "body".to_owned());
         }
-        if events.iter().any(|e| matches!(e, crate::supports::PanelEvent::Edited(_))) {
+        if events
+            .iter()
+            .any(|e| matches!(e, crate::supports::PanelEvent::Edited(_)))
+        {
             for e in &events {
                 if let crate::supports::PanelEvent::Edited(k) = e {
                     self.changed.push(k.clone());
                 }
             }
             self.values = sess.values.clone();
-            self.preview.schedule(super::preview::DELAY_MS, self.def.flags.no_live_preview);
+            self.preview
+                .schedule(super::preview::DELAY_MS, self.def.flags.no_live_preview);
             out.changed = true;
         }
         out.sf_events = events;
@@ -406,12 +491,27 @@ impl OpenTool {
         resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::Button, true, open, "More options"));
         let c = egui::pos2(r.min.x + 5.0, r.center().y);
         let tri = if open {
-            vec![c + egui::vec2(-4.0, -2.0), c + egui::vec2(4.0, -2.0), c + egui::vec2(0.0, 3.0)]
+            vec![
+                c + egui::vec2(-4.0, -2.0),
+                c + egui::vec2(4.0, -2.0),
+                c + egui::vec2(0.0, 3.0),
+            ]
         } else {
-            vec![c + egui::vec2(-2.0, -4.0), c + egui::vec2(3.0, 0.0), c + egui::vec2(-2.0, 4.0)]
+            vec![
+                c + egui::vec2(-2.0, -4.0),
+                c + egui::vec2(3.0, 0.0),
+                c + egui::vec2(-2.0, 4.0),
+            ]
         };
-        ui.painter().add(egui::Shape::convex_polygon(tri, tk.muted, egui::Stroke::NONE));
-        ui.painter().text(egui::pos2(r.min.x + 15.0, r.center().y), egui::Align2::LEFT_CENTER, "MORE OPTIONS", egui::FontId::proportional(11.0), if resp.hovered() { tk.text } else { tk.muted });
+        ui.painter()
+            .add(egui::Shape::convex_polygon(tri, tk.muted, egui::Stroke::NONE));
+        ui.painter().text(
+            egui::pos2(r.min.x + 15.0, r.center().y),
+            egui::Align2::LEFT_CENTER,
+            "MORE OPTIONS",
+            egui::FontId::proportional(11.0),
+            if resp.hovered() { tk.text } else { tk.muted },
+        );
         if resp.clicked() {
             self.more_open = !open;
         }
@@ -423,12 +523,19 @@ impl OpenTool {
             return self.sf_form(ui, env, out);
         }
         let tk = env.tk;
-        let fenv = FieldEnv { tk, inch: env.inch, params: env.params };
+        let fenv = FieldEnv {
+            tk,
+            inch: env.inch,
+            params: env.params,
+        };
         let def = self.def;
         let mut edits: Vec<fields::Edit> = Vec::new();
         ui.add_space(6.0);
         let (main, folded) = laid_out(def);
-        let folded_shown: Vec<&'static Field> = folded.into_iter().filter(|f| f.show.is_none_or(|s| s(&self.values))).collect();
+        let folded_shown: Vec<&'static Field> = folded
+            .into_iter()
+            .filter(|f| f.show.is_none_or(|s| s(&self.values)))
+            .collect();
         let mut rows: Vec<&'static Field> = main;
         let fold_at = rows.len();
         if self.more_open {
@@ -438,10 +545,10 @@ impl OpenTool {
             if n == fold_at {
                 self.more_header(ui, tk);
             }
-            if let Some(s) = f.show {
-                if !s(&self.values) {
-                    continue;
-                }
+            if let Some(s) = f.show
+                && !s(&self.values)
+            {
+                continue;
             }
             let val = self.values.get(f.key).cloned().unwrap_or(Value::Null);
             let edit = match &f.kind {
@@ -449,12 +556,23 @@ impl OpenTool {
                 FieldKind::Select { options, grouped } => fields::select::show(ui, &fenv, f, options, *grouped, &val),
                 FieldKind::Bool => fields::bool::show(ui, &fenv, f, &val),
                 FieldKind::Vec3 { unit } => fields::vec3::show(ui, &fenv, f, *unit, &val, &mut self.bufs),
-                FieldKind::Text { placeholder } => fields::text::show(ui, &fenv, f, placeholder.as_deref(), &val, &mut self.bufs),
+                FieldKind::Text { placeholder } => {
+                    fields::text::show(ui, &fenv, f, placeholder.as_deref(), &val, &mut self.bufs)
+                }
                 _ => {
                     let before = self.values.clone();
-                    if let Some(o) = fields::pick_field(ui, &fenv, f, &mut self.values, &mut self.active_field, env.ctx, self.edit_id.as_deref()) {
+                    if let Some(o) = fields::pick_field(
+                        ui,
+                        &fenv,
+                        f,
+                        &mut self.values,
+                        &mut self.active_field,
+                        env.ctx,
+                        self.edit_id.as_deref(),
+                    ) {
                         if o.changed || before != self.values {
-                            self.preview.schedule(super::preview::DELAY_MS, def.flags.no_live_preview);
+                            self.preview
+                                .schedule(super::preview::DELAY_MS, def.flags.no_live_preview);
                             out.changed = true;
                         }
                         out.clear_face |= o.clear_face;
@@ -468,8 +586,16 @@ impl OpenTool {
             ui.add_space(6.0);
             if def.key == "thread" && f.key == "offset" {
                 // the From rows under Position: distances from part edges or sketch lines
-                if fields::place_refs::show_thread_from(ui, tk, &mut self.values, env.ctx, "plane", &mut self.active_field) {
-                    self.preview.schedule(super::preview::DELAY_MS, def.flags.no_live_preview);
+                if fields::place_refs::show_thread_from(
+                    ui,
+                    tk,
+                    &mut self.values,
+                    env.ctx,
+                    "plane",
+                    &mut self.active_field,
+                ) {
+                    self.preview
+                        .schedule(super::preview::DELAY_MS, def.flags.no_live_preview);
                     out.changed = true;
                 }
             }
@@ -482,16 +608,22 @@ impl OpenTool {
                 ui.add_space(fields::LABEL_W + fields::GAP);
                 // `.ctl` shrinks its buttons to the column and wraps their text
                 let bw = (fields::CTL_W - 4.0) / 2.0;
-                if ctl_button_w(ui, tk, "Drop to plate", bw).clicked() {
-                    if let Some(tr) = drop_to_bed(&self.values, env.ctx) {
-                        edits.push(fields::Edit { key: "translate".into(), value: tr });
-                    }
+                if ctl_button_w(ui, tk, "Drop to plate", bw).clicked()
+                    && let Some(tr) = drop_to_bed(&self.values, env.ctx)
+                {
+                    edits.push(fields::Edit {
+                        key: "translate".into(),
+                        value: tr,
+                    });
                 }
                 ui.add_space(4.0);
-                if ctl_button_w(ui, tk, "Centre on origin", bw).clicked() {
-                    if let Some(tr) = centre_on_origin(&self.values, env.ctx) {
-                        edits.push(fields::Edit { key: "translate".into(), value: tr });
-                    }
+                if ctl_button_w(ui, tk, "Centre on origin", bw).clicked()
+                    && let Some(tr) = centre_on_origin(&self.values, env.ctx)
+                {
+                    edits.push(fields::Edit {
+                        key: "translate".into(),
+                        value: tr,
+                    });
                 }
             });
             ui.add_space(6.0);
@@ -506,21 +638,38 @@ impl OpenTool {
             ui.add_space(6.0);
         }
         if def.flags.sculpt {
-            let strokes = self.values.get("strokes").and_then(Value::as_array).cloned().unwrap_or_default();
+            let strokes = self
+                .values
+                .get("strokes")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default();
             let body = self.values.get("body").map(|b| match b {
                 Value::Array(a) => a.first().cloned().unwrap_or(Value::Null),
                 o => o.clone(),
             });
-            let name = body.as_ref().and_then(Value::as_str).filter(|s| !s.is_empty()).map(|id| fields::bodies::body_name(env.ctx, id)).unwrap_or_else(|| "—".to_owned());
+            let name = body
+                .as_ref()
+                .and_then(Value::as_str)
+                .filter(|s| !s.is_empty())
+                .map(|id| fields::bodies::body_name(env.ctx, id))
+                .unwrap_or_else(|| "—".to_owned());
             ui.horizontal(|ui| {
                 ui.add(egui::Label::new(RichText::new("Strokes").size(12.0).color(tk.label)));
                 ui.add_space(fields::LABEL_W - 40.0 + fields::GAP);
-                ui.label(RichText::new(format!("{} on {}", strokes.len(), name)).size(12.0).color(tk.text));
+                ui.label(
+                    RichText::new(format!("{} on {}", strokes.len(), name))
+                        .size(12.0)
+                        .color(tk.text),
+                );
                 ui.add_space(4.0);
                 if ctl_button(ui, tk, "Undo stroke", !strokes.is_empty()).clicked() {
                     let mut s = strokes.clone();
                     s.pop();
-                    edits.push(fields::Edit { key: "strokes".into(), value: Value::Array(s) });
+                    edits.push(fields::Edit {
+                        key: "strokes".into(),
+                        value: Value::Array(s),
+                    });
                 }
             });
         }
@@ -538,9 +687,17 @@ impl OpenTool {
 
     fn actions(&mut self, ui: &mut Ui, tk: &Tokens, out: &mut PanelOut) {
         let (rect, _) = ui.allocate_exact_size(Vec2::new(PANEL_W - 2.0, 41.0), Sense::hover());
-        ui.painter().hline(rect.x_range(), rect.min.y, Stroke::new(1.0, tk.divider));
-        let inner = Rect::from_min_max(egui::pos2(rect.min.x + 10.0, rect.min.y + 8.0), egui::pos2(rect.max.x - 10.0, rect.max.y - 9.0));
-        let mut right = ui.new_child(egui::UiBuilder::new().max_rect(inner).layout(Layout::right_to_left(Align::Center)));
+        ui.painter()
+            .hline(rect.x_range(), rect.min.y, Stroke::new(1.0, tk.divider));
+        let inner = Rect::from_min_max(
+            egui::pos2(rect.min.x + 10.0, rect.min.y + 8.0),
+            egui::pos2(rect.max.x - 10.0, rect.max.y - 9.0),
+        );
+        let mut right = ui.new_child(
+            egui::UiBuilder::new()
+                .max_rect(inner)
+                .layout(Layout::right_to_left(Align::Center)),
+        );
         right.spacing_mut().item_spacing.x = 8.0;
         if button(&mut right, tk, &self.ok_label, true).clicked() {
             out.ok = true;
@@ -551,10 +708,13 @@ impl OpenTool {
         if let Some((text, tip)) = &self.credit {
             // `#tool-credit`: wraps in the room the buttons leave (they are laid out first)
             let room = (right.min_rect().min.x - 10.0 - inner.min.x).max(40.0);
-            let g = ui.painter().layout(text.clone(), egui::FontId::proportional(10.5), tk.muted, room);
+            let g = ui
+                .painter()
+                .layout(text.clone(), egui::FontId::proportional(10.5), tk.muted, room);
             let r = Rect::from_min_size(egui::pos2(inner.min.x, inner.center().y - g.size().y / 2.0), g.size());
             ui.painter().galley(r.min, g, tk.muted);
-            ui.interact(r, Id::unique("tool-credit"), Sense::hover()).on_hover_text(tip);
+            ui.interact(r, Id::unique("tool-credit"), Sense::hover())
+                .on_hover_text(tip);
         }
     }
 }
@@ -566,16 +726,20 @@ fn message(ui: &mut Ui, tk: &Tokens, m: &ToolMsg) {
         MsgKind::Warn => (tk.warn_bg, tk.warn_text),
         MsgKind::Info | MsgKind::Busy => (tk.info_bg, tk.info_text),
     };
-    Frame::new().fill(bg).corner_radius(CornerRadius::same(tk.radius_sm as u8)).inner_margin(Margin::symmetric(8, 6)).show(ui, |ui| {
-        ui.set_width(FORM_W - 16.0);
-        ui.horizontal_wrapped(|ui| {
-            if m.kind == MsgKind::Busy {
-                ui.add(egui::Spinner::new().size(12.0).color(tk.accent));
-                ui.add_space(8.0);
-            }
-            ui.add(egui::Label::new(RichText::new(&m.text).size(12.0).color(fg)).wrap());
+    Frame::new()
+        .fill(bg)
+        .corner_radius(CornerRadius::same(tk.radius_sm as u8))
+        .inner_margin(Margin::symmetric(8, 6))
+        .show(ui, |ui| {
+            ui.set_width(FORM_W - 16.0);
+            ui.horizontal_wrapped(|ui| {
+                if m.kind == MsgKind::Busy {
+                    ui.add(egui::Spinner::new().size(12.0).color(tk.accent));
+                    ui.add_space(8.0);
+                }
+                ui.add(egui::Label::new(RichText::new(&m.text).size(12.0).color(fg)).wrap());
+            });
         });
-    });
 }
 
 /// `.field .ctl button`: a small bordered button inside a form row.
@@ -586,7 +750,12 @@ pub fn ctl_button(ui: &mut Ui, tk: &Tokens, text: &str, enabled: bool) -> egui::
         v.widgets.inactive.bg_stroke = Stroke::new(1.0, tk.input_line);
         v.widgets.hovered.weak_bg_fill = tk.input;
         v.widgets.hovered.bg_stroke = Stroke::new(1.0, tk.accent);
-        ui.add_enabled(enabled, egui::Button::new(RichText::new(text).size(12.0).color(tk.text)).corner_radius(CornerRadius::same(tk.radius_sm as u8)).min_size(Vec2::new(0.0, 24.0)))
+        ui.add_enabled(
+            enabled,
+            egui::Button::new(RichText::new(text).size(12.0).color(tk.text))
+                .corner_radius(CornerRadius::same(tk.radius_sm as u8))
+                .min_size(Vec2::new(0.0, 24.0)),
+        )
     })
     .inner
 }
@@ -600,7 +769,12 @@ pub fn ctl_button_w(ui: &mut Ui, tk: &Tokens, text: &str, width: f32) -> egui::R
         v.widgets.inactive.bg_stroke = Stroke::new(1.0, tk.input_line);
         v.widgets.hovered.weak_bg_fill = tk.input;
         v.widgets.hovered.bg_stroke = Stroke::new(1.0, tk.accent);
-        ui.add(egui::Button::new(RichText::new(text).size(12.0).color(tk.text)).wrap().corner_radius(CornerRadius::same(tk.radius_sm as u8)).min_size(Vec2::new(width, 24.0)))
+        ui.add(
+            egui::Button::new(RichText::new(text).size(12.0).color(tk.text))
+                .wrap()
+                .corner_radius(CornerRadius::same(tk.radius_sm as u8))
+                .min_size(Vec2::new(width, 24.0)),
+        )
     })
     .inner
 }
@@ -625,8 +799,16 @@ fn bbox(b: &crate::engine_link::BodyView) -> Option<([f64; 3], [f64; 3])> {
 }
 
 fn picked_boxes(values: &Values, ctx: &Ctx) -> Vec<([f64; 3], [f64; 3])> {
-    let ids: Vec<&str> = values.get("bodies").and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_str).collect()).unwrap_or_default();
-    ctx.bodies.iter().filter(|b| ids.contains(&b.id.as_str())).filter_map(bbox).collect()
+    let ids: Vec<&str> = values
+        .get("bodies")
+        .and_then(Value::as_array)
+        .map(|a| a.iter().filter_map(Value::as_str).collect())
+        .unwrap_or_default();
+    ctx.bodies
+        .iter()
+        .filter(|b| ids.contains(&b.id.as_str()))
+        .filter_map(bbox)
+        .collect()
 }
 
 fn r4(x: f64) -> f64 {
@@ -635,16 +817,30 @@ fn r4(x: f64) -> f64 {
 }
 
 fn drop_to_bed(values: &Values, ctx: &Ctx) -> Option<Value> {
-    let ids: Vec<&str> = values.get("bodies").and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_str).collect()).unwrap_or_default();
+    let ids: Vec<&str> = values
+        .get("bodies")
+        .and_then(Value::as_array)
+        .map(|a| a.iter().filter_map(Value::as_str).collect())
+        .unwrap_or_default();
     let bodies: Vec<GizmoBody> = ctx
         .bodies
         .iter()
         .filter(|b| ids.contains(&b.id.as_str()))
-        .filter_map(|b| bbox(b).map(|(min, max)| GizmoBody { id: b.id.clone(), bbox: stl_kernel::Aabb { min, max }, mesh: b.mesh.clone() }))
+        .filter_map(|b| {
+            bbox(b).map(|(min, max)| GizmoBody {
+                id: b.id.clone(),
+                bbox: stl_kernel::Aabb { min, max },
+                mesh: b.mesh.clone(),
+            })
+        })
         .collect();
     // turns included: the turned part's lowest point goes onto the plate
     let z = Gizmo::drop_to_plate(&bodies, values)?[2];
-    let mut tr: Vec<Value> = values.get("translate").and_then(Value::as_array).cloned().unwrap_or_else(|| vec![Value::from(0); 3]);
+    let mut tr: Vec<Value> = values
+        .get("translate")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_else(|| vec![Value::from(0); 3]);
     tr.resize(3, Value::from(0));
     tr[2] = num_value(r4(z));
     Some(Value::Array(tr))
@@ -655,15 +851,26 @@ fn centre_on_origin(values: &Values, ctx: &Ctx) -> Option<Value> {
     if bs.is_empty() {
         return None;
     }
-    let lo: Vec<f64> = (0..3).map(|i| bs.iter().map(|b| b.0[i]).fold(f64::INFINITY, f64::min)).collect();
-    let hi: Vec<f64> = (0..3).map(|i| bs.iter().map(|b| b.1[i]).fold(f64::NEG_INFINITY, f64::max)).collect();
-    Some(Value::Array(vec![num_value(r4(-(lo[0] + hi[0]) / 2.0)), num_value(r4(-(lo[1] + hi[1]) / 2.0)), num_value(r4(-lo[2]))]))
+    let lo: Vec<f64> = (0..3)
+        .map(|i| bs.iter().map(|b| b.0[i]).fold(f64::INFINITY, f64::min))
+        .collect();
+    let hi: Vec<f64> = (0..3)
+        .map(|i| bs.iter().map(|b| b.1[i]).fold(f64::NEG_INFINITY, f64::max))
+        .collect();
+    Some(Value::Array(vec![
+        num_value(r4(-(lo[0] + hi[0]) / 2.0)),
+        num_value(r4(-(lo[1] + hi[1]) / 2.0)),
+        num_value(r4(-lo[2])),
+    ]))
 }
 
 /// `toolKeyFor(f)` (app.js:2842): the tool that edits a timeline step.
 pub fn tool_key_for(kind: &str, params: &Value) -> Option<String> {
     match kind {
-        "primitive" => Some(format!("primitive_{}", params.get("shape").and_then(Value::as_str).unwrap_or("undefined"))),
+        "primitive" => Some(format!(
+            "primitive_{}",
+            params.get("shape").and_then(Value::as_str).unwrap_or("undefined")
+        )),
         "plane" => {
             let mode = params.get("mode").and_then(Value::as_str)?;
             Some(

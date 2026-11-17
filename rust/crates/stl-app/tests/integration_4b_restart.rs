@@ -35,25 +35,35 @@ fn about_support_fins_offers_restart_now_when_a_new_engine_waits() {
     supports::install(&info).unwrap();
     let a = supports::about(false).unwrap();
     assert!(a.paragraphs.last().unwrap().contains("9.9.9"));
-    let app = StlApp::new(&egui::Context::default(), Box::new(NullPlatform), Box::new(Rec::default()));
-    let mut h = Harness::builder().with_size(egui::vec2(1280.0, 800.0)).with_accessibility_check(false).build_ui_state(
-        {
-            let mut init = false;
-            move |ui, a: &mut StlApp| {
-                if !init {
-                    init = true;
-                    stl_app::fonts::install(ui.ctx());
-                }
-                a.layout(ui)
-            }
-        },
-        app,
+    let app = StlApp::new(
+        &egui::Context::default(),
+        Box::new(NullPlatform),
+        Box::new(Rec::default()),
     );
+    let mut h = Harness::builder()
+        .with_size(egui::vec2(1280.0, 800.0))
+        .with_accessibility_check(false)
+        .build_ui_state(
+            {
+                let mut init = false;
+                move |ui, a: &mut StlApp| {
+                    if !init {
+                        init = true;
+                        stl_app::fonts::install(ui.ctx());
+                    }
+                    a.layout(ui)
+                }
+            },
+            app,
+        );
     h.run_steps(2);
     h.state_mut().show_sf_about();
     h.run_steps(3);
     use egui_kittest::kittest::Queryable;
-    assert!(h.query_by_label("Restart now").is_some(), "the dialog has a Restart now link");
+    assert!(
+        h.query_by_label("Restart now").is_some(),
+        "the dialog has a Restart now link"
+    );
     assert!(h.query_by_label_contains("Restart now").is_some());
 }
 
@@ -66,21 +76,43 @@ fn the_restart_helper_survives_odd_folder_names() {
     let args: Vec<String> = c.get_args().map(|a| a.to_string_lossy().into_owned()).collect();
     let text = args.join(" ");
     #[cfg(windows)]
-    assert!(!text.contains("STL Editor"), "the path is not in the script text: {text}");
+    assert!(
+        !text.contains("STL Editor"),
+        "the path is not in the script text: {text}"
+    );
     #[cfg(not(windows))]
     {
         // sh -c <script> stle-restart <pid> <exe>: the path is its own argument ($2), never in the script
         assert_eq!(args[0], "-c");
-        assert!(!args[1].contains("STL Editor"), "the path is not in the script text: {}", args[1]);
+        assert!(
+            !args[1].contains("STL Editor"),
+            "the path is not in the script text: {}",
+            args[1]
+        );
         assert_eq!(args.last().map(String::as_str), Some(exe.to_str().unwrap()));
     }
     #[cfg(windows)]
     {
-        assert!(text.contains("$env:STLE_EXE") && text.contains("Process]::Start"), "{text}");
+        assert!(
+            text.contains("$env:STLE_EXE") && text.contains("Process]::Start"),
+            "{text}"
+        );
         let program = std::path::PathBuf::from(c.get_program());
-        let tail: Vec<String> = program.components().rev().take(4).map(|p| p.as_os_str().to_string_lossy().to_lowercase()).collect();
-        assert_eq!(tail, ["powershell.exe", "v1.0", "windowspowershell", "system32"], "the full path: {program:?}");
-        let env = c.get_envs().find(|(k, _)| *k == "STLE_EXE").and_then(|(_, v)| v.map(|v| v.to_owned()));
+        let tail: Vec<String> = program
+            .components()
+            .rev()
+            .take(4)
+            .map(|p| p.as_os_str().to_string_lossy().to_lowercase())
+            .collect();
+        assert_eq!(
+            tail,
+            ["powershell.exe", "v1.0", "windowspowershell", "system32"],
+            "the full path: {program:?}"
+        );
+        let env = c
+            .get_envs()
+            .find(|(k, _)| *k == "STLE_EXE")
+            .and_then(|(_, v)| v.map(|v| v.to_owned()));
         assert_eq!(env.as_deref(), Some(exe.as_os_str()));
     }
 }
@@ -103,6 +135,8 @@ fn the_restart_helper_starts_a_program_in_an_odd_folder() {
     // a .cmd needs a console to run in; the real target is a window program, which does not
     use std::os::windows::process::CommandExt;
     helper.creation_flags(0);
+    // the helper is left running on purpose: it outlives this process, as it does in the app
+    #[allow(clippy::zombie_processes)]
     helper.spawn().unwrap();
     let end = std::time::Instant::now() + std::time::Duration::from_secs(30);
     while !d.join("marker.txt").exists() {

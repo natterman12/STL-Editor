@@ -1,8 +1,8 @@
 //! Shared field lists (connector fields, ops targets show, …).
 
-use super::{Field, FieldKind, Values};
 use super::tables::{CONNECTOR_OPTS, OPS};
 use super::util::get_str;
+use super::{Field, FieldKind, Values};
 
 pub fn ops_options() -> Vec<(String, String)> {
     OPS.iter().map(|(a, b)| (a.to_string(), b.to_string())).collect()

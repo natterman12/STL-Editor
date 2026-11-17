@@ -73,7 +73,7 @@ fn feature_icon(kind: &str) -> &'static str {
 }
 
 fn marker_at_end(marker: Option<usize>, len: usize) -> bool {
-    marker.map_or(true, |m| m >= len)
+    marker.is_none_or(|m| m >= len)
 }
 
 fn icon_nav(ui: &mut Ui, ctx: &Context, tokens: &Tokens, salt: &str, tip: &str, ic: &str, enabled: bool) -> bool {
@@ -123,19 +123,42 @@ pub fn show(
         let len = view.items.len();
         let r = view.marker.unwrap_or(len);
 
-        if icon_nav(ui, ctx, tokens, "tl_start", "Roll back to start", "tl_start", !nav_locked) {
+        if icon_nav(
+            ui,
+            ctx,
+            tokens,
+            "tl_start",
+            "Roll back to start",
+            "tl_start",
+            !nav_locked,
+        ) {
             commands.push(Command::Rollback(Some(0)));
         }
         if icon_nav(ui, ctx, tokens, "tl_prev", "Step back", "tl_prev", !nav_locked) {
             commands.push(Command::Rollback(Some(r.saturating_sub(1).min(len))));
         }
-        if icon_nav(ui, ctx, tokens, "tl_next", "Step forward", "tl_next", !nav_locked && view.marker.is_some()) {
-            if let Some(m) = view.marker {
-                let next = if m + 1 >= len { None } else { Some(m + 1) };
-                commands.push(Command::Rollback(next));
-            }
+        if icon_nav(
+            ui,
+            ctx,
+            tokens,
+            "tl_next",
+            "Step forward",
+            "tl_next",
+            !nav_locked && view.marker.is_some(),
+        ) && let Some(m) = view.marker
+        {
+            let next = if m + 1 >= len { None } else { Some(m + 1) };
+            commands.push(Command::Rollback(next));
         }
-        if icon_nav(ui, ctx, tokens, "tl_end", "Roll forward to end", "tl_end", !nav_locked && view.marker.is_some()) {
+        if icon_nav(
+            ui,
+            ctx,
+            tokens,
+            "tl_end",
+            "Roll forward to end",
+            "tl_end",
+            !nav_locked && view.marker.is_some(),
+        ) {
             commands.push(Command::Rollback(None));
         }
 
@@ -171,7 +194,14 @@ pub fn show(
     });
 }
 
-fn draw_marker(ui: &mut Ui, tokens: &Tokens, state: &mut Timeline, len: usize, commands: &mut Vec<Command>, at_end: bool) {
+fn draw_marker(
+    ui: &mut Ui,
+    tokens: &Tokens,
+    state: &mut Timeline,
+    len: usize,
+    commands: &mut Vec<Command>,
+    at_end: bool,
+) {
     // Same tooltips as 1.x (app.js:569 and :575). The accessible label stays "Rollback marker".
     let (rect, response) = ui.allocate_exact_size(egui::vec2(10.0, 24.0), egui::Sense::click_and_drag());
     let painter = ui.painter_at(rect);
@@ -237,7 +267,10 @@ fn draw_item(
 
     if item.suppressed {
         let r = response.rect.shrink(4.0);
-        ui.painter().line_segment([r.left_center(), r.right_center()], egui::Stroke::new(1.0, tokens.text.gamma_multiply(dim)));
+        ui.painter().line_segment(
+            [r.left_center(), r.right_center()],
+            egui::Stroke::new(1.0, tokens.text.gamma_multiply(dim)),
+        );
     }
     if err || item.warning.is_some() {
         let c = if err { tokens.danger } else { tokens.warn };
@@ -250,7 +283,10 @@ fn draw_item(
         );
     }
 
-    let repeatable = crate::tools::fields::features::REPEATABLE.contains(&item.kind.as_str()) && item.active && item.error.is_none() && !item.suppressed;
+    let repeatable = crate::tools::fields::features::REPEATABLE.contains(&item.kind.as_str())
+        && item.active
+        && item.error.is_none()
+        && !item.suppressed;
     if response.clicked() && state.features_pick && repeatable {
         state.ticked = Some(item.id.clone());
     } else if response.clicked() {
@@ -270,27 +306,31 @@ fn draw_item(
 
     response.context_menu(|ui| {
         if ui
-            .add_enabled(!nav_locked, egui::Button::new(if item.kind == "import" { "Position / Repair…" } else { "Edit…" }))
+            .add_enabled(
+                !nav_locked,
+                egui::Button::new(if item.kind == "import" {
+                    "Position / Repair…"
+                } else {
+                    "Edit…"
+                }),
+            )
             .clicked()
         {
             state.edit_feature = Some(item.id.clone());
             events.push(UiEvent::EditFeature(item.id.clone()));
             ui.close();
         }
-        if ui
-            .add_enabled(!nav_locked, egui::Button::new("Delete"))
-            .clicked()
-        {
+        if ui.add_enabled(!nav_locked, egui::Button::new("Delete")).clicked() {
             commands.push(Command::DeleteFeature { id: item.id.clone() });
             ui.close();
         }
         // Same label and action as 1.x (app.js:2598): flips the feature's suppressed flag.
         let supp_label = if item.suppressed { "Unsuppress" } else { "Suppress" };
-        if ui
-            .add_enabled(!nav_locked, egui::Button::new(supp_label))
-            .clicked()
-        {
-            commands.push(Command::SetSuppressed { id: item.id.clone(), suppressed: !item.suppressed });
+        if ui.add_enabled(!nav_locked, egui::Button::new(supp_label)).clicked() {
+            commands.push(Command::SetSuppressed {
+                id: item.id.clone(),
+                suppressed: !item.suppressed,
+            });
             ui.close();
         }
         ui.separator();
@@ -298,14 +338,20 @@ fn draw_item(
             .add_enabled(!nav_locked && index > 0, egui::Button::new("Move left"))
             .clicked()
         {
-            commands.push(Command::MoveFeature { id: item.id.clone(), index: index - 1 });
+            commands.push(Command::MoveFeature {
+                id: item.id.clone(),
+                index: index - 1,
+            });
             ui.close();
         }
         if ui
             .add_enabled(!nav_locked && index + 1 < len, egui::Button::new("Move right"))
             .clicked()
         {
-            commands.push(Command::MoveFeature { id: item.id.clone(), index: index + 1 });
+            commands.push(Command::MoveFeature {
+                id: item.id.clone(),
+                index: index + 1,
+            });
             ui.close();
         }
         ui.separator();
@@ -317,7 +363,10 @@ fn draw_item(
             ui.close();
         }
         if ui
-            .add_enabled(!nav_locked && marker.is_some(), egui::Button::new("Roll Forward to End"))
+            .add_enabled(
+                !nav_locked && marker.is_some(),
+                egui::Button::new("Roll Forward to End"),
+            )
             .clicked()
         {
             commands.push(Command::Rollback(None));

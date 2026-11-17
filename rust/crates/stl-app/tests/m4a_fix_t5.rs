@@ -18,15 +18,15 @@ use std::sync::Arc;
 
 use egui_kittest::Harness;
 use stl_app::engine_link::BodyView;
+use stl_app::viewport::Viewport;
 use stl_app::viewport::renderer::Headless;
 use stl_app::viewport::section::SectionAxis;
-use stl_app::viewport::Viewport;
 use stl_kernel::MeshArrays;
 
-#[path = "support/wgpu_renderer.rs"]
-mod wgpu_renderer;
 #[path = "support/gpu.rs"]
 mod gpu;
+#[path = "support/wgpu_renderer.rs"]
+mod wgpu_renderer;
 
 /// A 20 mm wide box from `z0` to `z1`, centred on the origin in X and Y.
 fn block(id: &str, z0: f32, z1: f32) -> BodyView {
@@ -40,27 +40,50 @@ fn block(id: &str, z0: f32, z1: f32) -> BodyView {
         [10.0, 10.0, z1],
         [-10.0, 10.0, z1],
     ];
-    let t: [u32; 36] = [0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7, 0, 1, 5, 0, 5, 4, 1, 2, 6, 1, 6, 5, 2, 3, 7, 2, 7, 6, 3, 0, 4, 3, 4, 7];
-    let mesh = Arc::new(MeshArrays { positions: p.iter().flatten().copied().collect(), triangles: t.to_vec() });
-    BodyView { id: id.into(), name: "Block".into(), color: Some("#9aa7b4".into()), hidden: false, solid: true, mesh, revision: 1, holds_up: None }
+    let t: [u32; 36] = [
+        0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7, 0, 1, 5, 0, 5, 4, 1, 2, 6, 1, 6, 5, 2, 3, 7, 2, 7, 6, 3, 0, 4, 3, 4, 7,
+    ];
+    let mesh = Arc::new(MeshArrays {
+        positions: p.iter().flatten().copied().collect(),
+        triangles: t.to_vec(),
+    });
+    BodyView {
+        id: id.into(),
+        name: "Block".into(),
+        color: Some("#9aa7b4".into()),
+        hidden: false,
+        solid: true,
+        mesh,
+        revision: 1,
+        holds_up: None,
+    }
 }
 
 /// Render `vp` in a `w` x `h` window through egui and the paint callback; check the snapshot
 /// `name` when given.
 fn picture(gpu: &Headless, mut vp: Viewport, dark: bool, w: f32, h: f32, name: Option<&str>) -> image::RgbaImage {
     let renderer = wgpu_renderer::WgpuRenderer::new(gpu.render_state.clone());
-    let mut harness = Harness::builder().with_size(egui::vec2(w, h)).with_render_cursor(false).renderer(renderer).build_ui(move |ui| {
-        egui::CentralPanel::default().frame(egui::Frame::NONE).show(ui, |ui| {
-            vp.show(ui);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(w, h))
+        .with_render_cursor(false)
+        .renderer(renderer)
+        .build_ui(move |ui| {
+            egui::CentralPanel::default().frame(egui::Frame::NONE).show(ui, |ui| {
+                vp.show(ui);
+            });
         });
-    });
     stl_app::theme::apply(&harness.ctx, &stl_app::theme::tokens(dark));
     harness.run();
     if let Some(name) = name {
         gpu::snapshot(&mut harness, gpu, name);
     }
     let img = harness.render().expect("picture");
-    let errors: Vec<String> = harness.take_snapshot_results().into_inner().iter().map(|e| e.to_string()).collect();
+    let errors: Vec<String> = harness
+        .take_snapshot_results()
+        .into_inner()
+        .iter()
+        .map(|e| e.to_string())
+        .collect();
     assert!(errors.is_empty(), "{}", errors.join("\n"));
     gpu::assert_view_toolbar(&img, dark, gpu::top_band(&img), name.unwrap_or("view"));
     img
@@ -98,7 +121,10 @@ fn start_grid_and_axes(name: &str, dark: bool) {
     let d = 60.0 / vp.camera().half_fov().sin() * 1.05;
     let n = (1.0f64 + 1.0 + 0.85 * 0.85).sqrt();
     let want = [d / n, -d / n, 0.85 * d / n];
-    assert!((0..3).all(|k| (pos[k] - want[k]).abs() < 1e-6 && target[k].abs() < 1e-9), "start camera {pos:?}, want {want:?}");
+    assert!(
+        (0..3).all(|k| (pos[k] - want[k]).abs() < 1e-6 && target[k].abs() < 1e-9),
+        "start camera {pos:?}, want {want:?}"
+    );
     let img = picture(&gpu, vp, dark, w, h, Some(name));
     let (iw, ih) = img.dimensions();
     // the grid runs off both sides: the view's outermost columns cross grid lines
@@ -106,14 +132,23 @@ fn start_grid_and_axes(name: &str, dark: bool) {
         let mut colours: Vec<[u8; 4]> = (ih / 2..ih).map(|y| img.get_pixel(x, y).0).collect();
         colours.sort();
         colours.dedup();
-        assert!(colours.len() > 3, "{name}: column {x} shows no grid ({} colours)", colours.len());
+        assert!(
+            colours.len() > 3,
+            "{name}: column {x} shows no grid ({} colours)",
+            colours.len()
+        );
     }
     // the three axis lines meet at the origin, in the middle of the view; Z points up
     let count = |c: u32, above: bool| {
-        img.enumerate_pixels().filter(|(_, y, p)| (!above || *y < ih / 2) && is_axis(p, c)).count()
+        img.enumerate_pixels()
+            .filter(|(_, y, p)| (!above || *y < ih / 2) && is_axis(p, c))
+            .count()
     };
     let (x, y, z) = (count(0xe25555, false), count(0x22a35a, false), count(0x3b82f6, true));
-    assert!(x >= 10 && y >= 10 && z >= 10, "{name}: axis pixels x {x}, y {y}, z above the centre {z}");
+    assert!(
+        x >= 10 && y >= 10 && z >= 10,
+        "{name}: axis pixels x {x}, y {y}, z above the centre {z}"
+    );
 }
 
 #[test]
@@ -135,9 +170,16 @@ fn start_page(dark: bool) {
     if let Some(gpu) = &gpu {
         app.viewport.init_gpu(&gpu.render_state);
     }
-    let pref = if dark { stl_app::ui::ThemePref::Dark } else { stl_app::ui::ThemePref::Light };
+    let pref = if dark {
+        stl_app::ui::ThemePref::Dark
+    } else {
+        stl_app::ui::ThemePref::Light
+    };
     let mut init = false;
-    let mut builder = Harness::builder().with_size(egui::vec2(1280.0, 800.0)).with_accessibility_check(false).with_render_cursor(false);
+    let mut builder = Harness::builder()
+        .with_size(egui::vec2(1280.0, 800.0))
+        .with_accessibility_check(false)
+        .with_render_cursor(false);
     if let Some(gpu) = &gpu {
         builder = builder.renderer(wgpu_renderer::WgpuRenderer::new(gpu.render_state.clone()));
     }
@@ -158,9 +200,16 @@ fn start_page(dark: bool) {
     let d = 60.0 / cam.half_fov().sin() * 1.05;
     let n = (1.0f64 + 1.0 + 0.85 * 0.85).sqrt();
     let want = [d / n, -d / n, 0.85 * d / n];
-    assert!((0..3).all(|k| (pos[k] - want[k]).abs() < 1e-6 && target[k].abs() < 1e-9), "start camera {pos:?}, want {want:?}");
+    assert!(
+        (0..3).all(|k| (pos[k] - want[k]).abs() < 1e-6 && target[k].abs() < 1e-9),
+        "start camera {pos:?}, want {want:?}"
+    );
     if let Some(gpu) = &gpu {
-        let name = if dark { "start_grid_and_axes_app_dark" } else { "start_grid_and_axes_app_light" };
+        let name = if dark {
+            "start_grid_and_axes_app_dark"
+        } else {
+            "start_grid_and_axes_app_light"
+        };
         gpu::snapshot(&mut h, gpu, name);
         // on any adapter: the Z axis rises from the origin in the middle of the view (the
         // start card covers the X and Y axes), and the grid fills the view below the card
@@ -181,7 +230,11 @@ fn start_page(dark: bool) {
             let mut colours: Vec<[u8; 4]> = (ih * 11 / 16..ih * 29 / 32).map(|y| img.get_pixel(x, y).0).collect();
             colours.sort();
             colours.dedup();
-            assert!(colours.len() > 3, "{name}: column {x} shows no grid ({} colours)", colours.len());
+            assert!(
+                colours.len() > 3,
+                "{name}: column {x} shows no grid ({} colours)",
+                colours.len()
+            );
         }
     } else {
         eprintln!("no GPU adapter: start page snapshot skipped");
@@ -203,11 +256,7 @@ fn start_page_uses_iso_view_light() {
 /// The grid's lines in `_buildOrigin`, sRGB colour and opacity: minor, then the major lines
 /// (centre and the rest), drawn in that order.
 fn grid_minor(dark: bool) -> (u32, f64) {
-    if dark {
-        (0x3a3f49, 0.6)
-    } else {
-        (0xd2d7de, 0.5)
-    }
+    if dark { (0x3a3f49, 0.6) } else { (0xd2d7de, 0.5) }
 }
 
 fn grid_major(dark: bool) -> [(u32, f64); 2] {
@@ -271,8 +320,15 @@ struct GridChange {
 fn grid_changes(dark: bool, mask: &[(u32, u32)], off: &image::RgbaImage, on: &image::RgbaImage) -> GridChange {
     let rgb = |c: u32| [((c >> 16) & 255) as f64, ((c >> 8) & 255) as f64, (c & 255) as f64];
     let (minor, _) = grid_minor(dark);
-    let colours: Vec<[f64; 3]> = std::iter::once(minor).chain(grid_major(dark).map(|m| m.0)).map(rgb).collect();
-    let mut out = GridChange { changed: 0, toward_grid: true, median: 0.0 };
+    let colours: Vec<[f64; 3]> = std::iter::once(minor)
+        .chain(grid_major(dark).map(|m| m.0))
+        .map(rgb)
+        .collect();
+    let mut out = GridChange {
+        changed: 0,
+        toward_grid: true,
+        median: 0.0,
+    };
     let mut ts = Vec::new();
     for &(x, y) in mask {
         let (a, b) = (on.get_pixel(x, y).0, off.get_pixel(x, y).0);
@@ -289,7 +345,9 @@ fn grid_changes(dark: bool, mask: &[(u32, u32)], off: &image::RgbaImage, on: &im
             (lo..=hi).contains(&a[k])
         });
         let g = colours[0];
-        let k = (0..3).max_by(|&i, &j| (g[i] - b[i]).abs().total_cmp(&(g[j] - b[j]).abs())).unwrap_or(0);
+        let k = (0..3)
+            .max_by(|&i, &j| (g[i] - b[i]).abs().total_cmp(&(g[j] - b[j]).abs()))
+            .unwrap_or(0);
         if (g[k] - b[k]).abs() > 20.0 {
             ts.push((a[k] - b[k]) / (g[k] - b[k]));
         }
@@ -301,8 +359,22 @@ fn grid_changes(dark: bool, mask: &[(u32, u32)], off: &image::RgbaImage, on: &im
 
 /// Cap pixels (found with the grid off) and what the grid does to them.
 fn grid_over_cap(gpu: &Headless, dark: bool, body: &BodyView, cut: f64, name: Option<&str>) -> (usize, GridChange) {
-    let off = picture(gpu, cut_view(gpu, dark, body, Some(cut), false), dark, 320.0, 240.0, None);
-    let on = picture(gpu, cut_view(gpu, dark, body, Some(cut), true), dark, 320.0, 240.0, name);
+    let off = picture(
+        gpu,
+        cut_view(gpu, dark, body, Some(cut), false),
+        dark,
+        320.0,
+        240.0,
+        None,
+    );
+    let on = picture(
+        gpu,
+        cut_view(gpu, dark, body, Some(cut), true),
+        dark,
+        320.0,
+        240.0,
+        name,
+    );
     let mask = cap_mask(&off);
     (mask.len(), grid_changes(dark, &mask, &off, &on))
 }
@@ -310,7 +382,11 @@ fn grid_over_cap(gpu: &Headless, dark: bool, body: &BodyView, cut: f64, name: Op
 /// The cut face has `n` pixels and the grid changes none of them.
 fn assert_no_grid(name: &str, what: &str, n: usize, c: &GridChange) {
     assert!(n >= 200, "{name}: only {n} cut-face pixels ({what})");
-    assert_eq!(c.changed, 0, "{name}: the grid shows on {} of {n} cut-face pixels ({what})", c.changed);
+    assert_eq!(
+        c.changed, 0,
+        "{name}: the grid shows on {} of {n} cut-face pixels ({what})",
+        c.changed
+    );
 }
 
 fn section_cap_has_no_grid(name: &str, dark: bool) {
@@ -359,15 +435,28 @@ fn cut_face_hides_what_is_behind_it(name: &str, dark: bool) {
         let [r, g, b, _] = img.get_pixel(x, y).0;
         (r as i32 - 115).abs() <= 4 && (g as i32 - 125).abs() <= 4 && (b as i32 - 135).abs() <= 4
     };
-    for (what, body) in [("block", block("b1", 0.0, 20.0)), ("block with a pocket under the cut", holed_block(4.0, 9.0))] {
+    for (what, body) in [
+        ("block", block("b1", 0.0, 20.0)),
+        ("block with a pocket under the cut", holed_block(4.0, 9.0)),
+    ] {
         let img = shot(&body, true);
         let wrong: Vec<(u32, u32)> = cap.iter().copied().filter(|&(x, y)| !is_cap(&img, x, y)).collect();
-        assert!(wrong.is_empty(), "{name}, {what}: {} of {} cut-face pixels aren't cut face, e.g. {:?}", wrong.len(), cap.len(), &wrong[..wrong.len().min(8)]);
+        assert!(
+            wrong.is_empty(),
+            "{name}, {what}: {} of {} cut-face pixels aren't cut face, e.g. {:?}",
+            wrong.len(),
+            cap.len(),
+            &wrong[..wrong.len().min(8)]
+        );
     }
     // a 12 x 12 hole through the whole block: the cut face has a hole in it
     let img = shot(&holed_block(-1.0, 21.0), true);
     let through = cap.iter().filter(|&&(x, y)| is_cap(&img, x, y)).count();
-    assert!(through + 1500 < cap.len(), "{name}: the hole through the block is covered ({through} of {} pixels are cut face)", cap.len());
+    assert!(
+        through + 1500 < cap.len(),
+        "{name}: the hole through the block is covered ({through} of {} pixels are cut face)",
+        cap.len()
+    );
 }
 
 /// A 20 mm block on the bed with a 12 x 12 mm hole from `z0` to `z1` (below 0 opens it at the
@@ -376,7 +465,10 @@ fn holed_block(z0: f64, z1: f64) -> BodyView {
     use stl_kernel::Solid;
     let outer = Solid::cube([20.0, 20.0, 20.0], true).translate([0.0, 0.0, 10.0]);
     let hole = Solid::cube([12.0, 12.0, z1 - z0], true).translate([0.0, 0.0, (z0 + z1) / 2.0]);
-    BodyView { mesh: Arc::new(outer.difference(&hole).to_mesh()), ..block("b1", 0.0, 20.0) }
+    BodyView {
+        mesh: Arc::new(outer.difference(&hole).to_mesh()),
+        ..block("b1", 0.0, 20.0)
+    }
 }
 
 #[test]
@@ -395,7 +487,10 @@ fn cut_face_hides_what_is_behind_it_light() {
 /// (tan with the grid off: red over green over blue, unlike the grey background and the axes;
 /// not on its edge lines, which blend over the grid) and what the grid does to them.
 fn grid_through_body(gpu: &Headless, dark: bool, z0: f32, z1: f32, name: Option<&str>) -> (usize, GridChange) {
-    let body = BodyView { color: Some("#e0b070".into()), ..block("b1", z0, z1) };
+    let body = BodyView {
+        color: Some("#e0b070".into()),
+        ..block("b1", z0, z1)
+    };
     let off = picture(gpu, cut_view(gpu, dark, &body, None, false), dark, 320.0, 240.0, None);
     let on = picture(gpu, cut_view(gpu, dark, &body, None, true), dark, 320.0, 240.0, name);
     let (w, h) = off.dimensions();
@@ -417,10 +512,18 @@ fn grid_through_body_case(name: &str, dark: bool) {
     // it (a pixel or two may blend along the bottom edge, where the part meets the bed)
     let (body, c) = grid_through_body(&gpu, dark, 0.0, 20.0, None);
     assert!(body >= 500, "{name}: only {body} body pixels on the bed");
-    assert!(c.changed * 1000 < body, "{name}: the grid shows through {} of {body} pixels of a part on the bed", c.changed);
+    assert!(
+        c.changed * 1000 < body,
+        "{name}: the grid shows through {} of {body} pixels of a part on the bed",
+        c.changed
+    );
     let (body, c) = grid_through_body(&gpu, dark, -10.0, 10.0, Some(name));
     assert!(body >= 500, "{name}: only {body} body pixels crossing the bed");
-    assert!(c.changed * 1000 < body, "{name}: the grid shows over {} of {body} pixels of a part crossing the bed", c.changed);
+    assert!(
+        c.changed * 1000 < body,
+        "{name}: the grid shows over {} of {body} pixels of a part crossing the bed",
+        c.changed
+    );
 }
 
 #[test]

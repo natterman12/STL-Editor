@@ -17,7 +17,12 @@ impl Env {
         let root = std::env::temp_dir().join(format!("stl2-install-{tag}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         std::fs::create_dir_all(&root).unwrap();
-        Env { install: root.join("Programs").join("STL Editor 2"), config: root.join("cfg"), start: root.join("start"), root }
+        Env {
+            install: root.join("Programs").join("STL Editor 2"),
+            config: root.join("cfg"),
+            start: root.join("start"),
+            root,
+        }
     }
     fn xtask(&self, args: &[&str]) -> Output {
         Command::new(env!("CARGO_BIN_EXE_xtask"))
@@ -48,7 +53,11 @@ impl Drop for Env {
 }
 
 fn text(o: &Output) -> String {
-    format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr))
+    format!(
+        "{}{}",
+        String::from_utf8_lossy(&o.stdout),
+        String::from_utf8_lossy(&o.stderr)
+    )
 }
 
 fn utf16(s: &str) -> Vec<u8> {
@@ -66,14 +75,26 @@ fn check_lnk(lnk: &Path, exe: &Path, dir: &Path) {
     assert_eq!(&b[0..4], &[0x4C, 0, 0, 0], "header size");
     assert_eq!(
         &b[4..20],
-        &[0x01, 0x14, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46],
+        &[
+            0x01, 0x14, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46
+        ],
         "link class id"
     );
     // target ID list, link info, name, working dir, icon location, Unicode strings
     let flags = u32::from_le_bytes(b[20..24].try_into().unwrap());
-    assert_eq!(flags, 1 | (1 << 1) | (1 << 2) | (1 << 4) | (1 << 6) | (1 << 7), "link flags {flags:#x}");
-    assert!(contains(&b, exe.to_str().unwrap().as_bytes()), "target path (ANSI) in link info");
-    assert!(contains(&b, &utf16(exe.to_str().unwrap())), "target path (UTF-16) in link info");
+    assert_eq!(
+        flags,
+        1 | (1 << 1) | (1 << 2) | (1 << 4) | (1 << 6) | (1 << 7),
+        "link flags {flags:#x}"
+    );
+    assert!(
+        contains(&b, exe.to_str().unwrap().as_bytes()),
+        "target path (ANSI) in link info"
+    );
+    assert!(
+        contains(&b, &utf16(exe.to_str().unwrap())),
+        "target path (UTF-16) in link info"
+    );
     assert!(contains(&b, &utf16(dir.to_str().unwrap())), "working dir");
 }
 
@@ -146,7 +167,11 @@ fn refuses_while_running() {
     assert!(!out.status.success(), "{}", text(&out));
     let msg = text(&out).to_lowercase();
     assert!(msg.contains("close") && msg.contains("stl editor 2"), "{msg}");
-    assert_eq!(std::fs::metadata(e.installed()).unwrap().len(), before, "the running exe is untouched");
+    assert_eq!(
+        std::fs::metadata(e.installed()).unwrap().len(),
+        before,
+        "the running exe is untouched"
+    );
     assert!(!e.lnk().exists());
 
     let out = e.xtask(&["uninstall"]);
@@ -204,7 +229,15 @@ fn purge_keeps_unrelated_files() {
     std::fs::create_dir_all(e.config.join("data").join("autosave").join("s1")).unwrap();
     std::fs::create_dir_all(e.config.join("data").join("windows")).unwrap();
     std::fs::create_dir_all(e.config.join("support-fins")).unwrap();
-    for f in ["settings.json", "settings.json.bad", "settings.lock", ".1.2.tmp", "data/log.txt", "data/autosave/s1/document.json", "support-fins/engine.iife.js"] {
+    for f in [
+        "settings.json",
+        "settings.json.bad",
+        "settings.lock",
+        ".1.2.tmp",
+        "data/log.txt",
+        "data/autosave/s1/document.json",
+        "support-fins/engine.iife.js",
+    ] {
         std::fs::write(e.config.join(f), "x").unwrap();
     }
     std::fs::write(e.config.join("holiday-photos.txt"), "mine").unwrap();
@@ -212,9 +245,24 @@ fn purge_keeps_unrelated_files() {
 
     let out = e.xtask(&["uninstall", "--purge"]);
     assert!(out.status.success(), "{}", text(&out));
-    assert_eq!(std::fs::read_to_string(e.config.join("holiday-photos.txt")).unwrap(), "mine");
-    assert_eq!(std::fs::read_to_string(e.config.join("data").join("notes.txt")).unwrap(), "mine too");
-    for gone in ["settings.json", "settings.json.bad", "settings.lock", ".1.2.tmp", "support-fins", "data/log.txt", "data/autosave", "data/windows"] {
+    assert_eq!(
+        std::fs::read_to_string(e.config.join("holiday-photos.txt")).unwrap(),
+        "mine"
+    );
+    assert_eq!(
+        std::fs::read_to_string(e.config.join("data").join("notes.txt")).unwrap(),
+        "mine too"
+    );
+    for gone in [
+        "settings.json",
+        "settings.json.bad",
+        "settings.lock",
+        ".1.2.tmp",
+        "support-fins",
+        "data/log.txt",
+        "data/autosave",
+        "data/windows",
+    ] {
         assert!(!e.config.join(gone).exists(), "{gone} should be gone");
     }
     assert!(!e.installed().exists());
@@ -244,7 +292,10 @@ fn purge_refuses_unsafe_folders() {
     assert!(!out.status.success(), "{}", text(&out));
     assert!(cwd.join("rel").join("settings.json").exists());
     // a whole drive
-    let drive = format!("{}\\", e.root.to_str().unwrap().split(':').next().unwrap().to_owned() + ":");
+    let drive = format!(
+        "{}\\",
+        e.root.to_str().unwrap().split(':').next().unwrap().to_owned() + ":"
+    );
     let out = run(&drive, None);
     assert!(!out.status.success(), "{}", text(&out));
     // the user's profile

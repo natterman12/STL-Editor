@@ -10,7 +10,9 @@ impl StlApp {
     /// planes are shown; `planes_before_tool` remembers the eye state from before, so the browser's
     /// Origin toggle is put back exactly as it was when the field is filled or the tool closes.
     pub fn sync_tool_planes(&mut self) {
-        let want = self.tool().is_some_and(|t| wants_planes(t.def, t.active_field.as_deref()));
+        let want = self
+            .tool()
+            .is_some_and(|t| wants_planes(t.def, t.active_field.as_deref()));
         match (want, self.planes_before_tool) {
             (true, None) => {
                 self.planes_before_tool = Some(self.viewport.base_planes_visible());

@@ -28,6 +28,11 @@ node tests/ui/run.js [web|desktop|<name>...]  # UI tests (Playwright); see tests
 node tests/ui/serve.js                       # web edition locally: http://127.0.0.1:8790/?web
 ```
 
+Rust workspace (`rust/`, the 2.0 rewrite), run from `rust/`: `cargo fmt --all` and
+`cargo clippy --workspace --all-targets -- -D warnings` before saying a Rust change is done
+(CI's "Format and lints" job fails on either). Settings: `rust/rustfmt.toml` and
+`[workspace.lints]` in `rust/Cargo.toml`; `rust/third_party` is vendored and left alone.
+
 Before saying a change is done: `python packaging/build_web.py`, `python -m pytest -q tests`,
 and the UI tests that cover what you touched (`node tests/ui/run.js <names>`). The pytest run
 fails if `docs/app` or `web/sw.js` is out of date. Don't serve `web/` with

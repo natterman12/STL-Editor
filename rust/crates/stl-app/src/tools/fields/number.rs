@@ -7,7 +7,7 @@ use egui::{FontFamily, FontId};
 use serde_json::Value;
 use stl_engine::params::{is_expr as engine_is_expr, resolve_deep};
 
-use super::{row, text_commit, unit_label, Edit, FieldEnv, Bufs};
+use super::{Bufs, Edit, FieldEnv, row, text_commit, unit_label};
 use crate::tools::Field;
 
 // ------------------------------------------------------------------ JS-style numbers
@@ -15,7 +15,13 @@ use crate::tools::Field;
 /// `String(n)` for a finite number: 5 is "5", 0.25 is "0.25".
 pub fn js_num(n: f64) -> String {
     if !n.is_finite() {
-        return if n.is_nan() { "NaN".into() } else if n > 0.0 { "Infinity".into() } else { "-Infinity".into() };
+        return if n.is_nan() {
+            "NaN".into()
+        } else if n > 0.0 {
+            "Infinity".into()
+        } else {
+            "-Infinity".into()
+        };
     }
     if n == 0.0 {
         return "0".into();
@@ -25,7 +31,9 @@ pub fn js_num(n: f64) -> String {
 
 /// A JSON number, 0 when not finite (JSON has no NaN).
 pub fn num_value(n: f64) -> Value {
-    serde_json::Number::from_f64(n).map(Value::Number).unwrap_or_else(|| Value::from(0))
+    serde_json::Number::from_f64(n)
+        .map(Value::Number)
+        .unwrap_or_else(|| Value::from(0))
 }
 
 /// `Math.round(v * 1000) / 1000` as a string (`num` in app.js:33).
@@ -202,11 +210,14 @@ pub fn parse_expr(text: &str) -> Option<f64> {
     let mut s = text.trim().replacen(',', ".", 1);
     // .replace(/["″]|in$|mm$/i, '') removes the first match only
     let lower = s.to_lowercase();
-    let mut cut: Option<(usize, usize)> = s.char_indices().find(|(_, c)| *c == '"' || *c == '″').map(|(i, c)| (i, c.len_utf8()));
+    let mut cut: Option<(usize, usize)> = s
+        .char_indices()
+        .find(|(_, c)| *c == '"' || *c == '″')
+        .map(|(i, c)| (i, c.len_utf8()));
     for suf in ["in", "mm"] {
         if lower.ends_with(suf) && lower.len() == s.len() {
             let at = s.len() - 2;
-            if cut.map_or(true, |(i, _)| at < i) {
+            if cut.is_none_or(|(i, _)| at < i) {
                 cut = Some((at, 2));
             }
         }
@@ -222,10 +233,10 @@ pub fn parse_expr(text: &str) -> Option<f64> {
     if let Some(v) = mixed_fraction(&s) {
         return Some(v);
     }
-    if arith_chars(&s) {
-        if let Some(v) = eval_arith(&s) {
-            return Some(v);
-        }
+    if arith_chars(&s)
+        && let Some(v) = eval_arith(&s)
+    {
+        return Some(v);
     }
     parse_float(&s)
 }
@@ -241,7 +252,8 @@ fn mixed_fraction(s: &str) -> Option<f64> {
         return None;
     }
     let (a, b) = f.split_once('/')?;
-    if a.is_empty() || b.is_empty() || !a.bytes().all(|c| c.is_ascii_digit()) || !b.bytes().all(|c| c.is_ascii_digit()) {
+    if a.is_empty() || b.is_empty() || !a.bytes().all(|c| c.is_ascii_digit()) || !b.bytes().all(|c| c.is_ascii_digit())
+    {
         return None;
     }
     let wn: f64 = w.parse().ok()?;
@@ -255,10 +267,10 @@ pub fn parse_num_text(text: &str) -> f64 {
     if s.is_empty() {
         return 0.0;
     }
-    if arith_chars(&s) {
-        if let Some(v) = eval_arith(&s) {
-            return v;
-        }
+    if arith_chars(&s)
+        && let Some(v) = eval_arith(&s)
+    {
+        return v;
     }
     parse_float(&s).unwrap_or(0.0)
 }
@@ -299,7 +311,10 @@ pub fn expr_text(text: &str) -> bool {
     if let Some(b) = body.strip_suffix('"').or_else(|| body.strip_suffix('″')) {
         body = b;
     }
-    if body.chars().all(|c| c.is_ascii_digit() || c.is_whitespace() || ".,+-*/()".contains(c)) {
+    if body
+        .chars()
+        .all(|c| c.is_ascii_digit() || c.is_whitespace() || ".,+-*/()".contains(c))
+    {
         return false;
     }
     t.chars().any(|c| c.is_ascii_alphabetic() || c == '_')
@@ -313,7 +328,12 @@ pub fn expr_of(text: &str) -> String {
 /// `exprTitle`: what an expression comes to, or why it doesn't work.
 pub fn expr_title(x: &str, is_len: bool, params: &BTreeMap<String, f64>) -> String {
     match resolve_deep(&Value::String(x.to_string()), params) {
-        Ok(v) => format!("{} = {}{}", x.trim().trim_start_matches('=').to_string(), num3(v.as_f64().unwrap_or(0.0)), if is_len { " mm" } else { "" }),
+        Ok(v) => format!(
+            "{} = {}{}",
+            x.trim().trim_start_matches('='),
+            num3(v.as_f64().unwrap_or(0.0)),
+            if is_len { " mm" } else { "" }
+        ),
         Err(e) => e.0,
     }
 }
@@ -351,12 +371,23 @@ pub fn input_font() -> FontId {
     FontId::proportional(12.0)
 }
 
-pub fn show(ui: &mut egui::Ui, env: &FieldEnv, f: &Field, unit: Option<&str>, val: &Value, bufs: &mut Bufs) -> Option<Edit> {
+pub fn show(
+    ui: &mut egui::Ui,
+    env: &FieldEnv,
+    f: &Field,
+    unit: Option<&str>,
+    val: &Value,
+    bufs: &mut Bufs,
+) -> Option<Edit> {
     let is_len = unit == Some("mm");
     let tk = env.tk;
     row(ui, env, f, false, |ui, w| {
         let expr = is_expr(val);
-        let label = if is_len { unit_name(env.inch) } else { unit.unwrap_or("") };
+        let label = if is_len {
+            unit_name(env.inch)
+        } else {
+            unit.unwrap_or("")
+        };
         let uw = if label.is_empty() { 0.0 } else { 22.0 + 4.0 };
         let (shown, font, colour, tip) = if expr {
             let s = val.as_str().unwrap_or("").to_string();
@@ -371,6 +402,9 @@ pub fn show(ui: &mut egui::Ui, env: &FieldEnv, f: &Field, unit: Option<&str>, va
         } else if !label.is_empty() {
             unit_label(ui, tk, label);
         }
-        typed.map(|t| Edit { key: f.key.to_owned(), value: commit_number(&t, is_len, env.inch) })
+        typed.map(|t| Edit {
+            key: f.key.to_owned(),
+            value: commit_number(&t, is_len, env.inch),
+        })
     })
 }

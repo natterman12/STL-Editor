@@ -25,7 +25,7 @@ fn step(g: &Grid3<bool>, dilate: bool) -> Result<Grid3<bool>, MeshError> {
                     (k + 1 < nz).then(|| g.data[g.idx(i, j, k + 1)]),
                 ];
                 out.data[c] = if dilate {
-                    g.data[c] || nb.iter().any(|v| *v == Some(true))
+                    g.data[c] || nb.contains(&Some(true))
                 } else {
                     // Outside the grid counts as empty.
                     g.data[c] && nb.iter().all(|v| *v == Some(true))

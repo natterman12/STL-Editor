@@ -35,10 +35,20 @@ fn f_layflat(
             if a.len() != 3 {
                 return Err(bad());
             }
-            [a[0].as_f64().ok_or_else(bad)?, a[1].as_f64().ok_or_else(bad)?, a[2].as_f64().ok_or_else(bad)?]
+            [
+                a[0].as_f64().ok_or_else(bad)?,
+                a[1].as_f64().ok_or_else(bad)?,
+                a[2].as_f64().ok_or_else(bad)?,
+            ]
         };
         let m = lay_flat_matrix(&s, normal)?;
-        state.bodies.insert(bid.clone(), Body { solid: Some(s.transform(m)), ..b });
+        state.bodies.insert(
+            bid.clone(),
+            Body {
+                solid: Some(s.transform(m)),
+                ..b
+            },
+        );
         res.modified.push(bid);
     }
     Ok(())

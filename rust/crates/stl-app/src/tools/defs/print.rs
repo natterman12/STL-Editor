@@ -1,6 +1,6 @@
 //! PRINT tab tools (fit to bed, plate layout, lay flat).
 
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 
 use super::fields::connector_fields_bedsplit;
 use super::tables::{self, PRINTER_OPTS};
@@ -8,7 +8,10 @@ use super::util::*;
 use super::{Ctx, Field, FieldKind, ToolDef, ToolFlags, Values};
 
 fn printer_opts() -> Vec<(String, String)> {
-    PRINTER_OPTS.iter().map(|(a, b)| (a.to_string(), b.to_string())).collect()
+    PRINTER_OPTS
+        .iter()
+        .map(|(a, b)| (a.to_string(), b.to_string()))
+        .collect()
 }
 
 fn defaults_bedsplit(ctx: &Ctx) -> Values {
@@ -56,7 +59,7 @@ fn on_change_connector(key: &str, v: &Values, _: &Ctx) -> Option<Values> {
     if key != "connector" {
         return None;
     }
-    tables::connector_patch(get_str(v, "connector")?).map(|m| m)
+    tables::connector_patch(get_str(v, "connector")?)
 }
 
 fn connector_on_change(key: &str, v: &Values, ctx: &Ctx) -> Option<Values> {
@@ -113,9 +116,14 @@ pub fn bedsplit() -> ToolDef {
         icon: "bedsplit",
         kind: "bedsplit",
         fields,
-        hint: Some("Cuts the part into pieces that fit your printer, with pins so they line up. Smart cut positions puts seams where the part is thinnest"),
+        hint: Some(
+            "Cuts the part into pieces that fit your printer, with pins so they line up. Smart cut positions puts seams where the part is thinnest",
+        ),
         extra: None,
-        flags: ToolFlags { no_live_preview: false, ..ToolFlags::default() },
+        flags: ToolFlags {
+            no_live_preview: false,
+            ..ToolFlags::default()
+        },
         defaults: defaults_bedsplit,
         to_params: to_params_bedsplit,
         from_params: from_params_bedsplit,
@@ -204,7 +212,9 @@ pub fn plate() -> ToolDef {
                 show: None,
             },
         ],
-        hint: Some("Sets the chosen bodies side by side on the print bed, a gap apart, each one sitting on the bed. Turn them with Move afterwards if you want to nudge them"),
+        hint: Some(
+            "Sets the chosen bodies side by side on the print bed, a gap apart, each one sitting on the bed. Turn them with Move afterwards if you want to nudge them",
+        ),
         extra: None,
         flags: ToolFlags::default(),
         defaults: defaults_plate,

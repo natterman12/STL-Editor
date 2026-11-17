@@ -6,7 +6,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use stl_engine::stlx::{from_bytes, to_bytes};
 use stl_engine::{Document, Registry};
 
@@ -38,7 +38,12 @@ fn sketch_doc() -> (Document, Value) {
         _ => Default::default(),
     };
     doc.add_feature("sketch", map, None).expect("add sketch");
-    let sid = doc.features.iter().find(|f| f.kind == "sketch").map(|f| f.id.clone()).expect("sketch id");
+    let sid = doc
+        .features
+        .iter()
+        .find(|f| f.kind == "sketch")
+        .map(|f| f.id.clone())
+        .expect("sketch id");
     let mut extrude = serde_json::Map::new();
     extrude.insert("sketch".into(), json!(sid));
     extrude.insert("distance".into(), json!(5.0));
@@ -76,16 +81,24 @@ fn sketch_round_trip_2_to_1x_profile() {
     assert_eq!(step["entities"].as_array().map(|a| a.len()), Some(2));
     assert_eq!(step["constraints"].as_array().map(|a| a.len()), Some(3));
     if out.status.success() {
-        if let Ok(report) = serde_json::from_str::<Value>(stdout.lines().rev().find(|l| l.trim_start().starts_with('{')).unwrap_or("{}")) {
-            if let Some(a) = report["areaDiff"].as_f64() {
-                // When 1.x returns a real volume, it must match within 1e-6.
-                if report["area"].as_f64().unwrap_or(0.0) > 0.0 {
-                    assert!(a.abs() <= 1e-6, "area diff {a} report={report}");
-                }
+        if let Ok(report) = serde_json::from_str::<Value>(
+            stdout
+                .lines()
+                .rev()
+                .find(|l| l.trim_start().starts_with('{'))
+                .unwrap_or("{}"),
+        ) && let Some(a) = report["areaDiff"].as_f64()
+        {
+            // When 1.x returns a real volume, it must match within 1e-6.
+            if report["area"].as_f64().unwrap_or(0.0) > 0.0 {
+                assert!(a.abs() <= 1e-6, "area diff {a} report={report}");
             }
         }
     } else {
-        eprintln!("sketch_round_trip: Node helper non-zero ({:?}): {stderr} {stdout}", out.status.code());
+        eprintln!(
+            "sketch_round_trip: Node helper non-zero ({:?}): {stderr} {stdout}",
+            out.status.code()
+        );
     }
     let _ = std::fs::remove_file(&tmp);
 }
@@ -95,9 +108,17 @@ fn sketch_round_trip_1x_fixture_step_json_in_2() {
     let (doc, want) = sketch_doc();
     let bytes = to_bytes(&doc).expect("to_bytes");
     let opened = from_bytes(&bytes, Registry::builtin()).expect("2.0 opens the .stlx");
-    let got = opened.features.iter().find(|f| f.kind == "sketch").map(|f| f.params.clone()).expect("sketch step");
+    let got = opened
+        .features
+        .iter()
+        .find(|f| f.kind == "sketch")
+        .map(|f| f.params.clone())
+        .expect("sketch step");
     assert_eq!(got["plane"], want["plane"]);
     assert_eq!(got["entities"], want["entities"]);
     assert_eq!(got["constraints"], want["constraints"]);
-    assert_eq!(got.get("refs").cloned().unwrap_or(json!([])), want.get("refs").cloned().unwrap_or(json!([])));
+    assert_eq!(
+        got.get("refs").cloned().unwrap_or(json!([])),
+        want.get("refs").cloned().unwrap_or(json!([]))
+    );
 }

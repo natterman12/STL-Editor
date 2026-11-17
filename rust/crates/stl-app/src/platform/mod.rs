@@ -34,13 +34,19 @@ pub struct Pending<T> {
 
 impl<T> Clone for Pending<T> {
     fn clone(&self) -> Self {
-        Pending { slot: self.slot.clone(), source: self.source.clone() }
+        Pending {
+            slot: self.slot.clone(),
+            source: self.source.clone(),
+        }
     }
 }
 
 impl<T> Default for Pending<T> {
     fn default() -> Self {
-        Pending { slot: Arc::new(Mutex::new(None)), source: None }
+        Pending {
+            slot: Arc::new(Mutex::new(None)),
+            source: None,
+        }
     }
 }
 
@@ -49,7 +55,10 @@ impl<T> Pending<T> {
         Self::default()
     }
     pub fn ready(v: T) -> Self {
-        Pending { slot: Arc::new(Mutex::new(Some(v))), source: None }
+        Pending {
+            slot: Arc::new(Mutex::new(Some(v))),
+            source: None,
+        }
     }
     pub fn set(&self, v: T) {
         *self.slot.lock().unwrap() = Some(v);
@@ -65,7 +74,10 @@ impl<T> Pending<T> {
 impl<T: Send + 'static> Pending<T> {
     /// A pending that gives `f` of this one's answer.
     pub fn map<U: Send + 'static>(self, f: impl Fn(T) -> U + Send + Sync + 'static) -> Pending<U> {
-        Pending { slot: Arc::new(Mutex::new(None)), source: Some(Arc::new(move || self.take().map(&f))) }
+        Pending {
+            slot: Arc::new(Mutex::new(None)),
+            source: Some(Arc::new(move || self.take().map(&f))),
+        }
     }
 }
 
@@ -80,12 +92,23 @@ pub trait Platform {
     /// Like [`Platform::save_file`] (always asks), and says where it wrote. Default: no path
     /// (web: a download).
     fn save_file_path(&self, suggested: &str, bytes: Vec<u8>) -> Pending<Result<SaveOutcome, String>> {
-        self.save_file(suggested, bytes).map(|r| r.map(|ok| if ok { SaveOutcome::Done(None) } else { SaveOutcome::Cancelled }))
+        self.save_file(suggested, bytes).map(|r| {
+            r.map(|ok| {
+                if ok {
+                    SaveOutcome::Done(None)
+                } else {
+                    SaveOutcome::Cancelled
+                }
+            })
+        })
     }
     /// Write to a path from an earlier [`SaveOutcome::Done`] or [`Platform::open_file_path`]
     /// without asking. Default: [`Platform::save_file`] with the file's name.
     fn save_to(&self, path: &str, bytes: Vec<u8>) -> Pending<Result<bool, String>> {
-        let name = std::path::Path::new(path).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+        let name = std::path::Path::new(path)
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
         self.save_file(&name, bytes)
     }
     fn now_iso_utc(&self) -> String;

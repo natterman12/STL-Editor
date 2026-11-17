@@ -18,7 +18,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use super::overlays::Depth;
-use super::scene::{as_bytes, FlatVertex, LitVertex, PreparedMesh};
+use super::scene::{FlatVertex, LitVertex, PreparedMesh, as_bytes};
 
 pub const MSAA: u32 = 4;
 pub const COLOR_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
@@ -74,11 +74,23 @@ pub struct BodyUniform {
     pub normal: [[f32; 4]; 4],
 }
 
-pub const IDENTITY: [[f32; 4]; 4] = [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]];
+pub const IDENTITY: [[f32; 4]; 4] = [
+    [1.0, 0.0, 0.0, 0.0],
+    [0.0, 1.0, 0.0, 0.0],
+    [0.0, 0.0, 1.0, 0.0],
+    [0.0, 0.0, 0.0, 1.0],
+];
 
 impl Default for BodyUniform {
     fn default() -> Self {
-        BodyUniform { color: [0.0; 4], emissive: [0.0; 4], edge: [0.0; 4], params: [0.0; 4], model: IDENTITY, normal: IDENTITY }
+        BodyUniform {
+            color: [0.0; 4],
+            emissive: [0.0; 4],
+            edge: [0.0; 4],
+            params: [0.0; 4],
+            model: IDENTITY,
+            normal: IDENTITY,
+        }
     }
 }
 
@@ -258,7 +270,11 @@ fn uniform_entry(binding: u32) -> wgpu::BindGroupLayoutEntry {
     wgpu::BindGroupLayoutEntry {
         binding,
         visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
-        ty: wgpu::BindingType::Buffer { ty: wgpu::BufferBindingType::Uniform, has_dynamic_offset: false, min_binding_size: None },
+        ty: wgpu::BindingType::Buffer {
+            ty: wgpu::BufferBindingType::Uniform,
+            has_dynamic_offset: false,
+            min_binding_size: None,
+        },
         count: None,
     }
 }
@@ -322,11 +338,19 @@ fn pipeline(device: &wgpu::Device, d: PipeDesc<'_>) -> wgpu::RenderPipeline {
             stencil: d.stencil,
             bias: d.bias,
         }),
-        multisample: wgpu::MultisampleState { count: MSAA, mask: !0, alpha_to_coverage_enabled: false },
+        multisample: wgpu::MultisampleState {
+            count: MSAA,
+            mask: !0,
+            alpha_to_coverage_enabled: false,
+        },
         fragment: Some(wgpu::FragmentState {
             module: d.module,
             entry_point: Some(d.fs),
-            targets: &[Some(wgpu::ColorTargetState { format: COLOR_FORMAT, blend: d.blend, write_mask: d.writes })],
+            targets: &[Some(wgpu::ColorTargetState {
+                format: COLOR_FORMAT,
+                blend: d.blend,
+                write_mask: d.writes,
+            })],
             compilation_options: wgpu::PipelineCompilationOptions::default(),
         }),
         multiview_mask: None,
@@ -336,9 +360,21 @@ fn pipeline(device: &wgpu::Device, d: PipeDesc<'_>) -> wgpu::RenderPipeline {
 
 /// Reversed depth: nearer is larger. A body is pushed back a little (`polygonOffset 1, 1`) so
 /// its edges win, and faces painted on it pulled forward (`polygonOffset -2, -2`).
-const BODY_BIAS: wgpu::DepthBiasState = wgpu::DepthBiasState { constant: -1, slope_scale: -1.0, clamp: 0.0 };
-const OVERLAY_BIAS: wgpu::DepthBiasState = wgpu::DepthBiasState { constant: 2, slope_scale: 2.0, clamp: 0.0 };
-const NO_BIAS: wgpu::DepthBiasState = wgpu::DepthBiasState { constant: 0, slope_scale: 0.0, clamp: 0.0 };
+const BODY_BIAS: wgpu::DepthBiasState = wgpu::DepthBiasState {
+    constant: -1,
+    slope_scale: -1.0,
+    clamp: 0.0,
+};
+const OVERLAY_BIAS: wgpu::DepthBiasState = wgpu::DepthBiasState {
+    constant: 2,
+    slope_scale: 2.0,
+    clamp: 0.0,
+};
+const NO_BIAS: wgpu::DepthBiasState = wgpu::DepthBiasState {
+    constant: 0,
+    slope_scale: 0.0,
+    clamp: 0.0,
+};
 
 /// One body's new buffers, filled [`super::section::UPLOAD_BUDGET_BYTES`] at a time.
 struct PendingUpload {
@@ -359,7 +395,7 @@ struct PendingUpload {
 }
 
 fn gpu_buffer(device: &wgpu::Device, label: &str, size: u64, usage: wgpu::BufferUsages) -> wgpu::Buffer {
-    let align = wgpu::COPY_BUFFER_ALIGNMENT as u64;
+    let align = wgpu::COPY_BUFFER_ALIGNMENT;
     device.create_buffer(&wgpu::BufferDescriptor {
         label: Some(label),
         size: size.max(align).next_multiple_of(align),
@@ -371,12 +407,12 @@ fn gpu_buffer(device: &wgpu::Device, label: &str, size: u64, usage: wgpu::Buffer
 /// How many bytes of `data` to copy this frame, starting at `done`. A multiple of 4, and at
 /// most the bytes still allowed in `budget`.
 fn chunk_len(done: u64, len: u64, budget: u64) -> u64 {
-    if done >= len || budget < wgpu::COPY_BUFFER_ALIGNMENT as u64 {
+    if done >= len || budget < wgpu::COPY_BUFFER_ALIGNMENT {
         return 0;
     }
     let span = super::section::upload_span(done, len);
     let mut n = (span.end - span.start).min(budget);
-    n -= n % wgpu::COPY_BUFFER_ALIGNMENT as u64;
+    n -= n % wgpu::COPY_BUFFER_ALIGNMENT;
     n
 }
 
@@ -388,12 +424,12 @@ fn copy_chunk(queue: &wgpu::Queue, budget: &mut u64, buf: &wgpu::Buffer, data: &
     if n == 0 {
         // A tail shorter than the copy alignment: pad it out and finish.
         let rest = data.len() as u64 - *done;
-        if rest > 0 && rest < wgpu::COPY_BUFFER_ALIGNMENT as u64 && *budget >= wgpu::COPY_BUFFER_ALIGNMENT as u64 {
+        if rest > 0 && rest < wgpu::COPY_BUFFER_ALIGNMENT && *budget >= wgpu::COPY_BUFFER_ALIGNMENT {
             let mut padded = [0u8; 4];
             padded[..rest as usize].copy_from_slice(&data[*done as usize..]);
             queue.write_buffer(buf, *done, &padded);
             *done = data.len() as u64;
-            *budget -= wgpu::COPY_BUFFER_ALIGNMENT as u64;
+            *budget -= wgpu::COPY_BUFFER_ALIGNMENT;
         }
         return;
     }
@@ -409,9 +445,28 @@ impl PendingUpload {
         let vert_bytes = as_bytes(&m.vertices);
         let index_bytes = m.indices.as_ref().map(|i| as_bytes(i));
         let edge_bytes = m.edges.as_ref().filter(|e| !e.is_empty()).map(|e| as_bytes(e));
-        let vertices = gpu_buffer(device, "viewport body vertices", vert_bytes.len() as u64, wgpu::BufferUsages::VERTEX);
-        let indices = index_bytes.map(|b| gpu_buffer(device, "viewport body indices", b.len() as u64, wgpu::BufferUsages::INDEX));
-        let edges = edge_bytes.map(|b| gpu_buffer(device, "viewport body edges", b.len() as u64, wgpu::BufferUsages::VERTEX));
+        let vertices = gpu_buffer(
+            device,
+            "viewport body vertices",
+            vert_bytes.len() as u64,
+            wgpu::BufferUsages::VERTEX,
+        );
+        let indices = index_bytes.map(|b| {
+            gpu_buffer(
+                device,
+                "viewport body indices",
+                b.len() as u64,
+                wgpu::BufferUsages::INDEX,
+            )
+        });
+        let edges = edge_bytes.map(|b| {
+            gpu_buffer(
+                device,
+                "viewport body edges",
+                b.len() as u64,
+                wgpu::BufferUsages::VERTEX,
+            )
+        });
         let count = m.indices.as_ref().map_or(m.vertices.len(), |i| i.len()) as u32;
         let edge_count = m.edges.as_ref().map(|e| e.len()).unwrap_or(0) as u32;
         let uniform = device.create_buffer(&wgpu::BufferDescriptor {
@@ -423,7 +478,10 @@ impl PendingUpload {
         let bind = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("viewport body"),
             layout,
-            entries: &[wgpu::BindGroupEntry { binding: 0, resource: uniform.as_entire_binding() }],
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: uniform.as_entire_binding(),
+            }],
         });
         PendingUpload {
             revision: d.revision,
@@ -446,7 +504,13 @@ impl PendingUpload {
     /// Copy the next slice. True when vertices, indices and edges have all landed.
     fn copy(&mut self, queue: &wgpu::Queue, d: &BodyDraw, budget: &mut u64) -> bool {
         let m = &d.mesh;
-        copy_chunk(queue, budget, &self.vertices, as_bytes(&m.vertices), &mut self.vert_done);
+        copy_chunk(
+            queue,
+            budget,
+            &self.vertices,
+            as_bytes(&m.vertices),
+            &mut self.vert_done,
+        );
         if let (Some(buf), Some(idx)) = (&self.indices, m.indices.as_ref()) {
             copy_chunk(queue, budget, buf, as_bytes(idx), &mut self.index_done);
         }
@@ -510,7 +574,10 @@ impl GpuState {
         let globals_bind = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("viewport globals"),
             layout: &globals_layout,
-            entries: &[wgpu::BindGroupEntry { binding: 0, resource: globals.as_entire_binding() }],
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: globals.as_entire_binding(),
+            }],
         });
         let lit_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("viewport lit"),
@@ -617,7 +684,12 @@ impl GpuState {
         // the depth of the cut plane: everything behind it is hidden, a hole the cut passes
         // through still shows, and a nearer part still wins. That draw clears the bit again.
         let cut = stencil.then(|| {
-            let face = |compare, op| wgpu::StencilFaceState { compare, fail_op: op, depth_fail_op: op, pass_op: op };
+            let face = |compare, op| wgpu::StencilFaceState {
+                compare,
+                fail_op: op,
+                depth_fail_op: op,
+                pass_op: op,
+            };
             let count = pipeline(
                 device,
                 PipeDesc {
@@ -736,8 +808,16 @@ impl GpuState {
             multisample: wgpu::MultisampleState::default(),
             fragment: Some(wgpu::FragmentState {
                 module: &blit,
-                entry_point: Some(if target_format.is_srgb() { "fs_blit_srgb" } else { "fs_blit" }),
-                targets: &[Some(wgpu::ColorTargetState { format: target_format, blend: None, write_mask: wgpu::ColorWrites::ALL })],
+                entry_point: Some(if target_format.is_srgb() {
+                    "fs_blit_srgb"
+                } else {
+                    "fs_blit"
+                }),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: target_format,
+                    blend: None,
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             }),
             multiview_mask: None,
@@ -765,7 +845,15 @@ impl GpuState {
         *stats.lost_reason.lock().unwrap_or_else(|e| e.into_inner()) = None;
         stats.gpu_states.fetch_add(1, Ordering::Relaxed);
         GpuState {
-            pipelines: Pipelines { cut, body_opaque, cap, body_transparent, edge, flat: flat_pipes, blit: blit_pipe },
+            pipelines: Pipelines {
+                cut,
+                body_opaque,
+                cap,
+                body_transparent,
+                edge,
+                flat: flat_pipes,
+                blit: blit_pipe,
+            },
             depth_format,
             globals,
             globals_bind,
@@ -809,13 +897,20 @@ impl GpuState {
 
     /// Encode this frame's uploads and render into the viewport's own command buffer, inside
     /// error scopes. No buffer when it is invalid (an error was caught).
-    pub fn render(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, frame: &FrameData) -> (Rendered, Option<wgpu::CommandBuffer>) {
+    pub fn render(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        frame: &FrameData,
+    ) -> (Rendered, Option<wgpu::CommandBuffer>) {
         if self.late_error.swap(false, Ordering::Relaxed) {
             self.recover_from_error();
         }
         let oom = device.push_error_scope(wgpu::ErrorFilter::OutOfMemory);
         let validation = device.push_error_scope(wgpu::ErrorFilter::Validation);
-        let mut enc = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("viewport") });
+        let mut enc = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("viewport"),
+        });
         let uploads_before = self.stats.uploads();
         let shown = self.prepare(device, queue, &mut enc, frame);
         let cmd = enc.finish();
@@ -825,9 +920,25 @@ impl GpuState {
         let uploaded = self.stats.uploads() != uploads_before;
         if failed_v || failed_o {
             self.recover_from_error();
-            return (Rendered { shown: false, more, uploaded, error: true }, None);
+            return (
+                Rendered {
+                    shown: false,
+                    more,
+                    uploaded,
+                    error: true,
+                },
+                None,
+            );
         }
-        (Rendered { shown, more, uploaded, error: false }, Some(cmd))
+        (
+            Rendered {
+                shown,
+                more,
+                uploaded,
+                error: false,
+            },
+            Some(cmd),
+        )
     }
 
     /// The window was minimised, resized or its surface lost: drop the size-bound targets
@@ -846,7 +957,11 @@ impl GpuState {
         if self.targets.as_ref().is_some_and(|t| t.size == size) {
             return;
         }
-        let extent = wgpu::Extent3d { width: size[0], height: size[1], depth_or_array_layers: 1 };
+        let extent = wgpu::Extent3d {
+            width: size[0],
+            height: size[1],
+            depth_or_array_layers: 1,
+        };
         let tex = |label, format, samples, usage| {
             device.create_texture(&wgpu::TextureDescriptor {
                 label: Some(label),
@@ -859,21 +974,39 @@ impl GpuState {
                 view_formats: &[],
             })
         };
-        let msaa = tex("viewport msaa", COLOR_FORMAT, MSAA, wgpu::TextureUsages::RENDER_ATTACHMENT);
-        let depth = tex("viewport depth", self.depth_format, MSAA, wgpu::TextureUsages::RENDER_ATTACHMENT);
+        let msaa = tex(
+            "viewport msaa",
+            COLOR_FORMAT,
+            MSAA,
+            wgpu::TextureUsages::RENDER_ATTACHMENT,
+        );
+        let depth = tex(
+            "viewport depth",
+            self.depth_format,
+            MSAA,
+            wgpu::TextureUsages::RENDER_ATTACHMENT,
+        );
         let resolve = tex(
             "viewport image",
             COLOR_FORMAT,
             1,
-            wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_SRC,
+            wgpu::TextureUsages::RENDER_ATTACHMENT
+                | wgpu::TextureUsages::TEXTURE_BINDING
+                | wgpu::TextureUsages::COPY_SRC,
         );
         let resolve_view = resolve.create_view(&wgpu::TextureViewDescriptor::default());
         let blit_bind = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("viewport blit"),
             layout: &self.blit_layout,
             entries: &[
-                wgpu::BindGroupEntry { binding: 0, resource: wgpu::BindingResource::TextureView(&resolve_view) },
-                wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::Sampler(&self.sampler) },
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&resolve_view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&self.sampler),
+                },
             ],
         });
         self.targets = Some(Targets {
@@ -907,12 +1040,13 @@ impl GpuState {
             if stale {
                 // Allocating the buffers is cheap; the copy is what this budget limits. Don't
                 // start another body once this frame's bytes are spent.
-                if budget < wgpu::COPY_BUFFER_ALIGNMENT as u64 {
+                if budget < wgpu::COPY_BUFFER_ALIGNMENT {
                     more = true;
                     continue;
                 }
                 let layout = self.body_layout.clone();
-                self.pending.insert(d.key.clone(), PendingUpload::start(device, &layout, d));
+                self.pending
+                    .insert(d.key.clone(), PendingUpload::start(device, &layout, d));
             }
             let job = self.pending.get_mut(&d.key).expect("just inserted");
             if job.copy(queue, d, &mut budget) {
@@ -933,7 +1067,13 @@ impl GpuState {
 
     /// Bring the GPU up to date with `frame` and render it, unless the last render already
     /// shows it. Returns false when there is nothing to show (zero size).
-    pub fn prepare(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, encoder: &mut wgpu::CommandEncoder, frame: &FrameData) -> bool {
+    pub fn prepare(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        encoder: &mut wgpu::CommandEncoder,
+        frame: &FrameData,
+    ) -> bool {
         let size = [frame.size[0].min(self.max_dim), frame.size[1].min(self.max_dim)];
         let more = self.pump_uploads(device, queue, frame);
         self.stats.upload_pending.store(more, Ordering::Relaxed);
@@ -997,13 +1137,21 @@ impl GpuState {
                 view: &t.msaa,
                 depth_slice: None,
                 resolve_target: Some(&t.resolve_view),
-                ops: wgpu::Operations { load: wgpu::LoadOp::Clear(wgpu::Color { r, g: gc, b, a }), store: wgpu::StoreOp::Discard },
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color { r, g: gc, b, a }),
+                    store: wgpu::StoreOp::Discard,
+                },
             })],
             depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                 view: &t.depth,
-                depth_ops: Some(wgpu::Operations { load: wgpu::LoadOp::Clear(0.0), store: wgpu::StoreOp::Discard }),
-                stencil_ops: (self.depth_format == DEPTH_STENCIL_FORMAT)
-                    .then_some(wgpu::Operations { load: wgpu::LoadOp::Clear(0), store: wgpu::StoreOp::Discard }),
+                depth_ops: Some(wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(0.0),
+                    store: wgpu::StoreOp::Discard,
+                }),
+                stencil_ops: (self.depth_format == DEPTH_STENCIL_FORMAT).then_some(wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(0),
+                    store: wgpu::StoreOp::Discard,
+                }),
             }),
             ..Default::default()
         });
@@ -1116,19 +1264,34 @@ impl GpuState {
             usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
-        let mut enc = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("viewport readback") });
+        let mut enc = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("viewport readback"),
+        });
         enc.copy_texture_to_buffer(
             t.resolve.as_image_copy(),
             wgpu::TexelCopyBufferInfo {
                 buffer: &buf,
-                layout: wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(row), rows_per_image: None },
+                layout: wgpu::TexelCopyBufferLayout {
+                    offset: 0,
+                    bytes_per_row: Some(row),
+                    rows_per_image: None,
+                },
             },
-            wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 },
+            wgpu::Extent3d {
+                width: w,
+                height: h,
+                depth_or_array_layers: 1,
+            },
         );
         let idx = queue.submit(std::iter::once(enc.finish()));
         let (tx, rx) = std::sync::mpsc::channel();
         buf.slice(..).map_async(wgpu::MapMode::Read, move |r| drop(tx.send(r)));
-        device.poll(wgpu::PollType::Wait { submission_index: Some(idx), timeout: None }).ok()?;
+        device
+            .poll(wgpu::PollType::Wait {
+                submission_index: Some(idx),
+                timeout: None,
+            })
+            .ok()?;
         rx.recv().ok()?.ok()?;
         let data = buf.slice(..).get_mapped_range().ok()?;
         let mut out = Vec::with_capacity((w * h * 4) as usize);
@@ -1216,7 +1379,12 @@ impl egui_wgpu::CallbackTrait for ViewportCallback {
         cmd.into_iter().collect()
     }
 
-    fn paint(&self, _info: egui::PaintCallbackInfo, pass: &mut wgpu::RenderPass<'static>, resources: &egui_wgpu::CallbackResources) {
+    fn paint(
+        &self,
+        _info: egui::PaintCallbackInfo,
+        pass: &mut wgpu::RenderPass<'static>,
+        resources: &egui_wgpu::CallbackResources,
+    ) {
         if let Some(gpu) = resources.get::<GpuState>().filter(|g| !g.is_lost()) {
             gpu.paint(pass);
         }
@@ -1250,9 +1418,18 @@ pub fn block_on<F: std::future::Future>(f: F) -> F::Output {
 pub fn new_render_state() -> Option<egui_wgpu::RenderState> {
     let setup = egui_wgpu::WgpuSetup::without_display_handle();
     let instance = block_on(setup.new_instance());
-    let mut config = egui_wgpu::WgpuConfiguration { wgpu_setup: setup, ..Default::default() };
+    let mut config = egui_wgpu::WgpuConfiguration {
+        wgpu_setup: setup,
+        ..Default::default()
+    };
     ask_for_stencil(&mut config);
-    block_on(egui_wgpu::RenderState::create(&config, &instance, None, egui_wgpu::RendererOptions::default())).ok()
+    block_on(egui_wgpu::RenderState::create(
+        &config,
+        &instance,
+        None,
+        egui_wgpu::RendererOptions::default(),
+    ))
+    .ok()
 }
 
 /// Test hook: `rs`'s device goes away now, as after a graphics driver reset (the device-lost
@@ -1267,7 +1444,11 @@ pub fn destroy_device(rs: &egui_wgpu::RenderState) {
 /// lost. False when it was never set up there. Native only.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn render_state_lost(rs: &egui_wgpu::RenderState) -> bool {
-    rs.renderer.read().callback_resources.get::<GpuState>().is_some_and(|g| g.is_lost())
+    rs.renderer
+        .read()
+        .callback_resources
+        .get::<GpuState>()
+        .is_some_and(|g| g.is_lost())
 }
 
 /// `rs`'s device no longer takes uploads: the staging write egui-wgpu makes every frame is
@@ -1284,7 +1465,10 @@ pub fn render_state_refuses_uploads(rs: &egui_wgpu::RenderState) -> bool {
         usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::VERTEX,
         mapped_at_creation: false,
     });
-    let refused = rs.queue.write_buffer_with(&buf, 0, wgpu::BufferSize::new(16).unwrap()).is_none();
+    let refused = rs
+        .queue
+        .write_buffer_with(&buf, 0, wgpu::BufferSize::new(16).unwrap())
+        .is_none();
     let _ = block_on(oom.pop());
     let _ = block_on(validation.pop());
     refused
@@ -1300,7 +1484,9 @@ pub struct Headless {
 impl Headless {
     /// `None` when the machine has no usable GPU adapter.
     pub fn new() -> Option<Self> {
-        Some(Headless { render_state: new_render_state()? })
+        Some(Headless {
+            render_state: new_render_state()?,
+        })
     }
 
     /// Test hook: the device goes away now, as after a graphics driver reset. The device-lost
@@ -1340,7 +1526,8 @@ impl Headless {
         }
         let renderer = self.render_state.renderer.read();
         let gpu = renderer.callback_resources.get::<GpuState>().filter(|g| !g.is_lost())?;
-        gpu.read_image(&self.render_state.device, &self.render_state.queue).map(|(_, _, px)| px)
+        gpu.read_image(&self.render_state.device, &self.render_state.queue)
+            .map(|(_, _, px)| px)
     }
 
     /// Render without reading back, and wait for the GPU to finish: one frame's cost (for
@@ -1348,7 +1535,10 @@ impl Headless {
     pub fn render_and_wait(&self, vp: &mut super::Viewport, w: u32, h: u32) -> bool {
         let (r, idx) = self.frame(vp, w, h);
         if let Some(idx) = idx {
-            let _ = self.render_state.device.poll(wgpu::PollType::Wait { submission_index: Some(idx), timeout: None });
+            let _ = self.render_state.device.poll(wgpu::PollType::Wait {
+                submission_index: Some(idx),
+                timeout: None,
+            });
         }
         r.shown
     }
@@ -1367,14 +1557,27 @@ impl Headless {
     pub fn submit(&self, vp: &super::Viewport, frame: &FrameData) -> (Rendered, Option<wgpu::SubmissionIndex>) {
         let rs = &self.render_state;
         let mut renderer = rs.renderer.write();
-        let (r, cmd) = render_frame(&mut renderer.callback_resources, &rs.device, &rs.queue, rs.target_format, &vp.stats, frame);
+        let (r, cmd) = render_frame(
+            &mut renderer.callback_resources,
+            &rs.device,
+            &rs.queue,
+            rs.target_format,
+            &vp.stats,
+            frame,
+        );
         drop(renderer);
         (r, cmd.map(|c| rs.queue.submit(std::iter::once(c))))
     }
 
     /// As when the window's surface is lost or the window is minimised.
     pub fn surface_lost(&self) {
-        if let Some(gpu) = self.render_state.renderer.write().callback_resources.get_mut::<GpuState>() {
+        if let Some(gpu) = self
+            .render_state
+            .renderer
+            .write()
+            .callback_resources
+            .get_mut::<GpuState>()
+        {
             gpu.surface_lost();
         }
     }
@@ -1391,8 +1594,13 @@ impl Headless {
         let free = std::mem::take(&mut out.textures_delta.free);
         let ppp = out.pixels_per_point;
         let prims = ctx.tessellate(out.shapes, ppp);
-        let screen = egui_wgpu::ScreenDescriptor { size_in_pixels: [w, h], pixels_per_point: ppp };
-        let mut encoder = rs.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("egui test paint") });
+        let screen = egui_wgpu::ScreenDescriptor {
+            size_in_pixels: [w, h],
+            pixels_per_point: ppp,
+        };
+        let mut encoder = rs.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("egui test paint"),
+        });
         let user = {
             let mut r = rs.renderer.write();
             for (id, deltas) in &set {
@@ -1404,7 +1612,11 @@ impl Headless {
         };
         let target = rs.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("egui test target"),
-            size: wgpu::Extent3d { width: w.max(1), height: h.max(1), depth_or_array_layers: 1 },
+            size: wgpu::Extent3d {
+                width: w.max(1),
+                height: h.max(1),
+                depth_or_array_layers: 1,
+            },
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
@@ -1421,14 +1633,18 @@ impl Headless {
                         view: &view,
                         resolve_target: None,
                         depth_slice: None,
-                        ops: wgpu::Operations { load: wgpu::LoadOp::Clear(wgpu::Color::BLACK), store: wgpu::StoreOp::Store },
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                            store: wgpu::StoreOp::Store,
+                        },
                     })],
                     ..Default::default()
                 })
                 .forget_lifetime();
             rs.renderer.read().render(&mut pass, &prims, &screen);
         }
-        rs.queue.submit(user.into_iter().chain(std::iter::once(encoder.finish())));
+        rs.queue
+            .submit(user.into_iter().chain(std::iter::once(encoder.finish())));
         let mut r = rs.renderer.write();
         for id in &free {
             r.free_texture(id);
@@ -1436,7 +1652,12 @@ impl Headless {
     }
 
     pub fn bodies_on_gpu(&self) -> usize {
-        self.render_state.renderer.read().callback_resources.get::<GpuState>().map_or(0, |g| g.bodies_on_gpu())
+        self.render_state
+            .renderer
+            .read()
+            .callback_resources
+            .get::<GpuState>()
+            .map_or(0, |g| g.bodies_on_gpu())
     }
 }
 

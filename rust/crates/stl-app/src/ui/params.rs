@@ -51,14 +51,25 @@ impl Params {
     }
 
     pub fn sync(&mut self, views: &[ParamView]) {
-        let key: Vec<_> = views.iter().map(|p| (p.name.clone(), p.expr.clone(), p.note.clone())).collect();
+        let key: Vec<_> = views
+            .iter()
+            .map(|p| (p.name.clone(), p.expr.clone(), p.note.clone()))
+            .collect();
         if self.snap.as_ref() != Some(&key) {
             self.rows = views
                 .iter()
-                .map(|p| Row { name: p.name.clone(), expr: p.expr.clone(), note: p.note.clone() })
+                .map(|p| Row {
+                    name: p.name.clone(),
+                    expr: p.expr.clone(),
+                    note: p.note.clone(),
+                })
                 .collect();
             if self.rows.is_empty() {
-                self.rows.push(Row { name: String::new(), expr: String::new(), note: String::new() });
+                self.rows.push(Row {
+                    name: String::new(),
+                    expr: String::new(),
+                    note: String::new(),
+                });
             }
             self.snap = Some(key);
         }
@@ -66,7 +77,11 @@ impl Params {
 }
 
 fn row_to_param(r: &Row) -> Param {
-    Param { name: r.name.trim().to_string(), expr: r.expr.trim().to_string(), note: r.note.clone() }
+    Param {
+        name: r.name.trim().to_string(),
+        expr: r.expr.trim().to_string(),
+        note: r.note.clone(),
+    }
 }
 
 /// 1.x's wording when Apply would remove parameters that steps use (`missing` is never empty).
@@ -160,14 +175,21 @@ pub fn show(
                 let name_resp = ui
                     .push_id(("param_name", i), |ui| {
                         // add_sized: a plain desired_width is clamped to a Grid cell's first-pass width
-                        ui.add_sized([NAME_W, CELL_H], egui::TextEdit::singleline(&mut row.name).margin(cell_margin()).font(cell_font()))
+                        ui.add_sized(
+                            [NAME_W, CELL_H],
+                            egui::TextEdit::singleline(&mut row.name)
+                                .margin(cell_margin())
+                                .font(cell_font()),
+                        )
                     })
                     .inner;
                 let expr_resp = ui
                     .push_id(("param_expr", i), |ui| {
                         ui.add_sized(
                             [EXPR_W, CELL_H],
-                            egui::TextEdit::singleline(&mut row.expr).margin(cell_margin()).font(cell_font()),
+                            egui::TextEdit::singleline(&mut row.expr)
+                                .margin(cell_margin())
+                                .font(cell_font()),
                         )
                     })
                     .inner;
@@ -185,7 +207,11 @@ pub fn show(
                 let is_err = resolved.errors.contains_key(n);
                 let mut job = egui::text::LayoutJob::default();
                 let font = egui::FontId::proportional(12.0);
-                job.append(&pv, 0.0, egui::TextFormat::simple(font.clone(), if is_err { tokens.danger } else { tokens.text }));
+                job.append(
+                    &pv,
+                    0.0,
+                    egui::TextFormat::simple(font.clone(), if is_err { tokens.danger } else { tokens.text }),
+                );
                 if !is_err && !pv.is_empty() && used.contains(n) {
                     // 1.x greys only the "· used" part (a `.muted` span, app.js:1166)
                     job.append(" · used", 0.0, egui::TextFormat::simple(font, tokens.muted));
@@ -195,7 +221,12 @@ pub fn show(
                     ui.add(egui::Label::new(job).truncate());
                 });
 
-                ui.add_sized([NOTE_W, CELL_H], egui::TextEdit::singleline(&mut row.note).margin(cell_margin()).font(cell_font()));
+                ui.add_sized(
+                    [NOTE_W, CELL_H],
+                    egui::TextEdit::singleline(&mut row.note)
+                        .margin(cell_margin())
+                        .font(cell_font()),
+                );
 
                 if button(ui, tokens, "×", false).on_hover_text("Remove").clicked() {
                     remove = Some(i);
@@ -220,14 +251,22 @@ pub fn show(
                 // like 1.x, × only takes the row out of the table; Apply sends the list
                 state.rows.remove(i);
                 if state.rows.is_empty() {
-                    state.rows.push(Row { name: String::new(), expr: String::new(), note: String::new() });
+                    state.rows.push(Row {
+                        name: String::new(),
+                        expr: String::new(),
+                        note: String::new(),
+                    });
                 }
             }
         });
 
     ui.add_space(4.0);
     if button(ui, tokens, "+ Add parameter", false).clicked() {
-        state.rows.push(Row { name: String::new(), expr: String::new(), note: String::new() });
+        state.rows.push(Row {
+            name: String::new(),
+            expr: String::new(),
+            note: String::new(),
+        });
     }
     // 1.x's `.modal-actions`: Cancel, then the blue Apply, on the right
     ui.add_space(14.0);

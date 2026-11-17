@@ -14,3 +14,6 @@ usvg = { version = "0.45", default-features = false }
 # Test-only: the 1.x comparison rules and the golden files.
 [dev-dependencies]
 stl-parity = { path = "../stl-parity" }
+
+[lints]
+workspace = true

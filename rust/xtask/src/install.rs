@@ -15,7 +15,11 @@ use std::process::Command;
 
 use stl_platform::paths;
 
-const EXE_NAME: &str = if cfg!(windows) { "stl-editor-2.exe" } else { "stl-editor-2" };
+const EXE_NAME: &str = if cfg!(windows) {
+    "stl-editor-2.exe"
+} else {
+    "stl-editor-2"
+};
 /// What the app's updater leaves behind after a swap.
 const OLD_EXE_NAME: &str = stl_platform::update::OLD_NAME;
 const SHORTCUT_NAME: &str = "STL Editor 2.lnk";
@@ -61,14 +65,23 @@ fn start_menu_dir() -> PathBuf {
             let home = std::env::var_os("USERPROFILE").map(PathBuf::from).unwrap_or_default();
             home.join("AppData").join("Roaming")
         });
-    appdata.join("Microsoft").join("Windows").join("Start Menu").join("Programs")
+    appdata
+        .join("Microsoft")
+        .join("Windows")
+        .join("Start Menu")
+        .join("Programs")
 }
 
 /// 1.x's folders are called "STL Editor". Refuse to touch a path with a folder of that name in it.
 fn guard_not_1x(what: &str, dir: &Path) -> Result<(), String> {
-    let is_1x = dir.components().any(|c| c.as_os_str().to_string_lossy().eq_ignore_ascii_case("STL Editor"));
+    let is_1x = dir
+        .components()
+        .any(|c| c.as_os_str().to_string_lossy().eq_ignore_ascii_case("STL Editor"));
     if is_1x {
-        return Err(format!("{what} is {}, which is STL Editor 1.x's folder. Nothing was changed.", dir.display()));
+        return Err(format!(
+            "{what} is {}, which is STL Editor 1.x's folder. Nothing was changed.",
+            dir.display()
+        ));
     }
     Ok(())
 }
@@ -85,10 +98,17 @@ fn guard_purge(what: &str, dir: &Path) -> Result<(), String> {
     if dir.parent().is_none() {
         return refuse("which is a whole drive");
     }
-    let norm = |p: &Path| p.to_string_lossy().replace('/', "\\").trim_end_matches('\\').to_lowercase();
+    let norm = |p: &Path| {
+        p.to_string_lossy()
+            .replace('/', "\\")
+            .trim_end_matches('\\')
+            .to_lowercase()
+    };
     let d = norm(dir);
     for var in ["USERPROFILE", "APPDATA", "LOCALAPPDATA", "HOME"] {
-        let Some(v) = std::env::var_os(var).filter(|v| !v.is_empty()) else { continue };
+        let Some(v) = std::env::var_os(var).filter(|v| !v.is_empty()) else {
+            continue;
+        };
         let root = norm(Path::new(&v));
         if root == d || root.starts_with(&format!("{d}\\")) {
             return refuse("which holds your user folders");
@@ -119,7 +139,11 @@ fn target_dir() -> PathBuf {
     match std::env::var_os("CARGO_TARGET_DIR") {
         Some(dir) => {
             let path = PathBuf::from(dir);
-            if path.is_absolute() { path } else { rust_dir().join(path) }
+            if path.is_absolute() {
+                path
+            } else {
+                rust_dir().join(path)
+            }
         }
         None => rust_dir().join("target"),
     }
@@ -168,7 +192,8 @@ fn install(exe: Option<PathBuf>) -> Result<(), String> {
         fs::create_dir_all(&menu).map_err(|e| format!("could not create {}: {e}", menu.display()))?;
         let lnk = menu.join(SHORTCUT_NAME);
         let size = fs::metadata(&dest).map(|m| m.len()).unwrap_or(0);
-        fs::write(&lnk, shell_link(&dest, &dir, size)).map_err(|e| format!("could not write {}: {e}", lnk.display()))?;
+        fs::write(&lnk, shell_link(&dest, &dir, size))
+            .map_err(|e| format!("could not write {}: {e}", lnk.display()))?;
         println!("install: shortcut {}", lnk.display());
     } else {
         println!("install: no Start Menu shortcut on this system");
@@ -239,19 +264,36 @@ fn uninstall(purge: bool) -> Result<(), String> {
         if remove_dir_if_empty(&dir)? {
             removed = true;
         } else {
-            println!("uninstall: {} has other files in it, so the folder was left", dir.display());
+            println!(
+                "uninstall: {} has other files in it, so the folder was left",
+                dir.display()
+            );
         }
     }
     removed |= remove_file_if_exists(&start_menu_dir().join(SHORTCUT_NAME))?;
     if purge {
         // The data folder first: with STLEDITOR2_CONFIG_DIR it sits inside the settings folder.
         removed |= purge_dir(&paths::data_dir(), &["log.txt"], &["autosave", "windows"])?;
-        removed |= purge_dir(&paths::config_dir(), &["settings.json", "settings.json.bad", "settings.lock"], &["support-fins"])?;
+        removed |= purge_dir(
+            &paths::config_dir(),
+            &["settings.json", "settings.json.bad", "settings.lock"],
+            &["support-fins"],
+        )?;
         println!("uninstall: settings and autosave removed");
     } else {
-        println!("uninstall: settings and autosave kept ({}); add --purge to remove them", paths::config_dir().display());
+        println!(
+            "uninstall: settings and autosave kept ({}); add --purge to remove them",
+            paths::config_dir().display()
+        );
     }
-    println!("{}", if removed { "uninstall: done" } else { "uninstall: nothing was installed" });
+    println!(
+        "{}",
+        if removed {
+            "uninstall: done"
+        } else {
+            "uninstall: nothing was installed"
+        }
+    );
     Ok(())
 }
 
@@ -300,7 +342,9 @@ fn target_id_list(target: &str) -> Option<Vec<u8>> {
     // My Computer
     u16le(&mut v, 0x14);
     v.extend_from_slice(&[0x1F, 0x50]);
-    v.extend_from_slice(&[0xE0, 0x4F, 0xD0, 0x20, 0xEA, 0x3A, 0x69, 0x10, 0xA2, 0xD8, 0x08, 0x00, 0x2B, 0x30, 0x30, 0x9D]);
+    v.extend_from_slice(&[
+        0xE0, 0x4F, 0xD0, 0x20, 0xEA, 0x3A, 0x69, 0x10, 0xA2, 0xD8, 0x08, 0x00, 0x2B, 0x30, 0x30, 0x9D,
+    ]);
     // the drive: "C:\" padded to 22 bytes
     u16le(&mut v, 0x19);
     v.push(0x2F);
@@ -333,7 +377,9 @@ pub(crate) fn shell_link(target: &Path, work_dir: &Path, target_size: u64) -> Ve
     let mut out = Vec::new();
     // ShellLinkHeader
     u32le(&mut out, 0x4C);
-    out.extend_from_slice(&[0x01, 0x14, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46]);
+    out.extend_from_slice(&[
+        0x01, 0x14, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46,
+    ]);
     // HasLinkTargetIDList (when the path has a drive letter) | HasLinkInfo | HasName |
     // HasWorkingDir | HasIconLocation | IsUnicode
     let id_list = target_id_list(&target);

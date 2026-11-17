@@ -18,7 +18,11 @@ fn dot(a: V3, b: V3) -> f64 {
     a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }
 fn cross(a: V3, b: V3) -> V3 {
-    [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]
+    [
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    ]
 }
 fn norm(a: V3) -> f64 {
     dot(a, a).sqrt()
@@ -39,7 +43,10 @@ struct Region {
 }
 
 fn read_points(m: &MeshArrays) -> Vec<V3> {
-    m.positions.chunks_exact(3).map(|p| [p[0] as f64, p[1] as f64, p[2] as f64]).collect()
+    m.positions
+        .chunks_exact(3)
+        .map(|p| [p[0] as f64, p[1] as f64, p[2] as f64])
+        .collect()
 }
 
 /// Distance from `p` to triangle `abc` (Ericson, Real-Time Collision Detection).
@@ -93,7 +100,11 @@ fn flat_regions(pts: &[V3], tris: &[[u32; 3]], pitch: f64, min_area: f64) -> Vec
         let n = cross(sub(b, a), sub(c, a));
         let l = norm(n);
         area.push(0.5 * l);
-        normal.push(if l > 0.0 { [n[0] / l, n[1] / l, n[2] / l] } else { [0.0; 3] });
+        normal.push(if l > 0.0 {
+            [n[0] / l, n[1] / l, n[2] / l]
+        } else {
+            [0.0; 3]
+        });
     }
     // triangles sharing an edge
     let mut edges: Vec<(u32, u32, u32)> = Vec::with_capacity(nt * 3);
@@ -151,8 +162,16 @@ fn flat_regions(pts: &[V3], tris: &[[u32; 3]], pitch: f64, min_area: f64) -> Vec
             continue;
         }
         members.sort_unstable();
-        let tr: Vec<[V3; 3]> =
-            members.iter().map(|&m| [pts[tris[m][0] as usize], pts[tris[m][1] as usize], pts[tris[m][2] as usize]]).collect();
+        let tr: Vec<[V3; 3]> = members
+            .iter()
+            .map(|&m| {
+                [
+                    pts[tris[m][0] as usize],
+                    pts[tris[m][1] as usize],
+                    pts[tris[m][2] as usize],
+                ]
+            })
+            .collect();
         let mut lo_all = [f64::INFINITY; 3];
         let mut hi_all = [f64::NEG_INFINITY; 3];
         let mut lo = Vec::with_capacity(tr.len());
@@ -173,7 +192,15 @@ fn flat_regions(pts: &[V3], tris: &[[u32; 3]], pitch: f64, min_area: f64) -> Vec
             lo.push(l);
             hi.push(h);
         }
-        out.push(Region { n, d, tris: tr, lo, hi, lo_all, hi_all });
+        out.push(Region {
+            n,
+            d,
+            tris: tr,
+            lo,
+            hi,
+            lo_all,
+            hi_all,
+        });
     }
     out
 }

@@ -26,14 +26,27 @@ fn edge_set(edges: &Option<Vec<stl_app::viewport::scene::EdgeVertex>>) -> Vec<[u
     let Some(v) = edges else { return Vec::new() };
     let mut segs: Vec<[u32; 6]> = v
         .chunks(2)
-        .map(|c| [c[0].pos[0].to_bits(), c[0].pos[1].to_bits(), c[0].pos[2].to_bits(), c[1].pos[0].to_bits(), c[1].pos[1].to_bits(), c[1].pos[2].to_bits()])
+        .map(|c| {
+            [
+                c[0].pos[0].to_bits(),
+                c[0].pos[1].to_bits(),
+                c[0].pos[2].to_bits(),
+                c[1].pos[0].to_bits(),
+                c[1].pos[1].to_bits(),
+                c[1].pos[2].to_bits(),
+            ]
+        })
         .collect();
     segs.sort_unstable();
     segs
 }
 
 fn lerp(a: [f64; 3], b: [f64; 3], t: f64) -> [f64; 3] {
-    [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]
+    [
+        a[0] + (b[0] - a[0]) * t,
+        a[1] + (b[1] - a[1]) * t,
+        a[2] + (b[2] - a[2]) * t,
+    ]
 }
 
 #[test]
@@ -48,7 +61,14 @@ fn start_flies_to_iso() {
     let (goal_t, goal_p, goal_u) = vp.camera().goal();
     // empty scene: centre on the origin, distance 60 / sin(17.5°) * 1.05 along the iso direction
     assert!(close(goal_t, [0.0, 0.0, 0.0], 1e-9), "{goal_t:?}");
-    assert!(close(goal_p, [126.97399998524338, -126.97399998524338, 107.92789998745688], 1e-6), "{goal_p:?}");
+    assert!(
+        close(
+            goal_p,
+            [126.97399998524338, -126.97399998524338, 107.92789998745688],
+            1e-6
+        ),
+        "{goal_p:?}"
+    );
     assert!(close(goal_u, [0.0, 0.0, 1.0], 1e-12));
 
     // 0 ms: still at the start
@@ -60,10 +80,18 @@ fn start_flies_to_iso() {
     // 160 ms: k = 0.5, ease = 1 - 0.5^3 = 0.875
     assert!(vp.camera_mut().animate(0.16));
     let mid = lerp(START_POSITION, goal_p, 0.875);
-    assert!(close(vp.camera().position, mid, 1e-6), "{:?} vs {mid:?}", vp.camera().position);
+    assert!(
+        close(vp.camera().position, mid, 1e-6),
+        "{:?} vs {mid:?}",
+        vp.camera().position
+    );
     assert!(close(vp.camera().target, [0.0; 3], 1e-9));
     assert!(close(vp.camera().up, [0.0, 0.0, 1.0], 1e-9));
-    assert!(close(mid, [131.10224998708796, -138.60224998708796, 113.18691248902476], 1e-6));
+    assert!(close(
+        mid,
+        [131.10224998708796, -138.60224998708796, 113.18691248902476],
+        1e-6
+    ));
 
     // 320 ms: landed, flight over
     assert!(!vp.camera_mut().animate(0.32));
@@ -82,7 +110,10 @@ fn start_flies_to_iso() {
     vp.start_fly_in();
     assert!(vp.camera_mut().animate(1.16));
     let held = vp.camera().position;
-    assert!(!close(held, goal_p, 1.0), "still at the start of the ease, not the goal");
+    assert!(
+        !close(held, goal_p, 1.0),
+        "still at the start of the ease, not the goal"
+    );
     vp.camera_mut().cancel_flight();
     assert!(!vp.camera().is_flying());
     assert!(!vp.camera_mut().animate(1.32));
@@ -106,7 +137,12 @@ fn start_flies_to_iso() {
 fn sketch_plane_grid_matches_sketcher() {
     let mut vp = Viewport::new();
     assert!(vp.bed_grid_drawn());
-    let xy = PlaneFrame { origin: [0.0; 3], x: [1.0, 0.0, 0.0], y: [0.0, 1.0, 0.0], normal: [0.0, 0.0, 1.0] };
+    let xy = PlaneFrame {
+        origin: [0.0; 3],
+        x: [1.0, 0.0, 0.0],
+        y: [0.0, 1.0, 0.0],
+        normal: [0.0, 0.0, 1.0],
+    };
     vp.set_sketch_plane_grid(Some(xy), 5.0);
     assert!(vp.sketch_plane_grid_visible());
     // only the sketch plane's grid shows while sketching (Nathan, 2026-11-16)
@@ -116,13 +152,21 @@ fn sketch_plane_grid_matches_sketcher() {
     assert_eq!(sheet.len(), 6);
     assert_eq!(lines.len(), 41 * 4);
     assert_eq!(axes.len(), 4);
-    assert!(close([axes[0].pos[0] as f64, axes[0].pos[1] as f64, axes[0].pos[2] as f64], [-100.0, 0.0, 0.0], 1e-6));
+    assert!(close(
+        [axes[0].pos[0] as f64, axes[0].pos[1] as f64, axes[0].pos[2] as f64],
+        [-100.0, 0.0, 0.0],
+        1e-6
+    ));
     assert_eq!(axes[0].c0, [0xe2, 0x55, 0x55, 255]);
     assert_eq!(axes[2].c0, [0x22, 0xa3, 0x5a, 255]);
     // sheet 0xe8eef8 at 0.18 → alpha 46
     assert_eq!(sheet[0].c0, [0xe8, 0xee, 0xf8, 46]);
     // a major station (v = 0) is the stronger grey-blue
-    assert!(lines.iter().any(|v| v.c0[3] == (0.32_f32 * 255.0).round() as u8 && v.c0[0] == 0x78 && v.c0[2] == 0xc8));
+    assert!(
+        lines
+            .iter()
+            .any(|v| v.c0[3] == (0.32_f32 * 255.0).round() as u8 && v.c0[0] == 0x78 && v.c0[2] == 0xc8)
+    );
     vp.set_sketch_plane_grid(None, 1.0);
     assert!(!vp.sketch_plane_grid_visible());
     assert!(vp.bed_grid_drawn());
@@ -143,7 +187,11 @@ fn sliced_preview_matches_prepare_mesh() {
     assert!(steps > 1, "a 2000-triangle mesh should take more than one slice");
     assert_eq!(sliced, scene::creased_normals(&mesh, scene::CREASE_DEG));
 
-    let mut batch = Batch::new(vec![mesh.clone()], vec![Arc::new(OnceLock::<Bvh>::new())], Arc::new(AtomicUsize::new(0)));
+    let mut batch = Batch::new(
+        vec![mesh.clone()],
+        vec![Arc::new(OnceLock::<Bvh>::new())],
+        Arc::new(AtomicUsize::new(0)),
+    );
     let got = batch.poll(None).expect("budget None finishes");
     let direct = scene::prepare_mesh(&mesh);
     assert_eq!(got[0].vertices, direct.vertices);
@@ -162,7 +210,9 @@ fn small_preview_replaced_every_frame_still_shows() {
         let mesh = Arc::new(preview_prep::bench_mesh(32));
         let tree = Arc::new(OnceLock::new());
         let mut batch = Batch::new(vec![mesh], vec![tree.clone()], Arc::new(AtomicUsize::new(0)));
-        let got = batch.poll(Some(preview_prep::SLICE)).expect("a 32-triangle preview finishes in one slice");
+        let got = batch
+            .poll(Some(preview_prep::SLICE))
+            .expect("a 32-triangle preview finishes in one slice");
         assert_eq!(got[0].triangles, 32);
         assert!(tree.get().is_some(), "the picking tree is built in that same slice");
     }
@@ -178,7 +228,9 @@ fn small_preview_slow_step_finishes_in_its_frame() {
     let mesh = Arc::new(preview_prep::bench_mesh(n));
     let tree = Arc::new(OnceLock::new());
     let mut batch = Batch::new(vec![mesh], vec![tree.clone()], Arc::new(AtomicUsize::new(0)));
-    let got = batch.poll(Some(budget)).expect("a small preview finishes in the frame it arrives in");
+    let got = batch
+        .poll(Some(budget))
+        .expect("a small preview finishes in the frame it arrives in");
     assert_eq!(got[0].triangles, n);
     assert!(tree.get().is_some(), "the picking tree is built in that same slice");
 

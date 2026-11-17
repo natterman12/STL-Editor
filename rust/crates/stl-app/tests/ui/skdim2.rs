@@ -30,26 +30,44 @@ fn skdim2_typed_sizes_edit_silhouette_dark() {
     {
         let s = h.state_mut().sketch_mode_mut().unwrap();
         s.s.entities.clear();
-        s.s.entities.push(serde_json::from_value(json!({
-            "id": "r0", "type": "rect", "x": 10.0, "y": 2.0, "w": 30.0, "h": 15.0
-        })).unwrap());
-        s.s.constraints.push(serde_json::from_value(json!({
-            "id": "dw", "type": "hdistance", "a": {"e":"r0","k":"c0"}, "b": {"e":"r0","k":"c1"},
-            "off": -4.0, "slide": 0.0, "value": 30.0
-        })).unwrap());
-        s.s.constraints.push(serde_json::from_value(json!({
-            "id": "dh", "type": "vdistance", "a": {"e":"r0","k":"c0"}, "b": {"e":"r0","k":"c3"},
-            "off": 4.0, "slide": 0.0, "value": 15.0
-        })).unwrap());
-        s.s.entities.push(serde_json::from_value(json!({
-            "id": "c0", "type": "circle", "cx": 20.0, "cy": 10.0, "r": 3.0
-        })).unwrap());
-        s.s.constraints.push(serde_json::from_value(json!({
-            "id": "dd", "type": "diameter", "a": {"e":"c0"}, "value": 6.0, "ang": 0.0, "out": 4.0
-        })).unwrap());
-        s.s.entities.push(serde_json::from_value(json!({
-            "id": "l0", "type": "line", "p1": [12.0, 15.0], "p2": [24.0, 15.0]
-        })).unwrap());
+        s.s.entities.push(
+            serde_json::from_value(json!({
+                "id": "r0", "type": "rect", "x": 10.0, "y": 2.0, "w": 30.0, "h": 15.0
+            }))
+            .unwrap(),
+        );
+        s.s.constraints.push(
+            serde_json::from_value(json!({
+                "id": "dw", "type": "hdistance", "a": {"e":"r0","k":"c0"}, "b": {"e":"r0","k":"c1"},
+                "off": -4.0, "slide": 0.0, "value": 30.0
+            }))
+            .unwrap(),
+        );
+        s.s.constraints.push(
+            serde_json::from_value(json!({
+                "id": "dh", "type": "vdistance", "a": {"e":"r0","k":"c0"}, "b": {"e":"r0","k":"c3"},
+                "off": 4.0, "slide": 0.0, "value": 15.0
+            }))
+            .unwrap(),
+        );
+        s.s.entities.push(
+            serde_json::from_value(json!({
+                "id": "c0", "type": "circle", "cx": 20.0, "cy": 10.0, "r": 3.0
+            }))
+            .unwrap(),
+        );
+        s.s.constraints.push(
+            serde_json::from_value(json!({
+                "id": "dd", "type": "diameter", "a": {"e":"c0"}, "value": 6.0, "ang": 0.0, "out": 4.0
+            }))
+            .unwrap(),
+        );
+        s.s.entities.push(
+            serde_json::from_value(json!({
+                "id": "l0", "type": "line", "p1": [12.0, 15.0], "p2": [24.0, 15.0]
+            }))
+            .unwrap(),
+        );
         s.s.constraints.push(serde_json::from_value(json!({
             "id": "dl", "type": "distance", "a": {"e":"l0","k":"p1"}, "b": {"e":"l0","k":"p2"}, "value": 12.0, "off": 4.0, "slide": 0.0
         })).unwrap());

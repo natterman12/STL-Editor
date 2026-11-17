@@ -4,11 +4,11 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use serde_json::Value;
-use stl_engine::labels::label;
 use stl_engine::Document;
+use stl_engine::labels::label;
 use stl_kernel::{Frame, MeshArrays, Solid};
-use stl_sketch::contours::entity_path;
 use stl_sketch::Entity;
+use stl_sketch::contours::entity_path;
 
 use super::{BodyView, ParamView, PlaneView, SketchOutline, SketchView, TimelineItem, TimelineView};
 
@@ -42,7 +42,10 @@ fn same_mesh(a: &MeshArrays, b: &MeshArrays) -> bool {
 
 fn hidden_ids(doc: &Document) -> Vec<String> {
     let list = doc.ui.get("hidden").and_then(Value::as_array);
-    list.into_iter().flatten().filter_map(|v| v.as_str().map(str::to_string)).collect()
+    list.into_iter()
+        .flatten()
+        .filter_map(|v| v.as_str().map(str::to_string))
+        .collect()
 }
 
 impl Views {
@@ -70,7 +73,11 @@ impl Views {
                 }
                 _ => {
                     let o: Arc<[SketchOutline]> = s.entities.iter().filter_map(outline).collect();
-                    let c = CachedSketch { frame: s.frame, entities: s.entities.clone(), outlines: o.clone() };
+                    let c = CachedSketch {
+                        frame: s.frame,
+                        entities: s.entities.clone(),
+                        outlines: o.clone(),
+                    };
                     self.sketch_cache.insert(id.clone(), c);
                     o
                 }
@@ -86,7 +93,13 @@ impl Views {
             out.push(SketchView {
                 id: id.clone(),
                 // routes.js `fname`: the step's own name ("Sketch1") wins over the state's default
-                name: match doc.features.iter().find(|f| f.id == *id).and_then(|f| f.name.clone()).filter(|n| !n.is_empty()) {
+                name: match doc
+                    .features
+                    .iter()
+                    .find(|f| f.id == *id)
+                    .and_then(|f| f.name.clone())
+                    .filter(|n| !n.is_empty())
+                {
                     Some(n) => n,
                     None if s.name.is_empty() => feature_name(doc, id),
                     None => s.name.clone(),
@@ -111,7 +124,10 @@ impl Views {
             out.push(BodyView {
                 id: id.clone(),
                 name: doc.body_name(id),
-                color: colors.and_then(|c| c.get(id)).and_then(Value::as_str).map(str::to_string),
+                color: colors
+                    .and_then(|c| c.get(id))
+                    .and_then(Value::as_str)
+                    .map(str::to_string),
                 hidden: hidden.contains(id),
                 solid: body.solid.is_some(),
                 mesh: entry.mesh.clone(),
@@ -137,7 +153,12 @@ impl Views {
             let mesh = Self::mesh_of(solid, raw);
             // a different object can still hold the same mesh (a parameter changed another body)
             if same_mesh(&mesh, &o.mesh) {
-                return Cached { solid: solid.cloned(), raw: raw.cloned(), mesh: o.mesh, revision: o.revision };
+                return Cached {
+                    solid: solid.cloned(),
+                    raw: raw.cloned(),
+                    mesh: o.mesh,
+                    revision: o.revision,
+                };
             }
             return self.fresh(solid, raw, mesh);
         }
@@ -147,14 +168,22 @@ impl Views {
 
     fn fresh(&mut self, solid: Option<&Solid>, raw: Option<&Arc<MeshArrays>>, mesh: MeshArrays) -> Cached {
         self.next_revision += 1;
-        Cached { solid: solid.cloned(), raw: raw.cloned(), mesh: Arc::new(mesh), revision: self.next_revision }
+        Cached {
+            solid: solid.cloned(),
+            raw: raw.cloned(),
+            mesh: Arc::new(mesh),
+            revision: self.next_revision,
+        }
     }
 
     fn mesh_of(solid: Option<&Solid>, raw: Option<&Arc<MeshArrays>>) -> MeshArrays {
         match (solid, raw) {
             (Some(s), _) => s.to_mesh(),
             (None, Some(m)) => (**m).clone(),
-            (None, None) => MeshArrays { positions: Vec::new(), triangles: Vec::new() },
+            (None, None) => MeshArrays {
+                positions: Vec::new(),
+                triangles: Vec::new(),
+            },
         }
     }
 }
@@ -169,7 +198,11 @@ pub fn timeline(doc: &Document) -> TimelineView {
         .map(|(i, f)| TimelineItem {
             id: f.id.clone(),
             kind: f.kind.clone(),
-            label: f.name.clone().filter(|n| !n.is_empty()).unwrap_or_else(|| label(&f.kind).to_string()),
+            label: f
+                .name
+                .clone()
+                .filter(|n| !n.is_empty())
+                .unwrap_or_else(|| label(&f.kind).to_string()),
             error: results.get(i).and_then(|r| r.error.clone()),
             suppressed: f.suppressed,
             warning: results.get(i).and_then(|r| r.warning.clone()),
@@ -236,7 +269,12 @@ fn feature_name(doc: &Document, id: &str) -> String {
     doc.features
         .iter()
         .find(|f| f.id == id)
-        .map(|f| f.name.clone().filter(|n| !n.is_empty()).unwrap_or_else(|| label(&f.kind).to_string()))
+        .map(|f| {
+            f.name
+                .clone()
+                .filter(|n| !n.is_empty())
+                .unwrap_or_else(|| label(&f.kind).to_string())
+        })
         .unwrap_or_else(|| id.to_string())
 }
 
@@ -264,7 +302,11 @@ pub fn planes(doc: &Document) -> Vec<PlaneView> {
 /// One entity as a polyline in plane coordinates (1.x `entityOutline`).
 fn outline(e: &Entity) -> Option<SketchOutline> {
     let (pts, closed) = entity_path(e);
-    (pts.len() >= 2).then(|| SketchOutline { pts, closed, construction: e.construction() })
+    (pts.len() >= 2).then(|| SketchOutline {
+        pts,
+        closed,
+        construction: e.construction(),
+    })
 }
 
 /// What a preview shows (1.x `packMeshes` in the `preview` route): the bodies the feature made or
@@ -280,17 +322,36 @@ pub fn preview_pack(state: &stl_engine::State, res: &stl_engine::FeatureResult) 
         .into_iter()
         .map(|id| {
             let b = &state.bodies[id];
-            crate::viewport::PreviewMesh { id: id.clone(), mesh: Arc::new(Views::mesh_of(b.solid.as_ref(), b.mesh.as_ref())) }
+            crate::viewport::PreviewMesh {
+                id: id.clone(),
+                mesh: Arc::new(Views::mesh_of(b.solid.as_ref(), b.mesh.as_ref())),
+            }
         })
         .collect();
     let colors = res
         .extra
         .get("colors")
         .and_then(Value::as_object)
-        .map(|o| o.iter().filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string()))).collect())
+        .map(|o| {
+            o.iter()
+                .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                .collect()
+        })
         .unwrap_or_default();
-    let ghosts = res.extra.get("ghosts").and_then(Value::as_array).map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect()).unwrap_or_default();
-    super::PreviewPack { meshes, removed: res.removed.clone(), hide: Vec::new(), colors, ghosts, cutter: res.cutter.clone() }
+    let ghosts = res
+        .extra
+        .get("ghosts")
+        .and_then(Value::as_array)
+        .map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+        .unwrap_or_default();
+    super::PreviewPack {
+        meshes,
+        removed: res.removed.clone(),
+        hide: Vec::new(),
+        colors,
+        ghosts,
+        cutter: res.cutter.clone(),
+    }
 }
 
 /// 1.x's `pack.result`: the feature's record under its 1.x key names.
@@ -316,7 +377,10 @@ pub fn preview_msg(res: &stl_engine::FeatureResult) -> (Option<String>, bool) {
         return (Some(w), true);
     }
     if res.flipped {
-        return (Some("Cutting into the material (direction flipped).".to_string()), false);
+        return (
+            Some("Cutting into the material (direction flipped).".to_string()),
+            false,
+        );
     }
     (res.info.clone().filter(|i| !i.is_empty()), false)
 }

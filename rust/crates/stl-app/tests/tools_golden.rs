@@ -5,17 +5,53 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use stl_app::engine_link::{BodyView, PlaneView, SketchView, TimelineItem};
-use stl_app::tools::defs::{tool, tools, Ctx, Field, FieldKind, ToolDef, Values};
+use stl_app::tools::defs::{Ctx, Field, FieldKind, ToolDef, Values, tool, tools};
 use stl_kernel::MeshArrays;
 
 const TOOL_KEYS: &[&str] = &[
-    "extrude", "revolve", "loft", "sweep", "primitive_box", "primitive_cylinder", "primitive_sphere",
-    "primitive_cone", "primitive_torus", "snapfit", "hinge", "hole", "combine", "split", "bedsplit", "plate",
-    "layflat", "thread", "offset", "thincheck", "fittest", "resizehole", "pushpull", "mirror", "move", "scale",
-    "pattern", "hollow", "lattice", "shell", "plane_offset", "plane_angle", "plane_3pt", "plane_mid", "import",
-    "sculpt", "remesh", "repair", "simplify", "separate", "delete",
+    "extrude",
+    "revolve",
+    "loft",
+    "sweep",
+    "primitive_box",
+    "primitive_cylinder",
+    "primitive_sphere",
+    "primitive_cone",
+    "primitive_torus",
+    "snapfit",
+    "hinge",
+    "hole",
+    "combine",
+    "split",
+    "bedsplit",
+    "plate",
+    "layflat",
+    "thread",
+    "offset",
+    "thincheck",
+    "fittest",
+    "resizehole",
+    "pushpull",
+    "mirror",
+    "move",
+    "scale",
+    "pattern",
+    "hollow",
+    "lattice",
+    "shell",
+    "plane_offset",
+    "plane_angle",
+    "plane_3pt",
+    "plane_mid",
+    "import",
+    "sculpt",
+    "remesh",
+    "repair",
+    "simplify",
+    "separate",
+    "delete",
 ];
 
 fn repo_root() -> PathBuf {
@@ -60,7 +96,13 @@ fn fixture_ctx<'a>(
     }
 }
 
-fn fixture_data() -> (Vec<BodyView>, Vec<PlaneView>, Vec<SketchView>, Vec<TimelineItem>, Vec<String>) {
+fn fixture_data() -> (
+    Vec<BodyView>,
+    Vec<PlaneView>,
+    Vec<SketchView>,
+    Vec<TimelineItem>,
+    Vec<String>,
+) {
     let bodies = vec![
         BodyView {
             id: "body_a".into(),
@@ -83,20 +125,17 @@ fn fixture_data() -> (Vec<BodyView>, Vec<PlaneView>, Vec<SketchView>, Vec<Timeli
             holds_up: None,
         },
     ];
-    let mut p0 = PlaneView::default();
-    p0.id = "XY".into();
-    p0.name = "Top".into();
-    let mut p1 = PlaneView::default();
-    p1.id = "XZ".into();
-    p1.name = "Front".into();
-    let mut p2 = PlaneView::default();
-    p2.id = "YZ".into();
-    p2.name = "Right".into();
-    let planes = vec![p0, p1, p2];
-    let mut sk = SketchView::default();
-    sk.id = "sk1".into();
-    sk.name = "Sketch 1".into();
-    let sketches = vec![sk];
+    let plane = |id: &str, name: &str| PlaneView {
+        id: id.into(),
+        name: name.into(),
+        ..Default::default()
+    };
+    let planes = vec![plane("XY", "Top"), plane("XZ", "Front"), plane("YZ", "Right")];
+    let sketches = vec![SketchView {
+        id: "sk1".into(),
+        name: "Sketch 1".into(),
+        ..Default::default()
+    }];
     let features = vec![
         TimelineItem {
             id: "f_import".into(),
@@ -189,7 +228,15 @@ fn world(name: &str) -> World {
         }
         "nobbox" => {
             selection = vec!["body_c".into()];
-            bodies = vec![body("body_c", "Body C", true, MeshArrays { positions: vec![], triangles: vec![] })];
+            bodies = vec![body(
+                "body_c",
+                "Body C",
+                true,
+                MeshArrays {
+                    positions: vec![],
+                    triangles: vec![],
+                },
+            )];
             features.clear();
         }
         "empty" => {
@@ -203,7 +250,15 @@ fn world(name: &str) -> World {
         }
         other => panic!("unknown ctx variant {other}"),
     }
-    World { bodies, planes, sketches, features, selection, last_sketch, sketch_on_body }
+    World {
+        bodies,
+        planes,
+        sketches,
+        features,
+        selection,
+        last_sketch,
+        sketch_on_body,
+    }
 }
 
 fn to_params_of(ctx: &Ctx, def: &ToolDef, values: &Values) -> Value {
@@ -228,10 +283,10 @@ fn cleanup_params(mut p: Value) -> Value {
 fn shown_keys(def: &ToolDef, values: &Values) -> Vec<String> {
     let mut out = Vec::new();
     for f in &def.fields {
-        if let Some(show) = f.show {
-            if !show(values) {
-                continue;
-            }
+        if let Some(show) = f.show
+            && !show(values)
+        {
+            continue;
         }
         out.push(f.key.to_string());
     }
@@ -263,6 +318,8 @@ fn field_meta(f: &Field) -> Value {
         "kind": field_kind_name(&f.kind),
     });
     let obj = m.as_object_mut().unwrap();
+    // one arm per kind, so a kind with nothing to add doesn't fall through to another arm
+    #[allow(clippy::collapsible_match)]
     match &f.kind {
         FieldKind::Number { unit } => {
             if let Some(u) = unit {
@@ -478,13 +535,21 @@ fn record_on_change(def: &ToolDef, defaults: &Values, ctx: &Ctx) -> Vec<Value> {
     let mut out = Vec::new();
     if def.key == "hole" {
         for f in &def.fields {
-            if let FieldKind::Select { options, .. } = &f.kind {
-                if f.key == "preset" {
-                    for (id, _, _) in options {
-                        let mut values = defaults.clone();
-                        values.insert("preset".into(), json!(id));
-                        push_on_change(&mut out, def, on_change, &format!("onchange:preset={id}"), "preset", values, ctx);
-                    }
+            if let FieldKind::Select { options, .. } = &f.kind
+                && f.key == "preset"
+            {
+                for (id, _, _) in options {
+                    let mut values = defaults.clone();
+                    values.insert("preset".into(), json!(id));
+                    push_on_change(
+                        &mut out,
+                        def,
+                        on_change,
+                        &format!("onchange:preset={id}"),
+                        "preset",
+                        values,
+                        ctx,
+                    );
                 }
             }
         }
@@ -494,36 +559,57 @@ fn record_on_change(def: &ToolDef, defaults: &Values, ctx: &Ctx) -> Vec<Value> {
         push_on_change(&mut out, def, on_change, "onchange:tol@ins_M3", "tol", v, ctx);
     } else if def.key == "thread" {
         for f in &def.fields {
-            if let FieldKind::Select { options, .. } = &f.kind {
-                if f.key == "size" {
-                    for (id, _, _) in options {
-                        let mut values = defaults.clone();
-                        values.insert("size".into(), json!(id));
-                        push_on_change(&mut out, def, on_change, &format!("onchange:size={id}"), "size", values, ctx);
-                    }
+            if let FieldKind::Select { options, .. } = &f.kind
+                && f.key == "size"
+            {
+                for (id, _, _) in options {
+                    let mut values = defaults.clone();
+                    values.insert("size".into(), json!(id));
+                    push_on_change(
+                        &mut out,
+                        def,
+                        on_change,
+                        &format!("onchange:size={id}"),
+                        "size",
+                        values,
+                        ctx,
+                    );
                 }
             }
         }
         for kind in ["internal", "external"] {
             let mut values = defaults.clone();
             values.insert("kind".into(), json!(kind));
-            push_on_change(&mut out, def, on_change, &format!("onchange:kind={kind}"), "kind", values, ctx);
+            push_on_change(
+                &mut out,
+                def,
+                on_change,
+                &format!("onchange:kind={kind}"),
+                "kind",
+                values,
+                ctx,
+            );
         }
     } else if def.key == "resizehole" {
         for row in stl_app::tools::defs::tables::RESIZE_SIZES {
             let id = row.0;
             let mut values = defaults.clone();
             values.insert("size".into(), json!(id));
-            push_on_change(&mut out, def, on_change, &format!("onchange:size={id}"), "size", values, ctx);
+            push_on_change(
+                &mut out,
+                def,
+                on_change,
+                &format!("onchange:size={id}"),
+                "size",
+                values,
+                ctx,
+            );
         }
     } else {
         for f in &def.fields {
             if let FieldKind::Select { options, .. } = &f.kind {
                 let watch_connector = f.key == "connector" || f.key == "printer";
-                let generic = f.key != "connector"
-                    && def.key != "split"
-                    && def.key != "bedsplit"
-                    && def.key != "plate";
+                let generic = f.key != "connector" && def.key != "split" && def.key != "bedsplit" && def.key != "plate";
                 for (id, _, _) in options {
                     let mut before = defaults.clone();
                     before.insert(f.key.to_string(), json!(id));
@@ -623,8 +709,16 @@ fn without_split_distance(v: &mut Value) {
 #[test]
 fn hinge_hint_says_what_to_pick() {
     let hint = tool("hinge").unwrap().hint.unwrap();
-    assert!(hint.starts_with("1. Pick the face or plane the hinge runs across.\n2. Set where it sits and how thin it is.\n"), "{hint}");
-    assert!(hint.contains("The orange line is the hinge; the arrow shows which way it flexes."), "{hint}");
+    assert!(
+        hint.starts_with(
+            "1. Pick the face or plane the hinge runs across.\n2. Set where it sits and how thin it is.\n"
+        ),
+        "{hint}"
+    );
+    assert!(
+        hint.contains("The orange line is the hinge; the arrow shows which way it flexes."),
+        "{hint}"
+    );
 }
 
 #[test]
@@ -633,7 +727,11 @@ fn split_distance_is_the_one_difference() {
     let ctx = fixture_ctx(&bodies, &planes, &sketches, &features, &selection);
     let def = tool("split").unwrap();
     let keys: Vec<&str> = def.fields.iter().map(|f| f.key).collect();
-    assert_eq!(&keys[..4], ["body", "plane", "offset", "keep"], "Distance sits right after Split plane");
+    assert_eq!(
+        &keys[..4],
+        ["body", "plane", "offset", "keep"],
+        "Distance sits right after Split plane"
+    );
     let f = &def.fields[2];
     assert_eq!(f.label, "Distance");
     assert!(matches!(f.kind, FieldKind::Number { unit: Some("mm") }));
@@ -641,7 +739,10 @@ fn split_distance_is_the_one_difference() {
     assert_eq!((d.plane, d.distance, d.body), ("plane", "offset", "body"));
     let mut v = (def.defaults)(&ctx);
     assert_eq!(v.get("offset"), Some(&json!(0)));
-    assert!((def.to_params)(&v, &ctx).get("offset").is_none(), "a Distance of 0 is not stored");
+    assert!(
+        (def.to_params)(&v, &ctx).get("offset").is_none(),
+        "a Distance of 0 is not stored"
+    );
     v.insert("offset".into(), json!(-5));
     assert_eq!((def.to_params)(&v, &ctx)["offset"], json!(-5));
     v.insert("offset".into(), json!("=h/2"));
@@ -656,7 +757,10 @@ fn tools_golden_all_41() {
     let (bodies, planes, sketches, features, selection) = fixture_data();
     let ctx = fixture_ctx(&bodies, &planes, &sketches, &features, &selection);
     let keys: Vec<&str> = tools().iter().map(|t| t.key).collect();
-    assert_eq!(keys, TOOL_KEYS, "tools() must list the tools in the order of TOOLS in tools.js");
+    assert_eq!(
+        keys, TOOL_KEYS,
+        "tools() must list the tools in the order of TOOLS in tools.js"
+    );
     let registry: BTreeSet<String> = keys.iter().map(|k| k.to_string()).collect();
     assert_eq!(registry.len(), 41, "tools() should expose 41 tools");
     let mut failed = 0usize;

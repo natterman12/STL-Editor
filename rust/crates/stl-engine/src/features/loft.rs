@@ -1,7 +1,7 @@
 //! Loft (1.x `f_loft`): a solid through two or more sketch profiles on parallel planes.
 
 use serde_json::{Map, Value};
-use stl_kernel::{cross, dot, triangulate, Vec3};
+use stl_kernel::{Vec3, cross, dot, triangulate};
 
 use super::common::{align, apply_tool, mesh_solid, profile_loop, resample, sketch};
 use crate::{Ctx, FeatureError, FeatureResult, Registry, State};
@@ -18,13 +18,18 @@ fn f_loft(
     _ctx: &Ctx<'_>,
 ) -> Result<(), FeatureError> {
     let ids: Vec<String> = match p.get("profiles") {
-        Some(Value::Array(a)) => {
-            a.iter().filter_map(|x| x.as_str()).filter(|s| !s.is_empty()).map(String::from).collect()
-        }
+        Some(Value::Array(a)) => a
+            .iter()
+            .filter_map(|x| x.as_str())
+            .filter(|s| !s.is_empty())
+            .map(String::from)
+            .collect(),
         _ => Vec::new(),
     };
     if ids.len() < 2 {
-        return Err(FeatureError("A loft needs at least two sketch profiles, at different heights.".into()));
+        return Err(FeatureError(
+            "A loft needs at least two sketch profiles, at different heights.".into(),
+        ));
     }
     let mut sks = Vec::with_capacity(ids.len());
     for sid in &ids {
@@ -101,12 +106,20 @@ fn f_loft(
         let base = (j * nn) as u32;
         for t in triangulate(&[p2]) {
             let (a, b, c) = (t[0], t[1], t[2]);
-            tris.push(if keep { [base + a, base + b, base + c] } else { [base + a, base + c, base + b] });
+            tris.push(if keep {
+                [base + a, base + b, base + c]
+            } else {
+                [base + a, base + c, base + b]
+            });
         }
     }
     let man = mesh_solid(&verts, &tris, "loft")?;
     let operation = p.get("operation").and_then(Value::as_str).unwrap_or("new");
-    let name = p.get("body_name").and_then(Value::as_str).filter(|s| !s.is_empty()).unwrap_or("Loft");
+    let name = p
+        .get("body_name")
+        .and_then(Value::as_str)
+        .filter(|s| !s.is_empty())
+        .unwrap_or("Loft");
     apply_tool(state, fid, man, operation, p.get("targets"), name, res)
 }
 
@@ -117,10 +130,10 @@ pub fn register(r: Registry) -> Registry {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::features::common::SketchRec;
     use serde_json::json;
     use std::collections::BTreeMap;
     use stl_kernel::Frame;
-    use crate::features::common::SketchRec;
 
     fn rec(frame: Frame, ents: Value) -> SketchRec {
         SketchRec {
@@ -133,12 +146,21 @@ mod tests {
     }
 
     fn xy(z: f64) -> Frame {
-        Frame { o: [0.0, 0.0, z], x: [1.0, 0.0, 0.0], y: [0.0, 1.0, 0.0], n: [0.0, 0.0, 1.0] }
+        Frame {
+            o: [0.0, 0.0, z],
+            x: [1.0, 0.0, 0.0],
+            y: [0.0, 1.0, 0.0],
+            n: [0.0, 0.0, 1.0],
+        }
     }
 
     fn run(state: &mut State, p: Value) -> Result<FeatureResult, FeatureError> {
         let src = BTreeMap::new();
-        let ctx = Ctx { sources: &src, preview: false, fins: &crate::NullHost };
+        let ctx = Ctx {
+            sources: &src,
+            preview: false,
+            fins: &crate::NullHost,
+        };
         let mut res = FeatureResult::default();
         f_loft(state, "f9", p.as_object().unwrap(), &mut res, &ctx).map(|_| res)
     }
@@ -146,8 +168,14 @@ mod tests {
     #[test]
     fn loft_two_squares_is_a_prismatoid() {
         let mut st = State::default();
-        st.sketches.insert("a".into(), rec(xy(0.0), json!([{"id":"r","type":"rect","x":-5,"y":-5,"w":10,"h":10}])));
-        st.sketches.insert("b".into(), rec(xy(10.0), json!([{"id":"r","type":"rect","x":-4,"y":-4,"w":8,"h":8}])));
+        st.sketches.insert(
+            "a".into(),
+            rec(xy(0.0), json!([{"id":"r","type":"rect","x":-5,"y":-5,"w":10,"h":10}])),
+        );
+        st.sketches.insert(
+            "b".into(),
+            rec(xy(10.0), json!([{"id":"r","type":"rect","x":-4,"y":-4,"w":8,"h":8}])),
+        );
         run(&mut st, json!({"profiles": ["a", "b"]})).unwrap();
         let v = st.bodies["f9"].solid.as_ref().unwrap().volume();
         assert!((v - 10.0 / 3.0 * (100.0 + 64.0 + 80.0)).abs() < 1e-3, "{v}");
@@ -156,10 +184,26 @@ mod tests {
     #[test]
     fn loft_errors() {
         let mut st = State::default();
-        st.sketches.insert("a".into(), rec(xy(0.0), json!([{"id":"r","type":"rect","x":-5,"y":-5,"w":10,"h":10}])));
-        st.sketches.insert("b".into(), rec(xy(0.0), json!([{"id":"r","type":"rect","x":-4,"y":-4,"w":8,"h":8}])));
-        assert!(run(&mut st, json!({"profiles": ["a"]})).unwrap_err().0.starts_with("A loft needs at least two"));
-        assert!(run(&mut st, json!({"profiles": ["a", "b"]})).unwrap_err().0.contains("at different heights"));
+        st.sketches.insert(
+            "a".into(),
+            rec(xy(0.0), json!([{"id":"r","type":"rect","x":-5,"y":-5,"w":10,"h":10}])),
+        );
+        st.sketches.insert(
+            "b".into(),
+            rec(xy(0.0), json!([{"id":"r","type":"rect","x":-4,"y":-4,"w":8,"h":8}])),
+        );
+        assert!(
+            run(&mut st, json!({"profiles": ["a"]}))
+                .unwrap_err()
+                .0
+                .starts_with("A loft needs at least two")
+        );
+        assert!(
+            run(&mut st, json!({"profiles": ["a", "b"]}))
+                .unwrap_err()
+                .0
+                .contains("at different heights")
+        );
         assert!(run(&mut st, json!({"profiles": ["a", "zz"]})).is_err());
     }
 }

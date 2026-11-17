@@ -13,7 +13,10 @@ fn manifold_from_arrays(v: &[f64], f: &[u32]) -> Option<Solid> {
     if f.is_empty() {
         return None;
     }
-    let m = MeshArrays { positions: v.iter().map(|&x| x as f32).collect(), triangles: f.to_vec() };
+    let m = MeshArrays {
+        positions: v.iter().map(|&x| x as f32).collect(),
+        triangles: f.to_vec(),
+    };
     Solid::from_mesh(&m).ok()
 }
 
@@ -38,13 +41,18 @@ pub fn field_to_solid(field: &Grid3<f32>, origin: [f64; 3], pitch: f64, level: f
     }
     let fmax = pad.data.iter().copied().fold(f32::NEG_INFINITY, f32::max);
     if level > fmax {
-        return Err(MeshError::Message("Surface level must be within volume data range.".into()));
+        return Err(MeshError::Message(
+            "Surface level must be within volume data range.".into(),
+        ));
     }
     let (verts, faces) = marching_cubes(&pad, level, pitch);
     if verts.is_empty() {
         return Err(MeshError::Message("No surface found at the given iso value.".into()));
     }
-    let v: Vec<f64> = verts.iter().flat_map(|q| [0, 1, 2].map(|a| q[a] + origin[a] - pitch)).collect();
+    let v: Vec<f64> = verts
+        .iter()
+        .flat_map(|q| [0, 1, 2].map(|a| q[a] + origin[a] - pitch))
+        .collect();
     // skimage winds faces inward for "positive inside" fields
     let f: Vec<u32> = faces.iter().flat_map(|t| [t[2], t[1], t[0]]).collect();
     let (v, f) = weld(&v, &f, pitch * 1e-4);
@@ -73,11 +81,14 @@ mod tests {
     fn inside_out_cube() -> (Vec<f64>, Vec<u32>) {
         let mut v = Vec::new();
         for i in 0..8 {
-            v.extend([(i & 1) as f64 * 10.0, ((i >> 1) & 1) as f64 * 10.0, ((i >> 2) & 1) as f64 * 10.0]);
+            v.extend([
+                (i & 1) as f64 * 10.0,
+                ((i >> 1) & 1) as f64 * 10.0,
+                ((i >> 2) & 1) as f64 * 10.0,
+            ]);
         }
         let outward: [u32; 36] = [
-            0, 2, 1, 1, 2, 3, 4, 5, 6, 5, 7, 6, 0, 1, 4, 1, 5, 4, 2, 6, 3, 3, 6, 7, 0, 4, 2, 2, 4, 6, 1, 3, 5, 3, 7,
-            5,
+            0, 2, 1, 1, 2, 3, 4, 5, 6, 5, 7, 6, 0, 1, 4, 1, 5, 4, 2, 6, 3, 3, 6, 7, 0, 4, 2, 2, 4, 6, 1, 3, 5, 3, 7, 5,
         ];
         (v, reversed(&outward))
     }
@@ -87,6 +98,10 @@ mod tests {
         let (v, f) = inside_out_cube();
         assert!(manifold_from_arrays(&v, &f).unwrap().signed_volume() < 0.0);
         let s = solid_from_surface(&v, &f).expect("solid");
-        assert!((s.signed_volume() - 1000.0).abs() < 1e-9, "signed volume {}", s.signed_volume());
+        assert!(
+            (s.signed_volume() - 1000.0).abs() < 1e-9,
+            "signed volume {}",
+            s.signed_volume()
+        );
     }
 }

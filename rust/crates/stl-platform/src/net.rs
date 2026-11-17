@@ -36,7 +36,13 @@ pub enum NetError {
 impl std::fmt::Display for NetError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            NetError::Url(s) | NetError::Dns(s) | NetError::Connect(s) | NetError::Tls(s) | NetError::Protocol(s) | NetError::Io(s) | NetError::Refused(s) => {
+            NetError::Url(s)
+            | NetError::Dns(s)
+            | NetError::Connect(s)
+            | NetError::Tls(s)
+            | NetError::Protocol(s)
+            | NetError::Io(s)
+            | NetError::Refused(s) => {
                 write!(f, "{s}")
             }
             NetError::Status(code, reason) => write!(f, "HTTP {code} {reason}"),
@@ -67,7 +73,12 @@ pub fn https_get_limited(url: &str, timeout: Duration, max_body: usize) -> Resul
 
 /// [`https_get_limited`] that asks `allow` about every URL before connecting to it: the first
 /// one and each redirect. A refusal ends the request with [`NetError::Refused`].
-pub fn https_get_checked(url: &str, timeout: Duration, max_body: usize, allow: &dyn Fn(&str) -> Result<(), String>) -> Result<Vec<u8>, NetError> {
+pub fn https_get_checked(
+    url: &str,
+    timeout: Duration,
+    max_body: usize,
+    allow: &dyn Fn(&str) -> Result<(), String>,
+) -> Result<Vec<u8>, NetError> {
     let mut current = url.to_string();
     for _ in 0..5 {
         allow(&current).map_err(NetError::Refused)?;
@@ -89,7 +100,9 @@ pub fn https_get_checked(url: &str, timeout: Duration, max_body: usize, allow: &
 }
 
 fn parse_url(url: &str) -> Result<Url, NetError> {
-    let (scheme, rest) = url.split_once("://").ok_or_else(|| NetError::Url(format!("not a url: {url}")))?;
+    let (scheme, rest) = url
+        .split_once("://")
+        .ok_or_else(|| NetError::Url(format!("not a url: {url}")))?;
     let https = match scheme.to_ascii_lowercase().as_str() {
         "https" => true,
         "http" => false,
@@ -119,9 +132,16 @@ fn parse_url(url: &str) -> Result<Url, NetError> {
         return Err(NetError::Url("missing host".into()));
     }
     if !https && !is_loopback(&host) {
-        return Err(NetError::Url("plain HTTP is only used for 127.0.0.1 test servers".into()));
+        return Err(NetError::Url(
+            "plain HTTP is only used for 127.0.0.1 test servers".into(),
+        ));
     }
-    Ok(Url { https, host, port, path })
+    Ok(Url {
+        https,
+        host,
+        port,
+        path,
+    })
 }
 
 fn is_loopback(host: &str) -> bool {
@@ -145,7 +165,9 @@ fn join_url(base: &Url, loc: &str) -> Result<String, NetError> {
 fn tls_config() -> Arc<ClientConfig> {
     static CFG: OnceLock<Arc<ClientConfig>> = OnceLock::new();
     CFG.get_or_init(|| {
-        let roots = RootCertStore { roots: webpki_roots::TLS_SERVER_ROOTS.to_vec() };
+        let roots = RootCertStore {
+            roots: webpki_roots::TLS_SERVER_ROOTS.to_vec(),
+        };
         let config = ClientConfig::builder_with_provider(Arc::new(rustls_rustcrypto::provider()))
             .with_safe_default_protocol_versions()
             .expect("rustls-rustcrypto supports the default TLS versions")
@@ -187,10 +209,18 @@ fn exchange(url: &Url, timeout: Duration, max: usize) -> Result<(u16, Vec<(Strin
 
 fn host_header(url: &Url) -> String {
     let default = if url.https { 443 } else { 80 };
-    if url.port == default { url.host.clone() } else { format!("{}:{}", url.host, url.port) }
+    if url.port == default {
+        url.host.clone()
+    } else {
+        format!("{}:{}", url.host, url.port)
+    }
 }
 
-fn http_roundtrip(stream: &mut (impl Read + Write), url: &Url, max: usize) -> Result<(u16, Vec<(String, String)>, Vec<u8>), NetError> {
+fn http_roundtrip(
+    stream: &mut (impl Read + Write),
+    url: &Url,
+    max: usize,
+) -> Result<(u16, Vec<(String, String)>, Vec<u8>), NetError> {
     let req = format!(
         "GET {path} HTTP/1.1\r\nHost: {host}\r\nUser-Agent: STL-Editor/{ver}\r\nAccept: */*\r\nConnection: close\r\n\r\n",
         path = url.path,
@@ -199,7 +229,10 @@ fn http_roundtrip(stream: &mut (impl Read + Write), url: &Url, max: usize) -> Re
     );
     write_all(stream, req.as_bytes())?;
     let raw = read_headers(stream)?;
-    let split = raw.windows(4).position(|w| w == b"\r\n\r\n").ok_or_else(|| NetError::Protocol("no header end".into()))?;
+    let split = raw
+        .windows(4)
+        .position(|w| w == b"\r\n\r\n")
+        .ok_or_else(|| NetError::Protocol("no header end".into()))?;
     let text = std::str::from_utf8(&raw[..split]).map_err(|_| NetError::Protocol("headers are not utf-8".into()))?;
     let mut lines = text.split("\r\n");
     let status = lines.next().unwrap_or("");
@@ -219,18 +252,22 @@ fn http_roundtrip(stream: &mut (impl Read + Write), url: &Url, max: usize) -> Re
         headers.push((k.trim().to_string(), v.trim().to_string()));
     }
     let rest = &raw[split + 4..];
-    let body = if header_value(&headers, "transfer-encoding").is_some_and(|v| v.to_ascii_lowercase().contains("chunked")) {
-        read_chunked(stream, rest, max)?
-    } else if let Some(n) = header_value(&headers, "content-length").and_then(|v| v.parse::<usize>().ok()) {
-        read_counted(stream, rest, n, max)?
-    } else {
-        read_until_close(stream, rest, max)?
-    };
+    let body =
+        if header_value(&headers, "transfer-encoding").is_some_and(|v| v.to_ascii_lowercase().contains("chunked")) {
+            read_chunked(stream, rest, max)?
+        } else if let Some(n) = header_value(&headers, "content-length").and_then(|v| v.parse::<usize>().ok()) {
+            read_counted(stream, rest, n, max)?
+        } else {
+            read_until_close(stream, rest, max)?
+        };
     Ok((code, headers, body))
 }
 
 fn header_value<'a>(headers: &'a [(String, String)], name: &str) -> Option<&'a str> {
-    headers.iter().find(|(k, _)| k.eq_ignore_ascii_case(name)).map(|(_, v)| v.as_str())
+    headers
+        .iter()
+        .find(|(k, _)| k.eq_ignore_ascii_case(name))
+        .map(|(_, v)| v.as_str())
 }
 
 fn read_headers(stream: &mut impl Read) -> Result<Vec<u8>, NetError> {
@@ -284,7 +321,8 @@ fn read_chunked(stream: &mut impl Read, already: &[u8], max: usize) -> Result<Ve
         };
         let line = std::str::from_utf8(&buf[..line_end]).unwrap_or("");
         let size_hex = line.split(';').next().unwrap_or("").trim();
-        let size = usize::from_str_radix(size_hex, 16).map_err(|_| NetError::Protocol(format!("bad chunk size: {line}")))?;
+        let size =
+            usize::from_str_radix(size_hex, 16).map_err(|_| NetError::Protocol(format!("bad chunk size: {line}")))?;
         buf.drain(..line_end + 2);
         if size == 0 {
             return Ok(out);
@@ -315,7 +353,9 @@ fn read_some(stream: &mut impl Read, buf: &mut Vec<u8>) -> Result<usize, NetErro
                 return Ok(n);
             }
             Err(e) if e.kind() == ErrorKind::Interrupted => continue,
-            Err(e) if e.kind() == ErrorKind::TimedOut || e.kind() == ErrorKind::WouldBlock => return Err(NetError::Timeout),
+            Err(e) if e.kind() == ErrorKind::TimedOut || e.kind() == ErrorKind::WouldBlock => {
+                return Err(NetError::Timeout);
+            }
             Err(e) => return Err(NetError::Io(e.to_string())),
         }
     }
@@ -327,11 +367,17 @@ fn write_all(stream: &mut impl Write, mut data: &[u8]) -> Result<(), NetError> {
             Ok(0) => return Err(NetError::Io("the connection closed while sending the request".into())),
             Ok(n) => data = &data[n..],
             Err(e) if e.kind() == ErrorKind::Interrupted => continue,
-            Err(e) if e.kind() == ErrorKind::TimedOut || e.kind() == ErrorKind::WouldBlock => return Err(NetError::Timeout),
+            Err(e) if e.kind() == ErrorKind::TimedOut || e.kind() == ErrorKind::WouldBlock => {
+                return Err(NetError::Timeout);
+            }
             Err(e) => return Err(NetError::Io(e.to_string())),
         }
     }
     stream.flush().map_err(|e| {
-        if e.kind() == ErrorKind::TimedOut { NetError::Timeout } else { NetError::Io(e.to_string()) }
+        if e.kind() == ErrorKind::TimedOut {
+            NetError::Timeout
+        } else {
+            NetError::Io(e.to_string())
+        }
     })
 }

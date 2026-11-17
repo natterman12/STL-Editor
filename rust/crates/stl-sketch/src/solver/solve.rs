@@ -1,10 +1,8 @@
 //! The solver: minimum-norm Gauss-Newton with a Levenberg-style damping fallback
 //! (`linsolve`, `run` and `solve` in `web/js/constraints.js`).
 
-use super::constraints::{
-    get_param, get_path, hypot, params_of, refs_exist, residual, set_param, Constraint, World,
-};
-use crate::entities::{point, Entity};
+use super::constraints::{Constraint, World, get_param, get_path, hypot, params_of, refs_exist, residual, set_param};
+use crate::entities::{Entity, point};
 use serde::{Deserialize, Serialize};
 
 /// A pull toward a target while dragging or after typing a value: a point (`k` and `at`) or a
@@ -68,7 +66,9 @@ pub(crate) fn linsolve(a: &[Vec<f64>], b: &[f64]) -> Vec<f64> {
             }
         }
     }
-    (0..n).map(|i| if m[i][i].abs() < 1e-14 { 0.0 } else { m[i][n] / m[i][i] }).collect()
+    (0..n)
+        .map(|i| if m[i][i].abs() < 1e-14 { 0.0 } else { m[i][n] / m[i][i] })
+        .collect()
 }
 
 /// One equation group: a constraint's residuals, or a lock's pull.
@@ -188,12 +188,22 @@ pub fn solve(entities: &[Entity], constraints: &[Constraint], locks: &[Lock], fi
     let mut w = World::new(entities);
     w.add_missing(fixed);
     let is_fixed = |id: &str| fixed.iter().any(|f| f.id() == Some(id));
-    let valid: Vec<&Constraint> = constraints.iter().filter(|c| !c.has_ref() && refs_exist(c, &w)).collect();
+    let valid: Vec<&Constraint> = constraints
+        .iter()
+        .filter(|c| !c.has_ref() && refs_exist(c, &w))
+        .collect();
     let collect = |w: &World| -> Vec<Entity> {
-        entities.iter().map(|e| e.id().and_then(|id| w.get(id)).unwrap_or(e).clone()).collect()
+        entities
+            .iter()
+            .map(|e| e.id().and_then(|id| w.get(id)).unwrap_or(e).clone())
+            .collect()
     };
     if valid.is_empty() && locks.is_empty() {
-        return SolveReport { entities: collect(&w), ok: true, error: 0.0 };
+        return SolveReport {
+            entities: collect(&w),
+            ok: true,
+            error: 0.0,
+        };
     }
     let mut touched: Vec<String> = Vec::new();
     let mut touch = |id: &str| {
@@ -212,11 +222,11 @@ pub fn solve(entities: &[Entity], constraints: &[Constraint], locks: &[Lock], fi
     // only entities connected to a constraint or lock move
     let mut vars: Vec<(usize, usize)> = Vec::new();
     for id in &touched {
-        if let Some(ei) = w.index(id) {
-            if !is_fixed(id) {
-                for pi in 0..params_of(&w.ents[ei]).len() {
-                    vars.push((ei, pi));
-                }
+        if let Some(ei) = w.index(id)
+            && !is_fixed(id)
+        {
+            for pi in 0..params_of(&w.ents[ei]).len() {
+                vars.push((ei, pi));
             }
         }
     }
@@ -226,7 +236,11 @@ pub fn solve(entities: &[Entity], constraints: &[Constraint], locks: &[Lock], fi
         all.extend(locks.iter().map(Eq::Lock));
         run(&mut w, &vars, &all, 40);
     }
-    let err = if !ceqs.is_empty() { run(&mut w, &vars, &ceqs, 80) } else { 0.0 };
+    let err = if !ceqs.is_empty() {
+        run(&mut w, &vars, &ceqs, 80)
+    } else {
+        0.0
+    };
     // keep shapes sane
     for id in &touched {
         if let Some(ei) = w.index(id) {
@@ -243,5 +257,9 @@ pub fn solve(entities: &[Entity], constraints: &[Constraint], locks: &[Lock], fi
         }
     }
     let ok = err < 1e-6;
-    SolveReport { entities: collect(&w), ok, error: err }
+    SolveReport {
+        entities: collect(&w),
+        ok,
+        error: err,
+    }
 }

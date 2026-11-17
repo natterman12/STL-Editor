@@ -16,3 +16,6 @@ rayon = "1.12"
 [dev-dependencies]
 stl-parity = { path = "../stl-parity" }
 serde_json = "1"
+
+[lints]
+workspace = true

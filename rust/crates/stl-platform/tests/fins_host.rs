@@ -42,7 +42,11 @@ fn b64_encode(data: &[u8]) -> String {
         let n = (c[0] as u32) << 16 | (*c.get(1).unwrap_or(&0) as u32) << 8 | *c.get(2).unwrap_or(&0) as u32;
         out.push(B64[(n >> 18) as usize & 63] as char);
         out.push(B64[(n >> 12) as usize & 63] as char);
-        out.push(if c.len() > 1 { B64[(n >> 6) as usize & 63] as char } else { '=' });
+        out.push(if c.len() > 1 {
+            B64[(n >> 6) as usize & 63] as char
+        } else {
+            '='
+        });
         out.push(if c.len() > 2 { B64[n as usize & 63] as char } else { '=' });
     }
     out
@@ -104,7 +108,8 @@ fn js(s: &str) -> String {
 
 /// 1.x `SF._options(values)`.
 fn options(host: &dyn FinsHost, values: &Value) -> String {
-    host.call("optionsFromDialogJson", &[&js(&values.to_string())]).expect("optionsFromDialogJson")
+    host.call("optionsFromDialogJson", &[&js(&values.to_string())])
+        .expect("optionsFromDialogJson")
 }
 
 struct Outcome {
@@ -119,10 +124,15 @@ struct Outcome {
 fn run_case(host: &dyn FinsHost, case: &Value) -> Outcome {
     let (v, f) = load_model(case["model"].as_str().unwrap());
     let opts = options(host, &case["options"]);
-    let raw: Value =
-        serde_json::from_str(&host.call("computeFinsB64", &[&js(&soup(&v, &f)), &js(&opts)]).expect("computeFinsB64"))
-            .unwrap();
-    let report = host.call("reportLine", &[&raw["stats"].to_string()]).expect("reportLine");
+    let raw: Value = serde_json::from_str(
+        &host
+            .call("computeFinsB64", &[&js(&soup(&v, &f)), &js(&opts)])
+            .expect("computeFinsB64"),
+    )
+    .unwrap();
+    let report = host
+        .call("reportLine", &[&raw["stats"].to_string()])
+        .expect("reportLine");
     let tri = b64_decode(raw["triangles"].as_str().unwrap());
     Outcome {
         stats: raw["stats"].clone(),
@@ -159,10 +169,16 @@ fn compare(name: &str, want: &Value, got: &Outcome) -> Vec<String> {
         bad.push(format!("{name}: pieces: want {}, got {}", want["pieces"], got.pieces));
     }
     if want["report"].as_str().unwrap() != got.report {
-        bad.push(format!("{name}: report: want {:?}, got {:?}", want["report"], got.report));
+        bad.push(format!(
+            "{name}: report: want {:?}, got {:?}",
+            want["report"], got.report
+        ));
     }
     if want["over"].as_u64().unwrap() as usize != got.over || want["small"].as_u64().unwrap() as usize != got.small {
-        bad.push(format!("{name}: over/small faces: want {}/{}, got {}/{}", want["over"], want["small"], got.over, got.small));
+        bad.push(format!(
+            "{name}: over/small faces: want {}/{}, got {}/{}",
+            want["over"], want["small"], got.over, got.small
+        ));
     }
     bad
 }
@@ -182,7 +198,11 @@ fn webview_matches_fins_golden() {
         let t = Instant::now();
         let got = run_case(&host, &case);
         let same_tris = got.sha == case["triangles_sha256"].as_str().unwrap();
-        println!("webview {name}: {:.3} s, triangles {}", t.elapsed().as_secs_f64(), if same_tris { "identical" } else { "differ" });
+        println!(
+            "webview {name}: {:.3} s, triangles {}",
+            t.elapsed().as_secs_f64(),
+            if same_tris { "identical" } else { "differ" }
+        );
         bad.extend(compare(&name, &case, &got));
     }
     assert!(bad.is_empty(), "{}", bad.join("\n"));
@@ -201,8 +221,15 @@ fn boa_matches_fins_golden_t_bracket() {
     for (name, case) in g.iter().filter(|(k, _)| *k == "t_bracket_default") {
         let t = Instant::now();
         let got = run_case(&host, case);
-        println!("boa {name}: {:.3} s, triangles {}", t.elapsed().as_secs_f64(),
-            if got.sha == case["triangles_sha256"].as_str().unwrap() { "identical" } else { "differ" });
+        println!(
+            "boa {name}: {:.3} s, triangles {}",
+            t.elapsed().as_secs_f64(),
+            if got.sha == case["triangles_sha256"].as_str().unwrap() {
+                "identical"
+            } else {
+                "differ"
+            }
+        );
         bad.extend(compare(name, case, &got));
         n += 1;
     }
@@ -220,7 +247,10 @@ fn engine_errors_are_reported() {
     // Bad JSON in an argument is an error, not a panic.
     assert!(w.call("reportLine", &["{not json"]).is_err());
     // The host still works afterwards.
-    assert_eq!(w.call("reportLine", &[r#"{"braces":2,"tines":1}"#]).unwrap(), "2 walls, 1 tine");
+    assert_eq!(
+        w.call("reportLine", &[r#"{"braces":2,"tines":1}"#]).unwrap(),
+        "2 walls, 1 tine"
+    );
 }
 
 #[cfg(windows)]
@@ -231,8 +261,15 @@ fn webview_crash_recovers() {
     let case = &g["t_bracket_default"];
     assert!(compare("before", case, &run_case(&host, case)).is_empty());
     let pid = host.browser_pid().expect("WebView2 browser process id");
-    let st = std::process::Command::new("taskkill").args(["/F", "/T", "/PID", &pid.to_string()]).output().unwrap();
-    assert!(st.status.success(), "taskkill failed: {}", String::from_utf8_lossy(&st.stderr));
+    let st = std::process::Command::new("taskkill")
+        .args(["/F", "/T", "/PID", &pid.to_string()])
+        .output()
+        .unwrap();
+    assert!(
+        st.status.success(),
+        "taskkill failed: {}",
+        String::from_utf8_lossy(&st.stderr)
+    );
     let t = Instant::now();
     let err = host.call("reportLine", &[r#"{"braces":1}"#]);
     println!("crash detected in {:.3} s: {err:?}", t.elapsed().as_secs_f64());
@@ -255,9 +292,16 @@ fn ui_thread_restarts() {
             .env("SF_UI_RESTART_CHILD", "1")
             .output()
             .unwrap();
-        let text = format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+        let text = format!(
+            "{}{}",
+            String::from_utf8_lossy(&out.stdout),
+            String::from_utf8_lossy(&out.stderr)
+        );
         println!("{text}");
-        assert!(out.status.success() && text.contains("1 passed"), "child run failed:\n{text}");
+        assert!(
+            out.status.success() && text.contains("1 passed"),
+            "child run failed:\n{text}"
+        );
         return;
     }
     const LINE: &str = r#"{"braces":2,"tines":1}"#;
@@ -265,7 +309,10 @@ fn ui_thread_restarts() {
     assert_eq!(host.call("reportLine", &[LINE]).as_deref(), Ok("2 walls, 1 tine"));
     WebviewHost::stop_ui_thread_for_tests();
     let t = Instant::now();
-    assert_eq!(host.call("reportLine", &[LINE]), Err(stl_platform::fins::STOPPED.to_string()));
+    assert_eq!(
+        host.call("reportLine", &[LINE]),
+        Err(stl_platform::fins::STOPPED.to_string())
+    );
     assert!(t.elapsed().as_secs() < 10, "a dead UI thread should be noticed at once");
     // Windows only: on Linux GTK can't move to a second thread, so the host stays failed there.
     #[cfg(windows)]
@@ -305,11 +352,15 @@ fn concurrent_calls_serialize() {
 #[cfg(any(windows, target_os = "linux"))]
 #[test]
 fn has_reports_extras() {
-    let info: Value = serde_json::from_str(
-        &std::fs::read_to_string(repo().join("web/vendor/support-fins/VERSION.json")).unwrap(),
-    )
-    .unwrap();
-    let extras: Vec<&str> = info["extras"].as_array().unwrap().iter().map(|e| e.as_str().unwrap()).collect();
+    let info: Value =
+        serde_json::from_str(&std::fs::read_to_string(repo().join("web/vendor/support-fins/VERSION.json")).unwrap())
+            .unwrap();
+    let extras: Vec<&str> = info["extras"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|e| e.as_str().unwrap())
+        .collect();
     assert!(!extras.is_empty());
     let w = webview();
     let b = BoaHost::start(&engine_js()).unwrap();
@@ -325,7 +376,11 @@ fn has_reports_extras() {
 #[test]
 fn start_fins_host_picks_webview() {
     let host = stl_platform::fins::start_fins_host(&engine_js());
-    let want = if cfg!(target_os = "macos") { HostKind::Boa } else { HostKind::Webview };
+    let want = if cfg!(target_os = "macos") {
+        HostKind::Boa
+    } else {
+        HostKind::Webview
+    };
     assert_eq!(host.host_kind(), want);
     assert!(host.has("computeFinsB64"));
 }

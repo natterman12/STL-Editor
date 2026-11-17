@@ -23,13 +23,24 @@ fn f_separate(
     // Solid::decompose already sorts largest volume first (1.x sorts the same way).
     state.bodies.insert(
         bid.to_string(),
-        Body { name: b.name.clone(), solid: Some(pieces[0].clone()), mesh: None },
+        Body {
+            name: b.name.clone(),
+            solid: Some(pieces[0].clone()),
+            mesh: None,
+        },
     );
     res.modified.push(bid.to_string());
     for (i, pc) in pieces.into_iter().enumerate().skip(1) {
         let n = i + 1; // pieces[1] -> 2, as Python enumerate(..., 2)
         let nid = format!("{fid}.{n}");
-        state.bodies.insert(nid.clone(), Body { name: format!("{} ({n})", b.name), solid: Some(pc), mesh: None });
+        state.bodies.insert(
+            nid.clone(),
+            Body {
+                name: format!("{} ({n})", b.name),
+                solid: Some(pc),
+                mesh: None,
+            },
+        );
         res.created.push(nid);
     }
     Ok(())

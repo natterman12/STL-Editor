@@ -1,7 +1,7 @@
 //! Sweep (1.x `f_sweep`): a profile carried along an open path of lines and arcs.
 
 use serde_json::{Map, Value};
-use stl_kernel::{cross, dot, triangulate, Vec3};
+use stl_kernel::{Vec3, cross, dot, triangulate};
 
 use super::common::{apply_tool, mesh_solid, path_points, path_self_crosses, profile_loop, rot_between, sketch};
 use crate::{Ctx, FeatureError, FeatureResult, Registry, State};
@@ -38,7 +38,9 @@ fn f_sweep(
     let (po, px, py) = (path_sk.frame.o, path_sk.frame.x, path_sk.frame.y);
     let p2 = path_points(&path_sk)?;
     if path_self_crosses(&p2) {
-        return Err(FeatureError("The sweep path crosses itself. Move the path so it doesn't cross.".into()));
+        return Err(FeatureError(
+            "The sweep path crosses itself. Move the path so it doesn't cross.".into(),
+        ));
     }
     let p3: Vec<Vec3> = p2
         .iter()
@@ -62,9 +64,17 @@ fn f_sweep(
     t[0] = dirs[0];
     t[m - 1] = dirs[m - 2];
     for i in 1..m - 1 {
-        let sm = [dirs[i - 1][0] + dirs[i][0], dirs[i - 1][1] + dirs[i][1], dirs[i - 1][2] + dirs[i][2]];
+        let sm = [
+            dirs[i - 1][0] + dirs[i][0],
+            dirs[i - 1][1] + dirs[i][1],
+            dirs[i - 1][2] + dirs[i][2],
+        ];
         let l = norm(sm);
-        t[i] = if l > 1e-9 { [sm[0] / l, sm[1] / l, sm[2] / l] } else { dirs[i] };
+        t[i] = if l > 1e-9 {
+            [sm[0] / l, sm[1] / l, sm[2] / l]
+        } else {
+            dirs[i]
+        };
     }
     // the profile starts at the path's first point, turned to face along the path
     let (o_s, x_s, y_s, n_s) = (psk.frame.o, psk.frame.x, psk.frame.y, psk.frame.n);
@@ -106,7 +116,9 @@ fn f_sweep(
             // at a bend the profile is stretched across the bend so the corner is mitred, not cut
             let c = dot(dirs[i - 1], dirs[i]);
             if c < -0.99 {
-                return Err(FeatureError("The sweep path turns back on itself too sharply. Open up the bend.".into()));
+                return Err(FeatureError(
+                    "The sweep path turns back on itself too sharply. Open up the bend.".into(),
+                ));
             }
             let wv = sub(dirs[i], dirs[i - 1]);
             let l = norm(wv);
@@ -136,14 +148,22 @@ fn f_sweep(
     }
     for (i, keep) in [(0usize, false), (m - 1, true)] {
         let base = (i * kn) as u32;
-        for tr in triangulate(&[lp.clone()]) {
+        for tr in triangulate(std::slice::from_ref(&lp)) {
             let (a, b, c) = (tr[0], tr[1], tr[2]);
-            tris.push(if keep { [base + a, base + b, base + c] } else { [base + a, base + c, base + b] });
+            tris.push(if keep {
+                [base + a, base + b, base + c]
+            } else {
+                [base + a, base + c, base + b]
+            });
         }
     }
     let man = mesh_solid(&verts, &tris, "sweep")?;
     let operation = p.get("operation").and_then(Value::as_str).unwrap_or("new");
-    let name = p.get("body_name").and_then(Value::as_str).filter(|s| !s.is_empty()).unwrap_or("Sweep");
+    let name = p
+        .get("body_name")
+        .and_then(Value::as_str)
+        .filter(|s| !s.is_empty())
+        .unwrap_or("Sweep");
     apply_tool(state, fid, man, operation, p.get("targets"), name, res)
 }
 
@@ -154,27 +174,50 @@ pub fn register(r: Registry) -> Registry {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::features::common::SketchRec;
     use serde_json::json;
     use std::collections::BTreeMap;
     use stl_kernel::Frame;
-    use crate::features::common::SketchRec;
 
     fn rec(frame: Frame, ents: Value) -> SketchRec {
-        SketchRec { name: "s".into(), frame, entities: serde_json::from_value(ents).unwrap(), refs: Vec::new(), body: None }
+        SketchRec {
+            name: "s".into(),
+            frame,
+            entities: serde_json::from_value(ents).unwrap(),
+            refs: Vec::new(),
+            body: None,
+        }
     }
 
     fn run(state: &mut State, p: Value) -> Result<(), FeatureError> {
         let src = BTreeMap::new();
-        let ctx = Ctx { sources: &src, preview: false, fins: &crate::NullHost };
+        let ctx = Ctx {
+            sources: &src,
+            preview: false,
+            fins: &crate::NullHost,
+        };
         let mut res = FeatureResult::default();
         f_sweep(state, "f9", p.as_object().unwrap(), &mut res, &ctx)
     }
 
     fn setup(path: Value) -> State {
         let mut st = State::default();
-        let xy = Frame { o: [0.0; 3], x: [1.0, 0.0, 0.0], y: [0.0, 1.0, 0.0], n: [0.0, 0.0, 1.0] };
-        let xz = Frame { o: [0.0; 3], x: [1.0, 0.0, 0.0], y: [0.0, 0.0, 1.0], n: [0.0, -1.0, 0.0] };
-        st.sketches.insert("pr".into(), rec(xy, json!([{"id":"r","type":"rect","x":-2,"y":-2,"w":4,"h":4}])));
+        let xy = Frame {
+            o: [0.0; 3],
+            x: [1.0, 0.0, 0.0],
+            y: [0.0, 1.0, 0.0],
+            n: [0.0, 0.0, 1.0],
+        };
+        let xz = Frame {
+            o: [0.0; 3],
+            x: [1.0, 0.0, 0.0],
+            y: [0.0, 0.0, 1.0],
+            n: [0.0, -1.0, 0.0],
+        };
+        st.sketches.insert(
+            "pr".into(),
+            rec(xy, json!([{"id":"r","type":"rect","x":-2,"y":-2,"w":4,"h":4}])),
+        );
         st.sketches.insert("pa".into(), rec(xz, path));
         st
     }

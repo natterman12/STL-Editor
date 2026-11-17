@@ -1,7 +1,7 @@
 //! Resize Hole (1.x `f_resizehole`): change a round hole or pin to a new diameter, or fill a hole.
 
 use serde_json::{Map, Value};
-use stl_mesh::fit::{fit_cylinder, nearest_triangle, CylKind};
+use stl_mesh::fit::{CylKind, fit_cylinder, nearest_triangle};
 
 use super::common::round::resize_round;
 use super::common::{float, truthy};
@@ -45,7 +45,11 @@ fn resizehole(
         }),
     );
     let fill = p.get("mode").and_then(Value::as_str) == Some("fill");
-    let diameter = if fill { None } else { Some(float(p, "diameter", Some(2.0 * cyl.radius))?) };
+    let diameter = if fill {
+        None
+    } else {
+        Some(float(p, "diameter", Some(2.0 * cyl.radius))?)
+    };
     if fill && cyl.kind != CylKind::Hole {
         return Err(FeatureError(
             "Fill works on holes. To remove a pin, cut it off with Split or Extrude › Cut.".into(),
@@ -58,7 +62,14 @@ fn resizehole(
     if out.is_empty() {
         return Err(FeatureError("The result is empty.".into()));
     }
-    state.bodies.insert(bid.to_string(), Body { name: b.name, solid: Some(out), mesh: None });
+    state.bodies.insert(
+        bid.to_string(),
+        Body {
+            name: b.name,
+            solid: Some(out),
+            mesh: None,
+        },
+    );
     res.modified.push(bid.to_string());
     Ok(())
 }

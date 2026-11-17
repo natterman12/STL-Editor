@@ -7,7 +7,13 @@ use crate::polygon::{buffer_mitre, is_simple_ring, linemerge, node_lines, offset
 use serde_json::Map;
 
 fn polyline(id: String, pts: Vec<P2>, closed: bool, construction: bool) -> Entity {
-    Entity::Polyline(Polyline { id: Some(id), pts, closed: Some(closed), construction: construction.then_some(true), extra: Map::new() })
+    Entity::Polyline(Polyline {
+        id: Some(id),
+        pts,
+        closed: Some(closed),
+        construction: construction.then_some(true),
+        extra: Map::new(),
+    })
 }
 
 /// Offset copies of the chosen shapes (positive = outward / to the left of lines), added after
@@ -26,12 +32,21 @@ pub fn offset(
         if !ids.iter().any(|i| i == id) {
             continue;
         }
-        let nid = Some(new_id());
+        let fresh = new_id();
+        let nid = Some(fresh.clone());
         match e {
             Entity::Rect(r) => {
                 let f = r.fillet.unwrap_or(0.0);
-                let (x0, x1) = if r.x <= r.x + r.w { (r.x, r.x + r.w) } else { (r.x + r.w, r.x) };
-                let (y0, y1) = if r.y <= r.y + r.h { (r.y, r.y + r.h) } else { (r.y + r.h, r.y) };
+                let (x0, x1) = if r.x <= r.x + r.w {
+                    (r.x, r.x + r.w)
+                } else {
+                    (r.x + r.w, r.x)
+                };
+                let (y0, y1) = if r.y <= r.y + r.h {
+                    (r.y, r.y + r.h)
+                } else {
+                    (r.y + r.h, r.y)
+                };
                 if x1 - x0 + 2.0 * d <= 0.0 || y1 - y0 + 2.0 * d <= 0.0 {
                     return Err(SketchError::new("Offset is larger than the shape."));
                 }
@@ -73,7 +88,7 @@ pub fn offset(
             }
             Entity::Polyline(p) if p.is_closed() => {
                 // one outline per piece, all with the one new id (as 1.x); nothing left is one empty outline
-                let id = nid.unwrap();
+                let id = fresh;
                 let mut rings = buffer_mitre(&p.pts, d);
                 if rings.is_empty() {
                     rings.push(vec![]);
@@ -147,9 +162,10 @@ fn wkt_num(v: f64) -> String {
     // Plain form: shortest round-trip digits, but at most 16 decimals.
     let s = format!("{v}");
     match s.split_once('.') {
-        Some((_, frac)) if frac.len() > 16 => {
-            format!("{v:.16}").trim_end_matches('0').trim_end_matches('.').to_string()
-        }
+        Some((_, frac)) if frac.len() > 16 => format!("{v:.16}")
+            .trim_end_matches('0')
+            .trim_end_matches('.')
+            .to_string(),
         _ => s,
     }
 }

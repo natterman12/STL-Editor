@@ -16,20 +16,62 @@ use stl_mesh::offset::offset_solid;
 
 /// `name -> sha256` of the output recorded before the speed pass (release, 2026-11-13).
 const EXPECTED: &[(&str, &str)] = &[
-    ("combine/combine_cut_expr_clearance", "39dd23b5b02873efbe8608df8afaa4f22e80ac3a45e8a40c98df5a4ce21c040a"),
-    ("kernel/minkowski_difference_cube_sphere", "520ed8060535294ddd1becb4878f59e483ce28825b3485986678ef01f8aedc0b"),
-    ("kernel/minkowski_sum_cube_sphere", "4b4e9b1de8bed4b815c0e01ca080cc2a08991330902fb52051451d096bb6261d"),
-    ("offset/offset_detailed_body", "295d041fcbc1fbe1ebe7a8275a451f477c76759bd7b4b20a0a2ea5dc60b48c6e"),
-    ("offset/offset_grow", "62bd16ccfc9b10bec1313d8af7dbdaff465d57a0d987fdcb61e0d9f70eadd1d8"),
-    ("offset/offset_no_body", "1726b74cab1bef4ca66a5fdf3dae322e4fd2e01a4883952da2f173e70a2a361a"),
-    ("offset/offset_shrink", "553d9f177513b5f43e218439c16247392712448c15314f563f2ae57406c43367"),
-    ("offset/offset_shrink_nothing", "adf3498c8dda73ed4f06d15c2e7c8ad02d9633c8d5e73d27b7dfa61f47c9be84"),
-    ("offset/offset_two_bodies", "216e0826e1750c0229d12aa492bb58e957253cb71932cbcb310aa19d0e84d7be"),
-    ("offset/offset_zero_distance", "0bbbe9adaabc835bdefd9ebe2dadcef50342307c2a615ab2d66787f2302361d2"),
-    ("synthetic/batch_notch_grow", "3ac712873786e5ac0704f69b5b24ca0074bb21df974ac6fcccde0e8b6e6f1d36"),
-    ("synthetic/batch_notch_shrink", "24670a69f4c9d0be794c2347c503ce329c9a1245c015d1826bb3d95d40aeb99b"),
-    ("synthetic/notched_grow", "32f00d59645a61e36b74ceb0c4e31edeb51c853f60e226ab7292794095728a4c"),
-    ("synthetic/notched_shrink", "eeb3be65ae34e126e90feaa0f53a538c23a1e29df5e2ed2b44c83197cf76d5f8"),
+    (
+        "combine/combine_cut_expr_clearance",
+        "39dd23b5b02873efbe8608df8afaa4f22e80ac3a45e8a40c98df5a4ce21c040a",
+    ),
+    (
+        "kernel/minkowski_difference_cube_sphere",
+        "520ed8060535294ddd1becb4878f59e483ce28825b3485986678ef01f8aedc0b",
+    ),
+    (
+        "kernel/minkowski_sum_cube_sphere",
+        "4b4e9b1de8bed4b815c0e01ca080cc2a08991330902fb52051451d096bb6261d",
+    ),
+    (
+        "offset/offset_detailed_body",
+        "295d041fcbc1fbe1ebe7a8275a451f477c76759bd7b4b20a0a2ea5dc60b48c6e",
+    ),
+    (
+        "offset/offset_grow",
+        "62bd16ccfc9b10bec1313d8af7dbdaff465d57a0d987fdcb61e0d9f70eadd1d8",
+    ),
+    (
+        "offset/offset_no_body",
+        "1726b74cab1bef4ca66a5fdf3dae322e4fd2e01a4883952da2f173e70a2a361a",
+    ),
+    (
+        "offset/offset_shrink",
+        "553d9f177513b5f43e218439c16247392712448c15314f563f2ae57406c43367",
+    ),
+    (
+        "offset/offset_shrink_nothing",
+        "adf3498c8dda73ed4f06d15c2e7c8ad02d9633c8d5e73d27b7dfa61f47c9be84",
+    ),
+    (
+        "offset/offset_two_bodies",
+        "216e0826e1750c0229d12aa492bb58e957253cb71932cbcb310aa19d0e84d7be",
+    ),
+    (
+        "offset/offset_zero_distance",
+        "0bbbe9adaabc835bdefd9ebe2dadcef50342307c2a615ab2d66787f2302361d2",
+    ),
+    (
+        "synthetic/batch_notch_grow",
+        "3ac712873786e5ac0704f69b5b24ca0074bb21df974ac6fcccde0e8b6e6f1d36",
+    ),
+    (
+        "synthetic/batch_notch_shrink",
+        "24670a69f4c9d0be794c2347c503ce329c9a1245c015d1826bb3d95d40aeb99b",
+    ),
+    (
+        "synthetic/notched_grow",
+        "32f00d59645a61e36b74ceb0c4e31edeb51c853f60e226ab7292794095728a4c",
+    ),
+    (
+        "synthetic/notched_shrink",
+        "eeb3be65ae34e126e90feaa0f53a538c23a1e29df5e2ed2b44c83197cf76d5f8",
+    ),
 ];
 
 fn parity_dir() -> PathBuf {
@@ -46,13 +88,13 @@ fn hex(data: &[u8]) -> String {
 
 fn feed_mesh(h: &mut Sha256, solid: &Solid) {
     let m = solid.to_mesh();
-    h.update(&(m.positions.len() as u64).to_le_bytes());
+    h.update((m.positions.len() as u64).to_le_bytes());
     for p in &m.positions {
-        h.update(&p.to_le_bytes());
+        h.update(p.to_le_bytes());
     }
-    h.update(&(m.triangles.len() as u64).to_le_bytes());
+    h.update((m.triangles.len() as u64).to_le_bytes());
     for t in &m.triangles {
-        h.update(&t.to_le_bytes());
+        h.update(t.to_le_bytes());
     }
 }
 
@@ -113,8 +155,12 @@ fn hash_case(case: &Value) -> String {
 }
 
 fn uses_offset_code(case: &Value) -> bool {
-    case["requires"].as_array().is_some_and(|a| a.iter().any(|v| v == "offset"))
-        || case["features"].as_array().is_some_and(|fs| fs.iter().any(|f| f["type"] == "offset"))
+    case["requires"]
+        .as_array()
+        .is_some_and(|a| a.iter().any(|v| v == "offset"))
+        || case["features"]
+            .as_array()
+            .is_some_and(|fs| fs.iter().any(|f| f["type"] == "offset"))
 }
 
 fn collect() -> BTreeMap<String, String> {
@@ -134,7 +180,10 @@ fn collect() -> BTreeMap<String, String> {
     // Kernel corpus (`kernel_cases.json`): the two Minkowski ops. Same solids, same calls.
     let cube = Solid::cube([4.0, 4.0, 4.0], true);
     let sp = Solid::sphere(1.0, 8);
-    out.insert("kernel/minkowski_sum_cube_sphere".into(), hash_solid(&cube.minkowski_sum(&sp)));
+    out.insert(
+        "kernel/minkowski_sum_cube_sphere".into(),
+        hash_solid(&cube.minkowski_sum(&sp)),
+    );
     out.insert(
         "kernel/minkowski_difference_cube_sphere".into(),
         hash_solid(&cube.minkowski_difference(&sp)),
@@ -162,8 +211,16 @@ fn collect() -> BTreeMap<String, String> {
     let mid = stl_kernel::minkowski_batch_path_hits();
     let wide_shrink = offset_solid(&wide, -0.2, 12_000).unwrap_or_else(|e| panic!("wide shrink: {e}"));
     let after = stl_kernel::minkowski_batch_path_hits();
-    assert!(mid > before, "wide grow stayed on the stock path ({} tris)", wide.num_tri());
-    assert!(after > mid, "wide shrink stayed on the stock path ({} tris)", wide.num_tri());
+    assert!(
+        mid > before,
+        "wide grow stayed on the stock path ({} tris)",
+        wide.num_tri()
+    );
+    assert!(
+        after > mid,
+        "wide shrink stayed on the stock path ({} tris)",
+        wide.num_tri()
+    );
     out.insert("synthetic/batch_notch_grow".into(), hash_solid(&wide_grow));
     out.insert("synthetic/batch_notch_shrink".into(), hash_solid(&wide_shrink));
     out
@@ -252,7 +309,11 @@ fn offset_bench_mesh_matches_stock() {
     let stock = stl_kernel::with_stock_minkowski(|| {
         let at = stl_kernel::minkowski_batch_path_hits();
         let out = offset_solid(&solid, 0.2, 12_000).unwrap_or_else(|e| panic!("stock: {e}"));
-        assert_eq!(at, stl_kernel::minkowski_batch_path_hits(), "stock bench took the batch path");
+        assert_eq!(
+            at,
+            stl_kernel::minkowski_batch_path_hits(),
+            "stock bench took the batch path"
+        );
         out
     });
     assert_eq!(hash_solid(&fast), hash_solid(&stock));

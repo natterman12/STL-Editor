@@ -7,7 +7,10 @@ use stl_kernel::Aabb;
 
 /// The 20 mm cube standing on the bed at the origin.
 fn cube() -> Aabb {
-    Aabb { min: [-10.0, -10.0, 0.0], max: [10.0, 10.0, 20.0] }
+    Aabb {
+        min: [-10.0, -10.0, 0.0],
+        max: [10.0, 10.0, 20.0],
+    }
 }
 
 fn cam(position: V3, target: V3, up: V3) -> Camera {
@@ -31,7 +34,10 @@ fn start_distance_boundary_is_halfway() {
     let d = plane_drag::start_distance([10.0, 0.0, 5.0], [2.0, 0.0, 0.0], &cube());
     assert!((d + 10.0).abs() < 1e-9, "side face starts at {d}");
     // strictly inside keeps 0
-    assert_eq!(plane_drag::start_distance([0.0, 0.0, 5.0], [0.0, 0.0, 1.0], &cube()), 0.0);
+    assert_eq!(
+        plane_drag::start_distance([0.0, 0.0, 5.0], [0.0, 0.0, 1.0], &cube()),
+        0.0
+    );
     // a plane outside the box also moves to its middle
     let d = plane_drag::start_distance([0.0, 0.0, 50.0], [0.0, 0.0, 1.0], &cube());
     assert!((d + 40.0).abs() < 1e-9, "outside plane starts at {d}");
@@ -41,11 +47,19 @@ fn start_distance_boundary_is_halfway() {
 fn drag_follows_pointer_projection() {
     // a side view (from the front) of a plane whose normal is +X: the arrow points right
     let c = cam([0.0, -200.0, 10.0], [0.0, 0.0, 10.0], [0.0, 0.0, 1.0]);
-    let p = DragPlane { origin: [0.0, 0.0, 10.0], normal: [1.0, 0.0, 0.0], distance: 0.0, span: cube() };
+    let p = DragPlane {
+        origin: [0.0, 0.0, 10.0],
+        normal: [1.0, 0.0, 0.0],
+        distance: 0.0,
+        span: cube(),
+    };
     assert!(!plane_drag::face_on(&c, &p));
     let mid = c.world_to_view(plane_drag::center(&p));
     let tip = plane_drag::handle_at(&c, &p);
-    assert!(tip[0] > mid[0] + 50.0 && (tip[1] - mid[1]).abs() < 1e-6, "arrow points right: {mid:?} -> {tip:?}");
+    assert!(
+        tip[0] > mid[0] + 50.0 && (tip[1] - mid[1]).abs() < 1e-6,
+        "arrow points right: {mid:?} -> {tip:?}"
+    );
     assert!(plane_drag::hits_handle(&c, &p, [(mid[0] + tip[0]) / 2.0, mid[1] + 3.0]));
     assert!(plane_drag::hits_handle(&c, &p, tip));
     assert!(!plane_drag::hits_handle(&c, &p, [mid[0], mid[1] + 60.0]));
@@ -57,7 +71,10 @@ fn drag_follows_pointer_projection() {
     let to = [from[0] + dir[0] * 100.0, from[1] + dir[1] * 100.0];
     let d = plane_drag::drag_distance(&c, &p, from, to, 0.0);
     let want = 100.0 * px;
-    assert!((d - want).abs() < want * 0.01, "100 px moved the plane {d} mm, want {want}");
+    assert!(
+        (d - want).abs() < want * 0.01,
+        "100 px moved the plane {d} mm, want {want}"
+    );
     // back the other way, and from a non-zero start
     let back = plane_drag::drag_distance(&c, &p, to, from, 3.0);
     assert!((back - (3.0 - want)).abs() < want * 0.01, "{back}");
@@ -75,10 +92,18 @@ fn drag_follows_pointer_projection() {
 fn drag_face_on_falls_back() {
     // a Z cut seen from the top: the normal points straight at the camera
     let c = cam([0.0, 0.0, 200.0], [0.0, 0.0, 10.0], [0.0, 1.0, 0.0]);
-    let p = DragPlane { origin: [0.0, 0.0, 10.0], normal: [0.0, 0.0, 1.0], distance: 0.0, span: cube() };
+    let p = DragPlane {
+        origin: [0.0, 0.0, 10.0],
+        normal: [0.0, 0.0, 1.0],
+        distance: 0.0,
+        span: cube(),
+    };
     assert!(plane_drag::face_on(&c, &p));
     let mid = c.world_to_view(plane_drag::center(&p));
-    assert!(plane_drag::hits_handle(&c, &p, mid), "face on, the arrow's dot can still be grabbed");
+    assert!(
+        plane_drag::hits_handle(&c, &p, mid),
+        "face on, the arrow's dot can still be grabbed"
+    );
     let px = c.pixel_size(plane_drag::center(&p));
     let mut last = f64::NEG_INFINITY;
     for dy in [-40.0, -20.0, -5.0, 0.0, 5.0, 20.0, 40.0] {
@@ -90,13 +115,19 @@ fn drag_face_on_falls_back() {
         last = d;
     }
     // up moves toward the camera from below too (the normal pointing away from it)
-    let below = DragPlane { normal: [0.0, 0.0, -1.0], ..p };
+    let below = DragPlane {
+        normal: [0.0, 0.0, -1.0],
+        ..p
+    };
     let d = plane_drag::drag_distance(&c, &below, mid, [mid[0], mid[1] - 10.0], 0.0);
     assert!(d < 0.0, "normal away from the camera: up gives {d}");
 
     // tilted 10° off the line of sight: still face on, still smooth and finite
     let a = 10f64.to_radians();
-    let t = DragPlane { normal: [0.0, a.sin(), a.cos()], ..p };
+    let t = DragPlane {
+        normal: [0.0, a.sin(), a.cos()],
+        ..p
+    };
     assert!(plane_drag::face_on(&c, &t));
     let mut last = f64::NEG_INFINITY;
     for i in -10..=10 {
@@ -106,7 +137,10 @@ fn drag_face_on_falls_back() {
     }
     // just past 15° the projection takes over and stays finite
     let a = 16f64.to_radians();
-    let t = DragPlane { normal: [0.0, a.sin(), a.cos()], ..p };
+    let t = DragPlane {
+        normal: [0.0, a.sin(), a.cos()],
+        ..p
+    };
     assert!(!plane_drag::face_on(&c, &t));
     for i in -10..=10 {
         let d = plane_drag::drag_distance(&c, &t, mid, [mid[0] + i as f64 * 7.0, mid[1] - i as f64 * 4.0], 0.0);
@@ -116,7 +150,12 @@ fn drag_face_on_falls_back() {
 
 #[test]
 fn plane_eq_flip() {
-    let p = DragPlane { origin: [0.0, 0.0, 5.0], normal: [0.0, 0.0, 2.0], distance: 2.0, span: cube() };
+    let p = DragPlane {
+        origin: [0.0, 0.0, 5.0],
+        normal: [0.0, 0.0, 2.0],
+        distance: 2.0,
+        span: cube(),
+    };
     let keep = |e: [f64; 4], x: V3| e[0] * x[0] + e[1] * x[1] + e[2] * x[2] + e[3] >= 0.0;
     let behind = plane_drag::plane_eq(&p, false);
     assert_eq!(behind, [-0.0, -0.0, -1.0, 7.0]);
@@ -140,8 +179,16 @@ fn drag_mode_latched_across_the_threshold() {
     let c = cam([0.0, 0.0, 120.0], [0.0, 0.0, 0.0], [0.0, 1.0, 0.0]);
     let a = 16f64.to_radians();
     let n = [a.sin(), 0.0, a.cos()];
-    let span = Aabb { min: [-10.0, -10.0, -10.0], max: [10.0, 10.0, 10.0] };
-    let p0 = DragPlane { origin: [0.0; 3], normal: n, distance: 0.0, span };
+    let span = Aabb {
+        min: [-10.0, -10.0, -10.0],
+        max: [10.0, 10.0, 10.0],
+    };
+    let p0 = DragPlane {
+        origin: [0.0; 3],
+        normal: n,
+        distance: 0.0,
+        span,
+    };
     let mode = plane_drag::drag_mode(&c, &p0);
     assert_eq!(mode, plane_drag::DragMode::Projection);
     let at = |d: f64| DragPlane { distance: d, ..p0 };
@@ -173,10 +220,17 @@ fn drag_mode_latched_across_the_threshold() {
         }
         last = d;
     }
-    assert!(crossed.is_some(), "the drag never took the plane past 15° (ended at {last})");
+    assert!(
+        crossed.is_some(),
+        "the drag never took the plane past 15° (ended at {last})"
+    );
 
     // a drag that starts face on stays vertical the whole way, even after the plane leaves it
-    let start = (0..400).map(|k| -(k as f64) * 0.25).find(|&d| plane_drag::face_on(&c, &at(d))).unwrap() - 2.0;
+    let start = (0..400)
+        .map(|k| -(k as f64) * 0.25)
+        .find(|&d| plane_drag::face_on(&c, &at(d)))
+        .unwrap()
+        - 2.0;
     let pf = at(start);
     let mode = plane_drag::drag_mode(&c, &pf);
     assert_eq!(mode, plane_drag::DragMode::Vertical);
@@ -190,5 +244,8 @@ fn drag_mode_latched_across_the_threshold() {
         assert!(d > last);
         last = d;
     }
-    assert!(!plane_drag::face_on(&c, &at(last)), "the drag left the face-on cone ({last})");
+    assert!(
+        !plane_drag::face_on(&c, &at(last)),
+        "the drag left the face-on cone ({last})"
+    );
 }

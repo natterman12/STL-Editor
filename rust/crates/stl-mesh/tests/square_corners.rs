@@ -25,12 +25,20 @@ fn open_top_shell(s: &Solid, t: f64, pitch: f64) -> Solid {
     let cavity = hollow(s, t, Some(pitch), true).unwrap();
     // the engine opens the face where the cavity lies under it: the cavity's footprint, upward
     let (cb, bb) = (cavity.bounding_box(), s.bounding_box());
-    let top = Solid::cube([cb.max[0] - cb.min[0], cb.max[1] - cb.min[1], 2.0 * t], false).translate([cb.min[0], cb.min[1], bb.max[2] - t]);
+    let top = Solid::cube([cb.max[0] - cb.min[0], cb.max[1] - cb.min[1], 2.0 * t], false).translate([
+        cb.min[0],
+        cb.min[1],
+        bb.max[2] - t,
+    ]);
     s.difference(&Solid::union_all(&[cavity, top]))
 }
 
 fn points(s: &Solid) -> Vec<[f64; 3]> {
-    s.to_mesh().positions.chunks_exact(3).map(|p| [p[0] as f64, p[1] as f64, p[2] as f64]).collect()
+    s.to_mesh()
+        .positions
+        .chunks_exact(3)
+        .map(|p| [p[0] as f64, p[1] as f64, p[2] as f64])
+        .collect()
 }
 
 fn has_point(pts: &[[f64; 3]], want: [f64; 3], tol: f64) -> bool {
@@ -61,7 +69,10 @@ fn cube_shell_open_top() {
     let shell = open_top_shell(&cube20(), 2.0, 0.8);
     // the removed space is 16 x 16 x 18
     let cavity = 20.0 * 20.0 * 20.0 - shell.volume();
-    assert!((cavity - 16.0 * 16.0 * 18.0).abs() <= 0.001 * 4608.0, "cavity volume {cavity}");
+    assert!(
+        (cavity - 16.0 * 16.0 * 18.0).abs() <= 0.001 * 4608.0,
+        "cavity volume {cavity}"
+    );
     let pts = points(&shell);
     for x in [2.0, 18.0] {
         for y in [2.0, 18.0] {
@@ -89,27 +100,57 @@ fn l_part_inner_corner_square() {
     // flat walls moved in by 2 mm meet in exact edges: the L's own reflex corner at (18, 18)
     // included (a CAD shell, not the rounded erosion)
     let want = (36.0 * 16.0 + 16.0 * 20.0) * 6.0;
-    assert!((c.volume() - want).abs() <= 0.001 * want, "volume {} vs {want}", c.volume());
+    assert!(
+        (c.volume() - want).abs() <= 0.001 * want,
+        "volume {} vs {want}",
+        c.volume()
+    );
     let pts = points(&c);
     for z in [2.0, 8.0] {
-        for xy in [[2.0, 2.0], [38.0, 2.0], [38.0, 18.0], [18.0, 18.0], [18.0, 38.0], [2.0, 38.0]] {
-            assert!(has_point(&pts, [xy[0], xy[1], z], 0.01), "no corner at ({}, {}, {z})", xy[0], xy[1]);
+        for xy in [
+            [2.0, 2.0],
+            [38.0, 2.0],
+            [38.0, 18.0],
+            [18.0, 18.0],
+            [18.0, 38.0],
+            [2.0, 38.0],
+        ] {
+            assert!(
+                has_point(&pts, [xy[0], xy[1], z], 0.01),
+                "no corner at ({}, {}, {z})",
+                xy[0],
+                xy[1]
+            );
         }
     }
     // nothing sits in the rounded bit the voxel surface left at the reflex corner
     let on = |v: f64, set: &[f64]| set.iter().any(|s| (v - s).abs() < 0.01);
     for p in &pts {
-        assert!(on(p[0], &[2.0, 18.0, 38.0]) || on(p[1], &[2.0, 18.0, 38.0]) || on(p[2], &[2.0, 8.0]), "{p:?} is on no wall plane");
-        assert!(!(p[0] > 18.01 && p[0] < 19.99 && p[1] > 18.01 && p[1] < 19.99), "{p:?} is in the corner");
+        assert!(
+            on(p[0], &[2.0, 18.0, 38.0]) || on(p[1], &[2.0, 18.0, 38.0]) || on(p[2], &[2.0, 8.0]),
+            "{p:?} is on no wall plane"
+        );
+        assert!(
+            !(p[0] > 18.01 && p[0] < 19.99 && p[1] > 18.01 && p[1] < 19.99),
+            "{p:?} is in the corner"
+        );
     }
 }
 
 #[test]
 fn sphere_unchanged() {
     let h = hollow(&sphere(), 2.0, Some(0.8), false).unwrap();
-    assert!((h.volume() - SPHERE_HOLLOW_BEFORE).abs() <= 0.001 * SPHERE_HOLLOW_BEFORE, "sphere shell volume {}", h.volume());
+    assert!(
+        (h.volume() - SPHERE_HOLLOW_BEFORE).abs() <= 0.001 * SPHERE_HOLLOW_BEFORE,
+        "sphere shell volume {}",
+        h.volume()
+    );
     // nothing is flat, so nothing is touched: the same bytes as before
-    assert!((h.volume() - SPHERE_HOLLOW_BEFORE).abs() < 1e-5, "sphere shell volume {}", h.volume());
+    assert!(
+        (h.volume() - SPHERE_HOLLOW_BEFORE).abs() < 1e-5,
+        "sphere shell volume {}",
+        h.volume()
+    );
 }
 
 #[test]

@@ -105,15 +105,23 @@ fn compare_project(name: &str, want: &Value, app: &stl_app::app::StlApp) -> Vec<
             continue;
         };
         if got.name != wb["name"].as_str().unwrap() {
-            bad.push(format!("{name}: body {id} name want {:?}, got {:?}", wb["name"], got.name));
+            bad.push(format!(
+                "{name}: body {id} name want {:?}, got {:?}",
+                wb["name"], got.name
+            ));
         }
         let want_color = wb.get("color").and_then(Value::as_str);
         let got_color = got.color.as_deref();
         if want_color != got_color {
-            bad.push(format!("{name}: body {id} color want {want_color:?}, got {got_color:?}"));
+            bad.push(format!(
+                "{name}: body {id} color want {want_color:?}, got {got_color:?}"
+            ));
         }
         if got.hidden != wb["hidden"].as_bool().unwrap_or(false) {
-            bad.push(format!("{name}: body {id} hidden want {}, got {}", wb["hidden"], got.hidden));
+            bad.push(format!(
+                "{name}: body {id} hidden want {}, got {}",
+                wb["hidden"], got.hidden
+            ));
         }
     }
 
@@ -133,7 +141,10 @@ fn compare_project(name: &str, want: &Value, app: &stl_app::app::StlApp) -> Vec<
         let id = wp["id"].as_str().unwrap();
         match app.planes.iter().find(|p| p.id == id) {
             Some(got) if got.name != wp["name"].as_str().unwrap() => {
-                bad.push(format!("{name}: plane {id} name want {:?}, got {:?}", wp["name"], got.name));
+                bad.push(format!(
+                    "{name}: plane {id} name want {:?}, got {:?}",
+                    wp["name"], got.name
+                ));
             }
             None => bad.push(format!("{name}: missing user plane {id}")),
             _ => {}
@@ -142,7 +153,11 @@ fn compare_project(name: &str, want: &Value, app: &stl_app::app::StlApp) -> Vec<
 
     let want_sk = want["sketches"].as_array().unwrap();
     if app.sketches.len() != want_sk.len() {
-        bad.push(format!("{name}: sketch count want {}, got {}", want_sk.len(), app.sketches.len()));
+        bad.push(format!(
+            "{name}: sketch count want {}, got {}",
+            want_sk.len(),
+            app.sketches.len()
+        ));
     }
     for ws in want_sk {
         let id = ws["id"].as_str().unwrap();
@@ -151,10 +166,16 @@ fn compare_project(name: &str, want: &Value, app: &stl_app::app::StlApp) -> Vec<
             continue;
         };
         if got.name != ws["name"].as_str().unwrap() {
-            bad.push(format!("{name}: sketch {id} name want {:?}, got {:?}", ws["name"], got.name));
+            bad.push(format!(
+                "{name}: sketch {id} name want {:?}, got {:?}",
+                ws["name"], got.name
+            ));
         }
         if got.plane != ws["plane"].as_str().unwrap_or("") {
-            bad.push(format!("{name}: sketch {id} plane want {:?}, got {:?}", ws["plane"], got.plane));
+            bad.push(format!(
+                "{name}: sketch {id} plane want {:?}, got {:?}",
+                ws["plane"], got.plane
+            ));
         }
         if got.hidden != ws["hidden"].as_bool().unwrap_or(false) {
             bad.push(format!("{name}: sketch {id} hidden mismatch"));
@@ -178,15 +199,23 @@ fn compare_project(name: &str, want: &Value, app: &stl_app::app::StlApp) -> Vec<
         ));
     }
     for (i, wi) in want_items.iter().enumerate() {
-        let Some(gi) = app.timeline_view.items.get(i) else { break };
+        let Some(gi) = app.timeline_view.items.get(i) else {
+            break;
+        };
         if gi.id != wi["id"].as_str().unwrap() {
             bad.push(format!("{name}: timeline[{i}] id want {:?}, got {:?}", wi["id"], gi.id));
         }
         if gi.kind != wi["kind"].as_str().unwrap() {
-            bad.push(format!("{name}: timeline[{i}] kind want {:?}, got {:?}", wi["kind"], gi.kind));
+            bad.push(format!(
+                "{name}: timeline[{i}] kind want {:?}, got {:?}",
+                wi["kind"], gi.kind
+            ));
         }
         if gi.label != wi["label"].as_str().unwrap() {
-            bad.push(format!("{name}: timeline[{i}] label want {:?}, got {:?}", wi["label"], gi.label));
+            bad.push(format!(
+                "{name}: timeline[{i}] label want {:?}, got {:?}",
+                wi["label"], gi.label
+            ));
         }
         if gi.suppressed != wi["suppressed"].as_bool().unwrap_or(false) {
             bad.push(format!("{name}: timeline[{i}] suppressed mismatch"));
@@ -197,7 +226,9 @@ fn compare_project(name: &str, want: &Value, app: &stl_app::app::StlApp) -> Vec<
         let want_err = wi.get("error").and_then(Value::as_str);
         let got_err = gi.error.as_deref();
         if want_err != got_err {
-            bad.push(format!("{name}: timeline[{i}] error want {want_err:?}, got {got_err:?}"));
+            bad.push(format!(
+                "{name}: timeline[{i}] error want {want_err:?}, got {got_err:?}"
+            ));
         }
     }
 
@@ -216,10 +247,16 @@ fn compare_project(name: &str, want: &Value, app: &stl_app::app::StlApp) -> Vec<
             continue;
         };
         if got.expr != wp["expr"].as_str().unwrap() {
-            bad.push(format!("{name}: param {pname} expr want {:?}, got {:?}", wp["expr"], got.expr));
+            bad.push(format!(
+                "{name}: param {pname} expr want {:?}, got {:?}",
+                wp["expr"], got.expr
+            ));
         }
         if got.note != wp["note"].as_str().unwrap_or("") {
-            bad.push(format!("{name}: param {pname} note want {:?}, got {:?}", wp["note"], got.note));
+            bad.push(format!(
+                "{name}: param {pname} note want {:?}, got {:?}",
+                wp["note"], got.note
+            ));
         }
     }
 
@@ -229,7 +266,10 @@ fn compare_project(name: &str, want: &Value, app: &stl_app::app::StlApp) -> Vec<
 fn save_and_check_1x(name: &str, path: &Path, out_dir: &Path) {
     let bytes = std::fs::read(path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
     let link = NativeLink::new();
-    link.send(EngCmd::Open { name: name.to_string(), bytes });
+    link.send(EngCmd::Open {
+        name: name.to_string(),
+        bytes,
+    });
     settle_link(&link);
 
     link.send(EngCmd::Save);

@@ -39,5 +39,9 @@ pub fn bed_from_params(p: &Map<String, Value>) -> Result<[f64; 3], FeatureError>
         }
         return Err(FeatureError("bed must be three numbers.".into()));
     }
-    Ok(printer_bed(p.get("printer").and_then(Value::as_str).or(if p.get("printer").is_none() { None } else { Some("") })))
+    Ok(printer_bed(
+        p.get("printer")
+            .and_then(Value::as_str)
+            .or(if p.get("printer").is_none() { None } else { Some("") }),
+    ))
 }

@@ -3,7 +3,8 @@
 #![cfg(not(target_arch = "wasm32"))]
 
 use super::harness::{
-    empty_harness, enter_sketch_plane, finish_sketch_settle, fixture_stl, import_stl, mesh_volume, open_tool, select_first_body, settle,
+    empty_harness, enter_sketch_plane, finish_sketch_settle, fixture_stl, import_stl, mesh_volume, open_tool,
+    select_first_body, settle,
 };
 use egui_kittest::kittest::Queryable;
 use serde_json::json;
@@ -24,7 +25,13 @@ fn desktop_v11_thread_layflat_relations_inch_theme() {
     h.run_steps(4);
     h.state_mut().tool_ok();
     settle(&mut h, &link);
-    let th = h.state().timeline_view.items.iter().find(|i| i.kind == "thread").expect("thread");
+    let th = h
+        .state()
+        .timeline_view
+        .items
+        .iter()
+        .find(|i| i.kind == "thread")
+        .expect("thread");
     assert_eq!(th.error, None, "thread {:?}", th.error);
     let v1 = mesh_volume(&h.state().bodies[0].mesh);
     assert!(v1 < v0, "tapped hole removes material");
@@ -49,16 +56,23 @@ fn desktop_v11_thread_layflat_relations_inch_theme() {
             ("L2", [20.0, 20.0], [0.0, 20.0]),
             ("L3", [0.0, 20.0], [0.0, 0.0]),
         ] {
-            s.s.entities.push(serde_json::from_value(json!({ "id": id, "type": "line", "p1": p1, "p2": p2 })).unwrap());
+            s.s.entities
+                .push(serde_json::from_value(json!({ "id": id, "type": "line", "p1": p1, "p2": p2 })).unwrap());
         }
-        s.s.constraints.push(serde_json::from_value(json!({
-            "id": "d0", "type": "hdistance", "a": {"e":"L0","k":"p1"}, "b": {"e":"L0","k":"p2"},
-            "off": -6.0, "slide": 0.0, "value": 30.0
-        })).unwrap());
-        s.s.constraints.push(serde_json::from_value(json!({
-            "id": "d1", "type": "vdistance", "a": {"e":"L1","k":"p1"}, "b": {"e":"L1","k":"p2"},
-            "off": 6.0, "slide": 0.0, "value": 15.0
-        })).unwrap());
+        s.s.constraints.push(
+            serde_json::from_value(json!({
+                "id": "d0", "type": "hdistance", "a": {"e":"L0","k":"p1"}, "b": {"e":"L0","k":"p2"},
+                "off": -6.0, "slide": 0.0, "value": 30.0
+            }))
+            .unwrap(),
+        );
+        s.s.constraints.push(
+            serde_json::from_value(json!({
+                "id": "d1", "type": "vdistance", "a": {"e":"L1","k":"p1"}, "b": {"e":"L1","k":"p2"},
+                "off": 6.0, "slide": 0.0, "value": 15.0
+            }))
+            .unwrap(),
+        );
     }
     h.state_mut().sketch_set_tool("c_dimension");
     h.run_steps(2);
@@ -68,17 +82,45 @@ fn desktop_v11_thread_layflat_relations_inch_theme() {
     assert_eq!(step["constraints"].as_array().unwrap().len(), 2);
     finish_sketch_settle(&mut h, &link, false);
 
-    let sid = h.state().timeline_view.items.iter().rev().find(|i| i.kind == "sketch").map(|i| i.id.clone()).unwrap();
-    let before = h.state().timeline_view.items.iter().find(|i| i.id == sid).unwrap().params.clone();
+    let sid = h
+        .state()
+        .timeline_view
+        .items
+        .iter()
+        .rev()
+        .find(|i| i.kind == "sketch")
+        .map(|i| i.id.clone())
+        .unwrap();
+    let before = h
+        .state()
+        .timeline_view
+        .items
+        .iter()
+        .find(|i| i.id == sid)
+        .unwrap()
+        .params
+        .clone();
     assert!(h.state_mut().edit_feature(&sid));
     settle(&mut h, &link);
     h.state_mut().cancel_sketch();
     settle(&mut h, &link);
-    assert_eq!(h.state().timeline_view.items.iter().find(|i| i.id == sid).unwrap().params, before);
+    assert_eq!(
+        h.state()
+            .timeline_view
+            .items
+            .iter()
+            .find(|i| i.id == sid)
+            .unwrap()
+            .params,
+        before
+    );
 
     // Inch mode words (1.x) and dark theme + box tool.
     h.state_mut().shell.inch = true;
-    h.state_mut().toasts.push(stl_app::engine_link::Level::Info, "Showing inches. Models are still saved in millimetres.".into());
+    h.state_mut().toasts.push(
+        stl_app::engine_link::Level::Info,
+        "Showing inches. Models are still saved in millimetres.".into(),
+    );
     h.run_steps(2);
     assert!(h.query_by_label_contains("Showing inches").is_some());
     h.state_mut().shell.theme_pref = ThemePref::Dark;

@@ -22,7 +22,16 @@ fn close(a: [f64; 3], b: [f64; 3], tol: f64) -> bool {
 }
 
 fn body(id: &str, mesh: MeshArrays, hidden: bool) -> BodyView {
-    BodyView { id: id.into(), name: id.into(), color: None, hidden, solid: true, mesh: Arc::new(mesh), revision: 1, holds_up: None }
+    BodyView {
+        id: id.into(),
+        name: id.into(),
+        color: None,
+        hidden,
+        solid: true,
+        mesh: Arc::new(mesh),
+        revision: 1,
+        holds_up: None,
+    }
 }
 
 /// 20 mm cube on the bed, centred in X and Y. Face 4 is the y = -10 side (triangles 0,1,5).
@@ -37,8 +46,13 @@ fn cube_mesh() -> MeshArrays {
         [10.0, 10.0, 20.0],
         [-10.0, 10.0, 20.0],
     ];
-    let t: [u32; 36] = [0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7, 0, 1, 5, 0, 5, 4, 1, 2, 6, 1, 6, 5, 2, 3, 7, 2, 7, 6, 3, 0, 4, 3, 4, 7];
-    MeshArrays { positions: p.iter().flatten().copied().map(|v| v as f32).collect(), triangles: t.to_vec() }
+    let t: [u32; 36] = [
+        0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7, 0, 1, 5, 0, 5, 4, 1, 2, 6, 1, 6, 5, 2, 3, 7, 2, 7, 6, 3, 0, 4, 3, 4, 7,
+    ];
+    MeshArrays {
+        positions: p.iter().flatten().copied().map(|v| v as f32).collect(),
+        triangles: t.to_vec(),
+    }
 }
 
 fn quad_z(z: f64, half: f64) -> MeshArrays {
@@ -103,14 +117,25 @@ fn brute_front(m: &MeshArrays, origin: [f64; 3], dir: [f64; 3]) -> Option<u32> {
         let b = i * 3;
         let p = |v: u32| {
             let s = v as usize * 3;
-            [m.positions[s] as f64, m.positions[s + 1] as f64, m.positions[s + 2] as f64]
+            [
+                m.positions[s] as f64,
+                m.positions[s + 1] as f64,
+                m.positions[s + 2] as f64,
+            ]
         };
-        let t = ray_triangle(origin, dir, p(m.triangles[b]), p(m.triangles[b + 1]), p(m.triangles[b + 2]), true);
-        if let Some(t) = t {
-            if t < best_t {
-                best_t = t;
-                best = Some(i as u32);
-            }
+        let t = ray_triangle(
+            origin,
+            dir,
+            p(m.triangles[b]),
+            p(m.triangles[b + 1]),
+            p(m.triangles[b + 2]),
+            true,
+        );
+        if let Some(t) = t
+            && t < best_t
+        {
+            best_t = t;
+            best = Some(i as u32);
         }
     }
     best
@@ -159,7 +184,12 @@ fn pick_matches_brute_force() {
     let (vp, mesh) = view(cube_mesh());
     let pos = egui::pos2(400.0, 300.0);
     match vp.pick(pos, true, false) {
-        Some(Hit::Body { id, face, point, normal }) => {
+        Some(Hit::Body {
+            id,
+            face,
+            point,
+            normal,
+        }) => {
             assert_eq!(id, "part");
             assert_eq!(face, 4);
             assert!(close(point, [80.0 / 11.0, -10.0, 75.0 / 11.0], 1e-4), "{point:?}");
@@ -237,7 +267,11 @@ fn pick_empty_scene() {
         other => panic!("expected the XY base plane, got {other:?}"),
     }
     let behind = vp.camera().world_to_view([-12.5, -12.5, 0.0]);
-    assert!(vp.pick(egui::pos2(behind[0] as f32, behind[1] as f32), true, true).is_none(), "nothing on the - side");
+    assert!(
+        vp.pick(egui::pos2(behind[0] as f32, behind[1] as f32), true, true)
+            .is_none(),
+        "nothing on the - side"
+    );
     vp.set_base_planes_visible(false);
     assert!(vp.pick(inside, true, true).is_none());
 }
@@ -248,7 +282,10 @@ fn pick_skips_hidden() {
     vp.set_view_size(800.0, 600.0);
     // The start camera's centre ray hits z = 40 near (42.7, -58.7) and z = 0 at the origin.
     // The hidden sheet is closer and covers both; the shown sheet covers only the origin.
-    vp.sync_bodies(&[body("near", quad_z(40.0, 100.0), true), body("far", quad_z(0.0, 50.0), false)]);
+    vp.sync_bodies(&[
+        body("near", quad_z(40.0, 100.0), true),
+        body("far", quad_z(0.0, 50.0), false),
+    ]);
     vp.flush();
     let center = egui::pos2(400.0, 300.0);
     match vp.pick(center, true, true) {
@@ -274,12 +311,22 @@ fn ray_to_plane_matches_viewer_js() {
     // normalize(-160, 220, -150) and the XY plane contains the origin, so the hit is the origin.
     let mut vp = Viewport::new();
     vp.set_view_size(800.0, 600.0);
-    let xy = PlaneFrame { origin: [0.0; 3], x: [1.0, 0.0, 0.0], y: [0.0, 1.0, 0.0], normal: [0.0, 0.0, 1.0] };
+    let xy = PlaneFrame {
+        origin: [0.0; 3],
+        x: [1.0, 0.0, 0.0],
+        y: [0.0, 1.0, 0.0],
+        normal: [0.0, 0.0, 1.0],
+    };
     let p = vp.ray_to_plane(egui::pos2(400.0, 300.0), &xy).unwrap();
     assert!(close(p, [0.0; 3], 1e-6), "{p:?}");
 
     // Same camera, plane z = 400. The ray travels toward -Z, so the hit is behind the camera.
-    let behind = PlaneFrame { origin: [0.0, 0.0, 400.0], x: [1.0, 0.0, 0.0], y: [0.0, 1.0, 0.0], normal: [0.0, 0.0, 1.0] };
+    let behind = PlaneFrame {
+        origin: [0.0, 0.0, 400.0],
+        x: [1.0, 0.0, 0.0],
+        y: [0.0, 1.0, 0.0],
+        normal: [0.0, 0.0, 1.0],
+    };
     assert!(vp.ray_to_plane(egui::pos2(400.0, 300.0), &behind).is_none());
 
     // Camera on the -Y axis, looking at the origin, up +Z, 35° fov, 800×600.
@@ -292,7 +339,12 @@ fn ray_to_plane_matches_viewer_js() {
         c.target = [0.0, 0.0, 0.0];
         c.up = [0.0, 0.0, 1.0];
     }
-    let ground = PlaneFrame { origin: [0.0; 3], x: [1.0, 0.0, 0.0], y: [0.0, 0.0, 1.0], normal: [0.0, 1.0, 0.0] };
+    let ground = PlaneFrame {
+        origin: [0.0; 3],
+        x: [1.0, 0.0, 0.0],
+        y: [0.0, 0.0, 1.0],
+        normal: [0.0, 1.0, 0.0],
+    };
     let p = vp.ray_to_plane(egui::pos2(200.0, 150.0), &ground).unwrap();
     assert!(close(p, [-21.019919258598833, 0.0, 15.764939443949126], 1e-6), "{p:?}");
 
@@ -301,16 +353,31 @@ fn ray_to_plane_matches_viewer_js() {
     assert!(close(p, [0.0; 3], 1e-6), "{p:?}");
 
     // y = -200 is behind the camera.
-    let back = PlaneFrame { origin: [0.0, -200.0, 0.0], x: [1.0, 0.0, 0.0], y: [0.0, 0.0, 1.0], normal: [0.0, 1.0, 0.0] };
+    let back = PlaneFrame {
+        origin: [0.0, -200.0, 0.0],
+        x: [1.0, 0.0, 0.0],
+        y: [0.0, 0.0, 1.0],
+        normal: [0.0, 1.0, 0.0],
+    };
     assert!(vp.ray_to_plane(egui::pos2(400.0, 300.0), &back).is_none());
 
     // The centre ray is +Y, so a horizontal plane (normal +Z) is parallel and is missed.
-    let flat = PlaneFrame { origin: [0.0, 0.0, 10.0], x: [1.0, 0.0, 0.0], y: [0.0, 1.0, 0.0], normal: [0.0, 0.0, 1.0] };
+    let flat = PlaneFrame {
+        origin: [0.0, 0.0, 10.0],
+        x: [1.0, 0.0, 0.0],
+        y: [0.0, 1.0, 0.0],
+        normal: [0.0, 0.0, 1.0],
+    };
     assert!(vp.ray_to_plane(egui::pos2(400.0, 300.0), &flat).is_none());
 
     // Pixel (560, 420) is NDC (0.4, -0.4). Direction about (0.1645631439, 0.9786142719, -0.1234223579).
     // Plane y = 10: t = (10 - (-100)) / dir.y, point (18.4975289476, 10, -13.8731467107).
-    let shelf = PlaneFrame { origin: [2.0, 10.0, -3.0], x: [1.0, 0.0, 0.0], y: [0.0, 0.0, 1.0], normal: [0.0, 1.0, 0.0] };
+    let shelf = PlaneFrame {
+        origin: [2.0, 10.0, -3.0],
+        x: [1.0, 0.0, 0.0],
+        y: [0.0, 0.0, 1.0],
+        normal: [0.0, 1.0, 0.0],
+    };
     let p = vp.ray_to_plane(egui::pos2(560.0, 420.0), &shelf).unwrap();
     assert!(close(p, [18.497528947566977, 10.0, -13.873146710675233], 1e-6), "{p:?}");
 }
@@ -322,8 +389,14 @@ fn pick_preview_returns_its_id() {
     // The centre ray hits z = 30 near (32, -44), inside the near sheet and in front of z = 0.
     vp.show_preview(&PreviewPack {
         meshes: vec![
-            PreviewMesh { id: "far".into(), mesh: Arc::new(quad_z(0.0, 40.0)) },
-            PreviewMesh { id: "near".into(), mesh: Arc::new(quad_z(30.0, 100.0)) },
+            PreviewMesh {
+                id: "far".into(),
+                mesh: Arc::new(quad_z(0.0, 40.0)),
+            },
+            PreviewMesh {
+                id: "near".into(),
+                mesh: Arc::new(quad_z(30.0, 100.0)),
+            },
         ],
         ..PreviewPack::default()
     });
@@ -340,7 +413,16 @@ fn pick_without_tree_matches_brute_force() {
     let mut vp = Viewport::new();
     vp.set_view_size(800.0, 600.0);
     vp.set_pick_trees(false);
-    vp.sync_bodies(&[BodyView { id: "part".into(), name: "Part".into(), color: None, hidden: false, solid: true, mesh: mesh.clone(), revision: 1, holds_up: None }]);
+    vp.sync_bodies(&[BodyView {
+        id: "part".into(),
+        name: "Part".into(),
+        color: None,
+        hidden: false,
+        solid: true,
+        mesh: mesh.clone(),
+        revision: 1,
+        holds_up: None,
+    }]);
     vp.flush();
     assert!(!vp.pick_tree_ready("part"));
     vp.fit_all();
@@ -368,7 +450,10 @@ fn pick_with_section_cut() {
             other => panic!("expected the part, got {other:?}"),
         };
         let (f, z) = face(&vp);
-        assert!(f < 2 && (z - 40.0).abs() < 1e-3, "no cut: near sheet, got face {f} at z {z}");
+        assert!(
+            f < 2 && (z - 40.0).abs() < 1e-3,
+            "no cut: near sheet, got face {f} at z {z}"
+        );
 
         // keep z <= 20 (normal -Z): the near sheet is cut away, the far one is hit
         vp.set_section_plane(Some([0.0, 0.0, -1.0, 20.0]));
@@ -378,7 +463,15 @@ fn pick_with_section_cut() {
 
         // keep z >= 10: the far sheet and the plane at z = 0 are gone, the near sheet stays
         vp.set_section_plane(Some([0.0, 0.0, 1.0, -10.0]));
-        vp.sync_planes(&[PlaneView { id: "floor".into(), name: "Floor".into(), origin: [0.0; 3], x: [1.0, 0.0, 0.0], y: [0.0, 1.0, 0.0], normal: [0.0, 0.0, 1.0], visible: true }]);
+        vp.sync_planes(&[PlaneView {
+            id: "floor".into(),
+            name: "Floor".into(),
+            origin: [0.0; 3],
+            x: [1.0, 0.0, 0.0],
+            y: [0.0, 1.0, 0.0],
+            normal: [0.0, 0.0, 1.0],
+            visible: true,
+        }]);
         assert!(vp.pick(center, false, true).is_none(), "the cut-away plane was hit");
         let (f, _) = face(&vp);
         assert!(f < 2);
@@ -394,7 +487,15 @@ fn body_just_behind_a_plane_wins() {
     // viewer.js:562 — a body hit wins over a nearer plane when it is less than extent * 0.002
     // further along the ray (planes are see-through).
     let center = egui::pos2(400.0, 300.0);
-    let floor = PlaneView { id: "floor".into(), name: "Floor".into(), origin: [0.0; 3], x: [1.0, 0.0, 0.0], y: [0.0, 1.0, 0.0], normal: [0.0, 0.0, 1.0], visible: true };
+    let floor = PlaneView {
+        id: "floor".into(),
+        name: "Floor".into(),
+        origin: [0.0; 3],
+        x: [1.0, 0.0, 0.0],
+        y: [0.0, 1.0, 0.0],
+        normal: [0.0, 0.0, 1.0],
+        visible: true,
+    };
     let mut probe = Viewport::new();
     probe.set_view_size(800.0, 600.0);
     let (_, d) = probe.ray(center);
@@ -442,8 +543,14 @@ fn pick_uses_the_revision_on_screen() {
     vp.flush();
     let _ = vp.frame_for_size(80.0, 60.0, 1.0);
     assert_eq!(vp.shown_revision("part"), Some(1), "promoted before its upload");
-    assert!(Arc::ptr_eq(vp.body_mesh("part").unwrap(), &old_mesh), "highlights would use the new mesh");
-    assert!(vp.scene_box().unwrap().max[2].abs() < 1e-9, "the box moved before the triangles did");
+    assert!(
+        Arc::ptr_eq(vp.body_mesh("part").unwrap(), &old_mesh),
+        "highlights would use the new mesh"
+    );
+    assert!(
+        vp.scene_box().unwrap().max[2].abs() < 1e-9,
+        "the box moved before the triangles did"
+    );
     match vp.pick(center, true, false) {
         Some(Hit::Body { point, .. }) => assert!(point[2].abs() < 1e-3, "{point:?}"),
         other => panic!("{other:?}"),

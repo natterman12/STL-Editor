@@ -5,12 +5,12 @@
 
 use std::collections::BTreeSet;
 
-use serde_json::{json, Value};
-use stl_sketch::entities::{parse_entities, point, point_keys, Entity, P2};
-use stl_sketch::solver::{refs_exist, Lock, Ref, World};
+use serde_json::{Value, json};
+use stl_sketch::entities::{Entity, P2, parse_entities, point, point_keys};
+use stl_sketch::solver::{Lock, Ref, World, refs_exist};
 
-use super::draw::{hint_for, CLICK_SLOP};
-use super::{snap, SketchDialog, SketchEffect, SketchInput, SketchSession, SketchTool, ToolCx};
+use super::draw::{CLICK_SLOP, hint_for};
+use super::{SketchDialog, SketchEffect, SketchInput, SketchSession, SketchTool, ToolCx, snap};
 use crate::engine_link::Level;
 use crate::viewport::overlays::SketchOutline;
 
@@ -46,7 +46,10 @@ pub const OFFSET_DEFAULT: &str = "2";
 /// Offset: ask for the distance (`SketchDialog::Offset`), or say what to select first.
 pub fn offset_start(cx: &mut ToolCx) {
     if cx.s.sel.is_empty() {
-        cx.out.push(SketchEffect::Toast(Level::Warning, "Select the shapes to offset first (Select tool, Shift-click for more).".into()));
+        cx.out.push(SketchEffect::Toast(
+            Level::Warning,
+            "Select the shapes to offset first (Select tool, Shift-click for more).".into(),
+        ));
         return;
     }
     cx.out.push(SketchEffect::Dialog(SketchDialog::Offset));
@@ -66,10 +69,10 @@ pub fn parse_num(text: &str) -> f64 {
     if s.is_empty() {
         return 0.0;
     }
-    if s.chars().all(|c| "0123456789+-*/(). ".contains(c)) {
-        if let Some(r) = super::typed::arith(&s).filter(|r| r.is_finite()) {
-            return r;
-        }
+    if s.chars().all(|c| "0123456789+-*/(). ".contains(c))
+        && let Some(r) = super::typed::arith(&s).filter(|r| r.is_finite())
+    {
+        return r;
     }
     let f = super::typed::parse_float(&s);
     if f.is_finite() { f } else { 0.0 }
@@ -93,9 +96,15 @@ fn base36(mut n: u64) -> String {
 
 /// `sketchServerOp`: the op with the sketch's entities and a fresh seed (`Date.now().toString(36)`).
 pub fn send_op(cx: &mut ToolCx, op: &str, mut data: Value) {
-    let ms = web_time::SystemTime::now().duration_since(web_time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0);
+    let ms = web_time::SystemTime::now()
+        .duration_since(web_time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0);
     if let Some(m) = data.as_object_mut() {
-        m.insert("entities".into(), serde_json::to_value(&cx.s.entities).unwrap_or(Value::Null));
+        m.insert(
+            "entities".into(),
+            serde_json::to_value(&cx.s.entities).unwrap_or(Value::Null),
+        );
         m.insert("seed".into(), json!(base36(ms)));
     }
     cx.out.push(SketchEffect::SketchOp { op: op.into(), data });
@@ -105,12 +114,18 @@ pub fn send_op(cx: &mut ToolCx, op: &str, mut data: Value) {
 /// entities, the relations whose shapes are gone dropped, the selection kept where it still
 /// exists. False when the answer has no entities.
 pub fn apply_op_result(cx: &mut ToolCx, _op: &str, result: &Value) -> bool {
-    let Some(list) = result.get("entities").and_then(Value::as_array) else { return false };
+    let Some(list) = result.get("entities").and_then(Value::as_array) else {
+        return false;
+    };
     let Ok(ents) = parse_entities(list) else { return false };
     cx.s.push();
     cx.s.entities = ents;
     prune_constraints(cx.s);
-    let ids: BTreeSet<String> = cx.s.entities.iter().filter_map(|e| e.id().map(str::to_string)).collect();
+    let ids: BTreeSet<String> =
+        cx.s.entities
+            .iter()
+            .filter_map(|e| e.id().map(str::to_string))
+            .collect();
     cx.s.sel.retain(|i| ids.contains(i));
     cx.out.push(SketchEffect::Changed);
     true
@@ -178,7 +193,11 @@ pub fn toggle_construction(cx: &mut ToolCx) {
 
 /// `groupOf`: text is one closed outline per letter part; they select together.
 pub fn group_of(s: &SketchSession, id: &str) -> Vec<String> {
-    let g = s.entities.iter().find(|e| e.id() == Some(id)).and_then(|e| snap::extra(e).get("group").cloned());
+    let g = s
+        .entities
+        .iter()
+        .find(|e| e.id() == Some(id))
+        .and_then(|e| snap::extra(e).get("group").cloned());
     match g {
         Some(g) if !g.is_null() && g != json!(false) && g != json!("") => s
             .entities
@@ -194,7 +213,9 @@ pub fn group_of(s: &SketchSession, id: &str) -> Vec<String> {
 /// The solve follows from `Changed` (1.x locks nothing for `pts`).
 pub fn round_corner(cx: &mut ToolCx, id: &str, uv: P2) {
     let r = 2.0;
-    let Some(Entity::Polyline(e)) = cx.s.entities.iter().find(|e| e.id() == Some(id)) else { return };
+    let Some(Entity::Polyline(e)) = cx.s.entities.iter().find(|e| e.id() == Some(id)) else {
+        return;
+    };
     let p_ = e.pts.clone();
     let n = p_.len();
     let closed = e.is_closed();
@@ -207,7 +228,10 @@ pub fn round_corner(cx: &mut ToolCx, id: &str, uv: P2) {
         }
     }
     if bd > 3.0 || (!closed && (i == 0 || i == n - 1)) {
-        cx.out.push(SketchEffect::Toast(Level::Warning, "Click on a corner in the middle of the shape.".into()));
+        cx.out.push(SketchEffect::Toast(
+            Level::Warning,
+            "Click on a corner in the middle of the shape.".into(),
+        ));
         return;
     }
     let p = p_[i];
@@ -277,8 +301,15 @@ pub struct SelectTool {
 impl SelectTool {
     /// `dragStart`: grab a point or a shape of the sketch (part edges don't move).
     pub fn drag_start(&mut self, cx: &mut ToolCx, raw: P2) -> bool {
-        let Some(r) = snap::pick_own(cx.s, cx.vp, raw) else { return false };
-        self.drag = Some(Drag { r, start: raw, base: cx.s.entities.clone(), moved: false });
+        let Some(r) = snap::pick_own(cx.s, cx.vp, raw) else {
+            return false;
+        };
+        self.drag = Some(Drag {
+            r,
+            start: raw,
+            base: cx.s.entities.clone(),
+            moved: false,
+        });
         true
     }
 
@@ -299,11 +330,19 @@ impl SelectTool {
             // every step of this drag solves from the shapes as they were when it began
             cx.s.solve_from = Some(d.base.clone());
         }
-        let lock = |k: &str, at: P2| Lock { e: d.r.e.clone(), k: Some(k.into()), at: Some(at.to_vec()), path: None, value: None };
+        let lock = |k: &str, at: P2| Lock {
+            e: d.r.e.clone(),
+            k: Some(k.into()),
+            at: Some(at.to_vec()),
+            path: None,
+            value: None,
+        };
         let locks = if let Some(k) = d.r.k.as_deref() {
             vec![lock(k, uv)]
         } else {
-            let Some(be) = d.base.iter().find(|e| e.id() == Some(d.r.e.as_str())) else { return };
+            let Some(be) = d.base.iter().find(|e| e.id() == Some(d.r.e.as_str())) else {
+                return;
+            };
             let is_rect = matches!(be, Entity::Rect(_));
             point_keys(be)
                 .into_iter()
@@ -377,7 +416,9 @@ impl SketchTool for SelectTool {
                 changed
             }
             SketchInput::Up { uv, pos } => {
-                let Some((d, shift)) = self.down.take() else { return false };
+                let Some((d, shift)) = self.down.take() else {
+                    return false;
+                };
                 let moved = d.distance(*pos) > CLICK_SLOP;
                 let dragged = self.drag_end(cx);
                 if !moved && !dragged {
@@ -432,7 +473,12 @@ impl PickTool {
                 send_op(cx, "trim", json!({ "id": id, "point": uv }));
             }
             "sk_corner" => {
-                let is_poly = id.as_deref().is_some_and(|i| matches!(cx.s.entities.iter().find(|e| e.id() == Some(i)), Some(Entity::Polyline(_))));
+                let is_poly = id.as_deref().is_some_and(|i| {
+                    matches!(
+                        cx.s.entities.iter().find(|e| e.id() == Some(i)),
+                        Some(Entity::Polyline(_))
+                    )
+                });
                 match id {
                     Some(id) if is_poly => round_corner(cx, &id, uv),
                     _ => warn(cx, "Click a corner of a polyline (a shape drawn as connected lines)."),
@@ -440,13 +486,19 @@ impl PickTool {
             }
             _ => {
                 let straight = id.as_deref().is_some_and(|i| {
-                    matches!(cx.s.entities.iter().find(|e| e.id() == Some(i)), Some(Entity::Line(_) | Entity::Polyline(_)))
+                    matches!(
+                        cx.s.entities.iter().find(|e| e.id() == Some(i)),
+                        Some(Entity::Line(_) | Entity::Polyline(_))
+                    )
                 });
                 let Some(id) = id.filter(|_| straight) else {
                     return warn(cx, "Click a straight line to mirror across.");
                 };
                 if cx.s.sel.is_empty() {
-                    return warn(cx, "First select the shapes to mirror (Select tool), then choose Mirror and click the mirror line.");
+                    return warn(
+                        cx,
+                        "First select the shapes to mirror (Select tool), then choose Mirror and click the mirror line.",
+                    );
                 }
                 let ids: Vec<&String> = cx.s.sel.iter().collect();
                 let data = json!({ "ids": ids, "axis": id });

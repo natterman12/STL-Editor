@@ -1,4 +1,4 @@
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 use stl_engine::features::common::*;
 use stl_engine::{FeatureResult, State};
 use stl_kernel::Solid;
@@ -45,7 +45,10 @@ fn plane_frame_orthonormal() {
         ];
         assert!(close(c, f.n));
     }
-    assert_eq!(plane_frame([0.0; 3], [0.0; 3], None).unwrap_err().0, "Zero-length direction.");
+    assert_eq!(
+        plane_frame([0.0; 3], [0.0; 3], None).unwrap_err().0,
+        "Zero-length direction."
+    );
 }
 
 #[test]
@@ -56,30 +59,47 @@ fn frame_resolves_all_ref_kinds() {
     assert!(close(st.frame(None).unwrap().n, [0.0, 0.0, 1.0]));
     assert!(close(st.frame(Some(&Value::Null)).unwrap().n, [0.0, 0.0, 1.0]));
     let custom = plane_frame([0.0, 0.0, 5.0], [0.0, 0.0, 1.0], None).unwrap();
-    st.planes.insert("p1".into(), PlaneDef { frame: custom, extra: Map::new() });
+    st.planes.insert(
+        "p1".into(),
+        PlaneDef {
+            frame: custom,
+            extra: Map::new(),
+        },
+    );
     assert_eq!(st.frame(Some(&json!("p1"))).unwrap().o, [0.0, 0.0, 5.0]);
     assert_eq!(st.frame(Some(&json!({"plane": "p1"}))).unwrap().o, [0.0, 0.0, 5.0]);
     let f = st
-        .frame(Some(&json!({"origin": [1, 2, 3], "normal": [0, 0, 1], "xdir": [0, 1, 0]})))
+        .frame(Some(
+            &json!({"origin": [1, 2, 3], "normal": [0, 0, 1], "xdir": [0, 1, 0]}),
+        ))
         .unwrap();
     assert!(close(f.o, [1.0, 2.0, 3.0]) && close(f.x, [0.0, 1.0, 0.0]) && close(f.y, [-1.0, 0.0, 0.0]));
     let g = st
-        .frame(Some(&json!({"origin": [1, 2, 3], "normal": [0, 0, 1], "xdir": [0, 1, 0], "flip": true})))
+        .frame(Some(
+            &json!({"origin": [1, 2, 3], "normal": [0, 0, 1], "xdir": [0, 1, 0], "flip": true}),
+        ))
         .unwrap();
     assert!(close(g.x, f.x) && close(g.y, [1.0, 0.0, 0.0]) && close(g.n, [0.0, 0.0, -1.0]));
     assert_eq!(st.frame(Some(&json!(5))).unwrap_err().0, "Invalid plane reference.");
-    assert_eq!(st.frame(Some(&json!({"foo": 1}))).unwrap_err().0, "Invalid plane reference.");
+    assert_eq!(
+        st.frame(Some(&json!({"foo": 1}))).unwrap_err().0,
+        "Invalid plane reference."
+    );
 }
 
 #[test]
 fn missing_plane_message() {
     let st = State::default();
-    assert_eq!(st.frame(Some(&json!("p9"))).unwrap_err().0, "Plane 'p9' no longer exists.");
+    assert_eq!(
+        st.frame(Some(&json!("p9"))).unwrap_err().0,
+        "Plane 'p9' no longer exists."
+    );
 }
 
 #[test]
 fn rotation_matches_1x() {
     // printed by 1.x _rotation(30, 45, 60)
+    #[allow(clippy::approx_constant)]
     let want = [
         [0.35355339059327384, -0.5732233047033631, 0.7391989197401166],
         [0.6123724356957946, 0.7391989197401168, 0.2803300858899107],
@@ -88,14 +108,22 @@ fn rotation_matches_1x() {
     let got = rotation(30.0, 45.0, 60.0);
     for i in 0..3 {
         for j in 0..3 {
-            assert!((got[i][j] - want[i][j]).abs() < 1e-15, "{i}{j}: {} vs {}", got[i][j], want[i][j]);
+            assert!(
+                (got[i][j] - want[i][j]).abs() < 1e-15,
+                "{i}{j}: {} vs {}",
+                got[i][j],
+                want[i][j]
+            );
         }
     }
 }
 
 #[test]
 fn float_message() {
-    let p = json!({"a": "2.5", "b": "x", "c": "", "d": 3}).as_object().unwrap().clone();
+    let p = json!({"a": "2.5", "b": "x", "c": "", "d": 3})
+        .as_object()
+        .unwrap()
+        .clone();
     assert_eq!(float(&p, "a", None).unwrap(), 2.5);
     assert_eq!(float(&p, "d", None).unwrap(), 3.0);
     assert_eq!(float(&p, "b", None).unwrap_err().0, "b must be a number.");

@@ -54,10 +54,16 @@ pub fn document_json(doc: &Document) -> Result<Value, FileError> {
     let mut d = Map::new();
     d.insert("format".into(), json!(FORMAT_VERSION));
     d.insert("app".into(), json!("STL Editor"));
-    d.insert("features".into(), serde_json::to_value(&doc.features).map_err(|e| FileError(e.to_string()))?);
+    d.insert(
+        "features".into(),
+        serde_json::to_value(&doc.features).map_err(|e| FileError(e.to_string()))?,
+    );
     d.insert("rollback".into(), doc.rollback.map_or(Value::Null, |r| json!(r)));
     d.insert("ui".into(), Value::Object(doc.ui.clone()));
-    d.insert("params".into(), serde_json::to_value(&doc.params).map_err(|e| FileError(e.to_string()))?);
+    d.insert(
+        "params".into(),
+        serde_json::to_value(&doc.params).map_err(|e| FileError(e.to_string()))?,
+    );
     d.insert("sources".into(), Value::Object(sources));
     for (k, v) in &doc.extra {
         d.entry(k.clone()).or_insert_with(|| v.clone());
@@ -73,15 +79,22 @@ pub fn to_bytes(doc: &Document) -> Result<Vec<u8>, FileError> {
         .filter(|f| f.kind == "import")
         .filter_map(|f| f.params.get("source").and_then(Value::as_str))
         .collect();
-    let sources: Vec<(&str, &str, &[u8])> =
-        doc.sources.iter().filter(|(sid, _)| used.contains(sid.as_str())).map(|(sid, s)| (sid.as_str(), s.ext.as_str(), s.data.as_slice())).collect();
+    let sources: Vec<(&str, &str, &[u8])> = doc
+        .sources
+        .iter()
+        .filter(|(sid, _)| used.contains(sid.as_str()))
+        .map(|(sid, s)| (sid.as_str(), s.ext.as_str(), s.data.as_slice()))
+        .collect();
     zip_project(&document_json(doc)?, &sources)
 }
 
 /// A project file from a `document.json` content and its meshes as they are, without evaluating
 /// anything (Recover turns an autosave folder into the file the engine opens).
 pub fn parts_to_bytes(json: &Value, sources: &[(String, String, String, Vec<u8>)]) -> Result<Vec<u8>, FileError> {
-    let list: Vec<(&str, &str, &[u8])> = sources.iter().map(|(id, _, ext, data)| (id.as_str(), ext.as_str(), data.as_slice())).collect();
+    let list: Vec<(&str, &str, &[u8])> = sources
+        .iter()
+        .map(|(id, _, ext, data)| (id.as_str(), ext.as_str(), data.as_slice()))
+        .collect();
     zip_project(json, &list)
 }
 
@@ -130,7 +143,11 @@ pub fn from_bytes(data: &[u8], registry: Registry) -> Result<Document, FileError
 
 /// The same as [`from_bytes`] for a project that is not in a zip: the `document.json` content
 /// and the imported meshes as `(id, name, extension, bytes)`. Autosave and Recover use it.
-pub fn from_parts(json: &Value, sources: Vec<(String, String, String, Vec<u8>)>, registry: Registry) -> Result<Document, FileError> {
+pub fn from_parts(
+    json: &Value,
+    sources: Vec<(String, String, String, Vec<u8>)>,
+    registry: Registry,
+) -> Result<Document, FileError> {
     let Value::Object(d) = json else {
         return err(NOT_A_PROJECT);
     };
@@ -143,13 +160,23 @@ pub fn from_parts(json: &Value, sources: Vec<(String, String, String, Vec<u8>)>,
 
 /// What `from_bytes` and `from_parts` share. `source` gives an imported mesh's bytes from its
 /// id, name and extension, or `None` when it is missing.
-fn build(mut d: Map<String, Value>, registry: Registry, mut source: impl FnMut(&str, &str, &str) -> Option<Vec<u8>>) -> Result<Document, FileError> {
-    if d.get("format").and_then(Value::as_u64).is_some_and(|f| f > FORMAT_VERSION) {
+fn build(
+    mut d: Map<String, Value>,
+    registry: Registry,
+    mut source: impl FnMut(&str, &str, &str) -> Option<Vec<u8>>,
+) -> Result<Document, FileError> {
+    if d.get("format")
+        .and_then(Value::as_u64)
+        .is_some_and(|f| f > FORMAT_VERSION)
+    {
         return err("This project was made by a newer version of STL Editor.");
     }
 
     let mut doc = Document::new(registry);
-    let Some(features) = d.remove("features").and_then(|v| serde_json::from_value::<Vec<Feature>>(v).ok()) else {
+    let Some(features) = d
+        .remove("features")
+        .and_then(|v| serde_json::from_value::<Vec<Feature>>(v).ok())
+    else {
         return err(NOT_A_PROJECT);
     };
     doc.features = features;
@@ -203,19 +230,35 @@ mod tests {
     fn from_parts_is_from_bytes_without_the_zip() {
         let doc = from_bytes(&basic(), Registry::builtin()).unwrap();
         let json = document_json(&doc).unwrap();
-        let sources: Vec<(String, String, String, Vec<u8>)> = doc.sources.iter().map(|(id, s)| (id.clone(), s.name.clone(), s.ext.clone(), s.data.clone())).collect();
+        let sources: Vec<(String, String, String, Vec<u8>)> = doc
+            .sources
+            .iter()
+            .map(|(id, s)| (id.clone(), s.name.clone(), s.ext.clone(), s.data.clone()))
+            .collect();
         let again = from_parts(&json, sources.clone(), Registry::builtin()).unwrap();
         assert_eq!(document_json(&again).unwrap(), json);
         assert_eq!(again.sources.len(), 2);
         // the same project as file bytes, with and without evaluating it
-        assert_eq!(from_bytes(&parts_to_bytes(&json, &sources).unwrap(), Registry::builtin()).map(|d| document_json(&d).unwrap()).unwrap(), json);
-        assert_eq!(from_bytes(&to_bytes(&doc).unwrap(), Registry::builtin()).map(|d| document_json(&d).unwrap()).unwrap(), json);
+        assert_eq!(
+            from_bytes(&parts_to_bytes(&json, &sources).unwrap(), Registry::builtin())
+                .map(|d| document_json(&d).unwrap())
+                .unwrap(),
+            json
+        );
+        assert_eq!(
+            from_bytes(&to_bytes(&doc).unwrap(), Registry::builtin())
+                .map(|d| document_json(&d).unwrap())
+                .unwrap(),
+            json
+        );
     }
 
     #[test]
     fn from_parts_reports_a_missing_source() {
         let doc = from_bytes(&basic(), Registry::builtin()).unwrap();
-        let e = from_parts(&document_json(&doc).unwrap(), Vec::new(), Registry::builtin()).err().unwrap();
+        let e = from_parts(&document_json(&doc).unwrap(), Vec::new(), Registry::builtin())
+            .err()
+            .unwrap();
         assert_eq!(e.0, "The imported file is missing from the project.");
         let e = from_parts(&json!([1]), Vec::new(), Registry::builtin()).err().unwrap();
         assert_eq!(e.0, NOT_A_PROJECT);

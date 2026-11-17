@@ -1,7 +1,7 @@
 //! Sculpt (1.x `f_sculpt`): brush strokes that smooth, flatten, inflate or deflate.
 
 use serde_json::{Map, Value};
-use stl_mesh::sculpt::{sculpt, Stroke};
+use stl_mesh::sculpt::{Stroke, sculpt};
 
 use super::common::truthy;
 use crate::state::Body;
@@ -22,7 +22,14 @@ fn f_sculpt(
     let strokes: Vec<Stroke> = serde_json::from_value(p["strokes"].clone())
         .map_err(|_| FeatureError("The sculpt strokes are not valid.".into()))?;
     let out = sculpt(b.require_solid()?, &strokes).map_err(|e| FeatureError(e.to_string()))?;
-    state.bodies.insert(bid.clone(), Body { name: b.name, solid: Some(out), mesh: None });
+    state.bodies.insert(
+        bid.clone(),
+        Body {
+            name: b.name,
+            solid: Some(out),
+            mesh: None,
+        },
+    );
     res.modified.push(bid);
     Ok(())
 }

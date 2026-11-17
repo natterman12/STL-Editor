@@ -1,44 +1,44 @@
 //! Feature evaluators. Each feature file imports only `common` and the lower crates.
 
-pub mod common;
-pub mod import;
-pub mod primitive;
-pub mod plane;
-pub mod move_;
-pub mod scale;
-pub mod mirror;
-pub mod combine;
-pub mod split;
-pub mod delete;
-pub mod separate;
-pub mod repair;
-pub mod sketch;
-pub mod extrude;
-pub mod revolve;
-pub mod loft;
-pub mod sweep;
-pub mod hole;
-pub mod pushpull;
-pub mod simplify;
-pub mod remesh;
-pub mod sculpt;
-pub mod offset;
-pub mod hollow;
-pub mod shell;
-pub mod lattice;
-pub mod thincheck;
 pub mod bedsplit;
-pub mod layflat;
-pub mod plate;
-pub mod pattern;
-pub mod thread;
-pub mod resizehole;
+pub mod combine;
+pub mod common;
+pub mod delete;
+pub mod extrude;
 pub mod fittest;
-pub mod snapfit;
 pub mod hinge;
+pub mod hole;
+pub mod hollow;
+pub mod import;
+pub mod lattice;
+pub mod layflat;
+pub mod loft;
+pub mod mirror;
+pub mod move_;
+pub mod offset;
+pub mod pattern;
+pub mod plane;
+pub mod plate;
+pub mod primitive;
+pub mod pushpull;
+pub mod remesh;
+pub mod repair;
+pub mod resizehole;
+pub mod revolve;
+pub mod scale;
+pub mod sculpt;
+pub mod separate;
+pub mod shell;
+pub mod simplify;
+pub mod sketch;
+pub mod snapfit;
+pub mod split;
 pub mod supportfins;
-pub mod supportwall;
 pub mod supports_follow;
+pub mod supportwall;
+pub mod sweep;
+pub mod thincheck;
+pub mod thread;
 
 use crate::Registry;
 
@@ -79,6 +79,6 @@ pub fn register_all(r: Registry) -> Registry {
     let r = snapfit::register(r);
     let r = hinge::register(r);
     let r = supportfins::register(r);
-    let r = supportwall::register(r);
-    r
+
+    supportwall::register(r)
 }

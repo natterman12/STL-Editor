@@ -4,9 +4,9 @@
 
 use egui::{Color32, CornerRadius, CursorIcon, FontId, Pos2, Rect, Shape, Stroke, StrokeKind};
 
+use super::Viewport;
 use super::camera::{self, V3};
 use super::plane_drag::{self, DragPlane};
-use super::Viewport;
 
 /// The Move gizmo's handle colour under the pointer and while dragging (`gizmo_draw::colour`).
 const ACTIVE: Color32 = Color32::from_rgb(0xff, 0xff, 0x00);
@@ -33,7 +33,11 @@ pub(super) struct Grab {
 
 /// Two unit vectors in the plane of `n`.
 fn perp(n: V3) -> (V3, V3) {
-    let t = if n[0].abs() < 0.9 { [1.0, 0.0, 0.0] } else { [0.0, 1.0, 0.0] };
+    let t = if n[0].abs() < 0.9 {
+        [1.0, 0.0, 0.0]
+    } else {
+        [0.0, 1.0, 0.0]
+    };
     let x = camera::normalize(camera::cross(n, t));
     (x, camera::cross(n, x))
 }
@@ -54,8 +58,15 @@ impl Viewport {
         };
         let rect = self.rect;
         let local = |pos: Pos2| [(pos.x - rect.min.x) as f64, (pos.y - rect.min.y) as f64];
-        let (hover, latest, pressed, down, origin) =
-            ui.input(|i| (i.pointer.hover_pos(), i.pointer.latest_pos(), i.pointer.primary_pressed(), i.pointer.primary_down(), i.pointer.press_origin()));
+        let (hover, latest, pressed, down, origin) = ui.input(|i| {
+            (
+                i.pointer.hover_pos(),
+                i.pointer.latest_pos(),
+                i.pointer.primary_pressed(),
+                i.pointer.primary_down(),
+                i.pointer.press_origin(),
+            )
+        });
         if let Some(mut g) = self.drag {
             if let Some(pos) = latest.or(hover) {
                 let d = plane_drag::drag_distance_in(&self.camera, &g.plane, g.from, local(pos), g.d0, g.mode);
@@ -79,7 +90,8 @@ impl Viewport {
             }
             return;
         }
-        let over = response.contains_pointer() && hover.is_some_and(|h| plane_drag::hits_handle(&self.camera, &p, local(h)));
+        let over =
+            response.contains_pointer() && hover.is_some_and(|h| plane_drag::hits_handle(&self.camera, &p, local(h)));
         if over != self.drag_hover {
             self.drag_hover = over;
             ui.ctx().request_repaint();
@@ -91,7 +103,13 @@ impl Viewport {
         ui.ctx().set_cursor_icon(CursorIcon::Grab);
         if pressed {
             let from = local(origin.or(hover).unwrap_or(rect.center()));
-            self.drag = Some(Grab { from, mode: plane_drag::drag_mode(&self.camera, &p), d0: p.distance, plane: p, last: p.distance });
+            self.drag = Some(Grab {
+                from,
+                mode: plane_drag::drag_mode(&self.camera, &p),
+                d0: p.distance,
+                plane: p,
+                last: p.distance,
+            });
             self.drag_busy = true;
             self.camera.cancel_flight();
             ui.ctx().request_repaint();
@@ -132,7 +150,12 @@ impl Viewport {
         if u0.is_finite() && v0.is_finite() {
             let pad = 0.08 * (u1 - u0).max(v1 - v0) + 2.0;
             let at = |a: f64, b: f64| camera::add(c, camera::add(camera::scale(u, a), camera::scale(v, b)));
-            let corners = [at(u0 - pad, v0 - pad), at(u1 + pad, v0 - pad), at(u1 + pad, v1 + pad), at(u0 - pad, v1 + pad)];
+            let corners = [
+                at(u0 - pad, v0 - pad),
+                at(u1 + pad, v0 - pad),
+                at(u1 + pad, v1 + pad),
+                at(u0 - pad, v1 + pad),
+            ];
             let pts: Option<Vec<Pos2>> = corners.iter().map(|&w| to_screen(w)).collect();
             if let Some(pts) = pts {
                 painter.add(Shape::convex_polygon(pts.clone(), PLANE_FILL, Stroke::NONE));
@@ -140,10 +163,19 @@ impl Viewport {
             }
         }
 
-        let (Some(a), Some(_)) = (to_screen(c), to_screen(camera::add(c, camera::scale(n, plane_drag::arrow_len(cam, &p))))) else { return };
+        let (Some(a), Some(_)) = (
+            to_screen(c),
+            to_screen(camera::add(c, camera::scale(n, plane_drag::arrow_len(cam, &p)))),
+        ) else {
+            return;
+        };
         let tip = plane_drag::handle_at(cam, &p);
         let b = Pos2::new(rect.min.x + tip[0] as f32, rect.min.y + tip[1] as f32);
-        let col = if self.drag.is_some() || self.drag_hover { ACTIVE } else { ARROW };
+        let col = if self.drag.is_some() || self.drag_hover {
+            ACTIVE
+        } else {
+            ARROW
+        };
         let dark_edge = Stroke::new(1.0, Color32::from_black_alpha(140));
         let along = b - a;
         if along.length() < HEAD_LEN + 2.0 {
@@ -160,13 +192,23 @@ impl Viewport {
 
         if self.drag.is_some() {
             use crate::tools::fields::number;
-            let text = format!("{} {}", number::fmt_len(p.distance, None, self.inch), number::unit_name(self.inch));
+            let text = format!(
+                "{} {}",
+                number::fmt_len(p.distance, None, self.inch),
+                number::unit_name(self.inch)
+            );
             let tk = crate::theme::tokens(self.dark);
             let font = FontId::proportional(12.0);
             let galley = painter.layout_no_wrap(text, font, tk.text);
             let pos = b + egui::vec2(12.0, -12.0 - galley.size().y);
             let r = Rect::from_min_size(pos, galley.size()).expand2(egui::vec2(6.0, 3.0));
-            painter.rect(r, CornerRadius::same(3), tk.panel, Stroke::new(1.0, tk.line), StrokeKind::Inside);
+            painter.rect(
+                r,
+                CornerRadius::same(3),
+                tk.panel,
+                Stroke::new(1.0, tk.line),
+                StrokeKind::Inside,
+            );
             painter.galley(pos, galley, tk.text);
         }
     }

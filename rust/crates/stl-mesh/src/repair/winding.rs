@@ -21,7 +21,10 @@ const PERTURB_SHIFT: u32 = 5;
 
 impl PySet {
     pub fn new() -> PySet {
-        PySet { table: vec![None; 8], fill: 0 }
+        PySet {
+            table: vec![None; 8],
+            fill: 0,
+        }
     }
 
     /// The slot `key` goes in: the first free one on its probe sequence, or the one it is
@@ -56,7 +59,11 @@ impl PySet {
             return;
         }
         // set_table_resize: the entries go into the bigger table in the old table's order
-        let minused = if self.fill > 50000 { self.fill * 2 } else { self.fill * 4 };
+        let minused = if self.fill > 50000 {
+            self.fill * 2
+        } else {
+            self.fill * 4
+        };
         let mut size = 8;
         while size <= minused {
             size <<= 1;
@@ -78,8 +85,10 @@ impl PySet {
 /// means one of them has to be reversed. `None` when they share no edge exactly once each.
 fn same_direction(f: &[u32], a: u32, b: u32) -> Option<bool> {
     // the six directed edges of the pair, as trimesh `faces_to_edges(faces[[a, b]])`
-    let pair: Vec<(u32, u32)> =
-        [a, b].iter().flat_map(|&t| (0..3).map(move |k| edge(f, 3 * t as usize + k))).collect();
+    let pair: Vec<(u32, u32)> = [a, b]
+        .iter()
+        .flat_map(|&t| (0..3).map(move |k| edge(f, 3 * t as usize + k)))
+        .collect();
     // group_rows(sorted, require_count=2)[0]: the first key, in key order, that occurs twice
     let mut order: Vec<usize> = (0..6).collect();
     order.sort_by_key(|&k| (edge_key(pair[k]), k));
@@ -100,6 +109,7 @@ fn same_direction(f: &[u32], a: u32, b: u32) -> Option<bool> {
 
 /// trimesh `repair.fix_winding`, in place. `_v` is not needed (the faces alone decide) but
 /// keeps the signature in line with the other steps.
+#[allow(clippy::ptr_arg)]
 pub fn fix_winding(_v: &[f64], f: &mut Vec<u32>) {
     // anything we would fix is already done
     if f.len() >= 3 && is_watertight(f).1 {
@@ -193,9 +203,8 @@ mod tests {
         assert_eq!(
             order(&sevens),
             vec![
-                0, 259, 133, 7, 266, 140, 14, 273, 147, 21, 280, 154, 28, 287, 161, 35, 294, 168, 42, 175, 49,
-                182, 56, 189, 63, 196, 70, 203, 77, 210, 84, 217, 91, 224, 98, 231, 105, 238, 112, 245, 119,
-                252, 126
+                0, 259, 133, 7, 266, 140, 14, 273, 147, 21, 280, 154, 28, 287, 161, 35, 294, 168, 42, 175, 49, 182, 56,
+                189, 63, 196, 70, 203, 77, 210, 84, 217, 91, 224, 98, 231, 105, 238, 112, 245, 119, 252, 126
             ]
         );
     }

@@ -9,7 +9,7 @@
 //! goes to the tool's message line as a warning. On closing the tool call [`Sculpt::close`].
 
 use egui::Pos2;
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 
 use crate::viewport::overlays::Stroke;
 use crate::viewport::pick::Hit;
@@ -34,14 +34,14 @@ pub fn parse_float(v: Option<&Value>) -> f64 {
                     continue;
                 }
                 let head = &t[..end];
-                if head.ends_with(|c: char| c == 'e' || c == 'E' || c == '+' || c == '-') {
+                if head.ends_with(['e', 'E', '+', '-']) {
                     continue;
                 }
-                if let Ok(x) = head.parse::<f64>() {
-                    if !head.contains(|c: char| c.is_alphabetic() && c != 'e' && c != 'E') {
-                        best = x;
-                        break;
-                    }
+                if let Ok(x) = head.parse::<f64>()
+                    && !head.contains(|c: char| c.is_alphabetic() && c != 'e' && c != 'E')
+                {
+                    best = x;
+                    break;
                 }
             }
             best
@@ -103,14 +103,23 @@ pub struct Sculpt {
 }
 
 fn strokes_of(values: &Values) -> Vec<Stroke> {
-    let Some(Value::Array(a)) = values.get("strokes") else { return Vec::new() };
+    let Some(Value::Array(a)) = values.get("strokes") else {
+        return Vec::new();
+    };
     a.iter()
         .map(|s| Stroke {
             mode: s.get("mode").and_then(Value::as_str).unwrap_or("").to_owned(),
             points: s
                 .get("points")
                 .and_then(Value::as_array)
-                .map(|p| p.iter().filter_map(|q| q.as_array().map(|c| [0, 1, 2].map(|i| c.get(i).and_then(Value::as_f64).unwrap_or(0.0)))).collect())
+                .map(|p| {
+                    p.iter()
+                        .filter_map(|q| {
+                            q.as_array()
+                                .map(|c| [0, 1, 2].map(|i| c.get(i).and_then(Value::as_f64).unwrap_or(0.0)))
+                        })
+                        .collect()
+                })
                 .unwrap_or_default(),
         })
         .collect()
@@ -154,7 +163,9 @@ impl Sculpt {
 
     /// `pointerdown` with the left button.
     pub fn press(&mut self, vp: &mut Viewport, pos: Pos2, values: &Values) -> SculptEvent {
-        let Some((id, point, _)) = Self::body_hit(vp, pos) else { return SculptEvent::None };
+        let Some((id, point, _)) = Self::body_hit(vp, pos) else {
+            return SculptEvent::None;
+        };
         let has_strokes = matches!(values.get("strokes"), Some(Value::Array(a)) if !a.is_empty());
         let body = values.get("body").and_then(Value::as_str).filter(|s| !s.is_empty());
         if body.is_some_and(|b| b != id) && has_strokes {
@@ -176,7 +187,9 @@ impl Sculpt {
         let hit = pos.and_then(|p| Self::body_hit(vp, p));
         let r = brush_radius(values);
         vp.set_brush(hit.as_ref().map(|(_, p, n)| (*p, *n, r)));
-        let (Some(st), Some((id, point, _))) = (self.stroke.as_mut(), hit) else { return SculptEvent::None };
+        let (Some(st), Some((id, point, _))) = (self.stroke.as_mut(), hit) else {
+            return SculptEvent::None;
+        };
         if id != st.body {
             return SculptEvent::None;
         }
@@ -185,7 +198,10 @@ impl Sculpt {
         if d > r / 5.0 {
             st.points.push(point);
             let mut all = strokes_of(values);
-            all.push(Stroke { mode: st.mode.clone(), points: st.points.clone() });
+            all.push(Stroke {
+                mode: st.mode.clone(),
+                points: st.points.clone(),
+            });
             vp.draw_strokes(&all);
             return SculptEvent::Drawing;
         }
@@ -202,7 +218,12 @@ impl Sculpt {
         stroke.insert("strength".into(), jnum(st.strength));
         stroke.insert(
             "points".into(),
-            Value::Array(st.points.iter().map(|p| Value::Array(p.iter().map(|&x| jnum(fixed3(x))).collect())).collect()),
+            Value::Array(
+                st.points
+                    .iter()
+                    .map(|p| Value::Array(p.iter().map(|&x| jnum(fixed3(x))).collect()))
+                    .collect(),
+            ),
         );
         let mut strokes = match values.get("strokes") {
             Some(Value::Array(a)) => a.clone(),
@@ -216,8 +237,20 @@ impl Sculpt {
     }
 
     /// Everything for one frame. Call after `viewport.show(ui)`.
-    pub fn update(&mut self, vp: &mut Viewport, ui: &egui::Ui, response: &egui::Response, values: &Values) -> SculptEvent {
-        let (hover, pressed, released) = ui.input(|i| (i.pointer.hover_pos(), i.pointer.primary_pressed(), i.pointer.primary_released()));
+    pub fn update(
+        &mut self,
+        vp: &mut Viewport,
+        ui: &egui::Ui,
+        response: &egui::Response,
+        values: &Values,
+    ) -> SculptEvent {
+        let (hover, pressed, released) = ui.input(|i| {
+            (
+                i.pointer.hover_pos(),
+                i.pointer.primary_pressed(),
+                i.pointer.primary_released(),
+            )
+        });
         let inside = response.contains_pointer();
         if released && self.stroke.is_some() {
             return match self.release(values) {
@@ -225,18 +258,20 @@ impl Sculpt {
                 None => SculptEvent::None,
             };
         }
-        if pressed && inside {
-            if let Some(p) = hover {
-                let e = self.press(vp, p, values);
-                if e != SculptEvent::None {
-                    // pressed and let go in the same frame: the stroke is finished now, not left open
-                    if released && self.stroke.is_some() {
-                        if let Some(v) = self.release(values) {
-                            return SculptEvent::Stroke(v);
-                        }
-                    }
-                    return e;
+        if pressed
+            && inside
+            && let Some(p) = hover
+        {
+            let e = self.press(vp, p, values);
+            if e != SculptEvent::None {
+                // pressed and let go in the same frame: the stroke is finished now, not left open
+                if released
+                    && self.stroke.is_some()
+                    && let Some(v) = self.release(values)
+                {
+                    return SculptEvent::Stroke(v);
                 }
+                return e;
             }
         }
         if response.hovered() || self.stroke.is_some() || inside {

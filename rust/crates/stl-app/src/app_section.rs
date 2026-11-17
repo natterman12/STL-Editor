@@ -13,7 +13,10 @@ use crate::viewport::camera::{self as vc, V3};
 use crate::viewport::plane_drag::{self, DragPlane};
 
 /// `startSection`'s stand-in box for an empty scene.
-const EMPTY_BOX: stl_kernel::Aabb = stl_kernel::Aabb { min: [-50.0, -50.0, -50.0], max: [50.0, 50.0, 50.0] };
+const EMPTY_BOX: stl_kernel::Aabb = stl_kernel::Aabb {
+    min: [-50.0, -50.0, -50.0],
+    max: [50.0, 50.0, 50.0],
+};
 const AXES: [V3; 3] = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
 
 /// Where the cut's plane comes from.
@@ -49,7 +52,15 @@ pub(super) struct SectionState {
 
 impl Default for SectionState {
     fn default() -> Self {
-        SectionState { cut: None, on: false, open: false, hatch: true, undo: None, msg: None, bufs: Default::default() }
+        SectionState {
+            cut: None,
+            on: false,
+            open: false,
+            hatch: true,
+            undo: None,
+            msg: None,
+            bufs: Default::default(),
+        }
     }
 }
 
@@ -66,7 +77,11 @@ impl StlApp {
         if self.section.cut.is_none() {
             // a new cut starts halfway up the parts on Z
             let b = self.section_box();
-            self.section.cut = Some(Cut { plane: CutPlane::Axis(2), distance: number::num_value((b.min[2] + b.max[2]) / 2.0), flip: false });
+            self.section.cut = Some(Cut {
+                plane: CutPlane::Axis(2),
+                distance: number::num_value((b.min[2] + b.max[2]) / 2.0),
+                flip: false,
+            });
         }
         self.section.open = true;
         self.section.msg = None;
@@ -84,7 +99,12 @@ impl StlApp {
         }
         self.section.on = !self.section.on;
         self.viewport.set_section(self.section.on);
-        self.shell.hint = if self.section.on { "Section view on (X turns it off)" } else { "Section view off (X turns it back on)" }.to_owned();
+        self.shell.hint = if self.section.on {
+            "Section view on (X turns it off)"
+        } else {
+            "Section view off (X turns it back on)"
+        }
+        .to_owned();
     }
 
     /// Remove the cut altogether (`clearCut`: Remove cut, or a new or opened project).
@@ -128,18 +148,31 @@ impl StlApp {
             return true; // the arrow's own click
         }
         let planes = self.viewport.base_planes_visible() || !self.planes.is_empty();
-        let Some(hit) = self.viewport.pick(pos, true, planes) else { return true };
+        let Some(hit) = self.viewport.pick(pos, true, planes) else {
+            return true;
+        };
         let picked = match &hit {
             crate::viewport::pick::Hit::Plane { id, .. } => {
-                let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection, self.shell.inch);
+                let ctx = make_ctx(
+                    &self.bodies,
+                    &self.planes,
+                    &self.sketches,
+                    &self.timeline_view.items,
+                    &self.shell.selection,
+                    self.shell.inch,
+                );
                 let v = serde_json::Value::from(id.clone());
                 let frame = crate::tools::fields::plane::frame_of(&v, &ctx);
                 let label = crate::tools::fields::plane::plane_label(Some(&v), &ctx);
                 frame.map(|f| (f.origin, f.normal, label, self.section_box()))
             }
             crate::viewport::pick::Hit::Body { id, face, .. } => {
-                let Some(b) = self.bodies.iter().find(|b| &b.id == id) else { return true };
-                let Some(fi) = crate::tools::fields::plane::face_info(&b.mesh, *face as usize, false) else { return true };
+                let Some(b) = self.bodies.iter().find(|b| &b.id == id) else {
+                    return true;
+                };
+                let Some(fi) = crate::tools::fields::plane::face_info(&b.mesh, *face as usize, false) else {
+                    return true;
+                };
                 if !fi.planar {
                     self.section.msg = Some(section_panel::NOT_FLAT.to_owned());
                     return true;
@@ -148,10 +181,16 @@ impl StlApp {
                 Some((fi.origin, fi.normal, format!("Face of {}", b.name), span))
             }
         };
-        let Some((origin, normal, label, span)) = picked else { return true };
+        let Some((origin, normal, label, span)) = picked else {
+            return true;
+        };
         let d = plane_drag::start_distance(origin, normal, &span);
         let flip = self.section.cut.as_ref().is_some_and(|c| c.flip);
-        self.section.cut = Some(Cut { plane: CutPlane::Picked { origin, normal, label }, distance: number::num_value(d), flip });
+        self.section.cut = Some(Cut {
+            plane: CutPlane::Picked { origin, normal, label },
+            distance: number::num_value(d),
+            flip,
+        });
         self.section.msg = None;
         self.apply_cut();
         true
@@ -181,7 +220,12 @@ impl StlApp {
                     c.distance = v;
                 }
                 // an expression that doesn't work says why, as the tool panel does
-                self.section.msg = self.section.cut.as_ref().and_then(|c| stl_engine::params::resolve_deep(&c.distance, &self.param_map()).err()).map(|e| e.0);
+                self.section.msg = self
+                    .section
+                    .cut
+                    .as_ref()
+                    .and_then(|c| stl_engine::params::resolve_deep(&c.distance, &self.param_map()).err())
+                    .map(|e| e.0);
                 self.apply_cut();
             }
             SectionAct::Flip(f) => {
@@ -256,12 +300,18 @@ impl StlApp {
     fn section_axis(&mut self, i: usize) {
         let b = self.section_box();
         let t = match (self.section.cut.as_ref().map(|c| &c.plane), self.cut_distance()) {
-            (Some(CutPlane::Axis(j)), Some(d)) if b.max[*j] > b.min[*j] => ((d - b.min[*j]) / (b.max[*j] - b.min[*j])).clamp(0.0, 1.0),
+            (Some(CutPlane::Axis(j)), Some(d)) if b.max[*j] > b.min[*j] => {
+                ((d - b.min[*j]) / (b.max[*j] - b.min[*j])).clamp(0.0, 1.0)
+            }
             _ => 0.5,
         };
         let flip = self.section.cut.as_ref().is_some_and(|c| c.flip);
         let d = b.min[i] + (b.max[i] - b.min[i]) * t;
-        self.section.cut = Some(Cut { plane: CutPlane::Axis(i), distance: number::num_value(d), flip });
+        self.section.cut = Some(Cut {
+            plane: CutPlane::Axis(i),
+            distance: number::num_value(d),
+            flip,
+        });
         self.section.msg = None;
         self.apply_cut();
     }
@@ -275,7 +325,9 @@ impl StlApp {
     fn cut_distance(&self) -> Option<f64> {
         match &self.section.cut.as_ref()?.distance {
             serde_json::Value::Number(n) => n.as_f64(),
-            serde_json::Value::String(e) => stl_engine::params::evaluate(e.trim().trim_start_matches('='), &self.param_map()).ok(),
+            serde_json::Value::String(e) => {
+                stl_engine::params::evaluate(e.trim().trim_start_matches('='), &self.param_map()).ok()
+            }
             _ => Some(0.0),
         }
     }
@@ -288,7 +340,12 @@ impl StlApp {
             CutPlane::Axis(i) => ([0.0; 3], AXES[*i]),
             CutPlane::Picked { origin, normal, .. } => (*origin, *normal),
         };
-        Some(DragPlane { origin, normal, distance, span })
+        Some(DragPlane {
+            origin,
+            normal,
+            distance,
+            span,
+        })
     }
 
     /// `applyCut`: show the cut (a change turns it on), keeping the half away from the camera.
@@ -299,7 +356,8 @@ impl StlApp {
         let n = vc::normalize(p.normal);
         let cam_side = vc::dot(vc::sub(cam.position, cam.target), n) > 0.0;
         let keep_front = if cam_side { flip } else { !flip };
-        self.viewport.set_section_plane(Some(plane_drag::plane_eq(&p, keep_front)));
+        self.viewport
+            .set_section_plane(Some(plane_drag::plane_eq(&p, keep_front)));
         self.viewport.set_section_hatch(self.section.hatch);
         self.section.on = true;
         self.viewport.set_section(true);

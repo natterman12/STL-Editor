@@ -107,14 +107,11 @@ fn run_case(case: &Value) -> Vec<Solid> {
                             .collect()
                     })
                     .collect();
-                let shape = Shape2d::from_even_odd(&contours)
-                    .offset_miter(f(&op["delta"]), f(&op["miter_limit"]));
+                let shape = Shape2d::from_even_odd(&contours).offset_miter(f(&op["delta"]), f(&op["miter_limit"]));
                 stack.push(shape.extrude(f(&op["height"])));
             }
             "hull" => unary(&mut stack, |s| s.hull()),
-            "trim_by_plane" => {
-                unary(&mut stack, |s| s.trim_by_plane(vec3(&op["normal"]), f(&op["offset"])))
-            }
+            "trim_by_plane" => unary(&mut stack, |s| s.trim_by_plane(vec3(&op["normal"]), f(&op["offset"]))),
             "slice_extrude" => unary(&mut stack, |s| s.slice(f(&op["z"])).extrude(f(&op["height"]))),
             "split_by_plane" => {
                 let s = stack.pop().unwrap();
@@ -141,8 +138,7 @@ fn unary(stack: &mut [Solid], op: impl FnOnce(&Solid) -> Solid) {
 #[test]
 fn corpus_matches_golden() {
     let parity = tests_dir().join("parity");
-    let cases: Vec<Value> =
-        serde_json::from_slice(&std::fs::read(parity.join("kernel_cases.json")).unwrap()).unwrap();
+    let cases: Vec<Value> = serde_json::from_slice(&std::fs::read(parity.join("kernel_cases.json")).unwrap()).unwrap();
     let golden: HashMap<String, Vec<MeshStats>> =
         serde_json::from_slice(&std::fs::read(parity.join("kernel_golden.json")).unwrap()).unwrap();
 

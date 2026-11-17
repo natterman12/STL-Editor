@@ -19,7 +19,9 @@ fn snapfit(
     let t = float(p, "thickness", Some(1.5))?;
     let h = float(p, "hook_height", Some(1.5))?;
     if l.min(w).min(t).min(h) <= 0.0 {
-        return Err(FeatureError("Arm length, width, thickness and hook height must all be more than zero.".into()));
+        return Err(FeatureError(
+            "Arm length, width, thickness and hook height must all be more than zero.".into(),
+        ));
     }
     if h >= l {
         return Err(FeatureError("The hook must be shorter than the arm.".into()));
@@ -29,9 +31,21 @@ fn snapfit(
     let hook = Solid::cube([t, w, h], false).translate([t, 0.0, l - h]);
     let tool = Solid::union_all(&[arm, hook]);
     let frame = state.frame(p.get("plane"))?;
-    let tool = place(&tool, &frame, [float(p, "x", Some(0.0))?, float(p, "y", Some(0.0))?, 0.0]);
-    let op = p.get("operation").and_then(Value::as_str).filter(|s| !s.is_empty()).unwrap_or("join");
-    let name = p.get("body_name").and_then(Value::as_str).filter(|s| !s.is_empty()).unwrap_or("Snap-fit");
+    let tool = place(
+        &tool,
+        &frame,
+        [float(p, "x", Some(0.0))?, float(p, "y", Some(0.0))?, 0.0],
+    );
+    let op = p
+        .get("operation")
+        .and_then(Value::as_str)
+        .filter(|s| !s.is_empty())
+        .unwrap_or("join");
+    let name = p
+        .get("body_name")
+        .and_then(Value::as_str)
+        .filter(|s| !s.is_empty())
+        .unwrap_or("Snap-fit");
     apply_tool(state, fid, tool, op, p.get("targets"), name, res)
 }
 

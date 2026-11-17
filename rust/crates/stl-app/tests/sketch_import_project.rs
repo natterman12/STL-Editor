@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::PathBuf;
 
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 use stl_app::sketch::import::import_file;
 use stl_app::sketch::project::{self, UseEdge};
 use stl_app::sketch::{SketchInput, SketchSession, ToolCx};
@@ -146,8 +146,14 @@ fn same_entity(got: &Entity, want: &Value, tol: f64, file: &str, i: usize) {
         Entity::Line(l) => {
             let p1 = xy(&want["p1"]);
             let p2 = xy(&want["p2"]);
-            assert!(close(l.p1[0], p1[0], tol) && close(l.p1[1], p1[1], tol), "{file} entity {i} p1");
-            assert!(close(l.p2[0], p2[0], tol) && close(l.p2[1], p2[1], tol), "{file} entity {i} p2");
+            assert!(
+                close(l.p1[0], p1[0], tol) && close(l.p1[1], p1[1], tol),
+                "{file} entity {i} p1"
+            );
+            assert!(
+                close(l.p2[0], p2[0], tol) && close(l.p2[1], p2[1], tol),
+                "{file} entity {i} p2"
+            );
         }
         Entity::Circle(c) => {
             assert!(close(c.cx, num(want, "cx"), tol), "{file} entity {i} cx");
@@ -180,10 +186,9 @@ fn same_entity(got: &Entity, want: &Value, tol: f64, file: &str, i: usize) {
 
 #[test]
 fn import_svg_dxf_into_sketch() {
-    let golden: Value = serde_json::from_str(
-        &fs::read_to_string(rust_tests().join("parity/import2d_golden.json")).expect("golden"),
-    )
-    .expect("parse golden");
+    let golden: Value =
+        serde_json::from_str(&fs::read_to_string(rust_tests().join("parity/import2d_golden.json")).expect("golden"))
+            .expect("parse golden");
     let cases = rust_tests().join("parity/import2d");
     let obj = golden.as_object().expect("object");
     assert!(!obj.is_empty());
@@ -194,7 +199,10 @@ fn import_svg_dxf_into_sketch() {
             assert_eq!(got.expect_err(file), err, "{file}");
             continue;
         }
-        let want_ents = want.get("entities").and_then(Value::as_array).unwrap_or_else(|| panic!("{file}: entities"));
+        let want_ents = want
+            .get("entities")
+            .and_then(Value::as_array)
+            .unwrap_or_else(|| panic!("{file}: entities"));
         if want_ents.is_empty() {
             assert_eq!(got.expect_err(file), "No lines or curves found in that file.", "{file}");
             continue;
@@ -219,21 +227,45 @@ fn import_svg_dxf_into_sketch() {
 fn project_section_and_silhouette() {
     let doc = box_doc();
     let dir = rust_tests().join("parity/sketchop");
-    for name in ["project_section", "project_silhouette", "project_section_construction", "project_silhouette_construction"] {
+    for name in [
+        "project_section",
+        "project_silhouette",
+        "project_section_construction",
+        "project_silhouette_construction",
+    ] {
         let case: Value = serde_json::from_str(&fs::read_to_string(dir.join(format!("{name}.json"))).unwrap()).unwrap();
-        let got = doc.sketch_op(case["op"].as_str().unwrap(), &case["data"]).unwrap_or_else(|e| panic!("{name}: {e}"));
+        let got = doc
+            .sketch_op(case["op"].as_str().unwrap(), &case["data"])
+            .unwrap_or_else(|e| panic!("{name}: {e}"));
         assert_eq!(round9(&got), round9(&case["result"]), "{name}");
     }
 }
 
 #[test]
 fn use_edge_adds_ref() {
-    let frame = PlaneFrame { origin: [0.0, 0.0, 0.0], x: [1.0, 0.0, 0.0], y: [0.0, 1.0, 0.0], normal: [0.0, 0.0, 1.0] };
+    let frame = PlaneFrame {
+        origin: [0.0, 0.0, 0.0],
+        x: [1.0, 0.0, 0.0],
+        y: [0.0, 1.0, 0.0],
+        normal: [0.0, 0.0, 1.0],
+    };
     let edge: Entity = serde_json::from_value(json!({
         "id": "r0", "type": "line", "p1": [0, 0], "p2": [10, 0], "ref": "edge"
     }))
     .unwrap();
-    let mut session = SketchSession::new(frame, json!("XY"), None, None, Vec::new(), Vec::new(), vec![stl_app::sketch::RefEnt { ent: edge, missing: false }], None);
+    let mut session = SketchSession::new(
+        frame,
+        json!("XY"),
+        None,
+        None,
+        Vec::new(),
+        Vec::new(),
+        vec![stl_app::sketch::RefEnt {
+            ent: edge,
+            missing: false,
+        }],
+        None,
+    );
     assert_eq!(project::use_edge(&mut session, [5.0, 0.0], 1.0), UseEdge::Added);
     assert_eq!(session.entities.len(), 1);
     let line = &session.entities[0];
@@ -243,7 +275,10 @@ fn use_edge_adds_ref() {
     assert_eq!(session.constraints.len(), 2);
     assert_eq!(session.constraints[0].kind, "coincident");
     assert_eq!(session.constraints[1].kind, "coincident");
-    assert_eq!(session.constraints[0].extra.get("auto").and_then(Value::as_bool), Some(true));
+    assert_eq!(
+        session.constraints[0].extra.get("auto").and_then(Value::as_bool),
+        Some(true)
+    );
     assert_eq!(project::use_edge(&mut session, [50.0, 50.0], 1.0), UseEdge::Miss);
 
     let mut tool = project::tool_for("sk_useedge").expect("use edge tool");
@@ -252,18 +287,47 @@ fn use_edge_adds_ref() {
     let vp = Viewport::default();
     let params = BTreeMap::new();
     let mut out = Vec::new();
-    let mut cx = ToolCx { s: &mut session, vp: &vp, inch: false, params: &params, out: &mut out };
-    let handled = tool.input(&mut cx, &SketchInput::Down { uv: [5.0, 1.0], pos: egui::pos2(0.0, 0.0), mods: egui::Modifiers::default() });
+    let mut cx = ToolCx {
+        s: &mut session,
+        vp: &vp,
+        inch: false,
+        params: &params,
+        out: &mut out,
+    };
+    let handled = tool.input(
+        &mut cx,
+        &SketchInput::Down {
+            uv: [5.0, 1.0],
+            pos: egui::pos2(0.0, 0.0),
+            mods: egui::Modifiers::default(),
+        },
+    );
     assert!(handled);
     assert!(project::tool_for("sk_project").is_some());
 }
 
 #[test]
 fn regions_from_new_sketch() {
-    let frame = PlaneFrame { origin: [0.0, 0.0, 0.0], x: [1.0, 0.0, 0.0], y: [0.0, 1.0, 0.0], normal: [0.0, 0.0, 1.0] };
-    let outer: Entity = serde_json::from_value(json!({"id": "outer", "type": "rect", "x": 0, "y": 0, "w": 20, "h": 16})).unwrap();
-    let inner: Entity = serde_json::from_value(json!({"id": "inner", "type": "rect", "x": 5, "y": 4, "w": 8, "h": 6})).unwrap();
-    let session = SketchSession::new(frame, json!("XY"), None, Some("Sketch".into()), vec![outer, inner], Vec::new(), Vec::new(), None);
+    let frame = PlaneFrame {
+        origin: [0.0, 0.0, 0.0],
+        x: [1.0, 0.0, 0.0],
+        y: [0.0, 1.0, 0.0],
+        normal: [0.0, 0.0, 1.0],
+    };
+    let outer: Entity =
+        serde_json::from_value(json!({"id": "outer", "type": "rect", "x": 0, "y": 0, "w": 20, "h": 16})).unwrap();
+    let inner: Entity =
+        serde_json::from_value(json!({"id": "inner", "type": "rect", "x": 5, "y": 4, "w": 8, "h": 6})).unwrap();
+    let session = SketchSession::new(
+        frame,
+        json!("XY"),
+        None,
+        Some("Sketch".into()),
+        vec![outer, inner],
+        Vec::new(),
+        Vec::new(),
+        None,
+    );
     let doc = Document::new(Registry::builtin());
     let data = json!({"entities": session.entities, "seed": session.seed});
     let result = doc.sketch_op("faces", &data).expect("faces");

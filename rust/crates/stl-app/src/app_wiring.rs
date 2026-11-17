@@ -6,7 +6,6 @@ use super::*;
 use crate::engine_link::FinsAsk;
 use crate::supports::coverage::{CoverageInput, CoverageJob, CoverageJobResult, CoverageOutput};
 use crate::supports::strength::{self, Cover, Plastic, Spot, SuggestUi};
-use stl_engine::params::resolve_deep;
 use crate::supports::walls::{self, Wall, WallClickHit, WallClickMsg, WallDrawer};
 use crate::supports::{self, PanelEvent, Session};
 use crate::tools::gizmo::{self, Gizmo, GizmoBody, GizmoDrop, GizmoEvent, GizmoKind};
@@ -15,14 +14,20 @@ use crate::tools::sculpt::{Sculpt, SculptEvent};
 use crate::viewport::camera::{self, M4};
 use crate::viewport::pick::Hit;
 use egui::Color32;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
+use stl_engine::params::resolve_deep;
 
 /// 1.x's `localStorage` keys.
 pub const MATERIAL_KEY: &str = "stle_sf_material";
 pub const REACH_KEY: &str = "stle_sf_reach";
 
-const IDENT: M4 = [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]];
+const IDENT: M4 = [
+    [1.0, 0.0, 0.0, 0.0],
+    [0.0, 1.0, 0.0, 0.0],
+    [0.0, 0.0, 1.0, 0.0],
+    [0.0, 0.0, 0.0, 1.0],
+];
 
 /// The Support Fins turn applied so far (`t._pose`).
 pub(super) struct Pose {
@@ -121,7 +126,11 @@ fn wall_of(v: &Value) -> Option<Wall> {
 }
 
 fn walls_of(values: &Values) -> Vec<Wall> {
-    values.get("walls").and_then(Value::as_array).map(|a| a.iter().filter_map(wall_of).collect()).unwrap_or_default()
+    values
+        .get("walls")
+        .and_then(Value::as_array)
+        .map(|a| a.iter().filter_map(wall_of).collect())
+        .unwrap_or_default()
 }
 
 /// 1.x `insertBeforeSupports`: a Move, Scale or Lay Flat of bodies that already have supports goes
@@ -133,17 +142,29 @@ fn walls_of(values: &Values) -> Vec<Wall> {
 /// split plane seemed to move with the part, the thread missed it). Then the Move goes at the end
 /// and the engine puts the supports last again, after it, and rebuilds them
 /// (`Document::keep_supports_last`).
-pub(super) fn insert_before_supports(tl: &TimelineView, marker: Option<usize>, kind: &str, params: &Value) -> Option<usize> {
+pub(super) fn insert_before_supports(
+    tl: &TimelineView,
+    marker: Option<usize>,
+    kind: &str,
+    params: &Value,
+) -> Option<usize> {
     let at = first_supports_of(tl, marker, kind, params)?;
     let end = marker.unwrap_or(tl.items.len()).min(tl.items.len());
-    tl.items[at + 1..end].iter().all(|f| f.suppressed || is_sf(&f.kind)).then_some(at)
+    tl.items[at + 1..end]
+        .iter()
+        .all(|f| f.suppressed || is_sf(&f.kind))
+        .then_some(at)
 }
 
 fn first_supports_of(tl: &TimelineView, marker: Option<usize>, kind: &str, params: &Value) -> Option<usize> {
     if !matches!(kind, "move" | "scale" | "layflat") || params.get("copy").and_then(Value::as_bool).unwrap_or(false) {
         return None;
     }
-    let mut ids: Vec<&str> = params.get("bodies").and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_str).collect()).unwrap_or_default();
+    let mut ids: Vec<&str> = params
+        .get("bodies")
+        .and_then(Value::as_array)
+        .map(|a| a.iter().filter_map(Value::as_str).collect())
+        .unwrap_or_default();
     if ids.is_empty() {
         ids.extend(params.get("body").and_then(Value::as_str));
     }
@@ -153,7 +174,10 @@ fn first_supports_of(tl: &TimelineView, marker: Option<usize>, kind: &str, param
             && !f.suppressed
             && ids.iter().any(|b| {
                 f.params.get("body").and_then(Value::as_str) == Some(*b)
-                    || f.params.get("bodies").and_then(Value::as_array).is_some_and(|a| a.iter().any(|x| x.as_str() == Some(*b)))
+                    || f.params
+                        .get("bodies")
+                        .and_then(Value::as_array)
+                        .is_some_and(|a| a.iter().any(|x| x.as_str() == Some(*b)))
             })
     })
 }
@@ -177,22 +201,40 @@ pub fn restart_helper(exe: &std::path::Path, pid: u32) -> std::process::Command 
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
-        let script = format!("try {{ Wait-Process -Id {pid} -Timeout 90 -ErrorAction Stop }} catch {{ }}; Start-Sleep -Milliseconds 700; [Diagnostics.Process]::Start($env:STLE_EXE) | Out-Null");
+        let script = format!(
+            "try {{ Wait-Process -Id {pid} -Timeout 90 -ErrorAction Stop }} catch {{ }}; Start-Sleep -Milliseconds 700; [Diagnostics.Process]::Start($env:STLE_EXE) | Out-Null"
+        );
         let root = std::env::var_os("SystemRoot").unwrap_or_else(|| "C:\\Windows".into());
-        let ps = std::path::Path::new(&root).join("System32").join("WindowsPowerShell").join("v1.0").join("powershell.exe");
+        let ps = std::path::Path::new(&root)
+            .join("System32")
+            .join("WindowsPowerShell")
+            .join("v1.0")
+            .join("powershell.exe");
         let mut c = std::process::Command::new(ps);
-        c.args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-Command", &script])
-            .env("STLE_EXE", exe)
-            // CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW. Not DETACHED_PROCESS: Windows PowerShell
-            // started detached with `-WindowStyle Hidden` exits without starting anything.
-            .creation_flags(0x0000_0200 | 0x0800_0000);
+        c.args([
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-WindowStyle",
+            "Hidden",
+            "-Command",
+            &script,
+        ])
+        .env("STLE_EXE", exe)
+        // CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW. Not DETACHED_PROCESS: Windows PowerShell
+        // started detached with `-WindowStyle Hidden` exits without starting anything.
+        .creation_flags(0x0000_0200 | 0x0800_0000);
         c
     }
     #[cfg(not(windows))]
     {
         let script = "i=0; while kill -0 \"$1\" 2>/dev/null && [ $i -lt 450 ]; do sleep 0.2; i=$((i + 1)); done; sleep 0.7; exec \"$2\"";
         let mut c = std::process::Command::new("sh");
-        c.arg("-c").arg(script).arg("stle-restart").arg(pid.to_string()).arg(exe);
+        c.arg("-c")
+            .arg(script)
+            .arg("stle-restart")
+            .arg(pid.to_string())
+            .arg(exe);
         c
     }
 }
@@ -211,17 +253,24 @@ fn soup_of(m: &stl_kernel::MeshArrays) -> Vec<f32> {
 }
 
 fn u32_list(v: Option<&Value>) -> Vec<u32> {
-    v.and_then(Value::as_array).map(|a| a.iter().filter_map(|x| x.as_u64().map(|n| n as u32)).collect()).unwrap_or_default()
+    v.and_then(Value::as_array)
+        .map(|a| a.iter().filter_map(|x| x.as_u64().map(|n| n as u32)).collect())
+        .unwrap_or_default()
 }
 
 impl StlApp {
     pub(super) fn param_map(&self) -> BTreeMap<String, f64> {
-        self.param_views.iter().filter_map(|p| p.value.map(|v| (p.name.clone(), v))).collect()
+        self.param_views
+            .iter()
+            .filter_map(|p| p.value.map(|v| (p.name.clone(), v)))
+            .collect()
     }
 
     /// The tool's values with the project's parameters worked out (`resolveDeep(t.values)`).
     fn resolved_values(&self) -> Values {
-        let Some(t) = self.tool.as_ref() else { return Values::new() };
+        let Some(t) = self.tool.as_ref() else {
+            return Values::new();
+        };
         match resolve_deep(&Value::Object(t.values.clone()), &self.param_map()) {
             Ok(Value::Object(m)) => m,
             _ => t.values.clone(),
@@ -246,12 +295,17 @@ impl StlApp {
     }
 
     fn sf_mode(&self) -> String {
-        self.tool.as_ref().map(|t| supports::mode_of(&t.values).to_owned()).unwrap_or_default()
+        self.tool
+            .as_ref()
+            .map(|t| supports::mode_of(&t.values).to_owned())
+            .unwrap_or_default()
     }
 
     /// The wall editor is on: Draw Walls, or Support Fins in Add fins.
     fn walls_active(&self) -> bool {
-        self.tool.as_ref().is_some_and(|t| t.def.flags.wall_tool || (t.def.key == "supportfins" && supports::mode_of(&t.values) == "add"))
+        self.tool.as_ref().is_some_and(|t| {
+            t.def.flags.wall_tool || (t.def.key == "supportfins" && supports::mode_of(&t.values) == "add")
+        })
     }
 
     // ------------------------------------------------------------------ opening
@@ -268,20 +322,31 @@ impl StlApp {
     }
 
     fn open_support_now(&mut self, key: &str, edit: Option<String>, values: Option<Values>) {
-        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection, self.shell.inch);
+        let ctx = make_ctx(
+            &self.bodies,
+            &self.planes,
+            &self.sketches,
+            &self.timeline_view.items,
+            &self.shell.selection,
+            self.shell.inch,
+        );
         let tool_key = key.to_owned();
         if edit.is_none() {
             // a part that already has supports: open those again instead of stacking a second set
-            if let Some(bid) = supports::body_id(&supports::defaults(key, &ctx)) {
-                if self.sf_reopen(key, &bid, values.clone()) {
-                    return;
-                }
+            if let Some(bid) = supports::body_id(&supports::defaults(key, &ctx))
+                && self.sf_reopen(key, &bid, values.clone())
+            {
+                return;
             }
         }
-        let Some(def) = supports::support_tool(&tool_key) else { return };
+        let Some(def) = supports::support_tool(&tool_key) else {
+            return;
+        };
         match edit {
             Some(id) => {
-                let Some(item) = self.timeline_view.items.iter().find(|i| i.id == id).cloned() else { return };
+                let Some(item) = self.timeline_view.items.iter().find(|i| i.id == id).cloned() else {
+                    return;
+                };
                 self.open_tool_def(def, Some((item.id, item.params)), values);
             }
             None => self.open_tool_def(def, None, values),
@@ -290,10 +355,27 @@ impl StlApp {
 
     /// The Support Fins (or Draw Walls) step a part already has: open it for editing (`reopenSupports`).
     pub(super) fn sf_reopen(&mut self, key: &str, bid: &str, values: Option<Values>) -> bool {
-        let name = self.bodies.iter().find(|b| b.id == bid).map(|b| b.name.clone()).unwrap_or_default();
-        let Some(plan) = supports::reopen_plan(&self.timeline_view.items, key, bid, &name) else { return false };
-        let Some(def) = supports::support_tool(plan.tool_key) else { return false };
-        let Some(item) = self.timeline_view.items.iter().find(|i| i.id == plan.feature_id).cloned() else { return false };
+        let name = self
+            .bodies
+            .iter()
+            .find(|b| b.id == bid)
+            .map(|b| b.name.clone())
+            .unwrap_or_default();
+        let Some(plan) = supports::reopen_plan(&self.timeline_view.items, key, bid, &name) else {
+            return false;
+        };
+        let Some(def) = supports::support_tool(plan.tool_key) else {
+            return false;
+        };
+        let Some(item) = self
+            .timeline_view
+            .items
+            .iter()
+            .find(|i| i.id == plan.feature_id)
+            .cloned()
+        else {
+            return false;
+        };
         self.toasts.push(Level::Info, plan.toast);
         let mut v = values.unwrap_or_default();
         if let Some(m) = plan.mode {
@@ -327,10 +409,10 @@ impl StlApp {
                 g.set_inch(self.shell.inch);
             }
         }
-        if def.flags.sculpt {
-            if let Some(t) = self.tool.as_ref() {
-                Sculpt::open(&mut self.viewport, &t.values);
-            }
+        if def.flags.sculpt
+            && let Some(t) = self.tool.as_ref()
+        {
+            Sculpt::open(&mut self.viewport, &t.values);
         }
         if is_sf(def.key) {
             self.open_sf_session(def);
@@ -338,13 +420,29 @@ impl StlApp {
     }
 
     fn open_sf_session(&mut self, def: &'static ToolDef) {
-        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection, self.shell.inch);
+        let ctx = make_ctx(
+            &self.bodies,
+            &self.planes,
+            &self.sketches,
+            &self.timeline_view.items,
+            &self.shell.selection,
+            self.shell.inch,
+        );
         let mut s = Session::open(def.key, &ctx);
         s.material = strength::material_key(&self.platform.setting(MATERIAL_KEY).unwrap_or_default()).to_owned();
-        if let Some(text) = self.platform.setting(supports::panel::SECTIONS_KEY).or_else(|| self.sf.sections.clone()) {
+        if let Some(text) = self
+            .platform
+            .setting(supports::panel::SECTIONS_KEY)
+            .or_else(|| self.sf.sections.clone())
+        {
             s.sections = supports::SectionMemory::from_json(&text);
         }
-        s.reach = self.platform.setting(REACH_KEY).and_then(|v| supports::panel::parse_float_js(&v)).filter(|v| v.is_finite() && *v > 0.0).unwrap_or(supports::coverage::DEFAULT_REACH);
+        s.reach = self
+            .platform
+            .setting(REACH_KEY)
+            .and_then(|v| supports::panel::parse_float_js(&v))
+            .filter(|v| v.is_finite() && *v > 0.0)
+            .unwrap_or(supports::coverage::DEFAULT_REACH);
         self.sf.drawer = WallDrawer::new_with_remembered(|k| self.platform.setting(k));
         s.wall_shape = self.sf.drawer.shape.clone();
         let hint = self.sf.drawer.hint().to_owned();
@@ -353,12 +451,19 @@ impl StlApp {
             let Some(t) = self.tool.as_mut() else { return };
             s.edit_id = t.edit_id.clone();
             s.set_values(t.values.clone());
-            t.credit = Some((supports::credit_line(supports::engine_version()), supports::CREDIT_TITLE.to_owned()));
+            t.credit = Some((
+                supports::credit_line(supports::engine_version()),
+                supports::CREDIT_TITLE.to_owned(),
+            ));
             t.wall_hint = hint.clone();
             t.sf = Some(s);
             (supports::body_id(&t.values), supports::mode_of(&t.values) == "rotate")
         };
-        self.shell.hint = supports::mode_hint(tool, self.tool.as_ref().map(|t| &t.values).unwrap_or(&Values::new()), &hint);
+        self.shell.hint = supports::mode_hint(
+            tool,
+            self.tool.as_ref().map(|t| &t.values).unwrap_or(&Values::new()),
+            &hint,
+        );
         if body.is_some() {
             self.sf_quick_paint();
             if tool == "supportfins" && rotate {
@@ -399,15 +504,19 @@ impl StlApp {
             self.fins_ask(FinsAsk::Info);
             return;
         }
-        let Some(mut a) = supports::about(self.platform.is_web()) else { return };
+        let Some(mut a) = supports::about(self.platform.is_web()) else {
+            return;
+        };
         // a downloaded engine waits for the next start: its last line ends in a "Restart now" link
-        if let Some(last) = a.paragraphs.last_mut() {
-            if let Some(cut) = last.strip_suffix(" Restart now").map(str::to_owned) {
-                *last = cut;
-                a.links.insert(0, ("Restart now".into(), RESTART_URL.into()));
-            }
+        if let Some(last) = a.paragraphs.last_mut()
+            && let Some(cut) = last.strip_suffix(" Restart now").map(str::to_owned)
+        {
+            *last = cut;
+            a.links.insert(0, ("Restart now".into(), RESTART_URL.into()));
         }
-        self.shell.dialogs.open_alert("sf-about", a.title, &a.paragraphs.join("\n\n"), a.links);
+        self.shell
+            .dialogs
+            .open_alert("sf-about", a.title, &a.paragraphs.join("\n\n"), a.links);
     }
 
     /// 1.x `post('restart')`: start STL Editor again and close this one. Desktop only (the web
@@ -421,7 +530,9 @@ impl StlApp {
         if self.shell.dirty && self.recover.is_some() {
             self.link.send(self.autosave_command());
         } else if self.shell.dirty {
-            self.shell.dialogs.open_confirm(RESTART_TAG, "You have unsaved changes. Restart without saving them?");
+            self.shell
+                .dialogs
+                .open_confirm(RESTART_TAG, "You have unsaved changes. Restart without saving them?");
             return;
         }
         self.restart_now(ctx);
@@ -441,7 +552,9 @@ impl StlApp {
         if let Ok(exe) = std::env::current_exe() {
             match spawn_after_exit(&exe) {
                 Ok(()) => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
-                Err(e) => self.toasts.push(Level::Error, format!("Couldn't restart STL Editor: {e}")),
+                Err(e) => self
+                    .toasts
+                    .push(Level::Error, format!("Couldn't restart STL Editor: {e}")),
             }
         }
         #[cfg(target_arch = "wasm32")]
@@ -471,10 +584,10 @@ impl StlApp {
                 }
             },
             "strength" => {
-                if seq == self.sf.strength_seq {
-                    if let Some(s) = self.tool.as_mut().and_then(|t| t.sf.as_mut()) {
-                        s.strength = result.ok();
-                    }
+                if seq == self.sf.strength_seq
+                    && let Some(s) = self.tool.as_mut().and_then(|t| t.sf.as_mut())
+                {
+                    s.strength = result.ok();
                 }
             }
             "suggest" => {
@@ -487,7 +600,11 @@ impl StlApp {
                         _ if stale => SuggestUi::Idle,
                         Ok(r) => SuggestUi::Ready {
                             confidence: r.get("confidence").and_then(Value::as_str).unwrap_or("").to_owned(),
-                            candidates: r.get("candidates").and_then(Value::as_array).cloned().unwrap_or_default(),
+                            candidates: r
+                                .get("candidates")
+                                .and_then(Value::as_array)
+                                .cloned()
+                                .unwrap_or_default(),
                         },
                         Err(e) => SuggestUi::Error(e),
                     };
@@ -502,8 +619,14 @@ impl StlApp {
         if t.def.key != "supportfins" {
             return;
         }
-        let Some(ask) = supports::strength_ask(t.def.key, &t.values) else { return };
-        let seq = self.fins_ask(FinsAsk::Strength { body: ask.body, options: ask.options, load: ask.load });
+        let Some(ask) = supports::strength_ask(t.def.key, &t.values) else {
+            return;
+        };
+        let seq = self.fins_ask(FinsAsk::Strength {
+            body: ask.body,
+            options: ask.options,
+            load: ask.load,
+        });
         self.sf.strength_seq = seq;
     }
 
@@ -512,7 +635,11 @@ impl StlApp {
         match supports::suggest_ask(t.def.key, &t.values) {
             Err(m) => self.tool_msg(MsgKind::Warn, m),
             Ok(ask) => {
-                let seq = self.fins_ask(FinsAsk::Suggest { body: ask.body, options: ask.options, top: ask.top });
+                let seq = self.fins_ask(FinsAsk::Suggest {
+                    body: ask.body,
+                    options: ask.options,
+                    top: ask.top,
+                });
                 self.sf.suggest_seq = seq;
                 self.sf.suggest_gen = self.sf.pose_gen;
                 if let Some(s) = self.tool.as_mut().and_then(|t| t.sf.as_mut()) {
@@ -537,20 +664,31 @@ impl StlApp {
         if let Some(s) = t.sf.as_mut() {
             s.cover = None;
         }
-        let Some(body) = supports::body_id(&t.values) else { return };
-        let thr = t.values.get("sf:threshold").map(supports::panel::parse_num).unwrap_or(0.0);
+        let Some(body) = supports::body_id(&t.values) else {
+            return;
+        };
+        let thr = t
+            .values
+            .get("sf:threshold")
+            .map(supports::panel::parse_num)
+            .unwrap_or(0.0);
         let thr = if thr.is_finite() && thr > 0.0 { thr } else { 45.0 };
         let wall = t.def.flags.wall_tool;
-        if let Some(faces) = self.viewport.show_overhangs_async(&body, thr) {
-            if faces.is_empty() && !wall {
-                t.msg = Some(ToolMsg::new(MsgKind::Info, supports::NO_OVERHANG_MSG));
-            }
+        if let Some(faces) = self.viewport.show_overhangs_async(&body, thr)
+            && faces.is_empty()
+            && !wall
+        {
+            t.msg = Some(ToolMsg::new(MsgKind::Info, supports::NO_OVERHANG_MSG));
         }
     }
 
     fn on_overhangs_ready(&mut self, body: &str, n: usize) {
         let Some(t) = self.tool.as_mut() else { return };
-        if n == 0 && t.def.flags.paint && !t.def.flags.wall_tool && supports::body_id(&t.values).as_deref() == Some(body) {
+        if n == 0
+            && t.def.flags.paint
+            && !t.def.flags.wall_tool
+            && supports::body_id(&t.values).as_deref() == Some(body)
+        {
             t.msg = Some(ToolMsg::new(MsgKind::Info, supports::NO_OVERHANG_MSG));
         }
     }
@@ -558,12 +696,16 @@ impl StlApp {
     // ------------------------------------------------------------------ coverage
 
     fn sf_coverage(&mut self) {
-        let Some((body, over)) = self.sf.cover_last.clone() else { return };
+        let Some((body, over)) = self.sf.cover_last.clone() else {
+            return;
+        };
         let Some(t) = self.tool.as_ref() else { return };
         if t.def.key != "supportfins" {
             return;
         }
-        let Some(mesh) = self.viewport.body_mesh(&body).cloned() else { return };
+        let Some(mesh) = self.viewport.body_mesh(&body).cloned() else {
+            return;
+        };
         // faces the part on screen doesn't have yet (its newer mesh is still being prepared) can't be checked
         let nf = (mesh.triangles.len() / 3) as u32;
         let over: Vec<u32> = over.into_iter().filter(|&f| f < nf).collect();
@@ -575,7 +717,14 @@ impl StlApp {
         }
         let cover = if over.is_empty() {
             // no overhangs in this pose: nothing to check
-            Cover { none: false, busy: false, error: None, total: 0.0, held: 0.0, spots: Vec::new() }
+            Cover {
+                none: false,
+                busy: false,
+                error: None,
+                total: 0.0,
+                held: 0.0,
+                spots: Vec::new(),
+            }
         } else {
             // the meshes are shared (Arc); their copies for the check are made on the worker
             let fin_meshes = self.sf.fin_meshes.clone();
@@ -592,7 +741,14 @@ impl StlApp {
                     max_sub: 250_000,
                 }),
             );
-            Cover { none: false, busy: true, error: None, total: 0.0, held: 0.0, spots: Vec::new() }
+            Cover {
+                none: false,
+                busy: true,
+                error: None,
+                total: 0.0,
+                held: 0.0,
+                spots: Vec::new(),
+            }
         };
         if let Some(s) = self.tool.as_mut().and_then(|t| t.sf.as_mut()) {
             s.cover = Some(cover);
@@ -604,12 +760,23 @@ impl StlApp {
         if !self.sf_tool() {
             return;
         }
-        let reach = self.tool.as_ref().and_then(|t| t.sf.as_ref()).map_or(supports::coverage::DEFAULT_REACH, |s| s.reach);
+        let reach = self
+            .tool
+            .as_ref()
+            .and_then(|t| t.sf.as_ref())
+            .map_or(supports::coverage::DEFAULT_REACH, |s| s.reach);
         for tag in ["sf-bare", "sf-held"] {
             self.viewport.clear_overlay(tag);
         }
         let cover = match res {
-            CoverageJobResult::Error(e) => Cover { none: false, busy: false, error: Some(e), total: 0.0, held: 0.0, spots: Vec::new() },
+            CoverageJobResult::Error(e) => Cover {
+                none: false,
+                busy: false,
+                error: Some(e),
+                total: 0.0,
+                held: 0.0,
+                spots: Vec::new(),
+            },
             CoverageJobResult::Done(out) => self.show_coverage(out, reach),
         };
         if let Some(s) = self.tool.as_mut().and_then(|t| t.sf.as_mut()) {
@@ -623,14 +790,28 @@ impl StlApp {
         self.viewport.cancel_overhangs();
         self.viewport.clear_overlay("sf-over");
         let dist: Vec<f64> = out.dist.iter().map(|&d| d as f64).collect();
-        self.viewport.add_dist_tris(&out.tris, &dist, reach, "sf-bare", (col(0xe6a3a3), 0.3), (col(0xe8171d), 0.85));
+        self.viewport.add_dist_tris(
+            &out.tris,
+            &dist,
+            reach,
+            "sf-bare",
+            (col(0xe6a3a3), 0.3),
+            (col(0xe8171d), 0.85),
+        );
         let cover = Cover {
             none: false,
             busy: false,
             error: None,
             total: out.total,
             held: out.held,
-            spots: out.spots.iter().map(|s| Spot { far: s.far, ends: s.ends.is_some() }).collect(),
+            spots: out
+                .spots
+                .iter()
+                .map(|s| Spot {
+                    far: s.far,
+                    ends: s.ends.is_some(),
+                })
+                .collect(),
         };
         self.sf.spots = out.spots;
         cover
@@ -648,7 +829,15 @@ impl StlApp {
         let fins = t.def.key == "supportfins";
         if let Some(s) = t.sf.as_mut() {
             if fins || t.def.flags.wall_tool {
-                s.wall_ok = result.get("walls").and_then(Value::as_array).map(|a| a.iter().map(|w| w.get("ok").and_then(Value::as_bool).unwrap_or(true)).collect()).unwrap_or_default();
+                s.wall_ok = result
+                    .get("walls")
+                    .and_then(Value::as_array)
+                    .map(|a| {
+                        a.iter()
+                            .map(|w| w.get("ok").and_then(Value::as_bool).unwrap_or(true))
+                            .collect()
+                    })
+                    .unwrap_or_default();
             }
             s.plastic = result.get("support").filter(|v| !v.is_null()).map(|v| Plastic {
                 volume: v.get("volume").and_then(Value::as_f64).unwrap_or(0.0),
@@ -656,15 +845,21 @@ impl StlApp {
             });
         }
         self.sf.pieces = result.get("pieces").cloned().unwrap_or(Value::Null);
-        if let Some(paint) = result.get("paint").filter(|p| !p.is_null()) {
-            if let Some(body) = paint.get("body").and_then(Value::as_str) {
-                let over = u32_list(paint.get("over"));
-                self.viewport.paint_overhangs(body, &over, &u32_list(paint.get("small")));
-                self.sf.cover_last = Some((body.to_owned(), over));
-                self.sf.fin_meshes = pack.meshes.iter().filter(|m| m.id != body && !pack.ghosts.contains(&m.id)).map(|m| m.mesh.clone()).collect();
-                if fins {
-                    self.sf_coverage();
-                }
+        if let Some(paint) = result.get("paint").filter(|p| !p.is_null())
+            && let Some(body) = paint.get("body").and_then(Value::as_str)
+        {
+            let over = u32_list(paint.get("over"));
+            self.viewport
+                .paint_overhangs(body, &over, &u32_list(paint.get("small")));
+            self.sf.cover_last = Some((body.to_owned(), over));
+            self.sf.fin_meshes = pack
+                .meshes
+                .iter()
+                .filter(|m| m.id != body && !pack.ghosts.contains(&m.id))
+                .map(|m| m.mesh.clone())
+                .collect();
+            if fins {
+                self.sf_coverage();
             }
         }
     }
@@ -675,10 +870,17 @@ impl StlApp {
             return;
         }
         self.sf.cover.bump_generation();
-        if let Some(s) = self.tool.as_mut().and_then(|t| t.sf.as_mut()) {
-            if !s.cover.as_ref().is_some_and(|c| c.none) {
-                s.cover = Some(Cover { none: true, busy: false, error: None, total: 0.0, held: 0.0, spots: Vec::new() });
-            }
+        if let Some(s) = self.tool.as_mut().and_then(|t| t.sf.as_mut())
+            && !s.cover.as_ref().is_some_and(|c| c.none)
+        {
+            s.cover = Some(Cover {
+                none: true,
+                busy: false,
+                error: None,
+                total: 0.0,
+                held: 0.0,
+                spots: Vec::new(),
+            });
         }
     }
 
@@ -691,7 +893,13 @@ impl StlApp {
             self.on_overhangs_ready(&body, n);
         }
         self.poll_coverage();
-        if self.viewport.overhangs_pending() || self.tool.as_ref().and_then(|t| t.sf.as_ref()).is_some_and(|s| s.cover.as_ref().is_some_and(|c| c.busy)) {
+        if self.viewport.overhangs_pending()
+            || self
+                .tool
+                .as_ref()
+                .and_then(|t| t.sf.as_ref())
+                .is_some_and(|s| s.cover.as_ref().is_some_and(|c| c.busy))
+        {
             ui.ctx().request_repaint_after(std::time::Duration::from_millis(30));
         }
         let Some(t) = self.tool.as_ref() else { return false };
@@ -730,7 +938,12 @@ impl StlApp {
             return;
         }
         let Some(t) = self.tool.as_ref() else { return };
-        let sig = t.values.get("strokes").and_then(Value::as_array).map(|a| format!("{}:{}", a.len(), a.last().map(|s| s.to_string().len()).unwrap_or(0))).unwrap_or_default();
+        let sig = t
+            .values
+            .get("strokes")
+            .and_then(Value::as_array)
+            .map(|a| format!("{}:{}", a.len(), a.last().map(|s| s.to_string().len()).unwrap_or(0)))
+            .unwrap_or_default();
         if sig != self.sf.sculpt_sig {
             self.sf.sculpt_sig = sig;
             let v = t.values.clone();
@@ -787,10 +1000,14 @@ impl StlApp {
                 // a preview dropped while the handle was held is asked for again, unless this
                 // drop already brings one (an Add or Edit on its way, or a preview due)
                 let edit_wait = self.sf.edit_wait;
-                if let Some(t) = self.tool.as_mut() {
-                    if std::mem::take(&mut t.preview_dropped) && t.accepting.is_none() && !edit_wait && !t.preview.pending() && !t.preview.waiting {
-                        t.schedule_preview(0);
-                    }
+                if let Some(t) = self.tool.as_mut()
+                    && std::mem::take(&mut t.preview_dropped)
+                    && t.accepting.is_none()
+                    && !edit_wait
+                    && !t.preview.pending()
+                    && !t.preview.waiting
+                {
+                    t.schedule_preview(0);
                 }
                 true
             }
@@ -805,7 +1022,10 @@ impl StlApp {
                 let k: Vec<f64> = k.iter().filter_map(Value::as_f64).collect();
                 if k.len() == 3 {
                     t.values.insert("factor".into(), gizmo::jnum(k[0]));
-                    t.values.insert("factor3".into(), Value::Array(k.iter().map(|&x| gizmo::jnum(x)).collect()));
+                    t.values.insert(
+                        "factor3".into(),
+                        Value::Array(k.iter().map(|&x| gizmo::jnum(x)).collect()),
+                    );
                 }
             }
             return;
@@ -826,7 +1046,14 @@ impl StlApp {
 
     /// `autoAccept`: letting go of a handle adds the step the first time, then edits it.
     pub(super) fn auto_accept(&mut self) {
-        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection, self.shell.inch);
+        let ctx = make_ctx(
+            &self.bodies,
+            &self.planes,
+            &self.sketches,
+            &self.timeline_view.items,
+            &self.shell.selection,
+            self.shell.inch,
+        );
         let ids: Vec<String> = self.timeline_view.items.iter().map(|i| i.id.clone()).collect();
         let Some(t) = self.tool.as_mut() else { return };
         if !t.valid() {
@@ -843,7 +1070,11 @@ impl StlApp {
         t.cancel_label = "Close".into();
         match t.edit_id.clone() {
             Some(id) => {
-                self.link.send(Command::EditFeature { id, params, rollback_after: None });
+                self.link.send(Command::EditFeature {
+                    id,
+                    params,
+                    rollback_after: None,
+                });
                 t.schedule_preview(0);
                 self.sf.edit_wait = true;
             }
@@ -864,7 +1095,12 @@ impl StlApp {
             // puts the supports last again and rebuilds them (`Document::keep_supports_last`),
             // and says so
             self.sf.insert_note = None;
-            self.link.send(Command::AddFeature { kind, params, index, name: None });
+            self.link.send(Command::AddFeature {
+                kind,
+                params,
+                index,
+                name: None,
+            });
             return;
         }
         self.sf.insert_note = index.and_then(|at| {
@@ -879,7 +1115,12 @@ impl StlApp {
                 (ids, Level::Info, format!("{} is rebuilt for the new position", sf.label))
             })
         });
-        self.link.send(Command::AddFeature { kind, params, index, name: None });
+        self.link.send(Command::AddFeature {
+            kind,
+            params,
+            index,
+            name: None,
+        });
     }
 
     /// The engine said no to a handle's Add or Edit: the tool can try again, and says why.
@@ -926,18 +1167,17 @@ impl StlApp {
         let mut again = false;
         let mut roll = None;
         let mut ok_now = false;
-        if let Some(t) = self.tool.as_mut() {
-            if let Some(before) = t.accepting.clone() {
-                if let Some(idx) = items.iter().position(|id| !before.contains(id)) {
-                    t.edit_id = Some(items[idx].clone());
-                    t.prev_rollback = t.prev_rollback.map(|m| m + 1);
-                    t.accepting = None;
-                    again = std::mem::take(&mut t.accept_again);
-                    ok_now = std::mem::take(&mut t.ok_after_add);
-                    roll = Some(idx);
-                    t.schedule_preview(0);
-                }
-            }
+        if let Some(t) = self.tool.as_mut()
+            && let Some(before) = t.accepting.clone()
+            && let Some(idx) = items.iter().position(|id| !before.contains(id))
+        {
+            t.edit_id = Some(items[idx].clone());
+            t.prev_rollback = t.prev_rollback.map(|m| m + 1);
+            t.accepting = None;
+            again = std::mem::take(&mut t.accept_again);
+            ok_now = std::mem::take(&mut t.ok_after_add);
+            roll = Some(idx);
+            t.schedule_preview(0);
         }
         if let Some(idx) = roll {
             self.link.send(Command::Rollback(Some(idx)));
@@ -951,12 +1191,11 @@ impl StlApp {
             // the engine took OK (a refusal would have come first and cleared this)
             self.close_tool(true);
         }
-        if let Some((before, _, _)) = &self.sf.insert_note {
-            if items.iter().any(|id| !before.contains(id)) {
-                if let Some((_, level, text)) = self.sf.insert_note.take() {
-                    self.toasts.push(level, text);
-                }
-            }
+        if let Some((before, _, _)) = &self.sf.insert_note
+            && items.iter().any(|id| !before.contains(id))
+            && let Some((_, level, text)) = self.sf.insert_note.take()
+        {
+            self.toasts.push(level, text);
         }
         self.pose_landed(&items);
         // OK that waited for the handle's Add: it goes out now, as an edit of the step just added
@@ -974,9 +1213,15 @@ impl StlApp {
             return;
         }
         let Some(t) = self.tool.as_ref() else { return };
-        let Some(bid) = supports::body_id(&t.values) else { return };
+        let Some(bid) = supports::body_id(&t.values) else {
+            return;
+        };
         let Some(b) = self.viewport.body_box(&bid) else { return };
-        let ps = self.sf.pose.get_or_insert(Pose { fid: None, m: IDENT, c0: [0, 1, 2].map(|i| (b.min[i] + b.max[i]) / 2.0) });
+        let ps = self.sf.pose.get_or_insert(Pose {
+            fid: None,
+            m: IDENT,
+            c0: [0, 1, 2].map(|i| (b.min[i] + b.max[i]) / 2.0),
+        });
         let whole = camera::mul(&m, &ps.m);
         let img = gizmo::apply(&whole, ps.c0);
         let c0 = ps.c0;
@@ -1000,8 +1245,17 @@ impl StlApp {
         let before: Vec<String> = self.timeline_view.items.iter().map(|i| i.id.clone()).collect();
         self.sf.pose_wait = Some(PoseWait { before, whole, turn: m });
         match fid {
-            Some(id) => self.link.send(Command::EditFeature { id, params, rollback_after: None }),
-            None => self.link.send(Command::AddFeature { kind: "move".into(), params, index: None, name: Some("Rotate".into()) }),
+            Some(id) => self.link.send(Command::EditFeature {
+                id,
+                params,
+                rollback_after: None,
+            }),
+            None => self.link.send(Command::AddFeature {
+                kind: "move".into(),
+                params,
+                index: None,
+                name: Some("Rotate".into()),
+            }),
         }
     }
 
@@ -1031,7 +1285,11 @@ impl StlApp {
             t.values.insert("removed".into(), json!([]));
             // a load points the same way on the part after a turn, so it turns with it
             if let Some(lv) = t.values.get("_load").and_then(strength::load_vector) {
-                let rot = [[m[0][0], m[1][0], m[2][0]], [m[0][1], m[1][1], m[2][1]], [m[0][2], m[1][2], m[2][2]]];
+                let rot = [
+                    [m[0][0], m[1][0], m[2][0]],
+                    [m[0][1], m[1][1], m[2][1]],
+                    [m[0][2], m[1][2], m[2][2]],
+                ];
                 t.values.insert("_load".into(), strength::turn_load(lv, rot));
             }
             if let Some(s) = t.sf.as_mut() {
@@ -1072,12 +1330,19 @@ impl StlApp {
     /// `sfUsePose(rot)`: turn the part by a Support Fins pose (`rot`: column-major 3x3).
     #[doc(hidden)]
     pub fn use_pose(&mut self, rot: &Value) {
-        let r: Vec<f64> = rot.as_array().map(|a| a.iter().filter_map(Value::as_f64).collect()).unwrap_or_default();
+        let r: Vec<f64> = rot
+            .as_array()
+            .map(|a| a.iter().filter_map(Value::as_f64).collect())
+            .unwrap_or_default();
         if r.len() != 9 {
             return;
         }
-        let Some(bid) = self.tool.as_ref().and_then(|t| supports::body_id(&t.values)) else { return };
-        let (Some(bbox), Some(mesh)) = (self.viewport.body_box(&bid), self.viewport.body_mesh(&bid).cloned()) else { return };
+        let Some(bid) = self.tool.as_ref().and_then(|t| supports::body_id(&t.values)) else {
+            return;
+        };
+        let (Some(bbox), Some(mesh)) = (self.viewport.body_box(&bid), self.viewport.body_mesh(&bid).cloned()) else {
+            return;
+        };
         let mut mm = IDENT;
         for c in 0..3 {
             for row in 0..3 {
@@ -1085,13 +1350,16 @@ impl StlApp {
             }
         }
         let q = gizmo::quat_of_mat(&mm);
-        let vals: Values = json!({"translate": [0, 0, 0], "rotate": gizmo::rot_of(q), "pivot": "center", "bed": true}).as_object().cloned().unwrap_or_default();
+        let vals: Values = json!({"translate": [0, 0, 0], "rotate": gizmo::rot_of(q), "pivot": "center", "bed": true})
+            .as_object()
+            .cloned()
+            .unwrap_or_default();
         let Some(g) = self.gizmo.as_ref() else { return };
         let m = g.matrix_for(&GizmoBody { id: bid, bbox, mesh }, &vals);
-        if self.sf_mode() != "rotate" {
-            if let Some(t) = self.tool.as_mut() {
-                t.set_value_plain("_mode", json!("rotate"));
-            }
+        if self.sf_mode() != "rotate"
+            && let Some(t) = self.tool.as_mut()
+        {
+            t.set_value_plain("_mode", json!("rotate"));
         }
         self.pose_drop(m);
     }
@@ -1118,16 +1386,29 @@ impl StlApp {
                 }
                 PanelEvent::Suggest => self.sf_suggest(),
                 PanelEvent::UseCandidate(i) => {
-                    let rot = self.tool.as_ref().and_then(|t| t.sf.as_ref()).and_then(|s| match &s.suggest {
-                        SuggestUi::Ready { candidates, .. } => candidates.get(i).and_then(|c| c.get("rot")).cloned(),
-                        _ => None,
-                    });
+                    let rot = self
+                        .tool
+                        .as_ref()
+                        .and_then(|t| t.sf.as_ref())
+                        .and_then(|s| match &s.suggest {
+                            SuggestUi::Ready { candidates, .. } => {
+                                candidates.get(i).and_then(|c| c.get("rot")).cloned()
+                            }
+                            _ => None,
+                        });
                     if let Some(r) = rot {
                         self.use_pose(&r);
                     }
                 }
                 PanelEvent::UseStrongest => {
-                    let rot = self.tool.as_ref().and_then(|t| t.sf.as_ref()).and_then(|s| s.strength.as_ref()).and_then(|s| s.get("strongest")).and_then(|s| s.get("rot")).cloned();
+                    let rot = self
+                        .tool
+                        .as_ref()
+                        .and_then(|t| t.sf.as_ref())
+                        .and_then(|s| s.strength.as_ref())
+                        .and_then(|s| s.get("strongest"))
+                        .and_then(|s| s.get("rot"))
+                        .cloned();
                     if let Some(r) = rot {
                         self.use_pose(&r);
                     }
@@ -1218,7 +1499,15 @@ impl StlApp {
 
     /// `sfFill`: one hand wall across each bare spot (its ends sit on the overhang).
     fn sf_fill(&mut self, spots: &[crate::supports::coverage::BareSpot]) {
-        let add: Vec<Wall> = spots.iter().filter_map(|s| s.ends).map(|e| Wall { shape: "line".into(), points: vec![e[0].map(round4), e[1].map(round4)], normal: None }).collect();
+        let add: Vec<Wall> = spots
+            .iter()
+            .filter_map(|s| s.ends)
+            .map(|e| Wall {
+                shape: "line".into(),
+                points: vec![e[0].map(round4), e[1].map(round4)],
+                normal: None,
+            })
+            .collect();
         if add.is_empty() {
             self.tool_msg(MsgKind::Info, "No bare spot to fill.");
             return;
@@ -1256,29 +1545,47 @@ impl StlApp {
     fn wall_click(&mut self, pos: Pos2) {
         let hit = self.viewport.pick(pos, true, false);
         let wh = match &hit {
-            Some(Hit::Body { id, point, normal, .. }) => Some(WallClickHit { body_id: id.clone(), point: point.map(round4), normal: *normal }),
+            Some(Hit::Body { id, point, normal, .. }) => Some(WallClickHit {
+                body_id: id.clone(),
+                point: point.map(round4),
+                normal: *normal,
+            }),
             _ => None,
         };
         let Some(t) = self.tool.as_ref() else { return };
         let body = supports::body_id(&t.values);
         let walls = walls_of(&t.values);
         let near = match (self.sf.drawer.pending.last(), &wh) {
-            (Some(last), Some(h)) => self.viewport.world_to_screen(*last).distance(self.viewport.world_to_screen(h.point)) < 6.0,
+            (Some(last), Some(h)) => {
+                self.viewport
+                    .world_to_screen(*last)
+                    .distance(self.viewport.world_to_screen(h.point))
+                    < 6.0
+            }
             _ => false,
         };
         let names: Vec<(String, String)> = self.bodies.iter().map(|b| (b.id.clone(), b.name.clone())).collect();
-        let name_of = |id: &str| names.iter().find(|(i, _)| i == id).map(|(_, n)| n.clone()).unwrap_or_else(|| id.to_owned());
+        let name_of = |id: &str| {
+            names
+                .iter()
+                .find(|(i, _)| i == id)
+                .map(|(_, n)| n.clone())
+                .unwrap_or_else(|| id.to_owned())
+        };
         // the first click names the part when none is picked yet
-        if body.is_none() {
-            if let Some(h) = &wh {
-                let id = h.body_id.clone();
-                if let Some(t) = self.tool.as_mut() {
-                    t.set_value_plain("body", json!([id]));
-                }
-                self.sf_quick_paint();
+        if body.is_none()
+            && let Some(h) = &wh
+        {
+            let id = h.body_id.clone();
+            if let Some(t) = self.tool.as_mut() {
+                t.set_value_plain("body", json!([id]));
             }
+            self.sf_quick_paint();
         }
-        let (new, msg) = self.sf.drawer.click(wh.as_ref(), &walls, body.as_deref(), name_of, near);
+        let (new, msg) = self
+            .sf
+            .drawer
+            .click(wh.as_ref(), &walls, body.as_deref(), name_of, near);
         match msg {
             WallClickMsg::Warn(m) => self.tool_msg(MsgKind::Warn, m),
             WallClickMsg::Info(m) => self.tool_msg(MsgKind::Info, m),
@@ -1291,14 +1598,23 @@ impl StlApp {
     }
 
     fn sf_drop_at(&mut self, hit: Option<Hit>) {
-        let reach = self.tool.as_ref().and_then(|t| t.sf.as_ref()).map_or(supports::coverage::DEFAULT_REACH, |s| s.reach);
+        let reach = self
+            .tool
+            .as_ref()
+            .and_then(|t| t.sf.as_ref())
+            .map_or(supports::coverage::DEFAULT_REACH, |s| s.reach);
         let near = match hit {
             Some(Hit::Body { point, .. }) => self
                 .sf
                 .spots
                 .iter()
                 .filter(|s| s.ends.is_some())
-                .map(|s| ((0..3).map(|k| (point[k] - s.at[k]).powi(2)).sum::<f64>().sqrt(), s.clone()))
+                .map(|s| {
+                    (
+                        (0..3).map(|k| (point[k] - s.at[k]).powi(2)).sum::<f64>().sqrt(),
+                        s.clone(),
+                    )
+                })
                 .min_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal)),
             _ => None,
         };
@@ -1319,7 +1635,12 @@ impl StlApp {
         let Some(t) = self.tool.as_mut() else { return };
         let kind = info.get("kind").and_then(Value::as_str).unwrap_or("").to_owned();
         if kind == "hand" {
-            let mut w = t.values.get("walls").and_then(Value::as_array).cloned().unwrap_or_default();
+            let mut w = t
+                .values
+                .get("walls")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default();
             let i = info.get("wall").and_then(Value::as_u64).unwrap_or(u64::MAX) as usize;
             if i < w.len() {
                 w.remove(i);
@@ -1329,11 +1650,24 @@ impl StlApp {
             }
             t.set_value_plain("walls", Value::Array(w));
         } else if info.get("removed").and_then(Value::as_bool).unwrap_or(false) {
-            let mut list = t.values.get("removed").and_then(Value::as_array).cloned().unwrap_or_default();
-            let c = info.get("c").and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_f64).collect::<Vec<_>>()).unwrap_or_default();
+            let mut list = t
+                .values
+                .get("removed")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default();
+            let c = info
+                .get("c")
+                .and_then(Value::as_array)
+                .map(|a| a.iter().filter_map(Value::as_f64).collect::<Vec<_>>())
+                .unwrap_or_default();
             let mut best: Option<(usize, f64)> = None;
             for (i, r) in list.iter().enumerate() {
-                let rc: Vec<f64> = r.get("c").and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_f64).collect()).unwrap_or_default();
+                let rc: Vec<f64> = r
+                    .get("c")
+                    .and_then(Value::as_array)
+                    .map(|a| a.iter().filter_map(Value::as_f64).collect())
+                    .unwrap_or_default();
                 if r.get("kind").and_then(Value::as_str) != Some(kind.as_str()) || rc.len() != c.len() {
                     continue;
                 }
@@ -1347,7 +1681,12 @@ impl StlApp {
             }
             t.set_value_plain("removed", Value::Array(list));
         } else {
-            let mut list = t.values.get("removed").and_then(Value::as_array).cloned().unwrap_or_default();
+            let mut list = t
+                .values
+                .get("removed")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default();
             list.push(json!({"kind": kind, "c": info.get("c").cloned().unwrap_or(Value::Null), "size": info.get("size").cloned().unwrap_or(Value::Null)}));
             t.set_value_plain("removed", Value::Array(list));
         }
@@ -1358,7 +1697,11 @@ impl StlApp {
     }
 
     fn walls_hover(&mut self, ui: &egui::Ui, resp: &egui::Response) {
-        let pos = if resp.hovered() { ui.input(|i| i.pointer.hover_pos()) } else { None };
+        let pos = if resp.hovered() {
+            ui.input(|i| i.pointer.hover_pos())
+        } else {
+            None
+        };
         let hit = pos.and_then(|p| self.viewport.pick(p, true, false));
         let pt = match hit {
             Some(Hit::Body { point, .. }) => Some(point),
@@ -1376,7 +1719,10 @@ impl StlApp {
         let Some(t) = self.tool.as_ref() else { return };
         let walls = walls_of(&t.values);
         let ok: Vec<bool> = t.sf.as_ref().map(|s| s.wall_ok.clone()).unwrap_or_default();
-        let sig = format!("{walls:?}|{ok:?}|{:?}|{:?}", self.sf.drawer.pending, self.sf.drawer.hover_pt);
+        let sig = format!(
+            "{walls:?}|{ok:?}|{:?}|{:?}",
+            self.sf.drawer.pending, self.sf.drawer.hover_pt
+        );
         if sig == self.sf.walls_sig {
             return;
         }
@@ -1384,14 +1730,22 @@ impl StlApp {
         self.viewport.clear_overlay("walls");
         for (i, w) in walls.iter().enumerate() {
             let bad = ok.get(i).is_some_and(|ok| !ok);
-            self.viewport.add_polyline(&walls::wall_line(w), col(if bad { walls::BAD_COL } else { walls::OK_COL }), "walls");
+            self.viewport.add_polyline(
+                &walls::wall_line(w),
+                col(if bad { walls::BAD_COL } else { walls::OK_COL }),
+                "walls",
+            );
         }
         for q in &self.sf.drawer.pending {
             self.viewport.add_marker(*q, col(walls::PENDING_COL), "walls", None);
         }
         match self.sf.drawer.band_polyline() {
-            Some(line) => self.viewport.set_band(&line, self.sf.drawer.hover_pt, col(walls::BAND_COL)),
-            None => self.viewport.set_band(&[], self.sf.drawer.hover_pt, col(walls::BAND_COL)),
+            Some(line) => self
+                .viewport
+                .set_band(&line, self.sf.drawer.hover_pt, col(walls::BAND_COL)),
+            None => self
+                .viewport
+                .set_band(&[], self.sf.drawer.hover_pt, col(walls::BAND_COL)),
         }
         self.sync_session_walls();
     }
@@ -1457,7 +1811,8 @@ use crate::sketch::{self, SketchDialog, SketchEffect, SketchInput, SketchSession
 use crate::viewport::{MouseMode, PlaneFrame};
 
 /// "Click a flat face of a body, a construction plane, or one of the origin planes (XY, XZ, YZ)." (app.js:1500)
-pub const PLANE_PROMPT_INFO: &str = "Click a flat face of a body, a construction plane, or one of the origin planes (XY, XZ, YZ).";
+pub const PLANE_PROMPT_INFO: &str =
+    "Click a flat face of a body, a construction plane, or one of the origin planes (XY, XZ, YZ).";
 
 /// What the sketch keeps beside `SketchMode` on the app.
 #[derive(Default)]
@@ -1494,7 +1849,10 @@ impl StlApp {
     }
 
     fn sk_params(&self) -> BTreeMap<String, f64> {
-        self.param_views.iter().filter_map(|p| p.value.map(|v| (p.name.clone(), v))).collect()
+        self.param_views
+            .iter()
+            .filter_map(|p| p.value.map(|v| (p.name.clone(), v)))
+            .collect()
     }
 
     /// Run `f` on the open sketch with the viewport, units and parameters a tool needs.
@@ -1502,7 +1860,11 @@ impl StlApp {
         let params = self.sk_params();
         let inch = self.shell.inch;
         let m = self.sketch.as_mut()?;
-        let env = Env { vp: &self.viewport, inch, params: &params };
+        let env = Env {
+            vp: &self.viewport,
+            inch,
+            params: &params,
+        };
         Some(f(m, &env))
     }
 
@@ -1527,7 +1889,15 @@ impl StlApp {
 
     /// Start (or a picked plane) in the plane prompt: enter the sketch on the plane picked.
     pub(super) fn sketch_prompt_ok(&mut self) {
-        let Some(plane) = self.tool.as_ref().filter(|t| t.def.key == "sketch").and_then(|t| t.values.get("plane").cloned()).filter(|p| !p.is_null()) else { return };
+        let Some(plane) = self
+            .tool
+            .as_ref()
+            .filter(|t| t.def.key == "sketch")
+            .and_then(|t| t.values.get("plane").cloned())
+            .filter(|p| !p.is_null())
+        else {
+            return;
+        };
         self.close_tool(false);
         self.enter_sketch(Some(plane), None);
     }
@@ -1539,27 +1909,68 @@ impl StlApp {
         }
         self.close_section();
         self.close_measure();
-        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection, self.shell.inch);
+        let ctx = make_ctx(
+            &self.bodies,
+            &self.planes,
+            &self.sketches,
+            &self.timeline_view.items,
+            &self.shell.selection,
+            self.shell.inch,
+        );
         let mut saved: Vec<stl_sketch::entities::Entity> = Vec::new();
         let (frame, plane_ref, entities, constraints, name) = match feature {
             Some(f) => {
-                let from_view = self.sketches.iter().find(|s| s.id == f.id).map(|s| PlaneFrame { origin: s.frame[0], x: s.frame[1], y: s.frame[2], normal: s.frame[3] });
+                let from_view = self.sketches.iter().find(|s| s.id == f.id).map(|s| PlaneFrame {
+                    origin: s.frame[0],
+                    x: s.frame[1],
+                    y: s.frame[2],
+                    normal: s.frame[3],
+                });
                 let plane_ref = f.params.get("plane").cloned().unwrap_or(Value::Null);
                 // a sketch on a body's face follows later moves; the editor rolls back to before them,
                 // so it opens on the stored plane, where the body is at that step
                 let on_body = plane_ref.as_object().is_some_and(|o| o.contains_key("body"));
-                let stored = if on_body { crate::tools::fields::plane::frame_of(&plane_ref, &ctx) } else { None };
-                let frame = stored.or(from_view).or_else(|| crate::tools::fields::plane::frame_of(&plane_ref, &ctx));
-                let list: Vec<Value> = f.params.get("refs").and_then(Value::as_array).cloned().unwrap_or_default();
-                saved = stl_sketch::entities::parse_entities(&list.into_iter().filter(|v| v.is_object()).collect::<Vec<_>>()).unwrap_or_default();
-                let ents: Vec<Value> = f.params.get("entities").and_then(Value::as_array).cloned().unwrap_or_default();
+                let stored = if on_body {
+                    crate::tools::fields::plane::frame_of(&plane_ref, &ctx)
+                } else {
+                    None
+                };
+                let frame = stored
+                    .or(from_view)
+                    .or_else(|| crate::tools::fields::plane::frame_of(&plane_ref, &ctx));
+                let list: Vec<Value> = f
+                    .params
+                    .get("refs")
+                    .and_then(Value::as_array)
+                    .cloned()
+                    .unwrap_or_default();
+                saved = stl_sketch::entities::parse_entities(
+                    &list.into_iter().filter(|v| v.is_object()).collect::<Vec<_>>(),
+                )
+                .unwrap_or_default();
+                let ents: Vec<Value> = f
+                    .params
+                    .get("entities")
+                    .and_then(Value::as_array)
+                    .cloned()
+                    .unwrap_or_default();
                 let entities = stl_sketch::entities::parse_entities(&ents).unwrap_or_default();
-                let constraints: Vec<sketch::Constraint> = f.params.get("constraints").and_then(|c| serde_json::from_value(c.clone()).ok()).unwrap_or_default();
+                let constraints: Vec<sketch::Constraint> = f
+                    .params
+                    .get("constraints")
+                    .and_then(|c| serde_json::from_value(c.clone()).ok())
+                    .unwrap_or_default();
                 (frame, plane_ref, entities, constraints, Some(f.label.clone()))
             }
             None => {
                 let p = plane.unwrap_or(Value::Null);
-                (crate::tools::fields::plane::frame_of(&p, &ctx), p, Vec::new(), Vec::new(), None)
+                (
+                    crate::tools::fields::plane::frame_of(&p, &ctx),
+                    p,
+                    Vec::new(),
+                    Vec::new(),
+                    None,
+                )
             }
         };
         let Some(frame) = frame else {
@@ -1567,27 +1978,45 @@ impl StlApp {
             return;
         };
         let prev = self.marker_now();
-        if let Some(f) = feature {
-            if let Some(idx) = self.timeline_view.items.iter().position(|i| i.id == f.id) {
-                self.link.send(Command::Rollback(Some(idx)));
-                self.pending_marker = Some(Some(idx));
-            }
+        if let Some(f) = feature
+            && let Some(idx) = self.timeline_view.items.iter().position(|i| i.id == f.id)
+        {
+            self.link.send(Command::Rollback(Some(idx)));
+            self.pending_marker = Some(Some(idx));
         }
-        let refs: Vec<sketch::RefEnt> = saved.iter().cloned().map(|ent| sketch::RefEnt { ent, missing: false }).collect();
-        let s = SketchSession::new(frame, plane_ref, feature.map(|f| f.id.clone()), name, entities, constraints, refs, None);
+        let refs: Vec<sketch::RefEnt> = saved
+            .iter()
+            .cloned()
+            .map(|ent| sketch::RefEnt { ent, missing: false })
+            .collect();
+        let s = SketchSession::new(
+            frame,
+            plane_ref,
+            feature.map(|f| f.id.clone()),
+            name,
+            entities,
+            constraints,
+            refs,
+            None,
+        );
         let mut m = SketchMode::new(s, prev, saved);
         // the part's edges on (or through, or under) the plane, to dimension from
         self.sk.seq += 1;
         m.refs_seq = Some(self.sk.seq);
         let fr = [frame.origin, frame.x, frame.y, frame.normal];
-        self.link.send(Command::SketchOp { seq: self.sk.seq, op: "refs".into(), data: json!({ "op": "refs", "frame": fr, "entities": [] }) });
+        self.link.send(Command::SketchOp {
+            seq: self.sk.seq,
+            op: "refs".into(),
+            data: json!({ "op": "refs", "frame": fr, "entities": [] }),
+        });
         self.shell.selection.clear();
         self.viewport.set_selection(&[]);
         self.viewport.set_hover(None);
         self.viewport.set_mouse_mode(MouseMode::Sketch);
         self.viewport.look_at_plane(&frame, None);
         self.viewport.set_base_planes_visible(false);
-        self.viewport.sync_sketches(&self.sketches, feature.map(|f| f.id.as_str()));
+        self.viewport
+            .sync_sketches(&self.sketches, feature.map(|f| f.id.as_str()));
         self.viewport.set_viewcube_inset(crate::tools::panel::VIEWCUBE_INSET);
         // the panel's Grid snap starts on, at the units' step (1 mm, or 1/16 in after `setUnits('in')`)
         let step = self.sk.snap_step.unwrap_or(1.0);
@@ -1611,7 +2040,11 @@ impl StlApp {
         if let Some(m) = self.sketch.as_mut() {
             m.panel.set_snap_step(step, inch);
         }
-        let text = if inch { "Showing inches. Models are still saved in millimetres." } else { "Showing millimetres." };
+        let text = if inch {
+            "Showing inches. Models are still saved in millimetres."
+        } else {
+            "Showing millimetres."
+        };
         self.toasts.push(Level::Info, text.to_owned());
     }
 
@@ -1668,18 +2101,26 @@ impl StlApp {
             SketchDialog::DimValue(i) => {
                 if let Some(c) = m.s.constraints.get(i) {
                     let ents = sketch::solve::all_ents(&m.s);
-                    let text = sketch::dims::expr_of_dim(c).map(str::to_owned).unwrap_or_else(|| sketch::dims::dim_text(c, &ents, inch, true));
+                    let text = sketch::dims::expr_of_dim(c)
+                        .map(str::to_owned)
+                        .unwrap_or_else(|| sketch::dims::dim_text(c, &ents, inch, true));
                     m.s.sel_c = Some(i);
-                    m.panel.modify = Some(sketch::panel::Modify { idx: i, text, fresh: true });
+                    m.panel.modify = Some(sketch::panel::Modify {
+                        idx: i,
+                        text,
+                        fresh: true,
+                    });
                 }
             }
             SketchDialog::Modify(id) => {
-                let idx = m
-                    .s
-                    .constraints
-                    .iter()
-                    .position(|c| c.id.as_ref().is_some_and(|v| v.as_str().map(str::to_owned).unwrap_or_else(|| v.to_string()) == id))
-                    .or_else(|| id.parse::<usize>().ok());
+                let idx =
+                    m.s.constraints
+                        .iter()
+                        .position(|c| {
+                            c.id.as_ref()
+                                .is_some_and(|v| v.as_str().map(str::to_owned).unwrap_or_else(|| v.to_string()) == id)
+                        })
+                        .or_else(|| id.parse::<usize>().ok());
                 if let Some(i) = idx {
                     self.sketch_dialog(SketchDialog::DimValue(i));
                 }
@@ -1694,7 +2135,11 @@ impl StlApp {
                 let Some(m) = self.sketch.as_mut() else { return };
                 match group.and_then(|_| sketch::text::selected_text(&m.s)) {
                     Some((g, meta)) => sketch::text::open_edit(&mut self.sk.text, &g, &meta, inch),
-                    None => sketch::text::open_new(&mut self.sk.text, sketch::text::take_pending_uv().unwrap_or([0.0, 0.0]), inch),
+                    None => sketch::text::open_new(
+                        &mut self.sk.text,
+                        sketch::text::take_pending_uv().unwrap_or([0.0, 0.0]),
+                        inch,
+                    ),
                 }
             }
             SketchDialog::Offset => self.sketch_offset(),
@@ -1703,9 +2148,15 @@ impl StlApp {
 
     /// `sketchProject()`: no solid bodies is a warning; else the Project outline dialog.
     fn sketch_project(&mut self) {
-        let bodies: Vec<(String, String)> = self.bodies.iter().filter(|b| !b.hidden && b.solid).map(|b| (b.id.clone(), b.name.clone())).collect();
+        let bodies: Vec<(String, String)> = self
+            .bodies
+            .iter()
+            .filter(|b| !b.hidden && b.solid)
+            .map(|b| (b.id.clone(), b.name.clone()))
+            .collect();
         if bodies.is_empty() {
-            self.toasts.push(Level::Warning, "There are no solid bodies to project.".to_owned());
+            self.toasts
+                .push(Level::Warning, "There are no solid bodies to project.".to_owned());
             return;
         }
         // 1.x pre-selects `sk.bodyId`, which nothing ever sets: "All visible bodies"
@@ -1716,20 +2167,32 @@ impl StlApp {
     fn sketch_offset(&mut self) {
         let Some(m) = self.sketch.as_ref() else { return };
         if m.s.sel.is_empty() {
-            self.toasts.push(Level::Warning, "Select the shapes to offset first (Select tool, Shift-click for more).".to_owned());
+            self.toasts.push(
+                Level::Warning,
+                "Select the shapes to offset first (Select tool, Shift-click for more).".to_owned(),
+            );
             return;
         }
-        self.shell.dialogs.open_prompt(SK_OFFSET_TAG, "Offset distance (mm, negative = inward)", "2");
+        self.shell
+            .dialogs
+            .open_prompt(SK_OFFSET_TAG, "Offset distance (mm, negative = inward)", "2");
     }
 
     /// The answer of the Offset prompt.
     pub(super) fn sketch_offset_answer(&mut self, text: &str) {
         let d = crate::tools::fields::number::parse_num_text(text);
         let Some(m) = self.sketch.as_ref() else { return };
-        let entities: Vec<Value> = m.s.entities.iter().filter_map(|e| serde_json::to_value(e).ok()).collect();
+        let entities: Vec<Value> =
+            m.s.entities
+                .iter()
+                .filter_map(|e| serde_json::to_value(e).ok())
+                .collect();
         let ids: Vec<&String> = m.s.sel.iter().collect();
         let data = json!({ "op": "offset", "entities": entities, "ids": ids, "distance": d, "seed": m.s.seed });
-        self.sketch_apply(vec![SketchEffect::SketchOp { op: "offset".into(), data }]);
+        self.sketch_apply(vec![SketchEffect::SketchOp {
+            op: "offset".into(),
+            data,
+        }]);
     }
 
     /// A tool's answer to `sketch_op`, or the part-edge `refs`.
@@ -1760,22 +2223,29 @@ impl StlApp {
             Err(e) => self.toasts.push(Level::Error, e),
             Ok(v) if op == "project" => {
                 // the Project dialog has no tool to take the answer
-                let fx = self.sketch.as_mut().map(|m| sketch::project::apply_result(&mut m.s, &v)).unwrap_or_default();
+                let fx = self
+                    .sketch
+                    .as_mut()
+                    .map(|m| sketch::project::apply_result(&mut m.s, &v))
+                    .unwrap_or_default();
                 self.sketch_apply(fx);
             }
             Ok(v) => {
                 let before = self.sketch.as_ref().map(|m| m.s.history.len()).unwrap_or(0);
                 let mut fx = self.sk_call(|m, env| m.op_result(&op, &v, env)).unwrap_or_default();
                 // a one-shot op (Offset from the ribbon) has no tool to take the answer: replace the shapes
-                let took = self.sketch.as_ref().map(|m| m.s.history.len() != before).unwrap_or(true);
-                if !took && matches!(op.as_str(), "offset" | "mirror" | "trim" | "explode") {
-                    if let Some(list) = v.get("entities").and_then(Value::as_array) {
-                        if let Ok(ents) = stl_sketch::entities::parse_entities(list) {
-                            if let Some(m) = self.sketch.as_mut() {
-                                fx.extend(sketch_replace_entities(&mut m.s, ents));
-                            }
-                        }
-                    }
+                let took = self
+                    .sketch
+                    .as_ref()
+                    .map(|m| m.s.history.len() != before)
+                    .unwrap_or(true);
+                if !took
+                    && matches!(op.as_str(), "offset" | "mirror" | "trim" | "explode")
+                    && let Some(list) = v.get("entities").and_then(Value::as_array)
+                    && let Ok(ents) = stl_sketch::entities::parse_entities(list)
+                    && let Some(m) = self.sketch.as_mut()
+                {
+                    fx.extend(sketch_replace_entities(&mut m.s, ents));
                 }
                 self.sketch_apply(fx);
                 if op == "text" {
@@ -1802,12 +2272,21 @@ impl StlApp {
         let params = m.s.step_params();
         let empty = m.s.entities.is_empty();
         match m.s.feature_id.clone() {
-            Some(id) => self.link.send(Command::EditFeature { id, params, rollback_after: Some(m.prev_rollback) }),
+            Some(id) => self.link.send(Command::EditFeature {
+                id,
+                params,
+                rollback_after: Some(m.prev_rollback),
+            }),
             None => {
                 if empty {
                     self.toasts.push(Level::Warning, "The sketch is empty.".to_owned());
                 }
-                self.link.send(Command::AddFeature { kind: "sketch".into(), params, index: None, name: None });
+                self.link.send(Command::AddFeature {
+                    kind: "sketch".into(),
+                    params,
+                    index: None,
+                    name: None,
+                });
             }
         }
         m.finishing = Some(extrude);
@@ -1820,7 +2299,12 @@ impl StlApp {
         let Some(extrude) = m.finishing else { return };
         let sid = match &m.s.feature_id {
             Some(id) => Some(id.clone()),
-            None => self.timeline_view.items.iter().find(|i| !self.sk.known.contains(&i.id)).map(|i| i.id.clone()),
+            None => self
+                .timeline_view
+                .items
+                .iter()
+                .find(|i| !self.sk.known.contains(&i.id))
+                .map(|i| i.id.clone()),
         };
         let Some(sid) = sid else { return };
         let profile = sk_session::has_profile(&m.s.entities);
@@ -1869,11 +2353,19 @@ impl StlApp {
             "sk_offset" => self.sketch_offset(),
             "sk_import" => self.sketch_import(),
             "construction" => {
-                let fx = self.sketch.as_mut().map(|m| sketch::keys::toggle_construction(&mut m.s)).unwrap_or_default();
+                let fx = self
+                    .sketch
+                    .as_mut()
+                    .map(|m| sketch::keys::toggle_construction(&mut m.s))
+                    .unwrap_or_default();
                 self.sketch_apply(fx);
             }
             "sk_delete" => {
-                let fx = self.sketch.as_mut().map(|m| sketch::keys::delete_selected(&mut m.s)).unwrap_or_default();
+                let fx = self
+                    .sketch
+                    .as_mut()
+                    .map(|m| sketch::keys::delete_selected(&mut m.s))
+                    .unwrap_or_default();
                 self.sketch_apply(fx);
             }
             "look" => {
@@ -1929,7 +2421,7 @@ impl StlApp {
         let mods = ui.input(|i| i.modifiers);
         let typing = ui.ctx().egui_wants_keyboard_input();
         let pointer = ui.input(|i| i.pointer.clone());
-        let opts = ui.ctx().options(|o| o.input_options.clone());
+        let opts = ui.ctx().options(|o| o.input_options);
         let hovered = resp.hovered();
         let mut inputs: Vec<SketchInput> = Vec::new();
         {
@@ -1939,10 +2431,19 @@ impl StlApp {
                 match ev {
                     egui::Event::PointerMoved(pos) if hovered || m.down => {
                         if let Some(p) = vp.ray_to_plane(*pos, &m.s.frame) {
-                            inputs.push(SketchInput::Move { uv: m.s.to_uv(p), pos: *pos, mods });
+                            inputs.push(SketchInput::Move {
+                                uv: m.s.to_uv(p),
+                                pos: *pos,
+                                mods,
+                            });
                         }
                     }
-                    egui::Event::PointerButton { button: egui::PointerButton::Primary, pressed, pos, .. } => {
+                    egui::Event::PointerButton {
+                        button: egui::PointerButton::Primary,
+                        pressed,
+                        pos,
+                        ..
+                    } => {
                         if *pressed {
                             if !hovered {
                                 continue;
@@ -1964,10 +2465,14 @@ impl StlApp {
                         }
                     }
                     egui::Event::Touch { .. } if hovered || m.down => {
-                        if let egui::Event::Touch { phase: egui::TouchPhase::Start, pos, .. } = ev {
-                            if m.tool.as_mut().is_some_and(|t| t.click_box(&m.s, vp, *pos)) {
-                                continue;
-                            }
+                        if let egui::Event::Touch {
+                            phase: egui::TouchPhase::Start,
+                            pos,
+                            ..
+                        } = ev
+                            && m.tool.as_mut().is_some_and(|t| t.click_box(&m.s, vp, *pos))
+                        {
+                            continue;
                         }
                         if let Some(i) = sketch::touch::input(ev, vp, &m.s, &mut m.touch, mods, &pointer, &opts) {
                             inputs.push(i);
@@ -1978,7 +2483,13 @@ impl StlApp {
                         let boxing = m.tool.as_ref().is_some_and(|t| t.typing());
                         let typed: String = t
                             .chars()
-                            .filter(|c| c.is_ascii_digit() || matches!(c, '.' | '-' | '/' | ',') || (boxing && (c.is_alphanumeric() || matches!(c, '=' | '+' | '*' | '(' | ')' | ' ' | '_'))))
+                            .filter(|c| {
+                                c.is_ascii_digit()
+                                    || matches!(c, '.' | '-' | '/' | ',')
+                                    || (boxing
+                                        && (c.is_alphanumeric()
+                                            || matches!(c, '=' | '+' | '*' | '(' | ')' | ' ' | '_')))
+                            })
                             .collect();
                         if !typed.is_empty() && m.s.tool != "select" {
                             inputs.push(SketchInput::Typed(typed));
@@ -2048,7 +2559,11 @@ impl StlApp {
             if let Some((g, _)) = out.edit_text {
                 fx.push(SketchEffect::Dialog(SketchDialog::Text { group: Some(g) }));
             }
-            let anchor = m.panel.modify.as_ref().and_then(|md| sketch::dims::label_screen(&m.s, &self.viewport, md.idx));
+            let anchor = m
+                .panel
+                .modify
+                .as_ref()
+                .and_then(|md| sketch::dims::label_screen(&m.s, &self.viewport, md.idx));
             let (e2, t2) = sketch::panel::modify_box(ctx, tk, m, ws, inch, &params, anchor);
             fx.extend(e2);
             toasts.extend(t2);
@@ -2061,19 +2576,36 @@ impl StlApp {
         }
         // the text dialog, over a scrim
         if self.sk.text.open {
-            Area::new(Id::unique("sk-text-scrim")).order(Order::Foreground).fixed_pos(ctx.content_rect().min).show(ctx, |ui| {
-                let (r, _) = ui.allocate_exact_size(ctx.content_rect().size(), Sense::click_and_drag());
-                ui.painter().rect_filled(r, 0.0, tk.scrim);
-            });
-            let mut eff = None;
-            Area::new(Id::unique("sk-text-card")).order(Order::Tooltip).anchor(Align2::CENTER_CENTER, Vec2::ZERO).show(ctx, |ui| {
-                Frame::new().fill(tk.panel).stroke(Stroke::new(1.0, tk.line)).corner_radius(CornerRadius::same(9)).shadow(tk.shadow_lg).inner_margin(Margin { left: 20, right: 20, top: 18, bottom: 14 }).show(ui, |ui| {
-                    ui.set_max_width(420.0);
-                    if let Some(m) = self.sketch.as_mut() {
-                        eff = sketch::text::dialog_with(ui, tk, &mut m.s, &mut self.sk.text, &*self.platform);
-                    }
+            Area::new(Id::unique("sk-text-scrim"))
+                .order(Order::Foreground)
+                .fixed_pos(ctx.content_rect().min)
+                .show(ctx, |ui| {
+                    let (r, _) = ui.allocate_exact_size(ctx.content_rect().size(), Sense::click_and_drag());
+                    ui.painter().rect_filled(r, 0.0, tk.scrim);
                 });
-            });
+            let mut eff = None;
+            Area::new(Id::unique("sk-text-card"))
+                .order(Order::Tooltip)
+                .anchor(Align2::CENTER_CENTER, Vec2::ZERO)
+                .show(ctx, |ui| {
+                    Frame::new()
+                        .fill(tk.panel)
+                        .stroke(Stroke::new(1.0, tk.line))
+                        .corner_radius(CornerRadius::same(9))
+                        .shadow(tk.shadow_lg)
+                        .inner_margin(Margin {
+                            left: 20,
+                            right: 20,
+                            top: 18,
+                            bottom: 14,
+                        })
+                        .show(ui, |ui| {
+                            ui.set_max_width(420.0);
+                            if let Some(m) = self.sketch.as_mut() {
+                                eff = sketch::text::dialog_with(ui, tk, &m.s, &mut self.sk.text, &*self.platform);
+                            }
+                        });
+                });
             fx.extend(eff);
         }
         fx.extend(self.sketch_modals(ctx, tk));
@@ -2091,15 +2623,29 @@ impl StlApp {
         if self.sk.over.is_none() && self.sk.project.is_none() {
             return fx;
         }
-        Area::new(Id::unique("sk-modal-scrim")).order(Order::Foreground).fixed_pos(ctx.content_rect().min).show(ctx, |ui| {
-            let (r, _) = ui.allocate_exact_size(ctx.content_rect().size(), Sense::click_and_drag());
-            ui.painter().rect_filled(r, 0.0, tk.scrim);
-        });
-        let card = |ui: &mut egui::Ui, add: &mut dyn FnMut(&mut egui::Ui)| {
-            Frame::new().fill(tk.panel).stroke(Stroke::new(1.0, tk.line)).corner_radius(CornerRadius::same(9)).shadow(tk.shadow_lg).inner_margin(Margin { left: 20, right: 20, top: 18, bottom: 14 }).show(ui, |ui| {
-                ui.set_max_width(420.0);
-                add(ui);
+        Area::new(Id::unique("sk-modal-scrim"))
+            .order(Order::Foreground)
+            .fixed_pos(ctx.content_rect().min)
+            .show(ctx, |ui| {
+                let (r, _) = ui.allocate_exact_size(ctx.content_rect().size(), Sense::click_and_drag());
+                ui.painter().rect_filled(r, 0.0, tk.scrim);
             });
+        let card = |ui: &mut egui::Ui, add: &mut dyn FnMut(&mut egui::Ui)| {
+            Frame::new()
+                .fill(tk.panel)
+                .stroke(Stroke::new(1.0, tk.line))
+                .corner_radius(CornerRadius::same(9))
+                .shadow(tk.shadow_lg)
+                .inner_margin(Margin {
+                    left: 20,
+                    right: 20,
+                    top: 18,
+                    bottom: 14,
+                })
+                .show(ui, |ui| {
+                    ui.set_max_width(420.0);
+                    add(ui);
+                });
         };
         if self.sk.over.is_some() {
             let mut ans: Option<bool> = None;
@@ -2134,26 +2680,34 @@ impl StlApp {
                     ans = Some(false);
                 }
             }
-            if let Some(yes) = ans {
-                if let Some(c) = self.sk.over.take() {
-                    if let (true, Some(m)) = (yes, self.sketch.as_mut()) {
-                        fx.extend(sketch::dims::add_reference(&mut m.s, c));
-                    }
-                }
+            if let Some(yes) = ans
+                && let Some(c) = self.sk.over.take()
+                && let (true, Some(m)) = (yes, self.sketch.as_mut())
+            {
+                fx.extend(sketch::dims::add_reference(&mut m.s, c));
             }
         }
         if let Some(mut form) = self.sk.project.take() {
             let mut ans = None;
-            Area::new(Id::unique("sk-project-card")).order(Order::Tooltip).anchor(Align2::CENTER_CENTER, Vec2::ZERO).show(ctx, |ui| {
-                card(ui, &mut |ui| ans = sketch::project::dialog(ui, tk, &mut form));
-            });
+            Area::new(Id::unique("sk-project-card"))
+                .order(Order::Tooltip)
+                .anchor(Align2::CENTER_CENTER, Vec2::ZERO)
+                .show(ctx, |ui| {
+                    card(ui, &mut |ui| ans = sketch::project::dialog(ui, tk, &mut form));
+                });
             match ans {
                 None => self.sk.project = Some(form),
                 Some(sketch::project::ProjectAnswer::Cancel) => {}
                 Some(sketch::project::ProjectAnswer::Project) => {
                     if let Some(m) = self.sketch.as_ref() {
                         let body = (!form.body.is_empty()).then_some(form.body.as_str());
-                        fx.push(sketch::project::project_request(&m.s, &form.mode, body, form.offset_mm(), form.construction));
+                        fx.push(sketch::project::project_request(
+                            &m.s,
+                            &form.mode,
+                            body,
+                            form.offset_mm(),
+                            form.construction,
+                        ));
                     }
                 }
             }
@@ -2166,7 +2720,9 @@ impl StlApp {
         match sketch::import::import_file(&f.name, &f.bytes) {
             Err(e) => vec![SketchEffect::Toast(Level::Error, e)],
             Ok(list) => {
-                let Some(m) = self.sketch.as_mut() else { return Vec::new() };
+                let Some(m) = self.sketch.as_mut() else {
+                    return Vec::new();
+                };
                 m.s.push();
                 m.s.sel.clear();
                 for mut e in list {

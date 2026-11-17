@@ -30,3 +30,6 @@ tao = { version = "=0.37.2", default-features = false, features = ["rwh_06"] }
 [dev-dependencies]
 stl-mesh = { path = "../stl-mesh" }
 sha2 = "0.10"
+
+[lints]
+workspace = true

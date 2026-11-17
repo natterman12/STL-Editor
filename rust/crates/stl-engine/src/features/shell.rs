@@ -8,7 +8,7 @@ use stl_kernel::{Shape2d, Solid};
 use stl_sketch::P2;
 
 use super::common::pitch::hollow_pitch;
-use super::common::{float, frame_matrix, plane_frame, truthy, Vec3};
+use super::common::{Vec3, float, frame_matrix, plane_frame, truthy};
 use crate::state::Body;
 use crate::{Ctx, FeatureError, FeatureResult, Registry, State};
 
@@ -66,7 +66,9 @@ fn f_shell(
     for (k, face) in faces.iter().enumerate() {
         let i = k + 1;
         let flat = || FeatureError(format!("Face {i} isn't flat. Shell can only open flat faces."));
-        let Some(face) = face.as_object() else { return Err(flat()) };
+        let Some(face) = face.as_object() else {
+            return Err(flat());
+        };
         let cont = match face.get("contours") {
             Some(c) if truthy(Some(c)) => contours(c).ok_or_else(flat)?,
             _ => return Err(flat()),
@@ -83,7 +85,12 @@ fn f_shell(
             }
             to_local[a][3] = -(r[a][0] * fr.o[0] + r[a][1] * fr.o[1] + r[a][2] * fr.o[2]);
         }
-        picked.push(Picked { i, to_local, back: frame_matrix(&fr), outline: Shape2d::from_even_odd(&cont) });
+        picked.push(Picked {
+            i,
+            to_local,
+            back: frame_matrix(&fr),
+            outline: Shape2d::from_even_odd(&cont),
+        });
     }
 
     let openings = |space: &Solid| -> Result<Vec<Solid>, FeatureError> {
@@ -113,7 +120,14 @@ fn f_shell(
         cut = Solid::union_all(&all);
     }
     let out = s.difference(&cut);
-    state.bodies.insert(bid.to_string(), Body { name: b.name.clone(), solid: Some(out), mesh: None });
+    state.bodies.insert(
+        bid.to_string(),
+        Body {
+            name: b.name.clone(),
+            solid: Some(out),
+            mesh: None,
+        },
+    );
     res.modified.push(bid.to_string());
     Ok(())
 }

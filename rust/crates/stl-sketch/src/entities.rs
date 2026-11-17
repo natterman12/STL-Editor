@@ -173,7 +173,10 @@ pub const ENTITY_KINDS: [&str; 8] = ["line", "arc", "circle", "rect", "polygon",
 pub fn parse_entities(list: &[Value]) -> Result<Vec<Entity>, String> {
     let mut out = Vec::new();
     for v in list {
-        let known = v.get("type").and_then(Value::as_str).is_some_and(|t| ENTITY_KINDS.contains(&t));
+        let known = v
+            .get("type")
+            .and_then(Value::as_str)
+            .is_some_and(|t| ENTITY_KINDS.contains(&t));
         if known {
             out.push(serde_json::from_value::<Entity>(v.clone()).map_err(|e| e.to_string())?);
         }
@@ -275,7 +278,10 @@ pub fn point(e: &Entity, k: &str) -> Option<P2> {
             _ => None,
         },
         Entity::Slot(s) => Some(if k == "s" { [s.x1, s.y1] } else { [s.x2, s.y2] }),
-        Entity::Polyline(p) => k.get(1..).and_then(|n| n.parse::<usize>().ok()).and_then(|i| p.pts.get(i).copied()),
+        Entity::Polyline(p) => k
+            .get(1..)
+            .and_then(|n| n.parse::<usize>().ok())
+            .and_then(|i| p.pts.get(i).copied()),
         Entity::Point(p) => Some([p.x, p.y]),
     }
 }
@@ -304,7 +310,10 @@ mod tests {
     fn collect(v: &Value, out: &mut Vec<Value>) {
         match v {
             Value::Object(o) => {
-                if o.get("type").and_then(Value::as_str).is_some_and(|t| KINDS.contains(&t)) {
+                if o.get("type")
+                    .and_then(Value::as_str)
+                    .is_some_and(|t| KINDS.contains(&t))
+                {
                     out.push(v.clone());
                 }
                 o.values().for_each(|c| collect(c, out));

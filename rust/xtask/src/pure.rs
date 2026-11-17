@@ -102,18 +102,18 @@ pub fn forbidden_except(metadata: &Value, allow: &[&str]) -> Vec<String> {
     let mut seen: BTreeSet<&str> = BTreeSet::new();
     let mut queue: VecDeque<&str> = VecDeque::new();
     for m in metadata["workspace_members"].as_array().into_iter().flatten() {
-        if let Some(id) = m.as_str() {
-            if seen.insert(id) {
-                queue.push_back(id);
-            }
+        if let Some(id) = m.as_str()
+            && seen.insert(id)
+        {
+            queue.push_back(id);
         }
     }
     let mut found = BTreeSet::new();
     while let Some(id) = queue.pop_front() {
-        if let Some(name) = names.get(id) {
-            if FORBIDDEN.contains(name) {
-                found.insert(name.to_string());
-            }
+        if let Some(name) = names.get(id)
+            && FORBIDDEN.contains(name)
+        {
+            found.insert(name.to_string());
         }
         for &next in deps.get(id).into_iter().flatten() {
             if seen.insert(next) {
@@ -129,7 +129,9 @@ pub fn forbidden_except(metadata: &Value, allow: &[&str]) -> Vec<String> {
 /// `name/feat` does too: that is Cargo's strong syntax, and it really does build the dep.
 fn inactive_optional(pkg: Option<&Value>, enabled: &[String], dep_name: &str, kinds: &[Value]) -> bool {
     let Some(pkg) = pkg else { return false };
-    let Some(specs) = pkg.get("dependencies").and_then(Value::as_array) else { return false };
+    let Some(specs) = pkg.get("dependencies").and_then(Value::as_array) else {
+        return false;
+    };
     let matching: Vec<&Value> = specs.iter().filter(|s| spec_is_edge(s, dep_name)).collect();
     if matching.is_empty() || dep_name.is_empty() {
         return false;
@@ -138,7 +140,11 @@ fn inactive_optional(pkg: Option<&Value>, enabled: &[String], dep_name: &str, ki
     let edge_kinds: Vec<Option<&str>> = if kinds.is_empty() {
         vec![None]
     } else {
-        kinds.iter().map(|k| k["kind"].as_str()).filter(|k| *k != Some("dev")).collect()
+        kinds
+            .iter()
+            .map(|k| k["kind"].as_str())
+            .filter(|k| *k != Some("dev"))
+            .collect()
     };
     if edge_kinds.is_empty() {
         return false;
@@ -167,10 +173,17 @@ fn optional_activated(pkg: &Value, enabled: &[String], dep: &str) -> bool {
     if enabled.iter().any(|f| same_dep(f, dep)) {
         return true;
     }
-    let Some(features) = pkg.get("features").and_then(Value::as_object) else { return false };
+    let Some(features) = pkg.get("features").and_then(Value::as_object) else {
+        return false;
+    };
     for feat in enabled {
-        let Some(items) = features.get(feat).and_then(Value::as_array) else { continue };
-        if items.iter().any(|item| item.as_str().is_some_and(|s| feature_activates(s, dep))) {
+        let Some(items) = features.get(feat).and_then(Value::as_array) else {
+            continue;
+        };
+        if items
+            .iter()
+            .any(|item| item.as_str().is_some_and(|s| feature_activates(s, dep)))
+        {
             return true;
         }
     }
@@ -196,7 +209,9 @@ fn feature_activates(spec: &str, dep: &str) -> bool {
 /// names keep hyphens (`objc2-exception-helper`). They are the same dependency.
 fn same_dep(a: &str, b: &str) -> bool {
     a.len() == b.len()
-        && a.bytes().zip(b.bytes()).all(|(x, y)| x == y || matches!((x, y), (b'-', b'_') | (b'_', b'-')))
+        && a.bytes()
+            .zip(b.bytes())
+            .all(|(x, y)| x == y || matches!((x, y), (b'-', b'_') | (b'_', b'-')))
 }
 
 fn spec_is_edge(spec: &Value, edge_name: &str) -> bool {
@@ -225,7 +240,9 @@ fn expand_features(pkg: Option<&Value>, seeds: BTreeSet<String>) -> BTreeSet<Str
     while grew {
         grew = false;
         for feat in set.clone() {
-            let Some(items) = map.get(&feat).and_then(Value::as_array) else { continue };
+            let Some(items) = map.get(&feat).and_then(Value::as_array) else {
+                continue;
+            };
             for item in items {
                 let Some(item) = item.as_str() else { continue };
                 // `dep:name`, `name/feat` and `name?/feat` talk about another crate.
@@ -270,7 +287,12 @@ fn reconciled_features(metadata: &Value) -> HashMap<&str, Vec<String>> {
     }
     let explicit: BTreeSet<&str> = incoming
         .iter()
-        .filter(|(id, edges)| !members.contains(*id) && edges.iter().any(|(parent, edge)| edge_has_feature_spec(pkgs.get(parent).copied(), edge)))
+        .filter(|(id, edges)| {
+            !members.contains(*id)
+                && edges
+                    .iter()
+                    .any(|(parent, edge)| edge_has_feature_spec(pkgs.get(parent).copied(), edge))
+        })
         .map(|(id, _)| *id)
         .collect();
 
@@ -315,7 +337,12 @@ fn reconciled_features(metadata: &Value) -> HashMap<&str, Vec<String>> {
                     if !applies {
                         continue;
                     }
-                    for feat in spec["features"].as_array().into_iter().flatten().filter_map(Value::as_str) {
+                    for feat in spec["features"]
+                        .as_array()
+                        .into_iter()
+                        .flatten()
+                        .filter_map(Value::as_str)
+                    {
                         seeds.insert(feat.to_string());
                     }
                     if spec["uses_default_features"].as_bool() == Some(true) {
@@ -324,16 +351,18 @@ fn reconciled_features(metadata: &Value) -> HashMap<&str, Vec<String>> {
                     let dep_name = dep_feature_name(spec);
                     if let Some(map) = parent_pkg.and_then(|p| p.get("features")).and_then(Value::as_object) {
                         for feat in &parent_feats {
-                            let Some(items) = map.get(feat).and_then(Value::as_array) else { continue };
+                            let Some(items) = map.get(feat).and_then(Value::as_array) else {
+                                continue;
+                            };
                             for item in items.iter().filter_map(Value::as_str) {
                                 if let Some((name, rest)) = item.split_once("?/") {
                                     if same_dep(name, dep_name) {
                                         seeds.insert(rest.to_string());
                                     }
-                                } else if let Some((name, rest)) = item.split_once('/') {
-                                    if same_dep(name, dep_name) {
-                                        seeds.insert(rest.to_string());
-                                    }
+                                } else if let Some((name, rest)) = item.split_once('/')
+                                    && same_dep(name, dep_name)
+                                {
+                                    seeds.insert(rest.to_string());
                                 }
                             }
                         }
@@ -350,7 +379,10 @@ fn reconciled_features(metadata: &Value) -> HashMap<&str, Vec<String>> {
             break;
         }
     }
-    computed.into_iter().map(|(id, set)| (id, set.into_iter().collect())).collect()
+    computed
+        .into_iter()
+        .map(|(id, set)| (id, set.into_iter().collect()))
+        .collect()
 }
 
 fn edge_has_feature_spec(parent: Option<&Value>, edge: &Value) -> bool {
@@ -382,11 +414,19 @@ fn parent_feature_names(
 ) -> Vec<String> {
     if members.contains(id) {
         let node = nodes.iter().find(|n| n["id"].as_str() == Some(id));
-        return expand_features(pkg, feature_names(node.and_then(|n| n.get("features"))).into_iter().collect())
-            .into_iter()
-            .collect();
+        return expand_features(
+            pkg,
+            feature_names(node.and_then(|n| n.get("features")))
+                .into_iter()
+                .collect(),
+        )
+        .into_iter()
+        .collect();
     }
-    computed.get(id).map(|s| s.iter().cloned().collect()).unwrap_or_default()
+    computed
+        .get(id)
+        .map(|s| s.iter().cloned().collect())
+        .unwrap_or_default()
 }
 
 #[cfg(test)]
@@ -411,14 +451,21 @@ mod tests {
     /// A small `cargo metadata` graph: `(name, [(dep, kind)])`, the first package the member.
     fn graph(pkgs: &[(&str, &[(&str, &str)])]) -> Value {
         let id = |n: &str| format!("registry+x#{n}@1.0.0");
-        let packages: Vec<Value> = pkgs.iter().map(|(n, _)| serde_json::json!({"id": id(n), "name": n})).collect();
+        let packages: Vec<Value> = pkgs
+            .iter()
+            .map(|(n, _)| serde_json::json!({"id": id(n), "name": n}))
+            .collect();
         let nodes: Vec<Value> = pkgs
             .iter()
             .map(|(n, deps)| {
                 let deps: Vec<Value> = deps
                     .iter()
                     .map(|(d, k)| {
-                        let kind = if *k == "normal" { Value::Null } else { Value::String(k.to_string()) };
+                        let kind = if *k == "normal" {
+                            Value::Null
+                        } else {
+                            Value::String(k.to_string())
+                        };
                         serde_json::json!({"name": d, "pkg": id(d), "dep_kinds": [{"kind": kind}]})
                     })
                     .collect();
@@ -464,7 +511,11 @@ mod tests {
         ]);
         assert_eq!(forbidden_except(&m, &LINUX_ALLOW), ["cc", "pkg-config"]);
         // pkg-config used by any other crate still fails.
-        let m = graph(&[("stl-platform", &[("foo-sys", "normal")]), ("foo-sys", &[("pkg-config", "build")]), ("pkg-config", &[])]);
+        let m = graph(&[
+            ("stl-platform", &[("foo-sys", "normal")]),
+            ("foo-sys", &[("pkg-config", "build")]),
+            ("pkg-config", &[]),
+        ]);
         assert_eq!(forbidden_except(&m, &LINUX_ALLOW), ["pkg-config"]);
     }
 
@@ -488,7 +539,11 @@ mod tests {
         for tool in ["cc", "cmake", "bindgen", "pkg-config", "vcpkg"] {
             let m = graph(&[("app", &[(tool, "build")]), (tool, &[])]);
             assert_eq!(forbidden(&m), [tool.to_string()], "{tool}");
-            assert_eq!(forbidden_except(&m, &LINUX_ALLOW), [tool.to_string()], "{tool} stays forbidden off the allow-list");
+            assert_eq!(
+                forbidden_except(&m, &LINUX_ALLOW),
+                [tool.to_string()],
+                "{tool} stays forbidden off the allow-list"
+            );
         }
     }
 
@@ -496,7 +551,11 @@ mod tests {
     fn webpki_ring(enabled: &[&str], alloc: &[&str]) -> Value {
         let id = |n: &str| format!("registry+x#{n}@1.0.0");
         let edge = |name: &str, kind: &str| {
-            let kind = if kind == "normal" { Value::Null } else { Value::String(kind.into()) };
+            let kind = if kind == "normal" {
+                Value::Null
+            } else {
+                Value::String(kind.into())
+            };
             serde_json::json!({"name": name, "pkg": id(name), "dep_kinds": [{"kind": kind}]})
         };
         serde_json::json!({
@@ -551,7 +610,11 @@ mod tests {
     fn parent_feature_map_still_enables_optional_dep() {
         let id = |n: &str| format!("registry+x#{n}@1.0.0");
         let edge = |name: &str, kind: &str| {
-            let kind = if kind == "normal" { Value::Null } else { Value::String(kind.into()) };
+            let kind = if kind == "normal" {
+                Value::Null
+            } else {
+                Value::String(kind.into())
+            };
             serde_json::json!({"name": name, "pkg": id(name), "dep_kinds": [{"kind": kind}]})
         };
         let m = serde_json::json!({
@@ -589,7 +652,11 @@ mod tests {
         assert_eq!(forbidden(&m), ["pkg-config"]);
         assert!(forbidden_except(&m, &LINUX_ALLOW).is_empty());
         // cc from x11-dl is not excused, and neither is pkg-config from a crate off the list.
-        let cc = graph(&[("stl-app", &[("x11-dl", "normal")]), ("x11-dl", &[("cc", "build")]), ("cc", &[])]);
+        let cc = graph(&[
+            ("stl-app", &[("x11-dl", "normal")]),
+            ("x11-dl", &[("cc", "build")]),
+            ("cc", &[]),
+        ]);
         assert_eq!(forbidden_except(&cc, &LINUX_ALLOW), ["cc"]);
     }
 
@@ -597,7 +664,8 @@ mod tests {
     /// `requested` is what this platform's dependency spec actually asks for.
     fn objc_exception(requested: &[&str]) -> Value {
         let id = |n: &str| format!("registry+x#{n}@1.0.0");
-        let edge = |name: &str, pkg: &str| serde_json::json!({"name": name, "pkg": id(pkg), "dep_kinds": [{"kind": null}]});
+        let edge =
+            |name: &str, pkg: &str| serde_json::json!({"name": name, "pkg": id(pkg), "dep_kinds": [{"kind": null}]});
         serde_json::json!({
             "packages": [
                 {"id": id("app"), "name": "app", "dependencies": [

@@ -20,11 +20,17 @@ impl MeshArrays {
     /// manifold-rust only ever sees arrays it can index safely.
     pub(crate) fn validate(&self) -> Result<(), KernelError> {
         let invalid = |why: String| Err(KernelError::Invalid(why));
-        if self.positions.len() % 3 != 0 {
-            return invalid(format!("{} position values is not a multiple of 3", self.positions.len()));
+        if !self.positions.len().is_multiple_of(3) {
+            return invalid(format!(
+                "{} position values is not a multiple of 3",
+                self.positions.len()
+            ));
         }
-        if self.triangles.len() % 3 != 0 {
-            return invalid(format!("{} triangle indices is not a multiple of 3", self.triangles.len()));
+        if !self.triangles.len().is_multiple_of(3) {
+            return invalid(format!(
+                "{} triangle indices is not a multiple of 3",
+                self.triangles.len()
+            ));
         }
         if self.positions.is_empty() || self.triangles.is_empty() {
             return invalid("the mesh is empty".into());

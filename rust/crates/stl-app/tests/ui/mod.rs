@@ -14,42 +14,44 @@ mod desktop_place;
 mod desktop_sketch2;
 mod desktop_tools;
 mod desktop_v11;
+mod fins_perf;
 mod gizmo;
+mod handoff;
+mod highlights;
+mod hole_place;
+mod measure_info;
+mod measure_triangle;
+mod no_silent_buttons;
 mod open_recent;
+mod panel_layout;
+mod primitive_panel;
 mod recover;
+mod section_view;
 mod sf11;
 mod sf9;
 mod sfcov;
 mod sfpanel;
 mod skdim;
 mod skdim2;
+mod split_face;
 mod tap;
+mod tool_picking;
 mod touch;
+mod tree_select;
 mod updates;
 mod v110;
 mod web2;
 mod web7;
 mod web8;
-mod section_view;
-mod split_face;
-mod measure_info;
-mod handoff;
-mod no_silent_buttons;
-mod hole_place;
-mod highlights;
-mod measure_triangle;
-mod tool_picking;
-mod tree_select;
-mod primitive_panel;
-mod panel_layout;
-mod fins_perf;
 
 use std::path::Path;
 
 use harness::app_harness;
 
 fn fixture(name: &str) -> std::path::PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/projects").join(name)
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/projects")
+        .join(name)
 }
 
 /// Opens `basic.stlx` through the harness and checks the engine filled the body list.

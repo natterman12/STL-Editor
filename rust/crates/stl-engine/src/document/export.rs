@@ -39,9 +39,18 @@ impl Document {
             Some(v) => v.to_vec(),
             None => {
                 let hidden = self.hidden();
-                let shown: Vec<String> =
-                    self.state.bodies.keys().filter(|b| !hidden.contains(*b)).cloned().collect();
-                if shown.is_empty() { self.state.bodies.keys().cloned().collect() } else { shown }
+                let shown: Vec<String> = self
+                    .state
+                    .bodies
+                    .keys()
+                    .filter(|b| !hidden.contains(*b))
+                    .cloned()
+                    .collect();
+                if shown.is_empty() {
+                    self.state.bodies.keys().cloned().collect()
+                } else {
+                    shown
+                }
             }
         };
         if ids.is_empty() {
@@ -78,12 +87,20 @@ impl Document {
             let mesh = match (&b.solid, &b.mesh) {
                 (Some(s), _) => Cow::Owned(s.to_mesh()),
                 (None, Some(m)) => Cow::Borrowed(Arc::as_ref(m)),
-                (None, None) => Cow::Owned(MeshArrays { positions: Vec::new(), triangles: Vec::new() }),
+                (None, None) => Cow::Owned(MeshArrays {
+                    positions: Vec::new(),
+                    triangles: Vec::new(),
+                }),
             };
             owned.push((self.body_name(id), mesh));
         }
-        let bodies: Vec<ExportBody> =
-            owned.iter().map(|(n, m)| ExportBody { name: n.clone(), mesh: m }).collect();
+        let bodies: Vec<ExportBody> = owned
+            .iter()
+            .map(|(n, m)| ExportBody {
+                name: n.clone(),
+                mesh: m,
+            })
+            .collect();
         let bytes = stl_io::export_bodies(&bodies, format, opts).map_err(|e| match e {
             ExportError::Geometry(m) | ExportError::Io(m) => FeatureError(m),
             ExportError::Unsupported => FeatureError(format!("Can't export .{} files.", format.ext())),
@@ -117,7 +134,9 @@ impl Document {
             }
         };
         let ids = self.export_bodies_for(ids)?;
-        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default();
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default();
         let opts = ExportOptions {
             uuid_seed: now.as_nanos() as u64,
             step_title: self.export_base_name(&ids, project_path),
@@ -143,7 +162,12 @@ pub fn iso_from_unix_secs(secs: u64) -> String {
     let d = doy - (153 * mp + 2) / 5 + 1;
     let m = if mp < 10 { mp + 3 } else { mp - 9 };
     let y = yoe + era * 400 + i64::from(m <= 2);
-    format!("{y:04}-{m:02}-{d:02}T{:02}:{:02}:{:02}", rem / 3600, rem % 3600 / 60, rem % 60)
+    format!(
+        "{y:04}-{m:02}-{d:02}T{:02}:{:02}:{:02}",
+        rem / 3600,
+        rem % 3600 / 60,
+        rem % 60
+    )
 }
 
 /// The current UTC time as `YYYY-MM-DDTHH:MM:SS`. On wasm32 there is no clock here (the browser

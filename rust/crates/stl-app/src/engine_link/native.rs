@@ -12,7 +12,7 @@
 //! threads stay at normal priority.
 
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
-use std::sync::mpsc::{channel, Sender};
+use std::sync::mpsc::{Sender, channel};
 use std::sync::{Arc, Mutex, OnceLock};
 
 use super::worker::Worker;
@@ -58,7 +58,15 @@ impl NativeLink {
         let preview_gate = Arc::new(AtomicU64::new(0));
         let solve_gate = Arc::new(AtomicU64::new(0));
         let has_session = Arc::new(AtomicBool::new(false));
-        let (u, c, p, w, g, sg, hs) = (updates.clone(), cancel.clone(), pending.clone(), wake.clone(), preview_gate.clone(), solve_gate.clone(), has_session.clone());
+        let (u, c, p, w, g, sg, hs) = (
+            updates.clone(),
+            cancel.clone(),
+            pending.clone(),
+            wake.clone(),
+            preview_gate.clone(),
+            solve_gate.clone(),
+            has_session.clone(),
+        );
         std::thread::Builder::new()
             .name("stl-engine".into())
             .spawn(move || {
@@ -192,7 +200,8 @@ impl EngineLink for NativeLink {
             }
             // nothing to run: previews already queued are skipped, the app drops late answers
             Command::ClearPreview => {
-                self.preview_gate.store(self.preview_last.load(Ordering::SeqCst) + 1, Ordering::SeqCst);
+                self.preview_gate
+                    .store(self.preview_last.load(Ordering::SeqCst) + 1, Ordering::SeqCst);
             }
             c => self.queue(Job::Run(c)),
         }
@@ -249,7 +258,7 @@ fn windows_core_split() -> Option<Split> {
         // The first call only writes the byte count.
         GetLogicalProcessorInformation(std::ptr::null_mut(), &mut len);
         let stride = std::mem::size_of::<LogicalProcessor>();
-        if len == 0 || len as usize % stride != 0 {
+        if len == 0 || !(len as usize).is_multiple_of(stride) {
             return None;
         }
         let n = len as usize / stride;
@@ -257,7 +266,11 @@ fn windows_core_split() -> Option<Split> {
         if GetLogicalProcessorInformation(buf.as_mut_ptr(), &mut len) == 0 {
             return None;
         }
-        let cores: Vec<usize> = buf.iter().filter(|e| e.relationship == 0 && e.mask != 0).map(|e| e.mask).collect();
+        let cores: Vec<usize> = buf
+            .iter()
+            .filter(|e| e.relationship == 0 && e.mask != 0)
+            .map(|e| e.mask)
+            .collect();
         if cores.len() < 2 {
             return None;
         }
@@ -268,7 +281,9 @@ fn windows_core_split() -> Option<Split> {
         } else {
             physical.saturating_sub(1)
         };
-        Some(Split { background_threads: threads.max(1) })
+        Some(Split {
+            background_threads: threads.max(1),
+        })
     }
 }
 
@@ -276,7 +291,9 @@ fn fallback_split() -> Split {
     let n = std::thread::available_parallelism().map(|p| p.get()).unwrap_or(1);
     // No topology (macOS, Linux, or a Windows lookup that failed): keep two processors
     // back for the window.
-    Split { background_threads: n.saturating_sub(2).max(1) }
+    Split {
+        background_threads: n.saturating_sub(2).max(1),
+    }
 }
 
 fn window_core_is_reserved() -> bool {
@@ -362,7 +379,11 @@ struct LogicalProcessor {
 #[cfg(windows)]
 impl LogicalProcessor {
     fn zero() -> Self {
-        Self { mask: 0, relationship: 0, _union: [0; 2] }
+        Self {
+            mask: 0,
+            relationship: 0,
+            _union: [0; 2],
+        }
     }
 }
 

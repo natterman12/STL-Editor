@@ -35,7 +35,10 @@ impl Bvh {
     pub fn build(m: &MeshArrays) -> Self {
         let mut items = collect(m);
         if items.is_empty() {
-            return Self { nodes: Vec::new(), order: Vec::new() };
+            return Self {
+                nodes: Vec::new(),
+                order: Vec::new(),
+            };
         }
         let mut nodes = Vec::new();
         let mut order = Vec::with_capacity(items.len());
@@ -92,11 +95,17 @@ impl Bvh {
                 let end = start + node.b as usize;
                 for &tri in &self.order[start..end] {
                     let Some([a, b, c]) = tri_points(m, tri) else { continue };
-                    let Some(t) = ray_triangle(origin, direction, a, b, c, front_only) else { continue };
+                    let Some(t) = ray_triangle(origin, direction, a, b, c, front_only) else {
+                        continue;
+                    };
                     if !(t < best_t || (t == best_t && tri < best_i)) {
                         continue;
                     }
-                    let p = [origin[0] + t * direction[0], origin[1] + t * direction[1], origin[2] + t * direction[2]];
+                    let p = [
+                        origin[0] + t * direction[0],
+                        origin[1] + t * direction[1],
+                        origin[2] + t * direction[2],
+                    ];
                     if !accept(p) {
                         continue;
                     }
@@ -156,11 +165,17 @@ fn direct(
         if !a.iter().chain(b.iter()).chain(c.iter()).all(|v| v.is_finite()) {
             continue;
         }
-        let Some(t) = ray_triangle(origin, direction, a, b, c, front_only) else { continue };
+        let Some(t) = ray_triangle(origin, direction, a, b, c, front_only) else {
+            continue;
+        };
         if !(t < best_t) {
             continue;
         }
-        let p = [origin[0] + t * direction[0], origin[1] + t * direction[1], origin[2] + t * direction[2]];
+        let p = [
+            origin[0] + t * direction[0],
+            origin[1] + t * direction[1],
+            origin[2] + t * direction[2],
+        ];
         if !accept(p) {
             continue;
         }
@@ -233,9 +248,21 @@ fn collect(m: &MeshArrays) -> Vec<Item> {
         }
         out.push(Item {
             index: i as u32,
-            min: [a[0].min(b[0]).min(c[0]), a[1].min(b[1]).min(c[1]), a[2].min(b[2]).min(c[2])],
-            max: [a[0].max(b[0]).max(c[0]), a[1].max(b[1]).max(c[1]), a[2].max(b[2]).max(c[2])],
-            centroid: [(a[0] + b[0] + c[0]) / 3.0, (a[1] + b[1] + c[1]) / 3.0, (a[2] + b[2] + c[2]) / 3.0],
+            min: [
+                a[0].min(b[0]).min(c[0]),
+                a[1].min(b[1]).min(c[1]),
+                a[2].min(b[2]).min(c[2]),
+            ],
+            max: [
+                a[0].max(b[0]).max(c[0]),
+                a[1].max(b[1]).max(c[1]),
+                a[2].max(b[2]).max(c[2]),
+            ],
+            centroid: [
+                (a[0] + b[0] + c[0]) / 3.0,
+                (a[1] + b[1] + c[1]) / 3.0,
+                (a[2] + b[2] + c[2]) / 3.0,
+            ],
         });
     }
     out
@@ -261,14 +288,24 @@ pub fn tri_points(m: &MeshArrays, tri: u32) -> Option<[[f64; 3]; 3]> {
             return None;
         }
         let s = i * 3;
-        out[k] = [m.positions[s] as f64, m.positions[s + 1] as f64, m.positions[s + 2] as f64];
+        out[k] = [
+            m.positions[s] as f64,
+            m.positions[s + 1] as f64,
+            m.positions[s + 2] as f64,
+        ];
     }
     Some(out)
 }
 
 fn build_range(tris: &mut [Item], nodes: &mut Vec<Node>, order: &mut Vec<u32>) -> u32 {
     let index = nodes.len() as u32;
-    nodes.push(Node { min: [0.0; 3], max: [0.0; 3], a: 0, b: 0, leaf: true });
+    nodes.push(Node {
+        min: [0.0; 3],
+        max: [0.0; 3],
+        a: 0,
+        b: 0,
+        leaf: true,
+    });
     let (tight_min, tight_max) = tight_bounds(tris);
     let (min, max) = pad(tight_min, tight_max);
     if tris.len() <= LEAF {
@@ -276,7 +313,13 @@ fn build_range(tris: &mut [Item], nodes: &mut Vec<Node>, order: &mut Vec<u32>) -
         for t in tris.iter() {
             order.push(t.index);
         }
-        nodes[index as usize] = Node { min, max, a: start, b: tris.len() as u32, leaf: true };
+        nodes[index as usize] = Node {
+            min,
+            max,
+            a: start,
+            b: tris.len() as u32,
+            leaf: true,
+        };
         return index;
     }
     let axis = longest(tight_min, tight_max);
@@ -285,7 +328,13 @@ fn build_range(tris: &mut [Item], nodes: &mut Vec<Node>, order: &mut Vec<u32>) -
     let (left, right) = tris.split_at_mut(mid);
     let l = build_range(left, nodes, order);
     let r = build_range(right, nodes, order);
-    nodes[index as usize] = Node { min, max, a: l, b: r, leaf: false };
+    nodes[index as usize] = Node {
+        min,
+        max,
+        a: l,
+        b: r,
+        leaf: false,
+    };
     index
 }
 
@@ -363,7 +412,11 @@ fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
     a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }
 fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
-    [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]
+    [
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    ]
 }
 
 #[cfg(test)]
@@ -371,7 +424,10 @@ mod tests {
     use super::*;
 
     fn tri(verts: [[f32; 3]; 3]) -> MeshArrays {
-        MeshArrays { positions: verts.into_iter().flatten().collect(), triangles: vec![0, 1, 2] }
+        MeshArrays {
+            positions: verts.into_iter().flatten().collect(),
+            triangles: vec![0, 1, 2],
+        }
     }
 
     fn brute(m: &MeshArrays, origin: [f64; 3], dir: [f64; 3], front: bool) -> Option<(u32, f64)> {
@@ -397,7 +453,9 @@ mod tests {
     #[test]
     fn closer_triangle_wins_and_a_filter_can_skip_it() {
         let m = MeshArrays {
-            positions: vec![0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 2.0, 2.0, 0.0, 2.0, 0.0, 2.0, 2.0],
+            positions: vec![
+                0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 2.0, 2.0, 0.0, 2.0, 0.0, 2.0, 2.0,
+            ],
             triangles: vec![0, 1, 2, 3, 4, 5],
         };
         let bvh = Bvh::build(&m);
@@ -405,7 +463,9 @@ mod tests {
         assert_eq!(face, 1);
         assert!((t - 3.0).abs() < 1e-9, "{t}");
         // reject the z = 2 sheet; the z = 0 sheet is the next hit
-        let (face, t) = bvh.ray_front_where(&m, [0.4, 0.4, 5.0], [0.0, 0.0, -1.0], |p| p[2] < 1.0).unwrap();
+        let (face, t) = bvh
+            .ray_front_where(&m, [0.4, 0.4, 5.0], [0.0, 0.0, -1.0], |p| p[2] < 1.0)
+            .unwrap();
         assert_eq!(face, 0);
         assert!((t - 5.0).abs() < 1e-9, "{t}");
     }
@@ -414,8 +474,15 @@ mod tests {
     fn empty_and_broken_meshes_miss() {
         let empty = MeshArrays::default();
         assert!(Bvh::build(&empty).ray(&empty, [0.0; 3], [0.0, 0.0, -1.0]).is_none());
-        let broken = MeshArrays { positions: vec![0.0, 0.0, 0.0], triangles: vec![0, 1, 2] };
-        assert!(Bvh::build(&broken).ray(&broken, [0.0, 0.0, 1.0], [0.0, 0.0, -1.0]).is_none());
+        let broken = MeshArrays {
+            positions: vec![0.0, 0.0, 0.0],
+            triangles: vec![0, 1, 2],
+        };
+        assert!(
+            Bvh::build(&broken)
+                .ray(&broken, [0.0, 0.0, 1.0], [0.0, 0.0, -1.0])
+                .is_none()
+        );
     }
 
     #[test]
@@ -454,14 +521,23 @@ mod tests {
                 assert!((t - u).abs() < 1e-9, "{t} vs {u}");
             }
             let got_f = bvh.ray_front(&m, origin, dir);
-            assert_eq!(got_f.map(|h| h.0), ray_front_direct(&m, origin, dir, |_| true).map(|h| h.0));
+            assert_eq!(
+                got_f.map(|h| h.0),
+                ray_front_direct(&m, origin, dir, |_| true).map(|h| h.0)
+            );
             // a filter that drops the upper half: the tree and the direct test still agree
             let lower = |p: [f64; 3]| p[2] < 0.0;
-            assert_eq!(bvh.ray_front_where(&m, origin, dir, lower), ray_front_direct(&m, origin, dir, lower));
+            assert_eq!(
+                bvh.ray_front_where(&m, origin, dir, lower),
+                ray_front_direct(&m, origin, dir, lower)
+            );
             if got.is_some() {
                 hits += 1;
             }
         }
-        assert!(hits > 30, "only {hits} rays hit; the comparison did not exercise the tree");
+        assert!(
+            hits > 30,
+            "only {hits} rays hit; the comparison did not exercise the tree"
+        );
     }
 }

@@ -6,8 +6,14 @@ use stl_platform::paths::*;
 static ENV: Mutex<()> = Mutex::new(());
 
 fn no_1x(p: &PathBuf) {
-    assert!(p.components().all(|c| c.as_os_str() != "STL Editor"), "{p:?} has a 1.x folder");
-    assert!(p.components().any(|c| c.as_os_str() == "STL Editor 2"), "{p:?} lacks STL Editor 2");
+    assert!(
+        p.components().all(|c| c.as_os_str() != "STL Editor"),
+        "{p:?} has a 1.x folder"
+    );
+    assert!(
+        p.components().any(|c| c.as_os_str() == "STL Editor 2"),
+        "{p:?} lacks STL Editor 2"
+    );
 }
 
 #[test]

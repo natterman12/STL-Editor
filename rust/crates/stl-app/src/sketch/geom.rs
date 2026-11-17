@@ -27,7 +27,12 @@ pub fn outline(e: &Entity) -> (Vec<P>, bool) {
             if rr > 1e-6 {
                 pts = Vec::new();
                 let n = 10;
-                for (cx, cy, a0) in [(x1 - rr, y0 + rr, -90.0), (x1 - rr, y1 - rr, 0.0), (x0 + rr, y1 - rr, 90.0), (x0 + rr, y0 + rr, 180.0)] {
+                for (cx, cy, a0) in [
+                    (x1 - rr, y0 + rr, -90.0),
+                    (x1 - rr, y1 - rr, 0.0),
+                    (x0 + rr, y1 - rr, 90.0),
+                    (x0 + rr, y0 + rr, 180.0),
+                ] {
                     for i in 0..=n {
                         let a = rad(a0 + 90.0 * i as f64 / n as f64);
                         pts.push([cx + rr * a.cos(), cy + rr * a.sin()]);
@@ -50,18 +55,28 @@ pub fn outline(e: &Entity) -> (Vec<P>, bool) {
         }
         Entity::Circle(c) => {
             let n = 96;
-            ((0..n).map(|i| {
-                let a = 2.0 * PI * i as f64 / n as f64;
-                [c.cx + c.r * a.cos(), c.cy + c.r * a.sin()]
-            }).collect(), true)
+            (
+                (0..n)
+                    .map(|i| {
+                        let a = 2.0 * PI * i as f64 / n as f64;
+                        [c.cx + c.r * a.cos(), c.cy + c.r * a.sin()]
+                    })
+                    .collect(),
+                true,
+            )
         }
         Entity::Polygon(p) => {
             let n = p.sides().max(3);
             let a0 = rad(p.angle.unwrap_or(0.0));
-            ((0..n).map(|i| {
-                let a = a0 + 2.0 * PI * i as f64 / n as f64;
-                [p.cx + p.r * a.cos(), p.cy + p.r * a.sin()]
-            }).collect(), true)
+            (
+                (0..n)
+                    .map(|i| {
+                        let a = a0 + 2.0 * PI * i as f64 / n as f64;
+                        [p.cx + p.r * a.cos(), p.cy + p.r * a.sin()]
+                    })
+                    .collect(),
+                true,
+            )
         }
         Entity::Slot(s) => {
             let ang = (s.y2 - s.y1).atan2(s.x2 - s.x1);
@@ -104,11 +119,17 @@ pub fn arc_sweep(e: &Entity) -> f64 {
 pub fn arc_pts(e: &Entity, n: usize) -> Vec<P> {
     let Some(a) = arc_fields(e) else { return Vec::new() };
     let sw = arc_sweep(e);
-    let n = if n == 0 { 8.0_f64.max(js_round(sw / 4.0)) as usize } else { n };
-    (0..=n).map(|i| {
-        let t = rad(a.a0 + sw * i as f64 / n as f64);
-        [a.cx + a.r * t.cos(), a.cy + a.r * t.sin()]
-    }).collect()
+    let n = if n == 0 {
+        8.0_f64.max(js_round(sw / 4.0)) as usize
+    } else {
+        n
+    };
+    (0..=n)
+        .map(|i| {
+            let t = rad(a.a0 + sw * i as f64 / n as f64);
+            [a.cx + a.r * t.cos(), a.cy + a.r * t.sin()]
+        })
+        .collect()
 }
 
 /// The circle through three points as an arc from `p1` to `p3` passing `p2` (None if collinear).
@@ -128,7 +149,16 @@ pub fn arc_from3(p1: P, p2: P, p3: P) -> Option<Entity> {
     if !ccw(am, a0, a1) {
         std::mem::swap(&mut a0, &mut a1);
     }
-    Some(Entity::Arc(Arc { id: None, cx: ux, cy: uy, r, a0, a1, construction: None, extra: Default::default() }))
+    Some(Entity::Arc(Arc {
+        id: None,
+        cx: ux,
+        cy: uy,
+        r,
+        a0,
+        a1,
+        construction: None,
+        extra: Default::default(),
+    }))
 }
 
 /// Snap points of an entity, each with a name (`keyPoints`; the names are this port's).
@@ -136,22 +166,39 @@ pub fn key_points(e: &Entity) -> Vec<(String, P)> {
     let n = |k: &str, p: P| (k.to_string(), p);
     match e {
         Entity::Rect(r) => vec![
-            n("c0", [r.x, r.y]), n("c1", [r.x + r.w, r.y]), n("c2", [r.x + r.w, r.y + r.h]), n("c3", [r.x, r.y + r.h]),
+            n("c0", [r.x, r.y]),
+            n("c1", [r.x + r.w, r.y]),
+            n("c2", [r.x + r.w, r.y + r.h]),
+            n("c3", [r.x, r.y + r.h]),
             n("c", [r.x + r.w / 2.0, r.y + r.h / 2.0]),
-            n("mb", [r.x + r.w / 2.0, r.y]), n("mr", [r.x + r.w, r.y + r.h / 2.0]),
-            n("mt", [r.x + r.w / 2.0, r.y + r.h]), n("ml", [r.x, r.y + r.h / 2.0]),
+            n("mb", [r.x + r.w / 2.0, r.y]),
+            n("mr", [r.x + r.w, r.y + r.h / 2.0]),
+            n("mt", [r.x + r.w / 2.0, r.y + r.h]),
+            n("ml", [r.x, r.y + r.h / 2.0]),
         ],
         Entity::Circle(c) => vec![
-            n("c", [c.cx, c.cy]), n("e", [c.cx + c.r, c.cy]), n("w", [c.cx - c.r, c.cy]),
-            n("n", [c.cx, c.cy + c.r]), n("s", [c.cx, c.cy - c.r]),
+            n("c", [c.cx, c.cy]),
+            n("e", [c.cx + c.r, c.cy]),
+            n("w", [c.cx - c.r, c.cy]),
+            n("n", [c.cx, c.cy + c.r]),
+            n("s", [c.cx, c.cy - c.r]),
         ],
         Entity::Polygon(p) => {
             let mut v = vec![n("c", [p.cx, p.cy])];
-            v.extend(entity_outline(e).into_iter().enumerate().map(|(i, q)| (format!("v{i}"), q)));
+            v.extend(
+                entity_outline(e)
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, q)| (format!("v{i}"), q)),
+            );
             v
         }
         Entity::Slot(s) => vec![n("s", [s.x1, s.y1]), n("e", [s.x2, s.y2])],
-        Entity::Line(l) => vec![n("p1", l.p1), n("p2", l.p2), n("m", [(l.p1[0] + l.p2[0]) / 2.0, (l.p1[1] + l.p2[1]) / 2.0])],
+        Entity::Line(l) => vec![
+            n("p1", l.p1),
+            n("p2", l.p2),
+            n("m", [(l.p1[0] + l.p2[0]) / 2.0, (l.p1[1] + l.p2[1]) / 2.0]),
+        ],
         Entity::Arc(a) => {
             let p = arc_pts(e, 2);
             vec![n("s", p[0]), n("e", p[2]), n("m", p[1]), n("c", [a.cx, a.cy])]
@@ -160,7 +207,10 @@ pub fn key_points(e: &Entity) -> Vec<(String, P)> {
             let p = &pl.pts;
             let mut v: Vec<(String, P)> = p.iter().enumerate().map(|(i, q)| (format!("v{i}"), *q)).collect();
             for i in 0..p.len().saturating_sub(1) {
-                v.push((format!("m{i}"), [(p[i][0] + p[i + 1][0]) / 2.0, (p[i][1] + p[i + 1][1]) / 2.0]));
+                v.push((
+                    format!("m{i}"),
+                    [(p[i][0] + p[i + 1][0]) / 2.0, (p[i][1] + p[i + 1][1]) / 2.0],
+                ));
             }
             v
         }
@@ -172,7 +222,11 @@ pub fn key_points(e: &Entity) -> Vec<(String, P)> {
 pub fn seg_dist(p: P, a: P, b: P) -> f64 {
     let (dx, dy) = (b[0] - a[0], b[1] - a[1]);
     let l = dx * dx + dy * dy;
-    let t = if l != 0.0 { ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l } else { 0.0 };
+    let t = if l != 0.0 {
+        ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l
+    } else {
+        0.0
+    };
     let t = t.clamp(0.0, 1.0);
     (p[0] - (a[0] + t * dx)).hypot(p[1] - (a[1] + t * dy))
 }
@@ -209,7 +263,13 @@ pub fn label(e: &Entity) -> &'static str {
 /// JS `(+v).toFixed(2)`: exact decimal value, halves away from zero.
 pub fn to_fixed2(v: f64) -> String {
     if !v.is_finite() {
-        return if v.is_nan() { "NaN".into() } else if v > 0.0 { "Infinity".into() } else { "-Infinity".into() };
+        return if v.is_nan() {
+            "NaN".into()
+        } else if v > 0.0 {
+            "Infinity".into()
+        } else {
+            "-Infinity".into()
+        };
     }
     let a = v.abs();
     let exact = format!("{a:.40}");
@@ -227,7 +287,11 @@ pub fn to_fixed2(v: f64) -> String {
 /// The 1.x `describe` number: `toFixed(2)` without trailing zeros.
 fn f(v: f64) -> String {
     let s = to_fixed2(v);
-    if s.contains('.') { s.trim_end_matches('0').trim_end_matches('.').to_string() } else { s }
+    if s.contains('.') {
+        s.trim_end_matches('0').trim_end_matches('.').to_string()
+    } else {
+        s
+    }
 }
 
 pub fn describe(e: &Entity) -> String {
@@ -265,14 +329,40 @@ fn g(v: f64) -> String {
 }
 
 /// `dimensions(e)` with labels and positions.
+// 0.7071 is the label offset as the JavaScript UI writes it, not a rounded 1/sqrt(2).
+#[allow(clippy::approx_constant)]
 pub fn dimension_items(e: &Entity) -> Vec<DimItem> {
-    let item = |key: &str, value: f64, label: String, at: P, side| DimItem { key: key.into(), value, label, at, side };
+    let item = |key: &str, value: f64, label: String, at: P, side| DimItem {
+        key: key.into(),
+        value,
+        label,
+        at,
+        side,
+    };
     match e {
         Entity::Rect(r) => vec![
-            item("w", r.w.abs(), g(r.w.abs()), [r.x + r.w / 2.0, r.y.min(r.y + r.h)], Some("below")),
-            item("h", r.h.abs(), g(r.h.abs()), [r.x.max(r.x + r.w), r.y + r.h / 2.0], Some("right")),
+            item(
+                "w",
+                r.w.abs(),
+                g(r.w.abs()),
+                [r.x + r.w / 2.0, r.y.min(r.y + r.h)],
+                Some("below"),
+            ),
+            item(
+                "h",
+                r.h.abs(),
+                g(r.h.abs()),
+                [r.x.max(r.x + r.w), r.y + r.h / 2.0],
+                Some("right"),
+            ),
         ],
-        Entity::Circle(c) => vec![item("d", c.r * 2.0, format!("⌀{}", g(c.r * 2.0)), [c.cx + c.r * 0.7071, c.cy + c.r * 0.7071], None)],
+        Entity::Circle(c) => vec![item(
+            "d",
+            c.r * 2.0,
+            format!("⌀{}", g(c.r * 2.0)),
+            [c.cx + c.r * 0.7071, c.cy + c.r * 0.7071],
+            None,
+        )],
         Entity::Arc(a) => {
             let m = arc_pts(e, 2)[1];
             vec![item("r", a.r, format!("R{}", g(a.r)), m, None)]
@@ -287,7 +377,13 @@ pub fn dimension_items(e: &Entity) -> Vec<DimItem> {
         }
         Entity::Line(l) => {
             let len = (l.p2[0] - l.p1[0]).hypot(l.p2[1] - l.p1[1]);
-            vec![item("len", len, g(len), [(l.p1[0] + l.p2[0]) / 2.0, (l.p1[1] + l.p2[1]) / 2.0], None)]
+            vec![item(
+                "len",
+                len,
+                g(len),
+                [(l.p1[0] + l.p2[0]) / 2.0, (l.p1[1] + l.p2[1]) / 2.0],
+                None,
+            )]
         }
         _ => Vec::new(),
     }
@@ -307,7 +403,11 @@ pub fn apply_dimension(e: &mut Entity, key: &str, v: f64) {
     let sign = |x: f64| if x == 0.0 || x.is_nan() { 1.0 } else { x.signum() };
     match e {
         Entity::Rect(r) => {
-            if key == "w" { r.w = sign(r.w) * v } else { r.h = sign(r.h) * v }
+            if key == "w" {
+                r.w = sign(r.w) * v
+            } else {
+                r.h = sign(r.h) * v
+            }
         }
         Entity::Circle(c) => c.r = v / 2.0,
         Entity::Arc(a) => a.r = v,

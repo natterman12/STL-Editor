@@ -12,8 +12,8 @@
 //! darker diagonal lines in screen space; off, it is the plain darker colour. The grid is drawn
 //! before the bodies and caps, so it never shows through either.
 
-use super::camera::{self, V3};
 use super::Viewport;
+use super::camera::{self, V3};
 
 /// How much of the body's colour the cut face keeps (25 % darker). The shader has the same number.
 pub const CAP_KEEP: f32 = 0.75;
@@ -195,7 +195,8 @@ impl Viewport {
     /// `setSection(axis, offset, flip)` from the current camera. Does not turn the view on;
     /// [`set_section`](Self::set_section) does that. `None` removes the cut, as `setSection(null)`.
     pub fn set_section_cut(&mut self, cut: Option<(SectionAxis, f64, bool)>) {
-        self.section_plane = cut.map(|(axis, offset, flip)| cut_plane(axis, offset, flip, self.camera.position, self.camera.target));
+        self.section_plane =
+            cut.map(|(axis, offset, flip)| cut_plane(axis, offset, flip, self.camera.position, self.camera.target));
         self.changed();
     }
 

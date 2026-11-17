@@ -4,9 +4,7 @@
 use serde_json::{Map, Value, json};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use stl_engine::params::Param;
-use stl_engine::{
-    Body, Ctx, Document, Feature, FeatureError, FeatureResult, Registry, RollbackAfter, State,
-};
+use stl_engine::{Body, Ctx, Document, Feature, FeatureError, FeatureResult, Registry, RollbackAfter, State};
 use stl_kernel::Solid;
 
 type P = Map<String, Value>;
@@ -17,7 +15,11 @@ fn ev_box(st: &mut State, fid: &str, p: &P, res: &mut FeatureResult, _: &Ctx) ->
     let bid = format!("b{fid}");
     st.bodies.insert(
         bid.clone(),
-        Body { name: "Box".into(), solid: Some(Solid::cube([s, s, s], false)), mesh: None },
+        Body {
+            name: "Box".into(),
+            solid: Some(Solid::cube([s, s, s], false)),
+            mesh: None,
+        },
     );
     res.created.push(bid);
     Ok(())
@@ -29,7 +31,10 @@ fn ev_grow(st: &mut State, _: &str, p: &P, res: &mut FeatureResult, _: &Ctx) -> 
         Some(b) => b.to_string(),
         None => st.bodies.keys().next().cloned().unwrap_or_default(),
     };
-    let k = p.get("k").and_then(Value::as_f64).ok_or_else(|| FeatureError("k is missing".into()))?;
+    let k = p
+        .get("k")
+        .and_then(Value::as_f64)
+        .ok_or_else(|| FeatureError("k is missing".into()))?;
     let solid = st.body(&bid)?.require_solid()?.scale([k, k, k]);
     st.bodies.get_mut(&bid).unwrap().solid = Some(solid);
     res.modified.push(bid);
@@ -61,7 +66,14 @@ fn ev_counted(st: &mut State, fid: &str, p: &P, res: &mut FeatureResult, c: &Ctx
 fn ev_two_big(st: &mut State, _: &str, _: &P, res: &mut FeatureResult, _: &Ctx) -> Result<(), FeatureError> {
     for bid in ["big1", "big2"] {
         let s = Solid::sphere(10.0, 256);
-        st.bodies.insert(bid.into(), Body { name: bid.into(), solid: Some(s), mesh: None });
+        st.bodies.insert(
+            bid.into(),
+            Body {
+                name: bid.into(),
+                solid: Some(s),
+                mesh: None,
+            },
+        );
         res.created.push(bid.into());
     }
     Ok(())
@@ -87,11 +99,19 @@ fn obj(v: Value) -> P {
 }
 
 fn param(name: &str, expr: &str) -> Param {
-    Param { name: name.into(), expr: expr.into(), note: String::new() }
+    Param {
+        name: name.into(),
+        expr: expr.into(),
+        note: String::new(),
+    }
 }
 
 fn volumes(d: &Document) -> Vec<f64> {
-    d.state.bodies.values().map(|b| b.solid.as_ref().unwrap().volume()).collect()
+    d.state
+        .bodies
+        .values()
+        .map(|b| b.solid.as_ref().unwrap().volume())
+        .collect()
 }
 
 fn near(a: f64, b: f64) -> bool {
@@ -137,7 +157,10 @@ fn add_then_evaluate_builds_bodies() {
     d.set_body_props("bf1", None, None, Some(false));
     assert_eq!(d.ui["hidden"], json!([]));
 
-    assert_eq!(d.add_feature("nothing", P::new(), None).unwrap_err().0, "Unknown feature nothing.");
+    assert_eq!(
+        d.add_feature("nothing", P::new(), None).unwrap_err().0,
+        "Unknown feature nothing."
+    );
 
     // ids are shared by features and sources, and never reused
     assert_eq!(d.add_source("Teil ö.STL", vec![1, 2, 3]), "s3");
@@ -163,7 +186,13 @@ fn failing_feature_is_refused() {
     d.add_feature("box", P::new(), None).unwrap();
     let g = d.add_feature("grow", obj(json!({"k": 2})), None).unwrap();
     let before = features_json(&d);
-    let e = d.edit_feature(&g, Some(obj(json!({"k": 2, "body": "gone"}))), None, None, RollbackAfter::Keep);
+    let e = d.edit_feature(
+        &g,
+        Some(obj(json!({"k": 2, "body": "gone"}))),
+        None,
+        None,
+        RollbackAfter::Keep,
+    );
     assert_eq!(e.unwrap_err().0, "Body 'gone' no longer exists.");
     assert_eq!(features_json(&d), before);
 }
@@ -188,7 +217,10 @@ fn expressions_rebuild_on_param_change() {
 
     // removing a parameter a feature uses shows on that feature and keeps the document usable
     d.set_params(vec![]).unwrap();
-    assert_eq!(d.results()[1].error.as_deref(), Some("Parameter: there's no parameter \"s\" (in =2*s)."));
+    assert_eq!(
+        d.results()[1].error.as_deref(),
+        Some("Parameter: there's no parameter \"s\" (in =2*s).")
+    );
     assert!(near(volumes(&d)[0], 1000.0));
     assert!(d.undo());
     assert!(near(volumes(&d)[0], 27000.0));
@@ -202,16 +234,33 @@ fn set_params_messages() {
         msg(&mut d, vec![param("2x", "1")]),
         "\"2x\" can't be a parameter name: use letters, digits and _, starting with a letter."
     );
-    assert_eq!(msg(&mut d, vec![param("sqrt", "1")]), "\"sqrt\" is a built-in name; pick another.");
+    assert_eq!(
+        msg(&mut d, vec![param("sqrt", "1")]),
+        "\"sqrt\" is a built-in name; pick another."
+    );
     assert_eq!(msg(&mut d, vec![param("w", "  ")]), "Give \"w\" a value.");
-    assert_eq!(msg(&mut d, vec![param("w", "1"), param("w", "2")]), "\"w\" is there twice.");
+    assert_eq!(
+        msg(&mut d, vec![param("w", "1"), param("w", "2")]),
+        "\"w\" is there twice."
+    );
     assert!(d.params.is_empty());
     assert!(!d.undo(), "a refused list must not leave an undo step");
 
     // names and values are trimmed, and empty rows are dropped
-    let note = Param { name: " w ".into(), expr: " 4 ".into(), note: "größe".into() };
+    let note = Param {
+        name: " w ".into(),
+        expr: " 4 ".into(),
+        note: "größe".into(),
+    };
     d.set_params(vec![note, param("", "")]).unwrap();
-    assert_eq!(d.params, vec![Param { name: "w".into(), expr: "4".into(), note: "größe".into() }]);
+    assert_eq!(
+        d.params,
+        vec![Param {
+            name: "w".into(),
+            expr: "4".into(),
+            note: "größe".into()
+        }]
+    );
     assert_eq!(d.param_values().values["w"], 4.0);
 }
 
@@ -265,7 +314,10 @@ fn delete_and_move_adjust_rollback() {
     assert_eq!(d.rollback, Some(1));
 
     assert_eq!(d.delete_feature("f99").unwrap_err().0, "That feature no longer exists.");
-    assert_eq!(d.move_feature("f99", 0).unwrap_err().0, "That feature no longer exists.");
+    assert_eq!(
+        d.move_feature("f99", 0).unwrap_err().0,
+        "That feature no longer exists."
+    );
 }
 
 #[test]
@@ -295,7 +347,14 @@ fn undo_redo_round_trip() {
     // an edit session: undo lands on the timeline as it was before the session
     let first = d.features[0].id.clone();
     d.set_rollback(Some(1));
-    d.edit_feature(&first, Some(obj(json!({"size": 4}))), None, None, RollbackAfter::Set(None)).unwrap();
+    d.edit_feature(
+        &first,
+        Some(obj(json!({"size": 4}))),
+        None,
+        None,
+        RollbackAfter::Set(None),
+    )
+    .unwrap();
     assert_eq!(d.rollback, None);
     assert!(near(volumes(&d)[0], 64.0 * 8.0));
     assert!(d.undo());
@@ -308,7 +367,8 @@ fn auto_names() {
     let mut d = doc();
     d.add_feature("primitive", obj(json!({"shape": "box"})), None).unwrap();
     d.add_feature("primitive", obj(json!({"shape": "box"})), None).unwrap();
-    d.add_feature("primitive", obj(json!({"shape": "cylinder"})), None).unwrap();
+    d.add_feature("primitive", obj(json!({"shape": "cylinder"})), None)
+        .unwrap();
     d.add_feature("move", P::new(), None).unwrap();
     d.add_feature("box", P::new(), None).unwrap(); // no label: the type itself
     d.add_feature("move", P::new(), Some(String::new())).unwrap(); // an empty name counts as none
@@ -335,7 +395,8 @@ fn suppressed_is_skipped() {
     assert!(d.results()[0].created.is_empty());
     assert!(!d.results()[1].suppressed);
 
-    d.edit_feature(&a, None, Some("First".into()), Some(false), RollbackAfter::Keep).unwrap();
+    d.edit_feature(&a, None, Some("First".into()), Some(false), RollbackAfter::Keep)
+        .unwrap();
     assert_eq!(body_ids(&d), ["bf1", "bf2"]);
     assert_eq!(d.features[0].name.as_deref(), Some("First"));
 
@@ -357,7 +418,10 @@ fn panicking_feature_is_contained() {
     assert_eq!(d.features.len(), 1);
 
     // ...so put one in the timeline the way an opened project would
-    for v in [json!({"id": "f8", "type": "boom"}), json!({"id": "f9", "type": "grow", "params": {"k": 2}})] {
+    for v in [
+        json!({"id": "f8", "type": "boom"}),
+        json!({"id": "f9", "type": "grow", "params": {"k": 2}}),
+    ] {
         d.features.push(serde_json::from_value(v).unwrap());
     }
     let res = d.evaluate();
@@ -386,22 +450,31 @@ fn panicking_feature_is_contained() {
     assert_eq!(st.bodies.len(), 2);
 
     // a feature type this build doesn't know is an error on that feature, not a crash
-    d.features.push(serde_json::from_value(json!({"id": "f20", "type": "warp"})).unwrap());
-    assert_eq!(d.evaluate().last().unwrap().error.as_deref(), Some("Unknown feature warp."));
+    d.features
+        .push(serde_json::from_value(json!({"id": "f20", "type": "warp"})).unwrap());
+    assert_eq!(
+        d.evaluate().last().unwrap().error.as_deref(),
+        Some("Unknown feature warp.")
+    );
 }
 
 #[test]
 fn cache_reuses_unchanged_prefix() {
     let mut d = doc();
     let a = d.add_feature("counted", P::new(), None).unwrap();
-    assert_eq!(COUNTED.load(Ordering::SeqCst), 1, "the trial run is reused, not repeated");
+    assert_eq!(
+        COUNTED.load(Ordering::SeqCst),
+        1,
+        "the trial run is reused, not repeated"
+    );
     d.evaluate();
     d.evaluate();
     assert_eq!(COUNTED.load(Ordering::SeqCst), 1);
 
     // changes after it don't rebuild it
     let g = d.add_feature("grow", obj(json!({"k": 2})), None).unwrap();
-    d.edit_feature(&g, Some(obj(json!({"k": 3}))), None, None, RollbackAfter::Keep).unwrap();
+    d.edit_feature(&g, Some(obj(json!({"k": 3}))), None, None, RollbackAfter::Keep)
+        .unwrap();
     d.set_rollback(Some(1));
     d.set_rollback(None);
     assert_eq!(COUNTED.load(Ordering::SeqCst), 1);
@@ -417,7 +490,8 @@ fn cache_reuses_unchanged_prefix() {
     assert!(near(volumes(&d)[0], 27000.0), "a preview leaves the document as it was");
 
     // an edit runs the feature once (its trial run); the rebuild reuses that
-    d.edit_feature(&a, Some(obj(json!({"size": 2}))), None, None, RollbackAfter::Keep).unwrap();
+    d.edit_feature(&a, Some(obj(json!({"size": 2}))), None, None, RollbackAfter::Keep)
+        .unwrap();
     assert_eq!(COUNTED.load(Ordering::SeqCst), 3);
     assert!(near(volumes(&d)[0], 8.0 * 27.0));
     d.evaluate();
@@ -441,13 +515,24 @@ fn unchanged_solids_are_shared_not_copied() {
     let took = t.elapsed();
     assert_eq!(r.error, None);
     for (id, b) in &st.bodies {
-        assert!(b.solid.as_ref().unwrap().shares_with(d.state.bodies[id].solid.as_ref().unwrap()), "{id} was copied");
+        assert!(
+            b.solid
+                .as_ref()
+                .unwrap()
+                .shares_with(d.state.bodies[id].solid.as_ref().unwrap()),
+            "{id} was copied"
+        );
     }
     assert!(took < std::time::Duration::from_millis(200), "preview took {took:?}");
     // re-evaluating from the cache also keeps the same solids
     let before = d.state.clone();
     d.evaluate();
     for (id, b) in &d.state.bodies {
-        assert!(b.solid.as_ref().unwrap().shares_with(before.bodies[id].solid.as_ref().unwrap()));
+        assert!(
+            b.solid
+                .as_ref()
+                .unwrap()
+                .shares_with(before.bodies[id].solid.as_ref().unwrap())
+        );
     }
 }

@@ -102,8 +102,17 @@ fn wait_meshes(h: &mut Harness<'static, StlApp>) {
     while Instant::now() < end {
         h.state_mut().viewport.flush();
         h.run_steps(2);
-        let pending = h.state().viewport.stats().upload_pending.load(std::sync::atomic::Ordering::Relaxed);
-        let ready = h.state().bodies.iter().all(|b| h.state().viewport.body_mesh(&b.id).is_some());
+        let pending = h
+            .state()
+            .viewport
+            .stats()
+            .upload_pending
+            .load(std::sync::atomic::Ordering::Relaxed);
+        let ready = h
+            .state()
+            .bodies
+            .iter()
+            .all(|b| h.state().viewport.body_mesh(&b.id).is_some());
         if !pending && (h.state().bodies.is_empty() || ready) {
             return;
         }
@@ -136,7 +145,11 @@ fn apply_state(h: &mut Harness<'static, StlApp>, link: &NativeLink, state: &str)
         }
         "timeline" => {
             // like 1.x's "previous step" button: one step back from where the marker is now
-            let cur = h.state().timeline_view.marker.unwrap_or(h.state().timeline_view.items.len());
+            let cur = h
+                .state()
+                .timeline_view
+                .marker
+                .unwrap_or(h.state().timeline_view.items.len());
             assert!(cur >= 1, "timeline: nothing to roll back");
             link.send(Command::Rollback(Some(cur - 1)));
             settle(h, link);
@@ -195,7 +208,10 @@ fn capture_one(gpu: &Headless, state: &str, theme: &str) -> (PathBuf, u64) {
         // app open path (Files::open_bytes): title becomes basic.stlx and the project is clean
         h.state_mut().open_launch_file(&project_path());
         settle(&mut h, &link);
-        assert!(!h.state().bodies.is_empty(), "{state}/{theme}: expected bodies after open");
+        assert!(
+            !h.state().bodies.is_empty(),
+            "{state}/{theme}: expected bodies after open"
+        );
     } else {
         h.run_steps(2);
     }

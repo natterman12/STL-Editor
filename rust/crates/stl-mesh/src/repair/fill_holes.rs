@@ -63,6 +63,7 @@ fn cycle_basis(g: &Graph) -> Vec<Vec<u32>> {
 
 /// trimesh `repair.fill_holes(mesh)`, in place. Only faces are added; `v` is taken mutably to
 /// match the trimesh call, which works on the whole mesh.
+#[allow(clippy::ptr_arg)]
 pub fn fill_holes(v: &mut Vec<f64>, f: &mut Vec<u32>) {
     if f.len() / 3 < 3 || is_watertight(f).0 {
         return;

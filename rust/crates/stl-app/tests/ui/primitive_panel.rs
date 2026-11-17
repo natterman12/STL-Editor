@@ -8,7 +8,13 @@ use egui_kittest::kittest::Queryable;
 use super::harness::{click_at, empty_harness, open_tool, settle};
 
 fn plane_marks(h: &egui_kittest::Harness<'static, stl_app::app::StlApp>) -> Vec<String> {
-    h.state().viewport.overlay_items().iter().map(|o| o.tag.clone()).filter(|t| ["plane-ghost", "marker", "regions", "sk", "hinge"].contains(&t.as_str())).collect()
+    h.state()
+        .viewport
+        .overlay_items()
+        .iter()
+        .map(|o| o.tag.clone())
+        .filter(|t| ["plane-ghost", "marker", "regions", "sk", "hinge"].contains(&t.as_str()))
+        .collect()
 }
 
 #[test]
@@ -22,7 +28,10 @@ fn sphere_ok_by_mouse_adds_the_sphere() {
         let ok = h.get_by_label("OK").rect().center();
         click_at(&mut h, ok);
         settle(&mut h, &link);
-        assert!(h.state().tool().is_none(), "sphere {n}: a mouse click on OK closes the panel");
+        assert!(
+            h.state().tool().is_none(),
+            "sphere {n}: a mouse click on OK closes the panel"
+        );
         assert_eq!(h.state().bodies.len(), n, "sphere {n}: OK added a body");
     }
 }
@@ -45,15 +54,26 @@ fn closing_a_tool_removes_its_plane_ghost() {
     assert!(open_tool(&mut h, "primitive_sphere"));
     settle(&mut h, &link);
     h.run_steps(3);
-    assert!(plane_marks(&h).iter().any(|t| t == "plane-ghost"), "the XY plane is shown while the tool is open");
+    assert!(
+        plane_marks(&h).iter().any(|t| t == "plane-ghost"),
+        "the XY plane is shown while the tool is open"
+    );
     h.state_mut().tool_ok();
     settle(&mut h, &link);
     h.run_steps(3);
-    assert!(plane_marks(&h).is_empty(), "OK leaves no tool marks: {:?}", plane_marks(&h));
+    assert!(
+        plane_marks(&h).is_empty(),
+        "OK leaves no tool marks: {:?}",
+        plane_marks(&h)
+    );
 
     assert!(open_tool(&mut h, "primitive_sphere"));
     h.run_steps(3);
     h.state_mut().tool_cancel();
     h.run_steps(3);
-    assert!(plane_marks(&h).is_empty(), "Cancel leaves no tool marks: {:?}", plane_marks(&h));
+    assert!(
+        plane_marks(&h).is_empty(),
+        "Cancel leaves no tool marks: {:?}",
+        plane_marks(&h)
+    );
 }

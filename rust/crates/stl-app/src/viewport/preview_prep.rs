@@ -43,7 +43,17 @@ pub struct Batch {
 
 impl Batch {
     pub fn new(meshes: Vec<Arc<MeshArrays>>, trees: Vec<Arc<OnceLock<Bvh>>>, builds: Arc<AtomicUsize>) -> Self {
-        Batch { meshes, trees, builds, index: 0, phase: 0, crease: None, vertices: Vec::new(), out: Vec::new(), started: false }
+        Batch {
+            meshes,
+            trees,
+            builds,
+            index: 0,
+            phase: 0,
+            crease: None,
+            vertices: Vec::new(),
+            out: Vec::new(),
+            started: false,
+        }
     }
 
     /// `Some` when every mesh is ready. `budget` `None` runs to the end.
@@ -73,29 +83,45 @@ impl Batch {
                         self.vertices = mesh
                             .positions
                             .chunks_exact(3)
-                            .map(|p| LitVertex { pos: [p[0], p[1], p[2]], normal: [0.0; 3] })
+                            .map(|p| LitVertex {
+                                pos: [p[0], p[1], p[2]],
+                                normal: [0.0; 3],
+                            })
                             .collect();
                         self.phase = 1;
                     } else {
-                        let left = if fits { None } else { budget.map(|b| b.saturating_sub(t0.elapsed())) };
+                        let left = if fits {
+                            None
+                        } else {
+                            budget.map(|b| b.saturating_sub(t0.elapsed()))
+                        };
                         let done = {
-                            let job = self.crease.get_or_insert_with(|| CreaseBuild::new(&mesh, scene::CREASE_DEG));
+                            let job = self
+                                .crease
+                                .get_or_insert_with(|| CreaseBuild::new(&mesh, scene::CREASE_DEG));
                             job.step(&mesh, left)
                         };
-                        if let Some(v) = done {
+                        {
+                            let v = done?;
                             self.vertices = v;
                             self.crease = None;
                             self.phase = 1;
-                        } else {
-                            return None;
                         }
                     }
                 }
                 1 => {
                     worked = true;
-                    let edges = if ntri < scene::EDGES_BELOW { Some(scene::feature_edges(&mesh, scene::EDGE_DEG)) } else { None };
+                    let edges = if ntri < scene::EDGES_BELOW {
+                        Some(scene::feature_edges(&mesh, scene::EDGE_DEG))
+                    } else {
+                        None
+                    };
                     let flat = ntri > scene::FLAT_ABOVE;
-                    let indices = if flat { Some(mesh.triangles[..ntri * 3].to_vec()) } else { None };
+                    let indices = if flat {
+                        Some(mesh.triangles[..ntri * 3].to_vec())
+                    } else {
+                        None
+                    };
                     let prepared = PreparedMesh {
                         vertices: std::mem::take(&mut self.vertices),
                         indices,
@@ -114,12 +140,12 @@ impl Batch {
                     // The tree is one call (`Bvh::build` stays whole). A small mesh always
                     // builds it here. A large one leaves it for the next frame when this
                     // slice has already used a quarter of its budget.
-                    if !fits {
-                        if let Some(b) = budget {
-                            if worked && t0.elapsed() >= b / 4 {
-                                return None;
-                            }
-                        }
+                    if !fits
+                        && let Some(b) = budget
+                        && worked
+                        && t0.elapsed() >= b / 4
+                    {
+                        return None;
                     }
                     let _ = self.trees[self.index].set(Bvh::build(&mesh));
                     self.index += 1;
@@ -186,8 +212,14 @@ mod measure {
         if positions.len() % 4 != 0 || triangles.len() % 4 != 0 {
             return Err("error: bad payload".into());
         }
-        let positions: Vec<f32> = positions.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect();
-        let triangles: Vec<u32> = triangles.chunks_exact(4).map(|c| u32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect();
+        let positions: Vec<f32> = positions
+            .chunks_exact(4)
+            .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]))
+            .collect();
+        let triangles: Vec<u32> = triangles
+            .chunks_exact(4)
+            .map(|c| u32::from_le_bytes([c[0], c[1], c[2], c[3]]))
+            .collect();
         if triangles.len() % 3 != 0 || positions.len() % 3 != 0 {
             return Err("error: bad mesh".into());
         }
@@ -213,7 +245,9 @@ mod measure {
     pub fn stl_preview_measure_blocking() -> String {
         PREP.with(|slot| {
             let slot = slot.borrow();
-            let Some(m) = slot.as_ref() else { return "error: call alloc first".into() };
+            let Some(m) = slot.as_ref() else {
+                return "error: call alloc first".into();
+            };
             let _ = scene::prepare_mesh(&m.mesh);
             let _ = Bvh::build(&m.mesh);
             "ok".into()
@@ -224,9 +258,15 @@ mod measure {
     pub fn stl_preview_measure_begin() -> String {
         PREP.with(|slot| {
             let mut slot = slot.borrow_mut();
-            let Some(m) = slot.as_mut() else { return "error: call alloc first".into() };
+            let Some(m) = slot.as_mut() else {
+                return "error: call alloc first".into();
+            };
             let tree = Arc::new(OnceLock::new());
-            m.batch = Some(Batch::new(vec![m.mesh.clone()], vec![tree], Arc::new(AtomicUsize::new(0))));
+            m.batch = Some(Batch::new(
+                vec![m.mesh.clone()],
+                vec![tree],
+                Arc::new(AtomicUsize::new(0)),
+            ));
             "ok".into()
         })
     }
@@ -236,8 +276,12 @@ mod measure {
     pub fn stl_preview_measure_slice() -> String {
         PREP.with(|slot| {
             let mut slot = slot.borrow_mut();
-            let Some(m) = slot.as_mut() else { return "error: call alloc first".into() };
-            let Some(batch) = m.batch.as_mut() else { return "error: call begin first".into() };
+            let Some(m) = slot.as_mut() else {
+                return "error: call alloc first".into();
+            };
+            let Some(batch) = m.batch.as_mut() else {
+                return "error: call begin first".into();
+            };
             match batch.poll(Some(SLICE)) {
                 Some(_) => "done".into(),
                 None => "pending".into(),
@@ -260,7 +304,9 @@ mod measure {
     fn with_gpu<T>(f: impl FnOnce(&mut renderer::MeasureGpu) -> T) -> Result<T, String> {
         GPU.with(|slot| {
             let mut slot = slot.borrow_mut();
-            let Some(gpu) = slot.as_mut() else { return Err("error: call gpu first".into()) };
+            let Some(gpu) = slot.as_mut() else {
+                return Err("error: call gpu first".into());
+            };
             Ok(f(gpu))
         })
     }
@@ -336,7 +382,9 @@ mod measure {
     pub fn stl_preview_measure_app_frame() -> String {
         APP.with(|slot| {
             let mut slot = slot.borrow_mut();
-            let Some(run) = slot.as_mut() else { return "error: call app_begin first".into() };
+            let Some(run) = slot.as_mut() else {
+                return "error: call app_begin first".into();
+            };
             match app_turn(run) {
                 Ok(s) => s,
                 Err(e) => e,

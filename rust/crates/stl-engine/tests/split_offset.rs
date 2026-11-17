@@ -1,6 +1,6 @@
 //! Split's optional `offset`: the cut plane moved along its normal, worked out by hand.
 
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 use stl_engine::params::Param;
 use stl_engine::{Document, Registry};
 
@@ -8,7 +8,8 @@ fn cube_doc() -> Document {
     let mut doc = Document::new(Registry::builtin());
     let p = json!({"shape": "box", "length": 20, "width": 20, "height": 20, "anchor": "corner",
                    "plane": "XY", "operation": "new"});
-    doc.add_feature("primitive", p.as_object().unwrap().clone(), None).unwrap();
+    doc.add_feature("primitive", p.as_object().unwrap().clone(), None)
+        .unwrap();
     doc
 }
 
@@ -26,7 +27,12 @@ fn split_params(offset: Option<Value>) -> Map<String, Value> {
 }
 
 fn volumes(doc: &Document) -> Vec<f64> {
-    let mut v: Vec<f64> = doc.state.bodies.values().map(|b| b.solid.as_ref().unwrap().volume()).collect();
+    let mut v: Vec<f64> = doc
+        .state
+        .bodies
+        .values()
+        .map(|b| b.solid.as_ref().unwrap().volume())
+        .collect();
     v.sort_by(|a, b| a.partial_cmp(b).unwrap());
     v
 }
@@ -53,7 +59,16 @@ fn split_without_offset_unchanged() {
             .state
             .bodies
             .values()
-            .map(|b| b.solid.as_ref().unwrap().to_mesh().positions.iter().map(|x| x.to_bits()).collect())
+            .map(|b| {
+                b.solid
+                    .as_ref()
+                    .unwrap()
+                    .to_mesh()
+                    .positions
+                    .iter()
+                    .map(|x| x.to_bits())
+                    .collect()
+            })
             .collect();
         (volumes(&doc), bits)
     };
@@ -66,8 +81,14 @@ fn split_without_offset_unchanged() {
 #[test]
 fn split_offset_expression() {
     let mut doc = cube_doc();
-    doc.set_params(vec![Param { name: "h".into(), expr: "-10".into(), note: String::new() }]).unwrap();
-    doc.add_feature("split", split_params(Some(json!("=h/2"))), None).unwrap();
+    doc.set_params(vec![Param {
+        name: "h".into(),
+        expr: "-10".into(),
+        note: String::new(),
+    }])
+    .unwrap();
+    doc.add_feature("split", split_params(Some(json!("=h/2"))), None)
+        .unwrap();
     let v = volumes(&doc);
     assert!((v[0] - 2000.0).abs() < 1e-6 && (v[1] - 6000.0).abs() < 1e-6, "{v:?}");
 }
@@ -75,7 +96,9 @@ fn split_offset_expression() {
 #[test]
 fn split_offset_misses_with_new_message() {
     let mut doc = cube_doc();
-    let e = doc.add_feature("split", split_params(Some(json!(3))), None).unwrap_err();
+    let e = doc
+        .add_feature("split", split_params(Some(json!(3))), None)
+        .unwrap_err();
     assert_eq!(
         e.0,
         "The plane doesn't cut through this body. Drag the arrow or change Distance to move it into the part."
@@ -84,6 +107,8 @@ fn split_offset_misses_with_new_message() {
     let msg = "The plane doesn't cut through this body. Drag the arrow or change Distance to move it into the part.";
     let e = doc.add_feature("split", split_params(None), None).unwrap_err();
     assert_eq!(e.0, msg);
-    let e = doc.add_feature("split", split_params(Some(json!(0))), None).unwrap_err();
+    let e = doc
+        .add_feature("split", split_params(Some(json!(0))), None)
+        .unwrap_err();
     assert_eq!(e.0, msg);
 }

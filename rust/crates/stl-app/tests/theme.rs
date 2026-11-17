@@ -25,10 +25,10 @@ fn block(css: &str, open: &str) -> BTreeMap<String, String> {
     clean += rest;
     let mut m = BTreeMap::new();
     for d in clean.split(';') {
-        if let Some(i) = d.find("--") {
-            if let Some((k, v)) = d[i + 2..].split_once(':') {
-                m.insert(k.trim().to_string(), v.trim().to_string());
-            }
+        if let Some(i) = d.find("--")
+            && let Some((k, v)) = d[i + 2..].split_once(':')
+        {
+            m.insert(k.trim().to_string(), v.trim().to_string());
         }
     }
     m
@@ -40,10 +40,18 @@ fn colour(v: &str) -> Color32 {
         assert_eq!(h.len(), 6, "{v}");
         return Color32::from_rgb((n >> 16) as u8, (n >> 8) as u8, n as u8);
     }
-    let inner = v.strip_prefix("rgba(").and_then(|s| s.strip_suffix(')')).unwrap_or_else(|| panic!("not a colour: {v}"));
+    let inner = v
+        .strip_prefix("rgba(")
+        .and_then(|s| s.strip_suffix(')'))
+        .unwrap_or_else(|| panic!("not a colour: {v}"));
     let p: Vec<&str> = inner.split(',').map(str::trim).collect();
     let a: f32 = p[3].parse().unwrap();
-    Color32::from_rgba_unmultiplied(p[0].parse().unwrap(), p[1].parse().unwrap(), p[2].parse().unwrap(), (a * 255.0).round() as u8)
+    Color32::from_rgba_unmultiplied(
+        p[0].parse().unwrap(),
+        p[1].parse().unwrap(),
+        p[2].parse().unwrap(),
+        (a * 255.0).round() as u8,
+    )
 }
 
 fn check(dark: bool, css: &BTreeMap<String, String>) {
@@ -57,9 +65,16 @@ fn check(dark: bool, css: &BTreeMap<String, String>) {
             "shadow" | "shadow-lg" => {
                 // "0 6px 20px rgba(...)"
                 let (head, rgba) = v.split_at(v.find("rgba").unwrap());
-                let n: Vec<f32> = head.split_whitespace().map(|x| x.trim_end_matches("px").parse().unwrap()).collect();
+                let n: Vec<f32> = head
+                    .split_whitespace()
+                    .map(|x| x.trim_end_matches("px").parse().unwrap())
+                    .collect();
                 let s = if k == "shadow" { t.shadow } else { t.shadow_lg };
-                assert_eq!((s.offset[0] as f32, s.offset[1] as f32, s.blur as f32, s.spread as f32), (n[0], n[1], n[2], 0.0), "--{k}");
+                assert_eq!(
+                    (s.offset[0] as f32, s.offset[1] as f32, s.blur as f32, s.spread as f32),
+                    (n[0], n[1], n[2], 0.0),
+                    "--{k}"
+                );
                 assert_eq!(s.color, colour(rgba), "--{k}");
             }
             "color-scheme" => {}
@@ -101,12 +116,19 @@ fn icons_cover_icons_js() {
         .collect();
     assert!(keys.len() > 60, "found only {} icon keys", keys.len());
     for k in &keys {
-        assert!(icons::names().contains(k), "icon {k} missing from assets/icons.json (run assets/gen_icons.mjs)");
+        assert!(
+            icons::names().contains(k),
+            "icon {k} missing from assets/icons.json (run assets/gen_icons.mjs)"
+        );
         let px = icons::render_rgba(k, 48, Color32::from_rgb(0x4c, 0x8d, 0xf6)).unwrap_or_else(|e| panic!("{k}: {e}"));
         assert_eq!(px.len(), 48 * 48 * 4);
         assert!(px.chunks(4).any(|p| p[3] > 0), "icon {k} draws nothing");
     }
-    assert_eq!(keys.len(), icons::names().len(), "icons.json has extra or missing icons");
+    assert_eq!(
+        keys.len(),
+        icons::names().len(),
+        "icons.json has extra or missing icons"
+    );
     // Unknown names fall back to `primitive`, like icon() in icons.js.
     assert!(icons::render_rgba("no-such-icon", 24, Color32::WHITE).is_ok());
 }

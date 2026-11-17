@@ -31,16 +31,28 @@ const HEAD: &str = r#"<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
 /// resvg here has no text support and the glyphs would depend on the system font, so these are
 /// the same symbols drawn as paths (our own drawings, 24x24, centred like the glyphs).
 const GLYPHS: &[(&str, &str)] = &[
-    ("c_coincident", r#"<circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/>"#),
+    (
+        "c_coincident",
+        r#"<circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/>"#,
+    ),
     ("c_hv", r#"<path d="M8 6v12M8 12h9" stroke-width="2"/>"#),
     ("c_parallel", r#"<path d="M9.5 6v12M14.5 6v12" stroke-width="2"/>"#),
     ("c_perpendicular", r#"<path d="M6 18h12M12 18V6" stroke-width="2"/>"#),
     ("c_equal", r#"<path d="M6 9.5h12M6 14.5h12" stroke-width="2"/>"#),
     ("c_tangent", r#"<path d="M7 7h10M12 7v11" stroke-width="2"/>"#),
-    ("c_concentric", r#"<circle cx="12" cy="12" r="3" stroke-width="1.8"/><circle cx="12" cy="12" r="7" stroke-width="1.8"/>"#),
+    (
+        "c_concentric",
+        r#"<circle cx="12" cy="12" r="3" stroke-width="1.8"/><circle cx="12" cy="12" r="7" stroke-width="1.8"/>"#,
+    ),
     ("c_midpoint", r#"<path d="M6 17V7l6 6 6-6v10" stroke-width="2"/>"#),
-    ("c_fix", r#"<rect x="7" y="11" width="10" height="8" rx="1.5" fill="currentColor" stroke="none"/><path d="M9 11V8a3 3 0 0 1 6 0v3" stroke-width="1.8"/>"#),
-    ("c_symmetric", r#"<path d="M12 4v16" stroke-dasharray="2 2"/><circle cx="7" cy="12" r="2.2"/><circle cx="17" cy="12" r="2.2"/>"#),
+    (
+        "c_fix",
+        r#"<rect x="7" y="11" width="10" height="8" rx="1.5" fill="currentColor" stroke="none"/><path d="M9 11V8a3 3 0 0 1 6 0v3" stroke-width="1.8"/>"#,
+    ),
+    (
+        "c_symmetric",
+        r#"<path d="M12 4v16" stroke-dasharray="2 2"/><circle cx="7" cy="12" r="2.2"/><circle cx="17" cy="12" r="2.2"/>"#,
+    ),
 ];
 
 /// All icon names (the keys of ICONS in icons.js), sorted.
@@ -52,7 +64,11 @@ pub fn names() -> Vec<&'static str> {
 
 /// The SVG text of an icon. Like icons.js, an unknown name gives the `primitive` icon.
 pub fn svg(name: &str) -> &'static str {
-    table().get(name).or_else(|| table().get("primitive")).map(String::as_str).unwrap_or("")
+    table()
+        .get(name)
+        .or_else(|| table().get("primitive"))
+        .map(String::as_str)
+        .unwrap_or("")
 }
 
 /// Draw an icon into `px` x `px` pixels: straight-alpha RGBA bytes.
@@ -67,7 +83,11 @@ pub fn render_rgba(name: &str, px: u32, color: Color32) -> Result<Vec<u8>, Strin
     let tree = resvg::usvg::Tree::from_str(&s, &resvg::usvg::Options::default()).map_err(|e| format!("{name}: {e}"))?;
     let mut pm = resvg::tiny_skia::Pixmap::new(px, px).ok_or("empty pixmap")?;
     let scale = px as f32 / tree.size().width();
-    resvg::render(&tree, resvg::tiny_skia::Transform::from_scale(scale, scale), &mut pm.as_mut());
+    resvg::render(
+        &tree,
+        resvg::tiny_skia::Transform::from_scale(scale, scale),
+        &mut pm.as_mut(),
+    );
     // tiny-skia stores premultiplied; hand back straight alpha.
     let mut out = Vec::with_capacity(pm.data().len());
     for p in pm.pixels() {

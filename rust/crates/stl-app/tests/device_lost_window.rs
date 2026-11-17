@@ -18,16 +18,16 @@ use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 use std::time::{Duration, Instant};
 
-use egui_kittest::kittest::Queryable;
 use egui_kittest::Harness;
+use egui_kittest::kittest::Queryable;
 use serde_json::json;
 use stl_app::app::StlApp;
 use stl_app::engine_link::native::NativeLink;
 use stl_app::engine_link::{Command, EngineLink};
-use stl_app::platform::native::NativePlatform;
 use stl_app::platform::Platform;
+use stl_app::platform::native::NativePlatform;
 use stl_app::ui::ThemePref;
-use stl_app::viewport::renderer::{destroy_device, Headless, Stats};
+use stl_app::viewport::renderer::{Headless, Stats, destroy_device};
 
 #[path = "ui/harness.rs"]
 mod harness;
@@ -40,7 +40,13 @@ const W: u32 = 1280;
 const H: u32 = 800;
 
 fn input() -> egui::RawInput {
-    egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(W as f32, H as f32))), ..Default::default() }
+    egui::RawInput {
+        screen_rect: Some(egui::Rect::from_min_size(
+            egui::Pos2::ZERO,
+            egui::vec2(W as f32, H as f32),
+        )),
+        ..Default::default()
+    }
 }
 
 fn platform(cfg: &Path) -> NativePlatform {
@@ -110,7 +116,11 @@ fn window(gpu: &Headless, cfg: &Path, ends: Ends) -> Option<StlApp> {
             let mut viewport = stl_app::viewport::Viewport::new();
             viewport.init_gpu(cc.wgpu_render_state.as_ref().expect("the window's device"));
             *stats.lock().unwrap() = Some(viewport.stats_handle());
-            let mut app = StlApp::new(&cc.egui_ctx, Box::new(platform(&cfg)), Box::new(SharedLink { inner: link.clone() }));
+            let mut app = StlApp::new(
+                &cc.egui_ctx,
+                Box::new(platform(&cfg)),
+                Box::new(SharedLink { inner: link.clone() }),
+            );
             app.viewport = viewport;
             app.enable_autosave();
             app.open_launch_file(&harness::project("basic.stlx"));
@@ -129,30 +139,53 @@ fn window(gpu: &Headless, cfg: &Path, ends: Ends) -> Option<StlApp> {
         frame.wgpu_render_state = Some(gpu.render_state.clone());
         let mut step = |app: &mut Box<dyn eframe::App>| ctx.run_ui(input(), |ui| app.ui(ui, &mut frame));
         let st = stats.lock().unwrap().clone().expect("stats");
-        let drawn = |st: &Stats, after: u64| !link.is_busy() && st.uploads() > after && !st.upload_pending.load(Ordering::Relaxed);
+        let drawn = |st: &Stats, after: u64| {
+            !link.is_busy() && st.uploads() > after && !st.upload_pending.load(Ordering::Relaxed)
+        };
 
-        until("the project to open", || drawn(&st, 0), || {
-            let out = step(&mut app);
-            gpu.paint_egui(&ctx, out, W, H);
-        });
-        if ends == Ends::LostUnsaved {
-            let uploads = st.uploads();
-            link.send(Command::AddFeature { kind: "primitive".into(), params: json!({"shape": "box", "size": [7.0, 8.0, 9.0]}), index: None, name: None });
-            until("the change", || drawn(&st, uploads), || {
+        until(
+            "the project to open",
+            || drawn(&st, 0),
+            || {
                 let out = step(&mut app);
                 gpu.paint_egui(&ctx, out, W, H);
+            },
+        );
+        if ends == Ends::LostUnsaved {
+            let uploads = st.uploads();
+            link.send(Command::AddFeature {
+                kind: "primitive".into(),
+                params: json!({"shape": "box", "size": [7.0, 8.0, 9.0]}),
+                index: None,
+                name: None,
             });
+            until(
+                "the change",
+                || drawn(&st, uploads),
+                || {
+                    let out = step(&mut app);
+                    gpu.paint_egui(&ctx, out, W, H);
+                },
+            );
         }
         if ends == Ends::LostEmptied {
             for id in ["f5", "f4", "f3"] {
                 link.send(Command::DeleteFeature { id: id.into() });
             }
-            until("the deletes", || !link.is_busy(), || {
-                let out = step(&mut app);
-                gpu.paint_egui(&ctx, out, W, H);
-            });
+            until(
+                "the deletes",
+                || !link.is_busy(),
+                || {
+                    let out = step(&mut app);
+                    gpu.paint_egui(&ctx, out, W, H);
+                },
+            );
         }
-        assert_eq!(st.gpu_states(), 1, "the scene went up through egui-wgpu's paint callback");
+        assert_eq!(
+            st.gpu_states(),
+            1,
+            "the scene went up through egui-wgpu's paint callback"
+        );
         assert!(!st.device_lost());
         if ends == Ends::Quit {
             eframe::App::on_exit(app.as_mut());
@@ -167,7 +200,10 @@ fn window(gpu: &Headless, cfg: &Path, ends: Ends) -> Option<StlApp> {
         reached_after_paint = true;
         for _ in 0..10 {
             let out = step(&mut app);
-            let close = out.viewport_output.get(&egui::ViewportId::ROOT).is_some_and(|v| v.commands.contains(&egui::ViewportCommand::Close));
+            let close = out
+                .viewport_output
+                .get(&egui::ViewportId::ROOT)
+                .is_some_and(|v| v.commands.contains(&egui::ViewportCommand::Close));
             gpu.paint_egui(&ctx, out, W, H);
             if close {
                 asked_to_close = true;
@@ -178,8 +214,14 @@ fn window(gpu: &Headless, cfg: &Path, ends: Ends) -> Option<StlApp> {
     };
     let kept = StlApp::run_window(run, make).expect("run_window");
     if ends != Ends::Quit {
-        assert!(reached_after_paint, "painting on a lost device panicked (run_window caught it)");
-        assert!(asked_to_close, "the frames after the loss didn't ask the window to close");
+        assert!(
+            reached_after_paint,
+            "painting on a lost device panicked (run_window caught it)"
+        );
+        assert!(
+            asked_to_close,
+            "the frames after the loss didn't ask the window to close"
+        );
     }
     drop(link); // the test's handle; the app holds the other
     kept
@@ -188,22 +230,29 @@ fn window(gpu: &Headless, cfg: &Path, ends: Ends) -> Option<StlApp> {
 /// The window `main` starts after the restart, with `marker` in [`StlApp::AFTER_RESET_ENV`].
 fn new_window(cfg: &Path, marker: &str) -> (Harness<'static, StlApp>, Arc<NativeLink>) {
     let link = Arc::new(NativeLink::new());
-    let mut app = StlApp::new(&egui::Context::default(), Box::new(platform(cfg)), Box::new(SharedLink { inner: link.clone() }));
+    let mut app = StlApp::new(
+        &egui::Context::default(),
+        Box::new(platform(cfg)),
+        Box::new(SharedLink { inner: link.clone() }),
+    );
     app.after_device_reset(marker); // before enable_autosave, as `main` does
     app.enable_autosave();
     let mut frame = eframe::Frame::_new_kittest();
     let mut fonts = false;
-    let mut h = Harness::builder().with_size(egui::vec2(W as f32, H as f32)).with_accessibility_check(false).build_ui_state(
-        move |ui, app: &mut StlApp| {
-            if !fonts {
-                fonts = true;
-                stl_app::fonts::install(ui.ctx());
-                app.set_theme(ui.ctx(), ThemePref::Dark);
-            }
-            eframe::App::ui(app, ui, &mut frame)
-        },
-        app,
-    );
+    let mut h = Harness::builder()
+        .with_size(egui::vec2(W as f32, H as f32))
+        .with_accessibility_check(false)
+        .build_ui_state(
+            move |ui, app: &mut StlApp| {
+                if !fonts {
+                    fonts = true;
+                    stl_app::fonts::install(ui.ctx());
+                    app.set_theme(ui.ctx(), ThemePref::Dark);
+                }
+                eframe::App::ui(app, ui, &mut frame)
+            },
+            app,
+        );
     harness::settle(&mut h, &link);
     h.run_steps(5);
     harness::settle(&mut h, &link);
@@ -211,7 +260,10 @@ fn new_window(cfg: &Path, marker: &str) -> (Harness<'static, StlApp>, Arc<Native
 }
 
 fn marker_of(cmd: &std::process::Command) -> Option<String> {
-    cmd.get_envs().find(|(k, _)| *k == StlApp::AFTER_RESET_ENV).and_then(|(_, v)| v).map(|v| v.to_string_lossy().into_owned())
+    cmd.get_envs()
+        .find(|(k, _)| *k == StlApp::AFTER_RESET_ENV)
+        .and_then(|(_, v)| v)
+        .map(|v| v.to_string_lossy().into_owned())
 }
 
 #[test]
@@ -245,7 +297,10 @@ fn window_device_lost_restarts_and_recovers() {
     // main: autosave now, say so, restart with the marker
     let saved = app.save_after_device_loss(Duration::from_secs(60));
     assert!(saved, "the autosave copy wasn't written");
-    assert_eq!(StlApp::DRIVER_RESTARTED, "The graphics driver restarted. STL Editor needs to restart to keep drawing. Your work is saved.");
+    assert_eq!(
+        StlApp::DRIVER_RESTARTED,
+        "The graphics driver restarted. STL Editor needs to restart to keep drawing. Your work is saved."
+    );
     // the old window's engine ends: its copy stays for the new window, named in the marker
     let marker = marker_of(&app.restart_after_device_loss(saved).unwrap()).expect("a marker");
     let copies = stl_platform::autosave::recoverable(&autosave_root(), None);
@@ -258,7 +313,10 @@ fn window_device_lost_restarts_and_recovers() {
     assert_eq!(got, bodies, "the recovered project has the old window's bodies");
     assert_eq!(h.state().timeline_view.items.len(), steps);
     assert!(h.state().shell.dirty, "recovered work is unsaved until saved");
-    assert!(h.query_by_label("Recover unsaved work?").is_none(), "the copy was offered instead of opened");
+    assert!(
+        h.query_by_label("Recover unsaved work?").is_none(),
+        "the copy was offered instead of opened"
+    );
     // the copy was used up; the new window's own folder is locked while it runs
     assert!(stl_platform::autosave::recoverable(&autosave_root(), None).is_empty());
     drop(h);
@@ -278,7 +336,10 @@ fn window_device_lost_restarts_and_recovers() {
     assert!(saved, "nothing unsaved counts as saved");
     let marker = marker_of(&app.restart_after_device_loss(saved).unwrap()).expect("a marker");
     assert_eq!(marker, format!("open:{path}"));
-    assert!(stl_platform::autosave::recoverable(&autosave_root(), None).is_empty(), "a clean project leaves no copy");
+    assert!(
+        stl_platform::autosave::recoverable(&autosave_root(), None).is_empty(),
+        "a clean project leaves no copy"
+    );
     let (h, link) = new_window(&cfg, &marker);
     let got: Vec<String> = h.state().bodies.iter().map(|b| b.id.clone()).collect();
     assert_eq!(got, bodies, "the project's file opened again");
@@ -300,8 +361,15 @@ fn window_device_lost_restarts_and_recovers() {
     assert!(app.timeline_view.items.is_empty());
     let mut app = app;
     let saved = app.save_after_device_loss(Duration::from_secs(60));
-    assert_eq!(marker_of(&app.restart_after_device_loss(saved).unwrap()), None, "no copy of this window, so no marker");
-    let copies: Vec<String> = stl_platform::autosave::recoverable(&autosave_root(), None).into_iter().map(|s| s.id).collect();
+    assert_eq!(
+        marker_of(&app.restart_after_device_loss(saved).unwrap()),
+        None,
+        "no copy of this window, so no marker"
+    );
+    let copies: Vec<String> = stl_platform::autosave::recoverable(&autosave_root(), None)
+        .into_iter()
+        .map(|s| s.id)
+        .collect();
     assert_eq!(copies, vec![leftover.clone()], "only the older session's copy is there");
     // `main` passes no marker; a stale or foreign one opens nothing either
     for marker in ["", "recover", &format!("recover:{leftover}-x")] {
@@ -316,7 +384,11 @@ fn window_device_lost_restarts_and_recovers() {
         assert!(h.state().bodies.is_empty());
         drop(h);
         drop(link);
-        assert_eq!(stl_platform::autosave::recoverable(&autosave_root(), None).len(), 1, "the offered copy is still there");
+        assert_eq!(
+            stl_platform::autosave::recoverable(&autosave_root(), None).len(),
+            1,
+            "the offered copy is still there"
+        );
     }
     let _ = std::fs::remove_dir_all(autosave_root());
 }
@@ -355,25 +427,43 @@ fn refused_staging_write_does_not_panic() {
     let mut viewport = stl_app::viewport::Viewport::new();
     viewport.init_gpu(&gpu.render_state);
     let st = viewport.stats_handle();
-    let mut app = StlApp::new(&cc.egui_ctx, Box::new(platform(&cfg)), Box::new(SharedLink { inner: link.clone() }));
+    let mut app = StlApp::new(
+        &cc.egui_ctx,
+        Box::new(platform(&cfg)),
+        Box::new(SharedLink { inner: link.clone() }),
+    );
     app.viewport = viewport;
     app.enable_autosave();
     app.open_launch_file(&harness::project("basic.stlx"));
     let mut frame = eframe::Frame::_new_kittest();
     frame.wgpu_render_state = Some(gpu.render_state.clone());
     let mut step = |app: &mut StlApp| ctx.run_ui(input(), |ui| eframe::App::ui(app, ui, &mut frame));
-    let drawn = |st: &Stats, after: u64| !link.is_busy() && st.uploads() > after && !st.upload_pending.load(Ordering::Relaxed);
+    let drawn =
+        |st: &Stats, after: u64| !link.is_busy() && st.uploads() > after && !st.upload_pending.load(Ordering::Relaxed);
 
-    until("the project to open", || drawn(&st, 0), || {
-        let out = step(&mut app);
-        gpu.paint_egui(&ctx, out, W, H);
-    });
+    until(
+        "the project to open",
+        || drawn(&st, 0),
+        || {
+            let out = step(&mut app);
+            gpu.paint_egui(&ctx, out, W, H);
+        },
+    );
     let uploads = st.uploads();
-    link.send(Command::AddFeature { kind: "primitive".into(), params: json!({"shape": "box", "size": [7.0, 8.0, 9.0]}), index: None, name: None });
-    until("the change", || drawn(&st, uploads), || {
-        let out = step(&mut app);
-        gpu.paint_egui(&ctx, out, W, H);
+    link.send(Command::AddFeature {
+        kind: "primitive".into(),
+        params: json!({"shape": "box", "size": [7.0, 8.0, 9.0]}),
+        index: None,
+        name: None,
     });
+    until(
+        "the change",
+        || drawn(&st, uploads),
+        || {
+            let out = step(&mut app);
+            gpu.paint_egui(&ctx, out, W, H);
+        },
+    );
     assert!(!app.viewport.device_lost(true));
     assert!(app.shell.dirty, "the added box is unsaved work");
 
@@ -382,17 +472,30 @@ fn refused_staging_write_does_not_panic() {
     assert!(!out.shapes.is_empty(), "the frame has something to upload");
     destroy_device(&gpu.render_state);
     gpu.paint_egui(&ctx, out, W, H);
-    assert!(gpu.render_state.renderer.read().upload_refused(), "the staging write was not refused (the device wasn't lost?)");
-    assert!(app.viewport.device_lost(false), "the refused upload counts as a lost device");
+    assert!(
+        gpu.render_state.renderer.read().upload_refused(),
+        "the staging write was not refused (the device wasn't lost?)"
+    );
+    assert!(
+        app.viewport.device_lost(false),
+        "the refused upload counts as a lost device"
+    );
 
     // the next frame notices it once: logged, and the window is asked to close
     let out = step(&mut app);
-    let close = out.viewport_output.get(&egui::ViewportId::ROOT).is_some_and(|v| v.commands.contains(&egui::ViewportCommand::Close));
+    let close = out
+        .viewport_output
+        .get(&egui::ViewportId::ROOT)
+        .is_some_and(|v| v.commands.contains(&egui::ViewportCommand::Close));
     gpu.paint_egui(&ctx, out, W, H);
     assert!(close, "the first frame after the loss didn't ask the window to close");
     let log = std::fs::read_to_string(stl_platform::settings::log_file()).unwrap_or_default();
     assert!(stl_platform::settings::log_file().starts_with(&cfg));
-    let line = log.lines().rev().find(|l| l.contains("The graphics device was lost")).unwrap_or_else(|| panic!("no loss line in log.txt: {log:?}"));
+    let line = log
+        .lines()
+        .rev()
+        .find(|l| l.contains("The graphics device was lost"))
+        .unwrap_or_else(|| panic!("no loss line in log.txt: {log:?}"));
     assert!(line.contains("upload refused: yes"), "{line}");
     println!("log.txt: {line}");
 

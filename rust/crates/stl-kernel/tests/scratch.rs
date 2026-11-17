@@ -1,6 +1,6 @@
 //! The buffer pool is emptied by `release_scratch`. One test only: the pool is process-wide.
 
-use stl_kernel::{release_scratch, scratch_held_bytes, Solid};
+use stl_kernel::{Solid, release_scratch, scratch_held_bytes};
 
 #[test]
 fn release_scratch_empties_the_pool() {

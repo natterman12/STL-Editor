@@ -11,7 +11,9 @@ use std::rc::Rc;
 use egui::{Event, Modifiers, MouseWheelUnit, PointerButton, Pos2};
 use egui_kittest::Harness;
 use stl_app::viewport::camera::{Camera, V3};
-use stl_app::viewport::navigation::{nav_action, orbit_pivot, wheel_action, zoom_anchor, NavAction, OrbitAround, WheelAction};
+use stl_app::viewport::navigation::{
+    NavAction, OrbitAround, WheelAction, nav_action, orbit_pivot, wheel_action, zoom_anchor,
+};
 use stl_app::viewport::{MouseMode, Viewport};
 use stl_kernel::Aabb;
 
@@ -20,11 +22,18 @@ const H: f64 = 600.0;
 
 /// A 40 x 30 x 20 box standing at (50, 50, 0).
 fn part() -> Aabb {
-    Aabb { min: [30.0, 35.0, 0.0], max: [70.0, 65.0, 20.0] }
+    Aabb {
+        min: [30.0, 35.0, 0.0],
+        max: [70.0, 65.0, 20.0],
+    }
 }
 
 fn centre(b: &Aabb) -> V3 {
-    [(b.min[0] + b.max[0]) / 2.0, (b.min[1] + b.max[1]) / 2.0, (b.min[2] + b.max[2]) / 2.0]
+    [
+        (b.min[0] + b.max[0]) / 2.0,
+        (b.min[1] + b.max[1]) / 2.0,
+        (b.min[2] + b.max[2]) / 2.0,
+    ]
 }
 
 /// A camera looking at `b` from the iso direction, fitted, with no flight left.
@@ -94,7 +103,10 @@ fn fusion_bindings() {
     assert!(matches!(down, WheelAction::Zoom(s) if s > 1.0), "{down:?}");
     // a browser's wheel notch is 100 points
     let notch = wheel_action(MouseWheelUnit::Point, egui::vec2(0.0, -100.0), none);
-    assert!(matches!(notch, WheelAction::Zoom(s) if (s - 1.0 / 0.95).abs() < 1e-12), "{notch:?}");
+    assert!(
+        matches!(notch, WheelAction::Zoom(s) if (s - 1.0 / 0.95).abs() < 1e-12),
+        "{notch:?}"
+    );
 }
 
 /// Press, drag along `path` and release, with the pointer in the viewport.
@@ -103,13 +115,23 @@ fn drag(h: &mut Harness<'_>, button: PointerButton, shift: bool, path: &[Pos2]) 
     h.event(Event::ModifiersChanged(mods));
     h.event(Event::PointerMoved(path[0]));
     h.step();
-    h.event(Event::PointerButton { pos: path[0], button, pressed: true, modifiers: mods });
+    h.event(Event::PointerButton {
+        pos: path[0],
+        button,
+        pressed: true,
+        modifiers: mods,
+    });
     h.step();
     for p in &path[1..] {
         h.event(Event::PointerMoved(*p));
         h.step();
     }
-    h.event(Event::PointerButton { pos: *path.last().unwrap(), button, pressed: false, modifiers: mods });
+    h.event(Event::PointerButton {
+        pos: *path.last().unwrap(),
+        button,
+        pressed: false,
+        modifiers: mods,
+    });
     h.step();
     h.event(Event::ModifiersChanged(Modifiers::NONE));
     h.run_steps(2);
@@ -127,9 +149,11 @@ fn viewport_harness() -> (Harness<'static>, Rc<RefCell<Viewport>>) {
     vp.camera_mut().finish_flight();
     let vp = Rc::new(RefCell::new(vp));
     let shown = vp.clone();
-    let mut h = Harness::builder().with_size(egui::vec2(W as f32, H as f32)).build_ui(move |ui| {
-        shown.borrow_mut().show(ui);
-    });
+    let mut h = Harness::builder()
+        .with_size(egui::vec2(W as f32, H as f32))
+        .build_ui(move |ui| {
+            shown.borrow_mut().show(ui);
+        });
     h.run_steps(3);
     (h, vp)
 }
@@ -137,7 +161,13 @@ fn viewport_harness() -> (Harness<'static>, Rc<RefCell<Viewport>>) {
 fn wheel(h: &mut Harness<'_>, unit: MouseWheelUnit, delta: egui::Vec2, modifiers: Modifiers) {
     h.event(Event::PointerMoved(Pos2::new(400.0, 300.0)));
     h.step();
-    h.event(Event::MouseWheel { unit, delta, phase: egui::TouchPhase::Move, source: egui::MouseWheelSource::Unknown, modifiers });
+    h.event(Event::MouseWheel {
+        unit,
+        delta,
+        phase: egui::TouchPhase::Move,
+        source: egui::MouseWheelSource::Unknown,
+        modifiers,
+    });
     h.run_steps(2);
 }
 
@@ -151,7 +181,10 @@ fn buttons_move_the_view_through_egui_events() {
     // left drag: nothing
     drag(&mut h, PointerButton::Primary, false, &line(a, b));
     let c = cam(&vp);
-    assert!(dist(c.position, start.position) < 1e-9 && dist(c.target, start.target) < 1e-9, "left drag moves nothing");
+    assert!(
+        dist(c.position, start.position) < 1e-9 && dist(c.target, start.target) < 1e-9,
+        "left drag moves nothing"
+    );
 
     // middle drag pans: camera and target move together
     drag(&mut h, PointerButton::Middle, false, &line(a, b));
@@ -176,7 +209,10 @@ fn buttons_move_the_view_through_egui_events() {
     // the wheel zooms: the distance to the target shrinks
     wheel(&mut h, MouseWheelUnit::Line, egui::vec2(0.0, 1.0), Modifiers::NONE);
     let c4 = cam(&vp);
-    assert!(dist(c4.position, c4.target) < dist(c3.position, c3.target) - 1e-6, "the wheel zooms in");
+    assert!(
+        dist(c4.position, c4.target) < dist(c3.position, c3.target) - 1e-6,
+        "the wheel zooms in"
+    );
 }
 
 #[test]
@@ -187,15 +223,29 @@ fn trackpad_scroll_pans_shift_orbits() {
     let pan = wheel_action(MouseWheelUnit::Point, egui::vec2(3.5, -12.25), none);
     assert_eq!(pan, WheelAction::Pan(3.5, -12.25));
     // whole-number points under 50, sideways parts and fractions of a line are a trackpad too
-    assert!(matches!(wheel_action(MouseWheelUnit::Point, egui::vec2(0.0, 7.0), none), WheelAction::Pan(..)));
-    assert!(matches!(wheel_action(MouseWheelUnit::Line, egui::vec2(0.0, 0.2), none), WheelAction::Pan(..)));
-    assert!(matches!(wheel_action(MouseWheelUnit::Line, egui::vec2(0.5, 1.0), none), WheelAction::Pan(..)));
+    assert!(matches!(
+        wheel_action(MouseWheelUnit::Point, egui::vec2(0.0, 7.0), none),
+        WheelAction::Pan(..)
+    ));
+    assert!(matches!(
+        wheel_action(MouseWheelUnit::Line, egui::vec2(0.0, 0.2), none),
+        WheelAction::Pan(..)
+    ));
+    assert!(matches!(
+        wheel_action(MouseWheelUnit::Line, egui::vec2(0.5, 1.0), none),
+        WheelAction::Pan(..)
+    ));
     // with Shift they orbit
-    assert_eq!(wheel_action(MouseWheelUnit::Point, egui::vec2(3.5, -12.25), shift), WheelAction::Orbit(3.5, -12.25));
+    assert_eq!(
+        wheel_action(MouseWheelUnit::Point, egui::vec2(3.5, -12.25), shift),
+        WheelAction::Orbit(3.5, -12.25)
+    );
     // Ctrl and two fingers zoom (scrolling up zooms in)
     let ctrl = Modifiers::CTRL;
     assert!(matches!(wheel_action(MouseWheelUnit::Point, egui::vec2(0.0, 7.5), ctrl), WheelAction::Zoom(s) if s < 1.0));
-    assert!(matches!(wheel_action(MouseWheelUnit::Point, egui::vec2(0.0, -7.5), ctrl), WheelAction::Zoom(s) if s > 1.0));
+    assert!(
+        matches!(wheel_action(MouseWheelUnit::Point, egui::vec2(0.0, -7.5), ctrl), WheelAction::Zoom(s) if s > 1.0)
+    );
 
     // and through events: two fingers pan, with Shift they orbit about the view centre
     let (mut h, vp) = viewport_harness();
@@ -204,12 +254,21 @@ fn trackpad_scroll_pans_shift_orbits() {
     let p1 = vp.borrow().camera().clone();
     let moved = dist(p1.position, p0.position);
     assert!(moved > 1e-3, "two-finger scroll pans");
-    assert!((dist(p1.target, p0.target) - moved).abs() < 1e-9, "a pan moves the target with the camera");
-    assert!(dist(sub(p1.position, p1.target), sub(p0.position, p0.target)) < 1e-9, "and turns nothing");
+    assert!(
+        (dist(p1.target, p0.target) - moved).abs() < 1e-9,
+        "a pan moves the target with the camera"
+    );
+    assert!(
+        dist(sub(p1.position, p1.target), sub(p0.position, p0.target)) < 1e-9,
+        "and turns nothing"
+    );
 
     wheel(&mut h, MouseWheelUnit::Point, egui::vec2(30.5, 10.5), Modifiers::SHIFT);
     let p2 = vp.borrow().camera().clone();
-    assert!(dist(p2.position, p1.position) > 1e-3, "Shift + two-finger scroll orbits");
+    assert!(
+        dist(p2.position, p1.position) > 1e-3,
+        "Shift + two-finger scroll orbits"
+    );
     assert!(dist(p2.target, p1.target) < 1e-9, "the turn is about the view centre");
     assert!((dist(p2.position, p2.target) - dist(p1.position, p1.target)).abs() < 1e-6);
 }
@@ -250,29 +309,55 @@ fn cursor_pivot_far_part_stays_in_view() {
     // SolidCraft #2616: a 10 mm box at the origin and a box far away. The view is on the far one
     // and the drag starts over empty space in a corner: it must not turn about the origin or any
     // other far-off point.
-    let small = Aabb { min: [0.0; 3], max: [10.0; 3] };
-    let far = Aabb { min: [49990.0, 49990.0, 0.0], max: [50030.0, 50020.0, 20.0] };
-    let scene = Aabb { min: small.min, max: far.max };
+    let small = Aabb {
+        min: [0.0; 3],
+        max: [10.0; 3],
+    };
+    let far = Aabb {
+        min: [49990.0, 49990.0, 0.0],
+        max: [50030.0, 50020.0, 20.0],
+    };
+    let scene = Aabb {
+        min: small.min,
+        max: far.max,
+    };
     let mut cam = iso_on(far);
     let c = centre(&far);
     let before = cam.world_to_view(c);
     drag_orbit(&mut cam, OrbitAround::Cursor, scene, None, &[(180.0, 60.0)]);
-    assert!(px_moved(&cam, c, before) < 2.0, "the far part moved {} px", px_moved(&cam, c, before));
+    assert!(
+        px_moved(&cam, c, before) < 2.0,
+        "the far part moved {} px",
+        px_moved(&cam, c, before)
+    );
     assert!(on_screen(&cam, c));
 
     // over a surface the point under the cursor stays under the cursor
     let mut cam = iso_on(far);
     let top = [50010.0, 50005.0, 20.0];
     let before = cam.world_to_view(top);
-    drag_orbit(&mut cam, OrbitAround::Cursor, scene, Some(top), &[(120.0, -50.0), (60.0, 10.0)]);
+    drag_orbit(
+        &mut cam,
+        OrbitAround::Cursor,
+        scene,
+        Some(top),
+        &[(120.0, -50.0), (60.0, 10.0)],
+    );
     assert!(px_moved(&cam, top, before) < 2.0, "{}", px_moved(&cam, top, before));
     assert!(on_screen(&cam, c));
 
     // a point behind the eye is not a pivot
     let cam = iso_on(far);
-    let behind = [cam.position[0] * 2.0 - cam.target[0], cam.position[1] * 2.0 - cam.target[1], cam.position[2] * 2.0 - cam.target[2]];
+    let behind = [
+        cam.position[0] * 2.0 - cam.target[0],
+        cam.position[1] * 2.0 - cam.target[1],
+        cam.position[2] * 2.0 - cam.target[2],
+    ];
     let pivot = orbit_pivot(&cam, OrbitAround::Cursor, Some(scene), Some(behind), None);
-    assert!(dist(pivot, cam.target) < 1e-9, "the middle of the view instead: {pivot:?}");
+    assert!(
+        dist(pivot, cam.target) < 1e-9,
+        "the middle of the view instead: {pivot:?}"
+    );
 }
 
 #[test]
@@ -289,7 +374,10 @@ fn zoom_into_empty_space_then_orbit_keeps_part() {
     for _ in 0..10 {
         let ray = cam.ray([20.0, 20.0]);
         let anchor = zoom_anchor(&cam, ray, None);
-        assert!(dist(anchor, cam.position) < 4.0 * dist(cam.position, cam.target) + 1e-9, "not far off");
+        assert!(
+            dist(anchor, cam.position) < 4.0 * dist(cam.position, cam.target) + 1e-9,
+            "not far off"
+        );
         cam.zoom_at(notch, anchor);
     }
     assert!(dist(cam.position, cam.target) < reach0 * 0.7, "it zoomed in");
@@ -302,7 +390,10 @@ fn zoom_into_empty_space_then_orbit_keeps_part() {
         assert!(turned.project(pivot).1 > 0.0, "the turn centre is in front of the eye");
         assert!(dist(pivot, turned.position) < 2.0 * reach0, "and not far off");
         drag_orbit(&mut turned, around, scene, None, &[(120.0, 30.0)]);
-        assert!(on_screen(&turned, c), "{around:?}: the part stays on screen after the orbit");
+        assert!(
+            on_screen(&turned, c),
+            "{around:?}: the part stays on screen after the orbit"
+        );
         // the box's corners stay in front of the eye as well
         for x in [scene.min[0], scene.max[0]] {
             for z in [scene.min[2], scene.max[2]] {
@@ -326,12 +417,24 @@ fn zoom_into_empty_space_then_orbit_keeps_part() {
     // a hit far behind the target is held to four times the target's distance
     let cam = iso_on(scene);
     let ray = cam.ray([400.0, 300.0]);
-    let far_hit = [ray.0[0] + ray.1[0] * 1e6, ray.0[1] + ray.1[1] * 1e6, ray.0[2] + ray.1[2] * 1e6];
+    let far_hit = [
+        ray.0[0] + ray.1[0] * 1e6,
+        ray.0[1] + ray.1[1] * 1e6,
+        ray.0[2] + ray.1[2] * 1e6,
+    ];
     let anchor = zoom_anchor(&cam, ray, Some(far_hit));
     let reach = dist(cam.position, cam.target);
     assert!((dist(anchor, cam.position) - 4.0 * reach).abs() < 1e-6);
     // and a hit behind the eye is ignored for the ray point at the target's depth
-    let anchor = zoom_anchor(&cam, ray, Some([cam.position[0] - ray.1[0], cam.position[1] - ray.1[1], cam.position[2] - ray.1[2]]));
+    let anchor = zoom_anchor(
+        &cam,
+        ray,
+        Some([
+            cam.position[0] - ray.1[0],
+            cam.position[1] - ray.1[1],
+            cam.position[2] - ray.1[2],
+        ]),
+    );
     assert!(dist(anchor, cam.target) < 1e-6, "{anchor:?}");
 
     // zooming in never reaches the target
@@ -349,7 +452,16 @@ fn turntable_up_stays_up() {
     for around in [OrbitAround::ViewCentre, OrbitAround::Origin] {
         let mut cam = iso_on(scene);
         // a long run of drags in every direction, some far enough to hit the poles
-        let drags = [(400.0, 0.0), (0.0, 900.0), (-200.0, -2000.0), (37.0, 5.0), (0.0, 4000.0), (-90.0, 0.0), (0.0, -8000.0), (13.0, 77.0)];
+        let drags = [
+            (400.0, 0.0),
+            (0.0, 900.0),
+            (-200.0, -2000.0),
+            (37.0, 5.0),
+            (0.0, 4000.0),
+            (-90.0, 0.0),
+            (0.0, -8000.0),
+            (13.0, 77.0),
+        ];
         for (dx, dy) in drags {
             drag_orbit(&mut cam, around, scene, None, &[(dx, dy)]);
             let (right, up, back) = cam.basis();
@@ -372,8 +484,14 @@ fn turntable_up_stays_up() {
     // tilting down from the top view turns the camera toward the heading of screen up
     let t0 = cam.target;
     cam.orbit_about(t0, 0.0, -150.0); // a quarter of the view height, tilting toward the horizon
-    assert!(cam.position[2] < t0[2] + dist(cam.position, t0) * 0.01, "it came down to the horizon");
-    assert!(cam.position[1] < t0[1] - 1.0, "from the -Y side, as the top view's screen up is +Y");
+    assert!(
+        cam.position[2] < t0[2] + dist(cam.position, t0) * 0.01,
+        "it came down to the horizon"
+    );
+    assert!(
+        cam.position[1] < t0[1] - 1.0,
+        "from the -Y side, as the top view's screen up is +Y"
+    );
 }
 
 #[test]
@@ -385,7 +503,10 @@ fn orbit_turns_as_before_about_the_target() {
     cam.orbit_about(cam.target, H, 0.0);
     assert!(dist(cam.position, start) < 1e-6);
     cam.orbit_about([0.0; 3], H / 4.0, 0.0);
-    assert!((cam.position[2] - start[2]).abs() < 1e-9, "a turn about Z keeps the height");
+    assert!(
+        (cam.position[2] - start[2]).abs() < 1e-9,
+        "a turn about Z keeps the height"
+    );
     assert!((dist(cam.position, [0.0; 3]) - dist(start, [0.0; 3])).abs() < 1e-9);
 }
 
@@ -398,7 +519,12 @@ fn zoom_with_the_camera_on_its_target_stays_finite() {
     for s in [0.5, 1.0, 2.0, 1e-12, 1e12] {
         for anchor in [cam.target, [1.0, 2.0, 3.0]] {
             cam.zoom_at(s, anchor);
-            assert!(cam.position.iter().chain(cam.target.iter()).all(|v| v.is_finite()), "s = {s}: {:?} {:?}", cam.position, cam.target);
+            assert!(
+                cam.position.iter().chain(cam.target.iter()).all(|v| v.is_finite()),
+                "s = {s}: {:?} {:?}",
+                cam.position,
+                cam.target
+            );
         }
     }
     // zooming in from nothing does nothing; a broken scale or anchor changes nothing
@@ -420,20 +546,32 @@ fn wheel_orbit_never_reuses_a_dragged_pivot() {
     let (a, b) = (Pos2::new(300.0, 300.0), Pos2::new(380.0, 300.0));
     drag(&mut h, PointerButton::Secondary, false, &line(a, b));
     let t0 = vp.borrow().camera().target;
-    assert!(dist(t0, [0.0; 3]) > 1.0, "the target is not at the origin, so a turn about the origin moves it");
+    assert!(
+        dist(t0, [0.0; 3]) > 1.0,
+        "the target is not at the origin, so a turn about the origin moves it"
+    );
 
     // the next turn is a wheel orbit about the view centre: it must not go about the old pivot
     vp.borrow_mut().orbit_around = OrbitAround::ViewCentre;
     wheel(&mut h, MouseWheelUnit::Point, egui::vec2(30.5, 10.5), Modifiers::SHIFT);
     let c = vp.borrow().camera().clone();
-    assert!(dist(c.target, t0) < 1e-9, "the wheel orbit turned about a stale pivot: target moved {}", dist(c.target, t0));
+    assert!(
+        dist(c.target, t0) < 1e-9,
+        "the wheel orbit turned about a stale pivot: target moved {}",
+        dist(c.target, t0)
+    );
 
     // a held drag keeps its pivot through a frame where the pointer stands still
     vp.borrow_mut().orbit_around = OrbitAround::Origin;
     let o = |vp: &Rc<RefCell<Viewport>>| dist(vp.borrow().camera().position, [0.0; 3]);
     h.event(Event::PointerMoved(a));
     h.step();
-    h.event(Event::PointerButton { pos: a, button: PointerButton::Secondary, pressed: true, modifiers: Modifiers::NONE });
+    h.event(Event::PointerButton {
+        pos: a,
+        button: PointerButton::Secondary,
+        pressed: true,
+        modifiers: Modifiers::NONE,
+    });
     h.step();
     h.event(Event::PointerMoved(a + egui::vec2(20.0, 0.0)));
     h.step();
@@ -442,8 +580,16 @@ fn wheel_orbit_never_reuses_a_dragged_pivot() {
     vp.borrow_mut().orbit_around = OrbitAround::ViewCentre; // were the pivot dropped, the next step would pick this one
     h.event(Event::PointerMoved(a + egui::vec2(60.0, 0.0)));
     h.step();
-    assert!((o(&vp) - d0).abs() < 1e-6, "the held drag kept turning about the origin");
-    h.event(Event::PointerButton { pos: a, button: PointerButton::Secondary, pressed: false, modifiers: Modifiers::NONE });
+    assert!(
+        (o(&vp) - d0).abs() < 1e-6,
+        "the held drag kept turning about the origin"
+    );
+    h.event(Event::PointerButton {
+        pos: a,
+        button: PointerButton::Secondary,
+        pressed: false,
+        modifiers: Modifiers::NONE,
+    });
     h.run_steps(2);
 }
 
@@ -453,22 +599,47 @@ fn cube_harness() -> (Harness<'static>, Rc<RefCell<Viewport>>, V3) {
     use stl_app::engine_link::BodyView;
     use stl_kernel::MeshArrays;
     let p = [
-        [-10.0, -10.0, 0.0], [10.0, -10.0, 0.0], [10.0, 10.0, 0.0], [-10.0, 10.0, 0.0],
-        [-10.0, -10.0, 20.0], [10.0, -10.0, 20.0], [10.0, 10.0, 20.0], [-10.0, 10.0, 20.0],
+        [-10.0, -10.0, 0.0],
+        [10.0, -10.0, 0.0],
+        [10.0, 10.0, 0.0],
+        [-10.0, 10.0, 0.0],
+        [-10.0, -10.0, 20.0],
+        [10.0, -10.0, 20.0],
+        [10.0, 10.0, 20.0],
+        [-10.0, 10.0, 20.0],
     ];
-    let t: [u32; 36] = [0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7, 0, 1, 5, 0, 5, 4, 1, 2, 6, 1, 6, 5, 2, 3, 7, 2, 7, 6, 3, 0, 4, 3, 4, 7];
-    let mesh = Arc::new(MeshArrays { positions: p.iter().flatten().map(|&v| v as f32).collect(), triangles: t.to_vec() });
-    let body = BodyView { id: "b1".into(), name: "Cube".into(), color: None, hidden: false, solid: true, mesh, revision: 1, holds_up: None };
+    let t: [u32; 36] = [
+        0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7, 0, 1, 5, 0, 5, 4, 1, 2, 6, 1, 6, 5, 2, 3, 7, 2, 7, 6, 3, 0, 4, 3, 4, 7,
+    ];
+    let mesh = Arc::new(MeshArrays {
+        positions: p.iter().flatten().map(|&v| v as f32).collect(),
+        triangles: t.to_vec(),
+    });
+    let body = BodyView {
+        id: "b1".into(),
+        name: "Cube".into(),
+        color: None,
+        hidden: false,
+        solid: true,
+        mesh,
+        revision: 1,
+        holds_up: None,
+    };
     let mut vp = Viewport::new();
     vp.set_view_size(W as f32, H as f32);
     vp.sync_bodies(&[body]);
-    vp.fit(Aabb { min: [-10.0, -10.0, 0.0], max: [10.0, 10.0, 20.0] });
+    vp.fit(Aabb {
+        min: [-10.0, -10.0, 0.0],
+        max: [10.0, 10.0, 20.0],
+    });
     vp.camera_mut().finish_flight();
     let vp = Rc::new(RefCell::new(vp));
     let shown = vp.clone();
-    let mut h = Harness::builder().with_size(egui::vec2(W as f32, H as f32)).build_ui(move |ui| {
-        shown.borrow_mut().show(ui);
-    });
+    let mut h = Harness::builder()
+        .with_size(egui::vec2(W as f32, H as f32))
+        .build_ui(move |ui| {
+            shown.borrow_mut().show(ui);
+        });
     h.run_steps(3);
     // the cube is prepared on a worker thread: wait until it is pickable (a slow CI machine
     // could otherwise pick nothing)
@@ -496,8 +667,15 @@ fn pinch_zooms_toward_the_surface_under_the_pinch() {
     h.event(Event::Zoom(1.25));
     h.run_steps(2);
     let after = screen_of(&vp, before);
-    assert!((after - at).length() < 1.0, "the surface point slid {} px", (after - at).length());
-    assert!(dist(vp.borrow().camera().position, vp.borrow().camera().target) < reach0 - 1e-6, "zoomed in");
+    assert!(
+        (after - at).length() < 1.0,
+        "the surface point slid {} px",
+        (after - at).length()
+    );
+    assert!(
+        dist(vp.borrow().camera().position, vp.borrow().camera().target) < reach0 - 1e-6,
+        "zoomed in"
+    );
 
     // two fingers on a touch screen: the same, about the pinch centre
     let (mut h, vp, top) = cube_harness();
@@ -506,7 +684,13 @@ fn pinch_zooms_toward_the_surface_under_the_pinch() {
     let reach0 = dist(vp.borrow().camera().position, vp.borrow().camera().target);
     h.event(Event::PointerMoved(at)); // egui-winit moves the pointer to the first finger
     h.step();
-    let touch = |id: u64, phase: egui::TouchPhase, pos: Pos2| Event::Touch { device_id: egui::TouchDeviceId(0), id: egui::TouchId(id), phase, pos, force: None };
+    let touch = |id: u64, phase: egui::TouchPhase, pos: Pos2| Event::Touch {
+        device_id: egui::TouchDeviceId(0),
+        id: egui::TouchId(id),
+        phase,
+        pos,
+        force: None,
+    };
     let half = |w: f32| egui::vec2(w, 0.0);
     h.event(touch(1, egui::TouchPhase::Start, at - half(40.0)));
     h.event(touch(2, egui::TouchPhase::Start, at + half(40.0)));
@@ -519,9 +703,16 @@ fn pinch_zooms_toward_the_surface_under_the_pinch() {
     h.event(touch(1, egui::TouchPhase::End, at - half(80.0)));
     h.event(touch(2, egui::TouchPhase::End, at + half(80.0)));
     h.run_steps(2);
-    assert!(dist(vp.borrow().camera().position, vp.borrow().camera().target) < reach0 - 1e-6, "the two-finger pinch zoomed in");
+    assert!(
+        dist(vp.borrow().camera().position, vp.borrow().camera().target) < reach0 - 1e-6,
+        "the two-finger pinch zoomed in"
+    );
     let after = screen_of(&vp, before);
-    assert!((after - at).length() < 1.5, "the surface under the pinch centre slid {} px", (after - at).length());
+    assert!(
+        (after - at).length() < 1.5,
+        "the surface under the pinch centre slid {} px",
+        (after - at).length()
+    );
 }
 
 #[test]
@@ -529,7 +720,13 @@ fn two_finger_translate_pans_and_does_not_orbit() {
     // the first finger also arrives as the left button; with two down it must not orbit as well
     let (mut h, vp, top) = cube_harness();
     let at = screen_of(&vp, top);
-    let touch = |id: u64, phase: egui::TouchPhase, pos: Pos2| Event::Touch { device_id: egui::TouchDeviceId(0), id: egui::TouchId(id), phase, pos, force: None };
+    let touch = |id: u64, phase: egui::TouchPhase, pos: Pos2| Event::Touch {
+        device_id: egui::TouchDeviceId(0),
+        id: egui::TouchId(id),
+        phase,
+        pos,
+        force: None,
+    };
     let half = egui::vec2(40.0, 0.0);
     let dir = |c: &Camera| sub(c.target, c.position);
     let (dir0, target0) = {
@@ -537,7 +734,12 @@ fn two_finger_translate_pans_and_does_not_orbit() {
         (dir(v.camera()), v.camera().target)
     };
     h.event(Event::PointerMoved(at - half));
-    h.event(Event::PointerButton { pos: at - half, button: PointerButton::Primary, pressed: true, modifiers: Modifiers::NONE });
+    h.event(Event::PointerButton {
+        pos: at - half,
+        button: PointerButton::Primary,
+        pressed: true,
+        modifiers: Modifiers::NONE,
+    });
     h.event(touch(1, egui::TouchPhase::Start, at - half));
     h.event(touch(2, egui::TouchPhase::Start, at + half));
     h.step();
@@ -550,11 +752,18 @@ fn two_finger_translate_pans_and_does_not_orbit() {
     }
     h.event(touch(1, egui::TouchPhase::End, at - half + egui::vec2(60.0, 30.0)));
     h.event(touch(2, egui::TouchPhase::End, at + half + egui::vec2(60.0, 30.0)));
-    h.event(Event::PointerButton { pos: at, button: PointerButton::Primary, pressed: false, modifiers: Modifiers::NONE });
+    h.event(Event::PointerButton {
+        pos: at,
+        button: PointerButton::Primary,
+        pressed: false,
+        modifiers: Modifiers::NONE,
+    });
     h.run_steps(2);
     let v = vp.borrow();
     assert!(dist(v.camera().target, target0) > 1e-6, "the two-finger drag panned");
-    let (d1, n) = (dir(v.camera()), |a: V3| (a[0] * a[0] + a[1] * a[1] + a[2] * a[2]).sqrt());
+    let (d1, n) = (dir(v.camera()), |a: V3| {
+        (a[0] * a[0] + a[1] * a[1] + a[2] * a[2]).sqrt()
+    });
     let cos = (d1[0] * dir0[0] + d1[1] * dir0[1] + d1[2] * dir0[2]) / (n(d1) * n(dir0));
     assert!(cos > 1.0 - 1e-9, "the view direction stayed put (cos {cos})");
 }

@@ -16,7 +16,11 @@ fn is_ws(c: char) -> bool {
 pub fn read(data: &[u8], base: &str) -> Result<Vec<Part>, ReadError> {
     let pos = read_soup(data)?;
     let n = (pos.len() / 3) as u32;
-    Ok(vec![Part { name: base.to_string(), positions: pos, triangles: (0..n).collect() }])
+    Ok(vec![Part {
+        name: base.to_string(),
+        positions: pos,
+        triangles: (0..n).collect(),
+    }])
 }
 
 fn read_soup(b: &[u8]) -> Result<Vec<f64>, ReadError> {
@@ -38,7 +42,7 @@ fn read_soup(b: &[u8]) -> Result<Vec<f64>, ReadError> {
     let txt: String = b.iter().filter(|c| **c < 128).map(|c| *c as char).collect();
     let mut pts: Vec<f64> = Vec::new();
     // str.splitlines(): \n \r \v \f \x1c \x1d \x1e
-    for line in txt.split(|c| matches!(c, '\n' | '\r' | '\x0b' | '\x0c' | '\x1c' | '\x1d' | '\x1e')) {
+    for line in txt.split(['\n', '\r', '\x0b', '\x0c', '\x1c', '\x1d', '\x1e']) {
         let s = line.trim_matches(is_ws);
         if s.starts_with("vertex") {
             let p: Vec<&str> = s.split(is_ws).filter(|t| !t.is_empty()).collect();
@@ -50,7 +54,7 @@ fn read_soup(b: &[u8]) -> Result<Vec<f64>, ReadError> {
             }
         }
     }
-    if pts.is_empty() || (pts.len() / 3) % 3 != 0 {
+    if pts.is_empty() || !(pts.len() / 3).is_multiple_of(3) {
         return Err(bad());
     }
     Ok(pts)

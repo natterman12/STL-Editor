@@ -30,13 +30,21 @@ pub fn load_mesh_file(data: &[u8], filename: &str) -> Result<Vec<Part>, ReadErro
         ".ply" => ply::read(data, &base)?,
         ".off" => off::read(data, &base)?,
         ".glb" | ".gltf" => gltf::read(data, &base)?,
-        _ => return Err(ReadError("Unsupported file type. Use STL, OBJ, 3MF, PLY, OFF or GLB.".into())),
+        _ => {
+            return Err(ReadError(
+                "Unsupported file type. Use STL, OBJ, 3MF, PLY, OFF or GLB.".into(),
+            ));
+        }
     };
     let mut parts: Vec<Part> = raw
         .into_iter()
         .map(|p| {
             let (positions, triangles) = weld(&p.positions, &p.triangles, TOL);
-            Part { name: p.name, positions, triangles }
+            Part {
+                name: p.name,
+                positions,
+                triangles,
+            }
         })
         .collect();
     if (ext == ".glb" || ext == ".gltf") && parts.len() > 1 {
@@ -55,7 +63,9 @@ pub fn load_mesh_file(data: &[u8], filename: &str) -> Result<Vec<Part>, ReadErro
         parts.sort_by(|a, b| {
             let (ka, na) = key(a);
             let (kb, nb) = key(b);
-            ka.partial_cmp(&kb).unwrap_or(std::cmp::Ordering::Equal).then(na.cmp(&nb))
+            ka.partial_cmp(&kb)
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then(na.cmp(&nb))
         });
         for (i, p) in parts.iter_mut().enumerate() {
             p.name = format!("{base} {}", i + 1);

@@ -10,13 +10,13 @@
 use std::sync::Arc;
 
 use egui::{RichText, Ui};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use stl_engine::features::common::placement::{self, DistLine};
 use stl_sketch::contours::entity_path;
 use stl_sketch::entities::parse_entities;
-use stl_sketch::{point, point_keys, Entity};
+use stl_sketch::{Entity, point, point_keys};
 
-use super::bodies::{pt4, pt_from, Mark};
+use super::bodies::{Mark, pt_from, pt4};
 use super::number::{fmt_len, parse_len};
 use crate::engine_link::SketchOutline;
 use crate::theme::Tokens;
@@ -50,7 +50,11 @@ fn dot(a: V3, b: V3) -> f64 {
     a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }
 fn cross(a: V3, b: V3) -> V3 {
-    [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]
+    [
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    ]
 }
 fn len(a: V3) -> f64 {
     dot(a, a).sqrt()
@@ -97,7 +101,10 @@ pub struct SkGeom {
 }
 
 fn straight(e: &Entity) -> bool {
-    matches!(e, Entity::Line(_) | Entity::Rect(_) | Entity::Polygon(_) | Entity::Polyline(_))
+    matches!(
+        e,
+        Entity::Line(_) | Entity::Rect(_) | Entity::Polygon(_) | Entity::Polyline(_)
+    )
 }
 
 /// The visible sketches' geometry whose plane is parallel to the face with normal `n` (1°).
@@ -108,7 +115,15 @@ pub fn sketch_geometry(ctx: &Ctx, n: V3) -> SkGeom {
         if dot(sn, n).abs() < 0.999_847_7 {
             continue;
         }
-        let Some(list) = ctx.features.iter().find(|f| f.id == s.id).and_then(|f| f.params.get("entities")).and_then(Value::as_array) else { continue };
+        let Some(list) = ctx
+            .features
+            .iter()
+            .find(|f| f.id == s.id)
+            .and_then(|f| f.params.get("entities"))
+            .and_then(Value::as_array)
+        else {
+            continue;
+        };
         let Ok(ents) = parse_entities(list) else { continue };
         let w = |p: [f64; 2]| add(o, add(mul(x, p[0]), mul(y, p[1])));
         for e in &ents {
@@ -127,12 +142,23 @@ pub fn sketch_geometry(ctx: &Ctx, n: V3) -> SkGeom {
                 if len(sub(b, a)) < 1e-9 {
                     continue;
                 }
-                let entity = e.id().map(|id| if matches!(e, Entity::Line(_)) { id.to_owned() } else { format!("{id}#{k}") });
+                let entity = e.id().map(|id| {
+                    if matches!(e, Entity::Line(_)) {
+                        id.to_owned()
+                    } else {
+                        format!("{id}#{k}")
+                    }
+                });
                 g.points.push(mul(add(a, b), 0.5));
                 if !matches!(e, Entity::Line(_)) {
                     g.points.push(a);
                 }
-                g.lines.push(SkLine { sketch: s.id.clone(), entity, a, b });
+                g.lines.push(SkLine {
+                    sketch: s.id.clone(),
+                    entity,
+                    a,
+                    b,
+                });
             }
         }
     }
@@ -153,7 +179,12 @@ pub fn snap(hit: V3, n: V3, ctx: &Ctx, tol: f64) -> Option<Snap> {
     let g = sketch_geometry(ctx, n);
     // distances in the face's plane (the sketch may sit a little above or below it)
     let flat = |p: V3| onto_plane(p, n, hit);
-    let near_pt = g.points.iter().map(|p| (len(sub(flat(*p), hit)), *p)).filter(|(d, _)| *d <= tol).min_by(|a, b| a.0.total_cmp(&b.0));
+    let near_pt = g
+        .points
+        .iter()
+        .map(|p| (len(sub(flat(*p), hit)), *p))
+        .filter(|(d, _)| *d <= tol)
+        .min_by(|a, b| a.0.total_cmp(&b.0));
     let line_through = |p: V3| -> Option<Value> {
         g.lines.iter().filter(|l| l.entity.is_some()).find_map(|l| {
             let (q, t) = nearest_on(p, l.a, l.b);
@@ -161,7 +192,10 @@ pub fn snap(hit: V3, n: V3, ctx: &Ctx, tol: f64) -> Option<Snap> {
         })
     };
     if let Some((_, p)) = near_pt {
-        return Some(Snap { p: flat(p), line_ref: line_through(p) });
+        return Some(Snap {
+            p: flat(p),
+            line_ref: line_through(p),
+        });
     }
     let near_line = g
         .lines
@@ -175,7 +209,10 @@ pub fn snap(hit: V3, n: V3, ctx: &Ctx, tol: f64) -> Option<Snap> {
     let (_, l, t) = near_line;
     let d = unit(sub(l.b, l.a))?;
     let on = add(l.a, mul(d, t));
-    Some(Snap { p: flat(on), line_ref: l.entity.is_some().then(|| line_ref(l, Some(t), None)) })
+    Some(Snap {
+        p: flat(on),
+        line_ref: l.entity.is_some().then(|| line_ref(l, Some(t), None)),
+    })
 }
 
 fn r4(x: f64) -> f64 {
@@ -196,7 +233,9 @@ fn line_ref(l: &SkLine, along: Option<f64>, dist: Option<f64>) -> Value {
 /// The snap distance for a click on body `id`: 3 % of its size, between 0.5 and 5 mm. (The
 /// click carries no screen scale; see the Task 5 report.)
 pub fn tolerance(ctx: &Ctx, id: &str) -> f64 {
-    let Some(b) = ctx.bodies.iter().find(|b| b.id == id) else { return 1.0 };
+    let Some(b) = ctx.bodies.iter().find(|b| b.id == id) else {
+        return 1.0;
+    };
     let mut lo = [f64::INFINITY; 3];
     let mut hi = [f64::NEG_INFINITY; 3];
     for p in b.mesh.positions.chunks_exact(3) {
@@ -247,8 +286,17 @@ pub fn pick_ref(ctx: &Ctx, body: &str, hit: V3, n: V3, at: V3, tol: f64) -> Opti
     let b = ctx.bodies.iter().find(|b| b.id == body)?;
     let edges = placement::straight_edges(&b.mesh, n);
     // like a sketch line, an edge only counts when the click is within `tol` of it
-    let (_, (a, bb)) = edges.iter().map(|e| (len(sub(nearest_on(hit, e.0, e.1).0, hit)), *e)).filter(|(d, _)| *d <= tol).min_by(|x, y| x.0.total_cmp(&y.0))?;
-    let r = placement::PlaceRef::Edge { a, b: bb, face_normal: n, dist: r4(dist_in_plane(at, a, bb, n)) };
+    let (_, (a, bb)) = edges
+        .iter()
+        .map(|e| (len(sub(nearest_on(hit, e.0, e.1).0, hit)), *e))
+        .filter(|(d, _)| *d <= tol)
+        .min_by(|x, y| x.0.total_cmp(&y.0))?;
+    let r = placement::PlaceRef::Edge {
+        a,
+        b: bb,
+        face_normal: n,
+        dist: r4(dist_in_plane(at, a, bb, n)),
+    };
     let mut v = placement::ref_json(&r, Some(body));
     v["a"] = pt4(a);
     v["b"] = pt4(bb);
@@ -264,11 +312,19 @@ pub fn resolve(at: V3, n: V3, refs: &[Value]) -> Option<V3> {
     let mut lines = Vec::new();
     for r in refs {
         let (a, b) = ref_line(r)?;
-        match (r.get("along").and_then(Value::as_f64), r.get("dist").and_then(Value::as_f64)) {
+        match (
+            r.get("along").and_then(Value::as_f64),
+            r.get("dist").and_then(Value::as_f64),
+        ) {
             (Some(t), _) => {
                 fixed.get_or_insert(add(a, mul(unit(sub(b, a))?, t)));
             }
-            (None, Some(d)) => lines.push(DistLine { a, b, dist: d, side: placement::side_of(at, a, b, n) }),
+            (None, Some(d)) => lines.push(DistLine {
+                a,
+                b,
+                dist: d,
+                side: placement::side_of(at, a, b, n),
+            }),
             _ => {}
         }
     }
@@ -294,22 +350,48 @@ pub fn resolve_current(ctx: &Ctx, body: &str, stored: V3, normal: V3, refs: &[Va
     let sk = sketch_geometry(ctx, n);
     for (k, raw) in refs.iter().enumerate() {
         match placement::parse_ref(raw)? {
-            placement::PlaceRef::Edge { a, b, face_normal, dist } => {
+            placement::PlaceRef::Edge {
+                a,
+                b,
+                face_normal,
+                dist,
+            } => {
                 let cands = edges.get_or_insert_with(|| {
-                    let want = raw.get("body").and_then(Value::as_str).filter(|s| !s.is_empty()).unwrap_or(body);
-                    ctx.bodies.iter().filter(|x| want.is_empty() || x.id == want).flat_map(|x| placement::straight_edges(&x.mesh, face_normal)).collect()
+                    let want = raw
+                        .get("body")
+                        .and_then(Value::as_str)
+                        .filter(|s| !s.is_empty())
+                        .unwrap_or(body);
+                    ctx.bodies
+                        .iter()
+                        .filter(|x| want.is_empty() || x.id == want)
+                        .flat_map(|x| placement::straight_edges(&x.mesh, face_normal))
+                        .collect()
                 });
                 let (na, nb) = placement::pick_edge(cands, a, b)?;
                 if !moved_plane {
                     plane_at = add(stored, mul(n, dot(sub(na, a), n)));
                     moved_plane = true;
                 }
-                lines.push(DistLine { a: na, b: nb, dist, side: placement::side_of(stored, a, b, n) });
+                lines.push(DistLine {
+                    a: na,
+                    b: nb,
+                    dist,
+                    side: placement::side_of(stored, a, b, n),
+                });
                 out[k]["a"] = pt4(na);
                 out[k]["b"] = pt4(nb);
             }
-            placement::PlaceRef::SketchLine { sketch, entity, along, dist } => {
-                let l = sk.lines.iter().find(|l| l.sketch == sketch && l.entity.as_deref() == Some(entity.as_str()))?;
+            placement::PlaceRef::SketchLine {
+                sketch,
+                entity,
+                along,
+                dist,
+            } => {
+                let l = sk
+                    .lines
+                    .iter()
+                    .find(|l| l.sketch == sketch && l.entity.as_deref() == Some(entity.as_str()))?;
                 let (a, b) = (l.a, l.b);
                 match (along, dist) {
                     (Some(t), off) => {
@@ -320,7 +402,12 @@ pub fn resolve_current(ctx: &Ctx, body: &str, stored: V3, normal: V3, refs: &[Va
                         }
                         fixed.get_or_insert(p);
                     }
-                    (None, Some(o)) => lines.push(DistLine { a, b, dist: o, side: placement::side_of(stored, a, b, n) }),
+                    (None, Some(o)) => lines.push(DistLine {
+                        a,
+                        b,
+                        dist: o,
+                        side: placement::side_of(stored, a, b, n),
+                    }),
                     (None, None) => {}
                 }
                 out[k]["a"] = pt4(a);
@@ -337,8 +424,16 @@ pub fn resolve_current(ctx: &Ctx, body: &str, stored: V3, normal: V3, refs: &[Va
 /// when OK is pressed and what the engine cuts agree. True when something changed.
 pub fn refresh_points(values: &mut Values, field: &str, ctx: &Ctx) -> bool {
     let mut pts: Vec<Value> = values.get(field).and_then(Value::as_array).cloned().unwrap_or_default();
-    let Some(n) = values.get("normal").and_then(pt_from) else { return false };
-    let body = values.get("targets").and_then(Value::as_array).and_then(|a| a.first()).and_then(Value::as_str).unwrap_or("").to_owned();
+    let Some(n) = values.get("normal").and_then(pt_from) else {
+        return false;
+    };
+    let body = values
+        .get("targets")
+        .and_then(Value::as_array)
+        .and_then(|a| a.first())
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_owned();
     let mut lists = ref_lists(values, POINT_REFS);
     let mut changed = false;
     for i in 0..pts.len().min(lists.len()) {
@@ -346,8 +441,14 @@ pub fn refresh_points(values: &mut Values, field: &str, ctx: &Ctx) -> bool {
         if lists[i].is_empty() {
             continue;
         }
-        let list_body = lists[i].iter().find_map(|r| r.get("body").and_then(Value::as_str)).unwrap_or(&body).to_owned();
-        let Some((p, refs)) = resolve_current(ctx, &list_body, at, n, &lists[i]) else { continue };
+        let list_body = lists[i]
+            .iter()
+            .find_map(|r| r.get("body").and_then(Value::as_str))
+            .unwrap_or(&body)
+            .to_owned();
+        let Some((p, refs)) = resolve_current(ctx, &list_body, at, n, &lists[i]) else {
+            continue;
+        };
         let p = pt_from(&pt4(p)).unwrap_or(p);
         if len(sub(p, at)) > 1e-6 {
             pts[i] = pt4(p);
@@ -367,13 +468,22 @@ pub fn refresh_points(values: &mut Values, field: &str, ctx: &Ctx) -> bool {
 
 /// The same for Thread's one point (`offset` in the `plane` frame, `position_refs`).
 pub fn refresh_thread(values: &mut Values, ctx: &Ctx) -> bool {
-    let Some((fr, p)) = thread_point(values, ctx) else { return false };
+    let Some((fr, p)) = thread_point(values, ctx) else {
+        return false;
+    };
     let refs = thread_refs(values);
     if refs.is_empty() || !values.get("plane").is_some_and(Value::is_object) {
         return false;
     }
-    let body = values.get("plane").and_then(|v| v.get("body")).and_then(Value::as_str).unwrap_or("").to_owned();
-    let Some((q, new_refs)) = resolve_current(ctx, &body, p, fr.normal, &refs) else { return false };
+    let body = values
+        .get("plane")
+        .and_then(|v| v.get("body"))
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_owned();
+    let Some((q, new_refs)) = resolve_current(ctx, &body, p, fr.normal, &refs) else {
+        return false;
+    };
     let mut changed = false;
     if len(sub(q, p)) > 1e-6 {
         set_thread_point(values, &fr, q);
@@ -388,7 +498,11 @@ pub fn refresh_thread(values: &mut Values, ctx: &Ctx) -> bool {
 
 /// The reference lists, as stored (`key` holds one list per point).
 pub fn ref_lists(values: &Values, key: &str) -> Vec<Vec<Value>> {
-    values.get(key).and_then(Value::as_array).map(|a| a.iter().map(|l| l.as_array().cloned().unwrap_or_default()).collect()).unwrap_or_default()
+    values
+        .get(key)
+        .and_then(Value::as_array)
+        .map(|a| a.iter().map(|l| l.as_array().cloned().unwrap_or_default()).collect())
+        .unwrap_or_default()
 }
 
 /// Store the lists; all empty means no key at all (so a hole without references saves as before).
@@ -396,12 +510,19 @@ pub fn set_ref_lists(values: &mut Values, key: &str, lists: Vec<Vec<Value>>) {
     if lists.iter().all(|l| l.is_empty()) {
         values.remove(key);
     } else {
-        values.insert(key.to_owned(), Value::Array(lists.into_iter().map(Value::Array).collect()));
+        values.insert(
+            key.to_owned(),
+            Value::Array(lists.into_iter().map(Value::Array).collect()),
+        );
     }
 }
 
 fn ref_name(r: &Value, i: usize) -> String {
-    let what = if r.get("kind").and_then(Value::as_str) == Some("edge") { "Edge" } else { "Sketch line" };
+    let what = if r.get("kind").and_then(Value::as_str) == Some("edge") {
+        "Edge"
+    } else {
+        "Sketch line"
+    };
     format!("{what} {}", i + 1)
 }
 
@@ -412,7 +533,17 @@ fn ref_name(r: &Value, i: usize) -> String {
 fn dist_box(ui: &mut Ui, tk: &Tokens, key: &str, shown: &str) -> Option<String> {
     let id = egui::Id::unique("place-refs-bufs");
     let mut bufs: super::Bufs = ui.data_mut(|d| d.get_temp(id)).unwrap_or_default();
-    let r = super::text_commit(ui, tk, &mut bufs, key, shown, 56.0, egui::FontId::proportional(12.0), tk.text, None);
+    let r = super::text_commit(
+        ui,
+        tk,
+        &mut bufs,
+        key,
+        shown,
+        56.0,
+        egui::FontId::proportional(12.0),
+        tk.text,
+        None,
+    );
     ui.data_mut(|d| d.insert_temp(id, bufs));
     r
 }
@@ -428,7 +559,10 @@ struct RowsOut {
 /// A Pick button, then one row per reference with a distance box (or an Along box for a point
 /// on a sketch line). `key` names the text boxes.
 fn ref_rows(ui: &mut Ui, tk: &Tokens, refs: &mut Vec<Value>, picking: bool, key: &str, inch: bool) -> RowsOut {
-    let mut out = RowsOut { changed: false, toggle_pick: false };
+    let mut out = RowsOut {
+        changed: false,
+        toggle_pick: false,
+    };
     ui.horizontal(|ui| {
         ui.label(RichText::new("From").size(11.5).color(tk.label));
         let txt = if picking { "Click an edge…" } else { "Pick edge" };
@@ -442,15 +576,26 @@ fn ref_rows(ui: &mut Ui, tk: &Tokens, refs: &mut Vec<Value>, picking: bool, key:
         let along = r.get("along").and_then(Value::as_f64);
         let val = along.or_else(|| r.get("dist").and_then(Value::as_f64)).unwrap_or(0.0);
         ui.horizontal(|ui| {
-            let name = if along.is_some() { "Along line".to_owned() } else { ref_name(r, k) };
-            ui.label(RichText::new(&name).size(11.5).color(tk.text)).on_hover_text(if along.is_some() { "Distance from the line's start" } else { "Distance from this edge, in the face" });
+            let name = if along.is_some() {
+                "Along line".to_owned()
+            } else {
+                ref_name(r, k)
+            };
+            ui.label(RichText::new(&name).size(11.5).color(tk.text))
+                .on_hover_text(if along.is_some() {
+                    "Distance from the line's start"
+                } else {
+                    "Distance from this edge, in the face"
+                });
             let typed = dist_box(ui, tk, &format!("{key}:{k}"), &fmt_len(val, None, inch));
             ui.label(RichText::new(unit).size(11.0).color(tk.muted));
             if let Some(t) = typed.and_then(|t| parse_len(&t, inch)) {
                 refs[k][if along.is_some() { "along" } else { "dist" }] = json!(r4(t));
                 out.changed = true;
             }
-            let x = ui.add(egui::Button::new(RichText::new("×").size(12.0)).frame(false)).on_hover_text("Stop measuring from this");
+            let x = ui
+                .add(egui::Button::new(RichText::new("×").size(12.0)).frame(false))
+                .on_hover_text("Stop measuring from this");
             if x.clicked() {
                 remove = Some(k);
             }
@@ -486,9 +631,18 @@ fn push_ref(refs: &mut Vec<Value>, r: Value) {
 
 /// The "From" rows under a point list. They act on the last point. `active` is set to `field`
 /// while picking, so the click comes to that field. True when a value changed.
-pub fn show_from(ui: &mut Ui, tk: &Tokens, values: &mut Values, field: &str, active: &mut Option<String>, inch: bool) -> bool {
+pub fn show_from(
+    ui: &mut Ui,
+    tk: &Tokens,
+    values: &mut Values,
+    field: &str,
+    active: &mut Option<String>,
+    inch: bool,
+) -> bool {
     let mut pts: Vec<Value> = values.get(field).and_then(Value::as_array).cloned().unwrap_or_default();
-    let Some(i) = pts.len().checked_sub(1) else { return false };
+    let Some(i) = pts.len().checked_sub(1) else {
+        return false;
+    };
     let Some(at) = pt_from(&pts[i]) else { return false };
     let n = values.get("normal").and_then(pt_from).unwrap_or([0.0, 0.0, 1.0]);
     let mut lists = ref_lists(values, POINT_REFS);
@@ -516,11 +670,11 @@ pub fn add_ref(values: &mut Values, field: &str, r: Value) {
     let mut lists = ref_lists(values, POINT_REFS);
     lists.resize(pts.len(), Vec::new());
     push_ref(&mut lists[i], r);
-    if let (Some(at), Some(n)) = (pt_from(&pts[i]), values.get("normal").and_then(pt_from)) {
-        if let Some(p) = resolve(at, n, &lists[i]) {
-            pts[i] = pt4(p);
-            values.insert(field.to_owned(), Value::Array(pts));
-        }
+    if let (Some(at), Some(n)) = (pt_from(&pts[i]), values.get("normal").and_then(pt_from))
+        && let Some(p) = resolve(at, n, &lists[i])
+    {
+        pts[i] = pt4(p);
+        values.insert(field.to_owned(), Value::Array(pts));
     }
     set_ref_lists(values, POINT_REFS, lists);
 }
@@ -535,7 +689,10 @@ pub fn add_ref(values: &mut Values, field: &str, r: Value) {
 pub fn thread_point(values: &Values, ctx: &Ctx) -> Option<(PlaneFrame, V3)> {
     let fr = super::plane::frame_of(values.get("plane")?, ctx)?;
     let off = values.get("offset").and_then(pt_from).unwrap_or([0.0; 3]);
-    let p = add(fr.origin, add(add(mul(fr.x, off[0]), mul(fr.y, off[1])), mul(fr.normal, off[2])));
+    let p = add(
+        fr.origin,
+        add(add(mul(fr.x, off[0]), mul(fr.y, off[1])), mul(fr.normal, off[2])),
+    );
     Some((fr, p))
 }
 
@@ -543,11 +700,18 @@ pub fn thread_point(values: &Values, ctx: &Ctx) -> Option<(PlaneFrame, V3)> {
 fn set_thread_point(values: &mut Values, fr: &PlaneFrame, p: V3) {
     let d = sub(p, fr.origin);
     let r3 = |x: f64| (x * 1e3).round() / 1e3;
-    values.insert("offset".to_owned(), json!([r3(dot(d, fr.x)), r3(dot(d, fr.y)), r3(dot(d, fr.normal))]));
+    values.insert(
+        "offset".to_owned(),
+        json!([r3(dot(d, fr.x)), r3(dot(d, fr.y)), r3(dot(d, fr.normal))]),
+    );
 }
 
 fn thread_refs(values: &Values) -> Vec<Value> {
-    values.get(POSITION_REFS).and_then(Value::as_array).cloned().unwrap_or_default()
+    values
+        .get(POSITION_REFS)
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
 }
 
 fn set_thread_refs(values: &mut Values, refs: Vec<Value>) {
@@ -563,8 +727,12 @@ fn set_thread_refs(values: &mut Values, refs: Vec<Value>) {
 /// references (it is a new position). True when it snapped.
 pub fn thread_after_place(values: &mut Values, ctx: &Ctx, body: &str) -> bool {
     values.remove(POSITION_REFS);
-    let Some((fr, p)) = thread_point(values, ctx) else { return false };
-    let Some(s) = snap(p, fr.normal, ctx, tolerance(ctx, body)) else { return false };
+    let Some((fr, p)) = thread_point(values, ctx) else {
+        return false;
+    };
+    let Some(s) = snap(p, fr.normal, ctx, tolerance(ctx, body)) else {
+        return false;
+    };
     set_thread_point(values, &fr, s.p);
     set_thread_refs(values, s.line_ref.into_iter().collect());
     true
@@ -577,8 +745,12 @@ pub fn thread_feed_pick(values: &mut Values, ctx: &Ctx, body: &str, hit: V3) -> 
         return None;
     }
     values.remove(FROM_PICK);
-    let Some((fr, p)) = thread_point(values, ctx) else { return Some(true) };
-    let Some(r) = pick_ref(ctx, body, hit, fr.normal, p, tolerance(ctx, body)) else { return Some(true) };
+    let Some((fr, p)) = thread_point(values, ctx) else {
+        return Some(true);
+    };
+    let Some(r) = pick_ref(ctx, body, hit, fr.normal, p, tolerance(ctx, body)) else {
+        return Some(true);
+    };
     let mut refs = thread_refs(values);
     push_ref(&mut refs, r);
     if let Some(q) = resolve(p, fr.normal, &refs) {
@@ -590,12 +762,21 @@ pub fn thread_feed_pick(values: &mut Values, ctx: &Ctx, body: &str, hit: V3) -> 
 
 /// The thread's From rows (under Position). `field` is the field the pick click should go to
 /// (`"plane"`). True when a value changed.
-pub fn show_thread_from(ui: &mut Ui, tk: &Tokens, values: &mut Values, ctx: &Ctx, field: &str, active: &mut Option<String>) -> bool {
+pub fn show_thread_from(
+    ui: &mut Ui,
+    tk: &Tokens,
+    values: &mut Values,
+    ctx: &Ctx,
+    field: &str,
+    active: &mut Option<String>,
+) -> bool {
     if !values.get("plane").is_some_and(Value::is_object) {
         return false; // an origin plane has no part edges to measure from
     }
     let moved = refresh_thread(values, ctx);
-    let Some((fr, p)) = thread_point(values, ctx) else { return false };
+    let Some((fr, p)) = thread_point(values, ctx) else {
+        return false;
+    };
     let mut refs = thread_refs(values);
     let out = ref_rows(ui, tk, &mut refs, picking(values), POSITION_REFS, ctx.inch);
     if out.toggle_pick {
@@ -612,7 +793,9 @@ pub fn show_thread_from(ui: &mut Ui, tk: &Tokens, values: &mut Values, ctx: &Ctx
 
 /// The thread's dimension lines (see [`dim_marks`]).
 pub fn thread_dim_marks(values: &Values, ctx: &Ctx) -> Vec<Mark> {
-    let Some((fr, p)) = thread_point(values, ctx) else { return Vec::new() };
+    let Some((fr, p)) = thread_point(values, ctx) else {
+        return Vec::new();
+    };
     let mut v = Values::new();
     v.insert("pts".into(), json!([pt4(p)]));
     v.insert("normal".into(), pt4(fr.normal));
@@ -625,13 +808,22 @@ pub fn thread_dim_marks(values: &Values, ctx: &Ctx) -> Vec<Mark> {
 /// A frame in the face's plane at `o`.
 fn face_frame(o: V3, n: V3) -> Option<PlaneFrame> {
     let f = stl_engine::features::common::frames::plane_frame(o, n, None).ok()?;
-    Some(PlaneFrame { origin: f.o, x: f.x, y: f.y, normal: f.n })
+    Some(PlaneFrame {
+        origin: f.o,
+        x: f.x,
+        y: f.y,
+        normal: f.n,
+    })
 }
 
 /// The dimension lines of the points' references: from each point straight to the edge or line
 /// it is measured from, plus that line, drawn in the face's plane.
 pub fn dim_marks(values: &Values, field: &str) -> Vec<Mark> {
-    let pts: Vec<V3> = values.get(field).and_then(Value::as_array).map(|a| a.iter().filter_map(pt_from).collect()).unwrap_or_default();
+    let pts: Vec<V3> = values
+        .get(field)
+        .and_then(Value::as_array)
+        .map(|a| a.iter().filter_map(pt_from).collect())
+        .unwrap_or_default();
     let n = values.get("normal").and_then(pt_from).unwrap_or([0.0, 0.0, 1.0]);
     let lists = ref_lists(values, POINT_REFS);
     let mut out = Vec::new();
@@ -644,12 +836,20 @@ pub fn dim_marks(values: &Values, field: &str) -> Vec<Mark> {
         let mut outlines = Vec::new();
         for r in refs {
             let Some((a, b)) = ref_line(r) else { continue };
-            outlines.push(SketchOutline { pts: vec![uv(a), uv(b)], closed: false, construction: false });
+            outlines.push(SketchOutline {
+                pts: vec![uv(a), uv(b)],
+                closed: false,
+                construction: false,
+            });
             if r.get("along").is_none() {
                 let flat_a = onto_plane(a, n, *p);
                 let d = unit(sub(onto_plane(b, n, *p), flat_a)).unwrap_or([1.0, 0.0, 0.0]);
                 let foot = add(flat_a, mul(d, dot(sub(*p, flat_a), d)));
-                outlines.push(SketchOutline { pts: vec![uv(foot), [0.0, 0.0]], closed: false, construction: true });
+                outlines.push(SketchOutline {
+                    pts: vec![uv(foot), [0.0, 0.0]],
+                    closed: false,
+                    construction: true,
+                });
             }
         }
         if !outlines.is_empty() {
@@ -693,7 +893,16 @@ mod tests {
             active: true,
             ..Default::default()
         }];
-        let ctx = Ctx { bodies: &[], planes: &[], sketches: &sketches, features: &features, selection: &[], last_sketch: None, sketch_on_body: false, inch: false };
+        let ctx = Ctx {
+            bodies: &[],
+            planes: &[],
+            sketches: &sketches,
+            features: &features,
+            selection: &[],
+            last_sketch: None,
+            sketch_on_body: false,
+            inch: false,
+        };
         f(&ctx)
     }
 
@@ -721,11 +930,19 @@ mod tests {
             assert_eq!((r["entity"].as_str(), r["along"].as_f64()), (Some("l1"), Some(4.0)));
             // a rectangle's side is `<id>#<k>`
             let g = sketch_geometry(ctx, UP);
-            let side = g.lines.iter().find(|l| l.entity.as_deref().is_some_and(|e| e.starts_with("r1#"))).expect("a side of the rectangle").clone();
+            let side = g
+                .lines
+                .iter()
+                .find(|l| l.entity.as_deref().is_some_and(|e| e.starts_with("r1#")))
+                .expect("a side of the rectangle")
+                .clone();
             let mid = mul(add(side.a, side.b), 0.5);
             let q = add(add(side.a, mul(sub(mid, side.a), 0.5)), [0.0, 0.0, 0.0]);
             let s = snap(q, UP, ctx, 0.5).expect("on the side");
-            assert_eq!(s.line_ref.and_then(|r| r["entity"].as_str().map(str::to_owned)), side.entity);
+            assert_eq!(
+                s.line_ref.and_then(|r| r["entity"].as_str().map(str::to_owned)),
+                side.entity
+            );
             // a sketch on a wall is not snapped to from a floor face
             assert!(snap([0.4, 0.3, 5.0], [1.0, 0.0, 0.0], ctx, 1.0).is_none());
         });
@@ -751,7 +968,10 @@ mod tests {
     fn thread_snaps_and_keeps_its_line() {
         with_ctx(|ctx| {
             let mut v = Values::new();
-            v.insert("plane".into(), json!({"origin": [0, 0, 5], "normal": [0, 0, 1], "xdir": [1, 0, 0], "body": "b1"}));
+            v.insert(
+                "plane".into(),
+                json!({"origin": [0, 0, 5], "normal": [0, 0, 1], "xdir": [1, 0, 0], "body": "b1"}),
+            );
             v.insert("offset".into(), json!([4.0, 0.6, 0.0]));
             assert!(thread_after_place(&mut v, ctx, "b1"));
             assert_eq!(v["offset"], json!([4.0, 0.0, 0.0]));

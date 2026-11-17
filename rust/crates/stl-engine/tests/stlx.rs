@@ -7,7 +7,9 @@ use stl_engine::stlx;
 use stl_engine::{Document, Registry};
 
 fn fixture(name: &str) -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/projects").join(format!("{name}.stlx"))
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/projects")
+        .join(format!("{name}.stlx"))
 }
 
 const NAMES: [&str; 3] = ["basic", "unicode", "extra_keys"];
@@ -57,10 +59,17 @@ fn opens_1x_fixtures() {
         assert_eq!(f, j["features"], "{n} features");
         assert_eq!(u, j["ui"], "{n} ui");
         assert_eq!(p, j["params"], "{n} params");
-        assert_eq!(doc.rollback.map(|r| json!(r)).unwrap_or(Value::Null), j["rollback"], "{n} rollback");
+        assert_eq!(
+            doc.rollback.map(|r| json!(r)).unwrap_or(Value::Null),
+            j["rollback"],
+            "{n} rollback"
+        );
         assert_eq!(doc.sources.len(), files.len(), "{n} sources");
         for (sid, s) in &doc.sources {
-            let want = files.iter().find(|(name, _)| *name == format!("sources/{sid}{}", s.ext)).unwrap();
+            let want = files
+                .iter()
+                .find(|(name, _)| *name == format!("sources/{sid}{}", s.ext))
+                .unwrap();
             assert_eq!(s.data, want.1, "{n} {sid} bytes");
             assert_eq!(s.name, j["sources"][sid]["name"].as_str().unwrap());
         }

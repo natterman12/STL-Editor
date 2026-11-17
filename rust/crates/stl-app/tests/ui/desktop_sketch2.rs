@@ -31,8 +31,23 @@ fn desktop_sketch2_xz_revolve_edit_undo_save() {
     assert_eq!(h.state().sketch().unwrap().entities.len(), 1);
     finish_sketch_settle(&mut h, &link, false);
 
-    let sid = h.state().timeline_view.items.iter().rev().find(|i| i.kind == "sketch").map(|i| i.id.clone()).expect("sketch step");
-    let sketch_step = h.state().timeline_view.items.iter().find(|i| i.id == sid).unwrap().clone();
+    let sid = h
+        .state()
+        .timeline_view
+        .items
+        .iter()
+        .rev()
+        .find(|i| i.kind == "sketch")
+        .map(|i| i.id.clone())
+        .expect("sketch step");
+    let sketch_step = h
+        .state()
+        .timeline_view
+        .items
+        .iter()
+        .find(|i| i.id == sid)
+        .unwrap()
+        .clone();
     assert_eq!(sketch_step.params["plane"], json!("XZ"));
     assert_eq!(sketch_step.params["entities"].as_array().map(|a| a.len()), Some(1));
 
@@ -41,7 +56,13 @@ fn desktop_sketch2_xz_revolve_edit_undo_save() {
     h.run_steps(4);
     h.state_mut().tool_ok();
     settle(&mut h, &link);
-    let rev = h.state().timeline_view.items.iter().find(|i| i.kind == "revolve").expect("revolve step");
+    let rev = h
+        .state()
+        .timeline_view
+        .items
+        .iter()
+        .find(|i| i.kind == "revolve")
+        .expect("revolve step");
     assert_eq!(rev.error, None, "revolve error {:?}", rev.error);
     assert!(!h.state().bodies.is_empty());
     let v0 = mesh_volume(&h.state().bodies[0].mesh);

@@ -18,7 +18,7 @@ use stl_app::app::StlApp;
 use stl_app::engine_link::native::NativeLink;
 use stl_app::engine_link::{Command, EngineLink, Update};
 use stl_app::platform::{Pending, PickedFile, Platform};
-use stl_app::sketch::{dims, Entity, SketchDialog, SketchEffect};
+use stl_app::sketch::{Entity, SketchDialog, SketchEffect, dims};
 use stl_app::ui::ThemePref;
 use stl_app::viewport::renderer::Headless;
 
@@ -155,9 +155,19 @@ fn sketch_uv_screen(h: &Harness<'static, StlApp>, uv: [f64; 2]) -> Pos2 {
 fn click_at(h: &mut Harness<'static, StlApp>, at: Pos2) {
     h.event(Event::PointerMoved(at));
     h.step();
-    h.event(Event::PointerButton { pos: at, button: PointerButton::Primary, pressed: true, modifiers: Default::default() });
+    h.event(Event::PointerButton {
+        pos: at,
+        button: PointerButton::Primary,
+        pressed: true,
+        modifiers: Default::default(),
+    });
     h.step();
-    h.event(Event::PointerButton { pos: at, button: PointerButton::Primary, pressed: false, modifiers: Default::default() });
+    h.event(Event::PointerButton {
+        pos: at,
+        button: PointerButton::Primary,
+        pressed: false,
+        modifiers: Default::default(),
+    });
     h.run_steps(2);
 }
 
@@ -165,9 +175,19 @@ fn dblclick_at(h: &mut Harness<'static, StlApp>, at: Pos2) {
     for _ in 0..2 {
         h.event(Event::PointerMoved(at));
         h.step();
-        h.event(Event::PointerButton { pos: at, button: PointerButton::Primary, pressed: true, modifiers: Default::default() });
+        h.event(Event::PointerButton {
+            pos: at,
+            button: PointerButton::Primary,
+            pressed: true,
+            modifiers: Default::default(),
+        });
         h.step();
-        h.event(Event::PointerButton { pos: at, button: PointerButton::Primary, pressed: false, modifiers: Default::default() });
+        h.event(Event::PointerButton {
+            pos: at,
+            button: PointerButton::Primary,
+            pressed: false,
+            modifiers: Default::default(),
+        });
         h.step();
     }
     h.run_steps(2);
@@ -200,21 +220,31 @@ fn seed_rect_sketch(h: &mut Harness<'static, StlApp>, link: &NativeLink, dims: b
     settle(h, link);
     let id = {
         let s = h.state().sketch().expect("sketch open");
-        let e = s.entities.iter().find(|e| matches!(e, Entity::Rect(_))).expect("rect drawn");
+        let e = s
+            .entities
+            .iter()
+            .find(|e| matches!(e, Entity::Rect(_)))
+            .expect("rect drawn");
         e.id().expect("rect id").to_owned()
     };
     if dims {
         let m = h.state_mut().sketch_mode_mut().unwrap();
-        m.s.constraints.push(serde_json::from_value(json!({
-            "id": "dw", "type": "hdistance",
-            "a": {"e": id, "k": "c0"}, "b": {"e": id, "k": "c1"},
-            "off": -4, "value": 30
-        })).unwrap());
-        m.s.constraints.push(serde_json::from_value(json!({
-            "id": "dh", "type": "vdistance",
-            "a": {"e": id, "k": "c1"}, "b": {"e": id, "k": "c2"},
-            "off": 4, "value": 12
-        })).unwrap());
+        m.s.constraints.push(
+            serde_json::from_value(json!({
+                "id": "dw", "type": "hdistance",
+                "a": {"e": id, "k": "c0"}, "b": {"e": id, "k": "c1"},
+                "off": -4, "value": 30
+            }))
+            .unwrap(),
+        );
+        m.s.constraints.push(
+            serde_json::from_value(json!({
+                "id": "dh", "type": "vdistance",
+                "a": {"e": id, "k": "c1"}, "b": {"e": id, "k": "c2"},
+                "off": 4, "value": 12
+            }))
+            .unwrap(),
+        );
     }
     sketch_changed(h, link);
     h.state_mut().viewport.set_view("top");
@@ -310,11 +340,14 @@ fn apply_state(h: &mut Harness<'static, StlApp>, link: &NativeLink, state: &str)
             let rid = seed_rect_sketch(h, link, true);
             {
                 let m = h.state_mut().sketch_mode_mut().unwrap();
-                m.s.constraints.push(serde_json::from_value(json!({
-                    "id": "cf", "type": "coincident",
-                    "a": {"e": rid, "k": "c0"},
-                    "b": {"e": "_o", "k": "p"}
-                })).unwrap());
+                m.s.constraints.push(
+                    serde_json::from_value(json!({
+                        "id": "cf", "type": "coincident",
+                        "a": {"e": rid, "k": "c0"},
+                        "b": {"e": "_o", "k": "p"}
+                    }))
+                    .unwrap(),
+                );
             }
             sketch_changed(h, link);
             {
@@ -323,7 +356,12 @@ fn apply_state(h: &mut Harness<'static, StlApp>, link: &NativeLink, state: &str)
                 assert_eq!(m.state.msg.as_deref(), Some("Fully defined"), "sketch_full solves");
                 let r = m.s.entities.iter().find(|e| e.id() == Some(rid.as_str())).unwrap();
                 let Entity::Rect(r) = r else { panic!("rect") };
-                assert!((r.w.abs() - 30.0).abs() < 1e-6 && (r.h.abs() - 12.0).abs() < 1e-6, "rect 30 × 12, got {} × {}", r.w, r.h);
+                assert!(
+                    (r.w.abs() - 30.0).abs() < 1e-6 && (r.h.abs() - 12.0).abs() < 1e-6,
+                    "rect 30 × 12, got {} × {}",
+                    r.w,
+                    r.h
+                );
             }
             h.state_mut().viewport.set_view("top");
             h.run_steps(3);
@@ -332,11 +370,14 @@ fn apply_state(h: &mut Harness<'static, StlApp>, link: &NativeLink, state: &str)
             let rid = seed_rect_sketch(h, link, true);
             {
                 let m = h.state_mut().sketch_mode_mut().unwrap();
-                m.s.constraints.push(serde_json::from_value(json!({
-                    "id": "cover", "type": "hdistance",
-                    "a": {"e": rid, "k": "c0"}, "b": {"e": rid, "k": "c1"},
-                    "value": 18
-                })).unwrap());
+                m.s.constraints.push(
+                    serde_json::from_value(json!({
+                        "id": "cover", "type": "hdistance",
+                        "a": {"e": rid, "k": "c0"}, "b": {"e": rid, "k": "c1"},
+                        "value": 18
+                    }))
+                    .unwrap(),
+                );
             }
             sketch_changed(h, link);
             h.state_mut().viewport.set_view("top");
@@ -356,7 +397,8 @@ fn apply_state(h: &mut Harness<'static, StlApp>, link: &NativeLink, state: &str)
             h.run_steps(3);
             if h.state().sketch_mode().is_some_and(|m| m.panel.modify.is_none()) {
                 // Fallback: same as 1.x `openModify` when the hit misses.
-                h.state_mut().sketch_apply(vec![SketchEffect::Dialog(SketchDialog::DimValue(0))]);
+                h.state_mut()
+                    .sketch_apply(vec![SketchEffect::Dialog(SketchDialog::DimValue(0))]);
                 h.run_steps(3);
             }
             assert!(
@@ -376,7 +418,10 @@ fn apply_state(h: &mut Harness<'static, StlApp>, link: &NativeLink, state: &str)
             use egui_kittest::kittest::Queryable;
             assert!(h.query_by_label("Add text").is_some(), "text dialog should be open");
             // Default content is "Text"; set to "Hi" like 1.x (multiline may be TextInput or Label/TextRun).
-            if let Some(n) = h.get_all_by_role(Role::TextInput).find(|n| n.value().as_deref() == Some("Text")) {
+            if let Some(n) = h
+                .get_all_by_role(Role::TextInput)
+                .find(|n| n.value().as_deref() == Some("Text"))
+            {
                 n.click();
                 n.set_text_value_accesskit("Hi");
             } else if let Some(n) = h.get_all_by_value("Text").next() {
@@ -408,11 +453,14 @@ fn apply_state(h: &mut Harness<'static, StlApp>, link: &NativeLink, state: &str)
             };
             {
                 let m = h.state_mut().sketch_mode_mut().unwrap();
-                m.s.constraints.push(serde_json::from_value(json!({
-                    "id": "dref", "type": "hdistance",
-                    "a": {"e": rid, "k": "c0"}, "b": {"e": edge_id, "k": "p1"},
-                    "value": 6, "off": 8, "slide": 0
-                })).unwrap());
+                m.s.constraints.push(
+                    serde_json::from_value(json!({
+                        "id": "dref", "type": "hdistance",
+                        "a": {"e": rid, "k": "c0"}, "b": {"e": edge_id, "k": "p1"},
+                        "value": 6, "off": 8, "slide": 0
+                    }))
+                    .unwrap(),
+                );
             }
             sketch_changed(h, link);
             h.state_mut().finish_sketch(false);
@@ -434,7 +482,15 @@ fn apply_state(h: &mut Harness<'static, StlApp>, link: &NativeLink, state: &str)
                 .find(|i| i.kind == "sketch")
                 .map(|i| i.id.clone())
                 .expect("sketch step");
-            let mut box_params = h.state().timeline_view.items.iter().find(|i| i.id == box_id).unwrap().params.clone();
+            let mut box_params = h
+                .state()
+                .timeline_view
+                .items
+                .iter()
+                .find(|i| i.id == box_id)
+                .unwrap()
+                .params
+                .clone();
             box_params["length"] = json!(55);
             box_params["width"] = json!(28);
             h.state_mut().link.send(Command::EditFeature {
@@ -494,7 +550,11 @@ fn capture_one(gpu: &Headless, state: &str, theme: &str) -> PathBuf {
     let dark = theme != "light";
     let link = Arc::new(NativeLink::new());
     let ctx = egui::Context::default();
-    let mut app = StlApp::new(&ctx, Box::new(FakePlatform::default()), Box::new(SharedLink { inner: link.clone() }));
+    let mut app = StlApp::new(
+        &ctx,
+        Box::new(FakePlatform::default()),
+        Box::new(SharedLink { inner: link.clone() }),
+    );
     app.viewport.init_gpu(&gpu.render_state);
     let renderer = wgpu_renderer::WgpuRenderer::new(gpu.render_state.clone());
     let mut init = false;
@@ -530,7 +590,13 @@ fn capture_one(gpu: &Headless, state: &str, theme: &str) -> PathBuf {
 fn m4c_shots_skip_list_documents_unbuilt_states() {
     let skipped: Vec<&str> = STATES.iter().copied().filter(|s| !state_ready(s)).collect();
     let ready: Vec<&str> = STATES.iter().copied().filter(|s| state_ready(s)).collect();
-    eprintln!("m4c_shots: ready {} ({}); skip {} ({})", ready.len(), ready.join(", "), skipped.len(), skipped.join(", "));
+    eprintln!(
+        "m4c_shots: ready {} ({}); skip {} ({})",
+        ready.len(),
+        ready.join(", "),
+        skipped.len(),
+        skipped.join(", ")
+    );
     assert_eq!(ready.len(), STATES.len());
     assert!(skipped.is_empty(), "all m4c states should capture: {skipped:?}");
 }

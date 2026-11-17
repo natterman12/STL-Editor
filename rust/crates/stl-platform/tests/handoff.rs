@@ -7,9 +7,22 @@ use stl_platform::handoff::{find_slicer_with, launch_failure_message, open_in, s
 
 /// Runs `find_slicer_with` for `key` on `os`, with these installed paths, commands, flatpaks and
 /// folder listing (the 1.x tests' `fake`).
-fn find(key: &str, os: &str, paths: &[&str], cmds: &[&str], flatpaks: &[&str], listing: &[&str]) -> Option<Vec<String>> {
+fn find(
+    key: &str,
+    os: &str,
+    paths: &[&str],
+    cmds: &[&str],
+    flatpaks: &[&str],
+    listing: &[&str],
+) -> Option<Vec<String>> {
     let exists = |p: &str| paths.contains(&p);
-    let which = |c: &str| if cmds.contains(&c) { Some(format!("/usr/bin/{c}")) } else { None };
+    let which = |c: &str| {
+        if cmds.contains(&c) {
+            Some(format!("/usr/bin/{c}"))
+        } else {
+            None
+        }
+    };
     let flatpak = |a: &str| flatpaks.contains(&a);
     let listdir = |_: &str| listing.iter().map(|s| s.to_string()).collect::<Vec<_>>();
     find_slicer_with(key, os, &exists, &which, &flatpak, &listdir)
@@ -18,7 +31,10 @@ fn find(key: &str, os: &str, paths: &[&str], cmds: &[&str], flatpaks: &[&str], l
 #[test]
 fn windows_finds_exe() {
     let exe = r"C:\Program Files\Bambu Studio\bambu-studio.exe";
-    assert_eq!(find("bambu", "windows", &[exe], &[], &[], &[]), Some(vec![exe.to_string()]));
+    assert_eq!(
+        find("bambu", "windows", &[exe], &[], &[], &[]),
+        Some(vec![exe.to_string()])
+    );
     assert_eq!(find("orca", "windows", &[exe], &[], &[], &[]), None);
 }
 
@@ -28,7 +44,9 @@ fn windows_searches_the_install_folder() {
     let listing = ["readme.txt", "OrcaSlicer-uninstall.exe", "orca-slicer.exe"];
     assert_eq!(
         find("orca", "windows", &[], &[], &[], &listing),
-        Some(vec![r"C:\Program Files\OrcaSlicer\OrcaSlicer-uninstall.exe".to_string()])
+        Some(vec![
+            r"C:\Program Files\OrcaSlicer\OrcaSlicer-uninstall.exe".to_string()
+        ])
     );
     assert_eq!(find("bambu", "windows", &[], &[], &[], &["bambu-helper.dll"]), None);
     // no folder search for PrusaSlicer, as 1.x
@@ -38,7 +56,17 @@ fn windows_searches_the_install_folder() {
 #[test]
 fn windows_ignores_mac_and_linux_installs() {
     let paths = ["/Applications/BambuStudio.app"];
-    assert_eq!(find("bambu", "windows", &paths, &["bambu-studio"], &["com.bambulab.BambuStudio"], &[]), None);
+    assert_eq!(
+        find(
+            "bambu",
+            "windows",
+            &paths,
+            &["bambu-studio"],
+            &["com.bambulab.BambuStudio"],
+            &[]
+        ),
+        None
+    );
 }
 
 #[test]
@@ -59,32 +87,74 @@ fn mac_user_applications_folder() {
         return;
     };
     let app = format!("{home}/Applications/PrusaSlicer.app");
-    assert_eq!(find("prusa", "macos", &[app.as_str()], &[], &[], &[]), Some(vec!["open".into(), "-a".into(), app.clone()]));
+    assert_eq!(
+        find("prusa", "macos", &[app.as_str()], &[], &[], &[]),
+        Some(vec!["open".into(), "-a".into(), app.clone()])
+    );
     let orca = "/Applications/OrcaSlicer.app";
-    assert_eq!(find("orca", "macos", &[orca], &[], &[], &[]), Some(vec!["open".into(), "-a".into(), orca.into()]));
+    assert_eq!(
+        find("orca", "macos", &[orca], &[], &[], &[]),
+        Some(vec!["open".into(), "-a".into(), orca.into()])
+    );
 }
 
 #[test]
 fn linux_path_commands() {
-    assert_eq!(find("bambu", "linux", &[], &["bambu-studio"], &[], &[]), Some(vec!["/usr/bin/bambu-studio".into()]));
-    assert_eq!(find("orca", "linux", &[], &["orcaslicer"], &[], &[]), Some(vec!["/usr/bin/orcaslicer".into()]));
-    assert_eq!(find("orca", "linux", &[], &["orca-slicer"], &[], &[]), Some(vec!["/usr/bin/orca-slicer".into()]));
-    assert_eq!(find("prusa", "linux", &[], &["prusa-slicer"], &[], &[]), Some(vec!["/usr/bin/prusa-slicer".into()]));
+    assert_eq!(
+        find("bambu", "linux", &[], &["bambu-studio"], &[], &[]),
+        Some(vec!["/usr/bin/bambu-studio".into()])
+    );
+    assert_eq!(
+        find("orca", "linux", &[], &["orcaslicer"], &[], &[]),
+        Some(vec!["/usr/bin/orcaslicer".into()])
+    );
+    assert_eq!(
+        find("orca", "linux", &[], &["orca-slicer"], &[], &[]),
+        Some(vec!["/usr/bin/orca-slicer".into()])
+    );
+    assert_eq!(
+        find("prusa", "linux", &[], &["prusa-slicer"], &[], &[]),
+        Some(vec!["/usr/bin/prusa-slicer".into()])
+    );
     assert_eq!(find("bambu", "linux", &[], &[], &[], &[]), None);
 }
 
 #[test]
 fn linux_flatpaks() {
-    let f = ["com.bambulab.BambuStudio", "io.github.softfever.OrcaSlicer", "com.prusa3d.PrusaSlicer"];
-    assert_eq!(find("bambu", "linux", &[], &[], &f, &[]), Some(vec!["flatpak".into(), "run".into(), "com.bambulab.BambuStudio".into()]));
-    assert_eq!(find("orca", "linux", &[], &[], &f, &[]), Some(vec!["flatpak".into(), "run".into(), "io.github.softfever.OrcaSlicer".into()]));
-    assert_eq!(find("prusa", "linux", &[], &[], &f, &[]), Some(vec!["flatpak".into(), "run".into(), "com.prusa3d.PrusaSlicer".into()]));
+    let f = [
+        "com.bambulab.BambuStudio",
+        "io.github.softfever.OrcaSlicer",
+        "com.prusa3d.PrusaSlicer",
+    ];
+    assert_eq!(
+        find("bambu", "linux", &[], &[], &f, &[]),
+        Some(vec!["flatpak".into(), "run".into(), "com.bambulab.BambuStudio".into()])
+    );
+    assert_eq!(
+        find("orca", "linux", &[], &[], &f, &[]),
+        Some(vec![
+            "flatpak".into(),
+            "run".into(),
+            "io.github.softfever.OrcaSlicer".into()
+        ])
+    );
+    assert_eq!(
+        find("prusa", "linux", &[], &[], &f, &[]),
+        Some(vec!["flatpak".into(), "run".into(), "com.prusa3d.PrusaSlicer".into()])
+    );
 }
 
 #[test]
 fn linux_prefers_path_over_flatpak() {
     assert_eq!(
-        find("prusa", "linux", &[], &["prusa-slicer"], &["com.prusa3d.PrusaSlicer"], &[]),
+        find(
+            "prusa",
+            "linux",
+            &[],
+            &["prusa-slicer"],
+            &["com.prusa3d.PrusaSlicer"],
+            &[]
+        ),
         Some(vec!["/usr/bin/prusa-slicer".into()])
     );
 }
@@ -99,7 +169,10 @@ fn unknown_key_is_none() {
 #[test]
 fn solidcraft_is_found_by_its_exe_on_windows_only() {
     let exe = r"C:\Program Files\SolidCraft\solidcraft.exe";
-    assert_eq!(find("solidcraft", "windows", &[exe], &[], &[], &[]), Some(vec![exe.to_string()]));
+    assert_eq!(
+        find("solidcraft", "windows", &[exe], &[], &[], &[]),
+        Some(vec![exe.to_string()])
+    );
     assert_eq!(find("solidcraft", "macos", &[exe], &[], &[], &[]), None);
     assert_eq!(find("solidcraft", "linux", &[exe], &["solidcraft"], &[], &[]), None);
 }
@@ -115,7 +188,10 @@ fn to_step_only_on_windows_with_the_cli() {
 
 #[test]
 fn launch_failure_says_what_failed() {
-    assert_eq!(launch_failure_message("Bambu Studio", "the file is missing"), "Couldn't open Bambu Studio: the file is missing");
+    assert_eq!(
+        launch_failure_message("Bambu Studio", "the file is missing"),
+        "Couldn't open Bambu Studio: the file is missing"
+    );
 }
 
 #[test]
@@ -142,6 +218,9 @@ fn temp_file_names_cannot_escape_the_folder() {
     assert_eq!(temp_file_name("../../x.3mf"), "x.3mf");
     for name in ["a.x/..", "../../etc.passwd", "x.\\..\\y", "..", "a..b"] {
         let out = temp_file_name(name);
-        assert!(!out.contains('/') && !out.contains('\\') && !out.contains(".."), "{name} -> {out}");
+        assert!(
+            !out.contains('/') && !out.contains('\\') && !out.contains(".."),
+            "{name} -> {out}"
+        );
     }
 }

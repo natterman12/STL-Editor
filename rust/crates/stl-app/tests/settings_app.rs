@@ -15,8 +15,8 @@ use std::sync::{Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
 use stl_app::engine_link::{Command, EngineLink, Level, Update};
-use stl_app::platform::native::NativePlatform;
 use stl_app::platform::Platform;
+use stl_app::platform::native::NativePlatform;
 use stl_app::ui::files::{FileAction, Files};
 
 static ENV: Mutex<()> = Mutex::new(());
@@ -53,7 +53,12 @@ fn accepted() -> Vec<Update> {
 }
 
 /// Polls until the file reads (a thread answers) have come back; returns their messages.
-fn poll_until_idle(files: &mut Files, platform: &dyn Platform, link: &RecLink, updates: &[Update]) -> Vec<(Level, String)> {
+fn poll_until_idle(
+    files: &mut Files,
+    platform: &dyn Platform,
+    link: &RecLink,
+    updates: &[Update],
+) -> Vec<(Level, String)> {
     let end = Instant::now() + Duration::from_secs(10);
     let mut messages = Vec::new();
     let mut first = true;
@@ -73,7 +78,13 @@ fn opened(link: &RecLink) -> Vec<(String, Vec<u8>)> {
         .lock()
         .unwrap()
         .iter()
-        .filter_map(|c| if let Command::Open { name, bytes } = c { Some((name.clone(), bytes.clone())) } else { None })
+        .filter_map(|c| {
+            if let Command::Open { name, bytes } = c {
+                Some((name.clone(), bytes.clone()))
+            } else {
+                None
+            }
+        })
         .collect()
 }
 
@@ -101,7 +112,10 @@ fn open_recent_reads_from_disk() {
     assert!(files.open_recent(&platform, &link, &key));
     let messages = poll_until_idle(&mut files, &platform, &link, &[]);
     assert!(messages.is_empty(), "{messages:?}");
-    assert_eq!(opened(&link), vec![("part.stlx".to_string(), b"PROJECT BYTES".to_vec())]);
+    assert_eq!(
+        opened(&link),
+        vec![("part.stlx".to_string(), b"PROJECT BYTES".to_vec())]
+    );
 
     // the engine accepts it: still first in Recent, still stored by path
     files.poll(&platform, &link, &accepted());
@@ -127,9 +141,19 @@ fn save_after_open_recent_writes_back() {
     // Save goes back to the same path: no dialog (a dialog would hang the test)
     files.start(&platform, &link, FileAction::Save, None);
     assert!(link.sent.lock().unwrap().iter().any(|c| matches!(c, Command::Save)));
-    let messages = poll_until_idle(&mut files, &platform, &link, &[Update::Saved { bytes: b"NEW".to_vec() }]);
+    let messages = poll_until_idle(
+        &mut files,
+        &platform,
+        &link,
+        &[Update::Saved { bytes: b"NEW".to_vec() }],
+    );
     assert_eq!(std::fs::read(&file).unwrap(), b"NEW");
-    assert!(messages.iter().any(|(l, m)| *l == Level::Success && m.starts_with("Saved")), "{messages:?}");
+    assert!(
+        messages
+            .iter()
+            .any(|(l, m)| *l == Level::Success && m.starts_with("Saved")),
+        "{messages:?}"
+    );
     assert_eq!(files.recent_keys(), vec![key], "the saved project stays under its path");
 }
 
@@ -167,14 +191,20 @@ fn recent_keeps_ten_and_lasts_a_restart() {
         std::fs::write(&p, b"x").unwrap();
         files.open_bytes(
             &link,
-            stl_app::platform::PickedFile { name: format!("f{i}.stlx"), bytes: b"x".to_vec() },
+            stl_app::platform::PickedFile {
+                name: format!("f{i}.stlx"),
+                bytes: b"x".to_vec(),
+            },
             Some(path_str(&p)),
         );
         files.poll(&platform, &link, &accepted());
     }
     let keys = files.recent_keys();
     assert_eq!(keys.len(), 10, "1.x keeps ten");
-    assert!(keys[0].ends_with("f11.stlx") && keys[9].ends_with("f2.stlx"), "{keys:?}");
+    assert!(
+        keys[0].ends_with("f11.stlx") && keys[9].ends_with("f2.stlx"),
+        "{keys:?}"
+    );
     // a new run reads them back
     let mut again = Files::new();
     again.load_recent(&NativePlatform::with_config_dir(&d));
@@ -205,8 +235,17 @@ fn last_dir_used_by_dialogs() {
 fn no_ui_settings_in_1x_folder() {
     let _g = env_lock();
     let d = temp("no-1x");
-    let vars = ["STLEDITOR2_CONFIG_DIR", "STLEDITOR_CONFIG_DIR", "APPDATA", "LOCALAPPDATA", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "HOME", "USERPROFILE"];
-    let saved: Vec<_> = vars.iter().map(|v| std::env::var_os(v)).collect();
+    let vars = [
+        "STLEDITOR2_CONFIG_DIR",
+        "STLEDITOR_CONFIG_DIR",
+        "APPDATA",
+        "LOCALAPPDATA",
+        "XDG_CONFIG_HOME",
+        "XDG_DATA_HOME",
+        "HOME",
+        "USERPROFILE",
+    ];
+    let saved: Vec<_> = vars.iter().map(std::env::var_os).collect();
     // SAFETY: serialised by ENV; this test binary's other tests don't read these variables.
     unsafe {
         std::env::remove_var("STLEDITOR2_CONFIG_DIR");
@@ -219,7 +258,10 @@ fn no_ui_settings_in_1x_folder() {
     platform.set_setting("stle_sf_material", "PETG");
     platform.set_setting_json("recent", serde_json::json!(["x"]));
     platform.remember_dir(&d.join("a.stl"));
-    assert_eq!(NativePlatform::new().setting("stle_sf_material").as_deref(), Some("PETG"));
+    assert_eq!(
+        NativePlatform::new().setting("stle_sf_material").as_deref(),
+        Some("PETG")
+    );
 
     let mut found = Vec::new();
     walk(&d, &mut found);
@@ -231,10 +273,21 @@ fn no_ui_settings_in_1x_folder() {
             }
         }
     }
-    assert!(!found.iter().any(|p| p.components().any(|c| c.as_os_str() == "STL Editor")), "1.x's folder was touched: {found:?}");
-    assert!(!found.iter().any(|p| p.file_name().is_some_and(|n| n == "ui-settings.json")), "{found:?}");
     assert!(
-        found.iter().any(|p| p.file_name().is_some_and(|n| n == "settings.json") && p.components().any(|c| c.as_os_str() == "STL Editor 2")),
+        !found
+            .iter()
+            .any(|p| p.components().any(|c| c.as_os_str() == "STL Editor")),
+        "1.x's folder was touched: {found:?}"
+    );
+    assert!(
+        !found
+            .iter()
+            .any(|p| p.file_name().is_some_and(|n| n == "ui-settings.json")),
+        "{found:?}"
+    );
+    assert!(
+        found.iter().any(|p| p.file_name().is_some_and(|n| n == "settings.json")
+            && p.components().any(|c| c.as_os_str() == "STL Editor 2")),
         "settings.json is in 2.0's folder: {found:?}"
     );
 }

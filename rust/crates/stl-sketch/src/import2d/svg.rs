@@ -8,8 +8,8 @@ use serde_json::Map;
 use usvg::tiny_skia_path::{Path as SkiaPath, PathSegment, Point as SkiaPoint};
 use usvg::{Node, Options, Transform, Tree};
 
-use crate::entities::{Entity, Polyline, P2};
 use crate::SketchError;
+use crate::entities::{Entity, P2, Polyline};
 
 const PX_TO_MM: f64 = 25.4 / 96.0;
 const SVG_BAD: &str = "This SVG file can’t be read.";
@@ -32,7 +32,10 @@ enum ShapeKind {
 
 impl ShapeKind {
     fn closed_by_type(self) -> bool {
-        matches!(self, ShapeKind::Rect | ShapeKind::Circle | ShapeKind::Ellipse | ShapeKind::Polygon)
+        matches!(
+            self,
+            ShapeKind::Rect | ShapeKind::Circle | ShapeKind::Ellipse | ShapeKind::Polygon
+        )
     }
 }
 
@@ -229,7 +232,9 @@ fn oval_from_bounds(path: &SkiaPath) -> Option<(Point, f64, f64)> {
 }
 
 fn polyline_length(pts: &[Point]) -> f64 {
-    pts.windows(2).map(|w| (w[1][0] - w[0][0]).hypot(w[1][1] - w[0][1])).sum()
+    pts.windows(2)
+        .map(|w| (w[1][0] - w[0][0]).hypot(w[1][1] - w[0][1]))
+        .sum()
 }
 
 fn sample_count(total: f64, closed: bool) -> (usize, usize) {
@@ -359,7 +364,14 @@ pub fn parse_float_js(s: &str) -> f64 {
     }
     if end == start_digits || (end == start_digits + 1 && (bytes[0] == b'+' || bytes[0] == b'-') && start_digits == 1) {
         // no digits — but "10em" with end past digits is fine; bare sign is NaN
-        if end <= 1 && (s.starts_with('+') || s.starts_with('-') || end == 0) && !s.as_bytes().get(start_digits).map(|b| b.is_ascii_digit()).unwrap_or(false) {
+        if end <= 1
+            && (s.starts_with('+') || s.starts_with('-') || end == 0)
+            && !s
+                .as_bytes()
+                .get(start_digits)
+                .map(|b| b.is_ascii_digit())
+                .unwrap_or(false)
+        {
             return f64::NAN;
         }
     }
@@ -392,9 +404,7 @@ pub fn svg_tag_attr<'a>(tag: &'a str, name: &str) -> Option<&'a str> {
     let mut search_from = 0usize;
     while let Some(rel) = lower[search_from..].find(&key) {
         let i = search_from + rel;
-        let ok_before = i == 0
-            || lower.as_bytes()[i - 1].is_ascii_whitespace()
-            || lower.as_bytes()[i - 1] == b'<';
+        let ok_before = i == 0 || lower.as_bytes()[i - 1].is_ascii_whitespace() || lower.as_bytes()[i - 1] == b'<';
         if ok_before {
             let rest = &tag[i + key.len()..];
             let q = rest.chars().next()?;
@@ -533,11 +543,11 @@ fn source_shape_kinds(text: &str) -> Vec<ShapeKind> {
         }
         if i + 1 < bytes.len() && bytes[i + 1] == b'!' {
             // comment / doctype
-            if lower[i..].starts_with("<!--") {
-                if let Some(end) = lower[i + 4..].find("-->") {
-                    i = i + 4 + end + 3;
-                    continue;
-                }
+            if lower[i..].starts_with("<!--")
+                && let Some(end) = lower[i + 4..].find("-->")
+            {
+                i = i + 4 + end + 3;
+                continue;
             }
             i += 1;
             continue;
@@ -545,9 +555,7 @@ fn source_shape_kinds(text: &str) -> Vec<ShapeKind> {
         if i + 1 < bytes.len() && bytes[i + 1] == b'/' {
             // closing tag
             let rest = &lower[i + 2..];
-            let name_end = rest
-                .find(|c: char| c.is_whitespace() || c == '>')
-                .unwrap_or(0);
+            let name_end = rest.find(|c: char| c.is_whitespace() || c == '>').unwrap_or(0);
             let name = &rest[..name_end];
             if let Some(pos) = stack.iter().rposition(|n| *n == name) {
                 stack.truncate(pos);
@@ -589,19 +597,22 @@ fn source_shape_kinds(text: &str) -> Vec<ShapeKind> {
             if let Some(kind) = kind {
                 // Skip empty `d=""` paths — usvg and 1.x both drop them; keeping them in
                 // `kinds` would shift later circle/ellipse routing.
-                let skip_empty_path = kind == ShapeKind::Path
-                    && svg_tag_attr(orig_tag, "d").map(|d| d.trim().is_empty()).unwrap_or(true);
+                let skip_empty_path =
+                    kind == ShapeKind::Path && svg_tag_attr(orig_tag, "d").map(|d| d.trim().is_empty()).unwrap_or(true);
                 if !skip_empty_path {
                     out.push(kind);
                 }
             }
         }
-        if !self_close && name != "path" && name != "line" && name != "polyline" && name != "polygon"
-            && name != "rect" && name != "circle" && name != "ellipse" && name != "use"
-            && name != "image" && !name.starts_with("?")
-        {
-            stack.push(name);
-        } else if !self_close && matches!(name, "defs" | "clippath" | "mask" | "symbol" | "pattern" | "marker" | "g" | "svg" | "a") {
+        let shape = matches!(
+            name,
+            "path" | "line" | "polyline" | "polygon" | "rect" | "circle" | "ellipse" | "use" | "image"
+        ) || name.starts_with("?");
+        let group = matches!(
+            name,
+            "defs" | "clippath" | "mask" | "symbol" | "pattern" | "marker" | "g" | "svg" | "a"
+        );
+        if !self_close && (!shape || group) {
             stack.push(name);
         }
         i = i + 1 + tag_end_rel + 1;
@@ -628,11 +639,11 @@ fn strip_use_elements(text: &str) -> String {
                     continue;
                 }
                 // find </use>
-                if let Some(close) = lower[end..].find("</use") {
-                    if let Some(gt) = lower[end + close..].find('>') {
-                        i = end + close + gt + 1;
-                        continue;
-                    }
+                if let Some(close) = lower[end..].find("</use")
+                    && let Some(gt) = lower[end + close..].find('>')
+                {
+                    i = end + close + gt + 1;
+                    continue;
                 }
                 i = end;
                 continue;
@@ -647,13 +658,7 @@ fn strip_use_elements(text: &str) -> String {
     out
 }
 
-fn walk_group(
-    group: &usvg::Group,
-    ctx: &EmitCtx,
-    kinds: &[ShapeKind],
-    kind_i: &mut usize,
-    out: &mut Vec<Entity>,
-) {
+fn walk_group(group: &usvg::Group, ctx: &EmitCtx, kinds: &[ShapeKind], kind_i: &mut usize, out: &mut Vec<Entity>) {
     for node in group.children() {
         match node {
             Node::Group(g) => walk_group(g, ctx, kinds, kind_i, out),
@@ -672,12 +677,10 @@ fn walk_group(
                 // Standard-kappa <path> is also measured as cubics so it matches Chrome's
                 // getTotalLength on path data (not the calibrated circle element measure).
                 let take_oval = matches!(kind, ShapeKind::Circle | ShapeKind::Ellipse);
-                if take_oval {
-                    if let Some((center, rx, ry)) = oval_from_bounds(path.data()) {
-                        let sampled = sample_chrome_oval(center[0], center[1], rx, ry);
-                        emit_polyline(sampled, true, ts, ctx, out);
-                        continue;
-                    }
+                if take_oval && let Some((center, rx, ry)) = oval_from_bounds(path.data()) {
+                    let sampled = sample_chrome_oval(center[0], center[1], rx, ry);
+                    emit_polyline(sampled, true, ts, ctx, out);
+                    continue;
                 }
                 let subs = path_subpaths(path.data());
                 if subs.is_empty() {
@@ -761,17 +764,25 @@ fn rewrite_zero_size_rects(text: &str) -> String {
                 break;
             };
             let tag = &after[5..gt]; // after "<rect"
-            let x = svg_tag_attr(tag, "x").map(parse_float_js).filter(|v| v.is_finite()).unwrap_or(0.0);
-            let y = svg_tag_attr(tag, "y").map(parse_float_js).filter(|v| v.is_finite()).unwrap_or(0.0);
-            let w = svg_tag_attr(tag, "width").map(parse_float_js).filter(|v| v.is_finite()).unwrap_or(0.0);
-            let h = svg_tag_attr(tag, "height").map(parse_float_js).filter(|v| v.is_finite()).unwrap_or(0.0);
+            let x = svg_tag_attr(tag, "x")
+                .map(parse_float_js)
+                .filter(|v| v.is_finite())
+                .unwrap_or(0.0);
+            let y = svg_tag_attr(tag, "y")
+                .map(parse_float_js)
+                .filter(|v| v.is_finite())
+                .unwrap_or(0.0);
+            let w = svg_tag_attr(tag, "width")
+                .map(parse_float_js)
+                .filter(|v| v.is_finite())
+                .unwrap_or(0.0);
+            let h = svg_tag_attr(tag, "height")
+                .map(parse_float_js)
+                .filter(|v| v.is_finite())
+                .unwrap_or(0.0);
             if w == 0.0 || h == 0.0 {
                 // Perimeter path matching Chrome's zero-size rect measure.
-                let d = format!(
-                    "M{x},{y} H{x2} V{y2} H{x} Z",
-                    x2 = x + w,
-                    y2 = y + h
-                );
+                let d = format!("M{x},{y} H{x2} V{y2} H{x} Z", x2 = x + w, y2 = y + h);
                 out.push_str(&format!(r#"<path d="{d}"/>"#));
                 i = start + gt + 1;
                 // skip optional closing </rect> is N/A for self-closing; if paired, leave it
@@ -806,7 +817,7 @@ pub fn import_svg(text: &str) -> Result<Vec<Entity>, SketchError> {
     let size = tree.size();
     // Reconstruct usvg's viewBox→size fit (respect preserveAspectRatio). 1.x cancels via getCTM.
     let vb_fit = viewbox_fit_transform(text, size.width() as f64, size.height() as f64);
-    let to_user = vb_fit.invert().unwrap_or_else(Transform::default);
+    let to_user = vb_fit.invert().unwrap_or_default();
     let ctx = EmitCtx { to_user, mm_per };
 
     let mut out = Vec::new();

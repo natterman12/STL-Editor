@@ -1,15 +1,15 @@
 //! Project and Use Edge (`app.js` `sketchProject`, `sketcher.js` `pickEdge` / `useEdge`).
 
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 use stl_sketch::entities::{Circle, Entity, Line};
-use stl_sketch::solver::{refs_exist, Constraint, Ref, World};
+use stl_sketch::solver::{Constraint, Ref, World, refs_exist};
 
 use super::geom::dist_to_entity;
 use super::{SketchDialog, SketchEffect, SketchInput, SketchSession, SketchTool, ToolCx};
 use crate::engine_link::Level;
 use crate::theme::Tokens;
-use crate::tools::fields::{self, Bufs};
 use crate::tools::fields::number::{parse_len, unit_name};
+use crate::tools::fields::{self, Bufs};
 use crate::tools::panel::ctl_button;
 
 /// What [`use_edge`] did.
@@ -50,7 +50,12 @@ pub fn use_edge(s: &mut SketchSession, uv: [f64; 2], px: f64) -> UseEdge {
     let Some(pick) = pick_edge(s, uv, px) else {
         return UseEdge::Miss;
     };
-    let Some(edge) = s.refs.iter().find(|r| r.ent.id() == Some(pick.as_str())).map(|r| r.ent.clone()) else {
+    let Some(edge) = s
+        .refs
+        .iter()
+        .find(|r| r.ent.id() == Some(pick.as_str()))
+        .map(|r| r.ent.clone())
+    else {
         return UseEdge::Miss;
     };
     s.push();
@@ -65,8 +70,10 @@ pub fn use_edge(s: &mut SketchSession, uv: [f64; 2], px: f64) -> UseEdge {
                 extra: Map::new(),
             }));
             let (c1, c2) = (s.new_id(), s.new_id());
-            s.constraints.push(tied(&c1, "coincident", Ref::pt(&id, "p1"), Ref::pt(&pick, "p1")));
-            s.constraints.push(tied(&c2, "coincident", Ref::pt(&id, "p2"), Ref::pt(&pick, "p2")));
+            s.constraints
+                .push(tied(&c1, "coincident", Ref::pt(&id, "p1"), Ref::pt(&pick, "p1")));
+            s.constraints
+                .push(tied(&c2, "coincident", Ref::pt(&id, "p2"), Ref::pt(&pick, "p2")));
         }
         Entity::Circle(c) => {
             s.entities.push(Entity::Circle(Circle {
@@ -78,7 +85,8 @@ pub fn use_edge(s: &mut SketchSession, uv: [f64; 2], px: f64) -> UseEdge {
                 extra: Map::new(),
             }));
             let (c1, c2) = (s.new_id(), s.new_id());
-            s.constraints.push(tied(&c1, "concentric", Ref::ent(&id), Ref::ent(&pick)));
+            s.constraints
+                .push(tied(&c1, "concentric", Ref::ent(&id), Ref::ent(&pick)));
             s.constraints.push(tied(&c2, "equal", Ref::ent(&id), Ref::ent(&pick)));
         }
         _ => {
@@ -115,7 +123,13 @@ fn edge_flag(e: &Entity) -> Option<&str> {
 }
 
 /// The `sketch_op` `project` payload 1.x sends (`sketchProject` plus `sketchServerOp`).
-pub fn project_request(s: &SketchSession, mode: &str, body: Option<&str>, offset: f64, construction: bool) -> SketchEffect {
+pub fn project_request(
+    s: &SketchSession,
+    mode: &str,
+    body: Option<&str>,
+    offset: f64,
+    construction: bool,
+) -> SketchEffect {
     let f = &s.frame;
     let mut data = Map::new();
     data.insert(
@@ -131,12 +145,18 @@ pub fn project_request(s: &SketchSession, mode: &str, body: Option<&str>, offset
     data.insert("mode".into(), Value::String(mode.into()));
     data.insert("offset".into(), json!(offset));
     data.insert("construction".into(), Value::Bool(construction));
-    data.insert("entities".into(), serde_json::to_value(&s.entities).unwrap_or(json!([])));
+    data.insert(
+        "entities".into(),
+        serde_json::to_value(&s.entities).unwrap_or(json!([])),
+    );
     data.insert("seed".into(), Value::String(s.seed.clone()));
     if let Some(b) = body.filter(|b| !b.is_empty()) {
         data.insert("bodies".into(), json!([b]));
     }
-    SketchEffect::SketchOp { op: "project".into(), data: Value::Object(data) }
+    SketchEffect::SketchOp {
+        op: "project".into(),
+        data: Value::Object(data),
+    }
 }
 
 struct ProjectTool;
@@ -177,8 +197,12 @@ impl SketchTool for ProjectTool {
 /// The answer of `project` (`sketchProject` after `sketchServerOp`): the shapes are replaced,
 /// the new outlines selected, and the toast says how many.
 pub fn apply_result(s: &mut SketchSession, result: &Value) -> Vec<SketchEffect> {
-    let Some(list) = result.get("entities").and_then(Value::as_array) else { return Vec::new() };
-    let Ok(ents) = stl_sketch::entities::parse_entities(list) else { return Vec::new() };
+    let Some(list) = result.get("entities").and_then(Value::as_array) else {
+        return Vec::new();
+    };
+    let Ok(ents) = stl_sketch::entities::parse_entities(list) else {
+        return Vec::new();
+    };
     s.push();
     s.entities = ents;
     let mut all = s.entities.clone();
@@ -196,7 +220,10 @@ pub fn apply_result(s: &mut SketchSession, result: &Value) -> Vec<SketchEffect> 
     }
     let n = added.len();
     let word = if n == 1 { "outline" } else { "outlines" };
-    vec![SketchEffect::Toast(Level::Success, format!("Added {n} {word}.")), SketchEffect::Changed]
+    vec![
+        SketchEffect::Toast(Level::Success, format!("Added {n} {word}.")),
+        SketchEffect::Changed,
+    ]
 }
 
 // ------------------------------------------------------------------ the Project outline dialog
@@ -219,12 +246,23 @@ impl ProjectForm {
     pub fn new(bodies: Vec<(String, String)>, inch: bool) -> Self {
         let mut bufs = Bufs::new();
         bufs.insert("offset".into(), "0".into());
-        ProjectForm { bodies, mode: "section".into(), body: String::new(), construction: false, bufs, inch }
+        ProjectForm {
+            bodies,
+            mode: "section".into(),
+            body: String::new(),
+            construction: false,
+            bufs,
+            inch,
+        }
     }
 
     /// The offset typed, in mm (`U.parse(...) || 0`).
     pub fn offset_mm(&self) -> f64 {
-        self.bufs.get("offset").and_then(|t| parse_len(t.trim(), self.inch)).filter(|v| v.is_finite()).unwrap_or(0.0)
+        self.bufs
+            .get("offset")
+            .and_then(|t| parse_len(t.trim(), self.inch))
+            .filter(|v| v.is_finite())
+            .unwrap_or(0.0)
     }
 }
 
@@ -238,13 +276,31 @@ pub enum ProjectAnswer {
 pub fn dialog(ui: &mut egui::Ui, tk: &Tokens, f: &mut ProjectForm) -> Option<ProjectAnswer> {
     use egui::{CornerRadius, Frame, Margin, RichText};
     let mut ans = None;
-    ui.label(RichText::new("Project outline").font(egui::FontId::new(15.0, egui::FontFamily::Name("bold".into()))).color(tk.strong));
+    ui.label(
+        RichText::new("Project outline")
+            .font(egui::FontId::new(15.0, egui::FontFamily::Name("bold".into())))
+            .color(tk.strong),
+    );
     ui.add_space(8.0);
-    ui.add(egui::Label::new(RichText::new("Adds the outline of the model to this sketch as shapes you can offset, trim or extrude.").size(12.0).color(tk.muted)).wrap());
+    ui.add(
+        egui::Label::new(
+            RichText::new("Adds the outline of the model to this sketch as shapes you can offset, trim or extrude.")
+                .size(12.0)
+                .color(tk.muted),
+        )
+        .wrap(),
+    );
     ui.add_space(6.0);
     fields::row_raw(ui, tk, "Outline", None, false, |ui, w| {
-        let opts = [("section", "Where the sketch plane cuts the model"), ("silhouette", "Shadow of the whole model on the plane")];
-        let shown = opts.iter().find(|(v, _)| *v == f.mode).map(|(_, l)| *l).unwrap_or(opts[0].1);
+        let opts = [
+            ("section", "Where the sketch plane cuts the model"),
+            ("silhouette", "Shadow of the whole model on the plane"),
+        ];
+        let shown = opts
+            .iter()
+            .find(|(v, _)| *v == f.mode)
+            .map(|(_, l)| *l)
+            .unwrap_or(opts[0].1);
         let mut chosen = None;
         fields::framed_combo(ui, tk, ("sk-project", "mode"), w, shown, |ui| {
             for (v, l) in opts {
@@ -259,7 +315,12 @@ pub fn dialog(ui: &mut egui::Ui, tk: &Tokens, f: &mut ProjectForm) -> Option<Pro
         None::<()>
     });
     fields::row_raw(ui, tk, "Bodies", None, false, |ui, w| {
-        let shown = f.bodies.iter().find(|(id, _)| *id == f.body).map(|(_, n)| n.clone()).unwrap_or_else(|| "All visible bodies".into());
+        let shown = f
+            .bodies
+            .iter()
+            .find(|(id, _)| *id == f.body)
+            .map(|(_, n)| n.clone())
+            .unwrap_or_else(|| "All visible bodies".into());
         let mut chosen = None;
         fields::framed_combo(ui, tk, ("sk-project", "bodies"), w, &shown, |ui| {
             if ui.selectable_label(f.body.is_empty(), "All visible bodies").clicked() {
@@ -278,13 +339,27 @@ pub fn dialog(ui: &mut egui::Ui, tk: &Tokens, f: &mut ProjectForm) -> Option<Pro
     });
     fields::row_raw(ui, tk, "Offset", None, false, |ui, w| {
         let shown = f.bufs.get("offset").cloned().unwrap_or_else(|| "0".into());
-        fields::text_commit(ui, tk, &mut f.bufs, "offset", &shown, w - 22.0, fields::number::input_font(), tk.text, None);
+        fields::text_commit(
+            ui,
+            tk,
+            &mut f.bufs,
+            "offset",
+            &shown,
+            w - 22.0,
+            fields::number::input_font(),
+            tk.text,
+            None,
+        );
         fields::unit_label(ui, tk, unit_name(f.inch));
         None::<()>
     });
     fields::row_raw(ui, tk, "Construction", None, false, |ui, _w| {
         fields::check_box(ui, tk, &mut f.construction);
-        ui.label(egui::RichText::new("Reference only (not part of the profile)").size(12.0).color(tk.text));
+        ui.label(
+            egui::RichText::new("Reference only (not part of the profile)")
+                .size(12.0)
+                .color(tk.text),
+        );
         None::<()>
     });
     ui.add_space(4.0);
@@ -333,9 +408,10 @@ impl SketchTool for UseEdgeTool {
         let px = cx.vp.pixel_size(cx.s.to_3(*uv));
         match use_edge(cx.s, *uv, px) {
             UseEdge::Added => cx.out.push(SketchEffect::Changed),
-            UseEdge::Miss => {
-                cx.out.push(SketchEffect::Toast(Level::Warning, "Click one of the orange part edges.".into()))
-            }
+            UseEdge::Miss => cx.out.push(SketchEffect::Toast(
+                Level::Warning,
+                "Click one of the orange part edges.".into(),
+            )),
             UseEdge::Ignored => {}
         }
         true

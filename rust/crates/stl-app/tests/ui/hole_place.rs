@@ -2,12 +2,12 @@
 //! part edges; the references are saved with the step and shown again when it is reopened.
 #![cfg(not(target_arch = "wasm32"))]
 
-use egui_kittest::kittest::Queryable;
 use egui_kittest::Harness;
-use serde_json::{json, Value};
+use egui_kittest::kittest::Queryable;
+use serde_json::{Value, json};
 use stl_app::app::StlApp;
-use stl_app::engine_link::native::NativeLink;
 use stl_app::engine_link::Command;
+use stl_app::engine_link::native::NativeLink;
 use stl_app::viewport::pick::Hit;
 
 use super::harness::{app_harness_ex, click_at, open_tool, settle};
@@ -70,11 +70,16 @@ fn type_distance(h: &mut H, k: usize, text: &str) {
     let mut boxes: Vec<egui::Rect> = h
         .query_all_by_role(egui::accesskit::Role::TextInput)
         .map(|n| n.rect())
-        .filter(|r| r.min.y > pick.min.y && r.min.y < pick.max.y + 90.0 && (r.center().x - pick.center().x).abs() < 200.0)
+        .filter(|r| {
+            r.min.y > pick.min.y && r.min.y < pick.max.y + 90.0 && (r.center().x - pick.center().x).abs() < 200.0
+        })
         .collect();
     boxes.sort_by(|a, b| a.min.y.total_cmp(&b.min.y));
     let r = *boxes.get(k).unwrap_or_else(|| panic!("distance box {k}: {boxes:?}"));
-    h.query_all_by_role(egui::accesskit::Role::TextInput).find(|n| n.rect() == r).unwrap().focus();
+    h.query_all_by_role(egui::accesskit::Role::TextInput)
+        .find(|n| n.rect() == r)
+        .unwrap()
+        .focus();
     h.run_steps(2);
     h.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::A);
     h.run_steps(1);
@@ -90,10 +95,17 @@ fn click_near_line_end_snaps_to_it() {
     assert!(open_tool(&mut h, "hole"));
     click_world(&mut h, [5.4, 5.3, 5.0]);
     let p = first_point(&h);
-    assert!((p[0] - 5.0).abs() < 1e-3 && (p[1] - 5.0).abs() < 1e-3 && (p[2] - 5.0).abs() < 1e-3, "snapped to the line's start: {p:?}");
+    assert!(
+        (p[0] - 5.0).abs() < 1e-3 && (p[1] - 5.0).abs() < 1e-3 && (p[2] - 5.0).abs() < 1e-3,
+        "snapped to the line's start: {p:?}"
+    );
     let v = values(&h);
     let r = &v["point_refs"][0][0];
-    assert_eq!((r["kind"].as_str(), r["sketch"].as_str(), r["entity"].as_str()), (Some("sketch_line"), Some("f2"), Some("l1")), "{r}");
+    assert_eq!(
+        (r["kind"].as_str(), r["sketch"].as_str(), r["entity"].as_str()),
+        (Some("sketch_line"), Some("f2"), Some("l1")),
+        "{r}"
+    );
     assert_eq!(r["along"].as_f64(), Some(0.0));
 
     // onto the line, 12 mm along it after typing in the Along box
@@ -102,12 +114,18 @@ fn click_near_line_end_snaps_to_it() {
     assert!((pts[1][1].as_f64().unwrap() - 5.0).abs() < 1e-3, "on the line: {pts}");
     type_distance(&mut h, 0, "12");
     let pts = values(&h)["points"].clone();
-    assert!((pts[1][0].as_f64().unwrap() - 17.0).abs() < 1e-3 && (pts[1][1].as_f64().unwrap() - 5.0).abs() < 1e-3, "12 mm along: {pts}");
+    assert!(
+        (pts[1][0].as_f64().unwrap() - 17.0).abs() < 1e-3 && (pts[1][1].as_f64().unwrap() - 5.0).abs() < 1e-3,
+        "12 mm along: {pts}"
+    );
 
     // a click away from the sketch stays where it was clicked
     click_world(&mut h, [25.0, 20.0, 5.0]);
     let pts = values(&h)["points"].clone();
-    assert!((pts[2][0].as_f64().unwrap() - 25.0).abs() < 0.05 && (pts[2][1].as_f64().unwrap() - 20.0).abs() < 0.05, "{pts}");
+    assert!(
+        (pts[2][0].as_f64().unwrap() - 25.0).abs() < 0.05 && (pts[2][1].as_f64().unwrap() - 20.0).abs() < 0.05,
+        "{pts}"
+    );
     assert_eq!(values(&h)["point_refs"][2], json!([]));
 }
 
@@ -116,7 +134,10 @@ fn two_edge_distances_give_exact_centre_and_reopen_shows_them() {
     let (mut h, link) = plate_with_sketch();
     assert!(open_tool(&mut h, "hole"));
     click_world(&mut h, [12.0, 19.0, 5.0]);
-    assert!(values(&h).get("point_refs").is_none(), "a plain click has no references");
+    assert!(
+        values(&h).get("point_refs").is_none(),
+        "a plain click has no references"
+    );
 
     pick_edge_at(&mut h, [0.4, 24.0, 5.0]); // the left edge
     let v = values(&h);
@@ -127,11 +148,21 @@ fn two_edge_distances_give_exact_centre_and_reopen_shows_them() {
     pick_edge_at(&mut h, [20.0, 0.4, 5.0]); // the front edge
     type_distance(&mut h, 1, "8");
     let p = first_point(&h);
-    assert!((p[0] - 10.0).abs() < 1e-3 && (p[1] - 8.0).abs() < 1e-3 && (p[2] - 5.0).abs() < 1e-3, "10 from the left, 8 from the front: {p:?}");
+    assert!(
+        (p[0] - 10.0).abs() < 1e-3 && (p[1] - 8.0).abs() < 1e-3 && (p[2] - 5.0).abs() < 1e-3,
+        "10 from the left, 8 from the front: {p:?}"
+    );
 
     h.state_mut().tool_ok();
     settle(&mut h, &link);
-    let item = h.state().timeline_view.items.iter().find(|i| i.kind == "hole").cloned().expect("the Hole step");
+    let item = h
+        .state()
+        .timeline_view
+        .items
+        .iter()
+        .find(|i| i.kind == "hole")
+        .cloned()
+        .expect("the Hole step");
     assert_eq!(item.error, None);
     assert_eq!(item.warning, None);
     let refs = item.params["point_refs"][0].as_array().cloned().unwrap_or_default();
@@ -141,7 +172,10 @@ fn two_edge_distances_give_exact_centre_and_reopen_shows_them() {
     // reopening the step shows both references with their distances
     assert!(h.state_mut().edit_feature(&item.id));
     h.run_steps(4);
-    assert!(h.query_by_label("Edge 1").is_some() && h.query_by_label("Edge 2").is_some(), "the From rows are back");
+    assert!(
+        h.query_by_label("Edge 1").is_some() && h.query_by_label("Edge 2").is_some(),
+        "the From rows are back"
+    );
     let p = first_point(&h);
     assert!((p[0] - 10.0).abs() < 1e-3 && (p[1] - 8.0).abs() < 1e-3, "{p:?}");
 }
@@ -159,17 +193,38 @@ fn ambiguous_edge_keeps_point_and_says_so() {
         name: Some("Hole".into()),
     });
     settle(&mut h, &link);
-    let item = h.state().timeline_view.items.iter().find(|i| i.kind == "hole").cloned().expect("the Hole step");
+    let item = h
+        .state()
+        .timeline_view
+        .items
+        .iter()
+        .find(|i| i.kind == "hole")
+        .cloned()
+        .expect("the Hole step");
     assert_eq!(item.error, None);
-    assert!(item.warning.as_deref().is_some_and(|w| w.contains("can no longer be found")), "the step says so: {:?}", item.warning);
+    assert!(
+        item.warning
+            .as_deref()
+            .is_some_and(|w| w.contains("can no longer be found")),
+        "the step says so: {:?}",
+        item.warning
+    );
 
     assert!(h.state_mut().edit_feature(&item.id));
     h.run_steps(2);
-    super::harness::wait_for(&mut h, &link, "the preview's message", |h| h.state().tool().is_some_and(|t| t.msg.is_some()));
+    super::harness::wait_for(&mut h, &link, "the preview's message", |h| {
+        h.state().tool().is_some_and(|t| t.msg.is_some())
+    });
     let msg = h.state().tool().unwrap().msg.as_ref().unwrap().text.clone();
-    assert!(msg.contains("Hole point 1") && msg.contains("can no longer be found"), "the panel says so: {msg}");
+    assert!(
+        msg.contains("Hole point 1") && msg.contains("can no longer be found"),
+        "the panel says so: {msg}"
+    );
     let p = first_point(&h);
-    assert!((p[0] - 15.0).abs() < 1e-9 && (p[1] - 8.0).abs() < 1e-9, "nothing moved: {p:?}");
+    assert!(
+        (p[0] - 15.0).abs() < 1e-9 && (p[1] - 8.0).abs() < 1e-9,
+        "nothing moved: {p:?}"
+    );
 }
 
 /// Thread (milestone 7 Task 7b): placed on a face, measured from an edge, saved and reopened.
@@ -179,17 +234,39 @@ fn thread_edge_distance_reopens_with_the_reference() {
     assert!(open_tool(&mut h, "thread"));
     click_world(&mut h, [12.0, 19.0, 5.0]);
     let v = values(&h);
-    assert!(v.get("position_refs").is_none(), "a plain click has no references: {v:?}");
+    assert!(
+        v.get("position_refs").is_none(),
+        "a plain click has no references: {v:?}"
+    );
     pick_edge_at(&mut h, [0.4, 24.0, 5.0]); // the left edge
-    assert_eq!(values(&h)["position_refs"][0]["kind"], json!("edge"), "{:?}", values(&h));
+    assert_eq!(
+        values(&h)["position_refs"][0]["kind"],
+        json!("edge"),
+        "{:?}",
+        values(&h)
+    );
     type_distance(&mut h, 0, "10");
     let off = values(&h)["offset"].clone();
-    assert!((off[0].as_f64().unwrap() - 10.0).abs() < 1e-3, "10 from the left edge: {off}");
+    assert!(
+        (off[0].as_f64().unwrap() - 10.0).abs() < 1e-3,
+        "10 from the left edge: {off}"
+    );
 
     h.state_mut().tool_ok();
     settle(&mut h, &link);
-    let item = h.state().timeline_view.items.iter().find(|i| i.kind == "thread").cloned().expect("the Thread step");
-    assert!(item.params["position_refs"].as_array().is_some_and(|a| !a.is_empty()), "the reference is saved: {}", item.params);
+    let item = h
+        .state()
+        .timeline_view
+        .items
+        .iter()
+        .find(|i| i.kind == "thread")
+        .cloned()
+        .expect("the Thread step");
+    assert!(
+        item.params["position_refs"].as_array().is_some_and(|a| !a.is_empty()),
+        "the reference is saved: {}",
+        item.params
+    );
     assert!(item.params.get("_from_pick").is_none());
 
     assert!(h.state_mut().edit_feature(&item.id));
@@ -211,7 +288,11 @@ fn pick_edge_mid_face_warns_and_stores_nothing() {
     click_world(&mut h, [20.0, 15.0, 5.0]); // the middle: 15 mm from every edge
     h.run_steps(2);
     let t = h.state().tool().expect("the Hole tool is open");
-    assert!(t.values.get("point_refs").is_none(), "no reference stored: {:?}", t.values);
+    assert!(
+        t.values.get("point_refs").is_none(),
+        "no reference stored: {:?}",
+        t.values
+    );
     let msg = t.msg.as_ref().map(|m| m.text.clone()).unwrap_or_default();
     assert!(msg.contains("no straight edge"), "the warning shows: {msg:?}");
 }
@@ -229,22 +310,58 @@ fn reopen_shows_the_point_a_rebuild_moved() {
         name: Some("Hole".into()),
     });
     settle(&mut h, &link);
-    let plate = h.state().timeline_view.items.iter().find(|i| i.kind == "primitive").cloned().expect("the plate");
+    let plate = h
+        .state()
+        .timeline_view
+        .items
+        .iter()
+        .find(|i| i.kind == "primitive")
+        .cloned()
+        .expect("the plate");
     let mut params = plate.params.clone();
     params["length"] = json!(60);
-    h.state_mut().link.send(Command::EditFeature { id: plate.id.clone(), params, rollback_after: None });
+    h.state_mut().link.send(Command::EditFeature {
+        id: plate.id.clone(),
+        params,
+        rollback_after: None,
+    });
     settle(&mut h, &link);
-    let item = h.state().timeline_view.items.iter().find(|i| i.kind == "hole").cloned().expect("the Hole step");
+    let item = h
+        .state()
+        .timeline_view
+        .items
+        .iter()
+        .find(|i| i.kind == "hole")
+        .cloned()
+        .expect("the Hole step");
     assert_eq!(item.error, None);
     assert_eq!(item.warning, None);
-    assert_eq!(item.params["points"][0][0].as_f64(), Some(35.0), "still stored at the old place");
+    assert_eq!(
+        item.params["points"][0][0].as_f64(),
+        Some(35.0),
+        "still stored at the old place"
+    );
 
     assert!(h.state_mut().edit_feature(&item.id));
     h.run_steps(4);
     let p = first_point(&h);
-    assert!((p[0] - 55.0).abs() < 1e-3 && (p[1] - 10.0).abs() < 1e-3, "the moved point, 5 from the new right edge: {p:?}");
+    assert!(
+        (p[0] - 55.0).abs() < 1e-3 && (p[1] - 10.0).abs() < 1e-3,
+        "the moved point, 5 from the new right edge: {p:?}"
+    );
     h.state_mut().tool_ok();
     settle(&mut h, &link);
-    let item = h.state().timeline_view.items.iter().find(|i| i.kind == "hole").cloned().unwrap();
-    assert!((item.params["points"][0][0].as_f64().unwrap() - 55.0).abs() < 1e-3, "stored too: {}", item.params);
+    let item = h
+        .state()
+        .timeline_view
+        .items
+        .iter()
+        .find(|i| i.kind == "hole")
+        .cloned()
+        .unwrap();
+    assert!(
+        (item.params["points"][0][0].as_f64().unwrap() - 55.0).abs() < 1e-3,
+        "stored too: {}",
+        item.params
+    );
 }

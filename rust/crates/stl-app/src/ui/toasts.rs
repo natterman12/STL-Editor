@@ -66,10 +66,10 @@ pub fn show(ctx: &Context, tokens: &Tokens, state: &mut Toasts) {
     if state.queue.is_empty() {
         return;
     }
-    if let Some(wake) = state.next_wake {
-        if wake > now {
-            ctx.request_repaint_after(wake - now);
-        }
+    if let Some(wake) = state.next_wake
+        && wake > now
+    {
+        ctx.request_repaint_after(wake - now);
     }
 
     let screen = ctx.content_rect();

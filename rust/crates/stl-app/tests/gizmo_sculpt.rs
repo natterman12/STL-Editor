@@ -5,18 +5,20 @@
 //! The rotation table is made by `node dev/parity/js/gizmo_quat.mjs --write` from 1.x's own
 //! `quatOf` / `rotOf` in Node (`--check` in CI).
 #![cfg(not(target_arch = "wasm32"))]
+// The rotation table is 1.x output, digit for digit.
+#![allow(clippy::approx_constant)]
 
 use std::sync::Arc;
 
 use egui::Pos2;
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 use stl_app::engine_link::BodyView;
 use stl_app::tools::gizmo::{self, Gizmo, GizmoDrop, GizmoKind};
-use stl_app::tools::sculpt::{Sculpt, SculptEvent, OTHER_BODY};
+use stl_app::tools::sculpt::{OTHER_BODY, Sculpt, SculptEvent};
 use stl_app::viewport::camera::{self, M4, V3};
-use stl_app::viewport::gizmo_draw::{handle_unit, Handle};
+use stl_app::viewport::gizmo_draw::{Handle, handle_unit};
 use stl_app::viewport::scene::rgba;
-use stl_app::viewport::{overhang_faces, PreviewMesh, PreviewPack, Viewport};
+use stl_app::viewport::{PreviewMesh, PreviewPack, Viewport, overhang_faces};
 use stl_kernel::{Aabb, MeshArrays};
 
 type Values = Map<String, Value>;
@@ -24,13 +26,36 @@ type Values = Map<String, Value>;
 /// A box `sx` x `sy` x `sz` standing on the bed, centred on the origin in X and Y.
 fn box_mesh(sx: f32, sy: f32, sz: f32) -> Arc<MeshArrays> {
     let (x, y) = (sx / 2.0, sy / 2.0);
-    let p = [[-x, -y, 0.0], [x, -y, 0.0], [x, y, 0.0], [-x, y, 0.0], [-x, -y, sz], [x, -y, sz], [x, y, sz], [-x, y, sz]];
-    let t: [u32; 36] = [0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7, 0, 1, 5, 0, 5, 4, 1, 2, 6, 1, 6, 5, 2, 3, 7, 2, 7, 6, 3, 0, 4, 3, 4, 7];
-    Arc::new(MeshArrays { positions: p.iter().flatten().copied().collect(), triangles: t.to_vec() })
+    let p = [
+        [-x, -y, 0.0],
+        [x, -y, 0.0],
+        [x, y, 0.0],
+        [-x, y, 0.0],
+        [-x, -y, sz],
+        [x, -y, sz],
+        [x, y, sz],
+        [-x, y, sz],
+    ];
+    let t: [u32; 36] = [
+        0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7, 0, 1, 5, 0, 5, 4, 1, 2, 6, 1, 6, 5, 2, 3, 7, 2, 7, 6, 3, 0, 4, 3, 4, 7,
+    ];
+    Arc::new(MeshArrays {
+        positions: p.iter().flatten().copied().collect(),
+        triangles: t.to_vec(),
+    })
 }
 
 fn body(id: &str, mesh: Arc<MeshArrays>) -> BodyView {
-    BodyView { id: id.into(), name: id.into(), color: Some("#9aa7b4".into()), hidden: false, solid: true, mesh, revision: 1, holds_up: None }
+    BodyView {
+        id: id.into(),
+        name: id.into(),
+        color: Some("#9aa7b4".into()),
+        hidden: false,
+        solid: true,
+        mesh,
+        revision: 1,
+        holds_up: None,
+    }
 }
 
 fn view(bodies: &[BodyView]) -> Viewport {
@@ -49,7 +74,9 @@ fn obj(v: Value) -> Values {
 }
 
 fn move_values(gizmo_mode: &str) -> Values {
-    obj(json!({ "bodies": ["b1"], "_gizmo": gizmo_mode, "translate": [0, 0, 0], "rotate": [0, 0, 0], "pivot": "center", "bed": true, "copy": false }))
+    obj(
+        json!({ "bodies": ["b1"], "_gizmo": gizmo_mode, "translate": [0, 0, 0], "rotate": [0, 0, 0], "pivot": "center", "bed": true, "copy": false }),
+    )
 }
 
 fn vec3(v: &Value) -> [f64; 3] {
@@ -114,11 +141,18 @@ fn gizmo_move_writes_fields() {
     let patch = patch_of(g.release(&mut vp));
     assert!(!g.drag_active());
     assert!(!vp.camera_locked());
-    assert!(g.consume_click(), "the click that grabbed a handle isn't a click on the part");
+    assert!(
+        g.consume_click(),
+        "the click that grabbed a handle isn't a click on the part"
+    );
     assert!(!g.consume_click());
     let mut keys: Vec<_> = patch.keys().cloned().collect();
     keys.sort();
-    assert_eq!(keys, ["rotate", "translate"], "Move's drop writes Move X Y Z and Rotate X Y Z");
+    assert_eq!(
+        keys,
+        ["rotate", "translate"],
+        "Move's drop writes Move X Y Z and Rotate X Y Z"
+    );
     assert_eq!(vec3(&patch["translate"]), t);
     assert_eq!(vec3(&patch["rotate"]), [0.0; 3]);
     // whole millimetres go in as JS writes them (15, not 15.0)
@@ -140,11 +174,16 @@ fn gizmo_move_writes_fields() {
 
     // Scale: the middle box scales evenly and writes Factor
     let mut s = Gizmo::new(GizmoKind::Scale);
-    let sv = obj(json!({ "bodies": ["b1"], "mode": "factor", "factor": 1, "factor3": [1, 1, 1], "size": [20, 20, 20], "uniform": true, "units": "in_to_mm", "pivot": "base" }));
+    let sv = obj(
+        json!({ "bodies": ["b1"], "mode": "factor", "factor": 1, "factor3": [1, 1, 1], "size": [20, 20, 20], "uniform": true, "units": "in_to_mm", "pivot": "base" }),
+    );
     g.hide(&mut vp);
     s.sync(&mut vp, &sv);
     let c = vp.gizmo().unwrap().position;
-    assert!(close(c, [0.0, 0.0, 0.0], 1e-9), "Scale's handles sit on the base: {c:?}");
+    assert!(
+        close(c, [0.0, 0.0, 0.0], 1e-9),
+        "Scale's handles sit on the base: {c:?}"
+    );
     let u = handle_unit(vp.camera(), c);
     let grab = camera::add(c, [0.54 * u, 0.0, 0.0]);
     assert_eq!(vp.gizmo_handle_at(screen(&vp, grab)), Some(Handle::X));
@@ -178,7 +217,10 @@ fn ring_drag(free: bool) -> (f64, f64) {
     let live = g.drag_to(&mut vp, at, free).unwrap();
     let r = vec3(&live["rotate"]);
     assert_eq!((r[0], r[1]), (0.0, 0.0), "only Z turns: {r:?}");
-    assert!(close(vec3(&live["translate"]), [0.0; 3], 0.0), "turning doesn't move it");
+    assert!(
+        close(vec3(&live["translate"]), [0.0; 3], 0.0),
+        "turning doesn't move it"
+    );
     let patch = patch_of(g.release(&mut vp));
     assert_eq!(vec3(&patch["rotate"]), r);
     // the speed is three's: 20 / distance per millimetre of pointer travel on the drag plane
@@ -192,7 +234,11 @@ fn rotate_snaps_5_deg() {
     assert!(z != 0.0, "it turned");
     assert_eq!(z % 5.0, 0.0, "5° steps: {z}");
     let (free, _) = ring_drag(true);
-    assert_eq!(z, ((free / 5.0) + 0.5).floor() * 5.0, "the step is the free turn rounded: {free} -> {z}");
+    assert_eq!(
+        z,
+        ((free / 5.0) + 0.5).floor() * 5.0,
+        "the step is the free turn rounded: {free} -> {z}"
+    );
 }
 
 #[test]
@@ -247,11 +293,17 @@ fn quat_rot_round_trip_zyx() {
         // our own quatOf can differ from V8's in the last bit, which can tip a value sitting on a
         // 0.0005° tie (89.9995) to its neighbour: within one step
         let chain = gizmo::rot_of(ours);
-        assert!(close(chain, *back, 0.0010000001), "rotOf(quatOf({rot:?})) = {chain:?}, 1.x {back:?}");
+        assert!(
+            close(chain, *back, 0.0010000001),
+            "rotOf(quatOf({rot:?})) = {chain:?}, 1.x {back:?}"
+        );
         let m = gizmo::mat_of_quat(*q);
         let qm = gizmo::quat_of_mat(&m);
         for k in 0..4 {
-            assert!((qm[k] - q2[k]).abs() <= 1e-12, "setFromRotationMatrix for {rot:?}: {qm:?}, 1.x {q2:?}");
+            assert!(
+                (qm[k] - q2[k]).abs() <= 1e-12,
+                "setFromRotationMatrix for {rot:?}: {qm:?}, 1.x {q2:?}"
+            );
         }
     }
     // ZYX: R = Rz·Ry·Rx, so X turns first
@@ -273,9 +325,20 @@ fn land_on_bed() {
     // turned about its centre (z 20) it spans z 15..25; landing puts its lowest point at Move Z
     let c = vp.gizmo().unwrap().position;
     assert!(close(c, [0.0, 0.0, 5.0], 1e-9), "{c:?}");
-    let gb = gizmo::GizmoBody { id: "b1".into(), bbox: Aabb { min: [-5.0, -5.0, 0.0], max: [5.0, 5.0, 40.0] }, mesh: tall.clone() };
+    let gb = gizmo::GizmoBody {
+        id: "b1".into(),
+        bbox: Aabb {
+            min: [-5.0, -5.0, 0.0],
+            max: [5.0, 5.0, 40.0],
+        },
+        mesh: tall.clone(),
+    };
     let m = g.matrix_for(&gb, &vals);
-    let lo = tall.positions.chunks(3).map(|p| apply(&m, [p[0] as f64, p[1] as f64, p[2] as f64])[2]).fold(f64::INFINITY, f64::min);
+    let lo = tall
+        .positions
+        .chunks(3)
+        .map(|p| apply(&m, [p[0] as f64, p[1] as f64, p[2] as f64])[2])
+        .fold(f64::INFINITY, f64::min);
     assert!(lo.abs() < 1e-9, "on the bed: {lo}");
 
     // dragging up: Move Z is the height above the bed
@@ -290,7 +353,11 @@ fn land_on_bed() {
     let t = vec3(&live["translate"]);
     assert!(close(t, [0.0, 0.0, 3.0], 0.002), "{t:?}");
     let m = *vp.body_transform("b1").unwrap();
-    let lo = tall.positions.chunks(3).map(|p| apply(&m, [p[0] as f64, p[1] as f64, p[2] as f64])[2]).fold(f64::INFINITY, f64::min);
+    let lo = tall
+        .positions
+        .chunks(3)
+        .map(|p| apply(&m, [p[0] as f64, p[1] as f64, p[2] as f64])[2])
+        .fold(f64::INFINITY, f64::min);
     assert!((lo - t[2]).abs() < 1e-9, "lowest point at Move Z: {lo}");
     g.release(&mut vp);
 
@@ -306,7 +373,13 @@ fn land_on_bed() {
 fn drag_during_preview() {
     let cube = box_mesh(20.0, 20.0, 20.0);
     let mut vp = view(&[body("b1", cube.clone())]);
-    let pack = PreviewPack { meshes: vec![PreviewMesh { id: "b1".into(), mesh: cube.clone() }], ..Default::default() };
+    let pack = PreviewPack {
+        meshes: vec![PreviewMesh {
+            id: "b1".into(),
+            mesh: cube.clone(),
+        }],
+        ..Default::default()
+    };
     let mut g = Gizmo::new(GizmoKind::Move);
     g.sync(&mut vp, &move_values("move"));
     // a preview on screen goes when a handle is grabbed (1.x `start()`)
@@ -326,28 +399,44 @@ fn drag_during_preview() {
     assert_eq!(vp.body_transform("b1"), Some(&held), "not snapped back");
     // the drag goes on from where it was
     let c = vp.gizmo().unwrap().position;
-    assert!((c[0] - vec3(&live["translate"])[0]).abs() < 0.0006, "the handles stay where the drag put them");
+    assert!(
+        (c[0] - vec3(&live["translate"])[0]).abs() < 0.0006,
+        "the handles stay where the drag put them"
+    );
 
     g.release(&mut vp);
-    assert_eq!(vp.body_transform("b1"), Some(&held), "after letting go the part stays until the preview is back");
+    assert_eq!(
+        vp.body_transform("b1"),
+        Some(&held),
+        "after letting go the part stays until the preview is back"
+    );
     assert!(g.accept_preview(&mut vp));
     vp.show_preview(&pack);
     vp.flush();
     assert_eq!(vp.preview_meshes().count(), 1);
-    assert!(vp.body_transform("b1").is_none(), "the preview shows the moved part; the body is put back");
+    assert!(
+        vp.body_transform("b1").is_none(),
+        "the preview shows the moved part; the body is put back"
+    );
 }
 
 #[test]
 fn sculpt_brush_follows_surface() {
-    let mut vp = view(&[body("b1", box_mesh(20.0, 20.0, 20.0)), body("b2", {
-        // a second box off to the side
-        let m = box_mesh(10.0, 10.0, 10.0);
-        let mut p = m.positions.clone();
-        for v in p.chunks_mut(3) {
-            v[0] += 40.0;
-        }
-        Arc::new(MeshArrays { positions: p, triangles: m.triangles.clone() })
-    })]);
+    let mut vp = view(&[
+        body("b1", box_mesh(20.0, 20.0, 20.0)),
+        body("b2", {
+            // a second box off to the side
+            let m = box_mesh(10.0, 10.0, 10.0);
+            let mut p = m.positions.clone();
+            for v in p.chunks_mut(3) {
+                v[0] += 40.0;
+            }
+            Arc::new(MeshArrays {
+                positions: p,
+                triangles: m.triangles.clone(),
+            })
+        }),
+    ]);
     let mut s = Sculpt::new();
     let vals = obj(json!({ "body": null, "mode": "inflate", "radius": 5, "strength": 0.5, "strokes": [] }));
     Sculpt::open(&mut vp, &vals);
@@ -374,16 +463,29 @@ fn sculpt_brush_follows_surface() {
     let at = screen(&vp, [-6.0, 0.0, 20.0]);
     assert_eq!(s.press(&mut vp, at, &vals), SculptEvent::Drawing);
     let at = screen(&vp, [-5.5, 0.0, 20.0]);
-    assert_eq!(s.hover(&mut vp, Some(at), &vals), SculptEvent::None, "0.5 mm: too close");
+    assert_eq!(
+        s.hover(&mut vp, Some(at), &vals),
+        SculptEvent::None,
+        "0.5 mm: too close"
+    );
     let at = screen(&vp, [-4.0, 0.0, 20.0]);
     assert_eq!(s.hover(&mut vp, Some(at), &vals), SculptEvent::Drawing);
     let at = screen(&vp, [1.0 / 3.0, 0.0, 20.0]);
     assert_eq!(s.hover(&mut vp, Some(at), &vals), SculptEvent::Drawing);
-    assert!(vp.overlay_items().iter().any(|o| o.tag == "strokes" && !o.lines.is_empty()), "the stroke is drawn as it grows");
+    assert!(
+        vp.overlay_items()
+            .iter()
+            .any(|o| o.tag == "strokes" && !o.lines.is_empty()),
+        "the stroke is drawn as it grows"
+    );
     let patch = s.release(&vals).expect("a stroke");
     assert_eq!(patch["body"], json!("b1"));
     let st = &patch["strokes"][0];
-    assert_eq!(st.as_object().unwrap().keys().collect::<Vec<_>>().len(), 4, "no body in the stroke: {st}");
+    assert_eq!(
+        st.as_object().unwrap().keys().collect::<Vec<_>>().len(),
+        4,
+        "no body in the stroke: {st}"
+    );
     assert_eq!(st["mode"], json!("inflate"));
     assert_eq!(st["radius"], json!(5));
     assert_eq!(st["strength"], json!(0.5));
@@ -468,10 +570,15 @@ mod gpu;
 /// The moved body and the handles reach the picture: drawn by the GPU, with no GPU error.
 #[test]
 fn gizmo_transform_and_handles_render() {
-    let Some(gpu) = gpu::headless() else { return eprintln!("no GPU adapter: skipped") };
+    let Some(gpu) = gpu::headless() else {
+        return eprintln!("no GPU adapter: skipped");
+    };
     let (w, h) = (800u32, 600u32);
     let mut vp = view(&[body("b1", box_mesh(20.0, 20.0, 20.0))]);
-    vp.fit(Aabb { min: [-30.0, -30.0, 0.0], max: [70.0, 30.0, 20.0] });
+    vp.fit(Aabb {
+        min: [-30.0, -30.0, 0.0],
+        max: [70.0, 30.0, 20.0],
+    });
     vp.camera_mut().finish_flight();
     let px = |img: &[u8], p: Pos2| {
         let (x, y) = (p.x.round() as usize, p.y.round() as usize);
@@ -482,7 +589,12 @@ fn gizmo_transform_and_handles_render() {
     // off the axis lines: a point on the front of the box, and the same 40 mm along X
     let (old, new) = (screen(&vp, [5.0, -10.0, 14.0]), screen(&vp, [45.0, -10.0, 14.0]));
 
-    let m: M4 = [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [40.0, 0.0, 0.0, 1.0]];
+    let m: M4 = [
+        [1.0, 0.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0, 0.0],
+        [0.0, 0.0, 1.0, 0.0],
+        [40.0, 0.0, 0.0, 1.0],
+    ];
     vp.set_body_transform("b1", Some(m));
     let moved = gpu.render(&mut vp, w, h).expect("a picture");
     assert_ne!(px(&moved, old), px(&before, old), "nothing left where it was");
@@ -497,14 +609,26 @@ fn gizmo_transform_and_handles_render() {
     let c = vp.gizmo().unwrap().position;
     let u = handle_unit(vp.camera(), c);
     let img = gpu.render(&mut vp, w, h).expect("a picture");
-    assert_eq!(px(&img, screen(&vp, camera::add(c, [0.52 * u, 0.0, 0.0]))), [255, 0, 0], "the X arrow's cone");
-    assert_eq!(px(&img, screen(&vp, camera::add(c, [0.0, 0.0, 0.52 * u]))), [0, 0, 255], "the Z arrow's cone");
+    assert_eq!(
+        px(&img, screen(&vp, camera::add(c, [0.52 * u, 0.0, 0.0]))),
+        [255, 0, 0],
+        "the X arrow's cone"
+    );
+    assert_eq!(
+        px(&img, screen(&vp, camera::add(c, [0.0, 0.0, 0.52 * u]))),
+        [0, 0, 255],
+        "the Z arrow's cone"
+    );
     // hovered: yellow
     let at = screen(&vp, camera::add(c, [0.45 * u, 0.0, 0.0]));
     g.hover_at(&mut vp, Some(at));
     let img = gpu.render(&mut vp, w, h).expect("a picture");
     // just off the axis: the white helper line along it is drawn over the middle, as in 1.x
-    assert_eq!(px(&img, screen(&vp, camera::add(c, [0.52 * u, 0.0, 0.02 * u]))), [255, 255, 0], "the hovered arrow turns yellow");
+    assert_eq!(
+        px(&img, screen(&vp, camera::add(c, [0.52 * u, 0.0, 0.02 * u]))),
+        [255, 255, 0],
+        "the hovered arrow turns yellow"
+    );
     assert_eq!(vp.stats().gpu_errors(), 0);
 }
 
@@ -520,17 +644,25 @@ fn update_drives_a_drag_without_turning_the_view() {
         vals: Values,
         events: Vec<GizmoEvent>,
     }
-    let st = St { vp: view(&[body("b1", box_mesh(20.0, 20.0, 20.0))]), g: Gizmo::new(GizmoKind::Move), vals: move_values("move"), events: Vec::new() };
-    let mut h = Harness::builder().with_size(egui::vec2(800.0, 600.0)).with_accessibility_check(false).build_ui_state(
-        |ui, st: &mut St| {
-            let r = st.vp.show(ui);
-            let e = st.g.update(&mut st.vp, ui, &r.response, &st.vals);
-            if e != GizmoEvent::None {
-                st.events.push(e);
-            }
-        },
-        st,
-    );
+    let st = St {
+        vp: view(&[body("b1", box_mesh(20.0, 20.0, 20.0))]),
+        g: Gizmo::new(GizmoKind::Move),
+        vals: move_values("move"),
+        events: Vec::new(),
+    };
+    let mut h = Harness::builder()
+        .with_size(egui::vec2(800.0, 600.0))
+        .with_accessibility_check(false)
+        .build_ui_state(
+            |ui, st: &mut St| {
+                let r = st.vp.show(ui);
+                let e = st.g.update(&mut st.vp, ui, &r.response, &st.vals);
+                if e != GizmoEvent::None {
+                    st.events.push(e);
+                }
+            },
+            st,
+        );
     h.run_steps(3);
     let (grab, to) = {
         let vp = &h.state().vp;
@@ -540,7 +672,12 @@ fn update_drives_a_drag_without_turning_the_view() {
         (screen(vp, g), screen(vp, camera::add(g, [8.0, 0.0, 0.0])))
     };
     let cam = h.state().vp.camera().clone();
-    let button = |pos: Pos2, pressed: bool| egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
+    let button = |pos: Pos2, pressed: bool| egui::Event::PointerButton {
+        pos,
+        button: egui::PointerButton::Primary,
+        pressed,
+        modifiers: Default::default(),
+    };
     h.event(egui::Event::PointerMoved(grab));
     h.run_steps(2);
     h.event(button(grab, true));
@@ -558,7 +695,11 @@ fn update_drives_a_drag_without_turning_the_view() {
     assert!(!st.vp.camera_locked());
     assert_eq!(st.events.first(), Some(&GizmoEvent::Started), "{:?}", st.events);
     assert!(st.events.iter().any(|e| matches!(e, GizmoEvent::Moved(_))));
-    let Some(GizmoEvent::Dropped(GizmoDrop::Values { patch, auto_accept: true })) = st.events.last() else {
+    let Some(GizmoEvent::Dropped(GizmoDrop::Values {
+        patch,
+        auto_accept: true,
+    })) = st.events.last()
+    else {
         panic!("ends with the new values: {:?}", st.events.last())
     };
     let t = vec3(&patch["translate"]);

@@ -1,6 +1,6 @@
 //! Construction planes and import.
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use super::util::*;
 use super::{Field, FieldKind, ToolDef, ToolFlags, Values};
@@ -53,8 +53,19 @@ pub fn plane_offset() -> ToolDef {
         ],
         hint: Some("Pick a base plane or a flat face, then set the offset"),
         extra: None,
-        flags: ToolFlags { plane_tool: true, ..ToolFlags::default() },
-        defaults: |_| values(&[("mode", json!("offset")), ("base", json!("XY")), ("distance", json!(10)), ("flip", json!(false)), ("name", json!(""))]),
+        flags: ToolFlags {
+            plane_tool: true,
+            ..ToolFlags::default()
+        },
+        defaults: |_| {
+            values(&[
+                ("mode", json!("offset")),
+                ("base", json!("XY")),
+                ("distance", json!(10)),
+                ("flip", json!(false)),
+                ("name", json!("")),
+            ])
+        },
         to_params: |v, _| to_params_plane_mode(v, "offset"),
         from_params: |p| p.as_object().cloned().unwrap_or_default(),
         on_change: None,
@@ -111,7 +122,10 @@ pub fn plane_angle() -> ToolDef {
         ],
         hint: None,
         extra: None,
-        flags: ToolFlags { plane_tool: true, ..ToolFlags::default() },
+        flags: ToolFlags {
+            plane_tool: true,
+            ..ToolFlags::default()
+        },
         defaults: |_| {
             values(&[
                 ("mode", json!("angle")),
@@ -162,8 +176,18 @@ pub fn plane_3pt() -> ToolDef {
         ],
         hint: Some("Click three points on the model"),
         extra: None,
-        flags: ToolFlags { plane_tool: true, ..ToolFlags::default() },
-        defaults: |_| values(&[("mode", json!("three_points")), ("points", json!([])), ("flip", json!(false)), ("name", json!(""))]),
+        flags: ToolFlags {
+            plane_tool: true,
+            ..ToolFlags::default()
+        },
+        defaults: |_| {
+            values(&[
+                ("mode", json!("three_points")),
+                ("points", json!([])),
+                ("flip", json!(false)),
+                ("name", json!("")),
+            ])
+        },
         to_params: |v, _| to_params_plane_mode(v, "three_points"),
         from_params: |p| p.as_object().cloned().unwrap_or_default(),
         on_change: None,
@@ -204,8 +228,18 @@ pub fn plane_mid() -> ToolDef {
         ],
         hint: Some("Pick two planes or flat faces"),
         extra: None,
-        flags: ToolFlags { plane_tool: true, ..ToolFlags::default() },
-        defaults: |_| values(&[("mode", json!("midplane")), ("base", Value::Null), ("base2", Value::Null), ("name", json!(""))]),
+        flags: ToolFlags {
+            plane_tool: true,
+            ..ToolFlags::default()
+        },
+        defaults: |_| {
+            values(&[
+                ("mode", json!("midplane")),
+                ("base", Value::Null),
+                ("base2", Value::Null),
+                ("name", json!("")),
+            ])
+        },
         to_params: |v, _| to_params_plane_mode(v, "midplane"),
         from_params: |p| p.as_object().cloned().unwrap_or_default(),
         on_change: None,
@@ -247,7 +281,9 @@ pub fn import_tool() -> ToolDef {
                 show: None,
             },
         ],
-        hint: Some("\"On bed at origin\" centres the part and sets it on Z = 0. \"As in file\" keeps its original coordinates (use this to line up parts of an assembly)"),
+        hint: Some(
+            "\"On bed at origin\" centres the part and sets it on Z = 0. \"As in file\" keeps its original coordinates (use this to line up parts of an assembly)",
+        ),
         extra: None,
         flags: ToolFlags::default(),
         defaults: |_| values(&[("place", json!("center")), ("repair", json!(true))]),

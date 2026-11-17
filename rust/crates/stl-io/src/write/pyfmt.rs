@@ -9,7 +9,10 @@ struct Stack {
 impl std::fmt::Write for Stack {
     fn write_str(&mut self, s: &str) -> std::fmt::Result {
         let e = self.n + s.len();
-        self.b.get_mut(self.n..e).ok_or(std::fmt::Error)?.copy_from_slice(s.as_bytes());
+        self.b
+            .get_mut(self.n..e)
+            .ok_or(std::fmt::Error)?
+            .copy_from_slice(s.as_bytes());
         self.n = e;
         Ok(())
     }
@@ -64,7 +67,10 @@ pub(crate) fn shortest_digits_buf(x: f64, out: &mut [u8; 24]) -> (usize, i32) {
     write!(t, "{:.*e}", k - 1, x).expect("fits");
     let mut alt = [0u8; 24];
     let (k2, exp2) = split_sci(t.bytes(), &mut alt);
-    if k2 == k && (exp2 != exp || alt[..k] != out[..k]) && std::str::from_utf8(t.bytes()).ok().and_then(|v| v.parse::<f64>().ok()) == Some(x) {
+    if k2 == k
+        && (exp2 != exp || alt[..k] != out[..k])
+        && std::str::from_utf8(t.bytes()).ok().and_then(|v| v.parse::<f64>().ok()) == Some(x)
+    {
         out[..k].copy_from_slice(&alt[..k]);
         return (k, exp2);
     }
@@ -176,11 +182,19 @@ mod tests {
                 bad.push(format!("py {x:?}: got {} want {py}", py_float_repr(x)));
             }
             if super::super::jsfmt::js_number_string(x) != js {
-                bad.push(format!("js {x:?}: got {} want {js}", super::super::jsfmt::js_number_string(x)));
+                bad.push(format!(
+                    "js {x:?}: got {} want {js}",
+                    super::super::jsfmt::js_number_string(x)
+                ));
             }
         }
         assert!(rows > 1500);
-        assert!(bad.is_empty(), "{} mismatches, first: {:?}", bad.len(), &bad[..bad.len().min(5)]);
+        assert!(
+            bad.is_empty(),
+            "{} mismatches, first: {:?}",
+            bad.len(),
+            &bad[..bad.len().min(5)]
+        );
     }
 
     #[test]

@@ -10,7 +10,9 @@ use super::*;
 impl StlApp {
     /// Right-click on a body: select it when it isn't, then show its menu at `at`.
     pub(super) fn open_body_menu(&mut self, id: &str, at: Pos2) {
-        let Some(b) = self.bodies.iter().find(|b| b.id == id).cloned() else { return };
+        let Some(b) = self.bodies.iter().find(|b| b.id == id).cloned() else {
+            return;
+        };
         if !self.shell.selection.iter().any(|s| s == id) {
             self.shell.selection = vec![id.to_owned()];
             self.viewport.set_selection(&self.shell.selection);
@@ -30,7 +32,14 @@ impl StlApp {
         if !b.solid {
             items.push(row("repair", "Repair…"));
         }
-        items.extend([row("move", "Move / Rotate…"), row("scale", "Scale…"), row("simplify", "Simplify…"), MenuItem::Sep, row("stl", "Export STL…"), row("3mf", "Export 3MF…")]);
+        items.extend([
+            row("move", "Move / Rotate…"),
+            row("scale", "Scale…"),
+            row("simplify", "Simplify…"),
+            MenuItem::Sep,
+            row("stl", "Export STL…"),
+            row("3mf", "Export 3MF…"),
+        ]);
         if !web {
             if desk.send {
                 items.push(row("send", "Send to Slicer").icon("slicer"));
@@ -63,10 +72,23 @@ impl StlApp {
     /// A row of the body menu was picked (`rest` is `<what>:<body id>`).
     pub(super) fn on_body_menu_pick(&mut self, rest: &str, at: Pos2) {
         let Some((what, id)) = rest.split_once(':') else { return };
-        let Some((index, b)) = self.bodies.iter().enumerate().find(|(_, b)| b.id == id).map(|(i, b)| (i, b.clone())) else { return };
+        let Some((index, b)) = self
+            .bodies
+            .iter()
+            .enumerate()
+            .find(|(_, b)| b.id == id)
+            .map(|(i, b)| (i, b.clone()))
+        else {
+            return;
+        };
         match what {
             "rename" => self.browser.begin_rename(id, &b.name),
-            "hide" => self.send(Command::BodyProps { id: id.to_owned(), name: None, color: None, hidden: Some(!b.hidden) }),
+            "hide" => self.send(Command::BodyProps {
+                id: id.to_owned(),
+                name: None,
+                color: None,
+                hidden: Some(!b.hidden),
+            }),
             "colour" => self.browser.begin_colour(id, browser::swatch_rgb(&b, index)),
             "info" => self.open_info(Some(id.to_owned())),
             "repair" => {
@@ -79,7 +101,12 @@ impl StlApp {
             }
             "stl" | "3mf" => {
                 if let Some(f) = crate::engine_link::ExportFormat::from_ext(what) {
-                    self.files.start(&*self.platform, &*self.link, FileAction::Export(f), Some(vec![id.to_owned()]));
+                    self.files.start(
+                        &*self.platform,
+                        &*self.link,
+                        FileAction::Export(f),
+                        Some(vec![id.to_owned()]),
+                    );
                 }
             }
             "send" => {

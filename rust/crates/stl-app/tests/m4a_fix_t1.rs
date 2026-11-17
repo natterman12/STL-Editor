@@ -8,18 +8,20 @@ mod test_env;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use egui_kittest::kittest::Queryable;
 use egui_kittest::Harness;
-use stl_app::app::{about_text, StlApp};
+use egui_kittest::kittest::Queryable;
+use stl_app::app::{StlApp, about_text};
 use stl_app::engine_link::native::NativeLink;
 use stl_app::engine_link::{BodyView, Command, EngineLink, ParamView, Update};
 use stl_app::platform::{Pending, PickedFile, Platform};
-use stl_app::ui::browser::{swatch_rgb, Browser, BrowserView};
+use stl_app::ui::browser::{Browser, BrowserView, swatch_rgb};
 use stl_app::ui::{ThemePref, UiAction};
 use stl_kernel::MeshArrays;
 
 fn fixture(name: &str) -> Vec<u8> {
-    let p = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/projects").join(name);
+    let p = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/projects")
+        .join(name);
     std::fs::read(&p).unwrap_or_else(|e| panic!("{}: {e}", p.display()))
 }
 
@@ -63,19 +65,26 @@ struct Rig {
 
 fn rig(picks: Vec<PickedFile>) -> Rig {
     let link = SharedLink(Arc::new(NativeLink::new()));
-    let app = StlApp::new(&egui::Context::default(), Box::new(Picks(Mutex::new(picks))), Box::new(link.clone()));
-    let mut init = false;
-    let h = Harness::builder().with_size(egui::vec2(1500.0, 700.0)).with_accessibility_check(false).build_ui_state(
-        move |ui, app: &mut StlApp| {
-            if !init {
-                init = true;
-                stl_app::fonts::install(ui.ctx());
-                app.set_theme(ui.ctx(), ThemePref::Dark);
-            }
-            app.layout(ui);
-        },
-        app,
+    let app = StlApp::new(
+        &egui::Context::default(),
+        Box::new(Picks(Mutex::new(picks))),
+        Box::new(link.clone()),
     );
+    let mut init = false;
+    let h = Harness::builder()
+        .with_size(egui::vec2(1500.0, 700.0))
+        .with_accessibility_check(false)
+        .build_ui_state(
+            move |ui, app: &mut StlApp| {
+                if !init {
+                    init = true;
+                    stl_app::fonts::install(ui.ctx());
+                    app.set_theme(ui.ctx(), ThemePref::Dark);
+                }
+                app.layout(ui);
+            },
+            app,
+        );
     Rig { h, link }
 }
 
@@ -107,7 +116,10 @@ impl Rig {
 }
 
 fn basic() -> PickedFile {
-    PickedFile { name: "basic.stlx".into(), bytes: fixture("basic.stlx") }
+    PickedFile {
+        name: "basic.stlx".into(),
+        bytes: fixture("basic.stlx"),
+    }
 }
 
 #[test]
@@ -122,7 +134,9 @@ fn title_after_each_open_path() {
 
     // a drag and drop: 1.x refuses a project (the title stays) and inserts anything else
     let mut out = Default::default();
-    r.h.state_mut().files.accept_dropped(&*r.link.0, "other.stlx".into(), fixture("extra_keys.stlx"), &mut out);
+    r.h.state_mut()
+        .files
+        .accept_dropped(&*r.link.0, "other.stlx".into(), fixture("extra_keys.stlx"), &mut out);
     r.settle();
     r.assert_title_clean("basic.stlx", "a dropped project is refused");
 
@@ -130,7 +144,10 @@ fn title_after_each_open_path() {
     r.h.state_mut().shell.file_requests.push(UiAction::New);
     r.settle();
     assert_eq!(r.title(), "Untitled");
-    r.h.state_mut().shell.file_requests.push(UiAction::OpenRecent("basic.stlx".into()));
+    r.h.state_mut()
+        .shell
+        .file_requests
+        .push(UiAction::OpenRecent("basic.stlx".into()));
     r.settle();
     assert!(!r.h.state().timeline_view.items.is_empty());
     r.assert_title_clean("basic.stlx", "Recent");
@@ -153,14 +170,22 @@ fn title_after_a_startup_argument() {
 
 #[test]
 fn failed_open_keeps_title() {
-    let bad = PickedFile { name: "bad.stlx".into(), bytes: b"not a project".to_vec() };
+    let bad = PickedFile {
+        name: "bad.stlx".into(),
+        bytes: b"not a project".to_vec(),
+    };
     let mut r = rig(vec![basic(), bad]);
     r.h.run_steps(3);
     r.h.key_press_modifiers(egui::Modifiers::CTRL, egui::Key::O);
     r.settle();
     r.assert_title_clean("basic.stlx", "first open");
     // change something so the project is dirty, then fail an open (File > Open asks first)
-    r.link.send(Command::AddFeature { kind: "primitive".into(), params: serde_json::json!({"shape": "box", "size": [3.0, 3.0, 3.0]}), index: None, name: None });
+    r.link.send(Command::AddFeature {
+        kind: "primitive".into(),
+        params: serde_json::json!({"shape": "box", "size": [3.0, 3.0, 3.0]}),
+        index: None,
+        name: None,
+    });
     r.settle();
     assert!(r.h.state().shell.dirty, "an added step makes the project dirty");
     r.h.state_mut().shell.file_requests.push(UiAction::Open);
@@ -169,7 +194,11 @@ fn failed_open_keeps_title() {
     r.settle();
     assert_eq!(r.title(), "basic.stlx", "a failed open keeps the title");
     assert!(r.h.state().shell.dirty, "a failed open keeps the dirty state");
-    assert_eq!(r.h.state().files.recent_names(), vec!["basic.stlx".to_string()], "and Recent");
+    assert_eq!(
+        r.h.state().files.recent_names(),
+        vec!["basic.stlx".to_string()],
+        "and Recent"
+    );
     // a failed startup argument changes nothing either
     let dir = std::env::temp_dir().join(format!("stl-fix-t1-bad-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
@@ -178,7 +207,10 @@ fn failed_open_keeps_title() {
     r.h.state_mut().open_launch_file(&path);
     r.settle();
     assert_eq!(r.title(), "basic.stlx");
-    assert!(r.h.state().shell.dirty, "a failed startup argument keeps the dirty state");
+    assert!(
+        r.h.state().shell.dirty,
+        "a failed startup argument keeps the dirty state"
+    );
     std::fs::remove_dir_all(&dir).ok();
 }
 
@@ -189,7 +221,10 @@ fn body(id: &str, color: Option<&str>) -> BodyView {
         color: color.map(str::to_owned),
         hidden: false,
         solid: true,
-        mesh: Arc::new(MeshArrays { positions: Vec::new(), triangles: Vec::new() }),
+        mesh: Arc::new(MeshArrays {
+            positions: Vec::new(),
+            triangles: Vec::new(),
+        }),
         revision: 0,
         holds_up: None,
     }
@@ -199,7 +234,10 @@ fn body(id: &str, color: Option<&str>) -> BodyView {
 fn swatch_matches_viewport_colour() {
     use stl_app::viewport::{body_color, scene};
     let mut cases: Vec<(BodyView, usize)> = Vec::new();
-    for (i, c) in [Some("#112233"), Some("#C9A66B"), None, Some("red"), Some("#9aa7b4")].into_iter().enumerate() {
+    for (i, c) in [Some("#112233"), Some("#C9A66B"), None, Some("red"), Some("#9aa7b4")]
+        .into_iter()
+        .enumerate()
+    {
         cases.push((body("a", c), i));
     }
     for i in 0..scene::PALETTE.len() + 2 {
@@ -219,7 +257,11 @@ fn swatch_matches_viewport_colour() {
     assert_ne!(swatch_rgb(&body("a", None), 0), swatch_rgb(&body("a", None), 1));
     let mut bad = body("a", Some("#112233"));
     bad.solid = false;
-    assert_eq!(swatch_rgb(&bad, 0), [0xd9, 0xa0, 0xa0], "a body that isn't watertight is pink, as in the viewport");
+    assert_eq!(
+        swatch_rgb(&bad, 0),
+        [0xd9, 0xa0, 0xa0],
+        "a body that isn't watertight is pink, as in the viewport"
+    );
 }
 
 struct TreeUi {
@@ -229,17 +271,38 @@ struct TreeUi {
 
 #[test]
 fn params_listed_expanded() {
-    let p = |name: &str, v: f64| ParamView { name: name.into(), expr: v.to_string(), note: String::new(), value: Some(v), error: None, used: false };
-    let mut h = Harness::builder().with_size(egui::vec2(280.0, 320.0)).with_accessibility_check(false).build_ui_state(
-        |ui, st: &mut TreeUi| {
-            stl_app::fonts::install(ui.ctx());
-            let tk = stl_app::theme::tokens(true);
-            let ctx = ui.ctx().clone();
-            let view = BrowserView { doc_name: "Doc", bodies: &[], selection: &[], origin_visible: true, planes: &[], sketches: &[], params: &st.params };
-            stl_app::ui::browser::show(ui, &ctx, &tk, &mut st.browser, view, &mut Vec::new(), &mut Vec::new());
-        },
-        TreeUi { browser: Browser::default(), params: vec![p("dx", 5.0), p("spare", 1.0), p("half", 2.5)] },
-    );
+    let p = |name: &str, v: f64| ParamView {
+        name: name.into(),
+        expr: v.to_string(),
+        note: String::new(),
+        value: Some(v),
+        error: None,
+        used: false,
+    };
+    let mut h = Harness::builder()
+        .with_size(egui::vec2(280.0, 320.0))
+        .with_accessibility_check(false)
+        .build_ui_state(
+            |ui, st: &mut TreeUi| {
+                stl_app::fonts::install(ui.ctx());
+                let tk = stl_app::theme::tokens(true);
+                let ctx = ui.ctx().clone();
+                let view = BrowserView {
+                    doc_name: "Doc",
+                    bodies: &[],
+                    selection: &[],
+                    origin_visible: true,
+                    planes: &[],
+                    sketches: &[],
+                    params: &st.params,
+                };
+                stl_app::ui::browser::show(ui, &ctx, &tk, &mut st.browser, view, &mut Vec::new(), &mut Vec::new());
+            },
+            TreeUi {
+                browser: Browser::default(),
+                params: vec![p("dx", 5.0), p("spare", 1.0), p("half", 2.5)],
+            },
+        );
     h.run();
     // expanded by default, without anything being clicked
     h.get_by_label("dx = 5");
@@ -269,15 +332,34 @@ fn about_lists_rust_crates_only() {
     for web in [false, true] {
         let text = about_text(web);
         let t = text.to_lowercase();
-        for gone in ["numpy", "trimesh", "pywebview", "manifold3d", "shapely", "scipy", "scikit", "python", "three.js", "opentype", "fflate", "licenses folder"] {
+        for gone in [
+            "numpy",
+            "trimesh",
+            "pywebview",
+            "manifold3d",
+            "shapely",
+            "scipy",
+            "scikit",
+            "python",
+            "three.js",
+            "opentype",
+            "fflate",
+            "licenses folder",
+        ] {
             assert!(!t.contains(gone), "web={web}: the About text still names {gone}");
         }
         assert!(t.contains("cad-style editing for stl, 3mf and obj meshes"));
         assert!(t.contains("you can buy me a coffee on ko-fi"));
         // each credit sits on its own line and ends with exactly its licence
         for (name, lic) in EXPECTED {
-            let line = text.lines().find(|l| l.contains(name)).unwrap_or_else(|| panic!("web={web}: no credit line names {name}"));
-            assert!(line.ends_with(&format!("({lic})")), "web={web}: {line:?} should end with ({lic})");
+            let line = text
+                .lines()
+                .find(|l| l.contains(name))
+                .unwrap_or_else(|| panic!("web={web}: no credit line names {name}"));
+            assert!(
+                line.ends_with(&format!("({lic})")),
+                "web={web}: {line:?} should end with ({lic})"
+            );
         }
     }
     // the table in the app is the table above, nothing more
@@ -289,8 +371,13 @@ fn about_lists_rust_crates_only() {
     let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let app = std::fs::read_to_string(dir.join("Cargo.toml")).unwrap();
     for dep in ["egui", "eframe", "wgpu"] {
-        assert!(app.contains(&format!("
-{dep} = ")), "{dep} is in stl-app's Cargo.toml");
+        assert!(
+            app.contains(&format!(
+                "
+{dep} = "
+            )),
+            "{dep} is in stl-app's Cargo.toml"
+        );
     }
     let rd = |c: &str| std::fs::read_to_string(dir.join("..").join(c).join("Cargo.toml")).unwrap();
     assert!(rd("stl-kernel").contains("manifold-rust"));

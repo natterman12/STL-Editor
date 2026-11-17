@@ -4,7 +4,7 @@
 pub mod fonts;
 pub mod glyphs;
 
-pub use glyphs::{text_contours, text_extent, TextOpts};
+pub use glyphs::{TextOpts, text_contours, text_extent};
 
 #[cfg(not(target_arch = "wasm32"))]
-pub use fonts::{default_font, font_dirs, font_files, font_path, list_fonts, FontInfo};
+pub use fonts::{FontInfo, default_font, font_dirs, font_files, font_path, list_fonts};

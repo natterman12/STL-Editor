@@ -17,11 +17,20 @@ fn read(path: &Path) -> Value {
 }
 
 fn entities(v: &Value) -> Vec<Entity> {
-    v.as_array().cloned().unwrap_or_default().into_iter().map(|e| serde_json::from_value(e).unwrap()).collect()
+    v.as_array()
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .map(|e| serde_json::from_value(e).unwrap())
+        .collect()
 }
 
 fn ids(v: &Value) -> Vec<String> {
-    v.as_array().unwrap().iter().map(|x| x.as_str().unwrap().to_string()).collect()
+    v.as_array()
+        .unwrap()
+        .iter()
+        .map(|x| x.as_str().unwrap().to_string())
+        .collect()
 }
 
 fn new_id_factory() -> impl FnMut() -> String {
@@ -52,7 +61,11 @@ fn same(path: &str, want: &Value, got: &Value, tol: f64, out: &mut Vec<String>) 
             }
         }
         (Value::Object(a), Value::Object(b)) => {
-            let tol = if a.get("type").and_then(Value::as_str) == Some("arc") { tol.max(1e-6) } else { tol };
+            let tol = if a.get("type").and_then(Value::as_str) == Some("arc") {
+                tol.max(1e-6)
+            } else {
+                tol
+            };
             let mut keys: Vec<&String> = a.keys().chain(b.keys()).collect();
             keys.sort();
             keys.dedup();
@@ -130,16 +143,26 @@ fn offset_corpus_within_baseline() {
     assert!(path.is_file(), "missing {}; run make_offset_corpus.py", path.display());
     let corpus = read(&path);
     let groups = corpus["groups"].as_object().expect("groups object");
-    let baseline = corpus.get("baseline").and_then(Value::as_object).cloned().unwrap_or_default();
+    let baseline = corpus
+        .get("baseline")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
     let mut measured = Map::new();
     let mut problems: Vec<String> = vec![];
 
     for key in groups.keys() {
-        assert!(GROUPS.iter().any(|(n, _)| n == key), "corpus has group {key} the test does not know");
+        assert!(
+            GROUPS.iter().any(|(n, _)| n == key),
+            "corpus has group {key} the test does not know"
+        );
     }
 
     for (name, cases_per_group) in GROUPS {
-        let cases = groups.get(name).and_then(Value::as_array).unwrap_or_else(|| panic!("missing group {name}"));
+        let cases = groups
+            .get(name)
+            .and_then(Value::as_array)
+            .unwrap_or_else(|| panic!("missing group {name}"));
         assert_eq!(
             cases.len() as u64,
             cases_per_group,
@@ -169,7 +192,10 @@ fn offset_corpus_within_baseline() {
                 continue;
             }
             mismatches += 1;
-            println!("{name}[{i}] differs: {}", diffs.iter().take(3).cloned().collect::<Vec<_>>().join(" | "));
+            println!(
+                "{name}[{i}] differs: {}",
+                diffs.iter().take(3).cloned().collect::<Vec<_>>().join(" | ")
+            );
             let want_err = is_error(want);
             let got_err = is_error(&got);
             if want_err != got_err {
@@ -190,7 +216,11 @@ fn offset_corpus_within_baseline() {
             }
         }
         let total = cases.len() as u64;
-        let rate = if total == 0 { 0.0 } else { mismatches as f64 / total as f64 };
+        let rate = if total == 0 {
+            0.0
+        } else {
+            mismatches as f64 / total as f64
+        };
         println!("{name}: {mismatches}/{total} mismatches ({:.2}%)", rate * 100.0);
         if same_piece_mismatches > 0 {
             println!(
@@ -199,9 +229,7 @@ fn offset_corpus_within_baseline() {
         } else {
             println!("{name}: no same-piece-count coordinate mismatches");
         }
-        println!(
-            "{name}: piece-count differences {piece_count_diffs}, error/no-error differences {error_diffs}"
-        );
+        println!("{name}: piece-count differences {piece_count_diffs}, error/no-error differences {error_diffs}");
         println!("{name}: slowest case [{}] took {:.1} ms", slowest.1, slowest.0);
         measured.insert(name.to_string(), json!(mismatches));
 

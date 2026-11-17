@@ -76,7 +76,10 @@ pub fn trim(entities: &[Entity], eid: &str, point: P2) -> Result<Vec<Entity>, Sk
     let nothing = || SketchError::new("Nothing to trim there.");
     let target = entities.iter().find(|e| e.id() == Some(eid)).ok_or_else(nothing)?;
     // construction lines don't cut (1.x web; 1.x desktop let them)
-    let others: Vec<&Entity> = entities.iter().filter(|e| e.id() != Some(eid) && !e.construction()).collect();
+    let others: Vec<&Entity> = entities
+        .iter()
+        .filter(|e| e.id() != Some(eid) && !e.construction())
+        .collect();
     let prims = explode(target);
     if prims.is_empty() {
         return Err(nothing());
@@ -92,7 +95,12 @@ pub fn trim(entities: &[Entity], eid: &str, point: P2) -> Result<Vec<Entity>, Sk
         }
     }
     let prim = prims[gi].clone();
-    let rest: Vec<Entity> = prims.iter().enumerate().filter(|(i, _)| *i != gi).map(|(_, p)| p.clone()).collect();
+    let rest: Vec<Entity> = prims
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| *i != gi)
+        .map(|(_, p)| p.clone())
+        .collect();
     let g = geom(&prim).unwrap_or_default();
     let mut cuts: Vec<f64> = vec![];
     for o in others.iter().copied().chain(rest.iter()) {
@@ -112,7 +120,12 @@ pub fn trim(entities: &[Entity], eid: &str, point: P2) -> Result<Vec<Entity>, Sk
     let mut out: Vec<Entity> = vec![];
     match &prim {
         Entity::Line(l) => {
-            let cs = sorted_set(cuts.iter().filter(|&&c| 1e-6 < c && c < 1.0 - 1e-6).map(|&c| round_to(c, 9)).collect());
+            let cs = sorted_set(
+                cuts.iter()
+                    .filter(|&&c| 1e-6 < c && c < 1.0 - 1e-6)
+                    .map(|&c| round_to(c, 9))
+                    .collect(),
+            );
             let lo = cs.iter().copied().filter(|&c| c <= tp).fold(0.0, f64::max);
             let hi = cs.iter().copied().filter(|&c| c >= tp).fold(1.0, f64::min);
             let (a, b) = (l.p1, l.p2);
@@ -135,7 +148,15 @@ pub fn trim(entities: &[Entity], eid: &str, point: P2) -> Result<Vec<Entity>, Sk
             let (full, a0, sweep, cx, cy, r, construction) = match &prim {
                 Entity::Arc(a) => {
                     let s = py_mod(a.a1 - a.a0, 360.0);
-                    (false, a.a0, if s == 0.0 { 360.0 } else { s }, a.cx, a.cy, a.r, a.construction)
+                    (
+                        false,
+                        a.a0,
+                        if s == 0.0 { 360.0 } else { s },
+                        a.cx,
+                        a.cy,
+                        a.r,
+                        a.construction,
+                    )
                 }
                 Entity::Circle(c) => (true, 0.0, 360.0, c.cx, c.cy, c.r, c.construction),
                 _ => unreachable!(),
@@ -144,7 +165,13 @@ pub fn trim(entities: &[Entity], eid: &str, point: P2) -> Result<Vec<Entity>, Sk
             let cs: Vec<f64> = if full {
                 sorted_set(cuts.iter().map(|&c| py_mod(round_to(rel(c), 7), 360.0)).collect())
             } else {
-                sorted_set(cuts.iter().map(|&c| rel(c)).filter(|&c| 1e-5 < c && c < sweep - 1e-5).map(|c| round_to(c, 7)).collect())
+                sorted_set(
+                    cuts.iter()
+                        .map(|&c| rel(c))
+                        .filter(|&c| 1e-5 < c && c < sweep - 1e-5)
+                        .map(|c| round_to(c, 7))
+                        .collect(),
+                )
             };
             let t = rel(tp);
             let mk = |suffix: &str, s: f64, e: f64| {
@@ -162,8 +189,18 @@ pub fn trim(entities: &[Entity], eid: &str, point: P2) -> Result<Vec<Entity>, Sk
             if full {
                 // a circle cut once (or not at all) is removed entirely
                 if cs.len() >= 2 {
-                    let lo = cs.iter().copied().filter(|&c| c <= t).reduce(f64::max).unwrap_or(cs[cs.len() - 1] - 360.0);
-                    let hi = cs.iter().copied().filter(|&c| c >= t).reduce(f64::min).unwrap_or(cs[0] + 360.0);
+                    let lo = cs
+                        .iter()
+                        .copied()
+                        .filter(|&c| c <= t)
+                        .reduce(f64::max)
+                        .unwrap_or(cs[cs.len() - 1] - 360.0);
+                    let hi = cs
+                        .iter()
+                        .copied()
+                        .filter(|&c| c >= t)
+                        .reduce(f64::min)
+                        .unwrap_or(cs[0] + 360.0);
                     out.push(mk("a", a0 + hi, a0 + lo + 360.0));
                 }
             } else {

@@ -48,7 +48,15 @@ impl Uuids {
         let b = self.next_u64();
         let h = format!("{a:016x}{b:016x}");
         let y = ['8', '9', 'a', 'b'][(b >> 62) as usize & 3];
-        format!("{}-{}-4{}-{}{}-{}", &h[0..8], &h[8..12], &h[13..16], y, &h[17..20], &h[20..32])
+        format!(
+            "{}-{}-4{}-{}{}-{}",
+            &h[0..8],
+            &h[8..12],
+            &h[13..16],
+            y,
+            &h[17..20],
+            &h[20..32]
+        )
     }
 }
 
@@ -69,10 +77,15 @@ fn push_u32(o: &mut Vec<u8>, mut v: u32) {
 
 pub(super) fn write(bodies: &[ExportBody], opts: &ExportOptions) -> Result<Vec<u8>, ExportError> {
     let mut ids = Uuids(opts.uuid_seed);
-    let total: usize = bodies.iter().map(|b| b.mesh.positions.len() * 14 + b.mesh.triangles.len() * 18).sum();
+    let total: usize = bodies
+        .iter()
+        .map(|b| b.mesh.positions.len() * 14 + b.mesh.triangles.len() * 18)
+        .sum();
     let mut x: Vec<u8> = Vec::with_capacity(total + 4096);
-    x.extend_from_slice(b"<?xml version='1.0' encoding='utf-8'?>
-");
+    x.extend_from_slice(
+        b"<?xml version='1.0' encoding='utf-8'?>
+",
+    );
     x.extend_from_slice(
         format!(
             "<model xmlns=\"{NS_CORE}\" xmlns:b=\"{NS_B}\" xmlns:m=\"{NS_M}\" xmlns:p=\"{NS_P}\" xmlns:s=\"{NS_S}\" xmlns:sc=\"{NS_SC}\" unit=\"millimeter\"><resources>"
@@ -124,7 +137,11 @@ pub(super) fn write(bodies: &[ExportBody], opts: &ExportOptions) -> Result<Vec<u
     let io = |e: &dyn std::fmt::Display| ExportError::Io(e.to_string());
     let mut zip = zip::ZipWriter::new(Cursor::new(Vec::new()));
     let o = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
-    for (name, data) in [("3D/3dmodel.model", x.as_slice()), ("_rels/.rels", RELS.as_bytes()), ("[Content_Types].xml", CONTENT_TYPES.as_bytes())] {
+    for (name, data) in [
+        ("3D/3dmodel.model", x.as_slice()),
+        ("_rels/.rels", RELS.as_bytes()),
+        ("[Content_Types].xml", CONTENT_TYPES.as_bytes()),
+    ] {
         zip.start_file(name, o).map_err(|e| io(&e))?;
         zip.write_all(data).map_err(|e| io(&e))?;
     }

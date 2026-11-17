@@ -1,9 +1,9 @@
 //! 1.x `f_revolve`: spin a sketch profile around an axis into a solid.
 
 use serde_json::{Map, Value};
-use stl_kernel::{cross, Shape2d, Solid};
-use stl_sketch::ops::find_axis;
+use stl_kernel::{Shape2d, Solid, cross};
 use stl_sketch::P2;
+use stl_sketch::ops::find_axis;
 
 use super::common::{apply_tool, float, pick, sketch};
 use crate::{Ctx, FeatureError, FeatureResult, Registry, State};
@@ -53,7 +53,11 @@ fn revolve(
     if parts.is_empty() {
         return Err(FeatureError("The profile is empty.".into()));
     }
-    let man = if parts.len() > 1 { Solid::union_all(&parts) } else { parts[0].clone() };
+    let man = if parts.len() > 1 {
+        Solid::union_all(&parts)
+    } else {
+        parts[0].clone()
+    };
     let fr = sk.frame;
     let ff = [0, 1, 2].map(|i| f[0] * fr.x[i] + f[1] * fr.y[i]);
     let ee = [0, 1, 2].map(|i| e[0] * fr.x[i] + e[1] * fr.y[i]);

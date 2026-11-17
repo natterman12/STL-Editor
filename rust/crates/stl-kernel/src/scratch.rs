@@ -33,7 +33,11 @@ struct State {
     timeout: Duration,
 }
 
-static STATE: Mutex<State> = Mutex::new(State { active: 0, last_end: None, timeout: DEFAULT_IDLE_TIMEOUT });
+static STATE: Mutex<State> = Mutex::new(State {
+    active: 0,
+    last_end: None,
+    timeout: DEFAULT_IDLE_TIMEOUT,
+});
 
 fn lock() -> MutexGuard<'static, State> {
     STATE.lock().unwrap_or_else(|e| e.into_inner())
@@ -81,7 +85,9 @@ fn start_timer() {
     static STARTED: Once = Once::new();
     STARTED.call_once(|| {
         // if the thread cannot start, the pool is still emptied by release_scratch()
-        let _ = std::thread::Builder::new().name("scratch-idle".into()).spawn(timer_loop);
+        let _ = std::thread::Builder::new()
+            .name("scratch-idle".into())
+            .spawn(timer_loop);
     });
 }
 
@@ -154,13 +160,12 @@ impl ScratchGuard {
     pub fn begin() -> ScratchGuard {
         let mut st = lock();
         #[cfg(target_arch = "wasm32")]
-        if st.active == 0 {
-            if let (Some(end), Some(n)) = (st.last_end, now()) {
-                if n.saturating_sub(end) > st.timeout {
-                    clear_pool();
-                    st.last_end = None;
-                }
-            }
+        if st.active == 0
+            && let (Some(end), Some(n)) = (st.last_end, now())
+            && n.saturating_sub(end) > st.timeout
+        {
+            clear_pool();
+            st.last_end = None;
         }
         st.active += 1;
         ScratchGuard(())

@@ -28,22 +28,34 @@ pub struct Ctx<'a> {
 }
 
 pub enum FieldKind {
-    Number { unit: Option<&'static str> },
+    Number {
+        unit: Option<&'static str>,
+    },
     Select {
         /// `(id, label, group)`; `group` is set when `grouped`.
         options: Vec<(String, String, Option<String>)>,
         grouped: bool,
     },
     Bool,
-    Vec3 { unit: Option<&'static str> },
-    Text { placeholder: Option<String> },
-    Bodies { multi: bool },
-    Plane { any_face: bool },
+    Vec3 {
+        unit: Option<&'static str>,
+    },
+    Text {
+        placeholder: Option<String>,
+    },
+    Bodies {
+        multi: bool,
+    },
+    Plane {
+        any_face: bool,
+    },
     Sketch,
     Regions,
     Features,
     FacePoints,
-    PFace { any_face: bool },
+    PFace {
+        any_face: bool,
+    },
     CylFace,
     Points3,
     AxisLine,
@@ -61,20 +73,14 @@ pub struct Field {
 
 pub fn select_flat(options: Vec<(String, String)>) -> FieldKind {
     FieldKind::Select {
-        options: options
-            .into_iter()
-            .map(|(a, b)| (a, b, None))
-            .collect(),
+        options: options.into_iter().map(|(a, b)| (a, b, None)).collect(),
         grouped: false,
     }
 }
 
 pub fn select_grouped(options: Vec<(String, String, String)>) -> FieldKind {
     FieldKind::Select {
-        options: options
-            .into_iter()
-            .map(|(a, b, g)| (a, b, Some(g)))
-            .collect(),
+        options: options.into_iter().map(|(a, b, g)| (a, b, Some(g))).collect(),
         grouped: true,
     }
 }

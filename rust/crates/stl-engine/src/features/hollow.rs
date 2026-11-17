@@ -24,7 +24,14 @@ fn f_hollow(
     let t = float(p, "thickness", Some(2.0))?;
     let pitch = hollow_pitch(s, t, p.get("resolution").and_then(Value::as_str));
     let out = stl_mesh::voxel::hollow(s, t, Some(pitch), false).map_err(|e| FeatureError(e.to_string()))?;
-    state.bodies.insert(bid.to_string(), Body { name: b.name.clone(), solid: Some(out), mesh: None });
+    state.bodies.insert(
+        bid.to_string(),
+        Body {
+            name: b.name.clone(),
+            solid: Some(out),
+            mesh: None,
+        },
+    );
     res.modified.push(bid.to_string());
     Ok(())
 }

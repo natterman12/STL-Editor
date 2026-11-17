@@ -254,7 +254,11 @@ fn set_coplanar_and_normals(imp: &mut ManifoldImpl) {
                 vert_pos[halfedge[3 * tri + 1].end_vert as usize] - v,
             );
             let normal = linalg::normalize(n);
-            let normal = if normal.x.is_nan() { Vec3::new(0.0, 0.0, 1.0) } else { normal };
+            let normal = if normal.x.is_nan() {
+                Vec3::new(0.0, 0.0, 1.0)
+            } else {
+                normal
+            };
             (linalg::length2(n), normal)
         })
     };
@@ -280,7 +284,11 @@ fn set_coplanar_and_normals(imp: &mut ManifoldImpl) {
 
     let order: Vec<u32> = if area2.iter().any(|a| a.is_nan()) {
         let mut idx: Vec<u32> = (0..num_tri as u32).collect();
-        idx.sort_by(|&a, &b| area2[b as usize].partial_cmp(&area2[a as usize]).unwrap_or(std::cmp::Ordering::Equal));
+        idx.sort_by(|&a, &b| {
+            area2[b as usize]
+                .partial_cmp(&area2[a as usize])
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         idx
     } else {
         let mut keyed: Vec<(u64, u32)> =
@@ -415,20 +423,34 @@ fn import_mesh_body(m: &MeshArrays) -> Manifold {
         return Manifold::make_empty(Error::NotManifold);
     }
     let mut imp = ManifoldImpl::new();
-    imp.vert_pos = m.positions.chunks_exact(3).map(|p| Vec3::new(p[0] as f64, p[1] as f64, p[2] as f64)).collect();
+    imp.vert_pos = m
+        .positions
+        .chunks_exact(3)
+        .map(|p| Vec3::new(p[0] as f64, p[1] as f64, p[2] as f64))
+        .collect();
 
     // one run: every triangle belongs to one freshly reserved mesh id
     let id = impl_mesh::reserve_ids(1) as i32;
     imp.mesh_relation.mesh_id_transform.insert(
         id,
-        Relation { original_id: id, transform: Mat3x4::identity(), back_side: false, has_normals: false },
+        Relation {
+            original_id: id,
+            transform: Mat3x4::identity(),
+            back_side: false,
+            has_normals: false,
+        },
     );
     let mut tri_prop: Vec<IVec3> = Vec::with_capacity(num_tri);
     imp.mesh_relation.tri_ref.clear();
     for (i, t) in m.triangles.chunks_exact(3).enumerate() {
         if t[0] != t[1] && t[1] != t[2] && t[2] != t[0] {
             tri_prop.push(IVec3::new(t[0] as i32, t[1] as i32, t[2] as i32));
-            imp.mesh_relation.tri_ref.push(TriRef { mesh_id: id, original_id: id, face_id: -1, coplanar_id: i as i32 });
+            imp.mesh_relation.tri_ref.push(TriRef {
+                mesh_id: id,
+                original_id: id,
+                face_id: -1,
+                coplanar_id: i as i32,
+            });
         }
     }
 
@@ -485,13 +507,16 @@ fn halfspace(solid: &Manifold, normal: Vec3, offset: f64) -> Option<Manifold> {
     let n = normal / len;
     let bbox = solid.bounding_box();
     let centre = bbox.center();
-    let size = length(Vec3::new(centre.x - n.x * offset, centre.y - n.y * offset, centre.z - n.z * offset))
-        + 0.5 * length(bbox.size());
+    let size = length(Vec3::new(
+        centre.x - n.x * offset,
+        centre.y - n.y * offset,
+        centre.z - n.z * offset,
+    )) + 0.5 * length(bbox.size());
     // each move goes in front of the ones before it: `m * Mat4(transform)`
     let then = |m: Mat3x4, before: Mat3x4| m * mat3x4_to_mat4(before);
     let shift = |x: f64| {
         let mut m = Mat3x4::identity();
-        m.w = m.w + Vec3::new(x, 0.0, 0.0);
+        m.w += Vec3::new(x, 0.0, 0.0);
         m
     };
     let mut scale = Mat3x4::identity();
@@ -503,9 +528,21 @@ fn halfspace(solid: &Manifold, normal: Vec3, offset: f64) -> Option<Manifold> {
     let (sx, cx) = (sind(0.0), cosd(0.0));
     let (sy, cy) = (sind(y_deg), cosd(y_deg));
     let (sz, cz) = (sind(z_deg), cosd(z_deg));
-    let rx = Mat3::from_cols(Vec3::new(1.0, 0.0, 0.0), Vec3::new(0.0, cx, sx), Vec3::new(0.0, -sx, cx));
-    let ry = Mat3::from_cols(Vec3::new(cy, 0.0, -sy), Vec3::new(0.0, 1.0, 0.0), Vec3::new(sy, 0.0, cy));
-    let rz = Mat3::from_cols(Vec3::new(cz, sz, 0.0), Vec3::new(-sz, cz, 0.0), Vec3::new(0.0, 0.0, 1.0));
+    let rx = Mat3::from_cols(
+        Vec3::new(1.0, 0.0, 0.0),
+        Vec3::new(0.0, cx, sx),
+        Vec3::new(0.0, -sx, cx),
+    );
+    let ry = Mat3::from_cols(
+        Vec3::new(cy, 0.0, -sy),
+        Vec3::new(0.0, 1.0, 0.0),
+        Vec3::new(sy, 0.0, cy),
+    );
+    let rz = Mat3::from_cols(
+        Vec3::new(cz, sz, 0.0),
+        Vec3::new(-sz, cz, 0.0),
+        Vec3::new(0.0, 0.0, 1.0),
+    );
     let r = rz * ry * rx;
     let turn = Mat3x4::from_cols(r.x, r.y, r.z, Vec3::new(0.0, 0.0, 0.0));
 
@@ -547,7 +584,10 @@ fn union_pending(parts: &[Solid]) -> Manifold {
         // each part joins the first group in which it overlaps nothing
         let mut groups: Vec<Vec<usize>> = Vec::new();
         for i in 0..chunk.len() {
-            match groups.iter_mut().find(|g| !g.iter().any(|&j| boxes[i].does_overlap_box(&boxes[j]))) {
+            match groups
+                .iter_mut()
+                .find(|g| !g.iter().any(|&j| boxes[i].does_overlap_box(&boxes[j])))
+            {
                 Some(g) => g.push(i),
                 None => groups.push(vec![i]),
             }
@@ -600,7 +640,11 @@ impl PartialOrd for HeapPart<'_> {
 }
 impl Ord for HeapPart<'_> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.0.mesh().num_vert().cmp(&other.0.mesh().num_vert()).then(self.1.cmp(&other.1))
+        self.0
+            .mesh()
+            .num_vert()
+            .cmp(&other.0.mesh().num_vert())
+            .then(self.1.cmp(&other.1))
     }
 }
 
@@ -612,7 +656,15 @@ impl Ord for HeapPart<'_> {
 fn union_plain(parts: Vec<&ManifoldImpl>) -> ManifoldImpl {
     const MAX_UNION: usize = 1000;
     let engine = BooleanConfig::default_engine();
-    let add = |a: &Part, b: &Part| Part::Made(boolean3::boolean_dispatch(a.mesh(), b.mesh(), OpType::Add, engine, None));
+    let add = |a: &Part, b: &Part| {
+        Part::Made(boolean3::boolean_dispatch(
+            a.mesh(),
+            b.mesh(),
+            OpType::Add,
+            engine,
+            None,
+        ))
+    };
 
     let mut children: Vec<Part> = parts.into_iter().map(Part::Lent).collect();
     while children.len() > 1 {
@@ -623,7 +675,10 @@ fn union_plain(parts: Vec<&ManifoldImpl>) -> ManifoldImpl {
         // each part joins the first group in which it overlaps nothing
         let mut groups: Vec<Vec<usize>> = Vec::new();
         for i in 0..chunk.len() {
-            match groups.iter_mut().find(|g| !g.iter().any(|&j| boxes[i].does_overlap_box(&boxes[j]))) {
+            match groups
+                .iter_mut()
+                .find(|g| !g.iter().any(|&j| boxes[i].does_overlap_box(&boxes[j])))
+            {
                 Some(g) => g.push(i),
                 None => groups.push(vec![i]),
             }
@@ -635,14 +690,19 @@ fn union_plain(parts: Vec<&ManifoldImpl>) -> ManifoldImpl {
         // reserves them in, so every group has the IDs it would have had. A soup part takes
         // no IDs: with one in the chunk the groups go one after another as before.
         let multi: Vec<usize> = (0..groups.len()).filter(|&gi| groups[gi].len() > 1).collect();
-        let no_soup = multi.iter().all(|&gi| groups[gi].iter().all(|&i| !chunk[i].as_ref().unwrap().mesh().is_soup));
+        let no_soup = multi
+            .iter()
+            .all(|&gi| groups[gi].iter().all(|&i| !chunk[i].as_ref().unwrap().mesh().is_soup));
         let mut composed: Vec<Option<ManifoldImpl>> = Vec::new();
         if multi.len() > 1 && no_soup {
             let counts: Vec<u32> = multi
                 .iter()
                 .map(|&gi| boolean3::compose_id_count(groups[gi].iter().map(|&i| chunk[i].as_ref().unwrap().mesh())))
                 .collect();
-            let firsts: Vec<i32> = counts.iter().map(|&n| manifold_rust::impl_mesh::reserve_ids(n) as i32).collect();
+            let firsts: Vec<i32> = counts
+                .iter()
+                .map(|&n| manifold_rust::impl_mesh::reserve_ids(n) as i32)
+                .collect();
             let done = manifold_rust::par::maybe_par_map(multi.len(), 2, |k| {
                 let g = &groups[multi[k]];
                 let meshes: Vec<ManifoldImpl> = g.iter().map(|&i| chunk[i].as_ref().unwrap().mesh().clone()).collect();
@@ -688,7 +748,7 @@ fn union_plain(parts: Vec<&ManifoldImpl>) -> ManifoldImpl {
                         pairs.push((a, b));
                     }
                     let done = manifold_rust::par::maybe_par_map(pairs.len(), 2, |i| {
-                        boolean3::boolean_dispatch(pairs[i].0 .0.mesh(), pairs[i].1 .0.mesh(), OpType::Add, engine, None)
+                        boolean3::boolean_dispatch(pairs[i].0.0.mesh(), pairs[i].1.0.mesh(), OpType::Add, engine, None)
                     });
                     for m in done {
                         heap.push(HeapPart(Part::Made(m), next_serial));
@@ -733,7 +793,10 @@ fn leaf_box(node: &CsgLeafNode) -> Bounds {
             max[i] += if a < b { b } else { a };
         }
     }
-    Bounds { min: v3(min), max: v3(max) }
+    Bounds {
+        min: v3(min),
+        max: v3(max),
+    }
 }
 
 /// Manifold 3.5.4 `CsgLeafNode::Compose`: parts that do not overlap as one mesh. Where a part
@@ -794,7 +857,13 @@ fn compose_leaves(nodes: &[&CsgLeafNode]) -> CsgLeafNode {
 fn batch_add(mut nodes: Vec<CsgLeafNode>) -> CsgLeafNode {
     let add = |a: &CsgLeafNode, b: &CsgLeafNode| {
         let engine = BooleanConfig::default_engine();
-        CsgLeafNode::new(boolean3::boolean_dispatch(&a.get_impl(), &b.get_impl(), OpType::Add, engine, None))
+        CsgLeafNode::new(boolean3::boolean_dispatch(
+            &a.get_impl(),
+            &b.get_impl(),
+            OpType::Add,
+            engine,
+            None,
+        ))
     };
     match nodes.len() {
         0 => return CsgLeafNode::empty(),
@@ -855,7 +924,13 @@ impl Solid {
     /// A cylinder or cone along Z. With `center` it is centred on z = 0, otherwise it stands
     /// on z = 0.
     pub fn cylinder(height: f64, r_low: f64, r_high: f64, segments: u32, center: bool) -> Solid {
-        Solid::wrap(Manifold::cylinder_centered(height, r_low, r_high, self::segments(segments), center))
+        Solid::wrap(Manifold::cylinder_centered(
+            height,
+            r_low,
+            r_high,
+            self::segments(segments),
+            center,
+        ))
     }
 
     /// Build a solid from a mesh, like `manifold_from_arrays` in 1.x. `Invalid` means the
@@ -880,9 +955,15 @@ impl Solid {
         let positions = if stride <= 3 {
             gl.vert_properties
         } else {
-            gl.vert_properties.chunks_exact(stride).flat_map(|v| [v[0], v[1], v[2]]).collect()
+            gl.vert_properties
+                .chunks_exact(stride)
+                .flat_map(|v| [v[0], v[1], v[2]])
+                .collect()
         };
-        MeshArrays { positions, triangles: gl.tri_verts }
+        MeshArrays {
+            positions,
+            triangles: gl.tri_verts,
+        }
     }
 
     pub fn union(&self, o: &Solid) -> Solid {
@@ -914,7 +995,9 @@ impl Solid {
             [] => Solid::wrap(Manifold::empty()),
             [one] => one.clone(),
             _ if parts.iter().any(|s| s.1.is_some()) => Solid::wrap(union_pending(parts)),
-            _ => Solid::wrap(Manifold::from_impl(union_plain(parts.iter().map(|s| s.0.as_impl()).collect()))),
+            _ => Solid::wrap(Manifold::from_impl(union_plain(
+                parts.iter().map(|s| s.0.as_impl()).collect(),
+            ))),
         }
     }
 
@@ -959,7 +1042,10 @@ impl Solid {
             }
             None => (*self.0).clone(),
         };
-        Solid(Arc::new(base.transform(&transform)), Some(Arc::new(Pending { base, transform })))
+        Solid(
+            Arc::new(base.transform(&transform)),
+            Some(Arc::new(Pending { base, transform })),
+        )
     }
 
     /// Split triangles until no edge is longer than `len`. The shape does not change.
@@ -1006,9 +1092,7 @@ impl Solid {
     pub fn minkowski_sum(&self, o: &Solid) -> Solid {
         // Same triangles as the stock sum. The per-triangle branch runs its
         // independent batches together; every other branch stays on the stock path.
-        if let Some(m) =
-            crate::minkowski::try_tri_batches(self.0.as_impl(), o.0.as_impl(), false)
-        {
+        if let Some(m) = crate::minkowski::try_tri_batches(self.0.as_impl(), o.0.as_impl(), false) {
             return Solid::wrap(Manifold::from_impl(m));
         }
         Solid::wrap(self.0.minkowski_sum(&o.0))
@@ -1016,8 +1100,7 @@ impl Solid {
 
     /// The Minkowski difference of this solid and `o` (1.x `Manifold.minkowski_difference`).
     pub fn minkowski_difference(&self, o: &Solid) -> Solid {
-        if let Some(m) = crate::minkowski::try_tri_batches(self.0.as_impl(), o.0.as_impl(), true)
-        {
+        if let Some(m) = crate::minkowski::try_tri_batches(self.0.as_impl(), o.0.as_impl(), true) {
             return Solid::wrap(Manifold::from_impl(m));
         }
         Solid::wrap(self.0.minkowski_difference(&o.0))
@@ -1026,7 +1109,11 @@ impl Solid {
     /// The separate bodies of this solid, largest volume first. Bodies of equal volume keep
     /// the order the kernel gave them, so the result is the same on every run.
     pub fn decompose(&self) -> Vec<Solid> {
-        let mut parts: Vec<(f64, Solid)> = self.kernel_parts().into_iter().map(|m| (m.volume(), Solid::wrap(m))).collect();
+        let mut parts: Vec<(f64, Solid)> = self
+            .kernel_parts()
+            .into_iter()
+            .map(|m| (m.volume(), Solid::wrap(m)))
+            .collect();
         parts.sort_by(|a, b| b.0.total_cmp(&a.0));
         parts.into_iter().map(|(_, s)| s).collect()
     }
@@ -1116,7 +1203,10 @@ impl Solid {
 
     pub fn bounding_box(&self) -> Aabb {
         let b = self.0.bounding_box();
-        Aabb { min: arr(b.min), max: arr(b.max) }
+        Aabb {
+            min: arr(b.min),
+            max: arr(b.max),
+        }
     }
 
     pub fn num_tri(&self) -> usize {

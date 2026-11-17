@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use serde_json::{Map, Value};
 use stl_kernel::MeshArrays;
-use stl_mesh::simplify::{simplify, Simplified};
+use stl_mesh::simplify::{Simplified, simplify};
 
 use super::common::{float, truthy};
 use crate::state::Body;
@@ -20,7 +20,11 @@ fn f_simplify(
     let bid = p.get("body").and_then(Value::as_str).unwrap_or("").to_string();
     let b = state.body(&bid)?.clone();
     // 1.x: `float(ratio) if ratio else None`, so 0 means "not given"
-    let ratio = if truthy(p.get("ratio")) { Some(float(p, "ratio", None)?) } else { None };
+    let ratio = if truthy(p.get("ratio")) {
+        Some(float(p, "ratio", None)?)
+    } else {
+        None
+    };
     let tolerance = match p.get("tolerance") {
         None | Some(Value::Null) => None,
         Some(_) => Some(float(p, "tolerance", None)?),
@@ -38,11 +42,25 @@ fn f_simplify(
                 positions: nv.iter().flat_map(|p| p.iter().map(|&x| x as f32)).collect(),
                 triangles: nf.iter().flatten().copied().collect(),
             };
-            state.bodies.insert(bid.clone(), Body { name: b.name, solid: None, mesh: Some(Arc::new(arrays)) });
+            state.bodies.insert(
+                bid.clone(),
+                Body {
+                    name: b.name,
+                    solid: None,
+                    mesh: Some(Arc::new(arrays)),
+                },
+            );
             res.warning = Some("Simplified mesh isn't watertight; run Repair to edit it.".into());
         }
         Simplified::Solid(s) => {
-            state.bodies.insert(bid.clone(), Body { name: b.name, solid: Some(s), mesh: None });
+            state.bodies.insert(
+                bid.clone(),
+                Body {
+                    name: b.name,
+                    solid: Some(s),
+                    mesh: None,
+                },
+            );
         }
     }
     res.modified.push(bid);

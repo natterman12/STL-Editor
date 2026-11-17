@@ -19,12 +19,20 @@ fn fmt_g(x: f64) -> String {
     let e = format!("{:.5e}", x);
     let (mant, exp) = e.split_once('e').unwrap();
     let exp: i32 = exp.parse().unwrap();
-    if exp < -4 || exp >= 6 {
-        let mant = if mant.contains('.') { mant.trim_end_matches('0').trim_end_matches('.') } else { mant };
+    if !(-4..6).contains(&exp) {
+        let mant = if mant.contains('.') {
+            mant.trim_end_matches('0').trim_end_matches('.')
+        } else {
+            mant
+        };
         return format!("{}e{}{:02}", mant, if exp < 0 { '-' } else { '+' }, exp.abs());
     }
     let s = format!("{:.*}", (5 - exp).max(0) as usize, x);
-    if s.contains('.') { s.trim_end_matches('0').trim_end_matches('.').to_string() } else { s }
+    if s.contains('.') {
+        s.trim_end_matches('0').trim_end_matches('.').to_string()
+    } else {
+        s
+    }
 }
 
 /// Grow (`distance` > 0) or shrink (< 0) by `distance` in every direction. Bodies over
@@ -56,7 +64,10 @@ pub fn offset_solid(s: &Solid, distance: f64, max_tris: usize) -> Result<Solid, 
     }
     let out = work.minkowski_difference(&ball);
     if out.is_empty() {
-        return Err(MeshError::Message(format!("Shrinking by {} mm leaves nothing of this body.", fmt_g(d.abs()))));
+        return Err(MeshError::Message(format!(
+            "Shrinking by {} mm leaves nothing of this body.",
+            fmt_g(d.abs())
+        )));
     }
     Ok(out.intersection(s))
 }

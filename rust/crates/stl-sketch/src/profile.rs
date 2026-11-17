@@ -12,7 +12,10 @@ pub fn faces(entities: &[Entity], only: Option<&[String]>) -> Vec<Face> {
     if lw.is_empty() {
         return vec![];
     }
-    polygonize(&node_lines(&lw)).into_iter().filter(|f| f.area() > 1e-10).collect()
+    polygonize(&node_lines(&lw))
+        .into_iter()
+        .filter(|f| f.area() > 1e-10)
+        .collect()
 }
 
 /// The area to extrude or revolve (1.x `profile`).
@@ -30,7 +33,9 @@ pub fn profile_with(
             let fs = faces(entities, only);
             let picked: Vec<&Face> = fs.iter().filter(|f| pts.iter().any(|&p| f.contains(p))).collect();
             if picked.is_empty() {
-                return Err(SketchError::new("None of the picked points is inside a closed region of the sketch."));
+                return Err(SketchError::new(
+                    "None of the picked points is inside a closed region of the sketch.",
+                ));
             }
             let mut contours = vec![];
             for f in picked {

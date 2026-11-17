@@ -6,12 +6,17 @@ mod test_env;
 
 use std::time::Instant;
 
-use serde_json::{json, Value};
-use stl_app::sketch::{geom, Constraint, Entity, Ref, RefEnt, SketchSession};
+use serde_json::{Value, json};
+use stl_app::sketch::{Constraint, Entity, Ref, RefEnt, SketchSession, geom};
 use stl_app::viewport::PlaneFrame;
 
 fn frame() -> PlaneFrame {
-    PlaneFrame { origin: [0.0, 0.0, 0.0], x: [1.0, 0.0, 0.0], y: [0.0, 1.0, 0.0], normal: [0.0, 0.0, 1.0] }
+    PlaneFrame {
+        origin: [0.0, 0.0, 0.0],
+        x: [1.0, 0.0, 0.0],
+        y: [0.0, 1.0, 0.0],
+        normal: [0.0, 0.0, 1.0],
+    }
 }
 
 fn ent(v: Value) -> Entity {
@@ -26,22 +31,35 @@ fn session(entities: Vec<Entity>) -> SketchSession {
 
 #[test]
 fn new_ids_follow_1x() {
-    let mut s = session(vec![ent(json!({"id": "eabc2", "type": "line", "p1": [0, 0], "p2": [1, 1]}))]);
+    let mut s = session(vec![ent(
+        json!({"id": "eabc2", "type": "line", "p1": [0, 0], "p2": [1, 1]}),
+    )]);
     assert_eq!(s.new_id(), "eabc1");
     assert_eq!(s.new_id(), "eabc3"); // eabc2 is in use
     assert_eq!(s.new_id(), "eabc4");
     // The seed is base 36 of the time, as Date.now().toString(36).
     let fresh = SketchSession::new(frame(), json!("xy"), None, None, vec![], vec![], vec![], None);
-    assert!(fresh.seed.len() >= 8 && fresh.seed.chars().all(|c| c.is_ascii_digit() || c.is_ascii_lowercase()), "{}", fresh.seed);
+    assert!(
+        fresh.seed.len() >= 8 && fresh.seed.chars().all(|c| c.is_ascii_digit() || c.is_ascii_lowercase()),
+        "{}",
+        fresh.seed
+    );
 }
 
 #[test]
 fn undo_local_restores() {
-    let mut s = session(vec![ent(json!({"id": "a", "type": "circle", "cx": 0, "cy": 0, "r": 1}))]);
+    let mut s = session(vec![ent(
+        json!({"id": "a", "type": "circle", "cx": 0, "cy": 0, "r": 1}),
+    )]);
     assert!(!s.undo_local());
     s.push();
-    s.entities.push(ent(json!({"id": "b", "type": "circle", "cx": 5, "cy": 0, "r": 1})));
-    s.constraints.push({ let mut c = Constraint::new("horizontal"); c.a = Some(Ref::ent("a")); c });
+    s.entities
+        .push(ent(json!({"id": "b", "type": "circle", "cx": 5, "cy": 0, "r": 1})));
+    s.constraints.push({
+        let mut c = Constraint::new("horizontal");
+        c.a = Some(Ref::ent("a"));
+        c
+    });
     s.sel.insert("b".into());
     s.sel_c = Some(0);
     assert!(s.undo_local());
@@ -59,15 +77,26 @@ fn undo_local_restores() {
 fn uv_round_trip() {
     // A tilted frame: x and y orthonormal, away from the origin.
     let (c, sn) = (0.6, 0.8);
-    let f = PlaneFrame { origin: [10.0, -4.0, 2.5], x: [c, sn, 0.0], y: [-sn * 0.5, c * 0.5, 0.8660254037844386], normal: [0.0; 3] };
+    let f = PlaneFrame {
+        origin: [10.0, -4.0, 2.5],
+        x: [c, sn, 0.0],
+        y: [-sn * 0.5, c * 0.5, 0.8660254037844386],
+        normal: [0.0; 3],
+    };
     let y = f.y;
     let n = (y[0] * y[0] + y[1] * y[1] + y[2] * y[2]).sqrt();
-    let f = PlaneFrame { y: [y[0] / n, y[1] / n, y[2] / n], ..f };
+    let f = PlaneFrame {
+        y: [y[0] / n, y[1] / n, y[2] / n],
+        ..f
+    };
     let s = SketchSession::new(f, json!("xy"), None, None, vec![], vec![], vec![], None);
     for uv in [[0.0, 0.0], [3.5, -7.25], [-120.0, 44.0]] {
         let p = s.to_3(uv);
         let back = s.to_uv(p);
-        assert!((back[0] - uv[0]).abs() < 1e-9 && (back[1] - uv[1]).abs() < 1e-9, "{uv:?} {back:?}");
+        assert!(
+            (back[0] - uv[0]).abs() < 1e-9 && (back[1] - uv[1]).abs() < 1e-9,
+            "{uv:?} {back:?}"
+        );
         let p2 = s.to_3(back);
         assert!((0..3).all(|i| (p2[i] - p[i]).abs() < 1e-9));
     }
@@ -78,7 +107,12 @@ fn step_params_shape() {
     let e1 = json!({"id": "e1", "type": "line", "p1": [0.0, 0.0], "p2": [10.0, 0.0]});
     let r_used = json!({"id": "r1", "type": "line", "p1": [0.0, 0.0], "p2": [0.0, 5.0]});
     let r_other = json!({"id": "r2", "type": "line", "p1": [1.0, 0.0], "p2": [1.0, 5.0]});
-    let con = { let mut c = Constraint::new("coincident"); c.a = Some(Ref::pt("e1", "p1")); c.b = Some(Ref::pt("r1", "p1")); c };
+    let con = {
+        let mut c = Constraint::new("coincident");
+        c.a = Some(Ref::pt("e1", "p1"));
+        c.b = Some(Ref::pt("r1", "p1"));
+        c
+    };
     let mut s = SketchSession::new(
         frame(),
         json!({"id": "front"}),
@@ -86,7 +120,16 @@ fn step_params_shape() {
         None,
         vec![ent(e1.clone())],
         vec![con.clone()],
-        vec![RefEnt { ent: ent(r_other), missing: false }, RefEnt { ent: ent(r_used.clone()), missing: true }],
+        vec![
+            RefEnt {
+                ent: ent(r_other),
+                missing: false,
+            },
+            RefEnt {
+                ent: ent(r_used.clone()),
+                missing: true,
+            },
+        ],
         Some("edges".into()),
     );
     s.seed = "x".into();
@@ -108,12 +151,21 @@ const RECORDED: &str = r##"{"rect":{"outline":{"n":44,"first":[1.161402383102002
 
 fn entities() -> Vec<(&'static str, Value)> {
     vec![
-        ("rect", json!({"type":"rect","x":1,"y":2,"w":-30,"h":20.125,"angle":15,"fillet":2})),
+        (
+            "rect",
+            json!({"type":"rect","x":1,"y":2,"w":-30,"h":20.125,"angle":15,"fillet":2}),
+        ),
         ("rect0", json!({"type":"rect","x":1,"y":2,"w":30,"h":20})),
         ("circle", json!({"type":"circle","cx":3,"cy":-4,"r":5.005})),
-        ("polygon", json!({"type":"polygon","cx":1,"cy":1,"r":7,"n":5,"angle":10})),
+        (
+            "polygon",
+            json!({"type":"polygon","cx":1,"cy":1,"r":7,"n":5,"angle":10}),
+        ),
         ("slot", json!({"type":"slot","x1":0,"y1":0,"x2":30,"y2":40,"r":3.125})),
-        ("polyline", json!({"type":"polyline","pts":[[0,0],[10,0],[10,7],[2,9]],"closed":true})),
+        (
+            "polyline",
+            json!({"type":"polyline","pts":[[0,0],[10,0],[10,7],[2,9]],"closed":true}),
+        ),
         ("line", json!({"type":"line","p1":[1,1],"p2":[4,5]})),
         ("arc", json!({"type":"arc","cx":2,"cy":3,"r":10,"a0":300,"a1":40})),
     ]
@@ -150,7 +202,11 @@ fn geom_matches_1x() {
         for (k, w) in kp.iter().zip(want) {
             near_pt(k.1, w, name);
         }
-        near(geom::dist_to_entity(&e, [6.5, -3.25]), r["dist"].as_f64().unwrap(), name);
+        near(
+            geom::dist_to_entity(&e, [6.5, -3.25]),
+            r["dist"].as_f64().unwrap(),
+            name,
+        );
         assert_eq!(geom::describe(&e), r["describe"].as_str().unwrap(), "{name} describe");
         let dims = geom::dimension_items(&e);
         let want = r["dims"].as_array().unwrap();
@@ -179,11 +235,22 @@ fn geom_matches_1x() {
         near(got, w[key].as_f64().unwrap(), key);
     }
     assert!(rec["from3b"].is_null() && geom::arc_from3([0.0, 0.0], [1.0, 1.0], [2.0, 2.0]).is_none());
-    let Some(Entity::Arc(c)) = geom::arc_from3([-10.0, 0.0], [0.0, 10.0], [10.0, 0.0]) else { panic!() };
+    let Some(Entity::Arc(c)) = geom::arc_from3([-10.0, 0.0], [0.0, 10.0], [10.0, 0.0]) else {
+        panic!()
+    };
     near(c.a0, rec["from3c"]["a0"].as_f64().unwrap(), "from3c a0");
     near(c.a1, rec["from3c"]["a1"].as_f64().unwrap(), "from3c a1");
     // apply_dimension: the patch 1.x returns, applied.
-    for (name, key, v) in [("rect", "w", 12.0), ("rect", "h", 7.0), ("circle", "d", 9.0), ("arc", "r", 4.0), ("polygon", "r", 3.0), ("slot", "len", 20.0), ("slot", "w", 2.0), ("line", "len", 10.0)] {
+    for (name, key, v) in [
+        ("rect", "w", 12.0),
+        ("rect", "h", 7.0),
+        ("circle", "d", 9.0),
+        ("arc", "r", 4.0),
+        ("polygon", "r", 3.0),
+        ("slot", "len", 20.0),
+        ("slot", "w", 2.0),
+        ("line", "len", 10.0),
+    ] {
         let mut e = ent(entities().into_iter().find(|(n, _)| *n == name).unwrap().1);
         geom::apply_dimension(&mut e, key, v);
         let patch = &rec["apply"][format!("{name}:{key}")];
@@ -211,7 +278,9 @@ fn grid() -> (Vec<Entity>, Vec<Constraint>) {
     let mut cons = Vec::new();
     for i in 0..200 {
         let (cx, cy) = ((i % 20) as f64 * 15.0, (i / 20) as f64 * 15.0);
-        ents.push(ent(json!({"id": format!("g{i}"), "type": "rect", "x": cx + 0.3, "y": cy - 0.2, "w": 10.4, "h": 9.7})));
+        ents.push(ent(
+            json!({"id": format!("g{i}"), "type": "rect", "x": cx + 0.3, "y": cy - 0.2, "w": 10.4, "h": 9.7}),
+        ));
     }
     let mut i = 0;
     while cons.len() < 100 {
@@ -234,10 +303,16 @@ fn percentile(times: &mut [f64], p: f64) -> f64 {
 #[test]
 #[ignore = "timing harness: cargo test -p stl-app --test sketch_core --release -- --ignored --nocapture solver_timing"]
 fn solver_timing() {
-    use stl_sketch::solver::{solve, Lock};
+    use stl_sketch::solver::{Lock, solve};
     let (ents, cons) = grid();
     // Second case: the user drags the first corner 3 mm right and 2 mm up (a lock on a point).
-    let drag = [Lock { e: "g0".into(), k: Some("c0".into()), at: Some(vec![3.3, 1.8]), path: None, value: None }];
+    let drag = [Lock {
+        e: "g0".into(),
+        k: Some("c0".into()),
+        at: Some(vec![3.3, 1.8]),
+        path: None,
+        value: None,
+    }];
     for (label, locks) in [("solve", &[][..]), ("solve + drag lock", &drag[..])] {
         let mut times = Vec::new();
         let mut ok = false;
@@ -248,7 +323,13 @@ fn solver_timing() {
             ok = r.ok;
         }
         let max = times.iter().cloned().fold(0.0, f64::max);
-        println!("solver, {} entities, {} constraints, {label}: p50 {:.3} ms, p99 {:.3} ms, max {:.3} ms (ok {ok})",
-            ents.len(), cons.len(), percentile(&mut times.clone(), 0.5), percentile(&mut times, 0.99), max);
+        println!(
+            "solver, {} entities, {} constraints, {label}: p50 {:.3} ms, p99 {:.3} ms, max {:.3} ms (ok {ok})",
+            ents.len(),
+            cons.len(),
+            percentile(&mut times.clone(), 0.5),
+            percentile(&mut times, 0.99),
+            max
+        );
     }
 }

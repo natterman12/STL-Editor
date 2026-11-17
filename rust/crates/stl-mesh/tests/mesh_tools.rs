@@ -8,9 +8,9 @@ use serde_json::Value;
 use stl_kernel::{MeshArrays, Solid};
 use stl_mesh::offset::offset_solid;
 use stl_mesh::remesh::remesh;
-use stl_mesh::sculpt::{sculpt, Stroke};
+use stl_mesh::sculpt::{Stroke, sculpt};
 use stl_mesh::thin::thin_scan;
-use stl_parity::{compare_mesh, mesh_stats, Exactness, MeshStats};
+use stl_parity::{Exactness, MeshStats, compare_mesh, mesh_stats};
 
 fn tests_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests")
@@ -57,7 +57,9 @@ fn read_stl(path: &PathBuf) -> Solid {
     for t in 0..n {
         let rec = &data[84 + 50 * t + 12..84 + 50 * t + 48];
         for c in 0..3 {
-            let x: Vec<f32> = (0..3).map(|k| f32::from_le_bytes(rec[c * 12 + k * 4..c * 12 + k * 4 + 4].try_into().unwrap())).collect();
+            let x: Vec<f32> = (0..3)
+                .map(|k| f32::from_le_bytes(rec[c * 12 + k * 4..c * 12 + k * 4 + 4].try_into().unwrap()))
+                .collect();
             let key = [x[0].to_bits(), x[1].to_bits(), x[2].to_bits()];
             let next = idx.len() as u32;
             let id = *idx.entry(key).or_insert_with(|| {
@@ -93,7 +95,11 @@ fn bodies(case: &Value) -> HashMap<String, Solid> {
                     "sphere" => {
                         let r = f(p, "radius", 5.0);
                         let s = Solid::sphere(r, seg);
-                        if anchor == "base" { s.translate([0.0, 0.0, r]) } else { s }
+                        if anchor == "base" {
+                            s.translate([0.0, 0.0, r])
+                        } else {
+                            s
+                        }
                     }
                     other => panic!("primitive {other} is not needed by these cases"),
                 };
@@ -121,7 +127,13 @@ fn bodies(case: &Value) -> HashMap<String, Solid> {
 }
 
 fn last_op<'a>(case: &'a Value, ty: &str) -> &'a Value {
-    case["features"].as_array().unwrap().iter().rev().find(|x| x["type"] == ty).unwrap()
+    case["features"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .rev()
+        .find(|x| x["type"] == ty)
+        .unwrap()
 }
 
 fn golden_body(g: &Value) -> Option<&Value> {
@@ -129,14 +141,18 @@ fn golden_body(g: &Value) -> Option<&Value> {
 }
 
 fn last_error(g: &Value) -> Option<String> {
-    g["results"].as_array().unwrap().last().unwrap()["error"].as_str().map(String::from)
+    g["results"].as_array().unwrap().last().unwrap()["error"]
+        .as_str()
+        .map(String::from)
 }
 
 fn check(name: &str, got: &Solid, g: &Value, ex: Exactness, fails: &mut Vec<String>) {
     let want = golden_stats(g);
     let have = stats(got);
-    println!("{name}: tris golden {} got {}, volume golden {} got {}, area golden {} got {}",
-        want.triangles, have.triangles, want.volume, have.volume, want.area, have.area);
+    println!(
+        "{name}: tris golden {} got {}, volume golden {} got {}, area golden {} got {}",
+        want.triangles, have.triangles, want.volume, have.volume, want.area, have.area
+    );
     for d in compare_mesh(&want, &have, ex) {
         fails.push(format!("{name}: {d}"));
     }
@@ -149,13 +165,22 @@ fn sculpt_modes_match_1x() {
     let mut fails = Vec::new();
     for case in cases.as_array().unwrap() {
         let name = case["name"].as_str().unwrap();
-        if last_op(case, "sculpt")["params"]["strokes"].as_array().unwrap().is_empty() {
+        if last_op(case, "sculpt")["params"]["strokes"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+        {
             continue; // "Drag over the model to sculpt." is the feature's own check
         }
         let g = &golden[name];
         let body = bodies(case)["f1"].clone();
-        let strokes: Vec<Stroke> = serde_json::from_value(last_op(case, "sculpt")["params"]["strokes"].clone()).unwrap();
-        let ex = if case["exactness"] == "exact" { Exactness::Exact } else { Exactness::Approx };
+        let strokes: Vec<Stroke> =
+            serde_json::from_value(last_op(case, "sculpt")["params"]["strokes"].clone()).unwrap();
+        let ex = if case["exactness"] == "exact" {
+            Exactness::Exact
+        } else {
+            Exactness::Approx
+        };
         match (sculpt(&body, &strokes), last_error(g)) {
             (Ok(s), None) => check(name, &s, golden_body(g).unwrap(), ex, &mut fails),
             (Err(e), Some(want)) => {
@@ -173,10 +198,18 @@ fn sculpt_modes_match_1x() {
 #[test]
 fn unknown_brush_message() {
     let s = Solid::cube([10.0; 3], true);
-    let st = Stroke { points: vec![[5.0, 5.0, 5.0], [4.0, 5.0, 5.0]], radius: 5.0, strength: 0.5, mode: "smash".into() };
+    let st = Stroke {
+        points: vec![[5.0, 5.0, 5.0], [4.0, 5.0, 5.0]],
+        radius: 5.0,
+        strength: 0.5,
+        mode: "smash".into(),
+    };
     assert_eq!(sculpt(&s, &[st]).err().unwrap().to_string(), "Unknown brush smash.");
     let d: Stroke = serde_json::from_str("{}").unwrap();
-    assert_eq!((d.radius, d.strength, d.mode.as_str(), d.points.len()), (5.0, 0.5, "smooth", 0));
+    assert_eq!(
+        (d.radius, d.strength, d.mode.as_str(), d.points.len()),
+        (5.0, 0.5, "smooth", 0)
+    );
 }
 
 #[test]
@@ -215,15 +248,31 @@ fn offset_grow_and_shrink_match_1x() {
         let name = case["name"].as_str().unwrap();
         let g = &golden[name];
         let all = bodies(case);
-        let Some(op) = case["features"].as_array().unwrap().iter().find(|x| x["type"] == "offset") else { continue };
+        let Some(op) = case["features"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|x| x["type"] == "offset")
+        else {
+            continue;
+        };
         let p = &op["params"];
-        let ids: Vec<&str> = p["bodies"].as_array().unwrap().iter().map(|x| x.as_str().unwrap()).collect();
+        let ids: Vec<&str> = p["bodies"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|x| x.as_str().unwrap())
+            .collect();
         if ids.is_empty() {
             continue;
         }
         let d = f(p, "distance", 0.0);
         let d = if p["direction"] == "shrink" { -d } else { d };
-        let ex = if case["exactness"] == "exact" { Exactness::Exact } else { Exactness::Approx };
+        let ex = if case["exactness"] == "exact" {
+            Exactness::Exact
+        } else {
+            Exactness::Approx
+        };
         let mut checked = 0;
         for (n, id) in ids.iter().enumerate() {
             let res = offset_solid(&all[*id], d, 12000);
@@ -298,7 +347,11 @@ fn thin_scan_matches_1x() {
         }
         let spots = thin["spots"].as_array().unwrap();
         if spots.len() != r.spots.len() {
-            fails.push(format!("{name}: {} spots in golden, {} got", spots.len(), r.spots.len()));
+            fails.push(format!(
+                "{name}: {} spots in golden, {} got",
+                spots.len(),
+                r.spots.len()
+            ));
         }
         for (k, (gs, rs)) in spots.iter().zip(&r.spots).enumerate() {
             for c in 0..3 {

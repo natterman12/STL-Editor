@@ -1,11 +1,11 @@
 //! Sketch text tool and the text dialog (1.x `sketchText`, `app.js` 1629–1677).
 
 use egui::{RichText, Ui};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use crate::theme::Tokens;
-use crate::tools::fields::{self, Bufs, FieldEnv};
 use crate::tools::fields::number::{fmt_len, parse_len, unit_name};
+use crate::tools::fields::{self, Bufs, FieldEnv};
 use crate::tools::panel::ctl_button;
 use crate::viewport::overlays::SketchOutline;
 
@@ -64,7 +64,7 @@ impl Default for TextForm {
 #[derive(Default)]
 pub struct TextDialogState {
     pub open: bool,
-  /// When set, `sketch_op` replaces this text group (1.x `group` argument).
+    /// When set, `sketch_op` replaces this text group (1.x `group` argument).
     pub edit_group: Option<String>,
     pub form: TextForm,
     pub bufs: Bufs,
@@ -78,11 +78,7 @@ pub struct TextDialogState {
 }
 
 pub fn tool_for(key: &str) -> Option<Box<dyn SketchTool>> {
-    if key == "text" {
-        Some(Box::new(TextTool))
-    } else {
-        None
-    }
+    if key == "text" { Some(Box::new(TextTool)) } else { None }
 }
 
 fn sketch_num(n: f64) -> Value {
@@ -221,17 +217,29 @@ pub fn dialog(ui: &mut Ui, tk: &Tokens, s: &SketchSession, state: &mut TextDialo
 
 /// [`dialog`] with the platform: "Add a font file…" opens a file picker and remembers the font
 /// in settings.
-pub fn dialog_with(ui: &mut Ui, tk: &Tokens, s: &SketchSession, state: &mut TextDialogState, platform: &dyn crate::platform::Platform) -> Option<SketchEffect> {
+pub fn dialog_with(
+    ui: &mut Ui,
+    tk: &Tokens,
+    s: &SketchSession,
+    state: &mut TextDialogState,
+    platform: &dyn crate::platform::Platform,
+) -> Option<SketchEffect> {
     dialog_inner(ui, tk, s, state, Some(platform))
 }
 
 /// The font box chose `value`: a family, or [`LOCAL`] / [`FILE`] (1.x `fs.onchange`). Returns a
 /// toast to show, if any.
-pub fn choose_font(state: &mut TextDialogState, value: &str, platform: Option<&dyn crate::platform::Platform>) -> Option<SketchEffect> {
+pub fn choose_font(
+    state: &mut TextDialogState,
+    value: &str,
+    platform: Option<&dyn crate::platform::Platform>,
+) -> Option<SketchEffect> {
     match value {
         #[cfg(not(target_arch = "wasm32"))]
         LOCAL => {
-            let fonts = state.fonts.get_or_insert_with(|| platform.map_or_else(FontList::bundled_only, FontList::load));
+            let fonts = state
+                .fonts
+                .get_or_insert_with(|| platform.map_or_else(FontList::bundled_only, FontList::load));
             state.form.font = fonts.load_system().unwrap_or_else(default_font_name);
         }
         FILE => {
@@ -246,12 +254,20 @@ pub fn choose_font(state: &mut TextDialogState, value: &str, platform: Option<&d
 
 /// A picked font file arrived: add it (1.x `addFontFiles`). Picks its family, or the default
 /// with a warning when the file isn't a font.
-pub fn font_file_picked(state: &mut TextDialogState, file: &crate::platform::PickedFile, path: Option<&str>, platform: &dyn crate::platform::Platform) -> Option<SketchEffect> {
+pub fn font_file_picked(
+    state: &mut TextDialogState,
+    file: &crate::platform::PickedFile,
+    path: Option<&str>,
+    platform: &dyn crate::platform::Platform,
+) -> Option<SketchEffect> {
     let fonts = state.fonts.get_or_insert_with(|| FontList::load(platform));
     match fonts.add_file(platform, &file.name, &file.bytes, path) {
         Ok(added) => {
             state.form.font = added.first().cloned().unwrap_or_else(default_font_name);
-            Some(SketchEffect::Toast(crate::engine_link::Level::Info, added_message(&added)))
+            Some(SketchEffect::Toast(
+                crate::engine_link::Level::Info,
+                added_message(&added),
+            ))
         }
         Err(e) => {
             state.form.font = default_font_name();
@@ -260,7 +276,13 @@ pub fn font_file_picked(state: &mut TextDialogState, file: &crate::platform::Pic
     }
 }
 
-fn dialog_inner(ui: &mut Ui, tk: &Tokens, s: &SketchSession, state: &mut TextDialogState, platform: Option<&dyn crate::platform::Platform>) -> Option<SketchEffect> {
+fn dialog_inner(
+    ui: &mut Ui,
+    tk: &Tokens,
+    s: &SketchSession,
+    state: &mut TextDialogState,
+    platform: Option<&dyn crate::platform::Platform>,
+) -> Option<SketchEffect> {
     if !state.open {
         return None;
     }
@@ -268,10 +290,10 @@ fn dialog_inner(ui: &mut Ui, tk: &Tokens, s: &SketchSession, state: &mut TextDia
         state.fonts = Some(platform.map_or_else(FontList::bundled_only, FontList::load));
     }
     // added fonts kept in the browser's IndexedDB arrive a moment after the list is loaded
-    if let Some(fonts) = state.fonts.as_mut() {
-        if fonts.poll() {
-            ui.ctx().request_repaint();
-        }
+    if let Some(fonts) = state.fonts.as_mut()
+        && fonts.poll()
+    {
+        ui.ctx().request_repaint();
     }
     let mut picked_toast = None;
     if let (Some(pending), Some(p)) = (state.font_pick.clone(), platform) {
@@ -285,7 +307,11 @@ fn dialog_inner(ui: &mut Ui, tk: &Tokens, s: &SketchSession, state: &mut TextDia
             None => ui.ctx().request_repaint(),
         }
     }
-    let _env = FieldEnv { tk, inch: state.inch, params: &Default::default() };
+    let _env = FieldEnv {
+        tk,
+        inch: state.inch,
+        params: &Default::default(),
+    };
     let editing = state.edit_group.is_some();
     let mut effect = None;
     ui.vertical(|ui| {
@@ -333,11 +359,9 @@ fn dialog_inner(ui: &mut Ui, tk: &Tokens, s: &SketchSession, state: &mut TextDia
         fields::row_raw(ui, tk, "Height", None, false, |ui, w| {
             let shown = fmt_len(state.form.size, Some(3), state.inch);
             if let Some(t) = fields::text_commit(ui, tk, &mut state.bufs, "size", &shown, w - 22.0, fields::number::input_font(), tk.text, None)
-            {
-                if let Some(mm) = parse_len(&t, state.inch).filter(|v| *v > 0.0) {
+                && let Some(mm) = parse_len(&t, state.inch).filter(|v| *v > 0.0) {
                     state.form.size = mm;
                 }
-            }
             fields::unit_label(ui, tk, unit_name(state.inch));
             None::<()>
         });
@@ -554,8 +578,14 @@ impl FontList {
     pub fn load(p: &dyn crate::platform::Platform) -> FontList {
         let mut added: Vec<Added> = Vec::new();
         let (mut in_blobs, mut loads) = (std::collections::BTreeSet::new(), BlobLoads::default());
-        for v in p.setting_json(FONTS_KEY).and_then(|v| v.as_array().cloned()).unwrap_or_default() {
-            let Some(family) = v.get("family").and_then(Value::as_str).filter(|f| !f.is_empty()) else { continue };
+        for v in p
+            .setting_json(FONTS_KEY)
+            .and_then(|v| v.as_array().cloned())
+            .unwrap_or_default()
+        {
+            let Some(family) = v.get("family").and_then(Value::as_str).filter(|f| !f.is_empty()) else {
+                continue;
+            };
             let style = v.get("style").and_then(Value::as_str).unwrap_or("").to_string();
             let source = if let Some(key) = v.get("blob").and_then(Value::as_str) {
                 // web: the bytes are in IndexedDB; they load in the background (see `poll`)
@@ -575,10 +605,21 @@ impl FontList {
                 continue;
             };
             if !added.iter().any(|a| a.family == family && a.style == style) {
-                added.push(Added { family: family.to_string(), style, source });
+                added.push(Added {
+                    family: family.to_string(),
+                    style,
+                    source,
+                });
             }
         }
-        FontList { added, system: None, web: p.is_web(), can_add: true, in_blobs, loads }
+        FontList {
+            added,
+            system: None,
+            web: p.is_web(),
+            can_add: true,
+            in_blobs,
+            loads,
+        }
     }
 
     /// Pick up added fonts whose bytes have arrived from the blob store (call each frame the
@@ -612,7 +653,10 @@ impl FontList {
 
     /// Without a platform: the bundled fonts, and (desktop) the computer's fonts on request.
     pub fn bundled_only() -> FontList {
-        FontList { web: cfg!(target_arch = "wasm32"), ..FontList::default() }
+        FontList {
+            web: cfg!(target_arch = "wasm32"),
+            ..FontList::default()
+        }
     }
 
     /// 1.x `canAskLocal`: the desktop, and the computer's fonts aren't in the list yet.
@@ -670,7 +714,13 @@ impl FontList {
 
     /// Read a font file the person picked, add it and remember it in settings. Returns the
     /// families added (for [`added_message`]); [`BAD_FONT`] when it isn't a readable font.
-    pub fn add_file(&mut self, p: &dyn crate::platform::Platform, _name: &str, bytes: &[u8], path: Option<&str>) -> Result<Vec<String>, String> {
+    pub fn add_file(
+        &mut self,
+        p: &dyn crate::platform::Platform,
+        _name: &str,
+        bytes: &[u8],
+        path: Option<&str>,
+    ) -> Result<Vec<String>, String> {
         let (family, style) = font_info(bytes)?;
         let source = match path.filter(|s| !s.is_empty()) {
             Some(path) => FontSource::Path(path.to_string()),
@@ -678,12 +728,16 @@ impl FontList {
         };
         self.added.retain(|a| !(a.family == family && a.style == style));
         // web: the bytes go to the blob store (IndexedDB), not the settings (localStorage)
-        if let FontSource::Bytes(b) = &source {
-            if p.put_blob(&blob_key(&family, &style), b) {
-                self.in_blobs.insert((family.clone(), style.clone()));
-            }
+        if let FontSource::Bytes(b) = &source
+            && p.put_blob(&blob_key(&family, &style), b)
+        {
+            self.in_blobs.insert((family.clone(), style.clone()));
         }
-        self.added.push(Added { family: family.clone(), style, source });
+        self.added.push(Added {
+            family: family.clone(),
+            style,
+            source,
+        });
         p.set_setting_json(FONTS_KEY, self.saved());
         Ok(vec![family])
     }
@@ -697,7 +751,9 @@ impl FontList {
                     match &a.source {
                         FontSource::Path(path) => json!({"family": a.family, "style": a.style, "path": path}),
                         FontSource::Stored(key) => json!({"family": a.family, "style": a.style, "blob": key}),
-                        FontSource::Bytes(_) if in_blob => json!({"family": a.family, "style": a.style, "blob": blob_key(&a.family, &a.style)}),
+                        FontSource::Bytes(_) if in_blob => {
+                            json!({"family": a.family, "style": a.style, "blob": blob_key(&a.family, &a.style)})
+                        }
                         FontSource::Bytes(b) => json!({"family": a.family, "style": a.style, "data": base64_encode(b)}),
                     }
                 })
@@ -729,7 +785,9 @@ impl FontList {
                 .then(|| all.iter().any(|i| i.family == family))
                 .filter(|&has| has)
                 .and_then(|_| stl_sketch::text::fonts::font_path_among(&all, Some(family), bold, italic).ok());
-            return Some(FontSource::Path(styled.unwrap_or_else(|| regular.clone()).to_string_lossy().into_owned()));
+            return Some(FontSource::Path(
+                styled.unwrap_or_else(|| regular.clone()).to_string_lossy().into_owned(),
+            ));
         }
         None
     }
@@ -769,7 +827,8 @@ fn one_per_family(fonts: Vec<stl_sketch::text::FontInfo>) -> Vec<(String, std::p
         if out.iter().any(|(fam, _)| *fam == f.family) {
             continue;
         }
-        let path = stl_sketch::text::fonts::font_path_among(&fonts, Some(&f.family), false, false).unwrap_or_else(|_| f.path.clone());
+        let path = stl_sketch::text::fonts::font_path_among(&fonts, Some(&f.family), false, false)
+            .unwrap_or_else(|_| f.path.clone());
         out.push((f.family.clone(), path));
     }
     out
@@ -834,15 +893,26 @@ fn sfnt_names(d: &[u8]) -> Option<Vec<(u16, u16, u16, u16, String)>> {
     let mut out = Vec::new();
     for i in 0..records {
         let r = add(add(n, 6)?, mul(12, i)?)?;
-        let (plat, enc, lang, id) = (u16_at(r)?, u16_at(add(r, 2)?)?, u16_at(add(r, 4)?)?, u16_at(add(r, 6)?)?);
+        let (plat, enc, lang, id) = (
+            u16_at(r)?,
+            u16_at(add(r, 2)?)?,
+            u16_at(add(r, 4)?)?,
+            u16_at(add(r, 6)?)?,
+        );
         let (len, off) = (u16_at(add(r, 8)?)? as usize, u16_at(add(r, 10)?)? as usize);
-        let Some(raw) = add(strings, off).and_then(|o| span(o, len)) else { continue };
+        let Some(raw) = add(strings, off).and_then(|o| span(o, len)) else {
+            continue;
+        };
         let text = match plat {
             0 | 3 => {
                 let units: Vec<u16> = raw.chunks_exact(2).map(|c| u16::from_be_bytes([c[0], c[1]])).collect();
                 String::from_utf16(&units).ok()
             }
-            1 if enc == 0 => Some(raw.iter().map(|&b| if b < 128 { b as char } else { '\u{FFFD}' }).collect()),
+            1 if enc == 0 => Some(
+                raw.iter()
+                    .map(|&b| if b < 128 { b as char } else { '\u{FFFD}' })
+                    .collect(),
+            ),
             _ => None,
         };
         if let Some(t) = text.filter(|t| !t.trim().is_empty()) {
@@ -860,7 +930,7 @@ fn best_name(names: &[(u16, u16, u16, u16, String)], id: u16) -> Option<String> 
         .find(|n| n.0 == 3 && n.1 == 1 && n.2 == 0x409)
         .or_else(|| of_id().find(|n| n.0 == 3 && n.2 == 0x409))
         .or_else(|| of_id().find(|n| n.0 == 1 && n.2 == 0))
-        .or_else(|| of_id().last())
+        .or_else(|| of_id().next_back())
         .map(|n| n.4.clone())
 }
 

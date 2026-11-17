@@ -37,11 +37,20 @@ fn tube(center: V3, axis: V3, z0: f64, z1: f64, r_in: f64, r_out: f64) -> Solid 
         t = t.difference(&Solid::cylinder(h + 2.0, r_in, r_in, 128, false).translate([0.0, 0.0, -1.0]));
     }
     let axis = unit(axis);
-    let rf = if axis[0].abs() < 0.9 { [1.0, 0.0, 0.0] } else { [0.0, 1.0, 0.0] };
+    let rf = if axis[0].abs() < 0.9 {
+        [1.0, 0.0, 0.0]
+    } else {
+        [0.0, 1.0, 0.0]
+    };
     let ex = unit(cross(axis, rf));
     let ey = cross(axis, ex);
     let o = at(center, axis, z0);
-    t.transform(frame_matrix(&Frame { o, x: ex, y: ey, n: axis }))
+    t.transform(frame_matrix(&Frame {
+        o,
+        x: ex,
+        y: ey,
+        n: axis,
+    }))
 }
 
 pub fn resize_round(s: &Solid, cyl: &Cylinder, diameter: Option<f64>, fill: bool) -> Solid {

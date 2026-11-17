@@ -2,7 +2,7 @@ use serde_json::{Map, Value};
 
 use crate::{FeatureError, State};
 
-pub use stl_kernel::{cross, dot, Frame, Vec3};
+pub use stl_kernel::{Frame, Vec3, cross, dot};
 
 const EPS: f64 = 1e-9;
 
@@ -112,7 +112,16 @@ impl State {
                         Some(Value::Array(a)) => !a.is_empty(),
                         Some(Value::Object(m)) => !m.is_empty(),
                     };
-                    return Ok(if flip { Frame { o: fr.o, x: fr.x, y: neg(fr.y), n: neg(fr.n) } } else { fr });
+                    return Ok(if flip {
+                        Frame {
+                            o: fr.o,
+                            x: fr.x,
+                            y: neg(fr.y),
+                            n: neg(fr.n),
+                        }
+                    } else {
+                        fr
+                    });
                 }
                 Err(invalid())
             }

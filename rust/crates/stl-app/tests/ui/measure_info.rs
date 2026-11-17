@@ -26,7 +26,10 @@ const BLOCK: &str = "f3";
 fn on_block(h: &H, p: [f64; 3]) -> Pos2 {
     let at = h.state().viewport.world_to_screen(p);
     let hit = h.state().viewport.pick(at, true, false);
-    assert!(matches!(&hit, Some(Hit::Body { id, .. }) if id == BLOCK), "the spot {p:?} is on the block: {hit:?}");
+    assert!(
+        matches!(&hit, Some(Hit::Body { id, .. }) if id == BLOCK),
+        "the spot {p:?} is on the block: {hit:?}"
+    );
     at
 }
 
@@ -35,7 +38,10 @@ fn number(s: &str) -> f64 {
 }
 
 fn row(rows: &[(String, String)], label: &str) -> String {
-    rows.iter().find(|(l, _)| l == label).map(|(_, v)| v.clone()).unwrap_or_else(|| panic!("no {label} row in {rows:?}"))
+    rows.iter()
+        .find(|(l, _)| l == label)
+        .map(|(_, v)| v.clone())
+        .unwrap_or_else(|| panic!("no {label} row in {rows:?}"))
 }
 
 /// The ribbon's Measure button opens the panel and asks for two points; Done closes it.
@@ -60,7 +66,10 @@ fn ribbon_properties_opens_its_panel() {
     h.get_by_label("Properties").click();
     h.run_steps(3);
     assert!(h.state().info_open(), "the ribbon's Properties opens Properties");
-    assert!(h.query_by_label("Click a body to see its size, volume and triangle count.").is_some());
+    assert!(
+        h.query_by_label("Click a body to see its size, volume and triangle count.")
+            .is_some()
+    );
     h.get_by_label("Close").click();
     h.run_steps(2);
     assert!(!h.state().info_open());
@@ -100,7 +109,8 @@ fn two_picks_give_the_distance_and_a_third_starts_again() {
 
     // the line is the distance between the points really picked
     let pts = h.state().measure_points().to_vec();
-    let d = ((pts[1][0] - pts[0][0]).powi(2) + (pts[1][1] - pts[0][1]).powi(2) + (pts[1][2] - pts[0][2]).powi(2)).sqrt();
+    let d =
+        ((pts[1][0] - pts[0][0]).powi(2) + (pts[1][1] - pts[0][1]).powi(2) + (pts[1][2] - pts[0][2]).powi(2)).sqrt();
     assert!((number(&row(&rows, "Distance")) - d).abs() < 0.001);
 
     // a third click starts again with Point 1
@@ -138,26 +148,37 @@ fn properties_shows_the_blocks_volume_in_cm3_and_in3() {
     // clicking a body while Properties is open shows that body
     let at = on_block(&h, [3.0, 17.0, 10.0]);
     click_at(&mut h, at);
-    wait_for(&mut h, &link, "the block's properties", |h| h.state().info_readout().is_some());
+    wait_for(&mut h, &link, "the block's properties", |h| {
+        h.state().info_readout().is_some()
+    });
     let (name, rows) = h.state().info_readout().unwrap();
     assert_eq!(name, "holed_block");
     assert_eq!(row(&rows, "Watertight"), "✔ Yes");
     assert_eq!(row(&rows, "Size (X×Y×Z)"), "30 × 20 × 10 mm");
     let cm3 = vol_mm3 / 1000.0;
     assert!(row(&rows, "Volume").ends_with(" cm³"), "{rows:?}");
-    assert!((number(&row(&rows, "Volume")) - cm3).abs() < 0.01, "{rows:?}: expected {cm3} cm³");
+    assert!(
+        (number(&row(&rows, "Volume")) - cm3).abs() < 0.01,
+        "{rows:?}: expected {cm3} cm³"
+    );
     assert!((number(&row(&rows, "Weight (PLA)")) - cm3 * 1.24).abs() < 0.02);
     assert!((number(&row(&rows, "Weight (PETG)")) - cm3 * 1.27).abs() < 0.02);
     assert!(row(&rows, "Surface area").ends_with(" cm²"));
     assert!(rows.iter().any(|(l, _)| l == "Through-holes"));
     assert!(h.query_by_label("Volume").is_some(), "the panel draws the rows");
-    assert!(h.state().shell.selection == [BLOCK.to_owned()], "the click selected the block");
+    assert!(
+        h.state().shell.selection == [BLOCK.to_owned()],
+        "the click selected the block"
+    );
 
     h.state_mut().set_units_inch(true);
     h.run_steps(2);
     let (_, rows) = h.state().info_readout().unwrap();
     assert!(row(&rows, "Volume").ends_with(" in³"), "{rows:?}");
-    assert!((number(&row(&rows, "Volume")) - vol_mm3 / 16387.064).abs() < 0.001, "{rows:?}");
+    assert!(
+        (number(&row(&rows, "Volume")) - vol_mm3 / 16387.064).abs() < 0.001,
+        "{rows:?}"
+    );
     assert!(row(&rows, "Surface area").ends_with(" in²"));
     assert!(row(&rows, "Size (X×Y×Z)").ends_with(" in"));
 }

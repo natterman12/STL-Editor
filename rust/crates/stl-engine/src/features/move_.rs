@@ -1,6 +1,6 @@
 use serde_json::{Map, Value};
 
-use super::common::{affine, pivot, rotation, transform_body, Vec3};
+use super::common::{Vec3, affine, pivot, rotation, transform_body};
 use crate::state::Body;
 use crate::{Ctx, FeatureError, FeatureResult, Registry, State};
 
@@ -26,9 +26,12 @@ fn vec3(p: &Map<String, Value>, k: &str, default: Vec3) -> Result<Vec3, FeatureE
     match p.get(k) {
         None | Some(Value::Null) => Ok(default),
         Some(Value::Array(a)) if a.len() == 3 => Ok([
-            a[0].as_f64().ok_or_else(|| FeatureError(format!("{k} must be a number.")))?,
-            a[1].as_f64().ok_or_else(|| FeatureError(format!("{k} must be a number.")))?,
-            a[2].as_f64().ok_or_else(|| FeatureError(format!("{k} must be a number.")))?,
+            a[0].as_f64()
+                .ok_or_else(|| FeatureError(format!("{k} must be a number.")))?,
+            a[1].as_f64()
+                .ok_or_else(|| FeatureError(format!("{k} must be a number.")))?,
+            a[2].as_f64()
+                .ok_or_else(|| FeatureError(format!("{k} must be a number.")))?,
         ]),
         _ => Err(FeatureError(format!("{k} must be a number."))),
     }
@@ -53,7 +56,10 @@ fn min_z(b: &Body) -> f64 {
         (None, Some(m)) => m.as_ref(),
         (None, None) => return 0.0,
     };
-    mesh.positions.chunks_exact(3).map(|p| p[2] as f64).fold(f64::INFINITY, f64::min)
+    mesh.positions
+        .chunks_exact(3)
+        .map(|p| p[2] as f64)
+        .fold(f64::INFINITY, f64::min)
 }
 
 fn f_move(
@@ -93,7 +99,11 @@ fn f_move(
             }
         }
         if do_copy {
-            let nid = if bids.len() == 1 { fid.to_string() } else { format!("{fid}.{}", i + 1) };
+            let nid = if bids.len() == 1 {
+                fid.to_string()
+            } else {
+                format!("{fid}.{}", i + 1)
+            };
             nb.name = format!("{} (copy)", b.name);
             state.bodies.insert(nid.clone(), nb);
             res.created.push(nid);

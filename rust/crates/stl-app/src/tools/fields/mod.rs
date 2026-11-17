@@ -12,22 +12,22 @@ use serde_json::Value;
 use crate::theme::Tokens;
 use crate::tools::{Ctx, Field, Values};
 
-pub mod number;
-pub mod select;
-pub mod r#bool;
-pub mod vec3;
-pub mod text;
-pub mod bodies;
-pub mod plane;
-pub mod sketch;
-pub mod regions;
-pub mod place_refs;
-pub mod features;
-pub mod facepoints;
-pub mod pface;
-pub mod cylface;
-pub mod points3;
 pub mod axisline;
+pub mod bodies;
+pub mod r#bool;
+pub mod cylface;
+pub mod facepoints;
+pub mod features;
+pub mod number;
+pub mod pface;
+pub mod place_refs;
+pub mod plane;
+pub mod points3;
+pub mod regions;
+pub mod select;
+pub mod sketch;
+pub mod text;
+pub mod vec3;
 
 /// `.field { grid-template-columns: 92px 1fr; gap: 6px }`.
 pub const LABEL_W: f32 = 92.0;
@@ -65,14 +65,22 @@ pub fn row<R>(ui: &mut Ui, env: &FieldEnv, f: &Field, wide: bool, ctl: impl FnOn
 }
 
 /// [`row`] without a `Field` (the Support Fins form has its own field records).
-pub fn row_raw<R>(ui: &mut Ui, tk: &Tokens, label: &str, help: Option<&str>, wide: bool, ctl: impl FnOnce(&mut Ui, f32) -> R) -> R {
+pub fn row_raw<R>(
+    ui: &mut Ui,
+    tk: &Tokens,
+    label: &str,
+    help: Option<&str>,
+    wide: bool,
+    ctl: impl FnOnce(&mut Ui, f32) -> R,
+) -> R {
     ui.allocate_ui_with_layout(Vec2::new(FORM_W, ROW_H), Layout::left_to_right(Align::Center), |ui| {
         ui.spacing_mut().item_spacing = Vec2::new(GAP, 4.0);
         ui.set_min_height(ROW_H);
         if wide {
             let r = ctl(ui, FORM_W);
             if let Some(h) = help {
-                ui.interact(ui.min_rect(), ui.scope_id().with("help"), Sense::hover()).on_hover_text(h);
+                ui.interact(ui.min_rect(), ui.scope_id().with("help"), Sense::hover())
+                    .on_hover_text(h);
             }
             return r;
         }
@@ -101,12 +109,25 @@ pub fn row_raw<R>(ui: &mut Ui, tk: &Tokens, label: &str, help: Option<&str>, wid
 pub fn help_mark(ui: &mut Ui, tk: &Tokens, text: &str) {
     let (r, resp) = ui.allocate_exact_size(Vec2::splat(14.0), Sense::hover());
     ui.painter().circle_stroke(r.center(), 6.5, Stroke::new(1.0, tk.line));
-    ui.painter().text(r.center(), egui::Align2::CENTER_CENTER, "?", egui::FontId::proportional(9.5), tk.muted);
+    ui.painter().text(
+        r.center(),
+        egui::Align2::CENTER_CENTER,
+        "?",
+        egui::FontId::proportional(9.5),
+        tk.muted,
+    );
     resp.on_hover_text(text);
 }
 
 /// `.field select`: a bordered box in the input colours with a chevron; the list opens under it.
-pub fn framed_combo(ui: &mut Ui, tk: &Tokens, salt: impl std::hash::Hash + std::fmt::Debug, width: f32, selected: &str, list: impl FnOnce(&mut Ui)) {
+pub fn framed_combo(
+    ui: &mut Ui,
+    tk: &Tokens,
+    salt: impl std::hash::Hash + std::fmt::Debug,
+    width: f32,
+    selected: &str,
+    list: impl FnOnce(&mut Ui),
+) {
     let (input, line, accent, text, muted) = (tk.input, tk.input_line, tk.accent, tk.text, tk.muted);
     ui.scope(|ui| {
         let sp = ui.spacing_mut();
@@ -114,7 +135,12 @@ pub fn framed_combo(ui: &mut Ui, tk: &Tokens, salt: impl std::hash::Hash + std::
         sp.interact_size.y = 24.0;
         let v = ui.visuals_mut();
         let rr = CornerRadius::same(tk.radius_sm as u8);
-        for (w, stroke) in [(&mut v.widgets.inactive, line), (&mut v.widgets.hovered, line), (&mut v.widgets.active, accent), (&mut v.widgets.open, accent)] {
+        for (w, stroke) in [
+            (&mut v.widgets.inactive, line),
+            (&mut v.widgets.hovered, line),
+            (&mut v.widgets.active, accent),
+            (&mut v.widgets.open, accent),
+        ] {
             w.weak_bg_fill = input;
             w.bg_fill = input;
             w.bg_stroke = Stroke::new(1.0, stroke);
@@ -130,8 +156,10 @@ pub fn framed_combo(ui: &mut Ui, tk: &Tokens, salt: impl std::hash::Hash + std::
                 let c = rect.center();
                 let d = if open { -1.0 } else { 1.0 };
                 let st = Stroke::new(1.4, muted);
-                ui.painter().line_segment([c + Vec2::new(-3.5, -1.5 * d), c + Vec2::new(0.0, 1.5 * d)], st);
-                ui.painter().line_segment([c + Vec2::new(0.0, 1.5 * d), c + Vec2::new(3.5, -1.5 * d)], st);
+                ui.painter()
+                    .line_segment([c + Vec2::new(-3.5, -1.5 * d), c + Vec2::new(0.0, 1.5 * d)], st);
+                ui.painter()
+                    .line_segment([c + Vec2::new(0.0, 1.5 * d), c + Vec2::new(3.5, -1.5 * d)], st);
             })
             .show_ui(ui, list);
     });
@@ -150,10 +178,18 @@ pub fn check_box(ui: &mut Ui, tk: &Tokens, on: &mut bool) -> egui::Response {
         ui.painter().rect_filled(b, rr, tk.accent);
         let c = b.center();
         let st = Stroke::new(1.8, Color32::WHITE);
-        ui.painter().line_segment([c + Vec2::new(-3.5, 0.0), c + Vec2::new(-1.0, 2.8)], st);
-        ui.painter().line_segment([c + Vec2::new(-1.0, 2.8), c + Vec2::new(3.8, -2.8)], st);
+        ui.painter()
+            .line_segment([c + Vec2::new(-3.5, 0.0), c + Vec2::new(-1.0, 2.8)], st);
+        ui.painter()
+            .line_segment([c + Vec2::new(-1.0, 2.8), c + Vec2::new(3.8, -2.8)], st);
     } else {
-        ui.painter().rect(b, rr, tk.input, Stroke::new(1.0, if resp.hovered() { tk.accent } else { tk.input_line }), egui::StrokeKind::Inside);
+        ui.painter().rect(
+            b,
+            rr,
+            tk.input,
+            Stroke::new(1.0, if resp.hovered() { tk.accent } else { tk.input_line }),
+            egui::StrokeKind::Inside,
+        );
     }
     let v = *on;
     resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::CheckBox, true, v, ""));
@@ -162,9 +198,19 @@ pub fn check_box(ui: &mut Ui, tk: &Tokens, on: &mut bool) -> egui::Response {
 
 /// `.seg`: one bordered strip of buttons that share the width by their text. `Some(key)` when a
 /// button was clicked.
-pub fn seg_strip(ui: &mut Ui, tk: &Tokens, id: egui::Id, w: f32, pairs: &[(String, String)], cur: &str) -> Option<String> {
+pub fn seg_strip(
+    ui: &mut Ui,
+    tk: &Tokens,
+    id: egui::Id,
+    w: f32,
+    pairs: &[(String, String)],
+    cur: &str,
+) -> Option<String> {
     let font = egui::FontId::proportional(11.0);
-    let nat: Vec<f32> = pairs.iter().map(|(_, l)| ui.fonts_mut(|f| f.layout_no_wrap(l.clone(), font.clone(), Color32::WHITE).size().x) + 7.0).collect();
+    let nat: Vec<f32> = pairs
+        .iter()
+        .map(|(_, l)| ui.fonts_mut(|f| f.layout_no_wrap(l.clone(), font.clone(), Color32::WHITE).size().x) + 7.0)
+        .collect();
     let extra = ((w - 2.0 - nat.iter().sum::<f32>()) / pairs.len().max(1) as f32).max(0.0);
     let (rect, _) = ui.allocate_exact_size(Vec2::new(w, 24.0), Sense::hover());
     let rr = CornerRadius::same(tk.radius_sm as u8);
@@ -177,25 +223,47 @@ pub fn seg_strip(ui: &mut Ui, tk: &Tokens, id: egui::Id, w: f32, pairs: &[(Strin
         let resp = ui.interact(br, id.with(k.as_str()), Sense::click());
         let on = *k == cur;
         resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::Button, true, on, l.clone()));
-        let fill = if on { Some(tk.sel) } else if resp.hovered() { Some(tk.hover) } else { None };
+        let fill = if on {
+            Some(tk.sel)
+        } else if resp.hovered() {
+            Some(tk.hover)
+        } else {
+            None
+        };
         if let Some(c) = fill {
             ui.painter().rect_filled(br, 0.0, c);
         }
-        ui.painter().text(br.center(), egui::Align2::CENTER_CENTER, l, font.clone(), if on { tk.sel_text } else { tk.text });
+        ui.painter().text(
+            br.center(),
+            egui::Align2::CENTER_CENTER,
+            l,
+            font.clone(),
+            if on { tk.sel_text } else { tk.text },
+        );
         if i + 1 < pairs.len() {
-            ui.painter().vline(br.max.x, br.y_range(), Stroke::new(1.0, tk.input_line));
+            ui.painter()
+                .vline(br.max.x, br.y_range(), Stroke::new(1.0, tk.input_line));
         }
         if resp.clicked() {
             pick = Some(k.clone());
         }
         x += bw;
     }
-    ui.painter().rect_stroke(rect, rr, Stroke::new(1.0, tk.input_line), egui::StrokeKind::Inside);
+    ui.painter()
+        .rect_stroke(rect, rr, Stroke::new(1.0, tk.input_line), egui::StrokeKind::Inside);
     pick
 }
 
 /// A bordered text box in the form's style (`.field input`). Returns the response.
-pub fn input_box(ui: &mut Ui, tk: &Tokens, buf: &mut String, id: egui::Id, width: f32, font: egui::FontId, colour: Color32) -> egui::Response {
+pub fn input_box(
+    ui: &mut Ui,
+    tk: &Tokens,
+    buf: &mut String,
+    id: egui::Id,
+    width: f32,
+    font: egui::FontId,
+    colour: Color32,
+) -> egui::Response {
     let focused = ui.memory(|m| m.has_focus(id));
     ui.scope(|ui| {
         let v = ui.visuals_mut();
@@ -207,13 +275,28 @@ pub fn input_box(ui: &mut Ui, tk: &Tokens, buf: &mut String, id: egui::Id, width
         v.override_text_color = Some(colour);
         let resp = ui.add_sized(
             [width, 24.0],
-            egui::TextEdit::singleline(buf).id(id).font(font).margin(egui::Margin::symmetric(5, 4)).text_color(colour).align(egui::Align2::LEFT_CENTER),
+            egui::TextEdit::singleline(buf)
+                .id(id)
+                .font(font)
+                .margin(egui::Margin::symmetric(5, 4))
+                .text_color(colour)
+                .align(egui::Align2::LEFT_CENTER),
         );
         if focused {
             // :focus { border-color: accent; box-shadow: 0 0 0 2px accent-soft }
             let r = resp.rect;
-            ui.painter().rect_stroke(r.expand(1.0), CornerRadius::same(tk.radius_sm as u8 + 1), Stroke::new(2.0, tk.accent_soft), egui::StrokeKind::Outside);
-            ui.painter().rect_stroke(r, CornerRadius::same(tk.radius_sm as u8), Stroke::new(1.0, tk.accent), egui::StrokeKind::Inside);
+            ui.painter().rect_stroke(
+                r.expand(1.0),
+                CornerRadius::same(tk.radius_sm as u8 + 1),
+                Stroke::new(2.0, tk.accent_soft),
+                egui::StrokeKind::Outside,
+            );
+            ui.painter().rect_stroke(
+                r,
+                CornerRadius::same(tk.radius_sm as u8),
+                Stroke::new(1.0, tk.accent),
+                egui::StrokeKind::Inside,
+            );
         }
         resp
     })
@@ -222,7 +305,17 @@ pub fn input_box(ui: &mut Ui, tk: &Tokens, buf: &mut String, id: egui::Id, width
 
 /// A text box over `shown`: a change fires when the box loses focus (1.x's `change` event, which
 /// is also what Enter does). Returns the typed text when it should be taken.
-pub fn text_commit(ui: &mut Ui, tk: &Tokens, bufs: &mut Bufs, key: &str, shown: &str, width: f32, font: egui::FontId, colour: Color32, tip: Option<String>) -> Option<String> {
+pub fn text_commit(
+    ui: &mut Ui,
+    tk: &Tokens,
+    bufs: &mut Bufs,
+    key: &str,
+    shown: &str,
+    width: f32,
+    font: egui::FontId,
+    colour: Color32,
+    tip: Option<String>,
+) -> Option<String> {
     let id = egui::Id::unique(("tool-field", key));
     let focused = ui.memory(|m| m.has_focus(id));
     let buf = bufs.entry(key.to_owned()).or_default();
@@ -242,13 +335,27 @@ pub fn text_commit(ui: &mut Ui, tk: &Tokens, bufs: &mut Bufs, key: &str, shown: 
 /// A small muted unit label (`.field .unit`: 11 px, 22 px wide).
 pub fn unit_label(ui: &mut Ui, tk: &Tokens, text: &str) {
     let (r, _) = ui.allocate_exact_size(Vec2::new(22.0, 16.0), Sense::hover());
-    ui.painter().text(Rect::from_min_size(r.min, Vec2::new(22.0, 16.0)).left_center(), egui::Align2::LEFT_CENTER, text, egui::FontId::proportional(11.0), tk.muted);
+    ui.painter().text(
+        Rect::from_min_size(r.min, Vec2::new(22.0, 16.0)).left_center(),
+        egui::Align2::LEFT_CENTER,
+        text,
+        egui::FontId::proportional(11.0),
+        tk.muted,
+    );
 }
 
 /// A pick-kind field (Task 3's `bodies::show_pick` draws the control). The label column is drawn
 /// here, as `fieldHTML` does; the `features` checklist is a wide field that draws its own label.
 /// `None` when the field is not one of the ten pick kinds.
-pub fn pick_field(ui: &mut Ui, env: &FieldEnv, f: &Field, values: &mut Values, active: &mut Option<String>, ctx: &Ctx, edit_id: Option<&str>) -> Option<bodies::ShowOut> {
+pub fn pick_field(
+    ui: &mut Ui,
+    env: &FieldEnv,
+    f: &Field,
+    values: &mut Values,
+    active: &mut Option<String>,
+    ctx: &Ctx,
+    edit_id: Option<&str>,
+) -> Option<bodies::ShowOut> {
     use crate::tools::FieldKind as K;
     if !matches!(
         f.kind,
@@ -268,5 +375,7 @@ pub fn pick_field(ui: &mut Ui, env: &FieldEnv, f: &Field, values: &mut Values, a
     if matches!(f.kind, K::Features) {
         return bodies::show_pick(ui, env.tk, f, values, active, ctx, edit_id);
     }
-    row(ui, env, f, false, |ui, _| bodies::show_pick(ui, env.tk, f, values, active, ctx, edit_id))
+    row(ui, env, f, false, |ui, _| {
+        bodies::show_pick(ui, env.tk, f, values, active, ctx, edit_id)
+    })
 }

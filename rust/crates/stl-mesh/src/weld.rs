@@ -5,7 +5,11 @@
 /// values become `i64::MIN` (what x86 numpy gives).
 fn quantise(v: f64, tol: f64) -> i64 {
     let r = (v / tol).round_ties_even();
-    if r.is_finite() && r.abs() < 9.223372036854775e18 { r as i64 } else { i64::MIN }
+    if r.is_finite() && r.abs() < 9.223372036854775e18 {
+        r as i64
+    } else {
+        i64::MIN
+    }
 }
 
 /// `positions` is flat xyz, `triangles` flat vertex indices. Returns the welded positions

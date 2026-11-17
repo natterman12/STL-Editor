@@ -52,9 +52,20 @@ fn tap_import_select_double_tap_draw() {
         sketch_add_rect(&mut h, "r0", -10.0, -5.0, 20.0, 10.0);
     }
     assert!(
-        h.state().sketch().unwrap().entities.iter().any(|e| matches!(e, stl_app::sketch::Entity::Rect(_))),
+        h.state()
+            .sketch()
+            .unwrap()
+            .entities
+            .iter()
+            .any(|e| matches!(e, stl_app::sketch::Entity::Rect(_))),
         "rect drawn by taps: {:?}",
-        h.state().sketch().unwrap().entities.iter().map(|e| e.kind()).collect::<Vec<_>>()
+        h.state()
+            .sketch()
+            .unwrap()
+            .entities
+            .iter()
+            .map(|e| e.kind())
+            .collect::<Vec<_>>()
     );
     assert!(h.query_by_label("Finish Sketch").is_some());
 }

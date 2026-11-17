@@ -7,7 +7,7 @@ use serde_json::Value;
 use stl_kernel::{MeshArrays, Solid};
 
 use super::{
-    call, call_json, caches, decode_triangles, mesh_key, options, parse_json, soup, truthy, Cached, MeshData, P3,
+    Cached, MeshData, P3, caches, call, call_json, decode_triangles, mesh_key, options, parse_json, soup, truthy,
 };
 use crate::{FeatureError, FinsHost};
 
@@ -58,7 +58,11 @@ fn where_of(v: &[P3]) -> (P3, P3) {
         }
     }
     (
-        [round3((lo[0] + hi[0]) / 2.0), round3((lo[1] + hi[1]) / 2.0), round3((lo[2] + hi[2]) / 2.0)],
+        [
+            round3((lo[0] + hi[0]) / 2.0),
+            round3((lo[1] + hi[1]) / 2.0),
+            round3((lo[2] + hi[2]) / 2.0),
+        ],
         [round3(hi[0] - lo[0]), round3(hi[1] - lo[1]), round3(hi[2] - lo[2])],
     )
 }
@@ -80,7 +84,11 @@ pub fn match_removed(pieces: &[Piece], removed: Option<&Value>) -> (BTreeSet<usi
             }
             let d = p.c.iter().zip(&rc).map(|(a, b)| (a - b) * (a - b)).sum::<f64>().sqrt();
             let ds = if truthy(r.get("size")) {
-                p.size.iter().zip(&rsize).map(|(a, b)| (a - b).abs()).fold(0.0, f64::max)
+                p.size
+                    .iter()
+                    .zip(&rsize)
+                    .map(|(a, b)| (a - b).abs())
+                    .fold(0.0, f64::max)
             } else {
                 0.0
             };
@@ -104,7 +112,10 @@ fn solid_from_arrays(v: &[f64], f: &[u32]) -> Option<Solid> {
     if f.is_empty() {
         return None;
     }
-    let mesh = MeshArrays { positions: v.iter().map(|x| *x as f32).collect(), triangles: f.to_vec() };
+    let mesh = MeshArrays {
+        positions: v.iter().map(|x| *x as f32).collect(),
+        triangles: f.to_vec(),
+    };
     Solid::from_mesh(&mesh).ok().filter(|s| !s.is_empty())
 }
 
@@ -151,13 +162,23 @@ fn shells(v: &[f64], f: &[u32]) -> Vec<(Vec<f64>, Vec<u32>)> {
     groups
         .into_iter()
         .map(|g| {
-            let mut used: Vec<u32> = g.iter().flat_map(|&t| f[3 * t as usize..3 * t as usize + 3].iter().copied()).collect();
+            let mut used: Vec<u32> = g
+                .iter()
+                .flat_map(|&t| f[3 * t as usize..3 * t as usize + 3].iter().copied())
+                .collect();
             used.sort_unstable();
             used.dedup();
-            let mut sv: Vec<f64> = used.iter().flat_map(|&i| v[3 * i as usize..3 * i as usize + 3].iter().copied()).collect();
+            let mut sv: Vec<f64> = used
+                .iter()
+                .flat_map(|&i| v[3 * i as usize..3 * i as usize + 3].iter().copied())
+                .collect();
             let mut sf: Vec<u32> = g
                 .iter()
-                .flat_map(|&t| f[3 * t as usize..3 * t as usize + 3].iter().map(|i| used.binary_search(i).unwrap_or(0) as u32))
+                .flat_map(|&t| {
+                    f[3 * t as usize..3 * t as usize + 3]
+                        .iter()
+                        .map(|i| used.binary_search(i).unwrap_or(0) as u32)
+                })
                 .collect();
             if sf.len() / 3 >= 4 {
                 stl_mesh::fill_holes(&mut sv, &mut sf);
@@ -195,7 +216,10 @@ pub fn solids(
         let (v, f) = stl_mesh::weld(&pos, &idx, 1e-5);
         let mut m = solid_from_arrays(&v, &f);
         if m.is_none() {
-            let parts: Vec<Solid> = shells(&v, &f).iter().filter_map(|(sv, sf)| solid_from_arrays(sv, sf)).collect();
+            let parts: Vec<Solid> = shells(&v, &f)
+                .iter()
+                .filter_map(|(sv, sf)| solid_from_arrays(sv, sf))
+                .collect();
             if !parts.is_empty() {
                 m = Some(Solid::union_all(&parts));
             }
@@ -222,7 +246,11 @@ pub fn solids(
 fn parse_raw(host: &dyn FinsHost, text: &str) -> Result<RawFins, FeatureError> {
     let r = parse_json(text)?;
     let stats = r.get("stats").cloned().unwrap_or(Value::Null);
-    let report = call_json(host, "reportLine", &[&serde_json::to_string(&stats).unwrap_or_default()])?;
+    let report = call_json(
+        host,
+        "reportLine",
+        &[&serde_json::to_string(&stats).unwrap_or_default()],
+    )?;
     let off = |k: &str| r["offset"].get(k).and_then(Value::as_f64).unwrap_or(0.0);
     let pieces = r["pieces"]
         .as_array()
@@ -263,7 +291,11 @@ pub fn fins(host: &dyn FinsHost, mesh: &MeshData, values: &Value) -> Result<Fins
         _ => {
             let text = call(host, "computeFinsB64", &[&soup(mesh), &opts])?;
             let r = Arc::new(parse_raw(host, &text)?);
-            caches().lock().unwrap_or_else(|e| e.into_inner()).fins.put(key, Cached::Fins(r.clone()));
+            caches()
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .fins
+                .put(key, Cached::Fins(r.clone()));
             r
         }
     };
@@ -274,7 +306,13 @@ pub fn fins(host: &dyn FinsHost, mesh: &MeshData, values: &Value) -> Result<Fins
         .pieces
         .iter()
         .zip(&info)
-        .filter_map(|(p, w)| w.map(|(c, size)| Piece { kind: p.0.clone(), c, size }))
+        .filter_map(|(p, w)| {
+            w.map(|(c, size)| Piece {
+                kind: p.0.clone(),
+                c,
+                size,
+            })
+        })
         .collect();
     Ok(FinsResult {
         solids,

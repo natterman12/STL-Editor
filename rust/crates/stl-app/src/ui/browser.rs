@@ -45,7 +45,11 @@ pub struct Browser {
 
 impl Browser {
     pub fn with_rename(id: impl Into<String>, text: impl Into<String>) -> Self {
-        Self { rename_id: Some(id.into()), rename_text: text.into(), ..Default::default() }
+        Self {
+            rename_id: Some(id.into()),
+            rename_text: text.into(),
+            ..Default::default()
+        }
     }
 
     /// The Rename or Colour window is open.
@@ -99,7 +103,10 @@ fn fmt_triangles(n: usize) -> String {
 /// `.panel-title` and `.tnode.folder` are `font-weight: 600`. egui's `strong()` only
 /// changes the colour, so the weight is the bold family (Selawik Bold stands in for Semibold).
 fn bold(text: impl Into<String>, color: Color32, size: f32) -> RichText {
-    RichText::new(text).color(color).size(size).font(egui::FontId::new(size, egui::FontFamily::Name("bold".into())))
+    RichText::new(text)
+        .color(color)
+        .size(size)
+        .font(egui::FontId::new(size, egui::FontFamily::Name("bold".into())))
 }
 
 /// `.tnode .nm { flex: 1 }` pushes `.tag` to the right, 8 px in from the row's edge.
@@ -107,12 +114,24 @@ fn row_tag(ui: &mut Ui, text: &str, color: Color32, bad: bool) {
     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
         ui.spacing_mut().item_spacing.x = 0.0;
         ui.add_space(8.0);
-        let label = if bad { bold(text, color, 10.5) } else { RichText::new(text).color(color).size(10.5) };
+        let label = if bad {
+            bold(text, color, 10.5)
+        } else {
+            RichText::new(text).color(color).size(10.5)
+        };
         ui.label(label);
     });
 }
 
-fn eye_btn(ui: &mut Ui, ctx: &Context, tokens: &Tokens, salt: &str, hidden: bool, tip_show: &str, tip_hide: &str) -> egui::Response {
+fn eye_btn(
+    ui: &mut Ui,
+    ctx: &Context,
+    tokens: &Tokens,
+    salt: &str,
+    hidden: bool,
+    tip_show: &str,
+    tip_hide: &str,
+) -> egui::Response {
     let eye_name = if hidden { "eye_off" } else { "eye" };
     let tip = if hidden { tip_show } else { tip_hide };
     // `push_id(..).response` is the scope's own hover-only response; the button is `.inner`.
@@ -148,7 +167,12 @@ fn row_pick(ui: &Ui, row: egui::Rect, buttons: &[egui::Rect]) -> RowPick {
     });
     let on_row = |p: egui::Pos2| row.contains(p) && !buttons.iter().any(|b| b.contains(p));
     match at.filter(|p| on_row(*p)) {
-        Some(p) if click || double || secondary => RowPick { at: Some(p), click, double, secondary },
+        Some(p) if click || double || secondary => RowPick {
+            at: Some(p),
+            click,
+            double,
+            secondary,
+        },
         _ => RowPick::default(),
     }
 }
@@ -169,72 +193,94 @@ fn body_row(
     let solid = b.solid;
     // `.tnode.selected` paints the whole row, not a chip behind the name.
     let width = ui.available_width();
-    let (row, name, buttons) = egui::Frame::new().fill(if selected { tokens.sel } else { Color32::TRANSPARENT }).show(ui, |ui| {
-        ui.set_width(width);
-        ui.spacing_mut().button_padding = egui::vec2(0.0, 0.0);
-        let mut buttons: Vec<egui::Rect> = Vec::new();
-        let hz = ui.horizontal(|ui| {
-            ui.set_min_width(width);
-            // padding-left is the indent; the 6 px is `.tnode { gap: 6px }` before the eye
-            ui.spacing_mut().item_spacing.x = 6.0;
-            ui.add_space(if indent > 6.0 { indent - 6.0 } else { 0.0 });
+    let (row, name, buttons) = egui::Frame::new()
+        .fill(if selected { tokens.sel } else { Color32::TRANSPARENT })
+        .show(ui, |ui| {
+            ui.set_width(width);
+            ui.spacing_mut().button_padding = egui::vec2(0.0, 0.0);
+            let mut buttons: Vec<egui::Rect> = Vec::new();
+            let hz = ui.horizontal(|ui| {
+                ui.set_min_width(width);
+                // padding-left is the indent; the 6 px is `.tnode { gap: 6px }` before the eye
+                ui.spacing_mut().item_spacing.x = 6.0;
+                ui.add_space(if indent > 6.0 { indent - 6.0 } else { 0.0 });
 
-        let (show_tip, hide_tip) = (format!("Show {}", b.name), format!("Hide {}", b.name));
-        let eye = eye_btn(ui, ctx, tokens, &format!("browser_eye_{}", b.id), b.hidden, &show_tip, &hide_tip);
-        buttons.push(eye.rect);
-        if eye.clicked() {
-            commands.push(Command::BodyProps { id: b.id.clone(), name: None, color: None, hidden: Some(!b.hidden) });
-        }
-
-        let rgb = swatch_rgb(b, index);
-        let swatch = Color32::from_rgb(rgb[0], rgb[1], rgb[2]);
-        let sw_resp = ui
-            .push_id(format!("browser_swatch_{}", b.id), |ui| {
-                // a flat 11 px square (app.css:236); the 3 px corner is the radius 1.x uses there
-                let (rect, resp) = ui.allocate_exact_size(egui::vec2(11.0, 11.0), egui::Sense::click());
-                ui.painter().rect_filled(rect, 3.0, swatch);
-                ui.painter().rect_stroke(
-                    rect,
-                    3.0,
-                    egui::Stroke::new(1.0, Color32::from_black_alpha(64)), // rgba(0,0,0,.25), app.css:236
-                    egui::StrokeKind::Inside,
+                let (show_tip, hide_tip) = (format!("Show {}", b.name), format!("Hide {}", b.name));
+                let eye = eye_btn(
+                    ui,
+                    ctx,
+                    tokens,
+                    &format!("browser_eye_{}", b.id),
+                    b.hidden,
+                    &show_tip,
+                    &hide_tip,
                 );
-                resp
-            })
-            .inner
-            .on_hover_text("Colour");
-        sw_resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, format!("Colour of {}", b.name)));
-        buttons.push(sw_resp.rect);
-        if sw_resp.clicked() {
-            state.colour_id = Some(b.id.clone());
-            state.colour = rgb;
-        }
+                buttons.push(eye.rect);
+                if eye.clicked() {
+                    commands.push(Command::BodyProps {
+                        id: b.id.clone(),
+                        name: None,
+                        color: None,
+                        hidden: Some(!b.hidden),
+                    });
+                }
 
-        let tag = if solid {
-            fmt_triangles(b.mesh.triangles.len() / 3)
-        } else {
-            "needs repair".to_string()
-        };
-        let tag_colour = if solid { tokens.muted } else { tokens.warn };
-        let response = ui
-            .push_id(format!("browser_body_{}", b.id), |ui| {
-                ui.add(
-                    egui::Button::new(RichText::new(&b.name).color(if selected { tokens.sel_text } else { tokens.text }))
-                        .fill(Color32::TRANSPARENT)
-                        .stroke(egui::Stroke::NONE)
-                        .frame(false),
-                )
-            })
-            .inner
-            .on_hover_text(&b.name);
-        // 1.x `.tnode .tag` keeps `--muted`, and `.tag.bad` keeps `--warn`, on a selected row.
-        row_tag(ui, &tag, tag_colour, !solid);
-        response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, &b.name));
-        buttons.push(response.rect);
-        response
-        });
-        (hz.response.rect, hz.inner, buttons)
-    }).inner;
+                let rgb = swatch_rgb(b, index);
+                let swatch = Color32::from_rgb(rgb[0], rgb[1], rgb[2]);
+                let sw_resp = ui
+                    .push_id(format!("browser_swatch_{}", b.id), |ui| {
+                        // a flat 11 px square (app.css:236); the 3 px corner is the radius 1.x uses there
+                        let (rect, resp) = ui.allocate_exact_size(egui::vec2(11.0, 11.0), egui::Sense::click());
+                        ui.painter().rect_filled(rect, 3.0, swatch);
+                        ui.painter().rect_stroke(
+                            rect,
+                            3.0,
+                            egui::Stroke::new(1.0, Color32::from_black_alpha(64)), // rgba(0,0,0,.25), app.css:236
+                            egui::StrokeKind::Inside,
+                        );
+                        resp
+                    })
+                    .inner
+                    .on_hover_text("Colour");
+                sw_resp.widget_info(|| {
+                    egui::WidgetInfo::labeled(egui::Role::Button, true, format!("Colour of {}", b.name))
+                });
+                buttons.push(sw_resp.rect);
+                if sw_resp.clicked() {
+                    state.colour_id = Some(b.id.clone());
+                    state.colour = rgb;
+                }
+
+                let tag = if solid {
+                    fmt_triangles(b.mesh.triangles.len() / 3)
+                } else {
+                    "needs repair".to_string()
+                };
+                let tag_colour = if solid { tokens.muted } else { tokens.warn };
+                let response = ui
+                    .push_id(format!("browser_body_{}", b.id), |ui| {
+                        ui.add(
+                            egui::Button::new(RichText::new(&b.name).color(if selected {
+                                tokens.sel_text
+                            } else {
+                                tokens.text
+                            }))
+                            .fill(Color32::TRANSPARENT)
+                            .stroke(egui::Stroke::NONE)
+                            .frame(false),
+                        )
+                    })
+                    .inner
+                    .on_hover_text(&b.name);
+                // 1.x `.tnode .tag` keeps `--muted`, and `.tag.bad` keeps `--warn`, on a selected row.
+                row_tag(ui, &tag, tag_colour, !solid);
+                response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, &b.name));
+                buttons.push(response.rect);
+                response
+            });
+            (hz.response.rect, hz.inner, buttons)
+        })
+        .inner;
     // the whole row is the click target (spec 2.12): the empty side too; the eye, swatch and name keep their own
     let pick = row_pick(ui, row, &buttons);
     if name.clicked() || pick.click {
@@ -291,7 +337,9 @@ pub fn show(
             format!("{n} bod{}", if n > 1 { "ies" } else { "y" })
         };
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            ui.push_id("browser_count", |ui| ui.label(RichText::new(count).color(tokens.muted).size(11.0)));
+            ui.push_id("browser_count", |ui| {
+                ui.label(RichText::new(count).color(tokens.muted).size(11.0))
+            });
         });
     });
     ui.add_space(4.0);
@@ -314,7 +362,9 @@ pub fn show(
                 !view.origin_visible,
                 "Show origin planes",
                 "Hide origin planes",
-            ).clicked() {
+            )
+            .clicked()
+            {
                 state.origin_toggle = Some(!view.origin_visible);
             }
             ui.label(bold("Origin", tokens.label, 12.0));
@@ -327,7 +377,18 @@ pub fn show(
         });
         for (index, b) in view.bodies.iter().enumerate() {
             let selected = view.selection.contains(&b.id);
-            body_row(ui, ctx, tokens, state, b, selected, index, view.selection, commands, events);
+            body_row(
+                ui,
+                ctx,
+                tokens,
+                state,
+                b,
+                selected,
+                index,
+                view.selection,
+                commands,
+                events,
+            );
         }
 
         if !planes.is_empty() {
@@ -340,7 +401,17 @@ pub fn show(
                 ui.horizontal(|ui| {
                     ui.add_space(8.0 + 14.0 * 2.0);
                     let hidden = !p.visible;
-                    if eye_btn(ui, ctx, tokens, &format!("browser_eye_plane_{}", p.id), hidden, &format!("Show {}", p.name), &format!("Hide {}", p.name)).clicked() {
+                    if eye_btn(
+                        ui,
+                        ctx,
+                        tokens,
+                        &format!("browser_eye_plane_{}", p.id),
+                        hidden,
+                        &format!("Show {}", p.name),
+                        &format!("Hide {}", p.name),
+                    )
+                    .clicked()
+                    {
                         commands.push(Command::BodyProps {
                             id: p.id.clone(),
                             name: None,
@@ -369,7 +440,10 @@ pub fn show(
                     ui.add_space(8.0 + 14.0 * 2.0);
                     let colour = if q.error.is_some() { tokens.danger } else { tokens.text };
                     let r = ui.push_id(format!("browser_param_{}", q.name), |ui| {
-                        ui.add(egui::Label::new(RichText::new(param_row_text(q)).color(colour)).sense(egui::Sense::click()))
+                        ui.add(
+                            egui::Label::new(RichText::new(param_row_text(q)).color(colour))
+                                .sense(egui::Sense::click()),
+                        )
                     });
                     let tip = q.error.as_deref().unwrap_or(q.note.as_str());
                     let r = r.inner;
@@ -395,7 +469,15 @@ pub fn show(
                 let row = ui.horizontal(|ui| {
                     ui.set_min_width(row_w);
                     ui.add_space(8.0 + 14.0 * 2.0);
-                    let eye = eye_btn(ui, ctx, tokens, &format!("browser_eye_sketch_{}", s.id), s.hidden, &format!("Show {}", s.name), &format!("Hide {}", s.name));
+                    let eye = eye_btn(
+                        ui,
+                        ctx,
+                        tokens,
+                        &format!("browser_eye_sketch_{}", s.id),
+                        s.hidden,
+                        &format!("Show {}", s.name),
+                        &format!("Hide {}", s.name),
+                    );
                     if eye.clicked() {
                         commands.push(Command::BodyProps {
                             id: s.id.clone(),
@@ -553,13 +635,16 @@ pub fn show_panel(
     if !is_narrow(window) {
         // 240 wide in all, like `#browser` (220 + the 9 px margins + the 1 px borders). Not inside a
         // `ui.horizontal`: that gives its content one row of height and clips the tree.
-        Area::new(Id::unique("browser-panel")).order(Order::Middle).fixed_pos(ws.min + Vec2::new(8.0, 8.0)).show(ctx, |ui| {
-            frame().inner_margin(Margin::symmetric(9, 6)).show(ui, |ui| {
-                ui.set_width(220.0);
-                ui.set_max_height(max_h);
-                show(ui, ctx, tokens, state, view, commands, events);
+        Area::new(Id::unique("browser-panel"))
+            .order(Order::Middle)
+            .fixed_pos(ws.min + Vec2::new(8.0, 8.0))
+            .show(ctx, |ui| {
+                frame().inner_margin(Margin::symmetric(9, 6)).show(ui, |ui| {
+                    ui.set_width(220.0);
+                    ui.set_max_height(max_h);
+                    show(ui, ctx, tokens, state, view, commands, events);
+                });
             });
-        });
         return;
     }
 
@@ -571,28 +656,34 @@ pub fn show_panel(
     if t > 0.0 {
         // closed it sits `-100% - 16px` to the left, off the window; the slide is CSS `ease`
         let x = ws.min.x + 8.0 - (1.0 - eased) * (outer + 16.0);
-        Area::new(Id::unique("browser-panel")).order(Order::Foreground).fixed_pos(Pos2::new(x, ws.min.y + 8.0)).show(ctx, |ui| {
-            frame().inner_margin(Margin::symmetric(9, 6)).show(ui, |ui| {
-                ui.set_width(outer - PANEL_CHROME_X);
-                ui.set_max_height(max_h);
-                show(ui, ctx, tokens, state, view, commands, events);
+        Area::new(Id::unique("browser-panel"))
+            .order(Order::Foreground)
+            .fixed_pos(Pos2::new(x, ws.min.y + 8.0))
+            .show(ctx, |ui| {
+                frame().inner_margin(Margin::symmetric(9, 6)).show(ui, |ui| {
+                    ui.set_width(outer - PANEL_CHROME_X);
+                    ui.set_max_height(max_h);
+                    show(ui, ctx, tokens, state, view, commands, events);
+                });
+            });
+    }
+    Area::new(Id::unique("browser-toggle"))
+        .order(Order::Foreground)
+        .fixed_pos(Pos2::new(ws.min.x + toggle_x, ws.min.y + 8.0))
+        .show(ctx, |ui| {
+            // `#browser-toggle`: 12 px text, 5 px 10 px padding, panel fill, line border, shadow. Foreground, not
+            // 1.x's z-index 6: 2.0's tool panel is not a bottom sheet on phones yet and would cover it.
+            frame().show(ui, |ui| {
+                ui.spacing_mut().button_padding = egui::vec2(10.0, 5.0);
+                let label = if state.drawer_open { "Close" } else { "Bodies" };
+                let text = RichText::new(label).size(12.0).color(tokens.text);
+                let button = egui::Button::new(text)
+                    .fill(tokens.panel)
+                    .stroke(Stroke::NONE)
+                    .corner_radius(egui::CornerRadius::same(tokens.radius as u8));
+                if ui.add(button).clicked() {
+                    state.drawer_open = !state.drawer_open;
+                }
             });
         });
-    }
-    Area::new(Id::unique("browser-toggle")).order(Order::Foreground).fixed_pos(Pos2::new(ws.min.x + toggle_x, ws.min.y + 8.0)).show(ctx, |ui| {
-        // `#browser-toggle`: 12 px text, 5 px 10 px padding, panel fill, line border, shadow. Foreground, not
-        // 1.x's z-index 6: 2.0's tool panel is not a bottom sheet on phones yet and would cover it.
-        frame().show(ui, |ui| {
-            ui.spacing_mut().button_padding = egui::vec2(10.0, 5.0);
-            let label = if state.drawer_open { "Close" } else { "Bodies" };
-            let text = RichText::new(label).size(12.0).color(tokens.text);
-            let button = egui::Button::new(text)
-                .fill(tokens.panel)
-                .stroke(Stroke::NONE)
-                .corner_radius(egui::CornerRadius::same(tokens.radius as u8));
-            if ui.add(button).clicked() {
-                state.drawer_open = !state.drawer_open;
-            }
-        });
-    });
 }

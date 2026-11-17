@@ -13,21 +13,28 @@ use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
 use egui_kittest::Harness;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use stl_app::app::StlApp;
 use stl_app::engine_link::{BodyView, Command, EngineLink, TimelineItem, TimelineView, Update};
 use stl_app::platform::NullPlatform;
 use stl_app::sketch::glyphs;
 use stl_app::sketch::guides;
-use stl_app::sketch::inline_dims::{box_text, DimBox};
+use stl_app::sketch::inline_dims::{DimBox, box_text};
 use stl_app::sketch::snap::{self, SnapKind};
-use stl_app::sketch::{draw, keys, Constraint, Entity, Ref, SketchEffect, SketchInput, SketchSession, SketchTool, ToolCx};
+use stl_app::sketch::{
+    Constraint, Entity, Ref, SketchEffect, SketchInput, SketchSession, SketchTool, ToolCx, draw, keys,
+};
 use stl_app::ui::ThemePref;
 use stl_app::viewport::{PlaneFrame, Viewport};
 use stl_kernel::MeshArrays;
 
 fn frame() -> PlaneFrame {
-    PlaneFrame { origin: [0.0, 0.0, 0.0], x: [1.0, 0.0, 0.0], y: [0.0, 1.0, 0.0], normal: [0.0, 0.0, 1.0] }
+    PlaneFrame {
+        origin: [0.0, 0.0, 0.0],
+        x: [1.0, 0.0, 0.0],
+        y: [0.0, 1.0, 0.0],
+        normal: [0.0, 0.0, 1.0],
+    }
 }
 
 fn ent(v: Value) -> Entity {
@@ -53,11 +60,24 @@ impl H {
         vp.look_at_plane(&frame(), Some(50.0));
         vp.camera_mut().finish_flight();
         snap::set_grid(true, 1.0);
-        H { s, vp, tool: draw::tool_for(key).expect(key), out: Vec::new(), params: BTreeMap::new(), inch: false }
+        H {
+            s,
+            vp,
+            tool: draw::tool_for(key).expect(key),
+            out: Vec::new(),
+            params: BTreeMap::new(),
+            inch: false,
+        }
     }
 
     fn send(&mut self, ev: SketchInput) -> bool {
-        let mut cx = ToolCx { s: &mut self.s, vp: &self.vp, inch: self.inch, params: &self.params, out: &mut self.out };
+        let mut cx = ToolCx {
+            s: &mut self.s,
+            vp: &self.vp,
+            inch: self.inch,
+            params: &self.params,
+            out: &mut self.out,
+        };
         self.tool.input(&mut cx, &ev)
     }
 
@@ -67,7 +87,11 @@ impl H {
 
     fn mv(&mut self, uv: [f64; 2]) {
         let pos = self.pos(uv);
-        self.send(SketchInput::Move { uv, pos, mods: egui::Modifiers::NONE });
+        self.send(SketchInput::Move {
+            uv,
+            pos,
+            mods: egui::Modifiers::NONE,
+        });
     }
 
     fn click(&mut self, uv: [f64; 2]) {
@@ -93,11 +117,17 @@ impl H {
     }
 
     fn key(&mut self, key: egui::Key) -> bool {
-        self.send(SketchInput::Key { key, mods: egui::Modifiers::NONE })
+        self.send(SketchInput::Key {
+            key,
+            mods: egui::Modifiers::NONE,
+        })
     }
 
     fn shift_tab(&mut self) -> bool {
-        self.send(SketchInput::Key { key: egui::Key::Tab, mods: egui::Modifiers::SHIFT })
+        self.send(SketchInput::Key {
+            key: egui::Key::Tab,
+            mods: egui::Modifiers::SHIFT,
+        })
     }
 
     fn typed(&mut self, t: &str) -> bool {
@@ -138,7 +168,11 @@ fn snaps_say_what_they_caught() {
     assert_eq!(caught(&mut h, [10.1, 5.1]), Some((W::Midpoint, [10.0, 5.0])));
     assert_eq!(caught(&mut h, [50.1, 0.1]), Some((W::Centre, [50.0, 0.0])));
     assert_eq!(caught(&mut h, [60.1, 0.1]), Some((W::Quadrant, [60.0, 0.0])));
-    assert_eq!(caught(&mut h, [0.1, -0.1]).map(|c| c.0), Some(W::Endpoint), "the line's start (on the origin) is its end");
+    assert_eq!(
+        caught(&mut h, [0.1, -0.1]).map(|c| c.0),
+        Some(W::Endpoint),
+        "the line's start (on the origin) is its end"
+    );
     assert_eq!(caught(&mut h, [33.3, -17.7]), None, "on the grid only: no marker");
 }
 
@@ -157,13 +191,24 @@ fn line_snaps_tangent_to_a_circle() {
     assert_eq!(w, stl_app::sketch::snap::SnapWhat::Tangent);
     assert!(near(p[0], touch[0]) && near(p[1], touch[1]), "{p:?} vs {touch:?}");
     h.click([touch[0] + 0.2, touch[1] + 0.2]);
-    let Some(Entity::Line(l)) = h.s.entities.iter().find(|e| matches!(e, Entity::Line(_))) else { panic!("a line") };
-    let id = l.id.clone().unwrap();
-    assert!(near(l.p2[0], touch[0]) && near(l.p2[1], touch[1]), "the line ends where it touches");
-    let has = |kind: &str, a: &str, b: &str| {
-        h.s.constraints.iter().any(|c| c.kind == kind && c.a.as_ref().is_some_and(|r| r.e == a) && c.b.as_ref().is_some_and(|r| r.e == b))
+    let Some(Entity::Line(l)) = h.s.entities.iter().find(|e| matches!(e, Entity::Line(_))) else {
+        panic!("a line")
     };
-    assert!(has("tangent", &id, "c1"), "tangent to the circle: {:?}", h.s.constraints);
+    let id = l.id.clone().unwrap();
+    assert!(
+        near(l.p2[0], touch[0]) && near(l.p2[1], touch[1]),
+        "the line ends where it touches"
+    );
+    let has = |kind: &str, a: &str, b: &str| {
+        h.s.constraints
+            .iter()
+            .any(|c| c.kind == kind && c.a.as_ref().is_some_and(|r| r.e == a) && c.b.as_ref().is_some_and(|r| r.e == b))
+    };
+    assert!(
+        has("tangent", &id, "c1"),
+        "tangent to the circle: {:?}",
+        h.s.constraints
+    );
     assert!(has("coincident", &id, "c1"), "its end is on the circle");
     // from inside the circle there is no tangent
     assert!(stl_app::sketch::snap::tangent_points(&h.s.entities[0], [1.0, 1.0]).is_empty());
@@ -180,10 +225,18 @@ fn line_boxes() {
     let b = h.boxes();
     assert_eq!(b.iter().map(|b| b.label).collect::<Vec<_>>(), ["Length", "Angle"]);
     // the length box sits beside the segment's middle, the angle box at its start
-    assert!(near(b[0].anchor[0], 20.0) && near(b[0].anchor[1], 16.0), "{:?}", b[0].anchor);
+    assert!(
+        near(b[0].anchor[0], 20.0) && near(b[0].anchor[1], 16.0),
+        "{:?}",
+        b[0].anchor
+    );
     assert!(near(b[1].anchor[0], 10.0) && near(b[1].anchor[1], 10.0));
     assert!(b.iter().all(|b| !b.locked));
-    assert_eq!(h.tool.total_label().as_deref(), Some("23.324"), "the length next to the cursor");
+    assert_eq!(
+        h.tool.total_label().as_deref(),
+        Some("23.324"),
+        "the length next to the cursor"
+    );
 
     // typing goes into the first box, Tab to the next, Enter places the line
     assert!(h.typed("25"));
@@ -192,12 +245,26 @@ fn line_boxes() {
     assert!(h.boxes()[1].focused && !h.boxes()[0].focused);
     h.typed("30");
     h.key(egui::Key::Enter);
-    let Entity::Line(l) = &h.s.entities[0] else { panic!("a line") };
+    let Entity::Line(l) = &h.s.entities[0] else {
+        panic!("a line")
+    };
     let (c, sn) = (30f64.to_radians().cos(), 30f64.to_radians().sin());
-    assert!(near(l.p2[0], 10.0 + 25.0 * c) && near(l.p2[1], 10.0 + 25.0 * sn), "{:?}", l.p2);
+    assert!(
+        near(l.p2[0], 10.0 + 25.0 * c) && near(l.p2[1], 10.0 + 25.0 * sn),
+        "{:?}",
+        l.p2
+    );
     // both typed values became dimensions
-    assert!(dim(&h.s, "length").is_some_and(|v| near(v, 25.0)), "{:?}", h.s.constraints);
-    assert!(dim(&h.s, "angle").is_some_and(|v| near(v, 30.0)), "{:?}", h.s.constraints);
+    assert!(
+        dim(&h.s, "length").is_some_and(|v| near(v, 25.0)),
+        "{:?}",
+        h.s.constraints
+    );
+    assert!(
+        dim(&h.s, "angle").is_some_and(|v| near(v, 30.0)),
+        "{:?}",
+        h.s.constraints
+    );
 }
 
 #[test]
@@ -208,15 +275,25 @@ fn rect_boxes_along_edges() {
     let b = h.boxes();
     assert_eq!(b.iter().map(|b| b.label).collect::<Vec<_>>(), ["Width", "Height"]);
     // the width box is beside the X edge, the height box beside the Y edge
-    assert!(near(b[0].anchor[0], 15.0) && near(b[0].anchor[1], 5.0) && b[0].along == [1.0, 0.0], "{:?}", b[0]);
-    assert!(near(b[1].anchor[0], 25.0) && near(b[1].anchor[1], 10.0) && b[1].along == [0.0, 1.0], "{:?}", b[1]);
+    assert!(
+        near(b[0].anchor[0], 15.0) && near(b[0].anchor[1], 5.0) && b[0].along == [1.0, 0.0],
+        "{:?}",
+        b[0]
+    );
+    assert!(
+        near(b[1].anchor[0], 25.0) && near(b[1].anchor[1], 10.0) && b[1].along == [0.0, 1.0],
+        "{:?}",
+        b[1]
+    );
     assert_eq!(h.tool.total_label().as_deref(), Some("20 × 10"));
     // typed values, Tab, Enter
     h.typed("30");
     h.key(egui::Key::Tab);
     h.typed("12");
     h.key(egui::Key::Enter);
-    let Entity::Rect(r) = &h.s.entities[0] else { panic!("a rect") };
+    let Entity::Rect(r) = &h.s.entities[0] else {
+        panic!("a rect")
+    };
     assert!(near(r.w, 30.0) && near(r.h, 12.0), "{r:?}");
     assert!(dim(&h.s, "hdistance").is_some_and(|v| near(v, 30.0)));
     assert!(dim(&h.s, "vdistance").is_some_and(|v| near(v, 12.0)));
@@ -233,14 +310,20 @@ fn circle_box_diameter() {
     assert_eq!(b[0].label, "Diameter");
     assert_eq!(b[0].value, "20");
     // on the diameter line, moved in from the rim so it is not under the pointer
-    assert!(b[0].anchor[0] < 30.0 && near(b[0].anchor[1], 20.0), "inside the rim: {:?}", b[0].anchor);
+    assert!(
+        b[0].anchor[0] < 30.0 && near(b[0].anchor[1], 20.0),
+        "inside the rim: {:?}",
+        b[0].anchor
+    );
     assert_eq!(h.tool.total_label().as_deref(), Some("20"));
     h.typed("14");
     // one box: Tab stays on it
     h.key(egui::Key::Tab);
     assert!(h.boxes()[0].focused);
     h.key(egui::Key::Enter);
-    let Entity::Circle(c) = &h.s.entities[0] else { panic!("a circle") };
+    let Entity::Circle(c) = &h.s.entities[0] else {
+        panic!("a circle")
+    };
     assert!(near(c.r, 7.0));
     assert!(dim(&h.s, "diameter").is_some_and(|v| near(v, 14.0)));
 }
@@ -287,16 +370,26 @@ fn locked_box_ignores_cursor() {
     h.mv([40.0, 20.0]);
     let b = h.boxes();
     assert!(b[0].locked && b[0].value == "30", "the typed width holds: {:?}", b[0]);
-    assert!(!b[1].locked && b[1].value == "15", "the height still follows the cursor: {:?}", b[1]);
+    assert!(
+        !b[1].locked && b[1].value == "15",
+        "the height still follows the cursor: {:?}",
+        b[1]
+    );
     h.mv([12.0, 35.0]);
     let b = h.boxes();
     assert_eq!((b[0].value.as_str(), b[1].value.as_str()), ("30", "30"));
     assert!(b[0].locked && !b[1].locked);
     h.key(egui::Key::Enter);
-    let Entity::Rect(r) = &h.s.entities[0] else { panic!("a rect") };
+    let Entity::Rect(r) = &h.s.entities[0] else {
+        panic!("a rect")
+    };
     assert!(near(r.w, 30.0) && near(r.h, 30.0), "{r:?}");
     // only the typed value became a dimension
-    assert!(dim(&h.s, "hdistance").is_some() && dim(&h.s, "vdistance").is_none(), "{:?}", h.s.constraints);
+    assert!(
+        dim(&h.s, "hdistance").is_some() && dim(&h.s, "vdistance").is_none(),
+        "{:?}",
+        h.s.constraints
+    );
 }
 
 #[test]
@@ -310,7 +403,11 @@ fn shift_tab_goes_back() {
     h.key(egui::Key::Tab);
     assert_eq!(h.boxes().iter().map(|b| b.focused).collect::<Vec<_>>(), [false, true]);
     h.key(egui::Key::Tab);
-    assert_eq!(h.boxes().iter().map(|b| b.focused).collect::<Vec<_>>(), [true, false], "Tab wraps round");
+    assert_eq!(
+        h.boxes().iter().map(|b| b.focused).collect::<Vec<_>>(),
+        [true, false],
+        "Tab wraps round"
+    );
     h.shift_tab();
     assert_eq!(h.boxes().iter().map(|b| b.focused).collect::<Vec<_>>(), [false, true]);
     h.shift_tab();
@@ -329,10 +426,20 @@ fn expression_value() {
     let b = h.boxes();
     assert!(b[0].locked && b[0].value == "=width/2", "{:?}", b[0]);
     h.key(egui::Key::Enter);
-    let Entity::Rect(r) = &h.s.entities[0] else { panic!("a rect") };
+    let Entity::Rect(r) = &h.s.entities[0] else {
+        panic!("a rect")
+    };
     assert!(near(r.w, 20.0), "=width/2 is 20: {r:?}");
-    let c = h.s.constraints.iter().find(|c| c.kind == "hdistance").expect("a width dimension");
-    assert_eq!(c.extra.get("expr").and_then(Value::as_str), Some("=width/2"), "the dimension keeps the expression");
+    let c =
+        h.s.constraints
+            .iter()
+            .find(|c| c.kind == "hdistance")
+            .expect("a width dimension");
+    assert_eq!(
+        c.extra.get("expr").and_then(Value::as_str),
+        Some("=width/2"),
+        "the dimension keeps the expression"
+    );
 }
 
 /// The value boxes say their unit (Nathan, 2026-11-16); the cursor's X, Y is no longer shown.
@@ -350,7 +457,12 @@ fn value_boxes_show_their_unit() {
 
 #[test]
 fn guide_snaps_to_aligned_point() {
-    let h = H::new("line", vec![ent(json!({ "id": "a", "type": "line", "p1": [10.0, 30.0], "p2": [20.0, 40.0] }))]);
+    let h = H::new(
+        "line",
+        vec![ent(
+            json!({ "id": "a", "type": "line", "p1": [10.0, 30.0], "p2": [20.0, 40.0] }),
+        )],
+    );
     let px = h.px([20.0, 5.0]);
     // within 6 px of the line end's X: snapped to it, one guide from that point
     let sn = snap::snap_tracking(&h.s, &h.vp, [20.0 + 3.0 * px, 5.2], &[], None);
@@ -406,7 +518,11 @@ fn grid_snap_follows_zoom() {
     let step = guides::visible_grid_step(1.0 / px);
     let raw = [step * 3.4, step * 2.6];
     let sn = snap::snap(&h.s, &h.vp, raw);
-    assert!(near(sn.uv[0], step * 3.0) && near(sn.uv[1], step * 3.0), "{step}: {:?}", sn.uv);
+    assert!(
+        near(sn.uv[0], step * 3.0) && near(sn.uv[1], step * 3.0),
+        "{step}: {:?}",
+        sn.uv
+    );
     h.vp.look_at_plane(&frame(), Some(8.0));
     h.vp.camera_mut().finish_flight();
     let px2 = h.px([0.0, 0.0]);
@@ -414,7 +530,11 @@ fn grid_snap_follows_zoom() {
     assert!(step2 < step, "zoomed in: {step2} < {step}");
     let raw = [step2 * 3.4, step2 * 2.6];
     let sn = snap::snap(&h.s, &h.vp, raw);
-    assert!(near(sn.uv[0], step2 * 3.0) && near(sn.uv[1], step2 * 3.0), "{step2}: {:?}", sn.uv);
+    assert!(
+        near(sn.uv[0], step2 * 3.0) && near(sn.uv[1], step2 * 3.0),
+        "{step2}: {:?}",
+        sn.uv
+    );
     // a fixed step keeps its value at any zoom
     snap::set_grid_mode(true, 5.0, false, false);
     let sn = snap::snap(&h.s, &h.vp, [12.6, 7.4]);
@@ -436,7 +556,11 @@ fn grid_drawn_at_the_snap_step() {
     assert!(near(shown, step), "{shown} vs {step}");
     let raw = [shown * 3.4, shown * 2.6];
     let sn = snap::snap(&h.s, &h.vp, raw);
-    assert!(near(sn.uv[0], shown * 3.0) && near(sn.uv[1], shown * 3.0), "snaps to the lines drawn: {:?}", sn.uv);
+    assert!(
+        near(sn.uv[0], shown * 3.0) && near(sn.uv[1], shown * 3.0),
+        "snaps to the lines drawn: {:?}",
+        sn.uv
+    );
     // nothing changed: nothing is rebuilt
     view::refresh_grid(&mut h.vp, &mut m);
     assert!(near(m.grid_step, shown));
@@ -449,14 +573,22 @@ fn grid_drawn_at_the_snap_step() {
     assert!(near(m.grid_step, snap::zoom_step_at(h.px([0.0, 0.0]))));
     let raw = [m.grid_step * 3.4, m.grid_step * 2.6];
     let sn = snap::snap(&h.s, &h.vp, raw);
-    assert!(near(sn.uv[0], m.grid_step * 3.0) && near(sn.uv[1], m.grid_step * 3.0), "{:?}", sn.uv);
+    assert!(
+        near(sn.uv[0], m.grid_step * 3.0) && near(sn.uv[1], m.grid_step * 3.0),
+        "{:?}",
+        sn.uv
+    );
 
     // away from the origin and in a turned view the scale differs from point to point, but the
     // snap still lands on the lines drawn
     let on_grid = |h: &H, uv: [f64; 2], step: f64| {
         let sn = snap::snap(&h.s, &h.vp, uv);
         let k = |v: f64| ((v / step).round() * step - v).abs() < 1e-6;
-        assert!(k(sn.uv[0]) && k(sn.uv[1]), "{uv:?} snapped to {:?}, off the {step} mm grid", sn.uv);
+        assert!(
+            k(sn.uv[0]) && k(sn.uv[1]),
+            "{uv:?} snapped to {:?}, off the {step} mm grid",
+            sn.uv
+        );
         // and it is the nearest line, not one of a finer or coarser grid
         assert!((sn.uv[0] - uv[0]).abs() <= step / 2.0 + 1e-6 && (sn.uv[1] - uv[1]).abs() <= step / 2.0 + 1e-6);
     };
@@ -474,14 +606,20 @@ fn grid_drawn_at_the_snap_step() {
     snap::set_grid_mode(true, 25.4 / 16.0, true, true);
     view::refresh_grid(&mut h.vp, &mut m);
     let frac = m.grid_step / 25.4;
-    assert!((1..=64).any(|d| near(frac, 1.0 / d as f64)) || frac >= 1.0, "a fraction of an inch: {frac}");
+    assert!(
+        (1..=64).any(|d| near(frac, 1.0 / d as f64)) || frac >= 1.0,
+        "a fraction of an inch: {frac}"
+    );
     assert!(near(m.grid_step, snap::zoom_step_at(h.px([0.0, 0.0]))));
     view::clear(&mut h.vp);
 
     // a fixed step too fine to draw at this zoom shows every few lines (the snap lands on all)
     snap::set_grid_mode(true, 0.01, false, false);
     let shown = view::grid_step(&h.vp, &m.s);
-    assert!(shown > 0.01 && ((shown / 0.01).round() - shown / 0.01).abs() < 1e-6, "{shown}");
+    assert!(
+        shown > 0.01 && ((shown / 0.01).round() - shown / 0.01).abs() < 1e-6,
+        "{shown}"
+    );
     assert!(shown >= guides::GRID_MIN_PX * h.px([0.0, 0.0]) * (1.0 - 1e-9));
     snap::set_grid(true, 1.0);
 }
@@ -535,7 +673,11 @@ fn escape_clears_a_box_then_cancels() {
     let b = h.boxes();
     assert_eq!(b.len(), 2, "the shape is still being drawn");
     assert!(!b[1].locked, "the second box is free again");
-    assert!(b[0].locked && b[0].value == "30", "the first keeps its value: {:?}", b[0]);
+    assert!(
+        b[0].locked && b[0].value == "30",
+        "the first keeps its value: {:?}",
+        b[0]
+    );
     // Escape in the now empty box cancels the shape
     h.key(egui::Key::Escape);
     assert!(h.boxes().is_empty(), "the second Escape cancelled the shape");
@@ -624,15 +766,41 @@ fn constraint_glyph_per_kind() {
     // dense lines hide glyphs; the selected constraint's stays
     let all = glyphs::spots(&glyph_sketch());
     let close = vec![
-        glyphs::Glyph { constraint: 0, kind: "horizontal".into(), text: "H", at: [0.0, 0.0] },
-        glyphs::Glyph { constraint: 1, kind: "vertical".into(), text: "V", at: [0.2, 0.0] },
-        glyphs::Glyph { constraint: 2, kind: "equal".into(), text: "=", at: [50.0, 0.0] },
+        glyphs::Glyph {
+            constraint: 0,
+            kind: "horizontal".into(),
+            text: "H",
+            at: [0.0, 0.0],
+        },
+        glyphs::Glyph {
+            constraint: 1,
+            kind: "vertical".into(),
+            text: "V",
+            at: [0.2, 0.0],
+        },
+        glyphs::Glyph {
+            constraint: 2,
+            kind: "equal".into(),
+            text: "=",
+            at: [50.0, 0.0],
+        },
     ];
     let shown = glyphs::visible(&close, None, 0.1);
-    assert_eq!(shown.iter().map(|g| g.constraint).collect::<Vec<_>>(), [0, 2], "the crowded one is hidden");
+    assert_eq!(
+        shown.iter().map(|g| g.constraint).collect::<Vec<_>>(),
+        [0, 2],
+        "the crowded one is hidden"
+    );
     let shown = glyphs::visible(&close, Some(1), 0.1);
-    assert_eq!(shown.iter().map(|g| g.constraint).collect::<Vec<_>>(), [1, 2], "the selected one stays");
-    let (far, near_in) = (glyphs::visible(&all, None, 5.0).len(), glyphs::visible(&all, None, 0.001).len());
+    assert_eq!(
+        shown.iter().map(|g| g.constraint).collect::<Vec<_>>(),
+        [1, 2],
+        "the selected one stays"
+    );
+    let (far, near_in) = (
+        glyphs::visible(&all, None, 5.0).len(),
+        glyphs::visible(&all, None, 0.001).len(),
+    );
     assert!(far < near_in, "zoomed out the glyphs crowd and hide: {far} < {near_in}");
 }
 
@@ -656,27 +824,53 @@ impl EngineLink for Rec {
 
 fn cube(s: f32) -> Arc<MeshArrays> {
     let h = s / 2.0;
-    let p = [[-h, -h, 0.0], [h, -h, 0.0], [h, h, 0.0], [-h, h, 0.0], [-h, -h, s], [h, -h, s], [h, h, s], [-h, h, s]];
-    let t: [u32; 36] = [0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7, 0, 1, 5, 0, 5, 4, 1, 2, 6, 1, 6, 5, 2, 3, 7, 2, 7, 6, 3, 0, 4, 3, 4, 7];
-    Arc::new(MeshArrays { positions: p.iter().flatten().copied().collect(), triangles: t.to_vec() })
+    let p = [
+        [-h, -h, 0.0],
+        [h, -h, 0.0],
+        [h, h, 0.0],
+        [-h, h, 0.0],
+        [-h, -h, s],
+        [h, -h, s],
+        [h, h, s],
+        [-h, h, s],
+    ];
+    let t: [u32; 36] = [
+        0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7, 0, 1, 5, 0, 5, 4, 1, 2, 6, 1, 6, 5, 2, 3, 7, 2, 7, 6, 3, 0, 4, 3, 4, 7,
+    ];
+    Arc::new(MeshArrays {
+        positions: p.iter().flatten().copied().collect(),
+        triangles: t.to_vec(),
+    })
 }
 
 fn scene(rec: &Rec) -> Harness<'static, StlApp> {
     let app = StlApp::new(&egui::Context::default(), Box::new(NullPlatform), Box::new(rec.clone()));
-    let body = BodyView { id: "b1".into(), name: "b1".into(), color: Some("#9aa7b4".into()), hidden: false, solid: true, mesh: cube(20.0), revision: 1, holds_up: None };
+    let body = BodyView {
+        id: "b1".into(),
+        name: "b1".into(),
+        color: Some("#9aa7b4".into()),
+        hidden: false,
+        solid: true,
+        mesh: cube(20.0),
+        revision: 1,
+        holds_up: None,
+    };
     rec.inbox.lock().unwrap().push(Update::Bodies(vec![body]));
     let mut init = false;
-    let mut h = Harness::builder().with_size(egui::vec2(1280.0, 800.0)).with_accessibility_check(false).build_ui_state(
-        move |ui, a: &mut StlApp| {
-            if !init {
-                init = true;
-                stl_app::fonts::install(ui.ctx());
-                a.set_theme(ui.ctx(), ThemePref::Dark);
-            }
-            a.layout(ui)
-        },
-        app,
-    );
+    let mut h = Harness::builder()
+        .with_size(egui::vec2(1280.0, 800.0))
+        .with_accessibility_check(false)
+        .build_ui_state(
+            move |ui, a: &mut StlApp| {
+                if !init {
+                    init = true;
+                    stl_app::fonts::install(ui.ctx());
+                    a.set_theme(ui.ctx(), ThemePref::Dark);
+                }
+                a.layout(ui)
+            },
+            app,
+        );
     h.run_steps(3);
     h.state_mut().viewport.flush();
     h.run_steps(1);
@@ -699,12 +893,38 @@ fn finish_keeps_camera() {
     {
         let s = &mut h.state_mut().sketch_mode_mut().unwrap().s;
         s.push();
-        s.entities.push(ent(json!({ "id": "a", "type": "line", "p1": [0.0, 0.0], "p2": [10.0, 0.0] })));
+        s.entities.push(ent(
+            json!({ "id": "a", "type": "line", "p1": [0.0, 0.0], "p2": [10.0, 0.0] }),
+        ));
     }
     h.state_mut().finish_sketch(false);
-    let params = rec.sent.lock().unwrap().iter().find_map(|c| if let Command::AddFeature { params, .. } = c { Some(params.clone()) } else { None }).expect("the step went out");
-    let item = TimelineItem { id: "f1".into(), kind: "sketch".into(), label: "sketch".into(), active: true, params, ..Default::default() };
-    rec.inbox.lock().unwrap().push(Update::Timeline(TimelineView { items: vec![item], marker: None, can_undo: true, can_redo: false }));
+    let params = rec
+        .sent
+        .lock()
+        .unwrap()
+        .iter()
+        .find_map(|c| {
+            if let Command::AddFeature { params, .. } = c {
+                Some(params.clone())
+            } else {
+                None
+            }
+        })
+        .expect("the step went out");
+    let item = TimelineItem {
+        id: "f1".into(),
+        kind: "sketch".into(),
+        label: "sketch".into(),
+        active: true,
+        params,
+        ..Default::default()
+    };
+    rec.inbox.lock().unwrap().push(Update::Timeline(TimelineView {
+        items: vec![item],
+        marker: None,
+        can_undo: true,
+        can_redo: false,
+    }));
     h.run_steps(3);
     assert!(h.state().sketch().is_none(), "the sketch closed");
     h.state_mut().viewport.camera_mut().finish_flight();
@@ -740,14 +960,25 @@ fn tab_and_typing_reach_the_boxes_through_egui() {
         h.event(egui::Event::PointerMoved(p));
         h.run_steps(1);
         for pressed in [true, false] {
-            h.event(egui::Event::PointerButton { pos: p, button: egui::PointerButton::Primary, pressed, modifiers: egui::Modifiers::NONE });
+            h.event(egui::Event::PointerButton {
+                pos: p,
+                button: egui::PointerButton::Primary,
+                pressed,
+                modifiers: egui::Modifiers::NONE,
+            });
             h.run_steps(1);
         }
     };
     click(&mut h, a);
     h.event(egui::Event::PointerMoved(b));
     h.run_steps(2);
-    let boxes = |h: &Harness<'static, StlApp>| h.state().sketch_mode().and_then(|m| m.tool.as_ref()).map(|t| t.dim_boxes()).unwrap_or_default();
+    let boxes = |h: &Harness<'static, StlApp>| {
+        h.state()
+            .sketch_mode()
+            .and_then(|m| m.tool.as_ref())
+            .map(|t| t.dim_boxes())
+            .unwrap_or_default()
+    };
     assert_eq!(boxes(&h).len(), 2, "the first click started a rectangle");
     let typed = |h: &mut Harness<'static, StlApp>, t: &str| {
         h.event(egui::Event::Text(t.into()));
@@ -764,8 +995,15 @@ fn tab_and_typing_reach_the_boxes_through_egui() {
     h.key_press(egui::Key::Enter);
     h.run_steps(2);
     let s = h.state().sketch().expect("still sketching");
-    let Some(Entity::Rect(rect)) = s.entities.first() else { panic!("a rectangle was placed: {:?}", s.entities) };
-    assert!((rect.w.abs() - 25.0).abs() < 1e-9 && (rect.h.abs() - 12.0).abs() < 1e-9, "typed 25 x 12, got {} x {}", rect.w, rect.h);
+    let Some(Entity::Rect(rect)) = s.entities.first() else {
+        panic!("a rectangle was placed: {:?}", s.entities)
+    };
+    assert!(
+        (rect.w.abs() - 25.0).abs() < 1e-9 && (rect.h.abs() - 12.0).abs() < 1e-9,
+        "typed 25 x 12, got {} x {}",
+        rect.w,
+        rect.h
+    );
 }
 
 // ------------------------------------------------------------------ snapshots
@@ -790,7 +1028,11 @@ mod shots {
         let l = |c: [u8; 3]| {
             let f = |v: u8| {
                 let v = v as f64 / 255.0;
-                if v <= 0.04045 { v / 12.92 } else { ((v + 0.055) / 1.055).powf(2.4) }
+                if v <= 0.04045 {
+                    v / 12.92
+                } else {
+                    ((v + 0.055) / 1.055).powf(2.4)
+                }
             };
             0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2])
         };
@@ -801,18 +1043,33 @@ mod shots {
     /// A rectangle sketch on a box's top face, drawn through egui's paint callback.
     /// Returns the picture and the screen points of the rectangle's centre and left edge middle.
     fn picture(gpu: &Headless, dark: bool, name: &str) -> (image::RgbaImage, egui::Pos2, egui::Pos2) {
-        let top = PlaneFrame { origin: [0.0, 0.0, 20.0], x: [1.0, 0.0, 0.0], y: [0.0, 1.0, 0.0], normal: [0.0, 0.0, 1.0] };
+        let top = PlaneFrame {
+            origin: [0.0, 0.0, 20.0],
+            x: [1.0, 0.0, 0.0],
+            y: [0.0, 1.0, 0.0],
+            normal: [0.0, 0.0, 1.0],
+        };
         let mut vp = Viewport::new();
         vp.init_gpu(&gpu.render_state);
         vp.set_theme(dark);
-        let body = BodyView { id: "b1".into(), name: "Box".into(), color: Some("#9aa7b4".into()), hidden: false, solid: true, mesh: box_mesh(), revision: 1, holds_up: None };
+        let body = BodyView {
+            id: "b1".into(),
+            name: "Box".into(),
+            color: Some("#9aa7b4".into()),
+            hidden: false,
+            solid: true,
+            mesh: box_mesh(),
+            revision: 1,
+            holds_up: None,
+        };
         vp.sync_bodies(&[body]);
         vp.flush();
         vp.set_view_size(480.0, 360.0);
         vp.look_at_plane(&top, Some(22.0));
         vp.camera_mut().finish_flight();
         let rect = ent(json!({ "id": "r1", "type": "rect", "x": -6.0, "y": -4.0, "w": 12.0, "h": 8.0 }));
-        let line = ent(json!({ "id": "l1", "type": "line", "p1": [-9.0, 7.0], "p2": [9.0, 7.0], "construction": true }));
+        let line =
+            ent(json!({ "id": "l1", "type": "line", "p1": [-9.0, 7.0], "p2": [9.0, 7.0], "construction": true }));
         let s = SketchSession::new(top, json!("xy"), None, None, vec![rect, line], vec![], vec![], None);
         let mut m = SketchMode::new(s, None, vec![]);
         m.state.under.clear();
@@ -821,17 +1078,26 @@ mod shots {
         let shared = Rc::new(RefCell::new((vp, m)));
         let draw = shared.clone();
         let renderer = wgpu_renderer::WgpuRenderer::new(gpu.render_state.clone());
-        let mut harness = Harness::builder().with_size(egui::vec2(480.0, 360.0)).with_render_cursor(false).renderer(renderer).build_ui(move |ui| {
-            egui::CentralPanel::default().frame(egui::Frame::NONE).show(ui, |ui| {
-                let mut g = draw.borrow_mut();
-                g.0.show(ui);
-                view::paint(ui, &g.0, &g.1);
+        let mut harness = Harness::builder()
+            .with_size(egui::vec2(480.0, 360.0))
+            .with_render_cursor(false)
+            .renderer(renderer)
+            .build_ui(move |ui| {
+                egui::CentralPanel::default().frame(egui::Frame::NONE).show(ui, |ui| {
+                    let mut g = draw.borrow_mut();
+                    g.0.show(ui);
+                    view::paint(ui, &g.0, &g.1);
+                });
             });
-        });
         harness.run();
         gpu::snapshot(&mut harness, gpu, name);
         let img = harness.render().expect("sketch picture");
-        let errors: Vec<String> = harness.take_snapshot_results().into_inner().iter().map(|e| e.to_string()).collect();
+        let errors: Vec<String> = harness
+            .take_snapshot_results()
+            .into_inner()
+            .iter()
+            .map(|e| e.to_string())
+            .collect();
         assert!(errors.is_empty(), "{}", errors.join("\n"));
         let g = shared.borrow();
         let at = |uv: [f64; 2]| g.0.world_to_screen(g.1.s.to_3(uv));
@@ -845,7 +1111,11 @@ mod shots {
             return;
         };
         for dark in [true, false] {
-            let name = if dark { "sketch_inline_dark" } else { "sketch_inline_light" };
+            let name = if dark {
+                "sketch_inline_dark"
+            } else {
+                "sketch_inline_light"
+            };
             let (img, centre, edge) = picture(&gpu, dark, name);
             let rgb = |p: [u8; 4]| [p[0], p[1], p[2]];
             let at = |x: u32, y: u32| rgb(img.get_pixel(x, y).0);
@@ -857,13 +1127,19 @@ mod shots {
             let cx = (ex - 5..=ex + 5).min_by_key(|&x| dist(at(x, ey))).unwrap();
             let line = at(cx, ey);
             // a thin line off the pixel grid is blended with what is under it, so allow more
-            assert!(dist(line) < 160, "{name}: no line at the rectangle's edge: {line:?} vs {want:?}");
+            assert!(
+                dist(line) < 160,
+                "{name}: no line at the rectangle's edge: {line:?} vs {want:?}"
+            );
             // what the line is seen against: the surface right beside it, and the face and fill a
             // few points away (the median of a patch, off the axes and grid lines)
             let beside = [at(cx - 1, ey), at(cx + 1, ey)];
             let ratio = beside.iter().map(|b| contrast(line, *b)).fold(f64::MAX, f64::min);
             let (px, py) = (centre.x.round() as u32 + 18, centre.y.round() as u32 + 9);
-            let mut patch: Vec<[u8; 3]> = (0..7).flat_map(|dy| (0..7).map(move |dx| (dx, dy))).map(|(dx, dy)| at(px - 3 + dx, py - 3 + dy)).collect();
+            let mut patch: Vec<[u8; 3]> = (0..7)
+                .flat_map(|dy| (0..7).map(move |dx| (dx, dy)))
+                .map(|(dx, dy)| at(px - 3 + dx, py - 3 + dy))
+                .collect();
             patch.sort_by_key(|p| p[0] as u32 + p[1] as u32 + p[2] as u32);
             let fill = patch[patch.len() / 2];
             let raw = contrast(line, fill);
@@ -874,7 +1150,10 @@ mod shots {
             // ones near-white. This rectangle is fully defined, and near-white on a light face
             // reads poorly (about 1.2:1); that is accepted, and only the light theme is held to 3:1.
             if !dark {
-                assert!(raw >= 3.0, "{name}: the line differs from the plain fill by only {raw:.2}:1");
+                assert!(
+                    raw >= 3.0,
+                    "{name}: the line differs from the plain fill by only {raw:.2}:1"
+                );
             }
         }
     }
@@ -883,9 +1162,13 @@ mod shots {
 #[test]
 fn unchanged_frames_do_not_rebuild_outlines_or_glyphs() {
     use stl_app::sketch::session::SketchMode;
-    let ents = vec![ent(json!({"id": "a", "type": "line", "p1": [0, 0], "p2": [10, 0]})), ent(json!({"id": "c", "type": "circle", "cx": 5, "cy": 5, "r": 3}))];
+    let ents = vec![
+        ent(json!({"id": "a", "type": "line", "p1": [0, 0], "p2": [10, 0]})),
+        ent(json!({"id": "c", "type": "circle", "cx": 5, "cy": 5, "r": 3})),
+    ];
     let mut s = SketchSession::new(frame(), json!("xy"), None, None, ents, vec![], vec![], None);
-    s.constraints.push(serde_json::from_value::<Constraint>(json!({"type": "horizontal", "a": {"e": "a"}})).unwrap());
+    s.constraints
+        .push(serde_json::from_value::<Constraint>(json!({"type": "horizontal", "a": {"e": "a"}})).unwrap());
     let mut vp = Viewport::new();
     vp.set_view_size(1000.0, 800.0);
     vp.look_at_plane(&frame(), Some(50.0));
@@ -897,10 +1180,15 @@ fn unchanged_frames_do_not_rebuild_outlines_or_glyphs() {
     assert_eq!(m.outlines.builds(), 1, "three redraws, one outline build");
     assert_eq!(glyphs::spot_builds(), 1, "three glyph lookups, one build");
     let mut m = m;
-    m.s.entities.push(ent(json!({"id": "b", "type": "line", "p1": [0, 1], "p2": [4, 1]})));
+    m.s.entities
+        .push(ent(json!({"id": "b", "type": "line", "p1": [0, 1], "p2": [4, 1]})));
     stl_app::sketch::view::redraw(&mut vp, &m);
     let _ = glyphs::spots(&m.s);
-    assert_eq!((m.outlines.builds(), glyphs::spot_builds()), (2, 2), "a changed shape rebuilds both");
+    assert_eq!(
+        (m.outlines.builds(), glyphs::spot_builds()),
+        (2, 2),
+        "a changed shape rebuilds both"
+    );
 }
 
 /// The sketch panel's Construction tick draws new shapes as construction lines, and Look at turns
@@ -921,7 +1209,12 @@ fn construction_tick_and_look_at() {
         h.event(egui::Event::PointerMoved(p));
         h.run_steps(1);
         for pressed in [true, false] {
-            h.event(egui::Event::PointerButton { pos: p, button: egui::PointerButton::Primary, pressed, modifiers: egui::Modifiers::NONE });
+            h.event(egui::Event::PointerButton {
+                pos: p,
+                button: egui::PointerButton::Primary,
+                pressed,
+                modifiers: egui::Modifiers::NONE,
+            });
             h.run_steps(1);
         }
     };
@@ -931,7 +1224,10 @@ fn construction_tick_and_look_at() {
     h.run_steps(2);
     assert!(back(&h)[2] > 0.999, "Look at faces the XY sketch: {:?}", back(&h));
 
-    let at = h.get_by_role_and_label(egui::accesskit::Role::CheckBox, "Draw as construction").rect().center();
+    let at = h
+        .get_by_role_and_label(egui::accesskit::Role::CheckBox, "Draw as construction")
+        .rect()
+        .center();
     press(&mut h, at);
     assert!(h.state().sketch_mode().unwrap().panel.construction, "the tick is on");
     h.state_mut().sketch_set_tool("rect");
@@ -941,6 +1237,8 @@ fn construction_tick_and_look_at() {
     press(&mut h, r.center() + egui::vec2(20.0, 10.0));
     h.run_steps(2);
     let s = h.state().sketch().expect("still sketching");
-    let Some(e) = s.entities.first() else { panic!("a rectangle was placed") };
+    let Some(e) = s.entities.first() else {
+        panic!("a rectangle was placed")
+    };
     assert!(e.construction(), "drawn as a construction shape: {e:?}");
 }

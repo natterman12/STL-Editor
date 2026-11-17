@@ -2,40 +2,42 @@
 //! window out like 1.x's web/index.html: top bar, ribbon, then the workspace where the viewport
 //! fills everything and the browser, tool panel and timeline bar float over it.
 
-use crate::engine_link::{Command, EngineLink, Level, NullLink, ParamView, PlaneView, SketchView, TimelineView, Update};
 use crate::engine_link::BodyView;
+use crate::engine_link::{
+    Command, EngineLink, Level, NullLink, ParamView, PlaneView, SketchView, TimelineView, Update,
+};
 use crate::platform::{NullPlatform, PickedFile, Platform};
 use crate::recover::{self, Recover, RecoverAction, Recovered};
-use crate::theme::{self, Tokens};
-use crate::ui::dialogs::{self, DialogResult};
-use crate::ui::menu::{self, MenuItem, MenuResult, OpenMenu};
-use crate::ui::start::{self, StartPick, KOFI};
-use crate::ui::files::{FileAction, FileOutcome, Files};
-use crate::ui::keys::{self, KeyAction, KeyState};
-use crate::ui::{browser, busy, params, ribbon, status, timeline, toasts, topbar};
-use crate::ui::{Shell, ThemePref, UiAction, UiEvent};
-use crate::viewport::Viewport;
 use crate::sketch::session::SketchMode;
-use crate::tools::panel::OpenTool;
+use crate::theme::{self, Tokens};
 use crate::tools::gizmo::Gizmo;
+use crate::tools::panel::OpenTool;
 use crate::tools::sculpt::Sculpt;
 use crate::tools::{Ctx, ToolDef, Values};
-#[path = "app_wiring.rs"]
-mod wiring;
-#[path = "app_section.rs"]
-mod section;
-#[path = "app_measure.rs"]
-mod measure;
-#[path = "app_handoff.rs"]
-mod handoff;
+use crate::ui::dialogs::{self, DialogResult};
+use crate::ui::files::{FileAction, FileOutcome, Files};
+use crate::ui::keys::{self, KeyAction, KeyState};
+use crate::ui::menu::{self, MenuItem, MenuResult, OpenMenu};
+use crate::ui::start::{self, KOFI, StartPick};
+use crate::ui::{Shell, ThemePref, UiAction, UiEvent};
+use crate::ui::{browser, busy, params, ribbon, status, timeline, toasts, topbar};
+use crate::viewport::Viewport;
 #[path = "app_bodymenu.rs"]
 mod bodymenu;
 #[path = "app_device.rs"]
 mod device;
+#[path = "app_handoff.rs"]
+mod handoff;
+#[path = "app_measure.rs"]
+mod measure;
+#[path = "app_section.rs"]
+mod section;
 #[path = "app_tools_planes.rs"]
 mod tools_planes;
-use std::collections::{BTreeMap, HashMap};
+#[path = "app_wiring.rs"]
+mod wiring;
 use egui::{Align2, Area, CornerRadius, Frame, Id, Margin, Order, Pos2, Rect, RichText, Sense, Stroke, Vec2};
+use std::collections::{BTreeMap, HashMap};
 
 const DESKTOP_URL: &str = "https://natterman12.github.io/STL-Editor/#download";
 const GUIDE_URL: &str = "https://github.com/natterman12/STL-Editor/blob/main/USER_GUIDE.md";
@@ -140,11 +142,18 @@ pub const CUT_TINT_KEY: &str = "cut_preview_tint";
 
 /// A short fingerprint of the history, to tell whether it changed since the last save.
 fn arr_empty(v: Option<&serde_json::Value>) -> bool {
-    v.and_then(|x| x.as_array()).map_or(true, |a| a.is_empty())
+    v.and_then(|x| x.as_array()).is_none_or(|a| a.is_empty())
 }
 
 /// `ctx()` (app.js:581): what a tool's defaults and rules look at.
-pub fn make_ctx<'a>(bodies: &'a [BodyView], planes: &'a [PlaneView], sketches: &'a [SketchView], features: &'a [crate::engine_link::TimelineItem], selection: &'a [String], inch: bool) -> Ctx<'a> {
+pub fn make_ctx<'a>(
+    bodies: &'a [BodyView],
+    planes: &'a [PlaneView],
+    sketches: &'a [SketchView],
+    features: &'a [crate::engine_link::TimelineItem],
+    selection: &'a [String],
+    inch: bool,
+) -> Ctx<'a> {
     let last = features.iter().rev().find(|f| f.kind == "sketch" && f.active);
     let sk = last.and_then(|f| sketches.iter().find(|s| s.id == f.id));
     Ctx {
@@ -154,7 +163,12 @@ pub fn make_ctx<'a>(bodies: &'a [BodyView], planes: &'a [PlaneView], sketches: &
         features,
         selection,
         last_sketch: sk.map(|s| s.id.as_str()),
-        sketch_on_body: last.is_some_and(|f| f.params.get("plane").and_then(|p| p.as_object()).is_some_and(|o| o.contains_key("body"))),
+        sketch_on_body: last.is_some_and(|f| {
+            f.params
+                .get("plane")
+                .and_then(|p| p.as_object())
+                .is_some_and(|o| o.contains_key("body"))
+        }),
         inch,
     }
 }
@@ -191,8 +205,14 @@ const HELP_ROWS: &[(&str, &str)] = &[
     ("Ctrl+S", "Save"),
     ("Esc", "Cancel"),
     ("In a sketch: L R C P S", "Line, Rectangle, Circle, Polygon, Slot"),
-    ("In a sketch: type a number", "Set an exact size, Tab for the next value, Enter to place"),
-    ("In a sketch: D", "Smart Dimension: click, move to place, click, type the value"),
+    (
+        "In a sketch: type a number",
+        "Set an exact size, Tab for the next value, Enter to place",
+    ),
+    (
+        "In a sketch: D",
+        "Smart Dimension: click, move to place, click, type the value",
+    ),
     ("Double-click a dimension", "Change it (a parameter name works too)"),
 ];
 
@@ -203,7 +223,10 @@ pub const CREDITS: &[(&str, &str)] = &[
     ("egui and eframe, the user interface", "MIT or Apache-2.0"),
     ("wgpu, the 3D drawing", "MIT or Apache-2.0"),
     ("Selawik font", "SIL Open Font Licence 1.1"),
-    ("Noto Emoji, a small piece of it for the heart and warning marks", "SIL Open Font Licence 1.1"),
+    (
+        "Noto Emoji, a small piece of it for the heart and warning marks",
+        "SIL Open Font Licence 1.1",
+    ),
     ("rayon, ttf-parser, serde", "MIT or Apache-2.0"),
     ("zip, quick-xml, reading and writing project and 3MF files", "MIT"),
     ("usvg, resvg, for SVG shapes in sketches", "Apache-2.0 or MIT"),
@@ -216,22 +239,39 @@ pub fn about_text(web: bool) -> String {
     let thanks = "
 
 STL Editor is free and made in spare time. If it saves you time, you can buy me a coffee on Ko-fi ♥";
-    let credits: String = CREDITS.iter().map(|(what, lic)| format!("
-{what} ({lic})")).collect();
+    let credits: String = CREDITS
+        .iter()
+        .map(|(what, lic)| {
+            format!(
+                "
+{what} ({lic})"
+            )
+        })
+        .collect();
     let (date, commit) = (crate::build_info::build_date(), crate::build_info::commit());
     let edition = if web {
-        format!("Web edition {version}
-CAD-style editing for STL, 3MF and OBJ meshes, running entirely in your browser: your files never leave your computer.")
+        format!(
+            "Web edition {version}
+CAD-style editing for STL, 3MF and OBJ meshes, running entirely in your browser: your files never leave your computer."
+        )
     } else {
-        format!("Version {version} (test build {date} {commit})
-CAD-style editing for STL, 3MF and OBJ meshes.")
+        format!(
+            "Version {version} (test build {date} {commit})
+CAD-style editing for STL, 3MF and OBJ meshes."
+        )
     };
-    let gpl = if web { "
+    let gpl = if web {
+        "
 
-Free software under the GPL-3.0: source on GitHub." } else { "" };
-    format!("{edition}
+Free software under the GPL-3.0: source on GitHub."
+    } else {
+        ""
+    };
+    format!(
+        "{edition}
 
-Built with:{credits}{gpl}{thanks}")
+Built with:{credits}{gpl}{thanks}"
+    )
 }
 
 const DISCARD_TAG: &str = "discard-unsaved";
@@ -310,7 +350,9 @@ impl StlApp {
     /// Orbit around, the cut tint and the sketch's cursor coordinates, from the settings.
     pub fn load_view_settings(&mut self) {
         let p = &*self.platform;
-        self.viewport.orbit_around = crate::viewport::navigation::OrbitAround::from_setting(p.setting(crate::viewport::navigation::OrbitAround::KEY).as_deref());
+        self.viewport.orbit_around = crate::viewport::navigation::OrbitAround::from_setting(
+            p.setting(crate::viewport::navigation::OrbitAround::KEY).as_deref(),
+        );
         self.cut_tint_on = p.setting_json(CUT_TINT_KEY).and_then(|v| v.as_bool()).unwrap_or(true);
     }
 
@@ -324,13 +366,22 @@ impl StlApp {
             let [origin, x, y, normal] = sk.frame;
             let frame = crate::viewport::PlaneFrame { origin, x, y, normal };
             let outlines = sk.outlines.clone();
-            self.viewport.add_sketch_lines(&frame, &outlines, crate::tools::fields::bodies::hex_color(crate::viewport::scene::SEL), 1.0, true, STEP_SEL_TAG);
+            self.viewport.add_sketch_lines(
+                &frame,
+                &outlines,
+                crate::tools::fields::bodies::hex_color(crate::viewport::scene::SEL),
+                1.0,
+                true,
+                STEP_SEL_TAG,
+            );
         }
     }
 
     /// A timeline step picked: select it and the bodies it made or changed (spec 2.12).
     pub fn select_feature(&mut self, id: &str) {
-        let Some(item) = self.timeline_view.items.iter().find(|i| i.id == id).cloned() else { return };
+        let Some(item) = self.timeline_view.items.iter().find(|i| i.id == id).cloned() else {
+            return;
+        };
         if item.kind == "sketch" {
             return self.select_sketch(id);
         }
@@ -344,7 +395,10 @@ impl StlApp {
                 _ => {}
             }
         }
-        let ids: Vec<String> = ids.into_iter().filter(|i| self.bodies.iter().any(|b| &b.id == i)).collect();
+        let ids: Vec<String> = ids
+            .into_iter()
+            .filter(|i| self.bodies.iter().any(|b| &b.id == i))
+            .collect();
         self.shell.selection = ids.clone();
         self.viewport.set_selection(&ids);
     }
@@ -381,7 +435,8 @@ impl StlApp {
             // goes through the same path as File > Open: the title, Recent, the isometric view and
             // "clean" follow once the engine has accepted the file (a refused file changes nothing)
             let file = crate::platform::PickedFile { name, bytes };
-            self.files.open_bytes(&*self.link, file, Some(path.display().to_string()));
+            self.files
+                .open_bytes(&*self.link, file, Some(path.display().to_string()));
         } else {
             self.launch_file = Some(true);
             self.link.send(Command::Import { name, bytes });
@@ -410,7 +465,7 @@ impl StlApp {
     /// and what Update now asks of the window.
     #[cfg(not(target_arch = "wasm32"))]
     fn updates_frame(&mut self, ctx: &egui::Context, tk: &Tokens) {
-        use crate::updates::{now_secs, UpdateAction};
+        use crate::updates::{UpdateAction, now_secs};
         let Some(u) = self.updates.as_mut() else { return };
         if let Some(t) = self.update_start {
             let wait = std::time::Duration::from_secs(6);
@@ -432,7 +487,9 @@ impl StlApp {
             self.update_busy.label = n.to_string();
         }
         match action {
-            Some(UpdateAction::Toast { text, warn }) => self.toasts.push(if warn { Level::Warning } else { Level::Info }, text),
+            Some(UpdateAction::Toast { text, warn }) => {
+                self.toasts.push(if warn { Level::Warning } else { Level::Info }, text)
+            }
             Some(UpdateAction::OpenUrl(url)) => ctx.open_url(egui::OpenUrl::new_tab(url)),
             // the copy of unsaved work is written first and kept: the new window offers it
             Some(UpdateAction::Restart { exe }) => {
@@ -449,7 +506,9 @@ impl StlApp {
                 // Closing the window drops the engine link, which keeps unsaved work for Recover.
                 match wiring::restart_helper(&exe, std::process::id()).spawn() {
                     Ok(_) => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
-                    Err(e) => self.toasts.push(Level::Error, format!("Couldn't restart STL Editor: {e}")),
+                    Err(e) => self
+                        .toasts
+                        .push(Level::Error, format!("Couldn't restart STL Editor: {e}")),
                 }
             } else {
                 ctx.request_repaint_after(std::time::Duration::from_millis(50));
@@ -459,7 +518,10 @@ impl StlApp {
 
     /// The autosave command with what the copy should say about the open project.
     fn autosave_command(&self) -> Command {
-        Command::Autosave { path: self.files.project_path().map(str::to_string), title: self.files.project_name.clone() }
+        Command::Autosave {
+            path: self.files.project_path().map(str::to_string),
+            title: self.files.project_name.clone(),
+        }
     }
 
     /// Every 60 s the engine is asked to write an autosave copy (it does so off this thread, and
@@ -486,8 +548,13 @@ impl StlApp {
         self.clear_cut();
         self.recovering = true;
         // the file it was saved as, or `<title>.stlx` for work that never was
-        let name = r.path.as_deref().and_then(|p| std::path::Path::new(p).file_name()).map_or(r.name, |n| n.to_string_lossy().into_owned());
-        self.files.open_bytes(&*self.link, PickedFile { name, bytes: r.bytes }, r.path);
+        let name = r
+            .path
+            .as_deref()
+            .and_then(|p| std::path::Path::new(p).file_name())
+            .map_or(r.name, |n| n.to_string_lossy().into_owned());
+        self.files
+            .open_bytes(&*self.link, PickedFile { name, bytes: r.bytes }, r.path);
         self.toasts.push(Level::Info, recover::RECOVERED_TOAST.to_string());
     }
 
@@ -555,7 +622,8 @@ impl StlApp {
                     self.planes = p;
                 }
                 Update::Sketches(s) => {
-                    self.viewport.sync_sketches(&s, self.sketch.as_ref().and_then(|m| m.s.feature_id.as_deref()));
+                    self.viewport
+                        .sync_sketches(&s, self.sketch.as_ref().and_then(|m| m.s.feature_id.as_deref()));
                     self.sketches = s;
                 }
                 Update::Message { level, text } => {
@@ -580,18 +648,31 @@ impl StlApp {
                 Update::Fins { seq, ask, result } => self.on_fins(seq, &ask, result),
                 Update::SketchOp { seq, result } => self.on_sketch_op(seq, result),
                 Update::BodyInfo { seq, result } => self.on_body_info(seq, result),
-                Update::Solved { seq, entities, ok, error } => self.on_solved(seq, entities, ok, error),
+                Update::Solved {
+                    seq,
+                    entities,
+                    ok,
+                    error,
+                } => self.on_solved(seq, entities, ok, error),
                 Update::EngineLost => {
                     self.engine_lost = true;
                     if let Some(m) = self.sketch.as_mut() {
                         m.solve_lost();
                     }
                 }
-                Update::Preview { seq, pack, msg, error, warn, result } => self.on_preview(seq, pack, msg, error, warn, result),
+                Update::Preview {
+                    seq,
+                    pack,
+                    msg,
+                    error,
+                    warn,
+                    result,
+                } => self.on_preview(seq, pack, msg, error, warn, result),
                 // TASK 9 (files.rs): Saved { bytes } and Exported { name, bytes, count } go to the
                 // platform's save dialog.
                 Update::Saved { .. } | Update::Exported { .. } => {}
-                Update::Autosaved { ok: true, .. } => {
+                Update::Autosaved { ok: true, .. } =>
+                {
                     #[cfg(not(target_arch = "wasm32"))]
                     if let Some(r) = self.restart.as_mut() {
                         r.2 = true;
@@ -602,7 +683,10 @@ impl StlApp {
                     if let Some(r) = self.restart.as_mut() {
                         r.2 = true;
                     }
-                    self.toasts.push(Level::Error, error.unwrap_or_else(|| "Couldn't save an autosave copy.".to_string()));
+                    self.toasts.push(
+                        Level::Error,
+                        error.unwrap_or_else(|| "Couldn't save an autosave copy.".to_string()),
+                    );
                 }
             }
         }
@@ -652,7 +736,12 @@ impl StlApp {
                 UiAction::Insert => Some((FileAction::Import, None)),
                 UiAction::Save => Some((FileAction::Save, None)),
                 UiAction::SaveAs => Some((FileAction::SaveAs, None)),
-                UiAction::Export(f) => ExportFormat::from_ext(&f).map(|f| (FileAction::Export(f), (!self.shell.selection.is_empty()).then(|| self.shell.selection.clone()))),
+                UiAction::Export(f) => ExportFormat::from_ext(&f).map(|f| {
+                    (
+                        FileAction::Export(f),
+                        (!self.shell.selection.is_empty()).then(|| self.shell.selection.clone()),
+                    )
+                }),
                 UiAction::RemoveSelected => {
                     self.push_ui_event(UiEvent::OpenTool("delete".into()));
                     None
@@ -703,7 +792,8 @@ impl StlApp {
         match what {
             UiAction::OpenRecent(name) => {
                 if !self.files.open_recent(&*self.platform, &*self.link, &name) {
-                    self.toasts.push(Level::Error, "That file is no longer in the recent list.".to_string());
+                    self.toasts
+                        .push(Level::Error, "That file is no longer in the recent list.".to_string());
                 }
             }
             _ => self.files.new_document(&*self.link),
@@ -757,11 +847,11 @@ impl StlApp {
                     KeyAction::PanelCancel => self.tool_cancel(),
                     KeyAction::PanelOk => self.tool_ok(),
                     KeyAction::Walls(_) | KeyAction::Gizmo { .. } => self.tool_key(&a),
-                    KeyAction::Sketcher(press) => {
+                    KeyAction::Sketcher(press)
                         // egui also moves the keyboard focus on Tab (to the first panel widget),
                         // and then the digits typed next go to that widget, not to the size box.
                         // A Tab the sketch used takes no widget focus.
-                        if self.sketch_key(press) && press.key == egui::Key::Tab {
+                        if self.sketch_key(press) && press.key == egui::Key::Tab => {
                             ctx.memory_mut(|m| {
                                 m.move_focus(egui::FocusDirection::None);
                                 if let Some(id) = m.focused() {
@@ -769,7 +859,6 @@ impl StlApp {
                                 }
                             });
                         }
-                    }
                     _ => {}
                 }
             }
@@ -806,7 +895,11 @@ impl StlApp {
     }
 
     pub fn find_tool(&self, key: &str) -> Option<&'static ToolDef> {
-        self.runtime_tools.get(key).copied().or_else(|| crate::tools::tool(key)).or_else(|| crate::supports::support_tool(key))
+        self.runtime_tools
+            .get(key)
+            .copied()
+            .or_else(|| crate::tools::tool(key))
+            .or_else(|| crate::supports::support_tool(key))
     }
 
     pub fn tool(&self) -> Option<&OpenTool> {
@@ -815,7 +908,14 @@ impl StlApp {
 
     /// `setValue(key, val)` on the open tool: `onChange` runs and a preview is scheduled.
     pub fn tool_set_value(&mut self, key: &str, val: serde_json::Value) {
-        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection, self.shell.inch);
+        let ctx = make_ctx(
+            &self.bodies,
+            &self.planes,
+            &self.sketches,
+            &self.timeline_view.items,
+            &self.shell.selection,
+            self.shell.inch,
+        );
         if let Some(t) = self.tool.as_mut() {
             t.set_value(key, val, &ctx);
         }
@@ -823,7 +923,14 @@ impl StlApp {
 
     /// Several values at once (the gizmo's `translate` / `rotate` / `size`); one preview follows.
     pub fn tool_set_values(&mut self, patch: Values) {
-        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection, self.shell.inch);
+        let ctx = make_ctx(
+            &self.bodies,
+            &self.planes,
+            &self.sketches,
+            &self.timeline_view.items,
+            &self.shell.selection,
+            self.shell.inch,
+        );
         if let Some(t) = self.tool.as_mut() {
             t.set_values(patch, &ctx);
         }
@@ -867,13 +974,17 @@ impl StlApp {
 
     /// `openTool(key, { editFeature })`: reopen the tool of a timeline step.
     pub fn edit_feature(&mut self, id: &str) -> bool {
-        let Some(item) = self.timeline_view.items.iter().find(|i| i.id == id).cloned() else { return false };
+        let Some(item) = self.timeline_view.items.iter().find(|i| i.id == id).cloned() else {
+            return false;
+        };
         if item.kind == "sketch" {
             self.close_tool(false);
             self.enter_sketch(None, Some(&item));
             return true;
         }
-        let Some(key) = crate::tools::panel::tool_key_for(&item.kind, &item.params) else { return false };
+        let Some(key) = crate::tools::panel::tool_key_for(&item.kind, &item.params) else {
+            return false;
+        };
         if matches!(key.as_str(), "supportfins" | "supportwall") {
             self.open_support(&key, Some(item.id), None);
             return true;
@@ -884,11 +995,23 @@ impl StlApp {
     }
 
     /// Open any `ToolDef`, also one built at run time (`edit`: the step's id and params).
-    pub fn open_tool_def(&mut self, def: &'static ToolDef, edit: Option<(String, serde_json::Value)>, values: Option<Values>) {
+    pub fn open_tool_def(
+        &mut self,
+        def: &'static ToolDef,
+        edit: Option<(String, serde_json::Value)>,
+        values: Option<Values>,
+    ) {
         self.close_tool(false);
         self.close_section();
         self.close_measure();
-        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection, self.shell.inch);
+        let ctx = make_ctx(
+            &self.bodies,
+            &self.planes,
+            &self.sketches,
+            &self.timeline_view.items,
+            &self.shell.selection,
+            self.shell.inch,
+        );
         let mut v = match &edit {
             Some((_, p)) => (def.from_params)(p.clone()),
             None => (def.defaults)(&ctx),
@@ -900,11 +1023,11 @@ impl StlApp {
         }
         let prev = self.marker_now();
         let edit_id = edit.map(|(id, _)| id);
-        if let Some(id) = &edit_id {
-            if let Some(idx) = self.timeline_view.items.iter().position(|f| &f.id == id) {
-                self.link.send(Command::Rollback(Some(idx)));
-                self.pending_marker = Some(Some(idx));
-            }
+        if let Some(id) = &edit_id
+            && let Some(idx) = self.timeline_view.items.iter().position(|f| &f.id == id)
+        {
+            self.link.send(Command::Rollback(Some(idx)));
+            self.pending_marker = Some(Some(idx));
         }
         let mut t = OpenTool::new(def, v, edit_id, prev);
         t.preview.schedule(0, def.flags.no_live_preview);
@@ -940,8 +1063,19 @@ impl StlApp {
     /// `commitTool()`: the OK button.
     pub fn tool_ok(&mut self) {
         use crate::tools::preview::{MsgKind, ToolMsg};
-        let params: BTreeMap<String, f64> = self.param_views.iter().filter_map(|p| p.value.map(|v| (p.name.clone(), v))).collect();
-        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection, self.shell.inch);
+        let params: BTreeMap<String, f64> = self
+            .param_views
+            .iter()
+            .filter_map(|p| p.value.map(|v| (p.name.clone(), v)))
+            .collect();
+        let ctx = make_ctx(
+            &self.bodies,
+            &self.planes,
+            &self.sketches,
+            &self.timeline_view.items,
+            &self.shell.selection,
+            self.shell.inch,
+        );
         if self.committing {
             return; // the first OK is still on its way
         }
@@ -973,7 +1107,11 @@ impl StlApp {
             Some(id) => {
                 // one transaction (1.x commitTool: feature/edit with rollback_after): Ctrl+Z puts back
                 // the steps that came after it
-                self.link.send(Command::EditFeature { id, params: p, rollback_after: Some(t.prev_rollback) });
+                self.link.send(Command::EditFeature {
+                    id,
+                    params: p,
+                    rollback_after: Some(t.prev_rollback),
+                });
                 t.msg = Some(ToolMsg::new(MsgKind::Busy, format!("Updating {}…", t.def.label)));
             }
             None => {
@@ -991,7 +1129,14 @@ impl StlApp {
         let fire = {
             let Some(t) = self.tool.as_mut() else { return };
             if t.preview.busy_shown(now) {
-                t.msg = Some(ToolMsg::new(MsgKind::Busy, if t.def.flags.wall_tool { "Building the walls…" } else { "Building supports…" }));
+                t.msg = Some(ToolMsg::new(
+                    MsgKind::Busy,
+                    if t.def.flags.wall_tool {
+                        "Building the walls…"
+                    } else {
+                        "Building supports…"
+                    },
+                ));
             }
             t.preview.tick(now)
         };
@@ -1002,7 +1147,14 @@ impl StlApp {
 
     /// `runPreview()` at once (the Preview button, the delay passing).
     pub fn run_preview_now(&mut self, now: web_time::Instant) {
-        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection, self.shell.inch);
+        let ctx = make_ctx(
+            &self.bodies,
+            &self.planes,
+            &self.sketches,
+            &self.timeline_view.items,
+            &self.shell.selection,
+            self.shell.inch,
+        );
         let Some(t) = self.tool.as_mut() else { return };
         self.preview_seq += 1;
         let seq = self.preview_seq;
@@ -1020,7 +1172,12 @@ impl StlApp {
         }
         t.preview.start(seq, now, t.def.flags.paint);
         let params = t.params(&ctx);
-        self.link.send(Command::Preview { seq, kind: t.def.kind.to_owned(), params, edit_id: t.edit_id.clone() });
+        self.link.send(Command::Preview {
+            seq,
+            kind: t.def.kind.to_owned(),
+            params,
+            edit_id: t.edit_id.clone(),
+        });
     }
 
     /// A click in the viewport while a tool is open (`feedPick`): the active pick field takes it.
@@ -1030,8 +1187,17 @@ impl StlApp {
             return;
         }
         let planes = self.viewport.base_planes_visible() || !self.planes.is_empty();
-        let Some(hit) = self.viewport.pick(pos, true, planes) else { return };
-        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection, self.shell.inch);
+        let Some(hit) = self.viewport.pick(pos, true, planes) else {
+            return;
+        };
+        let ctx = make_ctx(
+            &self.bodies,
+            &self.planes,
+            &self.sketches,
+            &self.timeline_view.items,
+            &self.shell.selection,
+            self.shell.inch,
+        );
         let Some(t) = self.tool.as_mut() else { return };
         let out = pk::feed(t.def, t.active_field.as_deref(), &mut t.values, &hit, &ctx);
         self.apply_pick(out);
@@ -1042,9 +1208,18 @@ impl StlApp {
     fn tree_fill_body(&mut self, ids: &[String]) {
         use crate::tools::fields::bodies as pk;
         let [id] = ids else { return };
-        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection, self.shell.inch);
+        let ctx = make_ctx(
+            &self.bodies,
+            &self.planes,
+            &self.sketches,
+            &self.timeline_view.items,
+            &self.shell.selection,
+            self.shell.inch,
+        );
         let Some(t) = self.tool.as_mut() else { return };
-        let Some(out) = pk::feed_tree_body(t.def, t.active_field.as_deref(), &mut t.values, id, &ctx) else { return };
+        let Some(out) = pk::feed_tree_body(t.def, t.active_field.as_deref(), &mut t.values, id, &ctx) else {
+            return;
+        };
         self.apply_pick(out);
     }
 
@@ -1057,15 +1232,22 @@ impl StlApp {
         }
         let Some(t) = self.tool.as_mut() else { return };
         if out.changed {
-            if out.advance {
-                if let Some(cur) = t.active_field.clone() {
-                    t.active_field = pk::advance_field(t.def, &t.values, &cur);
-                }
+            if out.advance
+                && let Some(cur) = t.active_field.clone()
+            {
+                t.active_field = pk::advance_field(t.def, &t.values, &cur);
             }
             t.schedule_preview(60);
         }
         if let Some((l, m)) = &out.message {
-            t.msg = Some(crate::tools::preview::ToolMsg::new(if *l == Level::Error { crate::tools::preview::MsgKind::Err } else { crate::tools::preview::MsgKind::Info }, m.clone()));
+            t.msg = Some(crate::tools::preview::ToolMsg::new(
+                if *l == Level::Error {
+                    crate::tools::preview::MsgKind::Err
+                } else {
+                    crate::tools::preview::MsgKind::Info
+                },
+                m.clone(),
+            ));
         }
         // a field change (a plane picked and the next field active) shows or hides the planes
         self.sync_tool_planes();
@@ -1077,10 +1259,10 @@ impl StlApp {
         // Support Fins: a part that already has supports opens those instead of a second set
         if let Some(bid) = out.reopen_supports.clone() {
             let key = self.tool.as_ref().filter(|t| t.edit_id.is_none()).map(|t| t.def.key);
-            if let Some(key) = key {
-                if self.sf_reopen(key, &bid, None) {
-                    return;
-                }
+            if let Some(key) = key
+                && self.sf_reopen(key, &bid, None)
+            {
+                return;
             }
         }
         if out.quick_paint {
@@ -1091,9 +1273,21 @@ impl StlApp {
     /// `renderOverlayForTool`: what the fields want drawn, redrawn only when the values change.
     fn tool_marks(&mut self) {
         use crate::tools::fields::bodies as pk;
-        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection, self.shell.inch);
+        let ctx = make_ctx(
+            &self.bodies,
+            &self.planes,
+            &self.sketches,
+            &self.timeline_view.items,
+            &self.shell.selection,
+            self.shell.inch,
+        );
         let Some(t) = self.tool.as_mut() else { return };
-        let sig = format!("{:?}|{:?}|{}", t.values, t.active_field, self.bodies.len() + self.planes.len() + self.sketches.len());
+        let sig = format!(
+            "{:?}|{:?}|{}",
+            t.values,
+            t.active_field,
+            self.bodies.len() + self.planes.len() + self.sketches.len()
+        );
         if t.marks_sig == sig {
             return;
         }
@@ -1104,10 +1298,27 @@ impl StlApp {
 
     /// Draw the tool panel and act on its buttons.
     fn tool_panel(&mut self, egui_ctx: &egui::Context, tk: &Tokens, ws: Rect) {
-        let params: BTreeMap<String, f64> = self.param_views.iter().filter_map(|p| p.value.map(|v| (p.name.clone(), v))).collect();
-        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection, self.shell.inch);
+        let params: BTreeMap<String, f64> = self
+            .param_views
+            .iter()
+            .filter_map(|p| p.value.map(|v| (p.name.clone(), v)))
+            .collect();
+        let ctx = make_ctx(
+            &self.bodies,
+            &self.planes,
+            &self.sketches,
+            &self.timeline_view.items,
+            &self.shell.selection,
+            self.shell.inch,
+        );
         let Some(t) = self.tool.as_mut() else { return };
-        let env = crate::tools::panel::PanelEnv { tk, inch: self.shell.inch, params: &params, ctx: &ctx, ws };
+        let env = crate::tools::panel::PanelEnv {
+            tk,
+            inch: self.shell.inch,
+            params: &params,
+            ctx: &ctx,
+            ws,
+        };
         let out = t.show(egui_ctx, &env);
         if out.clear_face {
             self.viewport.clear_overlay("face");
@@ -1128,7 +1339,15 @@ impl StlApp {
 
     /// `runPreview`'s answer. Only the newest preview of the open tool lands; one for a closed
     /// tool, or while the gizmo is dragged, is dropped.
-    fn on_preview(&mut self, seq: u64, pack: crate::viewport::PreviewPack, msg: Option<String>, error: Option<String>, warn: bool, result: serde_json::Value) {
+    fn on_preview(
+        &mut self,
+        seq: u64,
+        pack: crate::viewport::PreviewPack,
+        msg: Option<String>,
+        error: Option<String>,
+        warn: bool,
+        result: serde_json::Value,
+    ) {
         use crate::tools::preview::{MsgKind, ToolMsg};
         {
             let Some(t) = self.tool.as_mut() else { return };
@@ -1144,14 +1363,14 @@ impl StlApp {
         }
         // a handle is held: the late preview must not snap the part back (the moved bodies are
         // put back first when one lands)
-        if let Some(g) = self.gizmo.as_mut() {
-            if !g.accept_preview(&mut self.viewport) {
-                if let Some(t) = self.tool.as_mut() {
-                    t.preview.done();
-                    t.preview_dropped = true;
-                }
-                return;
+        if let Some(g) = self.gizmo.as_mut()
+            && !g.accept_preview(&mut self.viewport)
+        {
+            if let Some(t) = self.tool.as_mut() {
+                t.preview.done();
+                t.preview_dropped = true;
             }
+            return;
         }
         if let Some(t) = self.tool.as_mut() {
             t.preview_dropped = false;
@@ -1166,30 +1385,33 @@ impl StlApp {
             return;
         }
         self.viewport.show_preview(&pack);
-        self.viewport.set_cut_tint(CUT_TINT_ID, pack.cutter.clone().filter(|_| self.cut_tint_on));
+        self.viewport
+            .set_cut_tint(CUT_TINT_ID, pack.cutter.clone().filter(|_| self.cut_tint_on));
         let (key, wall_tool) = (t.def.key, t.def.flags.wall_tool);
         let mode = crate::supports::mode_of(&t.values).to_owned();
         let (mut msg, mut warn) = (msg.filter(|m| !m.is_empty()), warn);
-        if warn {
-            if let Some(m) = msg.clone() {
-                if key == "supportfins" && mode == "rotate" {
-                    // "no overhangs in this position" is said by the Held card, not again up here
-                    let w = crate::supports::warning_line("rotate", &m);
-                    if w.trim().is_empty() {
-                        warn = false;
-                        msg = if result.get("flipped").and_then(|v| v.as_bool()).unwrap_or(false) {
-                            Some("Cutting into the material (direction flipped).".to_owned())
-                        } else {
-                            result.get("info").and_then(|v| v.as_str()).filter(|i| !i.is_empty()).map(str::to_owned)
-                        };
+        if warn && let Some(m) = msg.clone() {
+            if key == "supportfins" && mode == "rotate" {
+                // "no overhangs in this position" is said by the Held card, not again up here
+                let w = crate::supports::warning_line("rotate", &m);
+                if w.trim().is_empty() {
+                    warn = false;
+                    msg = if result.get("flipped").and_then(|v| v.as_bool()).unwrap_or(false) {
+                        Some("Cutting into the material (direction flipped).".to_owned())
                     } else {
-                        msg = Some(w.trim().to_owned());
-                    }
-                } else if wall_tool {
-                    if let Some(info) = result.get("info").and_then(|v| v.as_str()).filter(|i| !i.is_empty()) {
-                        msg = Some(format!("{info}. {m}"));
-                    }
+                        result
+                            .get("info")
+                            .and_then(|v| v.as_str())
+                            .filter(|i| !i.is_empty())
+                            .map(str::to_owned)
+                    };
+                } else {
+                    msg = Some(w.trim().to_owned());
                 }
+            } else if wall_tool
+                && let Some(info) = result.get("info").and_then(|v| v.as_str()).filter(|i| !i.is_empty())
+            {
+                msg = Some(format!("{info}. {m}"));
             }
         }
         if let Some(t) = self.tool.as_mut() {
@@ -1238,7 +1460,9 @@ impl StlApp {
         let spec = self.tool.as_ref().and_then(|t| t.def.flags.drag);
         let p = section.or_else(|| self.tool_drag_plane(spec?));
         self.viewport.set_drag_plane(p);
-        let Some((d, done)) = self.viewport.take_drag_distance() else { return };
+        let Some((d, done)) = self.viewport.take_drag_distance() else {
+            return;
+        };
         if section.is_some() {
             self.section_dragged(d, done);
         } else if let Some(spec) = spec {
@@ -1249,16 +1473,35 @@ impl StlApp {
     /// The open tool's plane, distance and body box as a `DragPlane`.
     fn tool_drag_plane(&self, spec: crate::tools::DragSpec) -> Option<crate::viewport::plane_drag::DragPlane> {
         let t = self.tool.as_ref()?;
-        let ctx = make_ctx(&self.bodies, &self.planes, &self.sketches, &self.timeline_view.items, &self.shell.selection, self.shell.inch);
+        let ctx = make_ctx(
+            &self.bodies,
+            &self.planes,
+            &self.sketches,
+            &self.timeline_view.items,
+            &self.shell.selection,
+            self.shell.inch,
+        );
         let frame = crate::tools::fields::plane::frame_of(t.values.get(spec.plane)?, &ctx)?;
         let distance = match t.values.get(spec.distance) {
             Some(serde_json::Value::Number(n)) => n.as_f64().unwrap_or(0.0),
-            Some(serde_json::Value::String(e)) => stl_engine::params::evaluate(e.trim().trim_start_matches('='), &self.param_map()).ok()?,
+            Some(serde_json::Value::String(e)) => {
+                stl_engine::params::evaluate(e.trim().trim_start_matches('='), &self.param_map()).ok()?
+            }
             _ => 0.0,
         };
-        let body = t.values.get(spec.body).and_then(|v| v.as_str().or_else(|| v.get(0)?.as_str()));
-        let span = body.and_then(|id| self.viewport.body_box(id)).or_else(|| self.viewport.scene_box())?;
-        Some(crate::viewport::plane_drag::DragPlane { origin: frame.origin, normal: frame.normal, distance, span })
+        let body = t
+            .values
+            .get(spec.body)
+            .and_then(|v| v.as_str().or_else(|| v.get(0)?.as_str()));
+        let span = body
+            .and_then(|id| self.viewport.body_box(id))
+            .or_else(|| self.viewport.scene_box())?;
+        Some(crate::viewport::plane_drag::DragPlane {
+            origin: frame.origin,
+            normal: frame.normal,
+            distance,
+            span,
+        })
     }
 
     /// A ribbon / search / dropdown tool was chosen (`App.onRibbon`).
@@ -1269,7 +1512,10 @@ impl StlApp {
         match key {
             "import" => self.shell.file_requests.push(UiAction::Insert),
             "export" => self.open_export_menu(anchor),
-            "params" => { self.params_open = true; self.params.set_open(true); }
+            "params" => {
+                self.params_open = true;
+                self.params.set_open(true);
+            }
             "section" => self.open_section(),
             "measure" => self.open_measure(),
             "info" => self.open_info(None),
@@ -1283,13 +1529,18 @@ impl StlApp {
 
     fn open_export_menu(&mut self, at: Pos2) {
         let n = self.shell.selection.len();
-        let hdr = if n > 0 { format!("Selected bodies ({n})") } else { "All visible bodies".to_owned() };
+        let hdr = if n > 0 {
+            format!("Selected bodies ({n})")
+        } else {
+            "All visible bodies".to_owned()
+        };
         let items = vec![
             MenuItem::Hdr(hdr),
             MenuItem::item("export:stl", "STL (.stl)"),
             MenuItem::item("export:3mf", "3MF (.3mf)"),
             MenuItem::item("export:obj", "OBJ (.obj)"),
-            MenuItem::item("export:step", "STEP (.step), flat faces").title("Curves become flat faces. Opens in CAD programs as a solid."),
+            MenuItem::item("export:step", "STEP (.step), flat faces")
+                .title("Curves become flat faces. Opens in CAD programs as a solid."),
         ];
         self.shell.menu = Some(OpenMenu::new("export", items, at));
     }
@@ -1303,7 +1554,10 @@ impl StlApp {
         }
         match key {
             "file" => {
-                let mut v = vec![it("file.new", "New").key("Ctrl+N"), it("file.open", "Open…").key("Ctrl+O")];
+                let mut v = vec![
+                    it("file.new", "New").key("Ctrl+N"),
+                    it("file.open", "Open…").key("Ctrl+O"),
+                ];
                 if self.shell.recent.is_empty() {
                     v.push(MenuItem::Sep);
                 } else {
@@ -1338,7 +1592,9 @@ impl StlApp {
                 it("edit.params", "Parameters…"),
                 MenuItem::Sep,
                 it("edit.select_all", "Select All Bodies"),
-                it("edit.remove", "Remove Selected Bodies").key("Del").disabled(self.shell.selection.is_empty()),
+                it("edit.remove", "Remove Selected Bodies")
+                    .key("Del")
+                    .disabled(self.shell.selection.is_empty()),
             ],
             "view" => {
                 let s = &self.shell;
@@ -1351,7 +1607,10 @@ impl StlApp {
                     it("view.section", tick(self.viewport.section_enabled(), "Section View")).key("X"),
                 ];
                 if self.section_has_cut() {
-                    v.extend([it("view.edit_section", "Edit Section…"), it("view.remove_section", "Remove Section")]);
+                    v.extend([
+                        it("view.edit_section", "Edit Section…"),
+                        it("view.remove_section", "Remove Section"),
+                    ]);
                 }
                 v.extend([
                     MenuItem::Sep,
@@ -1365,22 +1624,46 @@ impl StlApp {
                     MenuItem::Sep,
                     it("view.edges", tick(s.show_edges, "Show Edges")),
                     it("view.grid", tick(s.show_grid, "Show Grid")),
-                    it("view.planes", tick(self.viewport.base_planes_visible(), "Show Origin Planes")),
+                    it(
+                        "view.planes",
+                        tick(self.viewport.base_planes_visible(), "Show Origin Planes"),
+                    ),
                     it("view.cut_tint", tick(self.cut_tint_on, "Tint Cuts in Previews")),
                     MenuItem::Hdr("Orbit Around".into()),
-                    it("nav.view_centre", tick(self.viewport.orbit_around == OrbitAround::ViewCentre, "View Centre")),
-                    it("nav.origin", tick(self.viewport.orbit_around == OrbitAround::Origin, "Origin")),
-                    it("nav.cursor", tick(self.viewport.orbit_around == OrbitAround::Cursor, "Under the Cursor")),
+                    it(
+                        "nav.view_centre",
+                        tick(self.viewport.orbit_around == OrbitAround::ViewCentre, "View Centre"),
+                    ),
+                    it(
+                        "nav.origin",
+                        tick(self.viewport.orbit_around == OrbitAround::Origin, "Origin"),
+                    ),
+                    it(
+                        "nav.cursor",
+                        tick(self.viewport.orbit_around == OrbitAround::Cursor, "Under the Cursor"),
+                    ),
                 ]);
                 v
             }
             _ => {
                 let mut v = vec![it("help.shortcuts", "Keyboard Shortcuts")];
                 if web {
-                    v.extend([it("help.guide", "User Guide"), it("help.desktop", "Get the Desktop App"), it("help.issue", "Report a Problem")]);
+                    v.extend([
+                        it("help.guide", "User Guide"),
+                        it("help.desktop", "Get the Desktop App"),
+                        it("help.issue", "Report a Problem"),
+                    ]);
                 }
-                v.extend(crate::updates::help_menu_items(web).into_iter().map(|(id, label)| it(id, label)));
-                v.extend([it("help.recover", "Recover Unsaved Work…"), it("help.kofi", "Support STL Editor ♥"), it("help.about", "About STL Editor")]);
+                v.extend(
+                    crate::updates::help_menu_items(web)
+                        .into_iter()
+                        .map(|(id, label)| it(id, label)),
+                );
+                v.extend([
+                    it("help.recover", "Recover Unsaved Work…"),
+                    it("help.kofi", "Support STL Editor ♥"),
+                    it("help.about", "About STL Editor"),
+                ]);
                 v
             }
         }
@@ -1430,7 +1713,10 @@ impl StlApp {
             "file.quit" => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
             "edit.undo" => self.send(Command::Undo),
             "edit.redo" => self.send(Command::Redo),
-            "edit.params" => { self.params_open = true; self.params.set_open(true); }
+            "edit.params" => {
+                self.params_open = true;
+                self.params.set_open(true);
+            }
             "edit.select_all" => {
                 let ids: Vec<String> = self.bodies.iter().map(|b| b.id.clone()).collect();
                 self.viewport.set_selection(&ids);
@@ -1465,7 +1751,8 @@ impl StlApp {
             }
             "view.cut_tint" => {
                 self.cut_tint_on = !self.cut_tint_on;
-                self.platform.set_setting_json(CUT_TINT_KEY, serde_json::Value::Bool(self.cut_tint_on));
+                self.platform
+                    .set_setting_json(CUT_TINT_KEY, serde_json::Value::Bool(self.cut_tint_on));
                 if !self.cut_tint_on {
                     self.viewport.set_cut_tint(CUT_TINT_ID, None);
                 }
@@ -1501,10 +1788,15 @@ impl StlApp {
                 let web = self.platform.is_web();
                 let mut links = Vec::new();
                 if web {
-                    links.push(("source on GitHub".to_owned(), "https://github.com/natterman12/STL-Editor".to_owned()));
+                    links.push((
+                        "source on GitHub".to_owned(),
+                        "https://github.com/natterman12/STL-Editor".to_owned(),
+                    ));
                 }
                 links.push(("Buy me a coffee on Ko-fi".to_owned(), KOFI.to_owned()));
-                self.shell.dialogs.open_alert("about", &crate::build_info::title(), &about_text(web), links);
+                self.shell
+                    .dialogs
+                    .open_alert("about", &crate::build_info::title(), &about_text(web), links);
             }
             _ => {}
         }
@@ -1515,37 +1807,65 @@ impl StlApp {
         self.shell.query.clear();
         self.shell.menu = None;
         ctx.memory_mut(|m| m.surrender_focus(Id::unique(topbar::SEARCH_ID)));
-        if let Some(c) = ribbon::all_commands_in(self.sketch.is_some()).into_iter().find(|c| c.k == key) {
-            if let Some(tab) = c.tab.filter(|_| self.sketch.is_none()) {
-                let here = ribbon::def(&self.shell.tab).groups.iter().any(|g| g.tools().iter().any(|x| x.key == key));
-                if tab != self.shell.tab && !here {
-                    self.shell.tab = tab.to_owned();
-                }
+        if let Some(c) = ribbon::all_commands_in(self.sketch.is_some())
+            .into_iter()
+            .find(|c| c.k == key)
+            && let Some(tab) = c.tab.filter(|_| self.sketch.is_none())
+        {
+            let here = ribbon::def(&self.shell.tab)
+                .groups
+                .iter()
+                .any(|g| g.tools().iter().any(|x| x.key == key));
+            if tab != self.shell.tab && !here {
+                self.shell.tab = tab.to_owned();
             }
         }
         self.on_ribbon(key, anchor);
     }
 
     fn update_search_menu(&mut self, rect: Rect) {
-        let results = ribbon::search_shown(&self.shell.query, self.sketch.is_some(), &ribbon::DeskTools::of(&*self.platform));
+        let results = ribbon::search_shown(
+            &self.shell.query,
+            self.sketch.is_some(),
+            &ribbon::DeskTools::of(&*self.platform),
+        );
         if self.shell.query.trim().is_empty() {
             if self.shell.menu.as_ref().is_some_and(|m| m.tag == "search") {
                 self.shell.menu = None;
             }
             return;
         }
-        let tab_name = |t: &str| if t == ribbon::SKETCH_TAB { Some("Sketch".to_owned()) } else { ribbon::TABS.iter().find(|x| x.0 == t).map(|x| x.1.to_owned()) };
+        let tab_name = |t: &str| {
+            if t == ribbon::SKETCH_TAB {
+                Some("Sketch".to_owned())
+            } else {
+                ribbon::TABS.iter().find(|x| x.0 == t).map(|x| x.1.to_owned())
+            }
+        };
         let items: Vec<MenuItem> = if results.is_empty() {
             vec![MenuItem::item("none", "No matching tools").disabled(true)]
         } else {
-            results.iter().map(|c| MenuItem::item(format!("search:{}", c.k), c.l.clone()).icon(c.ic.clone()).key(c.tab.and_then(tab_name).unwrap_or_else(|| c.group.clone()))).collect()
+            results
+                .iter()
+                .map(|c| {
+                    MenuItem::item(format!("search:{}", c.k), c.l.clone())
+                        .icon(c.ic.clone())
+                        .key(c.tab.and_then(tab_name).unwrap_or_else(|| c.group.clone()))
+                })
+                .collect()
         };
-        let hot = if results.is_empty() { None } else { Some(self.shell.search_hot.min(results.len() - 1)) };
-        let mut m = OpenMenu::new("search", items, Pos2::new(rect.min.x, rect.max.y + 2.0)).hot(hot).keep(rect);
-        if let Some(old) = &self.shell.menu {
-            if old.tag == "search" {
-                m = OpenMenu { ..m };
-            }
+        let hot = if results.is_empty() {
+            None
+        } else {
+            Some(self.shell.search_hot.min(results.len() - 1))
+        };
+        let mut m = OpenMenu::new("search", items, Pos2::new(rect.min.x, rect.max.y + 2.0))
+            .hot(hot)
+            .keep(rect);
+        if let Some(old) = &self.shell.menu
+            && old.tag == "search"
+        {
+            m = OpenMenu { ..m };
         }
         self.shell.menu = Some(m);
     }
@@ -1563,11 +1883,17 @@ impl StlApp {
                 let d = ribbon::def(self.ribbon_tab());
                 for g in &d.groups {
                     for item in &g.items {
-                        if let ribbon::Item::Drop { id: did, items, .. } = item {
-                            if *did == id {
-                                let rows = items.iter().map(|x| MenuItem::item(format!("drop:{id}:{}", x.key), x.label).icon(x.icon)).collect();
-                                self.shell.menu = Some(OpenMenu::new(format!("drop:{id}"), rows, r.left_bottom() + Vec2::new(0.0, 2.0)).keep(r));
-                            }
+                        if let ribbon::Item::Drop { id: did, items, .. } = item
+                            && *did == id
+                        {
+                            let rows = items
+                                .iter()
+                                .map(|x| MenuItem::item(format!("drop:{id}:{}", x.key), x.label).icon(x.icon))
+                                .collect();
+                            self.shell.menu = Some(
+                                OpenMenu::new(format!("drop:{id}"), rows, r.left_bottom() + Vec2::new(0.0, 2.0))
+                                    .keep(r),
+                            );
                         }
                     }
                 }
@@ -1577,7 +1903,11 @@ impl StlApp {
                 if let Some(f) = &self.last_fit {
                     for (label, tools) in ribbon::folded_groups(self.ribbon_tab(), f) {
                         rows.push(MenuItem::Hdr(label.to_owned()));
-                        rows.extend(tools.iter().map(|x| MenuItem::item(format!("tool:{}", x.key), x.label).icon(x.icon)));
+                        rows.extend(
+                            tools
+                                .iter()
+                                .map(|x| MenuItem::item(format!("tool:{}", x.key), x.label).icon(x.icon)),
+                        );
                     }
                 }
                 self.shell.menu = Some(OpenMenu::new("more", rows, r.left_bottom() + Vec2::new(0.0, 2.0)).keep(r));
@@ -1585,7 +1915,11 @@ impl StlApp {
             Pick::GroupMenu(gi, r) => {
                 let d = ribbon::def_shown(self.ribbon_tab(), &ribbon::DeskTools::of(&*self.platform));
                 if let Some(g) = d.groups.get(gi) {
-                    let rows = g.tools().iter().map(|x| MenuItem::item(format!("tool:{}", x.key), x.label).icon(x.icon)).collect();
+                    let rows = g
+                        .tools()
+                        .iter()
+                        .map(|x| MenuItem::item(format!("tool:{}", x.key), x.label).icon(x.icon))
+                        .collect();
                     self.shell.menu = Some(OpenMenu::new("group", rows, r.left_bottom() + Vec2::new(0.0, 2.0)).keep(r));
                 }
             }
@@ -1609,32 +1943,40 @@ impl StlApp {
         self.shell.recent = self.files.recent_keys();
         self.run_keys(&ctx);
         self.run_previews(web_time::Instant::now());
-        if let Some(t) = &self.tool {
-            if let Some(d) = t.preview.next_wake(web_time::Instant::now()) {
-                ctx.request_repaint_after(d);
-            }
+        if let Some(t) = &self.tool
+            && let Some(d) = t.preview.next_wake(web_time::Instant::now())
+        {
+            ctx.request_repaint_after(d);
         }
         let tk = self.tokens.clone();
 
         // ---- top bar
         let mut tb_out = topbar::TopbarOut::empty();
-        egui::Panel::top("topbar").exact_size(topbar::HEIGHT).frame(Frame::NONE).show_separator_line(false).show(ui, |ui| {
-            let open = self.shell.menu.as_ref().and_then(|m| m.tag.strip_prefix("top:"));
-            let focus = std::mem::take(&mut self.shell.focus_search);
-            let mut st = topbar::TopbarState {
-                title: &self.shell.doc_name,
-                dirty: self.shell.dirty,
-                can_undo: self.timeline_view.can_undo,
-                can_redo: self.timeline_view.can_redo,
-                open_menu: open.map(|s| s.to_owned()).as_deref().and_then(|s| topbar::MENUS.iter().find(|m| m.0 == s).map(|m| m.0)),
-                query: &mut self.shell.query,
-                focus_search: focus,
-            };
-            tb_out = topbar::show(ui, &tk, &mut st);
-        });
+        egui::Panel::top("topbar")
+            .exact_size(topbar::HEIGHT)
+            .frame(Frame::NONE)
+            .show_separator_line(false)
+            .show(ui, |ui| {
+                let open = self.shell.menu.as_ref().and_then(|m| m.tag.strip_prefix("top:"));
+                let focus = std::mem::take(&mut self.shell.focus_search);
+                let mut st = topbar::TopbarState {
+                    title: &self.shell.doc_name,
+                    dirty: self.shell.dirty,
+                    can_undo: self.timeline_view.can_undo,
+                    can_redo: self.timeline_view.can_redo,
+                    open_menu: open
+                        .map(|s| s.to_owned())
+                        .as_deref()
+                        .and_then(|s| topbar::MENUS.iter().find(|m| m.0 == s).map(|m| m.0)),
+                    query: &mut self.shell.query,
+                    focus_search: focus,
+                };
+                tb_out = topbar::show(ui, &tk, &mut st);
+            });
         if let Some((k, r)) = tb_out.menu {
             let items = self.top_menu(k);
-            self.shell.menu = Some(OpenMenu::new(format!("top:{k}"), items, r.left_bottom() + Vec2::new(0.0, 2.0)).keep(r));
+            self.shell.menu =
+                Some(OpenMenu::new(format!("top:{k}"), items, r.left_bottom() + Vec2::new(0.0, 2.0)).keep(r));
         }
         if let Some((q, r)) = tb_out.quick {
             let at = r.left_bottom() + Vec2::new(0.0, 2.0);
@@ -1652,19 +1994,34 @@ impl StlApp {
             self.update_search_menu(tb_out.search_rect);
         }
         if let Some(k) = tb_out.search_key {
-            let n = ribbon::search_shown(&self.shell.query, self.sketch.is_some(), &ribbon::DeskTools::of(&*self.platform)).len();
+            let n = ribbon::search_shown(
+                &self.shell.query,
+                self.sketch.is_some(),
+                &ribbon::DeskTools::of(&*self.platform),
+            )
+            .len();
             match k {
                 egui::Key::ArrowDown | egui::Key::ArrowUp if n > 0 => {
                     if !self.shell.menu.as_ref().is_some_and(|m| m.tag == "search") {
                         self.update_search_menu(tb_out.search_rect);
                     } else {
                         let h = self.shell.search_hot.min(n - 1);
-                        self.shell.search_hot = if k == egui::Key::ArrowDown { (h + 1) % n } else { (h + n - 1) % n };
+                        self.shell.search_hot = if k == egui::Key::ArrowDown {
+                            (h + 1) % n
+                        } else {
+                            (h + n - 1) % n
+                        };
                         self.update_search_menu(tb_out.search_rect);
                     }
                 }
                 egui::Key::Enter => {
-                    if let Some(c) = ribbon::search_shown(&self.shell.query, self.sketch.is_some(), &ribbon::DeskTools::of(&*self.platform)).get(self.shell.search_hot) {
+                    if let Some(c) = ribbon::search_shown(
+                        &self.shell.query,
+                        self.sketch.is_some(),
+                        &ribbon::DeskTools::of(&*self.platform),
+                    )
+                    .get(self.shell.search_hot)
+                    {
                         let key = c.k.clone();
                         self.run_search_command(&ctx, &key, tb_out.search_rect.left_bottom());
                     }
@@ -1685,12 +2042,22 @@ impl StlApp {
             Some(m) => Some(m.s.tool.clone()),
             None => self.shell.active_tool.clone(),
         };
-        egui::Panel::top("ribbon").exact_size(ribbon::height(&rb_tab)).frame(Frame::NONE).show_separator_line(false).show(ui, |ui| {
-            let st = ribbon::RibbonState { tab: &rb_tab, active: rb_active.as_deref(), drop_last: &self.shell.drop_last, web: self.platform.is_web(), desk: ribbon::DeskTools::of(&*self.platform) };
-            let (p, fit) = ribbon::show(ui, &tk, &st);
-            rb_pick = p;
-            self.last_fit = Some(fit);
-        });
+        egui::Panel::top("ribbon")
+            .exact_size(ribbon::height(&rb_tab))
+            .frame(Frame::NONE)
+            .show_separator_line(false)
+            .show(ui, |ui| {
+                let st = ribbon::RibbonState {
+                    tab: &rb_tab,
+                    active: rb_active.as_deref(),
+                    drop_last: &self.shell.drop_last,
+                    web: self.platform.is_web(),
+                    desk: ribbon::DeskTools::of(&*self.platform),
+                };
+                let (p, fit) = ribbon::show(ui, &tk, &st);
+                rb_pick = p;
+                self.last_fit = Some(fit);
+            });
         if let Some(p) = rb_pick {
             self.dispatch_pick(&ctx, p);
         }
@@ -1727,24 +2094,26 @@ impl StlApp {
             self.sketch_pointer(ui, &vr.response);
             self.sketch_frame(ui);
             consumed |= self.sketch.is_some();
-            if vr.response.clicked() && !consumed {
-                if let Some(pos) = vr.response.interact_pointer_pos() {
-                    if !(self.section_click(pos) || self.measure_click(pos) || self.sf_click(pos)) {
-                        self.tool_click(pos);
-                    }
-                }
+            if vr.response.clicked()
+                && !consumed
+                && let Some(pos) = vr.response.interact_pointer_pos()
+                && !(self.section_click(pos) || self.measure_click(pos) || self.sf_click(pos))
+            {
+                self.tool_click(pos);
             }
             // a right-click (not a right-drag, which pans): the body's menu, or the view menu
-            if vr.response.secondary_clicked() && self.sketch.is_none() {
-                if let Some(pos) = vr.response.interact_pointer_pos() {
-                    self.open_viewport_menu(pos);
-                }
+            if vr.response.secondary_clicked()
+                && self.sketch.is_none()
+                && let Some(pos) = vr.response.interact_pointer_pos()
+            {
+                self.open_viewport_menu(pos);
             }
             self.overlays(&ctx, &tk, ws, &mut commands, &mut events);
             self.section_frame(&ctx, &tk, ws);
             self.measure_frame(&ctx, &tk, ws);
             self.handoff_frame();
-            let empty = self.timeline_view.items.is_empty() && self.shell.active_tool.is_none() && self.sketch.is_none();
+            let empty =
+                self.timeline_view.items.is_empty() && self.shell.active_tool.is_none() && self.sketch.is_none();
             if empty {
                 start_pick = start::show(&ctx, &tk, ws, &self.shell.recent);
             }
@@ -1784,7 +2153,9 @@ impl StlApp {
         let recovery = self.recover.as_mut().and_then(|r| r.show(&ctx, &tk, self.shell.dirty));
         match recovery {
             Some(RecoverAction::Open(r)) => self.open_recovered(r),
-            Some(RecoverAction::Message { text, warn }) => self.toasts.push(if warn { Level::Warning } else { Level::Info }, text),
+            Some(RecoverAction::Message { text, warn }) => {
+                self.toasts.push(if warn { Level::Warning } else { Level::Info }, text)
+            }
             None => {}
         }
         if let Some(url) = dialogs::show(&ctx, &tk, &mut self.shell.dialogs) {
@@ -1842,21 +2213,42 @@ impl StlApp {
     fn params_dialog(&mut self, ctx: &egui::Context, tk: &Tokens) {
         let mut cmds = Vec::new();
         let mut close = false;
-        Area::new(Id::unique("params-scrim")).order(Order::Foreground).fixed_pos(ctx.content_rect().min).show(ctx, |ui| {
-            let (r, _) = ui.allocate_exact_size(ctx.content_rect().size(), Sense::click_and_drag());
-            ui.painter().rect_filled(r, 0.0, tk.scrim);
-        });
-        Area::new(Id::unique("params-card")).order(Order::Tooltip).anchor(Align2::CENTER_CENTER, Vec2::ZERO).show(ctx, |ui| {
-            Frame::new().fill(tk.panel).stroke(Stroke::new(1.0, tk.line)).corner_radius(CornerRadius::same(9)).shadow(tk.shadow_lg).inner_margin(Margin { left: 20, right: 20, top: 18, bottom: 14 }).show(ui, |ui| {
-                ui.set_max_width(720.0);
-                let used: std::collections::HashSet<String> =
-                    self.param_views.iter().filter(|p| p.used).map(|p| p.name.clone()).collect();
-                params::show(ui, tk, &mut self.params, &self.param_views, &used, &mut cmds);
-                if !self.params.is_open() {
-                    close = true; // Apply or Cancel closed the table
-                }
+        Area::new(Id::unique("params-scrim"))
+            .order(Order::Foreground)
+            .fixed_pos(ctx.content_rect().min)
+            .show(ctx, |ui| {
+                let (r, _) = ui.allocate_exact_size(ctx.content_rect().size(), Sense::click_and_drag());
+                ui.painter().rect_filled(r, 0.0, tk.scrim);
             });
-        });
+        Area::new(Id::unique("params-card"))
+            .order(Order::Tooltip)
+            .anchor(Align2::CENTER_CENTER, Vec2::ZERO)
+            .show(ctx, |ui| {
+                Frame::new()
+                    .fill(tk.panel)
+                    .stroke(Stroke::new(1.0, tk.line))
+                    .corner_radius(CornerRadius::same(9))
+                    .shadow(tk.shadow_lg)
+                    .inner_margin(Margin {
+                        left: 20,
+                        right: 20,
+                        top: 18,
+                        bottom: 14,
+                    })
+                    .show(ui, |ui| {
+                        ui.set_max_width(720.0);
+                        let used: std::collections::HashSet<String> = self
+                            .param_views
+                            .iter()
+                            .filter(|p| p.used)
+                            .map(|p| p.name.clone())
+                            .collect();
+                        params::show(ui, tk, &mut self.params, &self.param_views, &used, &mut cmds);
+                        if !self.params.is_open() {
+                            close = true; // Apply or Cancel closed the table
+                        }
+                    });
+            });
         if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape)) {
             close = true;
         }
@@ -1872,17 +2264,35 @@ impl StlApp {
     /// "The engine stopped unexpectedly. Your last saved project is safe." with Restart (pending Nathan's OK).
     fn engine_lost_dialog(&mut self, ctx: &egui::Context, tk: &Tokens) {
         let mut restart = false;
-        Area::new(Id::unique("engine-lost")).order(Order::Tooltip).anchor(Align2::CENTER_CENTER, Vec2::ZERO).show(ctx, |ui| {
-            Frame::new().fill(tk.panel).stroke(Stroke::new(1.0, tk.line)).corner_radius(CornerRadius::same(9)).shadow(tk.shadow_lg).inner_margin(Margin { left: 20, right: 20, top: 18, bottom: 14 }).show(ui, |ui| {
-                ui.label(RichText::new("The engine stopped unexpectedly. Your last saved project is safe.").size(12.0).color(tk.text));
-                ui.add_space(14.0);
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if dialogs::button(ui, tk, "Restart", true).clicked() {
-                        restart = true;
-                    }
-                });
+        Area::new(Id::unique("engine-lost"))
+            .order(Order::Tooltip)
+            .anchor(Align2::CENTER_CENTER, Vec2::ZERO)
+            .show(ctx, |ui| {
+                Frame::new()
+                    .fill(tk.panel)
+                    .stroke(Stroke::new(1.0, tk.line))
+                    .corner_radius(CornerRadius::same(9))
+                    .shadow(tk.shadow_lg)
+                    .inner_margin(Margin {
+                        left: 20,
+                        right: 20,
+                        top: 18,
+                        bottom: 14,
+                    })
+                    .show(ui, |ui| {
+                        ui.label(
+                            RichText::new("The engine stopped unexpectedly. Your last saved project is safe.")
+                                .size(12.0)
+                                .color(tk.text),
+                        );
+                        ui.add_space(14.0);
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            if dialogs::button(ui, tk, "Restart", true).clicked() {
+                                restart = true;
+                            }
+                        });
+                    });
             });
-        });
         if restart {
             self.link.restart();
             self.engine_lost = false;
@@ -1890,11 +2300,32 @@ impl StlApp {
     }
 
     /// The floating regions over the viewport: browser, tool panel, history bar, hint, HUD, drop overlay.
-    fn overlays(&mut self, ctx: &egui::Context, tk: &Tokens, ws: Rect, commands: &mut Vec<Command>, events: &mut Vec<UiEvent>) {
-        let panel_frame = || Frame::new().fill(tk.panel).stroke(Stroke::new(1.0, tk.line)).corner_radius(CornerRadius::same(tk.radius as u8)).shadow(tk.shadow);
+    fn overlays(
+        &mut self,
+        ctx: &egui::Context,
+        tk: &Tokens,
+        ws: Rect,
+        commands: &mut Vec<Command>,
+        events: &mut Vec<UiEvent>,
+    ) {
+        let panel_frame = || {
+            Frame::new()
+                .fill(tk.panel)
+                .stroke(Stroke::new(1.0, tk.line))
+                .corner_radius(CornerRadius::same(tk.radius as u8))
+                .shadow(tk.shadow)
+        };
 
         // browser: 240 wide, 8px from the top left, leaves room for the history bar
-        let view = browser::BrowserView { doc_name: &self.shell.doc_name, bodies: &self.bodies, selection: &self.shell.selection, planes: &self.planes, sketches: &self.sketches, params: &self.param_views, origin_visible: self.viewport.base_planes_visible() };
+        let view = browser::BrowserView {
+            doc_name: &self.shell.doc_name,
+            bodies: &self.bodies,
+            selection: &self.shell.selection,
+            planes: &self.planes,
+            sketches: &self.sketches,
+            params: &self.param_views,
+            origin_visible: self.viewport.base_planes_visible(),
+        };
         browser::show_panel(ctx, tk, ws, &mut self.browser, view, commands, events);
         // the Origin eye turns the three base planes on and off (app.js:2435)
         if let Some(v) = self.browser.take_origin_toggle() {
@@ -1909,59 +2340,98 @@ impl StlApp {
         self.sketch_overlays(ctx, tk, ws);
 
         // history bar along the bottom
-        let bar = Rect::from_min_max(Pos2::new(ws.min.x + 8.0, ws.max.y - 8.0 - 36.0), Pos2::new(ws.max.x - 8.0, ws.max.y - 8.0));
-        Area::new(Id::unique("history-bar")).order(Order::Middle).fixed_pos(bar.min).show(ctx, |ui| {
-            panel_frame().inner_margin(Margin::ZERO).show(ui, |ui| {
-                ui.set_width(bar.width() - 2.0);
-                ui.set_height(34.0);
-                let status_w = 420.0f32.min(bar.width() * 0.4);
-                let inner = ui.max_rect();
-                let tl_rect = Rect::from_min_max(inner.min + Vec2::new(10.0, 4.0), Pos2::new(inner.max.x - status_w - 8.0, inner.max.y - 4.0));
-                let st_rect = Rect::from_min_max(Pos2::new(inner.max.x - status_w - 6.0, inner.min.y), Pos2::new(inner.max.x - 8.0, inner.max.y));
-                let mut tl_ui = ui.new_child(egui::UiBuilder::new().max_rect(tl_rect));
-                // TASK 8 call site: history bar
-                self.timeline.features_pick = self.tool.as_ref().is_some_and(|t| t.shown_fields().any(|f| matches!(f.kind, crate::tools::FieldKind::Features)));
-                timeline::show(&mut tl_ui, ctx, tk, &mut self.timeline, &self.timeline_view, self.shell.active_tool.is_some(), self.sketch.is_some(), commands, events);
-                // clicking a step puts its name (and any error) in the status line (app.js:2124)
-                if let Some(m) = self.timeline.take_status() {
-                    self.status_text = m;
-                }
-                if let Some(id) = self.timeline.take_ticked() {
-                    if let Some(t) = self.tool.as_mut() {
-                        let key = t.shown_fields().find(|f| matches!(f.kind, crate::tools::FieldKind::Features)).map(|f| f.key);
+        let bar = Rect::from_min_max(
+            Pos2::new(ws.min.x + 8.0, ws.max.y - 8.0 - 36.0),
+            Pos2::new(ws.max.x - 8.0, ws.max.y - 8.0),
+        );
+        Area::new(Id::unique("history-bar"))
+            .order(Order::Middle)
+            .fixed_pos(bar.min)
+            .show(ctx, |ui| {
+                panel_frame().inner_margin(Margin::ZERO).show(ui, |ui| {
+                    ui.set_width(bar.width() - 2.0);
+                    ui.set_height(34.0);
+                    let status_w = 420.0f32.min(bar.width() * 0.4);
+                    let inner = ui.max_rect();
+                    let tl_rect = Rect::from_min_max(
+                        inner.min + Vec2::new(10.0, 4.0),
+                        Pos2::new(inner.max.x - status_w - 8.0, inner.max.y - 4.0),
+                    );
+                    let st_rect = Rect::from_min_max(
+                        Pos2::new(inner.max.x - status_w - 6.0, inner.min.y),
+                        Pos2::new(inner.max.x - 8.0, inner.max.y),
+                    );
+                    let mut tl_ui = ui.new_child(egui::UiBuilder::new().max_rect(tl_rect));
+                    // TASK 8 call site: history bar
+                    self.timeline.features_pick = self.tool.as_ref().is_some_and(|t| {
+                        t.shown_fields()
+                            .any(|f| matches!(f.kind, crate::tools::FieldKind::Features))
+                    });
+                    timeline::show(
+                        &mut tl_ui,
+                        ctx,
+                        tk,
+                        &mut self.timeline,
+                        &self.timeline_view,
+                        self.shell.active_tool.is_some(),
+                        self.sketch.is_some(),
+                        commands,
+                        events,
+                    );
+                    // clicking a step puts its name (and any error) in the status line (app.js:2124)
+                    if let Some(m) = self.timeline.take_status() {
+                        self.status_text = m;
+                    }
+                    if let Some(id) = self.timeline.take_ticked()
+                        && let Some(t) = self.tool.as_mut()
+                    {
+                        let key = t
+                            .shown_fields()
+                            .find(|f| matches!(f.kind, crate::tools::FieldKind::Features))
+                            .map(|f| f.key);
                         if let Some(key) = key {
                             crate::tools::fields::features::toggle(&mut t.values, key, &id);
                             t.schedule_preview(crate::tools::preview::DELAY_MS);
                         }
                     }
-                }
-                self.timeline.take_edit_feature(); // the tool opens through the OpenTool event (4b)
-                let mut st_ui = ui.new_child(egui::UiBuilder::new().max_rect(st_rect));
-                // sketch mode: pointer position and definition (sketcher.js showStatus), repainted on change
-                let inch = self.shell.inch;
-                if let Some(m) = self.sketch.as_mut() {
-                    let t = m.status_line(inch);
-                    if t != m.last_status {
-                        m.last_status = t.clone();
-                        self.status_text = t;
+                    self.timeline.take_edit_feature(); // the tool opens through the OpenTool event (4b)
+                    let mut st_ui = ui.new_child(egui::UiBuilder::new().max_rect(st_rect));
+                    // sketch mode: pointer position and definition (sketcher.js showStatus), repainted on change
+                    let inch = self.shell.inch;
+                    if let Some(m) = self.sketch.as_mut() {
+                        let t = m.status_line(inch);
+                        if t != m.last_status {
+                            m.last_status = t.clone();
+                            self.status_text = t;
+                        }
                     }
-                }
-                // TASK 8 call site: status line
-                status::show(&mut st_ui, tk, &self.status_text);
+                    // TASK 8 call site: status line
+                    status::show(&mut st_ui, tk, &self.status_text);
+                });
             });
-        });
 
         // hint line
         if !self.shell.hint.is_empty() {
             let pos = Pos2::new(ws.center().x, ws.max.y - 54.0);
-            Area::new(Id::unique("hint")).order(Order::Middle).interactable(false).pivot(Align2::CENTER_BOTTOM).fixed_pos(pos).show(ctx, |ui| {
-                Frame::new().fill(tk.float).stroke(Stroke::new(1.0, tk.line)).corner_radius(CornerRadius::same(14)).shadow(tk.shadow).inner_margin(Margin::symmetric(12, 5)).show(ui, |ui| {
-                    // 1.x: `left: 50%` makes the shrink-to-fit width at most half the viewport,
-                    // padding and border included (that binds before `max-width: 60%`).
-                    ui.set_max_width((ws.width() * 0.5 - 26.0).max(40.0));
-                    ui.label(RichText::new(self.shell.hint.as_str()).size(12.0).color(tk.strong));
+            Area::new(Id::unique("hint"))
+                .order(Order::Middle)
+                .interactable(false)
+                .pivot(Align2::CENTER_BOTTOM)
+                .fixed_pos(pos)
+                .show(ctx, |ui| {
+                    Frame::new()
+                        .fill(tk.float)
+                        .stroke(Stroke::new(1.0, tk.line))
+                        .corner_radius(CornerRadius::same(14))
+                        .shadow(tk.shadow)
+                        .inner_margin(Margin::symmetric(12, 5))
+                        .show(ui, |ui| {
+                            // 1.x: `left: 50%` makes the shrink-to-fit width at most half the viewport,
+                            // padding and border included (that binds before `max-width: 60%`).
+                            ui.set_max_width((ws.width() * 0.5 - 26.0).max(40.0));
+                            ui.label(RichText::new(self.shell.hint.as_str()).size(12.0).color(tk.strong));
+                        });
                 });
-            });
             // 1.x stacks the tool panel (z-index 5) above the hint (z-index 3): a long hint runs
             // under the panel instead of over its footer
             if self.tool.is_some() {
@@ -1972,16 +2442,31 @@ impl StlApp {
         self.sketch_labels(ctx, tk);
         // drop overlay while a file is dragged over the window
         if self.shell.dragging_files {
-            Area::new(Id::unique("drop-overlay")).order(Order::Foreground).interactable(false).fixed_pos(ws.min).show(ctx, |ui| {
-                let (r, _) = ui.allocate_exact_size(ws.size(), Sense::hover());
-                ui.painter().rect_filled(r, 0.0, tk.accent_soft);
-                let dash = Stroke::new(3.0, tk.accent);
-                let rr = r.shrink(1.5);
-                for (a, b) in [(rr.left_top(), rr.right_top()), (rr.right_top(), rr.right_bottom()), (rr.right_bottom(), rr.left_bottom()), (rr.left_bottom(), rr.left_top())] {
-                    ui.painter().add(egui::Shape::dashed_line(&[a, b], dash, 9.0, 6.0));
-                }
-                ui.painter().text(r.center(), Align2::CENTER_CENTER, "Drop to insert meshes", egui::FontId::new(18.0, egui::FontFamily::Name("bold".into())), tk.accent);
-            });
+            Area::new(Id::unique("drop-overlay"))
+                .order(Order::Foreground)
+                .interactable(false)
+                .fixed_pos(ws.min)
+                .show(ctx, |ui| {
+                    let (r, _) = ui.allocate_exact_size(ws.size(), Sense::hover());
+                    ui.painter().rect_filled(r, 0.0, tk.accent_soft);
+                    let dash = Stroke::new(3.0, tk.accent);
+                    let rr = r.shrink(1.5);
+                    for (a, b) in [
+                        (rr.left_top(), rr.right_top()),
+                        (rr.right_top(), rr.right_bottom()),
+                        (rr.right_bottom(), rr.left_bottom()),
+                        (rr.left_bottom(), rr.left_top()),
+                    ] {
+                        ui.painter().add(egui::Shape::dashed_line(&[a, b], dash, 9.0, 6.0));
+                    }
+                    ui.painter().text(
+                        r.center(),
+                        Align2::CENTER_CENTER,
+                        "Drop to insert meshes",
+                        egui::FontId::new(18.0, egui::FontFamily::Name("bold".into())),
+                        tk.accent,
+                    );
+                });
         }
     }
 }
@@ -1995,13 +2480,18 @@ impl StlApp {
         let to_world = |p: [f64; 2]| [0, 1, 2].map(|i| f.origin[i] + f.x[i] * p[0] + f.y[i] * p[1]);
         // a value box: the accent stroke when typing goes into it, bold accent text when a typed value holds it
         let dim_box = |ui: &mut egui::Ui, text: &str, focused: bool, locked: bool| {
-            let mut label = RichText::new(text).size(11.0).color(if locked { tk.accent } else { tk.text });
+            let mut label = RichText::new(text)
+                .size(11.0)
+                .color(if locked { tk.accent } else { tk.text });
             if locked {
                 label = label.strong();
             }
             Frame::new()
                 .fill(tk.float)
-                .stroke(Stroke::new(if focused { 2.0 } else { 1.0 }, if focused { tk.accent } else { tk.line }))
+                .stroke(Stroke::new(
+                    if focused { 2.0 } else { 1.0 },
+                    if focused { tk.accent } else { tk.line },
+                ))
                 .corner_radius(CornerRadius::same(4))
                 .inner_margin(Margin::symmetric(5, 2))
                 .show(ui, |ui| {

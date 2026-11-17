@@ -50,7 +50,9 @@ pub const BASE_YZ: u32 = 0xe25555;
 /// The colour of a body that isn't solid (`#d9a0a0`).
 pub const NOT_SOLID: u32 = 0xd9a0a0;
 /// Server PALETTE, for a body that comes without a colour (`stleditor/server.py`).
-pub const PALETTE: [u32; 8] = [0x9aa7b4, 0xc9a66b, 0x7fa8c9, 0xa3c48a, 0xc98a8a, 0xa993c9, 0xc9b98a, 0x8ac9c0];
+pub const PALETTE: [u32; 8] = [
+    0x9aa7b4, 0xc9a66b, 0x7fa8c9, 0xa3c48a, 0xc98a8a, 0xa993c9, 0xc9b98a, 0x8ac9c0,
+];
 
 /// `toCreasedNormals(geo, 30°)`.
 pub const CREASE_DEG: f64 = 30.0;
@@ -101,7 +103,11 @@ pub fn parse_css_hex(s: &str) -> Option<[u8; 3]> {
 
 pub fn srgb_to_linear(c: u8) -> f32 {
     let c = c as f32 / 255.0;
-    if c < 0.04045 { c * 0.0773993808 } else { (c * 0.9478672986 + 0.0521327014).powf(2.4) }
+    if c < 0.04045 {
+        c * 0.0773993808
+    } else {
+        (c * 0.9478672986 + 0.0521327014).powf(2.4)
+    }
 }
 
 pub fn linear(c: [u8; 3]) -> [f32; 3] {
@@ -149,7 +155,12 @@ pub struct FlatVertex {
 
 impl FlatVertex {
     pub fn new(p: V3, c: [u8; 4]) -> Self {
-        FlatVertex { pos: [p[0] as f32, p[1] as f32, p[2] as f32], c0: c, c1: c, t: 0.0 }
+        FlatVertex {
+            pos: [p[0] as f32, p[1] as f32, p[2] as f32],
+            c0: c,
+            c1: c,
+            t: 0.0,
+        }
     }
 }
 
@@ -190,18 +201,40 @@ pub fn prepare_mesh(m: &MeshArrays) -> PreparedMesh {
     let ntri = m.triangles.len() / 3;
     let flat = ntri > FLAT_ABOVE;
     let (vertices, indices) = if flat {
-        let v = m.positions.chunks_exact(3).map(|p| LitVertex { pos: [p[0], p[1], p[2]], normal: [0.0; 3] }).collect();
+        let v = m
+            .positions
+            .chunks_exact(3)
+            .map(|p| LitVertex {
+                pos: [p[0], p[1], p[2]],
+                normal: [0.0; 3],
+            })
+            .collect();
         (v, Some(m.triangles[..ntri * 3].to_vec()))
     } else {
         (creased_normals(m, CREASE_DEG), None)
     };
-    let edges = if ntri < EDGES_BELOW { Some(feature_edges(m, EDGE_DEG)) } else { None };
-    PreparedMesh { vertices, indices, flat, edges, bbox: mesh_box(m), triangles: ntri }
+    let edges = if ntri < EDGES_BELOW {
+        Some(feature_edges(m, EDGE_DEG))
+    } else {
+        None
+    };
+    PreparedMesh {
+        vertices,
+        indices,
+        flat,
+        edges,
+        bbox: mesh_box(m),
+        triangles: ntri,
+    }
 }
 
 fn corner(m: &MeshArrays, i: u32) -> V3 {
     let i = i as usize * 3;
-    [m.positions[i] as f64, m.positions[i + 1] as f64, m.positions[i + 2] as f64]
+    [
+        m.positions[i] as f64,
+        m.positions[i + 1] as f64,
+        m.positions[i + 2] as f64,
+    ]
 }
 
 /// `Triangle.getNormal`: (c - b) x (a - b), normalised (zero for a degenerate triangle).
@@ -257,7 +290,10 @@ pub fn creased_normals(m: &MeshArrays, crease_deg: f64) -> Vec<LitVertex> {
             }
             let s = camera::normalize(sum);
             let p = corner(m, m.triangles[t * 3 + j]);
-            out.push(LitVertex { pos: [p[0] as f32, p[1] as f32, p[2] as f32], normal: [s[0] as f32, s[1] as f32, s[2] as f32] });
+            out.push(LitVertex {
+                pos: [p[0] as f32, p[1] as f32, p[2] as f32],
+                normal: [s[0] as f32, s[1] as f32, s[2] as f32],
+            });
         }
     }
     out
@@ -280,7 +316,11 @@ pub fn feature_edges(m: &MeshArrays, threshold_deg: f64) -> Vec<EdgeVertex> {
     let mut map: HashMap<([i64; 3], [i64; 3]), Slot> = HashMap::with_capacity(ntri * 2);
     let mut out: Vec<EdgeVertex> = Vec::new();
     let f = |p: V3| [p[0] as f32, p[1] as f32, p[2] as f32];
-    let v = |p: V3, n0: V3, n1: V3| EdgeVertex { pos: f(p), n0: f(n0), n1: f(n1) };
+    let v = |p: V3, n0: V3, n1: V3| EdgeVertex {
+        pos: f(p),
+        n0: f(n0),
+        n1: f(n1),
+    };
     for t in 0..ntri {
         let idx = [m.triangles[t * 3], m.triangles[t * 3 + 1], m.triangles[t * 3 + 2]];
         let p = idx.map(|i| corner(m, i));
@@ -298,7 +338,12 @@ pub fn feature_edges(m: &MeshArrays, threshold_deg: f64) -> Vec<EdgeVertex> {
                 }
                 s.open = false;
             } else {
-                map.entry((h[j], h[k])).or_insert(Slot { i0: idx[j], i1: idx[k], normal: n, open: true });
+                map.entry((h[j], h[k])).or_insert(Slot {
+                    i0: idx[j],
+                    i1: idx[k],
+                    normal: n,
+                    open: true,
+                });
             }
         }
     }
@@ -337,7 +382,11 @@ pub fn grid_lines(s: f64, dark: bool) -> Vec<FlatVertex> {
     let mut v = Vec::new();
     let (minor, mo) = if dark { (0x3a3f49, 0.6) } else { (0xd2d7de, 0.5) };
     grid_helper(&mut v, s * 2.0, 200, rgba(minor, mo), rgba(minor, mo));
-    let (c1, c2, o) = if dark { (0x515866, 0x454b56, 0.9) } else { (0x9aa5b1, 0xbcc3cc, 0.6) };
+    let (c1, c2, o) = if dark {
+        (0x515866, 0x454b56, 0.9)
+    } else {
+        (0x9aa5b1, 0xbcc3cc, 0.6)
+    };
     grid_helper(&mut v, s * 2.0, 20, rgba(c1, o), rgba(c2, o));
     v
 }
@@ -346,7 +395,11 @@ pub fn grid_lines(s: f64, dark: bool) -> Vec<FlatVertex> {
 pub fn axis_lines(s: f64) -> Vec<FlatVertex> {
     let l = s * 0.35;
     let mut v = Vec::new();
-    for (d, c) in [([1.0, 0.0, 0.0], 0xe25555), ([0.0, 1.0, 0.0], 0x22a35a), ([0.0, 0.0, 1.0], 0x3b82f6)] {
+    for (d, c) in [
+        ([1.0, 0.0, 0.0], 0xe25555),
+        ([0.0, 1.0, 0.0], 0x22a35a),
+        ([0.0, 0.0, 1.0], 0x3b82f6),
+    ] {
         v.push(FlatVertex::new([0.0; 3], rgba(c, 0.9)));
         v.push(FlatVertex::new(camera::scale(d, l), rgba(c, 0.9)));
     }
@@ -357,9 +410,21 @@ pub fn axis_lines(s: f64) -> Vec<FlatVertex> {
 pub type Frame = [V3; 4];
 
 pub const BASE_FRAMES: [(&str, Frame, u32); 3] = [
-    ("XY", [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]], BASE_XY),
-    ("XZ", [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, -1.0, 0.0]], BASE_XZ),
-    ("YZ", [[0.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0]], BASE_YZ),
+    (
+        "XY",
+        [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+        BASE_XY,
+    ),
+    (
+        "XZ",
+        [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, -1.0, 0.0]],
+        BASE_XZ,
+    ),
+    (
+        "YZ",
+        [[0.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0]],
+        BASE_YZ,
+    ),
 ];
 
 /// The origin planes' side in mm: a quarter of the parts' longest side, at least 10 mm; 25 mm with
@@ -376,7 +441,12 @@ pub fn origin_plane_side(longest: Option<f64>) -> f64 {
 pub fn origin_plane_quad(frame: &Frame, side: f64) -> Frame {
     let [o, x, y, n] = *frame;
     let h = side / 2.0;
-    [camera::add(o, camera::add(camera::scale(x, h), camera::scale(y, h))), x, y, n]
+    [
+        camera::add(o, camera::add(camera::scale(x, h), camera::scale(y, h))),
+        x,
+        y,
+        n,
+    ]
 }
 
 /// `_planeMesh`: a `size` square on the frame (fill at `fill_alpha`, border at 0.7), as
@@ -389,7 +459,10 @@ pub fn plane_mesh(frame: &Frame, size: f64, color: u32, fill_alpha: f32) -> (Vec
     let fc = rgba(color, fill_alpha);
     let tris = [0, 1, 2, 0, 2, 3].iter().map(|&i| FlatVertex::new(q[i], fc)).collect();
     let lc = rgba(color, 0.7);
-    let lines = [0, 1, 1, 2, 2, 3, 3, 0].iter().map(|&i| FlatVertex::new(q[i], lc)).collect();
+    let lines = [0, 1, 1, 2, 2, 3, 3, 0]
+        .iter()
+        .map(|&i| FlatVertex::new(q[i], lc))
+        .collect();
     (tris, lines)
 }
 
@@ -402,7 +475,11 @@ pub const GRID_MAX_LINES: i32 = 1000;
 /// uses at the current zoom. A tiny step over a big scene is held to
 /// [`GRID_MAX_LINES`] lines each way (the sheet then covers less than the scene, which only
 /// happens zoomed far in). Returns (sheet triangles, grid lines, axis lines).
-pub fn sketch_plane_grid(frame: &Frame, scene_diagonal: Option<f64>, step: f64) -> (Vec<FlatVertex>, Vec<FlatVertex>, Vec<FlatVertex>) {
+pub fn sketch_plane_grid(
+    frame: &Frame,
+    scene_diagonal: Option<f64>,
+    step: f64,
+) -> (Vec<FlatVertex>, Vec<FlatVertex>, Vec<FlatVertex>) {
     let r = match scene_diagonal {
         Some(d) if d.is_finite() && d > 0.0 => d.max(40.0),
         _ => 100.0,
@@ -420,7 +497,11 @@ pub fn sketch_plane_grid(frame: &Frame, scene_diagonal: Option<f64>, step: f64) 
     for i in 0..=count {
         let v = -half + i as f64 * step;
         let dest_major = (v / step).round() as i32 % 5 == 0;
-        let (buf, c) = if dest_major { (&mut major, major_c) } else { (&mut lines, minor_c) };
+        let (buf, c) = if dest_major {
+            (&mut major, major_c)
+        } else {
+            (&mut lines, minor_c)
+        };
         buf.push(FlatVertex::new(at(-half, v), c));
         buf.push(FlatVertex::new(at(half, v), c));
         buf.push(FlatVertex::new(at(v, -half), c));
@@ -436,7 +517,10 @@ pub fn sketch_plane_grid(frame: &Frame, scene_diagonal: Option<f64>, step: f64) 
     axes.push(FlatVertex::new(at(0.0, half), green));
     let sheet_c = rgba(0xe8eef8, 0.18);
     let q = [at(-half, -half), at(half, -half), at(half, half), at(-half, half)];
-    let sheet = [0, 1, 2, 0, 2, 3].into_iter().map(|i| FlatVertex::new(q[i], sheet_c)).collect();
+    let sheet = [0, 1, 2, 0, 2, 3]
+        .into_iter()
+        .map(|i| FlatVertex::new(q[i], sheet_c))
+        .collect();
     (sheet, lines, axes)
 }
 
@@ -481,7 +565,7 @@ impl CreaseBuild {
         loop {
             if let Some(b) = budget {
                 checks += 1;
-                if checks % 1024 == 0 && t0.elapsed() >= b {
+                if checks.is_multiple_of(1024) && t0.elapsed() >= b {
                     return None;
                 }
             }

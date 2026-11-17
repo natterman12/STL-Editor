@@ -38,7 +38,11 @@ impl FakeReleases {
     pub fn start(releases: serde_json::Value, assets: Vec<(String, Vec<u8>)>, faults: Faults) -> FakeReleases {
         let listener = TcpListener::bind("127.0.0.1:0").expect("fake release server: bind 127.0.0.1:0");
         let addr = listener.local_addr().expect("fake release server: local address");
-        let served = Arc::new(Served { releases: releases.to_string(), assets, faults });
+        let served = Arc::new(Served {
+            releases: releases.to_string(),
+            assets,
+            faults,
+        });
         thread::spawn(move || {
             for stream in listener.incoming() {
                 let Ok(stream) = stream else { continue };
@@ -46,7 +50,9 @@ impl FakeReleases {
                 thread::spawn(move || handle(stream, &served));
             }
         });
-        FakeReleases { base: format!("http://{addr}") }
+        FakeReleases {
+            base: format!("http://{addr}"),
+        }
     }
 
     /// `http://127.0.0.1:<port>`, with no trailing slash.
@@ -83,7 +89,13 @@ fn handle(stream: TcpStream, served: &Served) {
         match served.assets.iter().find(|(n, _)| n == name) {
             Some((_, data)) => {
                 let body = faulty(data, &served.faults);
-                respond(&mut out, 200, "application/octet-stream", &body, served.faults.drop_connection);
+                respond(
+                    &mut out,
+                    200,
+                    "application/octet-stream",
+                    &body,
+                    served.faults.drop_connection,
+                );
             }
             None => respond(&mut out, 404, "text/plain", b"not found", false),
         }
@@ -96,10 +108,10 @@ fn handle(stream: TcpStream, served: &Served) {
 /// The bytes actually served for an asset, with the faults applied.
 fn faulty(data: &[u8], faults: &Faults) -> Vec<u8> {
     let mut body = data.to_vec();
-    if faults.wrong_digest {
-        if let Some(first) = body.first_mut() {
-            *first ^= 0xFF;
-        }
+    if faults.wrong_digest
+        && let Some(first) = body.first_mut()
+    {
+        *first ^= 0xFF;
     }
     if faults.wrong_size {
         body.extend_from_slice(b"\0extra bytes the release did not have");

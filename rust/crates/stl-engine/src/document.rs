@@ -8,8 +8,8 @@ use indexmap::IndexMap;
 use serde_json::{Map, Value, json};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 mod export;
 pub use export::{iso_from_unix_secs, iso_utc_now};
@@ -81,7 +81,12 @@ fn fail<T>(m: impl Into<String>) -> Result<T, FeatureError> {
 fn body_ids(p: &Map<String, Value>) -> Vec<String> {
     match p.get("bodies").and_then(Value::as_array) {
         Some(a) if !a.is_empty() => a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect(),
-        _ => p.get("body").and_then(Value::as_str).filter(|s| !s.is_empty()).map(|s| vec![s.to_string()]).unwrap_or_default(),
+        _ => p
+            .get("body")
+            .and_then(Value::as_str)
+            .filter(|s| !s.is_empty())
+            .map(|s| vec![s.to_string()])
+            .unwrap_or_default(),
     }
 }
 
@@ -293,7 +298,10 @@ impl Document {
     /// evaluated on the empty host (no engine yet) has errors cached for those steps.
     pub fn replace_fins_host(&mut self, host: Arc<dyn crate::FinsHost>) {
         self.fins = host;
-        let has = self.features.iter().any(|f| matches!(f.kind.as_str(), "supportfins" | "supportwall"));
+        let has = self
+            .features
+            .iter()
+            .any(|f| matches!(f.kind.as_str(), "supportfins" | "supportwall"));
         if has {
             self.memo.clear();
             self.cache.clear();
@@ -330,7 +338,11 @@ impl Document {
                 let mut it = id.chars();
                 it.next()?;
                 let n = it.as_str();
-                if n.is_empty() || !n.chars().all(|c| c.is_ascii_digit()) { None } else { n.parse::<u64>().ok() }
+                if n.is_empty() || !n.chars().all(|c| c.is_ascii_digit()) {
+                    None
+                } else {
+                    n.parse::<u64>().ok()
+                }
             })
             .max()
             .unwrap_or(0);
@@ -339,7 +351,14 @@ impl Document {
 
     pub fn add_source(&mut self, name: &str, data: Vec<u8>) -> String {
         let sid = self.new_id("s");
-        self.sources.insert(sid.clone(), Source { name: name.to_string(), ext: ext_of(name), data });
+        self.sources.insert(
+            sid.clone(),
+            Source {
+                name: name.to_string(),
+                ext: ext_of(name),
+                data,
+            },
+        );
         sid
     }
 
@@ -408,13 +427,20 @@ impl Document {
             self.pv = None;
         }
         let params = &self.params;
-        &self.pv.get_or_insert_with(|| (params.clone(), resolve_params(params))).1
+        &self
+            .pv
+            .get_or_insert_with(|| (params.clone(), resolve_params(params)))
+            .1
     }
 
     pub fn set_params(&mut self, list: Vec<Param>) -> Result<(), FeatureError> {
         let clean: Vec<Param> = list
             .into_iter()
-            .map(|q| Param { name: py_strip(&q.name).to_string(), expr: py_strip(&q.expr).to_string(), note: q.note })
+            .map(|q| Param {
+                name: py_strip(&q.name).to_string(),
+                expr: py_strip(&q.expr).to_string(),
+                note: q.note,
+            })
             .filter(|q| !q.name.is_empty() || !q.expr.is_empty())
             .collect();
         let mut seen = BTreeSet::new();
@@ -445,10 +471,10 @@ impl Document {
     /// parameter change rebuilds it).
     fn hash(&mut self, f: &Feature, prev: &str) -> String {
         let mut v = serde_json::to_value(f).unwrap_or(Value::Null);
-        if f.params.values().any(uses_expr) {
-            if let Value::Object(o) = &mut v {
-                o.insert("$params".to_string(), json!(self.param_values().values));
-            }
+        if f.params.values().any(uses_expr)
+            && let Value::Object(o) = &mut v
+        {
+            o.insert("$params".to_string(), json!(self.param_values().values));
         }
         fhash(&v, prev)
     }
@@ -456,7 +482,8 @@ impl Document {
     // -- evaluation --------------------------------------------------------------------------
     /// How many features are active (those before the rollback bar).
     fn active_len(&self) -> usize {
-        self.rollback.map_or(self.features.len(), |r| r.min(self.features.len()))
+        self.rollback
+            .map_or(self.features.len(), |r| r.min(self.features.len()))
     }
 
     /// Where a new feature goes: at the rollback bar, or at the end.
@@ -558,7 +585,10 @@ impl Document {
     fn run_feature(&mut self, state: &State, f: &Feature, preview: bool) -> (Option<State>, FeatureResult) {
         // the kernel keeps big buffers for reuse; this marks an operation so the idle release never runs mid-way
         let _op = stl_kernel::ScratchGuard::begin();
-        let mut res = FeatureResult { id: f.id.clone(), ..Default::default() };
+        let mut res = FeatureResult {
+            id: f.id.clone(),
+            ..Default::default()
+        };
         if self.cancel.as_ref().is_some_and(|c| c.load(Ordering::Relaxed)) {
             self.cancelled = true;
             res.error = Some("Cancelled.".to_string());
@@ -574,7 +604,11 @@ impl Document {
             false => None,
         };
         let mut new = state.clone();
-        let ctx = Ctx { sources: &self.sources, preview, fins: &*self.fins };
+        let ctx = Ctx {
+            sources: &self.sources,
+            preview,
+            fins: &*self.fins,
+        };
         let registry = &self.registry;
         let out = (|| {
             let resolved: Map<String, Value>;
@@ -619,7 +653,9 @@ impl Document {
             return fail(format!("Unknown feature {kind}."));
         }
         let id = self.new_id("f");
-        let name = name.filter(|n| !n.is_empty()).unwrap_or_else(|| self.auto_name(kind, &params));
+        let name = name
+            .filter(|n| !n.is_empty())
+            .unwrap_or_else(|| self.auto_name(kind, &params));
         let f = Feature {
             id: id.clone(),
             kind: kind.to_string(),
@@ -638,12 +674,12 @@ impl Document {
         self.checkpoint();
         if kind == "extrude" || kind == "revolve" {
             // a sketch used by a feature is tucked away, as in other CAD tools
-            if let Some(Value::String(sketch)) = f.params.get("sketch") {
-                if !sketch.is_empty() {
-                    let mut hid = self.hidden();
-                    hid.insert(sketch.clone());
-                    self.set_hidden(hid);
-                }
+            if let Some(Value::String(sketch)) = f.params.get("sketch")
+                && !sketch.is_empty()
+            {
+                let mut hid = self.hidden();
+                hid.insert(sketch.clone());
+                self.set_hidden(hid);
             }
         }
         self.features.insert(at, f);
@@ -682,23 +718,25 @@ impl Document {
 
     /// Evaluate a feature without committing it: a new one (`edit_id` is `None`), or the
     /// feature `edit_id` with these params. Gives the state it would leave, and the result.
-    pub fn preview(
-        &mut self,
-        kind: &str,
-        params: Map<String, Value>,
-        edit_id: Option<&str>,
-    ) -> (State, FeatureResult) {
+    pub fn preview(&mut self, kind: &str, params: Map<String, Value>, edit_id: Option<&str>) -> (State, FeatureResult) {
         let take = |a: Arc<State>| Arc::try_unwrap(a).unwrap_or_else(|a| (*a).clone());
         if let Some(fid) = edit_id.filter(|s| !s.is_empty()) {
             let idx = match self.index(fid) {
                 Ok(i) => i,
                 Err(e) => {
-                    let res = FeatureResult { id: fid.to_string(), error: Some(e.0), ..Default::default() };
+                    let res = FeatureResult {
+                        id: fid.to_string(),
+                        error: Some(e.0),
+                        ..Default::default()
+                    };
                     return (self.state.clone(), res);
                 }
             };
             let base = self.state_before(idx);
-            let f = Feature { params, ..self.features[idx].clone() };
+            let f = Feature {
+                params,
+                ..self.features[idx].clone()
+            };
             let (st, res) = self.run_feature(&base, &f, true);
             let Some(st) = st else {
                 return (take(base), res);
@@ -775,10 +813,10 @@ impl Document {
         let idx = self.index(fid)?;
         self.checkpoint();
         self.features.remove(idx);
-        if let Some(r) = self.rollback.as_mut() {
-            if idx < *r {
-                *r -= 1;
-            }
+        if let Some(r) = self.rollback.as_mut()
+            && idx < *r
+        {
+            *r -= 1;
         }
         self.rebuild();
         Ok(())
@@ -807,7 +845,9 @@ impl Document {
         if self.rollback.is_some() {
             return notes;
         }
-        let Some(n) = self.features.last().filter(|f| f.id == new_id).cloned() else { return notes };
+        let Some(n) = self.features.last().filter(|f| f.id == new_id).cloned() else {
+            return notes;
+        };
         let copy = n.params.get("copy").and_then(Value::as_bool).unwrap_or(false);
         if n.suppressed || copy || !matches!(n.kind.as_str(), "move" | "scale" | "layflat" | "split") {
             return notes;
@@ -831,21 +871,33 @@ impl Document {
                     continue;
                 }
                 used |= mentions(&g.params, &fins);
-                let split_of_family = g.kind == "split" && g.params.get("body").and_then(Value::as_str).is_some_and(|b| family.iter().any(|x| x == b));
+                let split_of_family = g.kind == "split"
+                    && g.params
+                        .get("body")
+                        .and_then(Value::as_str)
+                        .is_some_and(|b| family.iter().any(|x| x == b));
                 if split_of_family {
                     for c in results.get(i).map(|r| r.created.as_slice()).unwrap_or(&[]) {
                         if c.contains(".pin") {
                             continue;
                         }
                         // `<split>.2` is a half, `<split>.2s` the fins it was given
-                        if c.ends_with('s') { fins.push(c.clone()) } else { family.push(c.clone()) }
+                        if c.ends_with('s') {
+                            fins.push(c.clone())
+                        } else {
+                            family.push(c.clone())
+                        }
                     }
                 }
             }
             if !targets.iter().any(|t| family.contains(t)) {
                 continue;
             }
-            let name = f.name.clone().filter(|n| !n.is_empty()).unwrap_or_else(|| "Support Fins".into());
+            let name = f
+                .name
+                .clone()
+                .filter(|n| !n.is_empty())
+                .unwrap_or_else(|| "Support Fins".into());
             if f.kind == "supportwall" {
                 notes.push(format!("{name} has walls drawn by hand on the part where it stood, so it isn't rebuilt. Check it for the new position."));
                 continue;
@@ -854,14 +906,22 @@ impl Document {
                 notes.push(format!("A later step uses the fins of {name}, so they aren't rebuilt for the new position: they move with the part as they are."));
                 continue;
             }
-            let alive: Vec<String> = family.into_iter().filter(|b| self.state.bodies.contains_key(b)).collect();
+            let alive: Vec<String> = family
+                .into_iter()
+                .filter(|b| self.state.bodies.contains_key(b))
+                .collect();
             if alive.is_empty() {
                 continue;
             }
             let mut p = f.params.clone();
             p.insert("body".into(), Value::String(alive[0].clone()));
-            p.insert("bodies".into(), Value::Array(alive.into_iter().map(Value::String).collect()));
-            let hand = p.remove("walls").is_some_and(|w| w.as_array().is_some_and(|a| !a.is_empty()));
+            p.insert(
+                "bodies".into(),
+                Value::Array(alive.into_iter().map(Value::String).collect()),
+            );
+            let hand = p
+                .remove("walls")
+                .is_some_and(|w| w.as_array().is_some_and(|a| !a.is_empty()));
             notes.push(if hand {
                 format!("{name} is rebuilt for the new position. Walls you drew by hand were for the part where it stood, so they were taken out: draw them again in {name} if you still need them.")
             } else {
@@ -962,7 +1022,10 @@ impl Document {
 
     /// `ui[key]` as an object (made, or replaced, when it isn't one).
     fn ui_map(&mut self, key: &str) -> &mut Map<String, Value> {
-        let v = self.ui.entry(key.to_string()).or_insert_with(|| Value::Object(Map::new()));
+        let v = self
+            .ui
+            .entry(key.to_string())
+            .or_insert_with(|| Value::Object(Map::new()));
         if !v.is_object() {
             *v = Value::Object(Map::new());
         }
@@ -974,11 +1037,17 @@ impl Document {
 
     fn hidden(&self) -> BTreeSet<String> {
         let list = self.ui.get("hidden").and_then(Value::as_array);
-        list.into_iter().flatten().filter_map(|v| v.as_str().map(str::to_string)).collect()
+        list.into_iter()
+            .flatten()
+            .filter_map(|v| v.as_str().map(str::to_string))
+            .collect()
     }
 
     /// The hidden list is kept sorted, as 1.x does.
     fn set_hidden(&mut self, hid: BTreeSet<String>) {
-        self.ui.insert("hidden".to_string(), Value::Array(hid.into_iter().map(Value::String).collect()));
+        self.ui.insert(
+            "hidden".to_string(),
+            Value::Array(hid.into_iter().map(Value::String).collect()),
+        );
     }
 }

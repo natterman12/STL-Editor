@@ -16,10 +16,10 @@ use stl_app::viewport::scene::{self, FlatVertex};
 use stl_app::viewport::{PlaneFrame, Viewport};
 use stl_kernel::{Aabb, MeshArrays};
 
-#[path = "support/wgpu_renderer.rs"]
-mod wgpu_renderer;
 #[path = "support/gpu.rs"]
 mod gpu;
+#[path = "support/wgpu_renderer.rs"]
+mod wgpu_renderer;
 
 fn close(a: [f64; 3], b: [f64; 3], tol: f64) -> bool {
     (0..3).all(|k| (a[k] - b[k]).abs() <= tol)
@@ -37,39 +37,72 @@ fn cube_mesh() -> Arc<MeshArrays> {
         [10.0, 10.0, 20.0],
         [-10.0, 10.0, 20.0],
     ];
-    let t: [u32; 36] = [0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7, 0, 1, 5, 0, 5, 4, 1, 2, 6, 1, 6, 5, 2, 3, 7, 2, 7, 6, 3, 0, 4, 3, 4, 7];
-    Arc::new(MeshArrays { positions: p.iter().flatten().map(|&v| v as f32).collect(), triangles: t.to_vec() })
+    let t: [u32; 36] = [
+        0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7, 0, 1, 5, 0, 5, 4, 1, 2, 6, 1, 6, 5, 2, 3, 7, 2, 7, 6, 3, 0, 4, 3, 4, 7,
+    ];
+    Arc::new(MeshArrays {
+        positions: p.iter().flatten().map(|&v| v as f32).collect(),
+        triangles: t.to_vec(),
+    })
 }
 
 fn cube(revision: u64) -> BodyView {
-    BodyView { id: "b1".into(), name: "Cube".into(), color: Some("#9aa7b4".into()), hidden: false, solid: true, mesh: cube_mesh(), revision, holds_up: None }
+    BodyView {
+        id: "b1".into(),
+        name: "Cube".into(),
+        color: Some("#9aa7b4".into()),
+        hidden: false,
+        solid: true,
+        mesh: cube_mesh(),
+        revision,
+        holds_up: None,
+    }
 }
 
 #[test]
 fn camera_fit_matches_viewer_js() {
     let mut vp = Viewport::new();
     vp.set_view_size(800.0, 600.0);
-    vp.fit(Aabb { min: [-10.0, -10.0, 0.0], max: [10.0, 10.0, 20.0] });
+    vp.fit(Aabb {
+        min: [-10.0, -10.0, 0.0],
+        max: [10.0, 10.0, 20.0],
+    });
     let (target, pos, up) = vp.camera().goal();
     assert!(close(target, [0.0, 0.0, 10.0], 1e-9), "{target:?}");
-    assert!(close(pos, [31.15045885313839, -42.831880923065285, 39.20355517481724], 1e-9), "{pos:?}");
+    assert!(
+        close(pos, [31.15045885313839, -42.831880923065285, 39.20355517481724], 1e-9),
+        "{pos:?}"
+    );
     assert_eq!(up, [0.0, 0.0, 1.0]);
 
     // a tall, narrow view is limited by its width
     let mut vp = Viewport::new();
     vp.set_view_size(300.0, 600.0);
-    vp.fit(Aabb { min: [0.0, 0.0, 0.0], max: [100.0, 40.0, 5.0] });
+    vp.fit(Aabb {
+        min: [0.0, 0.0, 0.0],
+        max: [100.0, 40.0, 5.0],
+    });
     let (target, pos, _) = vp.camera().goal();
     assert!(close(target, [50.0, 20.0, 2.5], 1e-9));
-    assert!(close(pos, [237.21931931269407, -237.42656405495433, 178.0181118556507], 1e-9), "{pos:?}");
+    assert!(
+        close(pos, [237.21931931269407, -237.42656405495433, 178.0181118556507], 1e-9),
+        "{pos:?}"
+    );
 
     // the flight takes 320 ms and lands exactly there
     let mut vp = Viewport::new();
     vp.set_view_size(800.0, 600.0);
-    vp.fit(Aabb { min: [-10.0, -10.0, 0.0], max: [10.0, 10.0, 20.0] });
+    vp.fit(Aabb {
+        min: [-10.0, -10.0, 0.0],
+        max: [10.0, 10.0, 20.0],
+    });
     assert!(vp.camera_mut().animate(0.16));
     assert!(!vp.camera_mut().animate(0.32));
-    assert!(close(vp.camera().position, [31.15045885313839, -42.831880923065285, 39.20355517481724], 1e-9));
+    assert!(close(
+        vp.camera().position,
+        [31.15045885313839, -42.831880923065285, 39.20355517481724],
+        1e-9
+    ));
 }
 
 #[test]
@@ -81,7 +114,10 @@ fn empty_scene_fit() {
     vp.fit(stl_app::viewport::camera::empty_box());
     let (target, pos, _) = vp.camera().goal();
     assert!(close(target, [0.0, 0.0, 25.0], 1e-9));
-    assert!(close(pos, [134.8854435317986, -185.46748485622305, 151.45510331106118], 1e-9), "{pos:?}");
+    assert!(
+        close(pos, [134.8854435317986, -185.46748485622305, 151.45510331106118], 1e-9),
+        "{pos:?}"
+    );
 
     // every body hidden: the same
     let mut vp = Viewport::new();
@@ -92,12 +128,19 @@ fn empty_scene_fit() {
     assert!(vp.scene_box().is_none());
     vp.fit_all();
     let (_, pos, _) = vp.camera().goal();
-    assert!(close(pos, [134.8854435317986, -185.46748485622305, 151.45510331106118], 1e-9));
+    assert!(close(
+        pos,
+        [134.8854435317986, -185.46748485622305, 151.45510331106118],
+        1e-9
+    ));
 
     // a box of a single point, and a zero-sized view: no NaN
     let mut vp = Viewport::new();
     vp.set_view_size(0.0, 0.0);
-    vp.fit(Aabb { min: [5.0; 3], max: [5.0; 3] });
+    vp.fit(Aabb {
+        min: [5.0; 3],
+        max: [5.0; 3],
+    });
     let (t, p, _) = vp.camera().goal();
     assert!(t.iter().chain(p.iter()).all(|v| v.is_finite()));
     // and the other views on an empty scene
@@ -131,10 +174,14 @@ fn mouse_modes_map_buttons() {
     // screen-space pan moves the target and the camera together
     let mut vp = Viewport::new();
     vp.set_view_size(800.0, 600.0);
-    let off0 = vp.camera().position.map(|v| v) ;
+    let off0 = vp.camera().position.map(|v| v);
     vp.camera_mut().pan(100.0, 0.0);
     let c = vp.camera();
-    let moved = [c.position[0] - off0[0], c.position[1] - off0[1], c.position[2] - off0[2]];
+    let moved = [
+        c.position[0] - off0[0],
+        c.position[1] - off0[1],
+        c.position[2] - off0[2],
+    ];
     assert!(close(moved, [c.target[0], c.target[1], c.target[2]], 1e-9));
     // 2 * dx * |offset| * tan(17.5°) / height
     let expect = 2.0 * 100.0 * 96500f64.sqrt() * 17.5f64.to_radians().tan() / 600.0;
@@ -146,7 +193,10 @@ fn mouse_modes_map_buttons() {
     vp.set_view_size(800.0, 600.0);
     vp.camera_mut().wheel(-100.0, [400.0, 300.0]);
     let c = vp.camera();
-    let d = ((c.position[0] - c.target[0]).powi(2) + (c.position[1] - c.target[1]).powi(2) + (c.position[2] - c.target[2]).powi(2)).sqrt();
+    let d = ((c.position[0] - c.target[0]).powi(2)
+        + (c.position[1] - c.target[1]).powi(2)
+        + (c.position[2] - c.target[2]).powi(2))
+    .sqrt();
     assert!((d - 96500f64.sqrt() * 0.95).abs() < 1e-6, "{d}");
     assert!(close(c.target, [0.0; 3], 1e-6), "{:?}", c.target);
 }
@@ -227,8 +277,12 @@ fn surface_lost_recovers() {
 #[ignore]
 fn orbit_bench_mesh_frame_times() {
     let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../../dev/bench/test_mesh.stl");
-    let Ok(bytes) = std::fs::read(path) else { return eprintln!("no bench mesh: skipped") };
-    let Some(gpu) = gpu::headless() else { return eprintln!("no GPU adapter: skipped") };
+    let Ok(bytes) = std::fs::read(path) else {
+        return eprintln!("no bench mesh: skipped");
+    };
+    let Some(gpu) = gpu::headless() else {
+        return eprintln!("no GPU adapter: skipped");
+    };
     let mut vp = Viewport::new();
     vp.load_dev_mesh("test_mesh.stl", &bytes).unwrap();
     vp.flush();
@@ -244,7 +298,13 @@ fn orbit_bench_mesh_frame_times() {
     }
     times.sort_by(f64::total_cmp);
     let p = |q: f64| times[((times.len() - 1) as f64 * q) as usize];
-    eprintln!("orbit, {} frames at 1280x800: p50 {:.2} ms, p99 {:.2} ms, max {:.2} ms", times.len(), p(0.5), p(0.99), p(1.0));
+    eprintln!(
+        "orbit, {} frames at 1280x800: p50 {:.2} ms, p99 {:.2} ms, max {:.2} ms",
+        times.len(),
+        p(0.5),
+        p(0.99),
+        p(1.0)
+    );
     assert_eq!(vp.stats().uploads(), 1);
     assert!(p(0.99) < 16.7);
 }
@@ -336,13 +396,29 @@ fn device_loss_through_the_paint_callback() {
         let cb = {
             let mut v = vp.borrow_mut();
             v.camera_mut().rotate(1.0, 0.0);
-            ViewportCallback { frame: v.frame_for_size(160.0, 120.0, 1.0), ctx: egui::Context::default(), format: rs.target_format, stats: v.stats_handle() }
+            ViewportCallback {
+                frame: v.frame_for_size(160.0, 120.0, 1.0),
+                ctx: egui::Context::default(),
+                format: rs.target_format,
+                stats: v.stats_handle(),
+            }
         };
-        let screen = egui_wgpu::ScreenDescriptor { size_in_pixels: [160, 120], pixels_per_point: 1.0 };
-        let mut enc = rs.device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
+        let screen = egui_wgpu::ScreenDescriptor {
+            size_in_pixels: [160, 120],
+            pixels_per_point: 1.0,
+        };
+        let mut enc = rs
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
         let mut renderer = rs.renderer.write();
         for _ in 0..2 {
-            let bufs = cb.prepare(&rs.device, &rs.queue, &screen, &mut enc, &mut renderer.callback_resources);
+            let bufs = cb.prepare(
+                &rs.device,
+                &rs.queue,
+                &screen,
+                &mut enc,
+                &mut renderer.callback_resources,
+            );
             assert!(bufs.is_empty(), "commands for a lost device");
         }
     }
@@ -355,7 +431,13 @@ fn device_loss_through_the_paint_callback() {
     hb.run();
     let mut after = hb.render().expect("a picture on the new device");
     for _ in 0..4 {
-        if !vp.borrow().stats().upload_pending.load(std::sync::atomic::Ordering::Relaxed) && vp.borrow().stats().uploads() == 2 {
+        if !vp
+            .borrow()
+            .stats()
+            .upload_pending
+            .load(std::sync::atomic::Ordering::Relaxed)
+            && vp.borrow().stats().uploads() == 2
+        {
             break;
         }
         hb.run();
@@ -373,7 +455,9 @@ fn device_loss_through_the_paint_callback() {
 
 /// Pixels of the cube's grey-blue sides (not the background, grid or view cube).
 fn cube_pixels(img: &image::RgbaImage) -> usize {
-    img.pixels().filter(|p| p.0[2] > 120 && p.0[2] > p.0[0].saturating_add(10) && p.0[1] > 90).count()
+    img.pixels()
+        .filter(|p| p.0[2] > 120 && p.0[2] > p.0[0].saturating_add(10) && p.0[1] > 90)
+        .count()
 }
 
 #[test]
@@ -393,7 +477,12 @@ fn gpu_error_keeps_body_buffers() {
     // a frame the GPU rejects: a draw far past the end of the overlay buffer
     let mut bad = (*vp.frame_for_size(96.0, 64.0, 1.0)).clone();
     bad.id += 1_000;
-    bad.batches.push(FlatBatch { order: 50, lines: false, depth: Depth::Off, range: 0..3_000_000 });
+    bad.batches.push(FlatBatch {
+        order: 50,
+        lines: false,
+        depth: Depth::Off,
+        range: 0..3_000_000,
+    });
     let (r, submitted) = gpu.submit(&vp, &bad);
     assert!(r.error, "{r:?}");
     assert!(submitted.is_none(), "an invalid command buffer was submitted");
@@ -423,7 +512,10 @@ fn new_body_box_comes_from_the_worker() {
     assert_eq!((b.min, b.max), ([-10.0, -10.0, 0.0], [10.0, 10.0, 20.0]));
     let (target, pos, _) = vp.camera().goal();
     assert!(close(target, [0.0, 0.0, 10.0], 1e-9), "{target:?}");
-    assert!(close(pos, [31.15045885313839, -42.831880923065285, 39.20355517481724], 1e-9), "{pos:?}");
+    assert!(
+        close(pos, [31.15045885313839, -42.831880923065285, 39.20355517481724], 1e-9),
+        "{pos:?}"
+    );
 }
 
 /// The origin planes are one square each from the origin into + x/y/z, a quarter of the part's
@@ -438,8 +530,21 @@ fn origin_planes_scale_to_the_part() {
     let mut vp = Viewport::new();
     vp.set_view_size(800.0, 600.0);
     vp.set_base_planes_visible(true);
-    let base = |vp: &Viewport| vp.shown_planes().into_iter().take(3).map(|(id, f, s)| (id, f[0], s)).collect::<Vec<_>>();
-    assert_eq!(base(&vp), [("XY".to_string(), [12.5, 12.5, 0.0], 25.0), ("XZ".to_string(), [12.5, 0.0, 12.5], 25.0), ("YZ".to_string(), [0.0, 12.5, 12.5], 25.0)]);
+    let base = |vp: &Viewport| {
+        vp.shown_planes()
+            .into_iter()
+            .take(3)
+            .map(|(id, f, s)| (id, f[0], s))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        base(&vp),
+        [
+            ("XY".to_string(), [12.5, 12.5, 0.0], 25.0),
+            ("XZ".to_string(), [12.5, 0.0, 12.5], 25.0),
+            ("YZ".to_string(), [0.0, 12.5, 12.5], 25.0)
+        ]
+    );
     vp.sync_bodies(&[cube(1)]);
     vp.flush();
     // the 20 mm cube: 10 mm squares from the origin
@@ -502,7 +607,10 @@ fn overlay_highlight_face() {
     assert_eq!(pos(&v[0]), [-10.0, -10.0, 0.0]);
     assert_eq!(pos(&v[1]), [10.0, -10.0, 0.0]);
     assert_eq!(pos(&v[2]), [10.0, -10.0, 20.0]);
-    assert!(v.iter().all(|x| x.c0 == [0x2f, 0x8c, 0xff, alpha(0.45)] && x.c1 == x.c0));
+    assert!(
+        v.iter()
+            .all(|x| x.c0 == [0x2f, 0x8c, 0xff, alpha(0.45)] && x.c1 == x.c0)
+    );
     // an unknown body draws nothing
     vp.highlight_face("nope", &[0], "other", Color32::RED);
     assert_eq!(batches(&mut vp, 3).len(), 1);
@@ -515,20 +623,34 @@ fn overlay_marker() {
     // (Nathan, 2026-11-16); it is drawn over the view each frame, so it makes no triangles
     vp.add_marker([1.0, 2.0, 3.0], Color32::from_rgb(0xd9, 0x48, 0x0f), "marker", None);
     assert!(batches(&mut vp, 20).is_empty());
-    let it = vp.overlay_items().iter().find(|o| o.tag == "marker").expect("the marker is listed");
+    let it = vp
+        .overlay_items()
+        .iter()
+        .find(|o| o.tag == "marker")
+        .expect("the marker is listed");
     assert_eq!(it.dots, vec![([1.0, 2.0, 3.0], 0xd9480f)]);
     // with a size it is still a sphere of that radius
     vp.add_marker([0.0; 3], Color32::WHITE, "big", Some(2.0));
     let b = batches(&mut vp, 20);
     assert_eq!(b.len(), 1);
-    let r = b[0].1.iter().map(|x| (pos(x)[0].powi(2) + pos(x)[1].powi(2) + pos(x)[2].powi(2)).sqrt()).fold(0.0, f64::max);
+    let r = b[0]
+        .1
+        .iter()
+        .map(|x| (pos(x)[0].powi(2) + pos(x)[1].powi(2) + pos(x)[2].powi(2)).sqrt())
+        .fold(0.0, f64::max);
     assert!((r - 2.0).abs() < 1e-5, "{r}");
 }
 
 #[test]
 fn overlay_arrow() {
     let mut vp = overlay_view();
-    vp.add_arrow([0.0, 0.0, 5.0], [0.0, 0.0, 2.0], 10.0, Color32::from_rgb(0x1f, 0x6f, 0xd1), "arrow");
+    vp.add_arrow(
+        [0.0, 0.0, 5.0],
+        [0.0, 0.0, 2.0],
+        10.0,
+        Color32::from_rgb(0x1f, 0x6f, 0xd1),
+        "arrow",
+    );
     let b = batches(&mut vp, 20);
     let lines: Vec<_> = b.iter().filter(|(bt, _)| bt.lines).collect();
     let tris: Vec<_> = b.iter().filter(|(bt, _)| !bt.lines).collect();
@@ -540,7 +662,12 @@ fn overlay_arrow() {
     let cone = &tris[0].1;
     assert_eq!(cone.len(), 30);
     assert!(cone.iter().any(|x| close(pos(x), [0.0, 0.0, 15.0], 1e-6)), "no tip");
-    let rim = cone.iter().map(|x| pos(x)).filter(|p| (p[2] - 12.5).abs() < 1e-6).map(|p| (p[0] * p[0] + p[1] * p[1]).sqrt()).fold(0.0, f64::max);
+    let rim = cone
+        .iter()
+        .map(pos)
+        .filter(|p| (p[2] - 12.5).abs() < 1e-6)
+        .map(|p| (p[0] * p[0] + p[1] * p[1]).sqrt())
+        .fold(0.0, f64::max);
     assert!((rim - 0.6).abs() < 1e-5, "{rim}");
     assert_eq!(lines[0].0.depth, Depth::Off);
 }
@@ -548,12 +675,20 @@ fn overlay_arrow() {
 #[test]
 fn overlay_line() {
     let mut vp = overlay_view();
-    vp.add_line([1.0, 2.0, 3.0], [4.0, 5.0, 6.0], Color32::from_rgb(0x1f, 0x6f, 0xd1), "line");
+    vp.add_line(
+        [1.0, 2.0, 3.0],
+        [4.0, 5.0, 6.0],
+        Color32::from_rgb(0x1f, 0x6f, 0xd1),
+        "line",
+    );
     let b = batches(&mut vp, 20);
     assert_eq!(b.len(), 1);
     let (batch, v) = &b[0];
     assert_eq!((batch.lines, batch.depth), (true, Depth::Off));
-    assert_eq!(v.iter().map(pos).collect::<Vec<_>>(), vec![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]);
+    assert_eq!(
+        v.iter().map(pos).collect::<Vec<_>>(),
+        vec![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]
+    );
     assert_eq!(v[0].c0, [0x1f, 0x6f, 0xd1, 255]);
 }
 
@@ -567,13 +702,21 @@ fn overlay_polyline() {
     assert_eq!(b.len(), 1);
     let (batch, v) = &b[0];
     assert_eq!((batch.lines, batch.depth), (true, Depth::Off));
-    assert_eq!(v.iter().map(pos).collect::<Vec<_>>(), vec![[0.0; 3], [1.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0]]);
+    assert_eq!(
+        v.iter().map(pos).collect::<Vec<_>>(),
+        vec![[0.0; 3], [1.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0]]
+    );
 }
 
 #[test]
 fn overlay_plane_ghost() {
     let mut vp = overlay_view();
-    let f = PlaneFrame { origin: [0.0, 0.0, 5.0], x: [1.0, 0.0, 0.0], y: [0.0, 1.0, 0.0], normal: [0.0, 0.0, 1.0] };
+    let f = PlaneFrame {
+        origin: [0.0, 0.0, 5.0],
+        x: [1.0, 0.0, 0.0],
+        y: [0.0, 1.0, 0.0],
+        normal: [0.0, 0.0, 1.0],
+    };
     vp.add_plane_ghost(&f, "plane-ghost", Color32::from_rgb(0xe8, 0x76, 0x3a));
     let b = batches(&mut vp, 2);
     let fill = b.iter().find(|(bt, _)| !bt.lines).expect("fill");
@@ -584,7 +727,11 @@ fn overlay_plane_ghost() {
     assert!(fill.1.iter().all(|x| x.c0 == [0xe8, 0x76, 0x3a, alpha(0.22)]));
     assert!(edge.1.iter().all(|x| x.c0 == [0xe8, 0x76, 0x3a, alpha(0.7)]));
     // max(extent * 0.35, 20) = 20 across
-    assert!(fill.1.iter().all(|x| (pos(x)[0].abs() - 10.0).abs() < 1e-6 && (pos(x)[2] - 5.0).abs() < 1e-6));
+    assert!(
+        fill.1
+            .iter()
+            .all(|x| (pos(x)[0].abs() - 10.0).abs() < 1e-6 && (pos(x)[2] - 5.0).abs() < 1e-6)
+    );
 }
 
 #[test]
@@ -608,7 +755,12 @@ fn overlay_band() {
 #[test]
 fn overlay_regions() {
     let mut vp = overlay_view();
-    let f = PlaneFrame { origin: [0.0, 0.0, 2.0], x: [1.0, 0.0, 0.0], y: [0.0, 1.0, 0.0], normal: [0.0, 0.0, 1.0] };
+    let f = PlaneFrame {
+        origin: [0.0, 0.0, 2.0],
+        x: [1.0, 0.0, 0.0],
+        y: [0.0, 1.0, 0.0],
+        normal: [0.0, 0.0, 1.0],
+    };
     let outer = vec![[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0]];
     let hole = vec![[4.0, 4.0], [4.0, 6.0], [6.0, 6.0], [6.0, 4.0]];
     vp.add_regions(&f, &[vec![outer, hole]], "regions");
@@ -616,7 +768,10 @@ fn overlay_regions() {
     assert_eq!(b.len(), 1);
     let (batch, v) = &b[0];
     assert_eq!((batch.lines, batch.depth), (false, Depth::Off));
-    assert!(v.iter().all(|x| x.c0 == [0x2f, 0x8c, 0xff, alpha(0.4)] && (pos(x)[2] - 2.0).abs() < 1e-6));
+    assert!(
+        v.iter()
+            .all(|x| x.c0 == [0x2f, 0x8c, 0xff, alpha(0.4)] && (pos(x)[2] - 2.0).abs() < 1e-6)
+    );
     let area: f64 = v
         .chunks_exact(3)
         .map(|t| {
@@ -632,7 +787,16 @@ fn overlay_preview() {
     use stl_app::viewport::{PreviewMesh, PreviewPack};
     let mut vp = overlay_view();
     vp.show_preview(&PreviewPack {
-        meshes: vec![PreviewMesh { id: "b1".into(), mesh: cube_mesh() }, PreviewMesh { id: "new".into(), mesh: cube_mesh() }],
+        meshes: vec![
+            PreviewMesh {
+                id: "b1".into(),
+                mesh: cube_mesh(),
+            },
+            PreviewMesh {
+                id: "new".into(),
+                mesh: cube_mesh(),
+            },
+        ],
         ..PreviewPack::default()
     });
     vp.flush(); // the preview's meshes are prepared on a worker thread
@@ -672,10 +836,25 @@ fn overlay_clear_by_tag() {
 #[test]
 fn sketches_draw_outside_sketch_mode() {
     use stl_app::engine_link::{SketchOutline, SketchView};
-    let square = SketchOutline { pts: vec![[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0]], closed: true, construction: false };
-    let guide = SketchOutline { pts: vec![[0.0, 0.0], [5.0, 0.0]], closed: false, construction: true };
+    let square = SketchOutline {
+        pts: vec![[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0]],
+        closed: true,
+        construction: false,
+    };
+    let guide = SketchOutline {
+        pts: vec![[0.0, 0.0], [5.0, 0.0]],
+        closed: false,
+        construction: true,
+    };
     let frame = [[0.0, 0.0, 3.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
-    let sk = |id: &str, hidden: bool| SketchView { id: id.into(), name: id.into(), plane: "XY".into(), hidden, frame, outlines: vec![square.clone(), guide.clone()].into() };
+    let sk = |id: &str, hidden: bool| SketchView {
+        id: id.into(),
+        name: id.into(),
+        plane: "XY".into(),
+        hidden,
+        frame,
+        outlines: vec![square.clone(), guide.clone()].into(),
+    };
     let mut vp = overlay_view();
     vp.sync_sketches(&[sk("s1", false), sk("s2", true), sk("s3", false)], Some("s3"));
     let b = batches(&mut vp, 10);
@@ -712,27 +891,44 @@ mod snapshots {
         vp.fit_all();
         vp.camera_mut().finish_flight();
         let renderer = super::wgpu_renderer::WgpuRenderer::new(gpu.render_state.clone());
-        let mut harness = Harness::builder().with_size(egui::vec2(480.0, 320.0)).renderer(renderer).build_ui(move |ui| {
-            egui::CentralPanel::default().frame(egui::Frame::NONE).show(ui, |ui| {
-                vp.show(ui);
+        let mut harness = Harness::builder()
+            .with_size(egui::vec2(480.0, 320.0))
+            .renderer(renderer)
+            .build_ui(move |ui| {
+                egui::CentralPanel::default().frame(egui::Frame::NONE).show(ui, |ui| {
+                    vp.show(ui);
+                });
             });
-        });
         stl_app::theme::apply(&harness.ctx, &stl_app::theme::tokens(dark));
         harness.run();
         if let Some(name) = name {
             super::gpu::snapshot(&mut harness, gpu, name);
         }
         let img = harness.render().expect("picture");
-        let errors: Vec<String> = harness.take_snapshot_results().into_inner().iter().map(|e| e.to_string()).collect();
-        assert!(errors.is_empty(), "{}", errors.join("
-"));
+        let errors: Vec<String> = harness
+            .take_snapshot_results()
+            .into_inner()
+            .iter()
+            .map(|e| e.to_string())
+            .collect();
+        assert!(
+            errors.is_empty(),
+            "{}",
+            errors.join(
+                "
+"
+            )
+        );
         super::gpu::assert_view_toolbar(&img, dark, super::gpu::top_band(&img), name.unwrap_or("viewport"));
         img
     }
 
     /// Pixels that differ by more than 24 in some channel.
     fn changed(a: &image::RgbaImage, b: &image::RgbaImage) -> usize {
-        a.pixels().zip(b.pixels()).filter(|(p, q)| (0..3).any(|k| p.0[k].abs_diff(q.0[k]) > 24)).count()
+        a.pixels()
+            .zip(b.pixels())
+            .filter(|(p, q)| (0..3).any(|k| p.0[k].abs_diff(q.0[k]) > 24))
+            .count()
     }
 
     /// Pixels of the cube's grey-blue sides: mid-grey with a little more blue than red (not the
@@ -753,7 +949,11 @@ mod snapshots {
         assert!(n >= 20_000, "{name}: the cube shows on only {n} pixels");
     }
 
-    fn snapshot(name: &str, dark: bool, setup: impl FnOnce(&mut Viewport)) -> Option<(super::gpu::TestGpu, image::RgbaImage)> {
+    fn snapshot(
+        name: &str,
+        dark: bool,
+        setup: impl FnOnce(&mut Viewport),
+    ) -> Option<(super::gpu::TestGpu, image::RgbaImage)> {
         let Some(gpu) = super::gpu::headless() else {
             eprintln!("no GPU adapter: skipped");
             return None;
@@ -764,13 +964,17 @@ mod snapshots {
 
     #[test]
     fn viewport_cube_shaded() {
-        let Some((_, img)) = snapshot("viewport_cube_shaded", true, |vp| vp.set_edges_visible(false)) else { return };
+        let Some((_, img)) = snapshot("viewport_cube_shaded", true, |vp| vp.set_edges_visible(false)) else {
+            return;
+        };
         assert_cube("shaded", &img);
     }
 
     #[test]
     fn viewport_cube_edges() {
-        let Some((gpu, img)) = snapshot("viewport_cube_edges", true, |vp| vp.set_edges_visible(true)) else { return };
+        let Some((gpu, img)) = snapshot("viewport_cube_edges", true, |vp| vp.set_edges_visible(true)) else {
+            return;
+        };
         assert_cube("edges", &img);
         // the edge lines: the same cube without them differs along its outline
         let plain = picture(&gpu, None, true, |vp| vp.set_edges_visible(false));
@@ -780,12 +984,19 @@ mod snapshots {
 
     #[test]
     fn viewport_cube_selected() {
-        let Some((gpu, img)) = snapshot("viewport_cube_selected", true, |vp| vp.set_selection(&["b1".to_owned()])) else { return };
+        let Some((gpu, img)) = snapshot("viewport_cube_selected", true, |vp| {
+            vp.set_selection(&["b1".to_owned()])
+        }) else {
+            return;
+        };
         // the selection colours the cube: most of its pixels change
         let plain = picture(&gpu, None, true, |_| {});
         assert_cube("unselected", &plain);
         let (cube, n, left) = (body_pixels(&plain), changed(&img, &plain), body_pixels(&img));
-        assert!(n * 2 >= cube && left * 4 < cube, "selected: {n} pixels differ from the {cube} of the unselected cube, {left} keep its colour");
+        assert!(
+            n * 2 >= cube && left * 4 < cube,
+            "selected: {n} pixels differ from the {cube} of the unselected cube, {left} keep its colour"
+        );
     }
 
     #[test]
@@ -804,12 +1015,19 @@ mod snapshots {
     /// Dark and light, with the base planes: the cube shows in both, on a background of the
     /// theme's lightness, and the planes add their tint over the bed.
     fn themed(name: &str, dark: bool) {
-        let Some((gpu, img)) = snapshot(name, dark, |vp| vp.set_base_planes_visible(true)) else { return };
+        let Some((gpu, img)) = snapshot(name, dark, |vp| vp.set_base_planes_visible(true)) else {
+            return;
+        };
         assert_cube(name, &img);
         // left of the cube, inside the view (kittest's margin is 8 points)
         let [r, g, b, _] = img.get_pixel(30, 200).0;
         let lum = (r as u32 + g as u32 + b as u32) / 3;
-        assert!(if dark { lum < 90 } else { lum > 170 }, "{name}: background pixel {:?} is not {}", [r, g, b], if dark { "dark" } else { "light" });
+        assert!(
+            if dark { lum < 90 } else { lum > 170 },
+            "{name}: background pixel {:?} is not {}",
+            [r, g, b],
+            if dark { "dark" } else { "light" }
+        );
         let without = picture(&gpu, None, dark, |vp| vp.set_base_planes_visible(false));
         let n = changed(&img, &without);
         // the planes are a quarter of the part's longest side now (Nathan, 2026-11-16), so they

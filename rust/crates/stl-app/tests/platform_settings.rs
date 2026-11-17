@@ -6,8 +6,8 @@
 #[path = "support/test_env.rs"]
 mod test_env;
 
-use stl_app::platform::native::NativePlatform;
 use stl_app::platform::Platform;
+use stl_app::platform::native::NativePlatform;
 
 fn dir(name: &str) -> std::path::PathBuf {
     let d = std::env::temp_dir().join(format!("stle-settings-{name}-{}", std::process::id()));
@@ -23,8 +23,16 @@ fn settings_survive_a_restart_and_leave_no_temp_file() {
     assert_eq!(p.setting("stle_sf_reach"), None);
     p.set_setting("stle_sf_reach", "3");
     p.set_setting("stle_sections", "{}");
-    let names: Vec<_> = std::fs::read_dir(&d).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).filter(|n| n != "settings.lock").collect();
-    assert_eq!(names, vec!["settings.json".to_string()], "the temp file was renamed away");
+    let names: Vec<_> = std::fs::read_dir(&d)
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .filter(|n| n != "settings.lock")
+        .collect();
+    assert_eq!(
+        names,
+        vec!["settings.json".to_string()],
+        "the temp file was renamed away"
+    );
     let again = NativePlatform::with_config_dir(&d);
     assert_eq!(again.setting("stle_sf_reach").as_deref(), Some("3"));
     assert_eq!(again.setting("stle_sections").as_deref(), Some("{}"));
@@ -55,7 +63,11 @@ fn json_values_and_strings_share_the_file() {
     p.set_setting_json("recent", serde_json::json!(["a", "b"]));
     p.set_setting("name", "text");
     assert_eq!(p.setting_json("recent"), Some(serde_json::json!(["a", "b"])));
-    assert_eq!(p.setting_json("name"), Some(serde_json::json!("text")), "a string setting is a JSON string");
+    assert_eq!(
+        p.setting_json("name"),
+        Some(serde_json::json!("text")),
+        "a string setting is a JSON string"
+    );
     assert_eq!(p.setting("recent"), None, "not a string");
 }
 
@@ -74,7 +86,10 @@ fn an_unreadable_file_is_kept_as_a_bad_copy_and_replaced_by_the_next_change() {
     std::fs::write(&file, "{ not json, but the user's").unwrap();
     let p = NativePlatform::with_config_dir(&d);
     p.set_setting("a", "1");
-    assert_eq!(std::fs::read_to_string(d.join("settings.json.bad")).unwrap(), "{ not json, but the user's");
+    assert_eq!(
+        std::fs::read_to_string(d.join("settings.json.bad")).unwrap(),
+        "{ not json, but the user's"
+    );
     assert!(std::fs::read_to_string(&file).unwrap().contains("\"a\""));
 }
 
@@ -98,7 +113,10 @@ fn writers_on_many_threads_lose_nothing() {
     }
     let v: serde_json::Value = serde_json::from_slice(&std::fs::read(&file).unwrap()).unwrap();
     assert_eq!(v.as_object().unwrap().len(), 160, "every write is in the file");
-    let leftovers = std::fs::read_dir(&d).unwrap().filter(|e| e.as_ref().unwrap().file_name().to_string_lossy().ends_with(".tmp")).count();
+    let leftovers = std::fs::read_dir(&d)
+        .unwrap()
+        .filter(|e| e.as_ref().unwrap().file_name().to_string_lossy().ends_with(".tmp"))
+        .count();
     assert_eq!(leftovers, 0, "no temp files left");
 }
 

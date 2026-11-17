@@ -2,7 +2,7 @@
 //! Counterpart of `tests/ui/sf9.js`.
 #![cfg(not(target_arch = "wasm32"))]
 
-use super::harness::{wait_for, fixture_stl, import_stl, empty_harness, select_first_body, settle, wait_support_open};
+use super::harness::{empty_harness, fixture_stl, import_stl, select_first_body, settle, wait_for, wait_support_open};
 use egui::{Event, PointerButton, Pos2};
 use serde_json::json;
 use stl_app::supports;
@@ -16,7 +16,11 @@ fn sf9_modes_rotate_add_remove() {
     wait_support_open(&mut h, &link, "supportfins");
 
     assert_eq!(supports::mode_of(&h.state().tool().unwrap().values), "rotate");
-    assert_eq!(h.state().viewport.gizmo().map(|g| g.mode), Some(GizmoMode::Rotate), "Rotate mode shows pose rings");
+    assert_eq!(
+        h.state().viewport.gizmo().map(|g| g.mode),
+        Some(GizmoMode::Rotate),
+        "Rotate mode shows pose rings"
+    );
 
     // Switch to Remove fins
     h.state_mut().tool_set_value("_mode", json!("remove"));
@@ -24,7 +28,10 @@ fn sf9_modes_rotate_add_remove() {
     assert_eq!(supports::mode_of(&h.state().tool().unwrap().values), "remove");
     let hint = format!("{}{}", h.state().shell.hint, h.state().tool().unwrap().wall_hint);
     assert!(
-        hint.is_empty() || hint.contains("fin") || hint.contains("Remove") || supports::mode_of(&h.state().tool().unwrap().values) == "remove",
+        hint.is_empty()
+            || hint.contains("fin")
+            || hint.contains("Remove")
+            || supports::mode_of(&h.state().tool().unwrap().values) == "remove",
         "remove-mode hint: {hint:?}"
     );
 
@@ -73,11 +80,19 @@ fn sf9_remove_fins_click_toggles() {
     h.state_mut().tool_set_value("_mode", json!("remove"));
     h.run_steps(3);
     // the engine's fins arrive as preview meshes
-    wait_for(&mut h, &link, "the fins preview", |h| h.state().viewport.preview_meshes().next().is_some());
+    wait_for(&mut h, &link, "the fins preview", |h| {
+        h.state().viewport.preview_meshes().next().is_some()
+    });
     h.state_mut().viewport.set_view("front");
     h.run_steps(3);
     let removed = |h: &egui_kittest::Harness<'static, stl_app::app::StlApp>| {
-        h.state().tool().unwrap().values.get("removed").and_then(|v| v.as_array()).map_or(0, |a| a.len())
+        h.state()
+            .tool()
+            .unwrap()
+            .values
+            .get("removed")
+            .and_then(|v| v.as_array())
+            .map_or(0, |a| a.len())
     };
     assert_eq!(removed(&h), 0);
 
@@ -104,9 +119,19 @@ fn sf9_remove_fins_click_toggles() {
         }
         h.event(Event::PointerMoved(at));
         h.step();
-        h.event(Event::PointerButton { pos: at, button: PointerButton::Primary, pressed: true, modifiers: Default::default() });
+        h.event(Event::PointerButton {
+            pos: at,
+            button: PointerButton::Primary,
+            pressed: true,
+            modifiers: Default::default(),
+        });
         h.step();
-        h.event(Event::PointerButton { pos: at, button: PointerButton::Primary, pressed: false, modifiers: Default::default() });
+        h.event(Event::PointerButton {
+            pos: at,
+            button: PointerButton::Primary,
+            pressed: false,
+            modifiers: Default::default(),
+        });
         h.step();
         if removed(&h) == 1 {
             clicked = true;
@@ -115,7 +140,9 @@ fn sf9_remove_fins_click_toggles() {
     }
     assert!(clicked, "a click on a fin removes it (the tool's `removed` list grows)");
     // the fins are rebuilt without it, then the ghost can be clicked to bring it back
-    wait_for(&mut h, &link, "the rebuilt preview", |h| h.state().viewport.preview_meshes().next().is_some());
+    wait_for(&mut h, &link, "the rebuilt preview", |h| {
+        h.state().viewport.preview_meshes().next().is_some()
+    });
     assert_eq!(removed(&h), 1);
     h.state_mut().tool_cancel();
     settle(&mut h, &link);

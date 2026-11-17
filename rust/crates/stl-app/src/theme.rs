@@ -93,7 +93,80 @@ pub struct Tokens {
 }
 
 /// CSS names of the colour tokens, in the same order as the fields.
-pub const COLOUR_NAMES: &[&str] = &["chrome", "chrome-text", "chrome-hover", "doc-tab", "ribbon", "ribbon-line", "divider", "bg", "panel", "panel-2", "hover", "line", "line-2", "input", "input-line", "text", "strong", "muted", "label", "accent", "accent-soft", "primary", "primary-hover", "sel", "sel-text", "sel-line", "sketch", "sketch-fill", "sketch-text", "ok", "danger", "warn", "err-bg", "err-text", "warn-bg", "warn-text", "info-bg", "info-text", "good-bg", "good-text", "ent-sel", "chip", "kbd", "expr", "toast", "toast-warn", "scrim", "busy-scrim", "spin-track", "float", "dim-ink", "dim-text", "dim-ref", "dim-expr", "dim-sel", "dim-sel-text", "dim-sel-line", "dim-bad", "dim-bad-line", "dim-preview", "dim-preview-line", "dim-hover", "cg-bg", "cg-text", "cg-line", "cg-bad-bg", "cg-bad-text", "cg-bad-line", "def-under", "def-full", "def-over", "heart"];
+pub const COLOUR_NAMES: &[&str] = &[
+    "chrome",
+    "chrome-text",
+    "chrome-hover",
+    "doc-tab",
+    "ribbon",
+    "ribbon-line",
+    "divider",
+    "bg",
+    "panel",
+    "panel-2",
+    "hover",
+    "line",
+    "line-2",
+    "input",
+    "input-line",
+    "text",
+    "strong",
+    "muted",
+    "label",
+    "accent",
+    "accent-soft",
+    "primary",
+    "primary-hover",
+    "sel",
+    "sel-text",
+    "sel-line",
+    "sketch",
+    "sketch-fill",
+    "sketch-text",
+    "ok",
+    "danger",
+    "warn",
+    "err-bg",
+    "err-text",
+    "warn-bg",
+    "warn-text",
+    "info-bg",
+    "info-text",
+    "good-bg",
+    "good-text",
+    "ent-sel",
+    "chip",
+    "kbd",
+    "expr",
+    "toast",
+    "toast-warn",
+    "scrim",
+    "busy-scrim",
+    "spin-track",
+    "float",
+    "dim-ink",
+    "dim-text",
+    "dim-ref",
+    "dim-expr",
+    "dim-sel",
+    "dim-sel-text",
+    "dim-sel-line",
+    "dim-bad",
+    "dim-bad-line",
+    "dim-preview",
+    "dim-preview-line",
+    "dim-hover",
+    "cg-bg",
+    "cg-text",
+    "cg-line",
+    "cg-bad-bg",
+    "cg-bad-text",
+    "cg-bad-line",
+    "def-under",
+    "def-full",
+    "def-over",
+    "heart",
+];
 
 impl Tokens {
     /// A colour token by its CSS name (`"panel-2"`, without the leading `--`).
@@ -251,8 +324,18 @@ pub fn tokens(dark: bool) -> Tokens {
             def_full: Color32::from_rgb(0xe9, 0xec, 0xef),
             def_over: Color32::from_rgb(0xe5, 0x53, 0x4b),
             heart: Color32::from_rgb(0xff, 0x5e, 0x5b),
-            shadow: Shadow { offset: [0, 6], blur: 20, spread: 0, color: Color32::from_rgba_unmultiplied(0, 0, 0, 89) },
-            shadow_lg: Shadow { offset: [0, 10], blur: 40, spread: 0, color: Color32::from_rgba_unmultiplied(0, 0, 0, 115) },
+            shadow: Shadow {
+                offset: [0, 6],
+                blur: 20,
+                spread: 0,
+                color: Color32::from_rgba_unmultiplied(0, 0, 0, 89),
+            },
+            shadow_lg: Shadow {
+                offset: [0, 10],
+                blur: 40,
+                spread: 0,
+                color: Color32::from_rgba_unmultiplied(0, 0, 0, 115),
+            },
             radius: 7.0,
             radius_sm: 5.0,
         }
@@ -330,8 +413,18 @@ pub fn tokens(dark: bool) -> Tokens {
             def_full: Color32::from_rgb(0x1d, 0x24, 0x33),
             def_over: Color32::from_rgb(0xe0, 0x31, 0x31),
             heart: Color32::from_rgb(0xff, 0x5e, 0x5b),
-            shadow: Shadow { offset: [0, 6], blur: 20, spread: 0, color: Color32::from_rgba_unmultiplied(20, 30, 40, 31) },
-            shadow_lg: Shadow { offset: [0, 10], blur: 40, spread: 0, color: Color32::from_rgba_unmultiplied(20, 30, 40, 56) },
+            shadow: Shadow {
+                offset: [0, 6],
+                blur: 20,
+                spread: 0,
+                color: Color32::from_rgba_unmultiplied(20, 30, 40, 31),
+            },
+            shadow_lg: Shadow {
+                offset: [0, 10],
+                blur: 40,
+                spread: 0,
+                color: Color32::from_rgba_unmultiplied(20, 30, 40, 56),
+            },
             radius: 7.0,
             radius_sm: 5.0,
         }
@@ -358,7 +451,11 @@ pub fn apply(ctx: &egui::Context, t: &Tokens) {
     let dark = t.bg.r() < 0x80;
     ctx.all_styles_mut(|s| {
         let v = &mut s.visuals;
-        *v = if dark { egui::Visuals::dark() } else { egui::Visuals::light() };
+        *v = if dark {
+            egui::Visuals::dark()
+        } else {
+            egui::Visuals::light()
+        };
         v.dark_mode = dark;
         v.override_text_color = None;
         v.panel_fill = t.panel;

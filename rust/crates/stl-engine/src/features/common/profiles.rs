@@ -7,14 +7,14 @@
 
 use indexmap::IndexMap;
 use serde_json::Value;
-use stl_kernel::{cross, dot, Aabb, Frame, MeshArrays, Solid, Vec3};
+use stl_kernel::{Aabb, Frame, MeshArrays, Solid, Vec3, cross, dot};
 use stl_sketch::contours::entity_path;
 use stl_sketch::profile::profile_with;
 use stl_sketch::{Entity, P2};
 
 use super::frames::plane_frame;
-use crate::state::Body;
 use crate::FeatureError;
+use crate::state::Body;
 
 /// A sketch a Sketch feature stored: its plane frame, entities and part-edge references.
 #[derive(Clone, Debug, PartialEq)]
@@ -53,10 +53,10 @@ pub fn material_volume(bodies: &IndexMap<String, Body>, tool: &Solid, targets: &
         if !targets.is_empty() && !targets.contains(k) {
             continue;
         }
-        if let Some(s) = &b.solid {
-            if overlaps(&bbox(s), &tb, 1e-6) {
-                vol += s.intersection(tool).volume();
-            }
+        if let Some(s) = &b.solid
+            && overlaps(&bbox(s), &tb, 1e-6)
+        {
+            vol += s.intersection(tool).volume();
         }
     }
     vol
@@ -102,7 +102,9 @@ pub fn ccw(pts: &[P2]) -> Vec<P2> {
 /// coordinates.
 pub fn profile_loop(sk: &SketchRec, idx: usize) -> Result<Vec<P2>, FeatureError> {
     let cs = profile_with(&sk.entities, None, None).map_err(|_| {
-        FeatureError(format!("Profile {idx} isn't a closed shape with an area. Close its outline first."))
+        FeatureError(format!(
+            "Profile {idx} isn't a closed shape with an area. Close its outline first."
+        ))
     })?;
     if cs.contours.len() != 1 {
         return Err(FeatureError(format!(
@@ -161,7 +163,10 @@ pub fn align(prev: &[Vec3], cur: &[Vec3]) -> Vec<Vec3> {
 /// 1.x `_mesh_solid`: a solid from vertices and triangles, or the "couldn't be closed" error.
 pub fn mesh_solid(verts: &[Vec3], tris: &[[u32; 3]], what: &str) -> Result<Solid, FeatureError> {
     let mesh = MeshArrays {
-        positions: verts.iter().flat_map(|v| [v[0] as f32, v[1] as f32, v[2] as f32]).collect(),
+        positions: verts
+            .iter()
+            .flat_map(|v| [v[0] as f32, v[1] as f32, v[2] as f32])
+            .collect(),
         triangles: tris.iter().flatten().copied().collect(),
     };
     match Solid::from_mesh(&mesh) {
@@ -186,7 +191,9 @@ pub fn path_points(sk: &SketchRec) -> Result<Vec<P2>, FeatureError> {
         }
     }
     if items.is_empty() {
-        return Err(FeatureError("The sweep path needs one open path of lines and arcs in its sketch.".into()));
+        return Err(FeatureError(
+            "The sweep path needs one open path of lines and arcs in its sketch.".into(),
+        ));
     }
     let mut chain = items.remove(0);
     let tol = 1e-6;
@@ -219,7 +226,9 @@ pub fn path_points(sk: &SketchRec) -> Result<Vec<P2>, FeatureError> {
                 items.remove(idx);
             }
             None => {
-                return Err(FeatureError("The sweep path must be one connected chain of lines and arcs.".into()));
+                return Err(FeatureError(
+                    "The sweep path must be one connected chain of lines and arcs.".into(),
+                ));
             }
         }
     }
@@ -266,9 +275,8 @@ pub fn path_self_crosses(p: &[P2]) -> bool {
             let d3 = sg(cross2(sub(d, c), sub(a, c)));
             let d4 = sg(cross2(sub(d, c), sub(b, c)));
             let hit = if d1 == 0.0 && d2 == 0.0 {
-                (0..2).all(|k| {
-                    f64::max(a[k].min(b[k]), c[k].min(d[k])) <= f64::min(a[k].max(b[k]), c[k].max(d[k])) + eps
-                })
+                (0..2)
+                    .all(|k| f64::max(a[k].min(b[k]), c[k].min(d[k])) <= f64::min(a[k].max(b[k]), c[k].max(d[k])) + eps)
             } else {
                 d1 * d2 <= 0.0 && d3 * d4 <= 0.0
             };
@@ -344,7 +352,10 @@ fn body_points(b: &Body) -> Vec<Vec3> {
         (None, Some(m)) => m,
         (None, None) => return Vec::new(),
     };
-    mesh.positions.chunks_exact(3).map(|p| [p[0] as f64, p[1] as f64, p[2] as f64]).collect()
+    mesh.positions
+        .chunks_exact(3)
+        .map(|p| [p[0] as f64, p[1] as f64, p[2] as f64])
+        .collect()
 }
 
 /// geometry.big_extent: a length longer than anything in the design (for "through all").
@@ -411,9 +422,22 @@ mod tests {
         // a bow tie crosses; an L does not; a path that comes back to touch an earlier point does
         assert!(path_self_crosses(&[[0.0, 0.0], [2.0, 2.0], [2.0, 0.0], [0.0, 2.0]]));
         assert!(!path_self_crosses(&[[0.0, 0.0], [2.0, 0.0], [2.0, 2.0]]));
-        assert!(path_self_crosses(&[[0.0, 0.0], [2.0, 0.0], [2.0, 2.0], [1.0, 2.0], [1.0, 0.0]]));
+        assert!(path_self_crosses(&[
+            [0.0, 0.0],
+            [2.0, 0.0],
+            [2.0, 2.0],
+            [1.0, 2.0],
+            [1.0, 0.0]
+        ]));
         // collinear overlap
-        assert!(path_self_crosses(&[[0.0, 0.0], [3.0, 0.0], [3.0, 1.0], [1.0, 1.0], [1.0, 0.0], [2.0, 0.0]]));
+        assert!(path_self_crosses(&[
+            [0.0, 0.0],
+            [3.0, 0.0],
+            [3.0, 1.0],
+            [1.0, 1.0],
+            [1.0, 0.0],
+            [2.0, 0.0]
+        ]));
         // two segments only: nothing to compare
         assert!(!path_self_crosses(&[[0.0, 0.0], [1.0, 0.0]]));
     }
@@ -464,7 +488,12 @@ mod tests {
 
     #[test]
     fn frame_matrix_and_cylinder() {
-        let f = Frame { o: [1.0, 2.0, 3.0], x: [1.0, 0.0, 0.0], y: [0.0, 1.0, 0.0], n: [0.0, 0.0, 1.0] };
+        let f = Frame {
+            o: [1.0, 2.0, 3.0],
+            x: [1.0, 0.0, 0.0],
+            y: [0.0, 1.0, 0.0],
+            n: [0.0, 0.0, 1.0],
+        };
         let m = frame_matrix(&f);
         assert_eq!(m[0], [1.0, 0.0, 0.0, 1.0]);
         assert_eq!(m[2], [0.0, 0.0, 1.0, 3.0]);

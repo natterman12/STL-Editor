@@ -20,7 +20,10 @@ fn read_binary_stl(path: &PathBuf) -> Vec<[[f32; 3]; 3]> {
     (0..n)
         .map(|t| {
             let rec = &data[84 + 50 * t + 12..84 + 50 * t + 48];
-            let x: Vec<f32> = rec.chunks_exact(4).map(|b| f32::from_le_bytes(b.try_into().unwrap())).collect();
+            let x: Vec<f32> = rec
+                .chunks_exact(4)
+                .map(|b| f32::from_le_bytes(b.try_into().unwrap()))
+                .collect();
             [[x[0], x[1], x[2]], [x[3], x[4], x[5]], [x[6], x[7], x[8]]]
         })
         .collect()
@@ -39,7 +42,11 @@ fn dot(a: V3, b: V3) -> f64 {
 /// Distance from `p` to the triangle `abc` (closest point by Voronoi region, Ericson 5.1.5).
 fn point_triangle(p: V3, a: V3, b: V3, c: V3) -> f64 {
     let at = |s: f64, t: f64| {
-        let q = [a[0] + s * (b[0] - a[0]) + t * (c[0] - a[0]), a[1] + s * (b[1] - a[1]) + t * (c[1] - a[1]), a[2] + s * (b[2] - a[2]) + t * (c[2] - a[2])];
+        let q = [
+            a[0] + s * (b[0] - a[0]) + t * (c[0] - a[0]),
+            a[1] + s * (b[1] - a[1]) + t * (c[1] - a[1]),
+            a[2] + s * (b[2] - a[2]) + t * (c[2] - a[2]),
+        ];
         let d = sub(p, q);
         dot(d, d).sqrt()
     };
@@ -82,7 +89,11 @@ fn point_triangle(p: V3, a: V3, b: V3, c: V3) -> f64 {
         let seg = |u: V3, v: V3| {
             let uv = sub(v, u);
             let l = dot(uv, uv);
-            let t = if l > 0.0 { (dot(sub(p, u), uv) / l).clamp(0.0, 1.0) } else { 0.0 };
+            let t = if l > 0.0 {
+                (dot(sub(p, u), uv) / l).clamp(0.0, 1.0)
+            } else {
+                0.0
+            };
             let d = sub(p, [u[0] + t * uv[0], u[1] + t * uv[1], u[2] + t * uv[2]]);
             dot(d, d).sqrt()
         };
@@ -96,7 +107,10 @@ fn one_way(from: &[[V3; 3]], to: &[[V3; 3]]) -> f64 {
     let mut worst = 0.0f64;
     for t in from {
         for &p in t {
-            let d = to.iter().map(|u| point_triangle(p, u[0], u[1], u[2])).fold(f64::INFINITY, f64::min);
+            let d = to
+                .iter()
+                .map(|u| point_triangle(p, u[0], u[1], u[2]))
+                .fold(f64::INFINITY, f64::min);
             worst = worst.max(d);
         }
     }
@@ -153,7 +167,10 @@ fn fqms_matches_golden() {
         let pos: Vec<f64> = soup.iter().flatten().flatten().map(|&x| x as f64).collect();
         let idx: Vec<u32> = (0..(soup.len() * 3) as u32).collect();
         let (wv, wf) = weld(&pos, &idx, 1e-5);
-        let v32: Vec<[f32; 3]> = wv.chunks_exact(3).map(|p| [p[0] as f32, p[1] as f32, p[2] as f32]).collect();
+        let v32: Vec<[f32; 3]> = wv
+            .chunks_exact(3)
+            .map(|p| [p[0] as f32, p[1] as f32, p[2] as f32])
+            .collect();
         let f: Vec<[u32; 3]> = wf.chunks_exact(3).map(|t| [t[0], t[1], t[2]]).collect();
         let ratio = rec["ratio"].as_f64().unwrap();
         let (nv, nf) = fqms_simplify(&v32, &f, 1.0 - ratio);

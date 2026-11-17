@@ -18,17 +18,17 @@
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
 
-use egui_kittest::kittest::Queryable;
 use egui_kittest::Harness;
+use egui_kittest::kittest::Queryable;
 use serde_json::json;
 use stl_app::app::StlApp;
 use stl_app::engine_link::native::NativeLink;
 use stl_app::engine_link::{Command, EngineLink};
-use stl_app::platform::native::NativePlatform;
 use stl_app::platform::Platform;
+use stl_app::platform::native::NativePlatform;
 use stl_app::ui::ThemePref;
 
-use super::harness::{project, settle, wait_for, SharedLink};
+use super::harness::{SharedLink, project, settle, wait_for};
 
 /// The autosave folder is shared by every test in this process.
 static LOCK: Mutex<()> = Mutex::new(());
@@ -42,7 +42,9 @@ fn autosave_root() -> std::path::PathBuf {
 }
 
 fn sessions() -> usize {
-    std::fs::read_dir(autosave_root()).map(|d| d.flatten().filter(|e| e.path().join("document.json").is_file()).count()).unwrap_or(0)
+    std::fs::read_dir(autosave_root())
+        .map(|d| d.flatten().filter(|e| e.path().join("document.json").is_file()).count())
+        .unwrap_or(0)
 }
 
 /// A window that crashed: it opened `basic.stlx`, added a box, wrote its copy and went away
@@ -52,9 +54,20 @@ fn crashed_session(title: &str) {
     let _ = std::fs::remove_dir_all(&root);
     let link = NativeLink::new();
     let bytes = std::fs::read(project("basic.stlx")).unwrap();
-    link.send(Command::Open { name: "basic.stlx".into(), bytes });
-    link.send(Command::AddFeature { kind: "primitive".into(), params: json!({"shape": "box", "size": [4.0, 4.0, 4.0]}), index: None, name: None });
-    link.send(Command::Autosave { path: None, title: Some(title.into()) });
+    link.send(Command::Open {
+        name: "basic.stlx".into(),
+        bytes,
+    });
+    link.send(Command::AddFeature {
+        kind: "primitive".into(),
+        params: json!({"shape": "box", "size": [4.0, 4.0, 4.0]}),
+        index: None,
+        name: None,
+    });
+    link.send(Command::Autosave {
+        path: None,
+        title: Some(title.into()),
+    });
     let end = std::time::Instant::now() + Duration::from_secs(120);
     while link.is_busy() {
         assert!(std::time::Instant::now() < end, "the engine never went idle");
@@ -72,20 +85,27 @@ fn start_app(name: &str) -> (Harness<'static, StlApp>, Arc<NativeLink>) {
     let platform = NativePlatform::with_config_dir(&cfg);
     platform.set_setting_json("update_check", json!(false));
     let link = Arc::new(NativeLink::new());
-    let mut app = StlApp::new(&egui::Context::default(), Box::new(platform), Box::new(SharedLink { inner: link.clone() }));
+    let mut app = StlApp::new(
+        &egui::Context::default(),
+        Box::new(platform),
+        Box::new(SharedLink { inner: link.clone() }),
+    );
     app.enable_autosave();
     let mut init = false;
-    let mut h = Harness::builder().with_size(egui::vec2(1280.0, 800.0)).with_accessibility_check(false).build_ui_state(
-        move |ui, app: &mut StlApp| {
-            if !init {
-                init = true;
-                stl_app::fonts::install(ui.ctx());
-                app.set_theme(ui.ctx(), ThemePref::Dark);
-            }
-            app.layout(ui);
-        },
-        app,
-    );
+    let mut h = Harness::builder()
+        .with_size(egui::vec2(1280.0, 800.0))
+        .with_accessibility_check(false)
+        .build_ui_state(
+            move |ui, app: &mut StlApp| {
+                if !init {
+                    init = true;
+                    stl_app::fonts::install(ui.ctx());
+                    app.set_theme(ui.ctx(), ThemePref::Dark);
+                }
+                app.layout(ui);
+            },
+            app,
+        );
     h.run_steps(4);
     (h, link)
 }
@@ -104,7 +124,9 @@ fn close(h: Harness<'static, StlApp>, link: Arc<NativeLink>) {
 
 /// Waits for the Recover dialog's list to arrive (the folder is read off the UI thread).
 fn wait_dialog(h: &mut Harness<'static, StlApp>, link: &NativeLink) {
-    wait_for(h, link, "the Recover dialog", |h| h.query_by_label("Recover unsaved work?").is_some());
+    wait_for(h, link, "the Recover dialog", |h| {
+        h.query_by_label("Recover unsaved work?").is_some()
+    });
 }
 
 fn help_recover(h: &mut Harness<'static, StlApp>) {
@@ -127,13 +149,19 @@ fn recover_dialog_lists_sessions() {
     h.get_by_label("Discard");
     h.get_by_label("Recover");
     h.get_by_label("Later");
-    assert!(h.state().bodies.is_empty(), "nothing is opened until Recover is pressed");
+    assert!(
+        h.state().bodies.is_empty(),
+        "nothing is opened until Recover is pressed"
+    );
 
     // Recover: the project comes back as it was, and says so
     h.get_by_label("Recover").click();
     wait_for(&mut h, &link, "the recovered project", |h| h.state().bodies.len() == 3);
     assert!(h.query_by_label("Recover unsaved work?").is_none(), "the dialog closes");
-    assert!(h.query_all_by_label_contains("Recovered. Save it to keep it.").count() > 0, "the toast says so");
+    assert!(
+        h.query_all_by_label_contains("Recovered. Save it to keep it.").count() > 0,
+        "the toast says so"
+    );
     assert_eq!(h.state().timeline_view.items.len(), 4, "every step is back");
     // the loaded copy is discarded: opening it wrote a new one for this window
     settle(&mut h, &link);
@@ -168,7 +196,11 @@ fn recover_later_discard_and_help_menu() {
     h.state_mut().toasts.clear();
     h.run_steps(2);
     help_recover(&mut h);
-    wait_for(&mut h, &link, "the nothing-to-recover toast", |h| h.query_all_by_label_contains("There is no unsaved work to recover.").count() > 0);
+    wait_for(&mut h, &link, "the nothing-to-recover toast", |h| {
+        h.query_all_by_label_contains("There is no unsaved work to recover.")
+            .count()
+            > 0
+    });
     assert!(h.query_by_label("Recover unsaved work?").is_none());
     close(h, link);
 }
@@ -180,8 +212,14 @@ fn a_clean_start_shows_no_dialog() {
     let (mut h, link) = start_app("clean");
     settle(&mut h, &link);
     h.run_steps(6);
-    assert!(h.query_by_label("Recover unsaved work?").is_none(), "nothing to offer, nothing shown");
-    assert!(h.query_by_label("There is no unsaved work to recover.").is_none(), "and no message at start-up");
+    assert!(
+        h.query_by_label("Recover unsaved work?").is_none(),
+        "nothing to offer, nothing shown"
+    );
+    assert!(
+        h.query_by_label("There is no unsaved work to recover.").is_none(),
+        "and no message at start-up"
+    );
     close(h, link);
 }
 

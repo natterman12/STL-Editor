@@ -4,18 +4,18 @@
 
 use std::cell::Cell;
 
-use serde_json::{json, Value};
-use stl_sketch::entities::{point, Circle, Entity, Line, Polygon, Rect, Slot, P2};
+use serde_json::{Value, json};
+use stl_sketch::entities::{Circle, Entity, Line, P2, Polygon, Rect, Slot, point};
 use stl_sketch::solver::{Constraint, Ref};
 
 use std::collections::BTreeMap;
 
 use super::guides::Guide;
-use super::inline_dims::{mid, unit, Row};
-use super::typed::{self, fmt3, fmt_len, parse_expr, Typed};
-use super::{dims, geom, snap, SketchEffect, SketchInput, SketchSession, SketchTool, ToolCx};
-use crate::tools::fields::number::expr_text;
+use super::inline_dims::{Row, mid, unit};
+use super::typed::{self, Typed, fmt_len, fmt3, parse_expr};
+use super::{SketchEffect, SketchInput, SketchSession, SketchTool, ToolCx, dims, geom, snap};
 use crate::engine_link::Level;
+use crate::tools::fields::number::expr_text;
 use crate::viewport::overlays::SketchOutline;
 
 /// The drawing tool keys.
@@ -34,8 +34,12 @@ pub fn tool_for(key: &str) -> Option<Box<dyn SketchTool>> {
 /// `toolHint` for the drawing and modify tools.
 pub fn hint_for(key: &str) -> &'static str {
     match key {
-        "select" => "Click a shape to select it · Delete removes it · Right-drag to orbit, middle-drag to pan (Shift+middle-drag orbits too)",
-        "line" => "Click points to draw connected lines · click the first point to close · Enter or Esc to stop · type a length",
+        "select" => {
+            "Click a shape to select it · Delete removes it · Right-drag to orbit, middle-drag to pan (Shift+middle-drag orbits too)"
+        }
+        "line" => {
+            "Click points to draw connected lines · click the first point to close · Enter or Esc to stop · type a length"
+        }
         "arc3" => "Click the start, then the end, then a point the arc passes through · or type a radius",
         "trim" => "Click the piece of a line, arc or shape to cut away (up to where it crosses something)",
         "sk_mirror" => "Select shapes first, then click the straight line to mirror them across",
@@ -141,7 +145,13 @@ pub(crate) fn auto_c(s: &mut SketchSession, kind: &str, a: Ref, b: Option<Ref>) 
 }
 
 fn line(p1: P2, p2: P2) -> Entity {
-    Entity::Line(Line { id: None, p1, p2, construction: None, extra: Default::default() })
+    Entity::Line(Line {
+        id: None,
+        p1,
+        p2,
+        construction: None,
+        extra: Default::default(),
+    })
 }
 
 fn dist(a: P2, b: P2) -> f64 {
@@ -149,12 +159,32 @@ fn dist(a: P2, b: P2) -> f64 {
 }
 
 fn sign_or1(x: f64) -> f64 {
-    if x > 0.0 { 1.0 } else if x < 0.0 { -1.0 } else { 1.0 }
+    if x > 0.0 {
+        1.0
+    } else if x < 0.0 {
+        -1.0
+    } else {
+        1.0
+    }
 }
 
 impl DrawTool {
     pub fn new(key: &'static str) -> Self {
-        DrawTool { key, draw: None, typed: Typed::default(), cursor: None, snap_ref: None, snap_what: None, snap_tangent: None, down: None, rows: Vec::new(), total: None, vals: [None, None], exprs: [None, None], guides: Vec::new() }
+        DrawTool {
+            key,
+            draw: None,
+            typed: Typed::default(),
+            cursor: None,
+            snap_ref: None,
+            snap_what: None,
+            snap_tangent: None,
+            down: None,
+            rows: Vec::new(),
+            total: None,
+            vals: [None, None],
+            exprs: [None, None],
+            guides: Vec::new(),
+        }
     }
 
     /// What a field shows: what was typed there, else the live value.
@@ -181,7 +211,13 @@ impl DrawTool {
 
     /// A typed field's value in mm (or degrees, or a count), and the parameter expression when it
     /// was one ("=width/2"). `None` when nothing is typed there or it can't be read.
-    fn read_field(&self, i: u8, is_len: bool, inch: bool, params: &BTreeMap<String, f64>) -> Option<(f64, Option<String>)> {
+    fn read_field(
+        &self,
+        i: u8,
+        is_len: bool,
+        inch: bool,
+        params: &BTreeMap<String, f64>,
+    ) -> Option<(f64, Option<String>)> {
         if !self.field_locked(i) {
             return None;
         }
@@ -190,7 +226,8 @@ impl DrawTool {
             return dims::parse_dim(t, !is_len, inch, params).ok();
         }
         let v = parse_expr(t);
-        v.is_finite().then(|| (if is_len { v * typed::factor(inch) } else { v }, None))
+        v.is_finite()
+            .then(|| (if is_len { v * typed::factor(inch) } else { v }, None))
     }
 
     /// Drop the value boxes, the total and the typed fields (the shape is placed or cancelled).
@@ -229,7 +266,10 @@ impl DrawTool {
         let inch = cx.inch;
         let c = self.cursor.unwrap_or(d.pts[0]);
         let b_is_len = self.key == "rect" || self.key == "rect_center";
-        let (ra, rb) = (self.read_field(0, true, inch, cx.params), self.read_field(1, b_is_len, inch, cx.params));
+        let (ra, rb) = (
+            self.read_field(0, true, inch, cx.params),
+            self.read_field(1, b_is_len, inch, cx.params),
+        );
         let (has_a, has_b) = (ra.is_some(), rb.is_some());
         let a = ra.as_ref().map_or(f64::NAN, |v| v.0);
         let b = rb.as_ref().map_or(f64::NAN, |v| v.0);
@@ -250,7 +290,14 @@ impl DrawTool {
                 if has_a {
                     l = a;
                 }
-                let end = if has_a || has_b { [last[0] + l * ang.to_radians().cos(), last[1] + l * ang.to_radians().sin()] } else { c };
+                let end = if has_a || has_b {
+                    [
+                        last[0] + l * ang.to_radians().cos(),
+                        last[1] + l * ang.to_radians().sin(),
+                    ]
+                } else {
+                    c
+                };
                 let along = unit([end[0] - last[0], end[1] - last[1]]);
                 rows.push(Row::new("Length", Some(0), fmt_len(l, inch), mid(last, end), along));
                 rows.push(Row::new("Angle", Some(1), fmt3(ang), last, along));
@@ -259,7 +306,13 @@ impl DrawTool {
             }
             "arc3" => {
                 if d.pts.len() == 1 {
-                    rows.push(Row::new("Chord", None, fmt_len(dist(c, p0), inch), mid(p0, c), unit([c[0] - p0[0], c[1] - p0[1]])));
+                    rows.push(Row::new(
+                        "Chord",
+                        None,
+                        fmt_len(dist(c, p0), inch),
+                        mid(p0, c),
+                        unit([c[0] - p0[0], c[1] - p0[1]]),
+                    ));
                     line(p0, c)
                 } else {
                     let (pa, pb) = (d.pts[0], d.pts[1]);
@@ -275,7 +328,13 @@ impl DrawTool {
                     }
                     let e = geom::arc_from3(pa, mid_pt, pb).unwrap_or_else(|| line(pa, pb));
                     let r = if let Entity::Arc(x) = &e { x.r } else { 0.0 };
-                    rows.push(Row::new("Radius", Some(0), fmt_len(r, inch), mid_pt, unit([pb[0] - pa[0], pb[1] - pa[1]])));
+                    rows.push(Row::new(
+                        "Radius",
+                        Some(0),
+                        fmt_len(r, inch),
+                        mid_pt,
+                        unit([pb[0] - pa[0], pb[1] - pa[1]]),
+                    ));
                     e
                 }
             }
@@ -287,10 +346,32 @@ impl DrawTool {
                 if has_b {
                     h = sign_or1(h) * b.abs();
                 }
-                rows.push(Row::new("Width", Some(0), fmt_len(w.abs(), inch), [p0[0] + w / 2.0, p0[1]], [1.0, 0.0]));
-                rows.push(Row::new("Height", Some(1), fmt_len(h.abs(), inch), [p0[0] + w, p0[1] + h / 2.0], [0.0, 1.0]));
+                rows.push(Row::new(
+                    "Width",
+                    Some(0),
+                    fmt_len(w.abs(), inch),
+                    [p0[0] + w / 2.0, p0[1]],
+                    [1.0, 0.0],
+                ));
+                rows.push(Row::new(
+                    "Height",
+                    Some(1),
+                    fmt_len(h.abs(), inch),
+                    [p0[0] + w, p0[1] + h / 2.0],
+                    [0.0, 1.0],
+                ));
                 total = Some(format!("{} × {}", fmt_len(w.abs(), inch), fmt_len(h.abs(), inch)));
-                Entity::Rect(Rect { id: None, x: p0[0], y: p0[1], w, h, angle: None, fillet: None, construction: None, extra: Default::default() })
+                Entity::Rect(Rect {
+                    id: None,
+                    x: p0[0],
+                    y: p0[1],
+                    w,
+                    h,
+                    angle: None,
+                    fillet: None,
+                    construction: None,
+                    extra: Default::default(),
+                })
             }
             "rect_center" => {
                 let (mut w, mut h) = ((c[0] - p0[0]).abs() * 2.0, (c[1] - p0[1]).abs() * 2.0);
@@ -300,10 +381,32 @@ impl DrawTool {
                 if has_b {
                     h = b.abs();
                 }
-                rows.push(Row::new("Width", Some(0), fmt_len(w, inch), [p0[0], p0[1] - h / 2.0], [1.0, 0.0]));
-                rows.push(Row::new("Height", Some(1), fmt_len(h, inch), [p0[0] + w / 2.0, p0[1]], [0.0, 1.0]));
+                rows.push(Row::new(
+                    "Width",
+                    Some(0),
+                    fmt_len(w, inch),
+                    [p0[0], p0[1] - h / 2.0],
+                    [1.0, 0.0],
+                ));
+                rows.push(Row::new(
+                    "Height",
+                    Some(1),
+                    fmt_len(h, inch),
+                    [p0[0] + w / 2.0, p0[1]],
+                    [0.0, 1.0],
+                ));
                 total = Some(format!("{} × {}", fmt_len(w, inch), fmt_len(h, inch)));
-                Entity::Rect(Rect { id: None, x: p0[0] - w / 2.0, y: p0[1] - h / 2.0, w, h, angle: None, fillet: None, construction: None, extra: Default::default() })
+                Entity::Rect(Rect {
+                    id: None,
+                    x: p0[0] - w / 2.0,
+                    y: p0[1] - h / 2.0,
+                    w,
+                    h,
+                    angle: None,
+                    fillet: None,
+                    construction: None,
+                    extra: Default::default(),
+                })
             }
             "circle" => {
                 let mut r = dist(c, p0);
@@ -311,9 +414,22 @@ impl DrawTool {
                     r = a.abs() / 2.0;
                 }
                 let u = unit([c[0] - p0[0], c[1] - p0[1]]);
-                rows.push(Row::new("Diameter", Some(0), fmt_len(r * 2.0, inch), [p0[0] + u[0] * r, p0[1] + u[1] * r], [-u[1], u[0]]));
+                rows.push(Row::new(
+                    "Diameter",
+                    Some(0),
+                    fmt_len(r * 2.0, inch),
+                    [p0[0] + u[0] * r, p0[1] + u[1] * r],
+                    [-u[1], u[0]],
+                ));
                 total = Some(fmt_len(r * 2.0, inch));
-                Entity::Circle(Circle { id: None, cx: p0[0], cy: p0[1], r, construction: None, extra: Default::default() })
+                Entity::Circle(Circle {
+                    id: None,
+                    cx: p0[0],
+                    cy: p0[1],
+                    r,
+                    construction: None,
+                    extra: Default::default(),
+                })
             }
             "polygon" => {
                 let mut r = dist(c, p0);
@@ -321,12 +437,31 @@ impl DrawTool {
                 if has_a {
                     r = a.abs();
                 }
-                let n = if has_b { 3f64.max(typed::js_round(b)) } else { POLY_SIDES.with(|p| p.get()).unwrap_or(6.0) };
+                let n = if has_b {
+                    3f64.max(typed::js_round(b))
+                } else {
+                    POLY_SIDES.with(|p| p.get()).unwrap_or(6.0)
+                };
                 let shown = if has_a { 90.0 } else { ang };
                 let u = [shown.to_radians().cos(), shown.to_radians().sin()];
-                rows.push(Row::new("Radius", Some(0), fmt_len(r, inch), [p0[0] + u[0] * r / 2.0, p0[1] + u[1] * r / 2.0], u));
+                rows.push(Row::new(
+                    "Radius",
+                    Some(0),
+                    fmt_len(r, inch),
+                    [p0[0] + u[0] * r / 2.0, p0[1] + u[1] * r / 2.0],
+                    u,
+                ));
                 rows.push(Row::new("Sides", Some(1), typed::js_num(n), p0, [1.0, 0.0]));
-                Entity::Polygon(Polygon { id: None, cx: p0[0], cy: p0[1], r, n, angle: Some(shown), construction: None, extra: Default::default() })
+                Entity::Polygon(Polygon {
+                    id: None,
+                    cx: p0[0],
+                    cy: p0[1],
+                    r,
+                    n,
+                    angle: Some(shown),
+                    construction: None,
+                    extra: Default::default(),
+                })
             }
             _ => {
                 // slot
@@ -344,19 +479,46 @@ impl DrawTool {
                     let along = unit([x2 - p0[0], y2 - p0[1]]);
                     rows.push(Row::new("Length", Some(0), fmt_len(l, inch), mid(p0, [x2, y2]), along));
                     rows.push(Row::new("Angle", Some(1), fmt3(ang), p0, along));
-                    Entity::Slot(Slot { id: None, x1: p0[0], y1: p0[1], x2, y2, r: (l * 0.15).max(0.5), construction: None, extra: Default::default() })
+                    Entity::Slot(Slot {
+                        id: None,
+                        x1: p0[0],
+                        y1: p0[1],
+                        x2,
+                        y2,
+                        r: (l * 0.15).max(0.5),
+                        construction: None,
+                        extra: Default::default(),
+                    })
                 } else {
                     let (p1, p2) = (d.pts[0], d.pts[1]);
                     let seg = [p2[0] - p1[0], p2[1] - p1[1]];
-                    let ls = { let l = seg[0].hypot(seg[1]); if l == 0.0 { 1.0 } else { l } };
+                    let ls = {
+                        let l = seg[0].hypot(seg[1]);
+                        if l == 0.0 { 1.0 } else { l }
+                    };
                     let mut r = ((c[0] - p1[0]) * seg[1] - (c[1] - p1[1]) * seg[0]).abs() / ls;
                     if has_a {
                         r = a.abs() / 2.0;
                     }
                     let n = [-seg[1] / ls, seg[0] / ls];
                     let m = mid(p1, p2);
-                    rows.push(Row::new("Width", Some(0), fmt_len(r * 2.0, inch), [m[0] + n[0] * r, m[1] + n[1] * r], unit(seg)));
-                    Entity::Slot(Slot { id: None, x1: p1[0], y1: p1[1], x2: p2[0], y2: p2[1], r: r.max(1e-3), construction: None, extra: Default::default() })
+                    rows.push(Row::new(
+                        "Width",
+                        Some(0),
+                        fmt_len(r * 2.0, inch),
+                        [m[0] + n[0] * r, m[1] + n[1] * r],
+                        unit(seg),
+                    ));
+                    Entity::Slot(Slot {
+                        id: None,
+                        x1: p1[0],
+                        y1: p1[1],
+                        x2: p2[0],
+                        y2: p2[1],
+                        r: r.max(1e-3),
+                        construction: None,
+                        extra: Default::default(),
+                    })
                 }
             }
         };
@@ -389,7 +551,11 @@ impl DrawTool {
         self.on_move(cx, raw);
         let uv = self.cursor.unwrap_or(raw);
         if self.draw.is_none() {
-            self.draw = Some(Draw { pts: vec![uv], refs: vec![self.snap_ref.clone()], ..Default::default() });
+            self.draw = Some(Draw {
+                pts: vec![uv],
+                refs: vec![self.snap_ref.clone()],
+                ..Default::default()
+            });
             self.typed = Typed::default();
             self.update_draw(cx);
             return;
@@ -414,7 +580,10 @@ impl DrawTool {
             }
             "arc3" => {
                 if !matches!(d.preview, Some(Entity::Arc(_))) {
-                    cx.out.push(SketchEffect::Toast(Level::Warning, "The three points are in a line.".into()));
+                    cx.out.push(SketchEffect::Toast(
+                        Level::Warning,
+                        "The three points are in a line.".into(),
+                    ));
                     return;
                 }
                 d.refs.push(None);
@@ -497,7 +666,8 @@ impl DrawTool {
             _ => false,
         };
         if bad {
-            cx.out.push(SketchEffect::Toast(Level::Warning, "Too small: give it a size.".into()));
+            cx.out
+                .push(SketchEffect::Toast(Level::Warning, "Too small: give it a size.".into()));
             return;
         }
         if let Entity::Polygon(p) = &e {
@@ -512,8 +682,19 @@ impl DrawTool {
         let refs = self.draw.as_ref().map(|d| d.refs.clone()).unwrap_or_default();
         self.auto_constrain(cx, &e, &refs);
         let px = typed::plane_px(cx.s, cx.vp);
-        let (slot_len, slot_expr) = self.draw.as_ref().map_or((false, None), |d| (d.slot_len, d.slot_expr.clone()));
-        super::inline_dims::add_typed_dims(cx.s, &e, [self.vals[0].is_some(), self.vals[1].is_some()], &self.exprs, slot_len, slot_expr, px);
+        let (slot_len, slot_expr) = self
+            .draw
+            .as_ref()
+            .map_or((false, None), |d| (d.slot_len, d.slot_expr.clone()));
+        super::inline_dims::add_typed_dims(
+            cx.s,
+            &e,
+            [self.vals[0].is_some(), self.vals[1].is_some()],
+            &self.exprs,
+            slot_len,
+            slot_expr,
+            px,
+        );
         self.draw = None;
         self.typed.typed = false;
         self.clear_boxes();
@@ -536,13 +717,20 @@ impl DrawTool {
         all.extend(snap::fixed_ents(cx.s));
         let Some(id) = e.id().map(str::to_string) else { return };
         for (i, r) in refs.iter().enumerate() {
-            let (Some(r), Some(Some(k))) = (r, keys.get(i)) else { continue };
-            let Some(target_ent) = all.iter().rev().find(|x| x.id() == Some(r.e.as_str())) else { continue };
+            let (Some(r), Some(Some(k))) = (r, keys.get(i)) else {
+                continue;
+            };
+            let Some(target_ent) = all.iter().rev().find(|x| x.id() == Some(r.e.as_str())) else {
+                continue;
+            };
             let mut k = k.to_string();
             if matches!(e, Entity::Arc(_)) {
                 // the arc may run either way: pair each pick with its nearest end
                 let t = point(target_ent, r.k.as_deref().unwrap_or("")).unwrap_or([f64::NAN; 2]);
-                let ds: Vec<f64> = ["s", "e"].iter().map(|kk| point(e, kk).map_or(f64::NAN, |q| dist(q, t))).collect();
+                let ds: Vec<f64> = ["s", "e"]
+                    .iter()
+                    .map(|kk| point(e, kk).map_or(f64::NAN, |q| dist(q, t)))
+                    .collect();
                 k = if ds[0] <= ds[1] { "s".into() } else { "e".into() };
             }
             let c = auto_c(cx.s, "coincident", Ref::pt(&id, &k), Some(r.clone()));
@@ -557,7 +745,12 @@ impl DrawTool {
         if dist(p, last) < 1e-9 {
             return;
         }
-        let (last_line, first_line, ref0, npts) = (d.last_line.clone(), d.first_line.clone(), d.refs.first().cloned().flatten(), d.pts.len());
+        let (last_line, first_line, ref0, npts) = (
+            d.last_line.clone(),
+            d.first_line.clone(),
+            d.refs.first().cloned().flatten(),
+            d.pts.len(),
+        );
         cx.s.push();
         let id = cx.s.new_id();
         let mut e = line(last, p);
@@ -667,13 +860,21 @@ impl DrawTool {
             Key::Backspace if focused => {
                 let all = std::mem::take(&mut self.typed.replace);
                 if let Some(f) = self.typed.field_mut() {
-                    if all { f.clear() } else { f.pop(); }
+                    if all {
+                        f.clear()
+                    } else {
+                        f.pop();
+                    }
                 }
                 self.typed.typed = true;
                 self.update_draw(cx);
             }
             Key::Escape if self.draw.is_some() => {
-                if self.key == "line" { self.finish_line(cx) } else { self.cancel_draw() }
+                if self.key == "line" {
+                    self.finish_line(cx)
+                } else {
+                    self.cancel_draw()
+                }
             }
             Key::Enter if self.key == "line" && self.draw.is_some() => self.finish_line(cx),
             _ => return false,
@@ -687,7 +888,11 @@ impl DrawTool {
         }
         if self.typed.focus.is_none() {
             // a digit, point, minus or "=" (a parameter expression) starts typing in the first field
-            if !text.chars().next().is_some_and(|c| c.is_ascii_digit() || matches!(c, '.' | '-' | '=')) {
+            if !text
+                .chars()
+                .next()
+                .is_some_and(|c| c.is_ascii_digit() || matches!(c, '.' | '-' | '='))
+            {
                 return false;
             }
             self.typed.a.clear();
@@ -792,7 +997,11 @@ impl SketchTool for DrawTool {
             .and_then(|d| d.preview.as_ref())
             .map(|e| {
                 let (pts, closed) = geom::outline(e);
-                vec![SketchOutline { pts, closed, construction: false }]
+                vec![SketchOutline {
+                    pts,
+                    closed,
+                    construction: false,
+                }]
             })
             .unwrap_or_default()
     }
@@ -802,7 +1011,14 @@ impl SketchTool for DrawTool {
 /// (as `box_at` measures it, plus a gap) is clear of the pointer on screen, else pushed straight
 /// away from the pointer, on screen, until it is (toward the first point `p0` when it sits right
 /// on the pointer).
-pub(super) fn clear_of_pointer(r: &Row, shown: &str, c: P2, p0: P2, s: &SketchSession, vp: &crate::viewport::Viewport) -> P2 {
+pub(super) fn clear_of_pointer(
+    r: &Row,
+    shown: &str,
+    c: P2,
+    p0: P2,
+    s: &SketchSession,
+    vp: &crate::viewport::Viewport,
+) -> P2 {
     const GAP: f32 = 6.0;
     let chars = super::inline_dims::box_text(r.label, shown, false).chars().count() as f32;
     let half = egui::vec2((chars * 6.0 + 14.0) / 2.0 + 2.0 + GAP, 12.0 + GAP);
@@ -828,7 +1044,10 @@ pub(super) fn clear_of_pointer(r: &Row, shown: &str, c: P2, p0: P2, s: &SketchSe
     }
     let dir = dir.normalized();
     // how far along `dir` the box's centre must go to leave the pointer outside it
-    let t = [half.x / dir.x.abs().max(1e-6), half.y / dir.y.abs().max(1e-6)].into_iter().fold(f32::MAX, f32::min) + 1.0;
+    let t = [half.x / dir.x.abs().max(1e-6), half.y / dir.y.abs().max(1e-6)]
+        .into_iter()
+        .fold(f32::MAX, f32::min)
+        + 1.0;
     let want = dir * t; // from the pointer, in points
     let (wx, wy) = (want.x as f64, want.y as f64);
     let du = (wx * jv.y as f64 - wy * jv.x as f64) / det;

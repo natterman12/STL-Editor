@@ -1,21 +1,25 @@
 //! Support Fins (github.com/gittrahan/support-fins): breakaway fins for the part as posed now.
 //! The engine runs on the document's `FinsHost`; this is 1.x `f_supportfins`.
 
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 use stl_kernel::Solid;
 
 use crate::features::common::fins::{
-    add_supports, body_mesh, results, usable_walls, walls as fin_walls, Extras, GHOST_COLOR, SUPPORT_COLOR,
+    Extras, GHOST_COLOR, SUPPORT_COLOR, add_supports, body_mesh, results, usable_walls, walls as fin_walls,
 };
 use crate::state::Body;
 use crate::{Ctx, FeatureError, FeatureResult, Registry, State};
 
 fn ids_of(p: &Map<String, Value>) -> Vec<String> {
-    let strs = |a: &Vec<Value>| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect::<Vec<_>>();
-    if let Some(Value::Array(a)) = p.get("bodies") {
-        if !a.is_empty() {
-            return strs(a);
-        }
+    let strs = |a: &Vec<Value>| {
+        a.iter()
+            .filter_map(|v| v.as_str().map(str::to_string))
+            .collect::<Vec<_>>()
+    };
+    if let Some(Value::Array(a)) = p.get("bodies")
+        && !a.is_empty()
+    {
+        return strs(a);
     }
     match p.get("body") {
         Some(Value::String(s)) if !s.is_empty() => vec![s.clone()],
@@ -29,7 +33,11 @@ fn reason_text(r: &Option<String>) -> String {
 }
 
 fn union(list: &[Solid]) -> Solid {
-    if list.len() == 1 { list[0].clone() } else { Solid::union_all(list) }
+    if list.len() == 1 {
+        list[0].clone()
+    } else {
+        Solid::union_all(list)
+    }
 }
 
 /// Runs the feature and returns what 1.x puts in the result besides `FeatureResult`'s fields.
@@ -57,10 +65,17 @@ pub fn run(
         // fins you clicked away, and walls you drew by hand (Support Fins' "+ Add walls by hand")
         let (gone, missing) = results::match_removed(&r.pieces, p.get("removed"));
         let hand = usable_walls(p);
-        let wr = if hand.is_empty() { None } else { Some(fin_walls::walls(ctx.fins, &mesh, &hand, &options)?) };
+        let wr = if hand.is_empty() {
+            None
+        } else {
+            Some(fin_walls::walls(ctx.fins, &mesh, &hand, &options)?)
+        };
         if let Some(wr) = &wr {
             ex.walls = Some(Value::Array(
-                wr.walls.iter().map(|w| json!({"ok": w.ok, "reason": w.reason})).collect(),
+                wr.walls
+                    .iter()
+                    .map(|w| json!({"ok": w.ok, "reason": w.reason}))
+                    .collect(),
             ));
         }
         let drawn = wr.as_ref().map(|wr| wr.walls.iter().filter(|w| w.ok).count());
@@ -73,10 +88,17 @@ pub fn run(
         .collect::<Vec<_>>()
         .join(", ");
         res.info = Some(
-            format!("Support Fins {}: {}", r.version, r.report) + &if extra.is_empty() { String::new() } else { format!(" ({extra})") },
+            format!("Support Fins {}: {}", r.version, r.report)
+                + &if extra.is_empty() {
+                    String::new()
+                } else {
+                    format!(" ({extra})")
+                },
         );
         if missing > 0 {
-            notes.push(format!("{missing} fin(s) you removed aren't there any more in this build, so nothing was removed for them."));
+            notes.push(format!(
+                "{missing} fin(s) you removed aren't there any more in this build, so nothing was removed for them."
+            ));
         }
         if let Some(wr) = &wr {
             for (i, w) in wr.walls.iter().enumerate() {
@@ -90,7 +112,13 @@ pub fn run(
                 }
             }
         }
-        let kept: Vec<Solid> = r.solids.iter().enumerate().filter(|(i, _)| !gone.contains(i)).map(|(_, s)| s.clone()).collect();
+        let kept: Vec<Solid> = r
+            .solids
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| !gone.contains(i))
+            .map(|(_, s)| s.clone())
+            .collect();
         let mut every = kept;
         if let Some(wr) = &wr {
             every.extend(wr.solids.iter().cloned());
@@ -103,12 +131,27 @@ pub fn run(
             // remove it; removed ones stay as see-through ghosts to click back
             res.preview_only = true;
             let mut pieces = Map::new();
-            let mut put = |state: &mut State, res: &mut FeatureResult, ex: &mut Extras, nid: String, solid: Solid, info: Value| {
-                state.bodies.insert(nid.clone(), Body { name: format!("{} supports", b.name), solid: Some(solid), mesh: None });
+            let mut put = |state: &mut State,
+                           res: &mut FeatureResult,
+                           ex: &mut Extras,
+                           nid: String,
+                           solid: Solid,
+                           info: Value| {
+                state.bodies.insert(
+                    nid.clone(),
+                    Body {
+                        name: format!("{} supports", b.name),
+                        solid: Some(solid),
+                        mesh: None,
+                    },
+                );
                 res.created.push(nid.clone());
                 let removed = info.get("removed").and_then(Value::as_bool).unwrap_or(false);
                 pieces.insert(nid.clone(), info);
-                ex.colors.insert(nid.clone(), Value::String(if removed { GHOST_COLOR } else { SUPPORT_COLOR }.into()));
+                ex.colors.insert(
+                    nid.clone(),
+                    Value::String(if removed { GHOST_COLOR } else { SUPPORT_COLOR }.into()),
+                );
                 if removed {
                     ex.ghosts.push(nid);
                 }
@@ -121,7 +164,14 @@ pub fn run(
             if let Some(wr) = &wr {
                 for (i, lst) in wr.by_wall.iter().enumerate() {
                     if !lst.is_empty() {
-                        put(state, res, &mut ex, format!("{fid}~w{i}"), union(lst), json!({"kind": "hand", "wall": i}));
+                        put(
+                            state,
+                            res,
+                            &mut ex,
+                            format!("{fid}~w{i}"),
+                            union(lst),
+                            json!({"kind": "hand", "wall": i}),
+                        );
                     }
                 }
             }
@@ -151,7 +201,10 @@ pub fn run(
             continue;
         }
         if r.skipped > 0 {
-            notes.push(format!("{} support piece(s) weren't closed solids and were left out.", r.skipped));
+            notes.push(format!(
+                "{} support piece(s) weren't closed solids and were left out.",
+                r.skipped
+            ));
         }
         add_supports(state, fid, res, &mut ex, bid, &every, output, "supports", preview)?;
     }

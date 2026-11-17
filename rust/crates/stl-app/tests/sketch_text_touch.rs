@@ -34,7 +34,13 @@ fn sketch_vp() -> stl_app::viewport::Viewport {
     vp
 }
 
-fn tap(vp: &stl_app::viewport::Viewport, s: &SketchSession, st: &mut TouchState, pos: Pos2, opts: &InputOptions) -> Vec<SketchInput> {
+fn tap(
+    vp: &stl_app::viewport::Viewport,
+    s: &SketchSession,
+    st: &mut TouchState,
+    pos: Pos2,
+    opts: &InputOptions,
+) -> Vec<SketchInput> {
     let pointer = egui::PointerState::default();
     let mut out = Vec::new();
     for ev in [
@@ -291,6 +297,9 @@ fn text_tool_opens_dialog_with_placement() {
             pos: Pos2::new(10.0, 20.0),
         },
     ));
-    assert!(out.iter().any(|e| matches!(e, SketchEffect::Dialog(SketchDialog::Text { group: None }))));
+    assert!(
+        out.iter()
+            .any(|e| matches!(e, SketchEffect::Dialog(SketchDialog::Text { group: None })))
+    );
     assert_eq!(text::take_pending_uv(), Some([3.5, -2.0]));
 }

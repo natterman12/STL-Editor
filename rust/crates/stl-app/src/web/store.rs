@@ -94,27 +94,35 @@ fn api() -> Result<JsValue, String> {
     if !cached.is_undefined() {
         return Ok(cached);
     }
-    Function::new_no_args(STORE_JS).call0(&JsValue::UNDEFINED).map_err(|e| format!("{e:?}"))
+    Function::new_no_args(STORE_JS)
+        .call0(&JsValue::UNDEFINED)
+        .map_err(|e| format!("{e:?}"))
 }
 
 /// `api[name](...args)`, awaited.
 async fn call(name: &str, args: &[JsValue]) -> Result<JsValue, String> {
     let api = api()?;
-    let f: Function = Reflect::get(&api, &JsValue::from_str(name)).map_err(|e| format!("{e:?}"))?.dyn_into().map_err(|_| "storage is not available".to_string())?;
+    let f: Function = Reflect::get(&api, &JsValue::from_str(name))
+        .map_err(|e| format!("{e:?}"))?
+        .dyn_into()
+        .map_err(|_| "storage is not available".to_string())?;
     let list = js_sys::Array::new();
     for a in args {
         list.push(a);
     }
     let out = f.apply(&api, &list).map_err(|e| format!("{e:?}"))?;
-    JsFuture::from(js_sys::Promise::resolve(&out)).await.map_err(|e| e.as_string().unwrap_or_else(|| "the browser's storage refused".to_string()))
+    JsFuture::from(js_sys::Promise::resolve(&out)).await.map_err(|e| {
+        e.as_string()
+            .unwrap_or_else(|| "the browser's storage refused".to_string())
+    })
 }
 
 /// This tab takes its session lock (call once, when the page starts).
 pub fn hold_session_lock() {
-    if let Ok(api) = api() {
-        if let Ok(f) = Reflect::get(&api, &JsValue::from_str("hold")).and_then(|f| f.dyn_into::<Function>()) {
-            let _ = f.call0(&api);
-        }
+    if let Ok(api) = api()
+        && let Ok(f) = Reflect::get(&api, &JsValue::from_str("hold")).and_then(|f| f.dyn_into::<Function>())
+    {
+        let _ = f.call0(&api);
     }
 }
 
@@ -122,7 +130,17 @@ pub fn hold_session_lock() {
 pub async fn put_copy(title: &str, steps: usize, saved: f64, bytes: &[u8]) -> Result<(), String> {
     let u = Uint8Array::new_with_length(bytes.len() as u32);
     u.copy_from(bytes);
-    call("put", &[JsValue::from_str(title), JsValue::from_f64(steps as f64), JsValue::from_f64(saved), u.into()]).await.map(|_| ())
+    call(
+        "put",
+        &[
+            JsValue::from_str(title),
+            JsValue::from_f64(steps as f64),
+            JsValue::from_f64(saved),
+            u.into(),
+        ],
+    )
+    .await
+    .map(|_| ())
 }
 
 /// This tab saved or opened another project: its copy is not needed.
@@ -168,7 +186,10 @@ impl RecoverStore for WebStore {
                     let field = |k: &str| Reflect::get(&it, &JsValue::from_str(k)).unwrap_or(JsValue::UNDEFINED);
                     list.push(RecoverEntry {
                         id: field("id").as_string().unwrap_or_default(),
-                        title: field("title").as_string().filter(|t| !t.is_empty()).unwrap_or_else(|| "Untitled".into()),
+                        title: field("title")
+                            .as_string()
+                            .filter(|t| !t.is_empty())
+                            .unwrap_or_else(|| "Untitled".into()),
                         path: None,
                         saved: field("saved").as_f64().unwrap_or(0.0),
                         steps: field("steps").as_f64().unwrap_or(0.0) as usize,

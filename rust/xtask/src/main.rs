@@ -22,12 +22,23 @@ fn pure_rust() -> Result<bool, String> {
             .output()
             .map_err(|e| format!("could not run cargo: {e}"))?;
         if !out.status.success() {
-            return Err(format!("cargo metadata failed for {target}: {}", String::from_utf8_lossy(&out.stderr)));
+            return Err(format!(
+                "cargo metadata failed for {target}: {}",
+                String::from_utf8_lossy(&out.stderr)
+            ));
         }
         let meta: serde_json::Value = serde_json::from_slice(&out.stdout).map_err(|e| e.to_string())?;
-        let allow: &[&str] = if target == pure::LINUX_ALLOW_TARGET { &pure::LINUX_ALLOW } else { &[] };
+        let allow: &[&str] = if target == pure::LINUX_ALLOW_TARGET {
+            &pure::LINUX_ALLOW
+        } else {
+            &[]
+        };
         if !allow.is_empty() {
-            println!("pure-rust: {target}: allowed pkg-config/system-deps for {} ({})", allow.join(", "), pure::LINUX_ALLOW_REASON);
+            println!(
+                "pure-rust: {target}: allowed pkg-config/system-deps for {} ({})",
+                allow.join(", "),
+                pure::LINUX_ALLOW_REASON
+            );
         }
         for name in pure::forbidden_except(&meta, allow) {
             println!("pure-rust: {target}: {name}");
@@ -80,7 +91,9 @@ fn main() -> ExitCode {
             }
         },
         _ => {
-            eprintln!("usage: cargo run -p xtask -- pure-rust | cargo run --release -p xtask -- bench | cargo run --release -p xtask -- uibench [--quick] | cargo run -p xtask -- install [--exe <path>] | cargo run -p xtask -- uninstall [--purge] | cargo run -p xtask -- web [--serve | --check [--webgl2] | --measure-preview]");
+            eprintln!(
+                "usage: cargo run -p xtask -- pure-rust | cargo run --release -p xtask -- bench | cargo run --release -p xtask -- uibench [--quick] | cargo run -p xtask -- install [--exe <path>] | cargo run -p xtask -- uninstall [--purge] | cargo run -p xtask -- web [--serve | --check [--webgl2] | --measure-preview]"
+            );
             ExitCode::FAILURE
         }
     }

@@ -40,7 +40,11 @@ pub(crate) fn unique_faces(f: &[u32]) -> Vec<bool> {
 
 /// trimesh `Trimesh.update_faces(mask)`.
 pub(crate) fn keep_faces(f: &[u32], mask: &[bool]) -> Vec<u32> {
-    f.chunks_exact(3).zip(mask).filter(|(_, keep)| **keep).flat_map(|(t, _)| t.iter().copied()).collect()
+    f.chunks_exact(3)
+        .zip(mask)
+        .filter(|(_, keep)| **keep)
+        .flat_map(|(t, _)| t.iter().copied())
+        .collect()
 }
 
 /// trimesh `Trimesh.body_count`: connected groups of vertices (a vertex no face uses is a
@@ -94,10 +98,15 @@ pub fn process(v: &[f64], f: &[u32]) -> (Vec<f64>, Vec<u32>) {
     fix_inversion(v, &mut f, multibody);
 
     // remove_infinite_values: faces on a vertex that is not finite go, then those vertices
-    let finite: Vec<bool> = (0..nv).map(|i| v[3 * i..3 * i + 3].iter().all(|x| x.is_finite())).collect();
+    let finite: Vec<bool> = (0..nv)
+        .map(|i| v[3 * i..3 * i + 3].iter().all(|x| x.is_finite()))
+        .collect();
     let mut v = v.to_vec();
     if finite.iter().any(|ok| !ok) {
-        let keep: Vec<bool> = f.chunks_exact(3).map(|t| t.iter().all(|&i| finite[i as usize])).collect();
+        let keep: Vec<bool> = f
+            .chunks_exact(3)
+            .map(|t| t.iter().all(|&i| finite[i as usize]))
+            .collect();
         f = keep_faces(&f, &keep);
         if f.is_empty() {
             return (v, f);
@@ -125,7 +134,11 @@ pub fn process(v: &[f64], f: &[u32]) -> (Vec<f64>, Vec<u32>) {
     }
     let quantise = |x: f64| {
         let r = (x * 1e8).round_ties_even();
-        if r.abs() < 9.223372036854775e18 { r as i64 } else { i64::MIN }
+        if r.abs() < 9.223372036854775e18 {
+            r as i64
+        } else {
+            i64::MIN
+        }
     };
     let mut first: HashMap<[i64; 3], u32> = HashMap::new();
     let mut inverse = vec![0u32; nv];
@@ -155,7 +168,9 @@ mod tests {
     #[test]
     fn drops_duplicate_and_degenerate_faces_and_unused_vertices() {
         // a unit square of two triangles, one duplicated, one collinear face, one unused vertex
-        let v = [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 2.0, 0.0, 0.0, 9.0, 9.0, 9.0];
+        let v = [
+            0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 2.0, 0.0, 0.0, 9.0, 9.0, 9.0,
+        ];
         let f = [0, 1, 2, 0, 2, 3, 2, 1, 0, 0, 1, 4];
         let (pv, pf) = process(&v, &f);
         assert_eq!(pf, vec![0, 1, 2, 0, 2, 3]);

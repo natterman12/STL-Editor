@@ -18,7 +18,11 @@ fn dot(s: V, a: V) -> f64 {
 }
 
 fn cross(a: V, b: V) -> V {
-    [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]
+    [
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    ]
 }
 
 fn normalize(a: V) -> V {
@@ -44,7 +48,18 @@ impl Quadric {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn det(&self, a11: usize, a12: usize, a13: usize, a21: usize, a22: usize, a23: usize, a31: usize, a32: usize, a33: usize) -> f64 {
+    fn det(
+        &self,
+        a11: usize,
+        a12: usize,
+        a13: usize,
+        a21: usize,
+        a22: usize,
+        a23: usize,
+        a31: usize,
+        a32: usize,
+        a33: usize,
+    ) -> f64 {
         let m = &self.0;
         m[a11] * m[a22] * m[a33] + m[a13] * m[a21] * m[a32] + m[a12] * m[a23] * m[a31]
             - m[a13] * m[a22] * m[a31]
@@ -84,7 +99,11 @@ struct Simplify {
 
 fn vertex_error(q: &Quadric, x: f64, y: f64, z: f64) -> f64 {
     let q = &q.0;
-    q[0] * x * x + 2.0 * q[1] * x * y + 2.0 * q[2] * x * z + 2.0 * q[3] * x + q[4] * y * y
+    q[0] * x * x
+        + 2.0 * q[1] * x * y
+        + 2.0 * q[2] * x * z
+        + 2.0 * q[3] * x
+        + q[4] * y * y
         + 2.0 * q[5] * y * z
         + 2.0 * q[6] * y
         + q[7] * z * z

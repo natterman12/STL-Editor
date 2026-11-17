@@ -42,11 +42,21 @@ fn f_mirror(
                 let s = b.require_solid()?.clone();
                 let mirrored = mb.require_solid()?.clone();
                 let joined = s.union(&mirrored);
-                state.bodies.insert(bid.clone(), crate::state::Body { solid: Some(joined), ..b });
+                state.bodies.insert(
+                    bid.clone(),
+                    crate::state::Body {
+                        solid: Some(joined),
+                        ..b
+                    },
+                );
                 res.modified.push(bid.clone());
             }
             _ => {
-                let nid = if bids.len() == 1 { fid.to_string() } else { format!("{fid}.{}", i + 1) };
+                let nid = if bids.len() == 1 {
+                    fid.to_string()
+                } else {
+                    format!("{fid}.{}", i + 1)
+                };
                 let mut mb = mb;
                 mb.name = format!("{} (mirror)", b.name);
                 state.bodies.insert(nid.clone(), mb);

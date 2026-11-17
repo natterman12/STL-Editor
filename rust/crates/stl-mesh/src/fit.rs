@@ -3,8 +3,8 @@
 
 use std::collections::VecDeque;
 
-use crate::refs::fit_circle;
 use crate::MeshError;
+use crate::refs::fit_circle;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CylKind {
@@ -41,16 +41,16 @@ fn dot(a: V3, b: V3) -> f64 {
 }
 
 fn cross(a: V3, b: V3) -> V3 {
-    [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]
+    [
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    ]
 }
 
 fn unit(a: V3) -> V3 {
     let n = dot(a, a).sqrt();
-    if n == 0.0 {
-        a
-    } else {
-        [a[0] / n, a[1] / n, a[2] / n]
-    }
+    if n == 0.0 { a } else { [a[0] / n, a[1] / n, a[2] / n] }
 }
 
 /// The index of the triangle whose centre is closest to `point` (the first, on a tie).
@@ -59,7 +59,11 @@ pub fn nearest_triangle(v: &[[f32; 3]], f: &[[u32; 3]], point: [f64; 3]) -> usiz
     let mut bd = f64::INFINITY;
     for (i, t) in f.iter().enumerate() {
         let (a, b, c) = (p(v, t[0]), p(v, t[1]), p(v, t[2]));
-        let m = [(a[0] + b[0] + c[0]) / 3.0, (a[1] + b[1] + c[1]) / 3.0, (a[2] + b[2] + c[2]) / 3.0];
+        let m = [
+            (a[0] + b[0] + c[0]) / 3.0,
+            (a[1] + b[1] + c[1]) / 3.0,
+            (a[2] + b[2] + c[2]) / 3.0,
+        ];
         let d = sub(m, point);
         let d2 = dot(d, d);
         if d2 < bd {
@@ -138,7 +142,11 @@ pub fn fit_cylinder(v: &[[f32; 3]], f: &[[u32; 3]], tri: usize, max_angle: f64) 
         let (a, b, c) = (p(v, t[0]), p(v, t[1]), p(v, t[2]));
         let n = cross(sub(b, a), sub(c, a));
         let l = dot(n, n).sqrt();
-        nrm.push(if l > 0.0 { [n[0] / l, n[1] / l, n[2] / l] } else { [0.0; 3] });
+        nrm.push(if l > 0.0 {
+            [n[0] / l, n[1] / l, n[2] / l]
+        } else {
+            [0.0; 3]
+        });
         area.push(l / 2.0);
     }
     // triangles that share an edge
@@ -191,9 +199,15 @@ pub fn fit_cylinder(v: &[[f32; 3]], f: &[[u32; 3]], tri: usize, max_angle: f64) 
     let (evals, evecs) = eigh(m);
     let axis = evecs[0];
     if evals[0] > 0.08 * evals[1] || evals[1] < 0.25 * evals[2] {
-        return Err(msg("That surface isn't round like a hole or pin. Click the curved wall itself."));
+        return Err(msg(
+            "That surface isn't round like a hole or pin. Click the curved wall itself.",
+        ));
     }
-    let rf = if axis[0].abs() < 0.9 { [1.0, 0.0, 0.0] } else { [0.0, 1.0, 0.0] };
+    let rf = if axis[0].abs() < 0.9 {
+        [1.0, 0.0, 0.0]
+    } else {
+        [0.0, 1.0, 0.0]
+    };
     let ex = unit(cross(axis, rf));
     let ey = cross(axis, ex);
     let mut vi: Vec<u32> = region.iter().flat_map(|&i| f[i]).collect();
@@ -218,24 +232,51 @@ pub fn fit_cylinder(v: &[[f32; 3]], f: &[[u32; 3]], tri: usize, max_angle: f64) 
     }
     let cover = bins.iter().filter(|b| **b).count() as f64 / 36.0;
     if cover < 0.5 {
-        return Err(msg("Only part of a round surface was found. Click the wall of a full hole or pin."));
+        return Err(msg(
+            "Only part of a round surface was found. Click the wall of a full hole or pin.",
+        ));
     }
     let zs: Vec<f64> = pts.iter().map(|q| dot(*q, axis)).collect();
     let z0 = zs.iter().cloned().fold(f64::INFINITY, f64::min);
     let z1 = zs.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
-    let center = [cx * ex[0] + cy * ey[0], cx * ex[1] + cy * ey[1], cx * ex[2] + cy * ey[2]];
+    let center = [
+        cx * ex[0] + cy * ey[0],
+        cx * ex[1] + cy * ey[1],
+        cx * ex[2] + cy * ey[2],
+    ];
     let mut s = 0.0;
     for &i in &region {
         let t = f[i];
         let (a, b, c) = (p(v, t[0]), p(v, t[1]), p(v, t[2]));
-        let tc = [(a[0] + b[0] + c[0]) / 3.0, (a[1] + b[1] + c[1]) / 3.0, (a[2] + b[2] + c[2]) / 3.0];
+        let tc = [
+            (a[0] + b[0] + c[0]) / 3.0,
+            (a[1] + b[1] + c[1]) / 3.0,
+            (a[2] + b[2] + c[2]) / 3.0,
+        ];
         let h = dot(tc, axis);
-        let radial = [tc[0] - h * axis[0] - center[0], tc[1] - h * axis[1] - center[1], tc[2] - h * axis[2] - center[2]];
+        let radial = [
+            tc[0] - h * axis[0] - center[0],
+            tc[1] - h * axis[1] - center[1],
+            tc[2] - h * axis[2] - center[2],
+        ];
         s += dot(radial, nrm[i]);
     }
-    let kind = if s / (region.len() as f64) < 0.0 { CylKind::Hole } else { CylKind::Pin };
+    let kind = if s / (region.len() as f64) < 0.0 {
+        CylKind::Hole
+    } else {
+        CylKind::Pin
+    };
     region.sort_unstable();
-    Ok(Cylinder { center, axis, radius: r, z0, z1, kind, tris: region, cover })
+    Ok(Cylinder {
+        center,
+        axis,
+        radius: r,
+        z0,
+        z1,
+        kind,
+        tris: region,
+        cover,
+    })
 }
 
 #[cfg(test)]

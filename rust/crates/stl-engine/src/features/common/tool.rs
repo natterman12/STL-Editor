@@ -49,16 +49,32 @@ pub fn apply_tool(
     let targets = string_list(targets);
     state.tools.insert(
         fid.to_string(),
-        ToolRecord { solid: tool.clone(), operation: op.to_string(), targets: targets.clone(), name: name.to_string() },
+        ToolRecord {
+            solid: tool.clone(),
+            operation: op.to_string(),
+            targets: targets.clone(),
+            name: name.to_string(),
+        },
     );
     if op == "new" {
-        state.bodies.insert(fid.to_string(), Body { name: name.to_string(), solid: Some(tool), mesh: None });
+        state.bodies.insert(
+            fid.to_string(),
+            Body {
+                name: name.to_string(),
+                solid: Some(tool),
+                mesh: None,
+            },
+        );
         res.created.push(fid.to_string());
         return Ok(());
     }
     let tb = tool.bounding_box();
     let tids: Vec<String> = if !targets.is_empty() {
-        let t: Vec<String> = targets.iter().filter(|t| state.bodies.contains_key(*t)).cloned().collect();
+        let t: Vec<String> = targets
+            .iter()
+            .filter(|t| state.bodies.contains_key(*t))
+            .cloned()
+            .collect();
         if t.is_empty() {
             return Err(FeatureError("The target body no longer exists.".into()));
         }
@@ -73,12 +89,21 @@ pub fn apply_tool(
     };
     if tids.is_empty() {
         if op == "join" {
-            state.bodies.insert(fid.to_string(), Body { name: name.to_string(), solid: Some(tool), mesh: None });
+            state.bodies.insert(
+                fid.to_string(),
+                Body {
+                    name: name.to_string(),
+                    solid: Some(tool),
+                    mesh: None,
+                },
+            );
             res.created.push(fid.to_string());
             res.warning = Some("Nothing to join to: made a new body.".into());
             return Ok(());
         }
-        return Err(FeatureError(format!("Nothing to {op}: the tool doesn't touch any body.")));
+        return Err(FeatureError(format!(
+            "Nothing to {op}: the tool doesn't touch any body."
+        )));
     }
     if op == "join" {
         let first = tids[0].clone();
@@ -88,7 +113,13 @@ pub fn apply_tool(
         }
         let joined = Solid::union_all(&solids);
         let b = state.body(&first)?.clone();
-        state.bodies.insert(first.clone(), Body { solid: Some(joined), ..b });
+        state.bodies.insert(
+            first.clone(),
+            Body {
+                solid: Some(joined),
+                ..b
+            },
+        );
         for t in &tids[1..] {
             state.bodies.shift_remove(t);
         }
@@ -105,7 +136,11 @@ pub fn apply_tool(
             }
             continue;
         }
-        let out = if op == "cut" { s.difference(&tool) } else { s.intersection(&tool) };
+        let out = if op == "cut" {
+            s.difference(&tool)
+        } else {
+            s.intersection(&tool)
+        };
         if out.is_empty() {
             state.bodies.shift_remove(t);
             res.removed.push(t.clone());
@@ -116,7 +151,9 @@ pub fn apply_tool(
         changed += 1;
     }
     if changed == 0 {
-        return Err(FeatureError(format!("Nothing to {op}: the tool doesn't touch the target body.")));
+        return Err(FeatureError(format!(
+            "Nothing to {op}: the tool doesn't touch the target body."
+        )));
     }
     Ok(())
 }
@@ -153,8 +190,20 @@ pub fn repeat_features(
                 .filter(|t| state.bodies.contains_key(*t))
                 .map(|t| Value::String(t.clone()))
                 .collect();
-            let targets = if live.is_empty() { None } else { Some(Value::Array(live)) };
-            match apply_tool(state, &id, rec.solid.transform(*m), &rec.operation, targets.as_ref(), &rec.name, &mut sub) {
+            let targets = if live.is_empty() {
+                None
+            } else {
+                Some(Value::Array(live))
+            };
+            match apply_tool(
+                state,
+                &id,
+                rec.solid.transform(*m),
+                &rec.operation,
+                targets.as_ref(),
+                &rec.name,
+                &mut sub,
+            ) {
                 Ok(()) => {
                     res.created.extend(sub.created);
                     res.removed.extend(sub.removed);
@@ -172,11 +221,16 @@ pub fn repeat_features(
         }
     }
     if done == 0 {
-        return Err(FeatureError(failed.into_iter().next().unwrap_or_else(|| "Nothing changed.".into())));
+        return Err(FeatureError(
+            failed.into_iter().next().unwrap_or_else(|| "Nothing changed.".into()),
+        ));
     }
     if !failed.is_empty() {
         let n = failed.len();
-        res.warning = Some(format!("{n} cop{} didn't touch the part and were skipped.", if n == 1 { "y" } else { "ies" }));
+        res.warning = Some(format!(
+            "{n} cop{} didn't touch the part and were skipped.",
+            if n == 1 { "y" } else { "ies" }
+        ));
     }
     Ok(())
 }

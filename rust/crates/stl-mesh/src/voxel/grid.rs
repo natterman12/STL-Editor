@@ -71,14 +71,7 @@ pub fn check_grid(n: [usize; 3]) -> Result<(), MeshError> {
 
 /// 1.x `_raster_evenodd`: even-odd scanline fill of 2D polygons onto a row-major `(nx, ny)` grid
 /// of sample points at `(ox + i * pitch, oy + j * pitch)`.
-pub fn raster_evenodd(
-    polys: &[Vec<[f64; 2]>],
-    ox: f64,
-    oy: f64,
-    pitch: f64,
-    nx: usize,
-    ny: usize,
-) -> Vec<bool> {
+pub fn raster_evenodd(polys: &[Vec<[f64; 2]>], ox: f64, oy: f64, pitch: f64, nx: usize, ny: usize) -> Vec<bool> {
     let total_cells = nx.saturating_mul(ny);
     let mut out = vec![false; total_cells];
     if polys.is_empty() || nx == 0 || ny == 0 {

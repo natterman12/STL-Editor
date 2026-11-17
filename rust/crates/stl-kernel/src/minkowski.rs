@@ -78,11 +78,7 @@ const BATCH_THREADS: usize = 8;
 /// `Some` when `a` and `b` take the per-triangle branch (a convex tool, and
 /// either an inset or a non-convex solid). `None` leaves convex-convex,
 /// non-convex-non-convex, empty and non-manifold inputs on the stock path.
-pub(crate) fn try_tri_batches(
-    a: &ManifoldImpl,
-    b: &ManifoldImpl,
-    inset: bool,
-) -> Option<ManifoldImpl> {
+pub(crate) fn try_tri_batches(a: &ManifoldImpl, b: &ManifoldImpl, inset: bool) -> Option<ManifoldImpl> {
     if FORCE_STOCK.with(|c| c.get()) {
         return None;
     }

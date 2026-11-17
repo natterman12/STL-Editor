@@ -7,8 +7,8 @@
 use egui::{Key, Modifiers};
 
 use crate::engine_link::Command;
-use crate::ui::files::FileAction;
 use crate::ui::UiEvent;
+use crate::ui::files::FileAction;
 
 /// One key press, as the sketcher and the wall editor receive it.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -51,7 +51,9 @@ pub enum KeyAction {
     /// The wall editor uses this key (finish, cancel or undo a point).
     Walls(KeyPress),
     /// W / R with the move tool: switch the gizmo (`rotate` true for R).
-    Gizmo { rotate: bool },
+    Gizmo {
+        rotate: bool,
+    },
     /// Close any open tool first, then undo.
     Undo,
     Redo,
@@ -182,10 +184,11 @@ pub fn map_key(key: Key, mods: Modifiers, st: &KeyState) -> Option<KeyAction> {
             return Some(KeyAction::Walls(press));
         }
     }
-    if st.tool_gizmo_move && !ctrl {
-        if let Some(c @ ('w' | 'r')) = l {
-            return Some(KeyAction::Gizmo { rotate: c == 'r' });
-        }
+    if st.tool_gizmo_move
+        && !ctrl
+        && let Some(c @ ('w' | 'r')) = l
+    {
+        return Some(KeyAction::Gizmo { rotate: c == 'r' });
     }
     if ctrl && l == Some('z') {
         return Some(KeyAction::Undo);
@@ -196,7 +199,11 @@ pub fn map_key(key: Key, mods: Modifiers, st: &KeyState) -> Option<KeyAction> {
     // As in 1.x, Ctrl+Z is tested first, so Ctrl+Shift+Z undoes (the Shift+Z redo clause is
     // never reached there either).
     if key == Key::Escape {
-        return Some(if st.tool_open || st.mode_not_model { KeyAction::PanelCancel } else { KeyAction::ClearSelection });
+        return Some(if st.tool_open || st.mode_not_model {
+            KeyAction::PanelCancel
+        } else {
+            KeyAction::ClearSelection
+        });
     }
     if key == Key::Enter && st.tool_open {
         return Some(KeyAction::PanelOk);
@@ -215,10 +222,10 @@ pub fn map_key(key: Key, mods: Modifiers, st: &KeyState) -> Option<KeyAction> {
             _ => {}
         }
         // `views[k]` compares the typed character, so Shift+1 ('!') is not a view key.
-        if !mods.shift {
-            if let Some(v) = view_for(key) {
-                return Some(KeyAction::View(v));
-            }
+        if !mods.shift
+            && let Some(v) = view_for(key)
+        {
+            return Some(KeyAction::View(v));
         }
     }
     None
@@ -232,7 +239,12 @@ pub fn handle(ctx: &egui::Context, state: &KeyState) -> Vec<KeyAction> {
         i.events
             .iter()
             .filter_map(|e| match e {
-                egui::Event::Key { key, pressed: true, modifiers, .. } => Some((*key, *modifiers)),
+                egui::Event::Key {
+                    key,
+                    pressed: true,
+                    modifiers,
+                    ..
+                } => Some((*key, *modifiers)),
                 _ => None,
             })
             .collect()

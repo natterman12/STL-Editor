@@ -6,7 +6,7 @@ use std::process::Command;
 use std::sync::Arc;
 use std::time::Instant;
 
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 use stl_engine::{Document, ExportFormat, FinsHost, Registry};
 use stl_platform::fins::WebviewHost;
 
@@ -71,7 +71,11 @@ fn doc_with_mesh(data: &[u8], repair: bool) -> Result<(Document, String), String
     let mut d = Document::new(Registry::builtin());
     let sid = d.add_source("test_mesh.stl", data.to_vec());
     let id = d
-        .add_feature("import", obj(json!({"source": sid, "repair": repair, "place": "keep"})), None)
+        .add_feature(
+            "import",
+            obj(json!({"source": sid, "repair": repair, "place": "keep"})),
+            None,
+        )
         .map_err(|e| e.0)?;
     Ok((d, id))
 }
@@ -120,10 +124,7 @@ fn with_sketch(entities: Value, plane: &str) -> Result<(Document, String), Strin
     Ok((d, sk))
 }
 
-fn with_fins_doc(
-    data: &[u8],
-    host: Arc<dyn FinsHost>,
-) -> Result<(Document, String), String> {
+fn with_fins_doc(data: &[u8], host: Arc<dyn FinsHost>) -> Result<(Document, String), String> {
     let (mut d, mesh) = doc_with_mesh(data, true)?;
     d.set_fins_host(host);
     Ok((d, mesh))
@@ -132,8 +133,12 @@ fn with_fins_doc(
 /// Bench mesh is ~40 mm; scale ×10 so it needs cuts on the A1 mini (180 mm).
 fn with_oversized_for_bed(data: &[u8]) -> Result<(Document, String), String> {
     let (mut d, mesh) = doc_with_mesh(data, true)?;
-    d.add_feature("scale", obj(json!({"bodies": [mesh], "factor": 10, "pivot": "center"})), None)
-        .map_err(|e| e.0)?;
+    d.add_feature(
+        "scale",
+        obj(json!({"bodies": [mesh], "factor": 10, "pivot": "center"})),
+        None,
+    )
+    .map_err(|e| e.0)?;
     Ok((d, mesh))
 }
 
@@ -182,17 +187,20 @@ fn time_rust(root: &Path, data: &[u8]) -> Result<Vec<f64>, String> {
         )
     })?;
     let engine = root.join("web/vendor/support-fins/engine.iife.js");
-    let fins: Arc<dyn FinsHost> = Arc::new(
-        WebviewHost::start(&engine).map_err(|e| format!("WebviewHost::start failed: {e}"))?,
-    );
+    let fins: Arc<dyn FinsHost> =
+        Arc::new(WebviewHost::start(&engine).map_err(|e| format!("WebviewHost::start failed: {e}"))?);
 
     let mut out = Vec::new();
     out.push(time_op(|| {
         let mut d = Document::new(Registry::builtin());
         let sid = d.add_source("test_mesh.stl", data.to_vec());
         let t = Instant::now();
-        d.add_feature("import", obj(json!({"source": sid, "repair": true, "place": "keep"})), None)
-            .map_err(|e| e.0)?;
+        d.add_feature(
+            "import",
+            obj(json!({"source": sid, "repair": true, "place": "keep"})),
+            None,
+        )
+        .map_err(|e| e.0)?;
         Ok(secs(t))
     })?);
     for op in ["join", "cut"] {
@@ -213,8 +221,10 @@ fn time_rust(root: &Path, data: &[u8]) -> Result<Vec<f64>, String> {
         let t = Instant::now();
         d.add_feature(
             "split",
-            obj(json!({"body": mesh, "plane": {"origin": [0, 0, 0], "normal": [0, 0, 1]},
-                       "keep": "both", "connector": "none"})),
+            obj(
+                json!({"body": mesh, "plane": {"origin": [0, 0, 0], "normal": [0, 0, 1]},
+                       "keep": "both", "connector": "none"}),
+            ),
             None,
         )
         .map_err(|e| e.0)?;
@@ -223,14 +233,16 @@ fn time_rust(root: &Path, data: &[u8]) -> Result<Vec<f64>, String> {
     out.push(time_op(|| {
         let (mut d, mesh) = doc_with_mesh(&broken, false)?;
         let t = Instant::now();
-        d.add_feature("repair", obj(json!({"body": mesh, "mode": "quick"})), None).map_err(|e| e.0)?;
+        d.add_feature("repair", obj(json!({"body": mesh, "mode": "quick"})), None)
+            .map_err(|e| e.0)?;
         Ok(secs(t))
     })?);
     let ring = json!([{"id": "r", "type": "polyline", "closed": true, "pts": ngon(30.0, 0.0, 10.0, 200)}]);
     out.push(time_op(|| {
         let (mut d, sk) = with_sketch(ring.clone(), "XY")?;
         let t = Instant::now();
-        d.add_feature("extrude", obj(json!({"sketch": sk, "distance": 20})), None).map_err(|e| e.0)?;
+        d.add_feature("extrude", obj(json!({"sketch": sk, "distance": 20})), None)
+            .map_err(|e| e.0)?;
         Ok(secs(t))
     })?);
     out.push(time_op(|| {
@@ -242,7 +254,9 @@ fn time_rust(root: &Path, data: &[u8]) -> Result<Vec<f64>, String> {
     })?);
     out.push(time_op(|| {
         let (mut d, prof) = with_sketch(json!([{"id": "c", "type": "circle", "cx": 0, "cy": 0, "r": 5}]), "XY")?;
-        let pts: Vec<Value> = (0..40).map(|i| json!([5.0 * (i as f64 * 0.3).sin(), 2.0 * i as f64])).collect();
+        let pts: Vec<Value> = (0..40)
+            .map(|i| json!([5.0 * (i as f64 * 0.3).sin(), 2.0 * i as f64]))
+            .collect();
         let path = d
             .add_feature(
                 "sketch",
@@ -251,7 +265,8 @@ fn time_rust(root: &Path, data: &[u8]) -> Result<Vec<f64>, String> {
             )
             .map_err(|e| e.0)?;
         let t = Instant::now();
-        d.add_feature("sweep", obj(json!({"profile": prof, "path": path})), None).map_err(|e| e.0)?;
+        d.add_feature("sweep", obj(json!({"profile": prof, "path": path})), None)
+            .map_err(|e| e.0)?;
         Ok(secs(t))
     })?);
     out.push(time_op(|| {
@@ -520,13 +535,20 @@ fn time_python(root: &Path) -> Result<Value, String> {
         return Err(format!("bench_1x.py failed: {}", String::from_utf8_lossy(&out.stderr)));
     }
     let text = String::from_utf8_lossy(&out.stdout);
-    let line = text.lines().rev().find(|l| l.trim_start().starts_with('{')).unwrap_or("");
+    let line = text
+        .lines()
+        .rev()
+        .find(|l| l.trim_start().starts_with('{'))
+        .unwrap_or("");
     serde_json::from_str(line).map_err(|e| format!("bad output from bench_1x.py ({e}): {text}"))
 }
 
 /// Run the benchmark. `Ok(true)` when every ratio is at most 1.0.
 pub fn run() -> Result<bool, String> {
-    let root: PathBuf = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..").canonicalize().map_err(|e| e.to_string())?;
+    let root: PathBuf = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .canonicalize()
+        .map_err(|e| e.to_string())?;
     let mesh = root.join("dev/bench/test_mesh.stl");
     if !mesh.exists() {
         println!("bench: making {} with node", mesh.display());
@@ -548,7 +570,9 @@ pub fn run() -> Result<bool, String> {
     println!("\n{:<38} {:>9} {:>9} {:>8}", "operation", "1.x s", "2.0 s", "ratio");
     let mut ok = true;
     for ((key, label), r) in NAMES.iter().zip(rust) {
-        let p = py[key].as_f64().ok_or_else(|| format!("bench_1x.py gave no \"{key}\""))?;
+        let p = py[key]
+            .as_f64()
+            .ok_or_else(|| format!("bench_1x.py gave no \"{key}\""))?;
         let ratio = r / p;
         let flag = if ratio > 1.0 { "  SLOWER" } else { "" };
         println!("{label:<38} {p:>9.3} {r:>9.3} {ratio:>8.2}{flag}");

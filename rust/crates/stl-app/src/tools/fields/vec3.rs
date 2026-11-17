@@ -2,8 +2,11 @@
 
 use serde_json::Value;
 
-use super::number::{expr_font, expr_of, expr_text, expr_title, input_font, is_expr, js_num, num_value, parse_len, parse_num_text, to_disp, unit_name};
-use super::{row, text_commit, unit_label, Bufs, Edit, FieldEnv};
+use super::number::{
+    expr_font, expr_of, expr_text, expr_title, input_font, is_expr, js_num, num_value, parse_len, parse_num_text,
+    to_disp, unit_name,
+};
+use super::{Bufs, Edit, FieldEnv, row, text_commit, unit_label};
 use crate::tools::Field;
 
 /// What box `i` shows: `isLen ? U.toDisp(val[i] ?? 0) : (val[i] ?? 0)`.
@@ -17,11 +20,22 @@ fn shown(val: &Value, i: usize, is_len: bool, inch: bool) -> String {
     }
 }
 
-pub fn show(ui: &mut egui::Ui, env: &FieldEnv, f: &Field, unit: Option<&str>, val: &Value, bufs: &mut Bufs) -> Option<Edit> {
+pub fn show(
+    ui: &mut egui::Ui,
+    env: &FieldEnv,
+    f: &Field,
+    unit: Option<&str>,
+    val: &Value,
+    bufs: &mut Bufs,
+) -> Option<Edit> {
     let is_len = unit == Some("mm");
     let tk = env.tk;
     row(ui, env, f, false, |ui, w| {
-        let label = if is_len { unit_name(env.inch) } else { unit.unwrap_or("") };
+        let label = if is_len {
+            unit_name(env.inch)
+        } else {
+            unit.unwrap_or("")
+        };
         let uw = if label.is_empty() { 0.0 } else { 22.0 + 4.0 };
         let bw = ((w - uw - 8.0) / 3.0).max(30.0);
         let mut out = None;
@@ -49,7 +63,10 @@ pub fn show(ui: &mut egui::Ui, env: &FieldEnv, f: &Field, unit: Option<&str>, va
                 } else {
                     num_value(parse_num_text(&typed))
                 };
-                out = Some(Edit { key: f.key.to_owned(), value: Value::Array(arr) });
+                out = Some(Edit {
+                    key: f.key.to_owned(),
+                    value: Value::Array(arr),
+                });
             }
         }
         if !label.is_empty() {

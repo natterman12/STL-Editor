@@ -124,12 +124,20 @@ pub fn thin_scan(s: &Solid, t: f64) -> ThinScan {
         }
     }
     if found.is_empty() {
-        return ThinScan { min: None, count: 0, spots: Vec::new() };
+        return ThinScan {
+            min: None,
+            count: 0,
+            spots: Vec::new(),
+        };
     }
     // group pieces that sit close together into one spot
     let mut cell: HashMap<(i64, i64, i64), Vec<usize>> = HashMap::new();
     for (i, p) in found.iter().enumerate() {
-        let key = ((p[0] / link).floor() as i64, (p[1] / link).floor() as i64, (p[2] / link).floor() as i64);
+        let key = (
+            (p[0] / link).floor() as i64,
+            (p[1] / link).floor() as i64,
+            (p[2] / link).floor() as i64,
+        );
         cell.entry(key).or_default().push(i);
     }
     let mut parent: Vec<usize> = (0..found.len()).collect();
@@ -144,7 +152,9 @@ pub fn thin_scan(s: &Solid, t: f64) -> ThinScan {
         for dx in -1..=1 {
             for dy in -1..=1 {
                 for dz in -1..=1 {
-                    let Some(other) = cell.get(&(key.0 + dx, key.1 + dy, key.2 + dz)) else { continue };
+                    let Some(other) = cell.get(&(key.0 + dx, key.1 + dy, key.2 + dz)) else {
+                        continue;
+                    };
                     for &i in ids {
                         for &j in other {
                             if i < j && dist(&found[i], &found[j]) <= link {

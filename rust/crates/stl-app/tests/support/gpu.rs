@@ -31,7 +31,7 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::thread::ThreadId;
 
 use egui_kittest::Harness;
-use stl_app::viewport::renderer::{block_on, Headless};
+use stl_app::viewport::renderer::{Headless, block_on};
 
 /// The test GPU: a [`Headless`], and on a software adapter the right to use one (see [`headless`]).
 pub struct TestGpu {
@@ -57,7 +57,10 @@ pub fn headless() -> Option<TestGpu> {
     let turn = Turn::take();
     let gpu = make_headless()?;
     let software = is_software(&gpu);
-    Some(TestGpu { gpu, _turn: software.then_some(turn) })
+    Some(TestGpu {
+        gpu,
+        _turn: software.then_some(turn),
+    })
 }
 
 fn make_headless() -> Option<Headless> {
@@ -68,17 +71,29 @@ fn make_headless() -> Option<Headless> {
     let mut setup = egui_wgpu::WgpuSetup::without_display_handle();
     if let egui_wgpu::WgpuSetup::CreateNew(create) = &mut setup {
         create.native_adapter_selector = Some(Arc::new(move |adapters: &[wgpu::Adapter], _| {
-            adapters.iter().find(|a| a.get_info().name.to_lowercase().contains(&want)).cloned().ok_or_else(|| {
-                let names: Vec<String> = adapters.iter().map(|a| adapter_key_of(&a.get_info())).collect();
-                format!("no adapter named like {want:?} in {names:?}")
-            })
+            adapters
+                .iter()
+                .find(|a| a.get_info().name.to_lowercase().contains(&want))
+                .cloned()
+                .ok_or_else(|| {
+                    let names: Vec<String> = adapters.iter().map(|a| adapter_key_of(&a.get_info())).collect();
+                    format!("no adapter named like {want:?} in {names:?}")
+                })
         }));
     }
     let instance = block_on(setup.new_instance());
-    let mut config = egui_wgpu::WgpuConfiguration { wgpu_setup: setup, ..Default::default() };
+    let mut config = egui_wgpu::WgpuConfiguration {
+        wgpu_setup: setup,
+        ..Default::default()
+    };
     stl_app::viewport::renderer::ask_for_stencil(&mut config);
-    let render_state = block_on(egui_wgpu::RenderState::create(&config, &instance, None, egui_wgpu::RendererOptions::default()))
-        .unwrap_or_else(|e| panic!("WGPU_ADAPTER_NAME: {e}"));
+    let render_state = block_on(egui_wgpu::RenderState::create(
+        &config,
+        &instance,
+        None,
+        egui_wgpu::RendererOptions::default(),
+    ))
+    .unwrap_or_else(|e| panic!("WGPU_ADAPTER_NAME: {e}"));
     Some(Headless { render_state })
 }
 
@@ -143,7 +158,10 @@ fn adapter_file() -> PathBuf {
 /// blank or a `#` comment.
 pub fn recorded_adapter() -> Option<String> {
     let text = std::fs::read_to_string(adapter_file()).ok()?;
-    text.lines().map(str::trim).find(|l| !l.is_empty() && !l.starts_with('#')).map(str::to_owned)
+    text.lines()
+        .map(str::trim)
+        .find(|l| !l.is_empty() && !l.starts_with('#'))
+        .map(str::to_owned)
 }
 
 /// True when pictures from `gpu` can be compared with the recorded snapshots.
@@ -191,15 +209,36 @@ pub fn assert_view_toolbar(img: &image::RgbaImage, dark: bool, region: [u32; 4],
     let cells = || (y0..y1).flat_map(move |y| (x0..x1).map(move |x| (x, y)));
     if dark {
         let labels = cells().filter(|&(x, y)| lum(x, y) >= 185).count();
-        assert!(labels >= 150, "{name}: no view toolbar: {labels} label pixels in {region:?}");
+        assert!(
+            labels >= 150,
+            "{name}: no view toolbar: {labels} label pixels in {region:?}"
+        );
         return;
     }
-    let white: Vec<(u32, u32)> = cells().filter(|&(x, y)| img.get_pixel(x, y).0[..3].iter().all(|&c| c >= 250)).collect();
-    assert!(white.len() >= 2000, "{name}: no view toolbar: {} panel pixels in {region:?}", white.len());
-    let (bx0, bx1) = (white.iter().map(|p| p.0).min().unwrap_or(0), white.iter().map(|p| p.0).max().unwrap_or(0));
-    let (by0, by1) = (white.iter().map(|p| p.1).min().unwrap_or(0), white.iter().map(|p| p.1).max().unwrap_or(0));
-    let labels = (by0..=by1).flat_map(|y| (bx0..=bx1).map(move |x| (x, y))).filter(|&(x, y)| lum(x, y) < 150).count();
-    assert!(labels >= 150, "{name}: the view toolbar has no labels: {labels} label pixels");
+    let white: Vec<(u32, u32)> = cells()
+        .filter(|&(x, y)| img.get_pixel(x, y).0[..3].iter().all(|&c| c >= 250))
+        .collect();
+    assert!(
+        white.len() >= 2000,
+        "{name}: no view toolbar: {} panel pixels in {region:?}",
+        white.len()
+    );
+    let (bx0, bx1) = (
+        white.iter().map(|p| p.0).min().unwrap_or(0),
+        white.iter().map(|p| p.0).max().unwrap_or(0),
+    );
+    let (by0, by1) = (
+        white.iter().map(|p| p.1).min().unwrap_or(0),
+        white.iter().map(|p| p.1).max().unwrap_or(0),
+    );
+    let labels = (by0..=by1)
+        .flat_map(|y| (bx0..=bx1).map(move |x| (x, y)))
+        .filter(|&(x, y)| lum(x, y) < 150)
+        .count();
+    assert!(
+        labels >= 150,
+        "{name}: the view toolbar has no labels: {labels} label pixels"
+    );
 }
 
 /// For egui alone (panels, menus, dialogs, no 3D view): egui's own shapes come out nearly the
@@ -213,7 +252,11 @@ pub fn snapshot_2d<State>(harness: &mut Harness<'_, State>, gpu: &Headless, name
     if same_adapter(gpu) {
         harness.snapshot(name);
     } else if updating_snapshots() {
-        eprintln!("{name}: not updated: snapshots are recorded on {:?}, this is {:?}", recorded_adapter(), adapter_key(gpu));
+        eprintln!(
+            "{name}: not updated: snapshots are recorded on {:?}, this is {:?}",
+            recorded_adapter(),
+            adapter_key(gpu)
+        );
     } else {
         let mut options = egui_kittest::SnapshotOptions::default();
         options.threshold = 8.0;

@@ -169,7 +169,9 @@ fn helical_thread(d: f64, p: f64, l: f64, n: usize) -> Result<Solid, MeshError> 
     // top: helicoid over corner row J - 1, flat cut at phi of column N - 1
     let at_base = base + (n + 1) as u32;
     let at: Vec<u32> = (0..=n).map(|i| at_base + i as u32).collect();
-    let zat: Vec<f64> = (0..=n).map(|i| zb + (m - 1) as f64 * p - u[3] + (i as f64 - 1.0) * p / n as f64).collect();
+    let zat: Vec<f64> = (0..=n)
+        .map(|i| zb + (m - 1) as f64 * p - u[3] + (i as f64 - 1.0) * p / n as f64)
+        .collect();
     let mut o_top: Vec<u32> = Vec::with_capacity(n + 1);
     o_top.push(idx(j_len - 5, n - 1));
     o_top.extend((0..n).map(|kk| idx(j_len - 1, kk)));
@@ -207,7 +209,9 @@ fn helical_thread(d: f64, p: f64, l: f64, n: usize) -> Result<Solid, MeshError> 
 /// 1.x `printing.threaded_rod`: threaded rod along +Z from `0` to `l` (major diameter `d`, pitch `p`).
 pub fn threaded_rod(d: f64, p: f64, l: f64, hand: &str, chamfer: bool) -> Result<Solid, MeshError> {
     if !(d > 0.0 && p > 0.0 && l > 0.0) {
-        return Err(MeshError::Message("Diameter, pitch and length must be positive.".into()));
+        return Err(MeshError::Message(
+            "Diameter, pitch and length must be positive.".into(),
+        ));
     }
     if p > d / 2.0 {
         return Err(MeshError::Message("The pitch is too coarse for this diameter.".into()));
@@ -273,15 +277,21 @@ mod tests {
     fn rejects_invalid_dimensions() {
         assert_eq!(
             thread_tool("external", 0.0, 1.25, 12.0, 0.2, "right", true).err(),
-            Some(MeshError::Message("Diameter, pitch and length must be positive.".into()))
+            Some(MeshError::Message(
+                "Diameter, pitch and length must be positive.".into()
+            ))
         );
         assert_eq!(
             thread_tool("external", 8.0, 0.0, 12.0, 0.0, "right", true).err(),
-            Some(MeshError::Message("Diameter, pitch and length must be positive.".into()))
+            Some(MeshError::Message(
+                "Diameter, pitch and length must be positive.".into()
+            ))
         );
         assert_eq!(
             thread_tool("external", 8.0, 1.25, -1.0, 0.0, "right", true).err(),
-            Some(MeshError::Message("Diameter, pitch and length must be positive.".into()))
+            Some(MeshError::Message(
+                "Diameter, pitch and length must be positive.".into()
+            ))
         );
         assert_eq!(
             thread_tool("external", 8.0, 5.0, 12.0, 0.0, "right", true).err(),
@@ -293,7 +303,11 @@ mod tests {
     fn external_m8_matches_1x() {
         let s = thread_tool("external", 8.0, 1.25, 12.0, 0.2, "right", true).unwrap();
         assert!(!s.is_empty());
-        assert!((s.volume() - 464.7201848909987).abs() / 464.7201848909987 < 1e-3, "vol={}", s.volume());
+        assert!(
+            (s.volume() - 464.7201848909987).abs() / 464.7201848909987 < 1e-3,
+            "vol={}",
+            s.volume()
+        );
         assert!(
             (s.surface_area() - 489.6903732708501).abs() / 489.6903732708501 < 1e-3,
             "area={}",
@@ -311,6 +325,9 @@ mod tests {
 
         let tap = thread_tool("internal", 8.0, 1.25, 6.0, 0.2, "right", true).unwrap();
         let bb = tap.bounding_box();
-        assert!((bb.min[2] - (-6.0)).abs() < 1e-4 && (bb.max[2] - 0.6).abs() < 1e-4, "{bb:?}");
+        assert!(
+            (bb.min[2] - (-6.0)).abs() < 1e-4 && (bb.max[2] - 0.6).abs() < 1e-4,
+            "{bb:?}"
+        );
     }
 }

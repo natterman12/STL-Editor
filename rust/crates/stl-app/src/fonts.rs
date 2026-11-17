@@ -26,14 +26,22 @@ const SYMBOLS: &[u8] = include_bytes!("../assets/fonts/symbols.ttf");
 fn system_candidates() -> Vec<std::path::PathBuf> {
     use std::path::PathBuf;
     if cfg!(windows) {
-        let root = std::env::var_os("WINDIR").map(PathBuf::from).unwrap_or_else(|| PathBuf::from(r"C:\Windows"));
+        let root = std::env::var_os("WINDIR")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from(r"C:\Windows"));
         vec![root.join("Fonts").join("segoeui.ttf")]
     } else if cfg!(target_os = "macos") {
-        ["/System/Library/Fonts/SFNS.ttf", "/System/Library/Fonts/Helvetica.ttc"].map(PathBuf::from).to_vec()
-    } else {
-        ["/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf", "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf", "/usr/share/fonts/TTF/DejaVuSans.ttf"]
+        ["/System/Library/Fonts/SFNS.ttf", "/System/Library/Fonts/Helvetica.ttc"]
             .map(PathBuf::from)
             .to_vec()
+    } else {
+        [
+            "/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf",
+            "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+            "/usr/share/fonts/TTF/DejaVuSans.ttf",
+        ]
+        .map(PathBuf::from)
+        .to_vec()
     }
 }
 
@@ -51,8 +59,12 @@ fn system_font() -> Option<Vec<u8>> {
 pub fn definitions() -> FontDefinitions {
     let mut f = bundled_definitions();
     if let Some(bytes) = system_font() {
-        f.font_data.insert("system-ui".into(), Arc::new(FontData::from_owned(bytes)));
-        f.families.entry(FontFamily::Proportional).or_default().insert(0, "system-ui".into());
+        f.font_data
+            .insert("system-ui".into(), Arc::new(FontData::from_owned(bytes)));
+        f.families
+            .entry(FontFamily::Proportional)
+            .or_default()
+            .insert(0, "system-ui".into());
     }
     f
 }
@@ -62,11 +74,16 @@ pub fn definitions() -> FontDefinitions {
 /// (`tests/fonts_fallback.rs` checks the string table).
 pub fn bundled_definitions() -> FontDefinitions {
     let mut f = FontDefinitions::default();
-    f.font_data.insert("selawik".into(), Arc::new(FontData::from_static(SELAWIK)));
-    f.font_data.insert("selawik-bold".into(), Arc::new(FontData::from_static(SELAWIK_BOLD)));
+    f.font_data
+        .insert("selawik".into(), Arc::new(FontData::from_static(SELAWIK)));
+    f.font_data
+        .insert("selawik-bold".into(), Arc::new(FontData::from_static(SELAWIK_BOLD)));
     f.font_data.insert(
         "symbols".into(),
-        Arc::new(FontData::from_static(SYMBOLS).tweak(egui::FontTweak { scale: 0.85, ..Default::default() })),
+        Arc::new(FontData::from_static(SYMBOLS).tweak(egui::FontTweak {
+            scale: 0.85,
+            ..Default::default()
+        })),
     );
     let prop = f.families.entry(FontFamily::Proportional).or_default();
     prop.insert(0, "selawik".into());

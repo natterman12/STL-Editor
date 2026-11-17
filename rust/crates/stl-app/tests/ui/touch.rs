@@ -43,18 +43,31 @@ fn touch_layouts_open_hollow_and_orbit() {
         let mid = Pos2::new(size.x * 0.5, size.y * 0.55);
         let drag = |h: &mut Harness, button: PointerButton| {
             h.event(Event::PointerMoved(mid));
-            h.event(Event::PointerButton { pos: mid, button, pressed: true, modifiers: Default::default() });
+            h.event(Event::PointerButton {
+                pos: mid,
+                button,
+                pressed: true,
+                modifiers: Default::default(),
+            });
             h.step();
             for i in 1..=8 {
                 h.event(Event::PointerMoved(Pos2::new(mid.x + i as f32 * 12.0, mid.y)));
                 h.step();
             }
-            h.event(Event::PointerButton { pos: Pos2::new(mid.x + 96.0, mid.y), button, pressed: false, modifiers: Default::default() });
+            h.event(Event::PointerButton {
+                pos: Pos2::new(mid.x + 96.0, mid.y),
+                button,
+                pressed: false,
+                modifiers: Default::default(),
+            });
             h.run_steps(3);
         };
         drag(&mut h, PointerButton::Primary);
         let cam1 = h.state().viewport.camera().position;
-        assert!((0..3).all(|i| (cam0[i] - cam1[i]).abs() < 1e-9), "{name}: the left button no longer orbits");
+        assert!(
+            (0..3).all(|i| (cam0[i] - cam1[i]).abs() < 1e-9),
+            "{name}: the left button no longer orbits"
+        );
         drag(&mut h, PointerButton::Secondary);
         let cam2 = h.state().viewport.camera().position;
         let moved = (0..3).any(|i| (cam1[i] - cam2[i]).abs() > 1e-3);
@@ -69,7 +82,10 @@ fn touch_layouts_open_hollow_and_orbit() {
 
 #[test]
 fn touch_narrow_ribbon_still_lists_tools() {
-    let (mut h, _link) = app_harness_ex(Some(super::harness::project("basic.stlx").as_path()), egui::vec2(390.0, 844.0));
+    let (mut h, _link) = app_harness_ex(
+        Some(super::harness::project("basic.stlx").as_path()),
+        egui::vec2(390.0, 844.0),
+    );
     // Model tab tools or More fold — either is fine on a phone width.
     h.run_steps(3);
     let has_extrude = h.query_by_label("Extrude").is_some();
@@ -93,7 +109,10 @@ fn touch_browser_drawer_toggle() {
         }
         // closed to start: the model is clear and only the button shows
         assert!(!h.state().browser.drawer_open);
-        assert!(button(&h, "Bodies").is_some(), "{name}: the Bodies button is over the model");
+        assert!(
+            button(&h, "Bodies").is_some(),
+            "{name}: the Bodies button is over the model"
+        );
         assert!(!browser_shown(&h), "{name}: the drawer starts closed");
 
         // open a tool as touch.js does, then tap the button
@@ -136,7 +155,10 @@ fn touch_drawer_breakpoint() {
     let ease = stl_app::ui::browser::css_ease;
     assert!(ease(0.0).abs() < 1e-4 && (ease(1.0) - 1.0).abs() < 1e-4);
     assert!((ease(0.5) - 0.8024).abs() < 2e-3, "ease(0.5) = {}", ease(0.5));
-    assert!(ease(0.9) > 0.95 && ease(0.2) < ease(0.4) && ease(0.4) < ease(0.6), "it rises and settles");
+    assert!(
+        ease(0.9) > 0.95 && ease(0.2) < ease(0.4) && ease(0.4) < ease(0.6),
+        "it rises and settles"
+    );
 
     // a short, wide window gets the drawer in the app too
     let (mut h, _link) = app_harness_ex(None, egui::vec2(900.0, 500.0));

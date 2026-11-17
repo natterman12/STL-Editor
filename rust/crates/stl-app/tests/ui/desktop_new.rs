@@ -3,8 +3,8 @@
 #![cfg(not(target_arch = "wasm32"))]
 
 use super::harness::{
-    empty_harness, enter_sketch_plane, finish_sketch_settle, fixture_stl, import_stl, mesh_volume, open_tool, select_first_body, settle,
-    sketch_add_rect,
+    empty_harness, enter_sketch_plane, finish_sketch_settle, fixture_stl, import_stl, mesh_volume, open_tool,
+    select_first_body, settle, sketch_add_rect,
 };
 use egui_kittest::kittest::Queryable;
 use serde_json::json;
@@ -25,7 +25,16 @@ fn desktop_new_hole_pushpull_sketch_split_bed_sculpt() {
     h.run_steps(2);
     h.state_mut().tool_ok();
     settle(&mut h, &link);
-    assert_eq!(h.state().timeline_view.items.iter().find(|i| i.kind == "hole").unwrap().error, None);
+    assert_eq!(
+        h.state()
+            .timeline_view
+            .items
+            .iter()
+            .find(|i| i.kind == "hole")
+            .unwrap()
+            .error,
+        None
+    );
     let v1 = mesh_volume(&h.state().bodies[0].mesh);
     assert!(v1 < v0 - 1.0, "insert removes volume: {v0} -> {v1}");
 
@@ -46,9 +55,12 @@ fn desktop_new_hole_pushpull_sketch_split_bed_sculpt() {
     {
         let s = h.state_mut().sketch_mode_mut().unwrap();
         s.s.push();
-        s.s.entities.push(serde_json::from_value(json!({
-            "id": "c1", "type": "circle", "cx": -22.0, "cy": 14.0, "r": 4.0
-        })).unwrap());
+        s.s.entities.push(
+            serde_json::from_value(json!({
+                "id": "c1", "type": "circle", "cx": -22.0, "cy": 14.0, "r": 4.0
+            }))
+            .unwrap(),
+        );
     }
     h.state_mut().sketch_set_tool("trim");
     h.run_steps(2);

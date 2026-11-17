@@ -60,8 +60,7 @@ fn uri_bytes(uri: &str) -> Result<Vec<u8>, ReadError> {
     match uri.find("base64,") {
         Some(i) => Ok(b64(&uri[i + 7..])),
         None => Err(ReadError(
-            "This glTF file points to other files. Save it as a .glb, or embed the data, and try again."
-                .into(),
+            "This glTF file points to other files. Save it as a .glb, or embed the data, and try again.".into(),
         )),
     }
 }
@@ -82,7 +81,9 @@ fn read_glb(data: &[u8]) -> Result<(Value, Vec<Vec<u8>>), ReadError> {
     if u32le(data, 16) != Some(0x4E4F_534A) {
         return Err(bad());
     }
-    let json = data.get(20..20usize.checked_add(clen).ok_or_else(bad)?).ok_or_else(bad)?;
+    let json = data
+        .get(20..20usize.checked_add(clen).ok_or_else(bad)?)
+        .ok_or_else(bad)?;
     let header: Value = serde_json::from_slice(json).map_err(|_| bad())?;
     let mut pos = 20usize.checked_add(clen).ok_or_else(bad)?;
     let start = pos;
@@ -94,11 +95,11 @@ fn read_glb(data: &[u8]) -> Result<(Value, Vec<Vec<u8>>), ReadError> {
         .into();
     let mut buffers = Vec::new();
     while pos - start < length {
-        if let Some(b) = info.pop_front() {
-            if let Some(uri) = b.get("uri").and_then(|u| u.as_str()) {
-                buffers.push(uri_bytes(uri)?);
-                continue;
-            }
+        if let Some(b) = info.pop_front()
+            && let Some(uri) = b.get("uri").and_then(|u| u.as_str())
+        {
+            buffers.push(uri_bytes(uri)?);
+            continue;
         }
         let (Some(l), Some(t)) = (u32le(data, pos), pos.checked_add(4).and_then(|p| u32le(data, p))) else {
             break;
@@ -148,7 +149,10 @@ impl Reader<'_> {
             return Ok((vec![0.0; n], per));
         };
         let bv = self.h["bufferViews"].get(bvi as usize).ok_or_else(bad)?;
-        let buf = self.buffers.get(bv["buffer"].as_u64().ok_or_else(bad)? as usize).ok_or_else(bad)?;
+        let buf = self
+            .buffers
+            .get(bv["buffer"].as_u64().ok_or_else(bad)? as usize)
+            .ok_or_else(bad)?;
         let to_usize = |x: u64| usize::try_from(x).map_err(|_| bad());
         let bstart = to_usize(bv.get("byteOffset").and_then(|x| x.as_u64()).unwrap_or(0))?;
         let blen = to_usize(bv["byteLength"].as_u64().ok_or_else(bad)?)?;
@@ -197,7 +201,12 @@ struct Geom {
 fn node_matrix(n: &Value) -> Result<Mat, ReadError> {
     let mut m = IDENTITY;
     if let Some(a) = n.get("matrix") {
-        let v: Vec<f64> = a.as_array().ok_or_else(bad)?.iter().filter_map(|x| x.as_f64()).collect();
+        let v: Vec<f64> = a
+            .as_array()
+            .ok_or_else(bad)?
+            .iter()
+            .filter_map(|x| x.as_f64())
+            .collect();
         if v.len() != 16 {
             return Err(bad());
         }
@@ -211,8 +220,12 @@ fn node_matrix(n: &Value) -> Result<Mat, ReadError> {
         match n.get(k) {
             None => Ok(None),
             Some(a) => {
-                let v: Vec<f64> =
-                    a.as_array().ok_or_else(bad)?.iter().filter_map(|x| x.as_f64()).collect();
+                let v: Vec<f64> = a
+                    .as_array()
+                    .ok_or_else(bad)?
+                    .iter()
+                    .filter_map(|x| x.as_f64())
+                    .collect();
                 if v.len() != len {
                     return Err(bad());
                 }
@@ -260,22 +273,28 @@ fn build(header: &Value, buffers: &[Vec<u8>], base: &str) -> Result<Vec<Part>, R
     // geometry per glTF mesh index
     let mut geoms: Vec<Geom> = Vec::new();
     let mut mesh_prim: Vec<Vec<usize>> = Vec::new();
-    for m in header.get("meshes").and_then(|m| m.as_array()).map(|a| a.as_slice()).unwrap_or(&[]) {
+    for m in header
+        .get("meshes")
+        .and_then(|m| m.as_array())
+        .map(|a| a.as_slice())
+        .unwrap_or(&[])
+    {
         let mut ids = Vec::new();
         for p in m["primitives"].as_array().ok_or_else(bad)? {
-            if let Some(ext) = p.get("extensions").and_then(|e| e.as_object()) {
-                if ext.contains_key("KHR_draco_mesh_compression")
-                    || ext.contains_key("EXT_meshopt_compression")
-                {
-                    return Err(ReadError(
-                        "This glTF file uses compressed meshes, which can't be read.".into(),
-                    ));
-                }
+            if let Some(ext) = p.get("extensions").and_then(|e| e.as_object())
+                && (ext.contains_key("KHR_draco_mesh_compression") || ext.contains_key("EXT_meshopt_compression"))
+            {
+                return Err(ReadError(
+                    "This glTF file uses compressed meshes, which can't be read.".into(),
+                ));
             }
             let mode = p.get("mode").and_then(|x| x.as_u64()).unwrap_or(4);
             match mode {
                 0 | 1 => {
-                    geoms.push(Geom { v: Vec::new(), f: Vec::new() });
+                    geoms.push(Geom {
+                        v: Vec::new(),
+                        f: Vec::new(),
+                    });
                     ids.push(geoms.len() - 1);
                 }
                 4 | 5 => {
@@ -300,7 +319,7 @@ fn build(header: &Value, buffers: &[Vec<u8>], base: &str) -> Result<Vec<Part>, R
                         }
                         f
                     } else {
-                        if flat.len() % 3 != 0 {
+                        if !flat.len().is_multiple_of(3) {
                             return Err(bad());
                         }
                         flat
@@ -317,12 +336,21 @@ fn build(header: &Value, buffers: &[Vec<u8>], base: &str) -> Result<Vec<Part>, R
         mesh_prim.push(ids);
     }
 
-    let nodes = header.get("nodes").and_then(|n| n.as_array()).cloned().unwrap_or_default();
+    let nodes = header
+        .get("nodes")
+        .and_then(|n| n.as_array())
+        .cloned()
+        .unwrap_or_default();
     let scene_index = header.get("scene").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
     let mut queue: Vec<(Option<usize>, usize)> = Vec::new();
     if let Some(scenes) = header.get("scenes").and_then(|s| s.as_array()) {
         let sc = scenes.get(scene_index).ok_or_else(bad)?;
-        for r in sc.get("nodes").and_then(|n| n.as_array()).map(|a| a.as_slice()).unwrap_or(&[]) {
+        for r in sc
+            .get("nodes")
+            .and_then(|n| n.as_array())
+            .map(|a| a.as_slice())
+            .unwrap_or(&[])
+        {
             queue.push((None, r.as_u64().ok_or_else(bad)? as usize));
         }
     }
@@ -346,14 +374,12 @@ fn build(header: &Value, buffers: &[Vec<u8>], base: &str) -> Result<Vec<Part>, R
         let parent = a.map(|a| world[a]).unwrap_or(IDENTITY);
         world[b] = mul(&parent, &local);
         // trimesh skips every node with a camera until one full perspective camera is taken
-        if !have_camera {
-            if let Some(ci) = child.get("camera").and_then(|c| c.as_u64()) {
-                let cam = &header["cameras"][ci as usize]["perspective"];
-                if cam.get("znear").is_some() && cam.get("aspectRatio").is_some() && cam.get("yfov").is_some() {
-                    have_camera = true;
-                }
-                continue;
+        if !have_camera && let Some(ci) = child.get("camera").and_then(|c| c.as_u64()) {
+            let cam = &header["cameras"][ci as usize]["perspective"];
+            if cam.get("znear").is_some() && cam.get("aspectRatio").is_some() && cam.get("yfov").is_some() {
+                have_camera = true;
             }
+            continue;
         }
         if let Some(mi) = child.get("mesh").and_then(|m| m.as_u64()) {
             let ids = mesh_prim.get(mi as usize).ok_or_else(bad)?;
@@ -376,8 +402,16 @@ fn build(header: &Value, buffers: &[Vec<u8>], base: &str) -> Result<Vec<Part>, R
                 v.push(p[0] * tf[r][0] + p[1] * tf[r][1] + p[2] * tf[r][2] + tf[r][3]);
             }
         }
-        let name = if n == 1 { base.to_string() } else { format!("{base} {}", i + 1) };
-        parts.push(Part { name, positions: v, triangles: geom.f.clone() });
+        let name = if n == 1 {
+            base.to_string()
+        } else {
+            format!("{base} {}", i + 1)
+        };
+        parts.push(Part {
+            name,
+            positions: v,
+            triangles: geom.f.clone(),
+        });
     }
     Ok(parts)
 }
@@ -391,7 +425,11 @@ pub fn read(data: &[u8], base: &str) -> Result<Vec<Part>, ReadError> {
     let header: Value = serde_json::from_slice(data).map_err(|_| bad())?;
     let version = header.get("asset").and_then(|a| a.get("version"));
     let major = match version {
-        Some(Value::String(s)) => s.split('.').next().and_then(|m| m.parse::<i64>().ok()).ok_or_else(bad)?,
+        Some(Value::String(s)) => s
+            .split('.')
+            .next()
+            .and_then(|m| m.parse::<i64>().ok())
+            .ok_or_else(bad)?,
         Some(v) => v.as_f64().map(|f| f as i64).ok_or_else(bad)?,
         None => 2,
     };
@@ -399,7 +437,12 @@ pub fn read(data: &[u8], base: &str) -> Result<Vec<Part>, ReadError> {
         return Err(ReadError("Only glTF 2 files are supported.".into()));
     }
     let mut buffers = Vec::new();
-    for b in header.get("buffers").and_then(|b| b.as_array()).map(|a| a.as_slice()).unwrap_or(&[]) {
+    for b in header
+        .get("buffers")
+        .and_then(|b| b.as_array())
+        .map(|a| a.as_slice())
+        .unwrap_or(&[])
+    {
         let uri = b.get("uri").and_then(|u| u.as_str()).ok_or_else(bad)?;
         buffers.push(uri_bytes(uri)?);
     }

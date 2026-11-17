@@ -7,9 +7,12 @@ use egui::{Event, PointerButton, Pos2};
 use serde_json::json;
 use stl_app::engine_link::Command;
 use stl_app::viewport::camera;
-use stl_app::viewport::gizmo_draw::{handle_unit, GizmoMode};
+use stl_app::viewport::gizmo_draw::{GizmoMode, handle_unit};
 
-fn add_box(h: &mut egui_kittest::Harness<'static, stl_app::app::StlApp>, link: &stl_app::engine_link::native::NativeLink) {
+fn add_box(
+    h: &mut egui_kittest::Harness<'static, stl_app::app::StlApp>,
+    link: &stl_app::engine_link::native::NativeLink,
+) {
     h.state_mut().link.send(Command::AddFeature {
         kind: "primitive".into(),
         params: json!({
@@ -29,7 +32,12 @@ fn add_box(h: &mut egui_kittest::Harness<'static, stl_app::app::StlApp>, link: &
 fn pointer(h: &mut egui_kittest::Harness<'_, stl_app::app::StlApp>, at: Pos2, pressed: Option<bool>) {
     h.event(Event::PointerMoved(at));
     if let Some(p) = pressed {
-        h.event(Event::PointerButton { pos: at, button: PointerButton::Primary, pressed: p, modifiers: Default::default() });
+        h.event(Event::PointerButton {
+            pos: at,
+            button: PointerButton::Primary,
+            pressed: p,
+            modifiers: Default::default(),
+        });
     }
     h.step();
 }
@@ -44,7 +52,10 @@ fn gizmo_rotate_from_ribbon_shows_rings() {
     assert_eq!(t.def.key, "move");
     assert_eq!(t.values.get("_gizmo"), Some(&json!("rotate")));
     assert_eq!(h.state().viewport.gizmo().map(|g| g.mode), Some(GizmoMode::Rotate));
-    assert!(t.values.get("bed").and_then(|v| v.as_bool()).unwrap_or(false), "Land on bed default on rotate");
+    assert!(
+        t.values.get("bed").and_then(|v| v.as_bool()).unwrap_or(false),
+        "Land on bed default on rotate"
+    );
 }
 
 #[test]
@@ -66,7 +77,10 @@ fn gizmo_move_drag_writes_translate() {
     pointer(&mut h, g, Some(true));
     pointer(&mut h, t, None);
     let live = h.state().tool().unwrap().values["translate"].clone();
-    assert!((live[0].as_f64().unwrap_or(0.0) - 15.0).abs() < 1.0, "translate while dragging: {live}");
+    assert!(
+        (live[0].as_f64().unwrap_or(0.0) - 15.0).abs() < 1.0,
+        "translate while dragging: {live}"
+    );
     pointer(&mut h, t, Some(false));
     h.run_steps(3);
     // Move auto-accepts on drop → Done/Close labels
@@ -108,19 +122,39 @@ fn gizmo_land_on_bed_after_rotate_ok() {
     let grab = vp.world_to_screen(on_ring);
     pointer(&mut h, grab, None);
     h.run_steps(1);
-    assert_eq!(h.state().viewport.gizmo().and_then(|g| g.axis), Some(Handle::Y), "the pointer is on the Y ring");
+    assert_eq!(
+        h.state().viewport.gizmo().and_then(|g| g.axis),
+        Some(Handle::Y),
+        "the pointer is on the Y ring"
+    );
     pointer(&mut h, grab, Some(true));
     for i in 1..=10 {
-        pointer(&mut h, Pos2::new(grab.x + i as f32 * 6.0, grab.y + i as f32 * 9.0), None);
+        pointer(
+            &mut h,
+            Pos2::new(grab.x + i as f32 * 6.0, grab.y + i as f32 * 9.0),
+            None,
+        );
     }
     let live = h.state().tool().unwrap().values["rotate"].clone();
-    assert!(live.as_array().unwrap().iter().any(|v| v.as_f64().unwrap_or(0.0).abs() > 1.0), "the ring turned the part: {live}");
+    assert!(
+        live.as_array()
+            .unwrap()
+            .iter()
+            .any(|v| v.as_f64().unwrap_or(0.0).abs() > 1.0),
+        "the ring turned the part: {live}"
+    );
     pointer(&mut h, Pos2::new(grab.x + 60.0, grab.y + 90.0), Some(false));
     settle(&mut h, &link);
     h.run_steps(3);
     assert_eq!(h.state().tool().unwrap().values.get("bed"), Some(&json!(true)));
     h.state_mut().tool_ok();
     settle(&mut h, &link);
-    let min_z = h.state().bodies[0].mesh.positions.iter().skip(2).step_by(3).fold(f32::INFINITY, |a, &z| a.min(z));
+    let min_z = h.state().bodies[0]
+        .mesh
+        .positions
+        .iter()
+        .skip(2)
+        .step_by(3)
+        .fold(f32::INFINITY, |a, &z| a.min(z));
     assert!(min_z.abs() < 0.05, "the turned part lands on the bed: min z {min_z}");
 }

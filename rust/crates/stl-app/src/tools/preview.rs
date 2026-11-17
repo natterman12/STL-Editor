@@ -29,7 +29,10 @@ pub struct ToolMsg {
 
 impl ToolMsg {
     pub fn new(kind: MsgKind, text: impl Into<String>) -> ToolMsg {
-        ToolMsg { kind, text: text.into() }
+        ToolMsg {
+            kind,
+            text: text.into(),
+        }
     }
 }
 

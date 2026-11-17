@@ -11,27 +11,50 @@ mod fins_replay;
 
 use serde_json::{Map, Value};
 use std::collections::BTreeMap;
-use std::sync::Arc;
 use std::path::PathBuf;
+use std::sync::Arc;
 use stl_engine::params::Param;
 use stl_engine::{Body, Ctx, Document, Feature, FeatureError, FeatureResult, Registry, State};
 use stl_kernel::Solid;
 use stl_parity::{Exactness, MeshStats, compare_mesh, mesh_stats};
 
 const BATCH1: [&str; 11] = [
-    "import", "primitive", "plane", "move", "scale", "mirror", "combine", "split", "delete", "separate", "repair",
+    "import",
+    "primitive",
+    "plane",
+    "move",
+    "scale",
+    "mirror",
+    "combine",
+    "split",
+    "delete",
+    "separate",
+    "repair",
 ];
 
-const BATCH2: [&str; 7] = [
-    "sketch", "extrude", "revolve", "loft", "sweep", "hole", "pushpull",
-];
+const BATCH2: [&str; 7] = ["sketch", "extrude", "revolve", "loft", "sweep", "hole", "pushpull"];
 
 const BATCH3: [&str; 8] = [
-    "simplify", "remesh", "sculpt", "offset", "hollow", "shell", "lattice", "thincheck",
+    "simplify",
+    "remesh",
+    "sculpt",
+    "offset",
+    "hollow",
+    "shell",
+    "lattice",
+    "thincheck",
 ];
 
 const BATCH4: [&str; 9] = [
-    "bedsplit", "layflat", "plate", "pattern", "thread", "resizehole", "fittest", "snapfit", "hinge",
+    "bedsplit",
+    "layflat",
+    "plate",
+    "pattern",
+    "thread",
+    "resizehole",
+    "fittest",
+    "snapfit",
+    "hinge",
 ];
 
 const BATCH5: [&str; 2] = ["supportfins", "supportwall"];
@@ -94,7 +117,10 @@ fn compare_thin(gid: &str, g: Option<&Value>, got: Option<&Value>, bad: &mut Vec
         (Some(a), Some(b)) if (a - b).abs() <= 0.001 => {}
         (a, b) => bad.push(format!("{gid} thin min: golden {a:?} got {b:?}")),
     }
-    let (gs, rs) = (g["spots"].as_array().cloned().unwrap_or_default(), got["spots"].as_array().cloned().unwrap_or_default());
+    let (gs, rs) = (
+        g["spots"].as_array().cloned().unwrap_or_default(),
+        got["spots"].as_array().cloned().unwrap_or_default(),
+    );
     if gs.len() != rs.len() {
         bad.push(format!("{gid} thin spots: golden {} got {}", gs.len(), rs.len()));
         return;
@@ -166,7 +192,10 @@ fn run_case(registry: &Registry, case: &Value, golden: &Value) -> Outcome {
         .unwrap_or(false);
 
     let mut doc = Document::new(registry.clone());
-    if features.iter().any(|f| matches!(f["type"].as_str(), Some("supportfins" | "supportwall"))) {
+    if features
+        .iter()
+        .any(|f| matches!(f["type"].as_str(), Some("supportfins" | "supportwall")))
+    {
         let (host, name) = fins_host();
         println!("fins host: {name} ({})", case["name"].as_str().unwrap_or("?"));
         doc.set_fins_host(host);
@@ -198,10 +227,10 @@ fn run_case(registry: &Registry, case: &Value, golden: &Value) -> Outcome {
         .enumerate()
         .map(|(i, raw)| {
             let mut params: Map<String, Value> = raw["params"].as_object().cloned().unwrap_or_default();
-            if let Some(Value::String(s)) = params.get("source") {
-                if let Some(real) = mapping.get(s) {
-                    params.insert("source".into(), Value::String(real.clone()));
-                }
+            if let Some(Value::String(s)) = params.get("source")
+                && let Some(real) = mapping.get(s)
+            {
+                params.insert("source".into(), Value::String(real.clone()));
             }
             Feature {
                 id: format!("f{}", i + 1),
@@ -271,7 +300,11 @@ fn run_case(registry: &Registry, case: &Value, golden: &Value) -> Outcome {
             bad.push(format!("{gid} {m}"));
         }
     }
-    if bad.is_empty() { Outcome::Passed } else { Outcome::Failed(bad) }
+    if bad.is_empty() {
+        Outcome::Passed
+    } else {
+        Outcome::Failed(bad)
+    }
 }
 
 /// Evaluate every feature with `preview` on the last one (ids stay f1…fN).
@@ -314,7 +347,9 @@ fn run_with_exception(registry: &Registry, case: &Value, golden: &Value, exc: Op
         Outcome::Pending => return (Outcome::Pending, false),
         Outcome::Passed => {
             return (
-                Outcome::Failed(vec!["stale exception: the case now matches the 1.x golden; remove it from exceptions.json".into()]),
+                Outcome::Failed(vec![
+                    "stale exception: the case now matches the 1.x golden; remove it from exceptions.json".into(),
+                ]),
                 false,
             );
         }
@@ -338,7 +373,12 @@ fn run_with_exception(registry: &Registry, case: &Value, golden: &Value, exc: Op
 
 /// Run every case of `types` against `exceptions`.
 fn run_all_with(registry: &Registry, types: &[&str], exceptions: &Map<String, Value>) -> Tally {
-    let mut tally = Tally { passed: 0, by_exception: 0, pending: 0, failures: Vec::new() };
+    let mut tally = Tally {
+        passed: 0,
+        by_exception: 0,
+        pending: 0,
+        failures: Vec::new(),
+    };
     let mut seen: Vec<String> = Vec::new();
     for t in types {
         let cases = read_json(&parity_dir().join("features").join(format!("{t}.json")));
@@ -368,7 +408,9 @@ fn run_all_with(registry: &Registry, types: &[&str], exceptions: &Map<String, Va
     }
     for key in exceptions.keys() {
         if !seen.contains(key) {
-            tally.failures.push(format!("{key}: exceptions.json names a case or golden that no longer exists"));
+            tally.failures.push(format!(
+                "{key}: exceptions.json names a case or golden that no longer exists"
+            ));
         }
     }
     tally
@@ -426,7 +468,14 @@ fn ev_box(
     // centred in XY, standing on its base, then moved by `offset`
     let solid = Solid::cube([l, w, h], true).translate([off[0], off[1], off[2] + h / 2.0]);
     let name = p.get("body_name").and_then(Value::as_str).unwrap_or("Box").to_string();
-    st.bodies.insert(fid.to_string(), Body { name, solid: Some(solid), mesh: None });
+    st.bodies.insert(
+        fid.to_string(),
+        Body {
+            name,
+            solid: Some(solid),
+            mesh: None,
+        },
+    );
     res.created.push(fid.to_string());
     Ok(())
 }
@@ -434,7 +483,13 @@ fn ev_box(
 fn primitive_case(name: &str) -> (Value, Value) {
     let cases = read_json(&parity_dir().join("features/primitive.json"));
     let golden = read_json(&parity_dir().join("features_golden/primitive.json"));
-    let case = cases.as_array().unwrap().iter().find(|c| c["name"] == name).expect("case").clone();
+    let case = cases
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["name"] == name)
+        .expect("case")
+        .clone();
     (case, golden[name].clone())
 }
 
@@ -459,7 +514,10 @@ fn runner_reports_a_mismatch() {
 
 fn exception_for(name: &str, expect: Value) -> Map<String, Value> {
     let mut m = Map::new();
-    m.insert(format!("primitive/{name}"), serde_json::json!({ "reason": "test", "expect": expect }));
+    m.insert(
+        format!("primitive/{name}"),
+        serde_json::json!({ "reason": "test", "expect": expect }),
+    );
     m
 }
 
@@ -482,7 +540,13 @@ fn exception_is_used_instead_of_the_golden() {
     );
     let t = only_primitive(&reg, &exc);
     assert_eq!(t.by_exception, 1);
-    assert!(t.failures.iter().all(|f| !f.starts_with("primitive/primitive_cylinder:")), "{:?}", t.failures);
+    assert!(
+        t.failures
+            .iter()
+            .all(|f| !f.starts_with("primitive/primitive_cylinder:")),
+        "{:?}",
+        t.failures
+    );
 }
 
 #[test]
@@ -490,7 +554,11 @@ fn stale_exception_fails() {
     let reg = Registry::new().with("primitive", ev_box);
     let (_, same) = primitive_case("primitive_box");
     let t = only_primitive(&reg, &exception_for("primitive_box", same));
-    assert!(t.failures.iter().any(|f| f.contains("stale exception")), "{:?}", t.failures);
+    assert!(
+        t.failures.iter().any(|f| f.contains("stale exception")),
+        "{:?}",
+        t.failures
+    );
 }
 
 #[test]
@@ -498,5 +566,9 @@ fn exception_for_a_missing_case_fails() {
     let reg = Registry::new().with("primitive", ev_box);
     let (_, same) = primitive_case("primitive_box");
     let t = only_primitive(&reg, &exception_for("no_such_case", same));
-    assert!(t.failures.iter().any(|f| f.contains("no longer exists")), "{:?}", t.failures);
+    assert!(
+        t.failures.iter().any(|f| f.contains("no longer exists")),
+        "{:?}",
+        t.failures
+    );
 }

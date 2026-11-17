@@ -27,17 +27,23 @@ fn split(
     let offset_v = p.get("offset");
     let offset = match offset_v {
         None | Some(Value::Null) => 0.0,
-        Some(v) => v.as_f64().ok_or_else(|| FeatureError("offset must be a number.".into()))?,
+        Some(v) => v
+            .as_f64()
+            .ok_or_else(|| FeatureError("offset must be a number.".into()))?,
     };
     let origin = if offset != 0.0 {
-        [f.o[0] + f.n[0] * offset, f.o[1] + f.n[1] * offset, f.o[2] + f.n[2] * offset]
+        [
+            f.o[0] + f.n[0] * offset,
+            f.o[1] + f.n[1] * offset,
+            f.o[2] + f.n[2] * offset,
+        ]
     } else {
         f.o
     };
     // 1.x: p.get("keep", "both") -- only a missing key means "both"; null or a non-string is
     // not "both" (so connectors are off) and keeps neither half specially.
     let keep_v = p.get("keep");
-    let is_both = keep_v.map_or(true, |v| v.as_str() == Some("both"));
+    let is_both = keep_v.is_none_or(|v| v.as_str() == Some("both"));
     let keep = match keep_v {
         None => "both".to_string(),
         Some(v) => v.as_str().unwrap_or("").to_string(),
@@ -52,7 +58,15 @@ fn split(
     } else {
         "none"
     };
-    let r = split_with_connectors(&s, origin, f.n, conn, p.get("pin_d"), p.get("pin_len"), p.get("clearance"))?;
+    let r = split_with_connectors(
+        &s,
+        origin,
+        f.n,
+        conn,
+        p.get("pin_d"),
+        p.get("pin_len"),
+        p.get("clearance"),
+    )?;
     if conn != "none" && r.skipped {
         res.warning = Some("The cut face is too thin for connectors here; split without them.".into());
     } else if conn != "none" {
@@ -61,7 +75,14 @@ fn split(
     let (mut above, mut below) = (r.above, r.below);
     for (i, ex) in r.extras.into_iter().enumerate() {
         let id = format!("{fid}.pin{}", i + 1);
-        state.bodies.insert(id.clone(), Body { name: format!("Pin {}", i + 1), solid: Some(ex), mesh: None });
+        state.bodies.insert(
+            id.clone(),
+            Body {
+                name: format!("Pin {}", i + 1),
+                solid: Some(ex),
+                mesh: None,
+            },
+        );
         res.created.push(id);
     }
     // the half thrown away (Keep above / below): its fins go with it
@@ -87,17 +108,40 @@ fn split(
     if (above.is_empty() || below.is_empty()) && keep == "both" {
         // Always the new words, even at Distance 0 or without `offset` (Nathan, 2026-11-14).
         return Err(FeatureError(
-            "The plane doesn't cut through this body. Drag the arrow or change Distance to move it into the part.".into(),
+            "The plane doesn't cut through this body. Drag the arrow or change Distance to move it into the part."
+                .into(),
         ));
     }
-    let (first, second) = if !above.is_empty() { (above, below) } else { (below, Solid::compose(&[])) };
-    let name = if second.is_empty() { b.name.clone() } else { format!("{} (1)", b.name) };
+    let (first, second) = if !above.is_empty() {
+        (above, below)
+    } else {
+        (below, Solid::compose(&[]))
+    };
+    let name = if second.is_empty() {
+        b.name.clone()
+    } else {
+        format!("{} (1)", b.name)
+    };
     let mut halves = vec![(bid.clone(), first.clone())];
-    state.bodies.insert(bid.clone(), Body { name, solid: Some(first), mesh: None });
+    state.bodies.insert(
+        bid.clone(),
+        Body {
+            name,
+            solid: Some(first),
+            mesh: None,
+        },
+    );
     res.modified.push(bid.clone());
     if !second.is_empty() {
         let nid = format!("{fid}.2");
-        state.bodies.insert(nid.clone(), Body { name: format!("{} (2)", b.name), solid: Some(second.clone()), mesh: None });
+        state.bodies.insert(
+            nid.clone(),
+            Body {
+                name: format!("{} (2)", b.name),
+                solid: Some(second.clone()),
+                mesh: None,
+            },
+        );
         res.created.push(nid.clone());
         halves.push((nid, second));
     }

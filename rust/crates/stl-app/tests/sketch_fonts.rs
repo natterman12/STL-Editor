@@ -22,7 +22,11 @@ struct FilePlatform {
 
 impl FilePlatform {
     fn new(file: &Path, web: bool) -> Self {
-        FilePlatform { file: file.to_path_buf(), web, writes: Mutex::new(0) }
+        FilePlatform {
+            file: file.to_path_buf(),
+            web,
+            writes: Mutex::new(0),
+        }
     }
     fn all(&self) -> serde_json::Map<String, Value> {
         std::fs::read(&self.file)
@@ -83,20 +87,32 @@ fn system_fonts_listed() {
     std::fs::create_dir_all(dir.join("sub")).unwrap();
     std::fs::copy(selawik_path(), dir.join("sub").join("selawk.ttf")).unwrap();
     std::fs::write(dir.join("notes.txt"), b"not a font").unwrap();
-    let found = text::system_fonts_in(&[dir.clone()]);
+    let found = text::system_fonts_in(std::slice::from_ref(&dir));
     assert_eq!(found, vec![("Selawik".to_string(), dir.join("sub").join("selawk.ttf"))]);
 
     // desktop: the list starts with the bundled fonts, then offers the computer's fonts
     let p = FilePlatform::new(&dir.join("settings.json"), false);
     let mut fl = FontList::load(&p);
     assert_eq!(fl.families(), vec!["DejaVu Sans", "DejaVu Serif", "DejaVu Sans Mono"]);
-    assert_eq!(labels(&fl), vec!["DejaVu Sans", "DejaVu Serif", "DejaVu Sans Mono", "More: fonts on this computer…", "Add a font file…"]);
+    assert_eq!(
+        labels(&fl),
+        vec![
+            "DejaVu Sans",
+            "DejaVu Serif",
+            "DejaVu Sans Mono",
+            "More: fonts on this computer…",
+            "Add a font file…"
+        ]
+    );
     assert!(fl.can_ask_local());
 
     // chosen: they join the list (sorted, after the bundled ones) and the entry goes away
     let pick = fl.set_system(found.clone());
     assert_eq!(pick, None, "no Arial among these: the dialog keeps the default");
-    assert_eq!(fl.families(), vec!["DejaVu Sans", "DejaVu Serif", "DejaVu Sans Mono", "Selawik"]);
+    assert_eq!(
+        fl.families(),
+        vec!["DejaVu Sans", "DejaVu Serif", "DejaVu Sans Mono", "Selawik"]
+    );
     assert_eq!(labels(&fl).last().map(String::as_str), Some("Add a font file…"));
     assert!(!fl.can_ask_local());
     assert!(!labels(&fl).iter().any(|l| l == "More: fonts on this computer…"));
@@ -109,17 +125,28 @@ fn system_fonts_listed() {
     let web = FilePlatform::new(&dir.join("web.json"), true);
     let fl = FontList::load(&web);
     assert!(!fl.can_ask_local());
-    assert_eq!(labels(&fl), vec!["DejaVu Sans", "DejaVu Serif", "DejaVu Sans Mono", "Add a font file…"]);
+    assert_eq!(
+        labels(&fl),
+        vec!["DejaVu Sans", "DejaVu Serif", "DejaVu Sans Mono", "Add a font file…"]
+    );
 
     // this computer's own fonts (Windows: %WINDIR%\Fonts has Arial and Segoe UI)
     let real = text::system_fonts();
     #[cfg(windows)]
-    assert!(real.iter().any(|(f, _)| f == "Arial" || f == "Segoe UI"), "{} system fonts, no Arial or Segoe UI", real.len());
+    assert!(
+        real.iter().any(|(f, _)| f == "Arial" || f == "Segoe UI"),
+        "{} system fonts, no Arial or Segoe UI",
+        real.len()
+    );
     assert!(real.iter().all(|(f, p)| !f.is_empty() && p.is_file()));
     let mut fl = FontList::load(&p);
     let pick = fl.set_system(real.clone());
     if real.iter().any(|(f, _)| f == "Arial") {
-        assert_eq!(pick.as_deref(), Some("Arial"), "1.x picks Arial when the computer has it");
+        assert_eq!(
+            pick.as_deref(),
+            Some("Arial"),
+            "1.x picks Arial when the computer has it"
+        );
     }
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -134,7 +161,12 @@ fn added_font_is_drawn_in_that_font() {
     let pts = |data: &Value| -> Vec<Value> {
         let doc = Document::new(Registry::builtin());
         let out = doc.sketch_op("text", data).expect("text");
-        out["entities"].as_array().unwrap().iter().map(|e| e["pts"].clone()).collect()
+        out["entities"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|e| e["pts"].clone())
+            .collect()
     };
     for web in [false, true] {
         let dir = temp_dir(if web { "drawn_web" } else { "drawn_desktop" });
@@ -145,14 +177,34 @@ fn added_font_is_drawn_in_that_font() {
         let path = (!web).then(|| font_file.to_str().unwrap().to_string());
         fl.add_file(&p, "selawk.ttf", &selawik(), path.as_deref()).unwrap();
 
-        let mut form = text::TextForm { text: "Ag".into(), font: "Selawik".into(), ..Default::default() };
+        let mut form = text::TextForm {
+            text: "Ag".into(),
+            font: "Selawik".into(),
+            ..Default::default()
+        };
         let s = stl_app::sketch::SketchSession::new(
-            stl_app::viewport::PlaneFrame { origin: [0.0; 3], x: [1.0, 0.0, 0.0], y: [0.0, 1.0, 0.0], normal: [0.0, 0.0, 1.0] },
-            Value::from("XY"), None, None, vec![], vec![], vec![], None,
+            stl_app::viewport::PlaneFrame {
+                origin: [0.0; 3],
+                x: [1.0, 0.0, 0.0],
+                y: [0.0, 1.0, 0.0],
+                normal: [0.0, 0.0, 1.0],
+            },
+            Value::from("XY"),
+            None,
+            None,
+            vec![],
+            vec![],
+            vec![],
+            None,
         );
         let mut data = text::sketch_op_data(&s, &form, None);
         text::add_font_data(&mut data, &fl, &form);
-        assert!(data.get("fontData").and_then(Value::as_str).is_some_and(|d| !d.is_empty()), "web={web}: the font's bytes go with the request");
+        assert!(
+            data.get("fontData")
+                .and_then(Value::as_str)
+                .is_some_and(|d| !d.is_empty()),
+            "web={web}: the font's bytes go with the request"
+        );
         let selawik_pts = pts(&data);
 
         form.font = "DejaVu Sans".into();
@@ -171,21 +223,30 @@ fn font_file_added_and_remembered() {
     std::fs::copy(selawik_path(), &font_file).unwrap();
 
     // the family and style are read from the file
-    assert_eq!(text::font_info(&selawik()).unwrap(), ("Selawik".to_string(), String::new()));
+    assert_eq!(
+        text::font_info(&selawik()).unwrap(),
+        ("Selawik".to_string(), String::new())
+    );
     let bold = std::fs::read(Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/fonts/selawkb.ttf")).unwrap();
-    assert_eq!(text::font_info(&bold).unwrap(), ("Selawik".to_string(), "b".to_string()));
+    assert_eq!(
+        text::font_info(&bold).unwrap(),
+        ("Selawik".to_string(), "b".to_string())
+    );
 
     // desktop: added from a file on disk
     {
         let p = FilePlatform::new(&settings, false);
         let mut fl = FontList::load(&p);
         assert!(!fl.families().iter().any(|f| f == "Selawik"));
-        let added = fl.add_file(&p, "selawk.ttf", &selawik(), Some(font_file.to_str().unwrap())).unwrap();
+        let added = fl
+            .add_file(&p, "selawk.ttf", &selawik(), Some(font_file.to_str().unwrap()))
+            .unwrap();
         assert_eq!(added, vec!["Selawik"]);
         assert_eq!(text::added_message(&added), "Added Selawik");
         assert!(fl.families().iter().any(|f| f == "Selawik"));
         // the same file again: still one entry
-        fl.add_file(&p, "selawk.ttf", &selawik(), Some(font_file.to_str().unwrap())).unwrap();
+        fl.add_file(&p, "selawk.ttf", &selawik(), Some(font_file.to_str().unwrap()))
+            .unwrap();
         assert_eq!(fl.families().iter().filter(|f| *f == "Selawik").count(), 1);
     }
     // a restart: the font is still in the list, through settings
@@ -194,10 +255,24 @@ fn font_file_added_and_remembered() {
         let saved = p.setting_json("text_fonts").expect("text_fonts setting");
         assert_eq!(saved.as_array().map(Vec::len), Some(1), "{saved}");
         let fl = FontList::load(&p);
-        assert_eq!(fl.families(), vec!["DejaVu Sans", "DejaVu Serif", "DejaVu Sans Mono", "Selawik"]);
-        assert_eq!(fl.font_source("Selawik", false, false), Some(FontSource::Path(font_file.to_string_lossy().into_owned())));
-        assert_eq!(fl.font_bytes("Selawik", true, false).as_deref(), Some(&selawik()[..]), "Bold falls back to Regular");
-        assert_eq!(fl.font_bytes("DejaVu Sans", false, false), None, "bundled fonts are the engine's own");
+        assert_eq!(
+            fl.families(),
+            vec!["DejaVu Sans", "DejaVu Serif", "DejaVu Sans Mono", "Selawik"]
+        );
+        assert_eq!(
+            fl.font_source("Selawik", false, false),
+            Some(FontSource::Path(font_file.to_string_lossy().into_owned()))
+        );
+        assert_eq!(
+            fl.font_bytes("Selawik", true, false).as_deref(),
+            Some(&selawik()[..]),
+            "Bold falls back to Regular"
+        );
+        assert_eq!(
+            fl.font_bytes("DejaVu Sans", false, false),
+            None,
+            "bundled fonts are the engine's own"
+        );
     }
 
     // web: no path, so the file's bytes are kept
@@ -268,7 +343,11 @@ fn web_fonts_kept_as_blobs() {
     };
     let dir = temp_dir("blobs");
     let blobs = Arc::new(Mutex::new(HashMap::new()));
-    let mk = || BlobPlatform { inner: FilePlatform::new(&dir.join("web.json"), true), blobs: blobs.clone(), pending: Arc::new(Mutex::new(Vec::new())) };
+    let mk = || BlobPlatform {
+        inner: FilePlatform::new(&dir.join("web.json"), true),
+        blobs: blobs.clone(),
+        pending: Arc::new(Mutex::new(Vec::new())),
+    };
 
     let p = mk();
     let mut fl = FontList::load(&p);
@@ -276,7 +355,11 @@ fn web_fonts_kept_as_blobs() {
     let saved = p.setting_json("text_fonts").unwrap();
     assert_eq!(saved[0]["blob"], Value::from("font:Selawik|"), "{saved}");
     assert!(saved[0].get("data").is_none(), "no font bytes in the settings: {saved}");
-    assert_eq!(fl.font_bytes("Selawik", false, false).as_deref(), Some(&selawik()[..]), "usable at once");
+    assert_eq!(
+        fl.font_bytes("Selawik", false, false).as_deref(),
+        Some(&selawik()[..]),
+        "usable at once"
+    );
 
     // a restart: listed at once, bytes once the blob store answers
     let p = mk();
@@ -331,15 +414,18 @@ fn bad_font_file_says_why() {
         ]),
     );
     let fl = FontList::load(&p);
-    assert_eq!(fl.families(), vec!["DejaVu Sans", "DejaVu Serif", "DejaVu Sans Mono", "Selawik"]);
+    assert_eq!(
+        fl.families(),
+        vec!["DejaVu Sans", "DejaVu Serif", "DejaVu Sans Mono", "Selawik"]
+    );
     let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[test]
 fn dialog_font_box_adds_a_file() {
     use stl_app::engine_link::Level;
-    use stl_app::sketch::text::{TextDialogState, BAD_FONT, FILE};
     use stl_app::sketch::SketchEffect;
+    use stl_app::sketch::text::{BAD_FONT, FILE, TextDialogState};
 
     /// [`FilePlatform`] whose file picker hands out one file.
     struct Picker(FilePlatform, Mutex<Option<PickedFile>>);
@@ -370,12 +456,27 @@ fn dialog_font_box_adds_a_file() {
         (selawik(), "Selawik", (Level::Info, "Added Selawik".to_string())),
         (b"junk".to_vec(), "default", (Level::Warning, BAD_FONT.to_string())),
     ] {
-        let want_font = if want_font == "default" { text::default_font_name() } else { want_font.to_string() };
-        let p = Picker(FilePlatform::new(&dir.join("s.json"), false), Mutex::new(Some(PickedFile { name: "f.ttf".into(), bytes })));
+        let want_font = if want_font == "default" {
+            text::default_font_name()
+        } else {
+            want_font.to_string()
+        };
+        let p = Picker(
+            FilePlatform::new(&dir.join("s.json"), false),
+            Mutex::new(Some(PickedFile {
+                name: "f.ttf".into(),
+                bytes,
+            })),
+        );
         let mut state = TextDialogState::default();
         state.form.font = "DejaVu Serif".into();
         assert!(text::choose_font(&mut state, FILE, Some(&p)).is_none());
-        let answer = state.font_pick.take().expect("a file picker opened").take().expect("answered");
+        let answer = state
+            .font_pick
+            .take()
+            .expect("a file picker opened")
+            .take()
+            .expect("answered");
         let (file, path) = answer.expect("a file");
         match text::font_file_picked(&mut state, &file, path.as_deref(), &p) {
             Some(SketchEffect::Toast(level, msg)) => assert_eq!((level, msg), want_toast),
@@ -402,7 +503,10 @@ fn dialog_font_box_adds_a_file() {
 fn default_font_is_the_desktop_one() {
     // 1.x `MT.default_font()`: Arial, Segoe UI, DejaVu Sans, Liberation Sans, as the computer has
     let have = |f: &str| text::system_fonts().iter().any(|(x, _)| x == f);
-    let want = ["Arial", "Segoe UI", "DejaVu Sans", "Liberation Sans"].into_iter().find(|f| have(f)).unwrap_or("DejaVu Sans");
+    let want = ["Arial", "Segoe UI", "DejaVu Sans", "Liberation Sans"]
+        .into_iter()
+        .find(|f| have(f))
+        .unwrap_or("DejaVu Sans");
     assert_eq!(text::default_font_name(), want);
     #[cfg(windows)]
     if have("Arial") {
@@ -417,7 +521,10 @@ fn crafted_font_headers_never_overflow() {
     let be32 = |v: u32| v.to_be_bytes().to_vec();
     let mut cases: Vec<(&str, Vec<u8>)> = Vec::new();
     // a collection whose first font starts at the very end of the address space
-    cases.push(("ttc base", [b"ttcf".to_vec(), be32(0x0001_0000), be32(1), be32(u32::MAX)].concat()));
+    cases.push((
+        "ttc base",
+        [b"ttcf".to_vec(), be32(0x0001_0000), be32(1), be32(u32::MAX)].concat(),
+    ));
     // one table at offset and length u32::MAX
     let mut t = vec![0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0];
     t.extend(b"name");

@@ -3,8 +3,8 @@
 mod common;
 use common::*;
 use std::collections::HashMap;
-use stl_kernel::MeshArrays;
 use stl_io::{ExportBody, ExportError, ExportFormat, ExportOptions, export_bodies};
+use stl_kernel::MeshArrays;
 
 /// The STEP golden comes from `step_golden.mjs`, which numbers vertices in order of first use
 /// (exact match, -0 equal to 0). STEP edge directions and ids depend on that numbering, so
@@ -26,9 +26,17 @@ fn js_index(m: &MeshArrays) -> MeshArrays {
 }
 
 fn step_of(name: &str, case: &serde_json::Value) -> Result<Vec<u8>, ExportError> {
-    let bodies: Vec<(String, MeshArrays)> =
-        exported_bodies(case).into_iter().map(|(n, m)| (n, js_index(&m))).collect();
-    let refs: Vec<ExportBody> = bodies.iter().map(|(n, m)| ExportBody { name: n.clone(), mesh: m }).collect();
+    let bodies: Vec<(String, MeshArrays)> = exported_bodies(case)
+        .into_iter()
+        .map(|(n, m)| (n, js_index(&m)))
+        .collect();
+    let refs: Vec<ExportBody> = bodies
+        .iter()
+        .map(|(n, m)| ExportBody {
+            name: n.clone(),
+            mesh: m,
+        })
+        .collect();
     let opts = ExportOptions {
         uuid_seed: 1,
         step_title: golden(name)["base"].as_str().unwrap().to_string(),
@@ -79,7 +87,9 @@ fn step_matches_js() {
 fn step_errors_match_js() {
     let mut checked = 0;
     for (name, case) in cases() {
-        let Some(want) = golden(&name)["step_error"].as_str().map(str::to_string) else { continue };
+        let Some(want) = golden(&name)["step_error"].as_str().map(str::to_string) else {
+            continue;
+        };
         checked += 1;
         match step_of(&name, &case) {
             Err(ExportError::Geometry(m)) => assert_eq!(m, want, "{name}"),

@@ -3,7 +3,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 use stl_engine::{Document, Registry};
 
 fn parity_dir() -> PathBuf {
@@ -139,7 +139,8 @@ fn sketchop_golden_matches() {
     let mut failures = Vec::new();
     for name in &names {
         let path = dir.join(format!("{name}.json"));
-        let case: Value = serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap_or_else(|e| panic!("{name}: {e}"));
+        let case: Value =
+            serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap_or_else(|e| panic!("{name}: {e}"));
         let op = case["op"].as_str().unwrap();
         let data = &case["data"];
         let doc = document_for(name);
@@ -147,7 +148,11 @@ fn sketchop_golden_matches() {
         let (got, want) = (norm(&got), norm(&case["result"]));
         // 1e-12 mm everywhere: sin/cos round their last bit differently in each platform's maths
         // library (Linux glibc gave -8.660254037844384 where Windows and Node give ...386)
-        let tol = if name == "offset_open" { OFFSET_OPEN_ABS_TOL.max(PLATFORM_ABS_TOL) } else { PLATFORM_ABS_TOL };
+        let tol = if name == "offset_open" {
+            OFFSET_OPEN_ABS_TOL.max(PLATFORM_ABS_TOL)
+        } else {
+            PLATFORM_ABS_TOL
+        };
         let mut found = Vec::new();
         all_diffs(&got, &want, name, tol, &mut found);
         if !found.is_empty() {

@@ -31,10 +31,14 @@ fn kinds(updates: &[Update]) -> String {
             Update::Preview { seq, .. } => format!("preview({seq})"),
             Update::Fins { seq, ask, .. } => format!("fins({seq} {ask})"),
             Update::EngineLost => "engineLost".into(),
-            Update::SketchOp { seq, result } => format!("sketchOp({seq} {})", if result.is_ok() { "ok" } else { "err" }),
+            Update::SketchOp { seq, result } => {
+                format!("sketchOp({seq} {})", if result.is_ok() { "ok" } else { "err" })
+            }
             Update::Solved { seq, ok, .. } => format!("solved({seq} {ok})"),
             Update::Autosaved { ok, .. } => format!("autosaved({ok})"),
-            Update::BodyInfo { seq, result } => format!("bodyInfo({seq} {})", if result.is_ok() { "ok" } else { "err" }),
+            Update::BodyInfo { seq, result } => {
+                format!("bodyInfo({seq} {})", if result.is_ok() { "ok" } else { "err" })
+            }
         })
         .collect::<Vec<_>>()
         .join(", ")
@@ -69,7 +73,10 @@ async fn until(link: &WebLink, ms: f64, pred: impl Fn(&WebLink, &[Update]) -> bo
 }
 
 fn open_basic(link: &WebLink) {
-    link.send(Command::Open { name: "basic.stlx".into(), bytes: BASIC.to_vec() });
+    link.send(Command::Open {
+        name: "basic.stlx".into(),
+        bytes: BASIC.to_vec(),
+    });
 }
 
 fn bodies(updates: &[Update]) -> Option<&[stl_app::engine_link::BodyView]> {
@@ -94,7 +101,9 @@ async fn worker_opens_project() {
     let bodies = bodies(&updates).expect("bodies");
     assert!(bodies.iter().all(|b| !b.name.is_empty()), "every body has a name");
     assert!(
-        bodies.iter().any(|b| !b.mesh.positions.is_empty() && !b.mesh.triangles.is_empty()),
+        bodies
+            .iter()
+            .any(|b| !b.mesh.positions.is_empty() && !b.mesh.triangles.is_empty()),
         "a body came back with a mesh"
     );
 }
@@ -104,31 +113,51 @@ async fn worker_mesh_is_transferred() {
     let link = WebLink::new().expect("worker");
     open_basic(&link);
     let updates = until(&link, 20_000.0, |l, u| {
-        bodies(u).is_some_and(|b| b.iter().any(|body| !body.mesh.positions.is_empty())) && l.mesh_was_transferred() == Some(true)
+        bodies(u).is_some_and(|b| b.iter().any(|body| !body.mesh.positions.is_empty()))
+            && l.mesh_was_transferred() == Some(true)
     })
     .await;
     let bodies = bodies(&updates).expect("bodies");
     let mesh = bodies.iter().find(|b| !b.mesh.positions.is_empty()).expect("mesh");
     assert_eq!(mesh.mesh.positions.len() % 3, 0);
     assert!(!mesh.mesh.triangles.is_empty());
-    assert_eq!(link.mesh_was_transferred(), Some(true), "the worker buffer was not detached");
+    assert_eq!(
+        link.mesh_was_transferred(),
+        Some(true),
+        "the worker buffer was not detached"
+    );
 }
 
 #[wasm_bindgen_test]
 async fn worker_error_sends_engine_lost() {
     let link = WebLink::new().expect("worker");
     open_basic(&link);
-    let opened = until(&link, 20_000.0, |_l, u| bodies(u).is_some_and(|b| !b.is_empty()) && timeline_len(u).is_some()).await;
+    let opened = until(&link, 20_000.0, |_l, u| {
+        bodies(u).is_some_and(|b| !b.is_empty()) && timeline_len(u).is_some()
+    })
+    .await;
     let n_bodies = bodies(&opened).unwrap().len();
     let n_items = timeline_len(&opened).unwrap();
-    link.send(Command::AddFeature { kind: TEST_PANIC_KIND.into(), params: serde_json::json!({}), index: None, name: None });
-    let _lost = until(&link, 20_000.0, |_l, u| u.iter().any(|x| matches!(x, Update::EngineLost))).await;
+    link.send(Command::AddFeature {
+        kind: TEST_PANIC_KIND.into(),
+        params: serde_json::json!({}),
+        index: None,
+        name: None,
+    });
+    let _lost = until(&link, 20_000.0, |_l, u| {
+        u.iter().any(|x| matches!(x, Update::EngineLost))
+    })
+    .await;
     link.restart();
     let restored = until(&link, 20_000.0, |_l, u| {
         bodies(u).is_some_and(|b| b.len() == n_bodies) && timeline_len(u) == Some(n_items)
     })
     .await;
-    assert_eq!(bodies(&restored).unwrap().len(), n_bodies, "restart reopened the last saved project");
+    assert_eq!(
+        bodies(&restored).unwrap().len(),
+        n_bodies,
+        "restart reopened the last saved project"
+    );
     assert_eq!(timeline_len(&restored), Some(n_items), "restart restored the timeline");
 }
 
@@ -136,7 +165,10 @@ async fn worker_error_sends_engine_lost() {
 async fn worker_cancel_stops_between_features() {
     let link = WebLink::new().expect("worker");
     open_basic(&link);
-    let opened = until(&link, 20_000.0, |_l, u| bodies(u).is_some_and(|b| !b.is_empty()) && timeline_len(u).is_some()).await;
+    let opened = until(&link, 20_000.0, |_l, u| {
+        bodies(u).is_some_and(|b| !b.is_empty()) && timeline_len(u).is_some()
+    })
+    .await;
     let n_bodies = bodies(&opened).unwrap().len();
     let n_items = timeline_len(&opened).unwrap();
     // Queued behind the add, so the yield before the first feature of that rebuild sees it.
@@ -148,17 +180,34 @@ async fn worker_cancel_stops_between_features() {
     });
     link.send(Command::Cancel);
     let updates = until(&link, 20_000.0, |_l, u| {
-        u.iter().any(|x| matches!(x, Update::Message { text, .. } if text == "Cancelled.")) && timeline_len(u) == Some(n_items)
+        u.iter()
+            .any(|x| matches!(x, Update::Message { text, .. } if text == "Cancelled."))
+            && timeline_len(u) == Some(n_items)
     })
     .await;
-    assert!(updates.iter().any(|u| matches!(u, Update::Message { level: Level::Info, text } if text == "Cancelled.")));
-    assert!(!updates.iter().any(|u| matches!(u, Update::Error(_))), "a cancel is a status message, not an error");
-    assert_eq!(timeline_len(&updates), Some(n_items), "the cancelled feature was not kept");
+    assert!(
+        updates
+            .iter()
+            .any(|u| matches!(u, Update::Message { level: Level::Info, text } if text == "Cancelled."))
+    );
+    assert!(
+        !updates.iter().any(|u| matches!(u, Update::Error(_))),
+        "a cancel is a status message, not an error"
+    );
+    assert_eq!(
+        timeline_len(&updates),
+        Some(n_items),
+        "the cancelled feature was not kept"
+    );
     assert_eq!(bodies(&updates).map(|b| b.len()), Some(n_bodies));
 }
 
 fn set_no_jspi(on: bool) {
-    let _ = js_sys::Reflect::set(&js_sys::global(), &"__STL_NO_JSPI__".into(), &wasm_bindgen::JsValue::from_bool(on));
+    let _ = js_sys::Reflect::set(
+        &js_sys::global(),
+        &"__STL_NO_JSPI__".into(),
+        &wasm_bindgen::JsValue::from_bool(on),
+    );
 }
 
 /// Forces the synchronous worker path. The module must still start, and a
@@ -169,7 +218,10 @@ async fn worker_without_jspi_keeps_the_feature() {
     let link = WebLink::new().expect("worker");
     set_no_jspi(false);
     open_basic(&link);
-    let opened = until(&link, 20_000.0, |_l, u| bodies(u).is_some_and(|b| !b.is_empty()) && timeline_len(u).is_some()).await;
+    let opened = until(&link, 20_000.0, |_l, u| {
+        bodies(u).is_some_and(|b| !b.is_empty()) && timeline_len(u).is_some()
+    })
+    .await;
     let n_items = timeline_len(&opened).unwrap();
     link.send(Command::AddFeature {
         kind: "primitive".into(),
@@ -179,9 +231,22 @@ async fn worker_without_jspi_keeps_the_feature() {
     });
     link.send(Command::Cancel);
     let updates = until(&link, 20_000.0, |_l, u| timeline_len(u) == Some(n_items + 1)).await;
-    assert!(!updates.iter().any(|u| matches!(u, Update::Message { text, .. } if text == "Cancelled.")));
-    assert!(!updates.iter().any(|u| matches!(u, Update::EngineLost | Update::Error(_))), "the sync path should finish the add");
-    assert_eq!(timeline_len(&updates), Some(n_items + 1), "without JSPI the in-flight add is not stopped");
+    assert!(
+        !updates
+            .iter()
+            .any(|u| matches!(u, Update::Message { text, .. } if text == "Cancelled."))
+    );
+    assert!(
+        !updates
+            .iter()
+            .any(|u| matches!(u, Update::EngineLost | Update::Error(_))),
+        "the sync path should finish the add"
+    );
+    assert_eq!(
+        timeline_len(&updates),
+        Some(n_items + 1),
+        "without JSPI the in-flight add is not stopped"
+    );
 }
 
 /// A project that fails to open must not become the file Restart reloads.
@@ -189,21 +254,40 @@ async fn worker_without_jspi_keeps_the_feature() {
 async fn worker_failed_open_keeps_last_project() {
     let link = WebLink::new().expect("worker");
     open_basic(&link);
-    let opened = until(&link, 20_000.0, |_l, u| bodies(u).is_some_and(|b| !b.is_empty()) && timeline_len(u).is_some()).await;
-    let n_bodies = bodies(&opened).unwrap().len();
-    let n_items = timeline_len(&opened).unwrap();
-    link.send(Command::Open { name: "bad.stlx".into(), bytes: b"not a project".to_vec() });
-    let _bad = until(&link, 20_000.0, |_l, u| {
-        u.iter().any(|x| matches!(x, Update::Error(text) if text.contains("isn't an STL Editor project")))
+    let opened = until(&link, 20_000.0, |_l, u| {
+        bodies(u).is_some_and(|b| !b.is_empty()) && timeline_len(u).is_some()
     })
     .await;
-    link.send(Command::AddFeature { kind: TEST_PANIC_KIND.into(), params: serde_json::json!({}), index: None, name: None });
-    let _lost = until(&link, 20_000.0, |_l, u| u.iter().any(|x| matches!(x, Update::EngineLost))).await;
+    let n_bodies = bodies(&opened).unwrap().len();
+    let n_items = timeline_len(&opened).unwrap();
+    link.send(Command::Open {
+        name: "bad.stlx".into(),
+        bytes: b"not a project".to_vec(),
+    });
+    let _bad = until(&link, 20_000.0, |_l, u| {
+        u.iter()
+            .any(|x| matches!(x, Update::Error(text) if text.contains("isn't an STL Editor project")))
+    })
+    .await;
+    link.send(Command::AddFeature {
+        kind: TEST_PANIC_KIND.into(),
+        params: serde_json::json!({}),
+        index: None,
+        name: None,
+    });
+    let _lost = until(&link, 20_000.0, |_l, u| {
+        u.iter().any(|x| matches!(x, Update::EngineLost))
+    })
+    .await;
     link.restart();
     let restored = until(&link, 20_000.0, |_l, u| {
         bodies(u).is_some_and(|b| b.len() == n_bodies) && timeline_len(u) == Some(n_items)
     })
     .await;
-    assert_eq!(bodies(&restored).unwrap().len(), n_bodies, "restart reopened the project that finished opening");
+    assert_eq!(
+        bodies(&restored).unwrap().len(),
+        n_bodies,
+        "restart reopened the project that finished opening"
+    );
     assert_eq!(timeline_len(&restored), Some(n_items));
 }

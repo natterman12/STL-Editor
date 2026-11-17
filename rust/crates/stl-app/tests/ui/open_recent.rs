@@ -13,16 +13,16 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use egui_kittest::kittest::Queryable;
 use egui_kittest::Harness;
+use egui_kittest::kittest::Queryable;
 use serde_json::json;
 use stl_app::app::StlApp;
 use stl_app::engine_link::native::NativeLink;
-use stl_app::platform::native::NativePlatform;
 use stl_app::platform::Platform;
+use stl_app::platform::native::NativePlatform;
 use stl_app::ui::ThemePref;
 
-use super::harness::{project, settle, wait_for, SharedLink};
+use super::harness::{SharedLink, project, settle, wait_for};
 
 fn temp(name: &str) -> PathBuf {
     let d = std::env::temp_dir().join(format!("stle2-ui-recent-{name}-{}", std::process::id()));
@@ -45,19 +45,26 @@ fn app_with_recent(cfg: &Path, recent: &[String]) -> (Harness<'static, StlApp>, 
     platform.set_setting_json("update_check", json!(false));
     platform.set_setting_json("recent", json!(recent));
     let link = Arc::new(NativeLink::new());
-    let app = StlApp::new(&egui::Context::default(), Box::new(platform), Box::new(SharedLink { inner: link.clone() }));
-    let mut init = false;
-    let mut h = Harness::builder().with_size(egui::vec2(1280.0, 800.0)).with_accessibility_check(false).build_ui_state(
-        move |ui, app: &mut StlApp| {
-            if !init {
-                init = true;
-                stl_app::fonts::install(ui.ctx());
-                app.set_theme(ui.ctx(), ThemePref::Dark);
-            }
-            app.layout(ui);
-        },
-        app,
+    let app = StlApp::new(
+        &egui::Context::default(),
+        Box::new(platform),
+        Box::new(SharedLink { inner: link.clone() }),
     );
+    let mut init = false;
+    let mut h = Harness::builder()
+        .with_size(egui::vec2(1280.0, 800.0))
+        .with_accessibility_check(false)
+        .build_ui_state(
+            move |ui, app: &mut StlApp| {
+                if !init {
+                    init = true;
+                    stl_app::fonts::install(ui.ctx());
+                    app.set_theme(ui.ctx(), ThemePref::Dark);
+                }
+                app.layout(ui);
+            },
+            app,
+        );
     h.run_steps(4);
     (h, link)
 }
@@ -65,7 +72,9 @@ fn app_with_recent(cfg: &Path, recent: &[String]) -> (Harness<'static, StlApp>, 
 /// What `settings.json` holds under `recent`, read as a new run would.
 fn stored(cfg: &Path) -> Vec<String> {
     let p = NativePlatform::with_config_dir(cfg);
-    p.setting_json("recent").and_then(|v| serde_json::from_value(v).ok()).unwrap_or_default()
+    p.setting_json("recent")
+        .and_then(|v| serde_json::from_value(v).ok())
+        .unwrap_or_default()
 }
 
 fn open_file_menu(h: &mut Harness<'static, StlApp>) {
@@ -86,7 +95,10 @@ fn open_recent_from_disk() {
     for i in 1..=6 {
         h.get_by_label(&format!("part{i}.stlx"));
     }
-    assert!(h.query_by_label("part7.stlx").is_none() && h.query_by_label("part8.stlx").is_none(), "only the first six are listed");
+    assert!(
+        h.query_by_label("part7.stlx").is_none() && h.query_by_label("part8.stlx").is_none(),
+        "only the first six are listed"
+    );
 
     // the File menu: New, Open…, then the recent files by name, six of them
     open_file_menu(&mut h);
@@ -94,7 +106,10 @@ fn open_recent_from_disk() {
     for want in ["Open…", "Insert Mesh…", "Save As…"] {
         assert!(h.query_all_by_label(want).count() > 0, "File › {want}");
     }
-    assert!(h.query_by_label("part7.stlx").is_none(), "the menu shows the first six of the ten kept");
+    assert!(
+        h.query_by_label("part7.stlx").is_none(),
+        "the menu shows the first six of the ten kept"
+    );
     h.key_press(egui::Key::Escape);
     h.run_steps(3);
 
@@ -112,7 +127,9 @@ fn open_recent_from_disk() {
     open_file_menu(&mut h);
     let item = h.get_all_by_label("part3.stlx").last().unwrap();
     item.click();
-    wait_for(&mut h, &link, "part3.stlx to open again", |h| h.state().files.title.as_deref() == Some("part3.stlx"));
+    wait_for(&mut h, &link, "part3.stlx to open again", |h| {
+        h.state().files.title.as_deref() == Some("part3.stlx")
+    });
     assert_eq!(stored(&cfg), want);
 }
 
@@ -127,7 +144,11 @@ fn missing_recent_dropped() {
     std::fs::remove_file(&gone).unwrap();
 
     h.get_by_label("gone.stlx").click();
-    wait_for(&mut h, &link, "the missing-file message", |h| h.query_all_by_label_contains("That file isn\u{2019}t there any more (").count() > 0);
+    wait_for(&mut h, &link, "the missing-file message", |h| {
+        h.query_all_by_label_contains("That file isn\u{2019}t there any more (")
+            .count()
+            > 0
+    });
     // plain words, with the path and what happened to the list
     let want = format!("That file isn\u{2019}t there any more ({gone}). It was taken off the Recent list.");
     assert!(h.query_all_by_label_contains(&want).count() > 0, "the message: {want}");
@@ -136,7 +157,11 @@ fn missing_recent_dropped() {
     h.run_steps(3);
     assert!(h.query_by_label("gone.stlx").is_none(), "no longer listed");
     assert_eq!(h.state().shell.recent, vec![kept.clone()]);
-    assert_eq!(stored(&cfg), vec![kept.clone()], "and not offered again after a restart");
+    assert_eq!(
+        stored(&cfg),
+        vec![kept.clone()],
+        "and not offered again after a restart"
+    );
 
     // the file that is there still opens
     h.get_by_label("kept.stlx").click();

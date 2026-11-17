@@ -3,7 +3,7 @@
 use serde_json::{Map, Value};
 use stl_sketch::P2;
 
-use super::common::{apply_tool, float, plane_frame, pushpull_tool, Vec3};
+use super::common::{Vec3, apply_tool, float, plane_frame, pushpull_tool};
 use crate::{Ctx, FeatureError, FeatureResult, Registry, State};
 
 fn vec3(v: &Value) -> Option<Vec3> {

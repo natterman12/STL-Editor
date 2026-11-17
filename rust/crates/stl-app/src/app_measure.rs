@@ -77,7 +77,10 @@ impl StlApp {
         self.info.seq += 1;
         self.info.body = Some(id.to_owned());
         self.info.rev = self.bodies.iter().find(|b| b.id == id).map_or(0, |b| b.revision);
-        self.link.send(Command::BodyInfo { seq: self.info.seq, id: id.to_owned() });
+        self.link.send(Command::BodyInfo {
+            seq: self.info.seq,
+            id: id.to_owned(),
+        });
     }
 
     /// The answer to `Command::BodyInfo`.
@@ -100,7 +103,9 @@ impl StlApp {
         if !self.measure.open && !self.info.open {
             return false;
         }
-        let Some(hit) = self.viewport.pick(pos, true, false) else { return true };
+        let Some(hit) = self.viewport.pick(pos, true, false) else {
+            return true;
+        };
         if self.info.open {
             // `mode === 'info'`: a body is selected and shown
             if let crate::viewport::pick::Hit::Body { id, .. } = hit {
@@ -112,7 +117,9 @@ impl StlApp {
             }
             return true;
         }
-        let crate::viewport::pick::Hit::Body { point, .. } = hit else { return true };
+        let crate::viewport::pick::Hit::Body { point, .. } = hit else {
+            return true;
+        };
         if self.measure.pts.len() >= 2 {
             self.measure.pts.clear();
             self.viewport.clear_overlay(TAG);
@@ -181,8 +188,16 @@ impl StlApp {
             self.viewport.set_measure(None);
         }
         self.measure = Default::default();
-        self.info = InfoState { seq: self.info.seq + 1, ..Default::default() };
-        if self.shell.active_tool.as_deref().is_some_and(|k| k == "measure" || k == "info") {
+        self.info = InfoState {
+            seq: self.info.seq + 1,
+            ..Default::default()
+        };
+        if self
+            .shell
+            .active_tool
+            .as_deref()
+            .is_some_and(|k| k == "measure" || k == "info")
+        {
             self.shell.active_tool = None;
         }
         self.shell.hint.clear();
@@ -208,7 +223,10 @@ impl StlApp {
 
     /// What the Measure panel shows: (label, value) rows, in the current units.
     pub fn measure_readout(&self) -> Vec<(String, String)> {
-        crate::ui::measure_panel::measure_rows(&self.measure.pts, self.shell.inch).into_iter().map(|r| (r.label, r.value)).collect()
+        crate::ui::measure_panel::measure_rows(&self.measure.pts, self.shell.inch)
+            .into_iter()
+            .map(|r| (r.label, r.value))
+            .collect()
     }
 
     /// What the Properties panel shows for the body: its name and (label, value) rows, in the

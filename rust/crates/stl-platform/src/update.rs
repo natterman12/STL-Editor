@@ -29,7 +29,11 @@ pub const ASSET_NAME: &str = "STL-Editor-2-Windows.exe";
 pub const OLD_NAME: &str = "stl-editor-2.old.exe";
 /// The hosts an update may come from: the asset link (`github.com`) and GitHub's download
 /// servers it redirects to.
-pub const GITHUB_HOSTS: [&str; 3] = ["github.com", "objects.githubusercontent.com", "release-assets.githubusercontent.com"];
+pub const GITHUB_HOSTS: [&str; 3] = [
+    "github.com",
+    "objects.githubusercontent.com",
+    "release-assets.githubusercontent.com",
+];
 /// Test switch: `127.0.0.1` lets [`download`] fetch from the local fake release server.
 pub const TEST_HOST_ENV: &str = "STLEDITOR2_UPDATE_TEST_HOST";
 
@@ -58,7 +62,8 @@ pub struct Release {
 pub fn newest_2x(api: &str, current: &str) -> Result<Option<Release>, String> {
     let cur = Semver::parse(current).unwrap_or_default();
     let body = https_get(api, Duration::from_secs(8)).map_err(|e| reach_error(&e))?;
-    let list: Value = serde_json::from_slice(&body).map_err(|_| "Couldn't reach GitHub (JSONDecodeError).".to_string())?;
+    let list: Value =
+        serde_json::from_slice(&body).map_err(|_| "Couldn't reach GitHub (JSONDecodeError).".to_string())?;
     let Some(list) = list.as_array() else {
         return Err("Couldn't reach GitHub (JSONDecodeError).".into());
     };
@@ -75,12 +80,27 @@ pub fn newest_2x(api: &str, current: &str) -> Result<Option<Release>, String> {
         if ver <= cur || best.as_ref().is_some_and(|(b, _)| ver <= *b) {
             continue;
         }
-        let assets = r.get("assets").and_then(Value::as_array).map(Vec::as_slice).unwrap_or(&[]);
-        let Some(asset) = assets.iter().find(|a| a.get("name").and_then(Value::as_str) == Some(ASSET_NAME)) else {
+        let assets = r
+            .get("assets")
+            .and_then(Value::as_array)
+            .map(Vec::as_slice)
+            .unwrap_or(&[]);
+        let Some(asset) = assets
+            .iter()
+            .find(|a| a.get("name").and_then(Value::as_str) == Some(ASSET_NAME))
+        else {
             continue;
         };
-        let Some(url) = asset.get("browser_download_url").and_then(Value::as_str) else { continue };
-        let notes: String = r.get("body").and_then(Value::as_str).unwrap_or("").chars().take(NOTES_MAX).collect();
+        let Some(url) = asset.get("browser_download_url").and_then(Value::as_str) else {
+            continue;
+        };
+        let notes: String = r
+            .get("body")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .chars()
+            .take(NOTES_MAX)
+            .collect();
         let rel = Release {
             tag: tag.to_string(),
             version: tag[1..].to_string(),
@@ -145,13 +165,22 @@ pub fn download(rel: &Release, to: &Path) -> Result<(), String> {
 /// Running exe -> [`OLD_NAME`], new exe -> running. On failure the running exe is put back.
 pub fn swap(new_exe: &Path, running_exe: &Path) -> Result<(), String> {
     if !new_exe.is_file() {
-        return Err(format!("The new version isn't there ({}); nothing was changed.", new_exe.display()));
+        return Err(format!(
+            "The new version isn't there ({}); nothing was changed.",
+            new_exe.display()
+        ));
     }
     let old = old_path(running_exe);
     if old.exists() {
-        fs::remove_file(&old).map_err(|e| format!("Couldn't remove the previous copy ({}): {e}. Nothing was changed.", old.display()))?;
+        fs::remove_file(&old).map_err(|e| {
+            format!(
+                "Couldn't remove the previous copy ({}): {e}. Nothing was changed.",
+                old.display()
+            )
+        })?;
     }
-    fs::rename(running_exe, &old).map_err(|e| format!("Couldn't move STL Editor aside to update it ({e}); nothing was changed."))?;
+    fs::rename(running_exe, &old)
+        .map_err(|e| format!("Couldn't move STL Editor aside to update it ({e}); nothing was changed."))?;
     if fs::rename(new_exe, running_exe).is_ok() {
         return Ok(());
     }
@@ -164,7 +193,9 @@ pub fn swap(new_exe: &Path, running_exe: &Path) -> Result<(), String> {
         Err(e) => {
             let _ = fs::remove_file(running_exe);
             match fs::rename(&old, running_exe) {
-                Ok(()) => Err(format!("Couldn't put the new version in place ({e}); nothing was changed.")),
+                Ok(()) => Err(format!(
+                    "Couldn't put the new version in place ({e}); nothing was changed."
+                )),
                 Err(back) => Err(rollback_failed(&e, &back, &old, running_exe)),
             }
         }
@@ -185,13 +216,25 @@ pub fn old_path(running_exe: &Path) -> PathBuf {
 /// rename on the same drive; one file per version, so a cancelled download never shares a file
 /// with the next one.
 pub fn new_path(running_exe: &Path, tag: &str) -> PathBuf {
-    let tag: String = tag.chars().map(|c| if c.is_ascii_alphanumeric() || c == '.' || c == '-' { c } else { '_' }).collect();
+    let tag: String = tag
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '.' || c == '-' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
     running_exe.with_file_name(format!("stl-editor-2.{tag}.new.exe"))
 }
 
 /// The swap failed half way and the old exe couldn't be put back: say where it is.
 pub fn rollback_failed(e: &std::io::Error, back: &std::io::Error, old: &Path, running_exe: &Path) -> String {
-    let name = running_exe.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+    let name = running_exe
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
     format!(
         "Couldn't put the new version in place ({e}), and couldn't put the old one back ({back}).          Your copy of STL Editor is still there as {}: rename it to {name} to use it again.",
         old.display()
@@ -212,7 +255,9 @@ fn reach_error(e: &NetError) -> String {
 /// the test switch is on. Asked again for every redirect.
 pub fn check_host(url: &str) -> Result<(), String> {
     let refuse = || Err(NOT_GITHUB.to_string());
-    let Some((scheme, rest)) = url.split_once("://") else { return refuse() };
+    let Some((scheme, rest)) = url.split_once("://") else {
+        return refuse();
+    };
     let authority = rest.split(['/', '?', '#']).next().unwrap_or("");
     if authority.contains('@') || authority.is_empty() {
         return refuse();
@@ -272,7 +317,11 @@ impl Semver {
                     if id.is_empty() {
                         return None;
                     }
-                    v.push(if id.bytes().all(|c| c.is_ascii_digit()) { Ident::Num(id.parse().ok()?) } else { Ident::Alpha(id.to_string()) });
+                    v.push(if id.bytes().all(|c| c.is_ascii_digit()) {
+                        Ident::Num(id.parse().ok()?)
+                    } else {
+                        Ident::Alpha(id.to_string())
+                    });
                 }
                 v
             }
@@ -284,13 +333,15 @@ impl Semver {
 impl Ord for Semver {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         use std::cmp::Ordering;
-        self.core.cmp(&other.core).then_with(|| match (self.pre.is_empty(), other.pre.is_empty()) {
-            (true, true) => Ordering::Equal,
-            (true, false) => Ordering::Greater,
-            (false, true) => Ordering::Less,
-            // element by element; a longer list wins when one is a prefix of the other
-            (false, false) => self.pre.cmp(&other.pre),
-        })
+        self.core
+            .cmp(&other.core)
+            .then_with(|| match (self.pre.is_empty(), other.pre.is_empty()) {
+                (true, true) => Ordering::Equal,
+                (true, false) => Ordering::Greater,
+                (false, true) => Ordering::Less,
+                // element by element; a longer list wins when one is a prefix of the other
+                (false, false) => self.pre.cmp(&other.pre),
+            })
     }
 }
 
@@ -306,9 +357,28 @@ mod tests {
 
     #[test]
     fn semver_order() {
-        let order = ["1.9.9", "2.0.0-alpha", "2.0.0-alpha.1", "2.0.0-alpha.beta", "2.0.0-beta", "2.0.0-beta.2", "2.0.0-beta.11", "2.0.0-rc.1", "2.0.0", "2.0.1-beta.1", "2.0.1", "2.1.0", "10.0.0"];
+        let order = [
+            "1.9.9",
+            "2.0.0-alpha",
+            "2.0.0-alpha.1",
+            "2.0.0-alpha.beta",
+            "2.0.0-beta",
+            "2.0.0-beta.2",
+            "2.0.0-beta.11",
+            "2.0.0-rc.1",
+            "2.0.0",
+            "2.0.1-beta.1",
+            "2.0.1",
+            "2.1.0",
+            "10.0.0",
+        ];
         for w in order.windows(2) {
-            assert!(Semver::parse(w[0]).unwrap() < Semver::parse(w[1]).unwrap(), "{} < {}", w[0], w[1]);
+            assert!(
+                Semver::parse(w[0]).unwrap() < Semver::parse(w[1]).unwrap(),
+                "{} < {}",
+                w[0],
+                w[1]
+            );
         }
         assert_eq!(Semver::parse("v2.0.1+build.5"), Semver::parse("2.0.1"));
         assert!(Semver::parse("v2.x").is_none());

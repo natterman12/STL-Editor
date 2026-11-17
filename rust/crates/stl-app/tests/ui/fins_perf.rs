@@ -17,7 +17,15 @@ fn fins_perf_many_fins() {
     if let Ok(path) = std::env::var("FINS_PERF_STL") {
         let t = Instant::now();
         import_stl(&mut h, &link, std::path::Path::new(&path));
-        eprintln!("import: {:?}, triangles {}", t.elapsed(), h.state().bodies.first().map(|b| b.mesh.triangles.len() / 3).unwrap_or(0));
+        eprintln!(
+            "import: {:?}, triangles {}",
+            t.elapsed(),
+            h.state()
+                .bodies
+                .first()
+                .map(|b| b.mesh.triangles.len() / 3)
+                .unwrap_or(0)
+        );
         return time_fins(h, link);
     }
     // a mushroom: a post holding up a wide plate, so the plate's whole underside wants fins
@@ -60,7 +68,10 @@ fn fins_perf_many_fins() {
     time_fins(h, link);
 }
 
-fn time_fins(mut h: egui_kittest::Harness<'static, stl_app::app::StlApp>, link: std::sync::Arc<stl_app::engine_link::native::NativeLink>) {
+fn time_fins(
+    mut h: egui_kittest::Harness<'static, stl_app::app::StlApp>,
+    link: std::sync::Arc<stl_app::engine_link::native::NativeLink>,
+) {
     select_first_body(&mut h);
     let t = Instant::now();
     wait_support_open(&mut h, &link, "supportfins");
@@ -87,7 +98,10 @@ fn time_fins(mut h: egui_kittest::Harness<'static, stl_app::app::StlApp>, link: 
         let all = t.elapsed();
         let res = h.state().tool().map(|tl| tl.last_result.clone()).unwrap_or_default();
         let info: String = res.to_string().chars().take(600).collect();
-        eprintln!("preview {round}: engine idle {engine:?}, shown {all:?}, preview bodies {}, result {info}", h.state().viewport.preview_meshes().count());
+        eprintln!(
+            "preview {round}: engine idle {engine:?}, shown {all:?}, preview bodies {}, result {info}",
+            h.state().viewport.preview_meshes().count()
+        );
     }
     let t = Instant::now();
     h.run_steps(20);
@@ -95,5 +109,9 @@ fn time_fins(mut h: egui_kittest::Harness<'static, stl_app::app::StlApp>, link: 
     let t = Instant::now();
     h.state_mut().tool_ok();
     settle(&mut h, &link);
-    eprintln!("OK (merge into the part): {:?}, bodies {}", t.elapsed(), h.state().bodies.len());
+    eprintln!(
+        "OK (merge into the part): {:?}, bodies {}",
+        t.elapsed(),
+        h.state().bodies.len()
+    );
 }

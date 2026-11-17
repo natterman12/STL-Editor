@@ -8,11 +8,11 @@
 use egui::Color32;
 
 use super::geom::outline;
-use crate::viewport::scene;
 use super::session::SketchMode;
 use super::{Entity, SketchSession};
-use crate::viewport::overlays::SketchOutline;
 use crate::viewport::Viewport;
+use crate::viewport::overlays::SketchOutline;
+use crate::viewport::scene;
 
 /// Sketch colours (spec 2.3): near-white (dark theme) or near-black (light theme) lines while the
 /// shape can still move, a different shade when it is fully defined, the selection blue for what
@@ -52,7 +52,11 @@ fn col(c: u32) -> Color32 {
 
 /// The colour of a fully defined shape.
 pub fn col_def(dark: bool) -> u32 {
-    if dark { scene::SKETCH_CONSTRAINED_DARK } else { scene::SKETCH_CONSTRAINED_LIGHT }
+    if dark {
+        scene::SKETCH_CONSTRAINED_DARK
+    } else {
+        scene::SKETCH_CONSTRAINED_LIGHT
+    }
 }
 
 /// The colour of a selected shape: the selection blue, or amber in the dark theme, where free
@@ -63,12 +67,20 @@ pub fn col_sel(dark: bool) -> u32 {
 
 /// The colour of a shape that can still move.
 pub fn col_free(dark: bool) -> u32 {
-    if dark { scene::SKETCH_LINE_DARK } else { scene::SKETCH_LINE_LIGHT }
+    if dark {
+        scene::SKETCH_LINE_DARK
+    } else {
+        scene::SKETCH_LINE_LIGHT
+    }
 }
 
 fn outline_of(e: &Entity) -> SketchOutline {
     let (pts, closed) = outline(e);
-    SketchOutline { pts, closed, construction: e.construction() }
+    SketchOutline {
+        pts,
+        closed,
+        construction: e.construction(),
+    }
 }
 
 /// Ray cast from `sketcher.js` `inside`: a point on an edge is not inside.
@@ -88,7 +100,11 @@ fn point_in_ring(p: [f64; 2], poly: &[[f64; 2]]) -> bool {
 
 fn nest_depth(shapes: &[Vec<[f64; 2]>], i: usize) -> usize {
     let p = shapes[i][0];
-    shapes.iter().enumerate().filter(|(j, s)| *j != i && point_in_ring(p, s)).count()
+    shapes
+        .iter()
+        .enumerate()
+        .filter(|(j, s)| *j != i && point_in_ring(p, s))
+        .count()
 }
 
 /// `_fill`: one face per closed non-construction outline at an even nesting depth, with the
@@ -141,12 +157,20 @@ pub fn build_grid(vp: &mut Viewport, s: &SketchSession) -> f64 {
 /// snap still lands on all of them).
 pub fn grid_step(vp: &Viewport, s: &SketchSession) -> f64 {
     let px = super::snap::px_at(s, vp, [0.0, 0.0]);
-    let step = if super::snap::grid_auto().0 { super::snap::zoom_step_at(px) } else { super::snap::grid().1 };
+    let step = if super::snap::grid_auto().0 {
+        super::snap::zoom_step_at(px)
+    } else {
+        super::snap::grid().1
+    };
     if !(px.is_finite() && px > 0.0 && step.is_finite() && step > 0.0) {
         return if step.is_finite() && step > 0.0 { step } else { 1.0 };
     }
     let min_mm = super::guides::GRID_MIN_PX * px;
-    if step * (1.0 - 1e-9) >= min_mm { step } else { step * (min_mm / step).ceil() }
+    if step * (1.0 - 1e-9) >= min_mm {
+        step
+    } else {
+        step * (min_mm / step).ceil()
+    }
 }
 
 /// Draw the plane grid again when the zoom has changed the spacing it shows.
@@ -167,7 +191,12 @@ pub fn clear(vp: &mut Viewport) {
 }
 
 /// Which colour bucket a shape is in: 0 selected, 1 conflicting, 2 still free, 3 defined, 4 hovered.
-fn bucket_of(m: &SketchMode, e: &Entity, picked: &std::collections::BTreeSet<&str>, in_sel_c: &std::collections::BTreeSet<&str>) -> Option<usize> {
+fn bucket_of(
+    m: &SketchMode,
+    e: &Entity,
+    picked: &std::collections::BTreeSet<&str>,
+    in_sel_c: &std::collections::BTreeSet<&str>,
+) -> Option<usize> {
     let s = &m.s;
     let id = e.id()?;
     Some(if s.sel.contains(id) || picked.contains(id) || in_sel_c.contains(id) {
@@ -236,12 +265,11 @@ impl OutlineCache {
 fn buckets_of(m: &SketchMode) -> [Vec<usize>; 5] {
     let pend = super::dims::pending();
     let picked: std::collections::BTreeSet<&str> = pend.picks.iter().map(|p| p.e.as_str()).collect();
-    let in_sel_c: std::collections::BTreeSet<&str> = m
-        .s
-        .sel_c
-        .and_then(|i| m.s.constraints.get(i))
-        .map(|c| [&c.a, &c.b, &c.c].into_iter().flatten().map(|r| r.e.as_str()).collect())
-        .unwrap_or_default();
+    let in_sel_c: std::collections::BTreeSet<&str> =
+        m.s.sel_c
+            .and_then(|i| m.s.constraints.get(i))
+            .map(|c| [&c.a, &c.b, &c.c].into_iter().flatten().map(|r| r.e.as_str()).collect())
+            .unwrap_or_default();
     let mut out: [Vec<usize>; 5] = Default::default();
     for (i, e) in m.s.entities.iter().enumerate() {
         if let Some(b) = bucket_of(m, e, &picked, &in_sel_c) {
@@ -260,8 +288,14 @@ pub fn dashes(pts: &[[f64; 2]], closed: bool, dash: f64, gap: f64) -> Vec<Vec<[f
     let period = dash + gap;
     let mut out: Vec<Vec<[f64; 2]>> = Vec::new();
     // no usable zoom: a solid line, not a loop that never ends
-    let total: f64 = path.windows(2).map(|w| (w[1][0] - w[0][0]).hypot(w[1][1] - w[0][1])).sum();
-    if !(dash.is_finite() && gap.is_finite() && dash > 1e-9 && gap > 1e-9) || !total.is_finite() || total / period > 20_000.0 {
+    let total: f64 = path
+        .windows(2)
+        .map(|w| (w[1][0] - w[0][0]).hypot(w[1][1] - w[0][1]))
+        .sum();
+    if !(dash.is_finite() && gap.is_finite() && dash > 1e-9 && gap > 1e-9)
+        || !total.is_finite()
+        || total / period > 20_000.0
+    {
         return if path.len() >= 2 { vec![path] } else { out };
     }
     let mut along = 0.0;
@@ -311,7 +345,11 @@ pub fn redraw(vp: &mut Viewport, m: &SketchMode) {
             let o = &outlines[i];
             if o.construction {
                 for d in dashes(&o.pts, o.closed, dash, gap) {
-                    cons.push(SketchOutline { pts: d, closed: false, construction: false });
+                    cons.push(SketchOutline {
+                        pts: d,
+                        closed: false,
+                        construction: false,
+                    });
                 }
             } else {
                 solid.push(o.clone());
@@ -322,7 +360,11 @@ pub fn redraw(vp: &mut Viewport, m: &SketchMode) {
         }
         if !cons.is_empty() {
             // construction lines are grey, unless selected or hovered
-            let cc = if c == colours[2] || c == colours[3] { scene::SKETCH_CONSTRUCTION } else { c };
+            let cc = if c == colours[2] || c == colours[3] {
+                scene::SKETCH_CONSTRUCTION
+            } else {
+                c
+            };
             vp.add_sketch_lines(&s.frame, &cons, col(cc), 1.0, true, TAG_ENTS);
         }
     }
@@ -335,7 +377,11 @@ pub fn redraw(vp: &mut Viewport, m: &SketchMode) {
         .guides()
         .iter()
         .flat_map(|g| dashes(&[g.from, g.to], false, 2.0 * px, 3.0 * px))
-        .map(|pts| SketchOutline { pts, closed: false, construction: false })
+        .map(|pts| SketchOutline {
+            pts,
+            closed: false,
+            construction: false,
+        })
         .collect();
     if !guides.is_empty() {
         vp.add_sketch_lines(&s.frame, &guides, col(GUIDE_COL), 1.0, true, TAG_GUIDE);
@@ -368,8 +414,17 @@ pub fn paint(ui: &egui::Ui, vp: &Viewport, m: &SketchMode) {
                 p.push(p[0]);
             }
             if o.construction {
-                let cc = if c == colours[2] || c == colours[3] { scene::SKETCH_CONSTRUCTION } else { c };
-                painter.extend(egui::Shape::dashed_line(&p, egui::Stroke::new(cons_w, col(cc)), 5.0, 3.5));
+                let cc = if c == colours[2] || c == colours[3] {
+                    scene::SKETCH_CONSTRUCTION
+                } else {
+                    c
+                };
+                painter.extend(egui::Shape::dashed_line(
+                    &p,
+                    egui::Stroke::new(cons_w, col(cc)),
+                    5.0,
+                    3.5,
+                ));
             } else {
                 solid.push((p, col(c)));
             }
@@ -386,7 +441,11 @@ pub fn paint(ui: &egui::Ui, vp: &Viewport, m: &SketchMode) {
             }
             for k in shown_point_keys(e) {
                 if let Some(q) = stl_sketch::entities::point(e, &k) {
-                    painter.rect_filled(egui::Rect::from_center_size(sc(q), egui::Vec2::splat(point_w)), 0.0, col(c));
+                    painter.rect_filled(
+                        egui::Rect::from_center_size(sc(q), egui::Vec2::splat(point_w)),
+                        0.0,
+                        col(c),
+                    );
                 }
             }
         }
@@ -417,35 +476,65 @@ fn paint_snap(painter: &egui::Painter, at: egui::Pos2, what: super::snap::SnapWh
     let h = SNAP_PX / 2.0;
     match what {
         W::Endpoint => {
-            painter.rect_stroke(egui::Rect::from_center_size(at, egui::Vec2::splat(SNAP_PX)), 0.0, st, egui::StrokeKind::Middle);
+            painter.rect_stroke(
+                egui::Rect::from_center_size(at, egui::Vec2::splat(SNAP_PX)),
+                0.0,
+                st,
+                egui::StrokeKind::Middle,
+            );
         }
         W::Midpoint => {
-            let p = vec![at + egui::vec2(0.0, -h), at + egui::vec2(h, h * 0.8), at + egui::vec2(-h, h * 0.8)];
+            let p = vec![
+                at + egui::vec2(0.0, -h),
+                at + egui::vec2(h, h * 0.8),
+                at + egui::vec2(-h, h * 0.8),
+            ];
             painter.add(egui::Shape::closed_line(p, st));
         }
         W::Centre => {
             painter.circle_stroke(at, h, st);
         }
         W::Quadrant => {
-            let p = vec![at + egui::vec2(0.0, -h), at + egui::vec2(h, 0.0), at + egui::vec2(0.0, h), at + egui::vec2(-h, 0.0)];
+            let p = vec![
+                at + egui::vec2(0.0, -h),
+                at + egui::vec2(h, 0.0),
+                at + egui::vec2(0.0, h),
+                at + egui::vec2(-h, 0.0),
+            ];
             painter.add(egui::Shape::closed_line(p, st));
         }
         W::Tangent => {
             painter.circle_stroke(at + egui::vec2(0.0, h * 0.4), h * 0.8, st);
-            painter.line_segment([at + egui::vec2(-h * 1.3, -h * 0.4), at + egui::vec2(h * 1.3, -h * 0.4)], st);
+            painter.line_segment(
+                [at + egui::vec2(-h * 1.3, -h * 0.4), at + egui::vec2(h * 1.3, -h * 0.4)],
+                st,
+            );
         }
         W::Origin | W::Point => {
             painter.line_segment([at + egui::vec2(-h, -h), at + egui::vec2(h, h)], st);
             painter.line_segment([at + egui::vec2(-h, h), at + egui::vec2(h, -h)], st);
         }
     }
-    let text = if dark { Color32::from_gray(0xe6) } else { Color32::from_gray(0x22) };
-    painter.text(at + egui::vec2(h + 5.0, h + 3.0), egui::Align2::LEFT_TOP, what.label(), egui::FontId::proportional(11.0), text);
+    let text = if dark {
+        Color32::from_gray(0xe6)
+    } else {
+        Color32::from_gray(0x22)
+    };
+    painter.text(
+        at + egui::vec2(h + 5.0, h + 3.0),
+        egui::Align2::LEFT_TOP,
+        what.label(),
+        egui::FontId::proportional(11.0),
+        text,
+    );
 }
 
 /// The points marked with a square: ends, corners and the centres of round shapes (not a line's
 /// middle or a rectangle's centre).
 fn shown_point_keys(e: &Entity) -> Vec<String> {
     let round = matches!(e, Entity::Arc(_) | Entity::Circle(_) | Entity::Polygon(_));
-    stl_sketch::entities::point_keys(e).into_iter().filter(|k| k != "m" && (k != "c" || round)).collect()
+    stl_sketch::entities::point_keys(e)
+        .into_iter()
+        .filter(|k| k != "m" && (k != "c" || round))
+        .collect()
 }

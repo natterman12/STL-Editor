@@ -34,7 +34,11 @@ pub struct FinsState {
 }
 
 impl FinsState {
-    const EMPTY: Self = Self { pending: None, error: None, checked: None };
+    const EMPTY: Self = Self {
+        pending: None,
+        error: None,
+        checked: None,
+    };
 }
 
 /// One valid engine folder (`_read_info`).
@@ -85,7 +89,10 @@ struct Gate {
     inflight: Option<Receiver<()>>,
 }
 
-static GATE: Mutex<Gate> = Mutex::new(Gate { state: FinsState::EMPTY, inflight: None });
+static GATE: Mutex<Gate> = Mutex::new(Gate {
+    state: FinsState::EMPTY,
+    inflight: None,
+});
 
 fn lock() -> MutexGuard<'static, Gate> {
     GATE.lock().unwrap_or_else(|e| e.into_inner())
@@ -132,7 +139,10 @@ pub fn published_url(repo: Option<&str>) -> String {
     if owner.is_empty() || name.is_empty() {
         return String::new();
     }
-    format!("https://{}.github.io/{name}/app/vendor/support-fins/", owner.to_ascii_lowercase())
+    format!(
+        "https://{}.github.io/{name}/app/vendor/support-fins/",
+        owner.to_ascii_lowercase()
+    )
 }
 
 /// SHA-256 of a bundle, ignoring line endings (1.x `_digest`, copied: `\r\n` becomes `\n`).
@@ -161,9 +171,10 @@ pub fn choose_engine(bundled: &Path, user_dir: &Path) -> Result<EngineInfo, Stri
     if let Some(i) = read_info(user_dir) {
         found.push(i);
     }
-    found.into_iter().reduce(|best, i| if semver(&i.tag) > semver(&best.tag) { i } else { best }).ok_or_else(|| {
-        "The Support Fins engine is missing from this installation.".to_string()
-    })
+    found
+        .into_iter()
+        .reduce(|best, i| if semver(&i.tag) > semver(&best.tag) { i } else { best })
+        .ok_or_else(|| "The Support Fins engine is missing from this installation.".to_string())
 }
 
 /// Start an update check if one is due. Returns the current [`FinsState`] without waiting:
@@ -255,9 +266,10 @@ fn run_check(settings: &Settings) {
         return;
     }
     let remote = semver(info.get("tag").and_then(Value::as_str).unwrap_or(""));
-    let have = [&settings.bundled, user_dir.as_path()].into_iter().filter_map(read_info).reduce(|a, b| {
-        if semver(&b.tag) > semver(&a.tag) { b } else { a }
-    });
+    let have = [&settings.bundled, user_dir.as_path()]
+        .into_iter()
+        .filter_map(read_info)
+        .reduce(|a, b| if semver(&b.tag) > semver(&a.tag) { b } else { a });
     if have.is_some_and(|h| remote <= semver(&h.tag)) {
         return;
     }
@@ -268,7 +280,11 @@ fn run_check(settings: &Settings) {
             return;
         }
     };
-    let want = info.get("sha256").and_then(|s| s.get("engine.iife.js")).and_then(Value::as_str).unwrap_or("");
+    let want = info
+        .get("sha256")
+        .and_then(|s| s.get("engine.iife.js"))
+        .and_then(Value::as_str)
+        .unwrap_or("");
     if digest(&engine) != want {
         set_error("ValueError: checksum mismatch");
         return;
@@ -304,11 +320,16 @@ fn set_error(msg: &str) {
 }
 
 fn now_secs() -> i64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0)
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
 }
 
 fn stored_last(settings: &Settings) -> i64 {
-    settings.supportfins_last.max(read_last(&settings.config_dir).unwrap_or(0))
+    settings
+        .supportfins_last
+        .max(read_last(&settings.config_dir).unwrap_or(0))
 }
 
 fn read_last(dir: &Path) -> Option<i64> {
@@ -348,7 +369,10 @@ fn replace_file(from: &Path, to: &Path) -> std::io::Result<()> {
 fn read_info(folder: &Path) -> Option<EngineInfo> {
     let info: Value = serde_json::from_slice(&fs::read(folder.join("VERSION.json")).ok()?).ok()?;
     let data = fs::read(folder.join("engine.iife.js")).ok()?;
-    let sha = info.get("sha256").and_then(|s| s.get("engine.iife.js")).and_then(Value::as_str)?;
+    let sha = info
+        .get("sha256")
+        .and_then(|s| s.get("engine.iife.js"))
+        .and_then(Value::as_str)?;
     if info.get("api").and_then(Value::as_i64) != Some(API) || digest(&data) != sha {
         return None;
     }
@@ -402,15 +426,18 @@ fn to_hex(bytes: &[u8]) -> String {
 /// SHA-256 (FIPS 180-4). Inlined so the engine hash does not add a dependency.
 fn sha256(data: &[u8]) -> [u8; 32] {
     const K: [u32; 64] = [
-        0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be,
-        0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa,
-        0x5cb0a9dc, 0x76f988da, 0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967, 0x27b70a85,
-        0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3,
-        0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070, 0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f,
-        0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
+        0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98,
+        0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786,
+        0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da, 0x983e5152, 0xa831c66d, 0xb00327c8,
+        0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
+        0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819,
+        0xd6990624, 0xf40e3585, 0x106aa070, 0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a,
+        0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7,
+        0xc67178f2,
     ];
-    let mut h: [u32; 8] =
-        [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19];
+    let mut h: [u32; 8] = [
+        0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
+    ];
     let bit_len = (data.len() as u64).wrapping_mul(8);
     let mut msg = Vec::with_capacity(data.len() + 72);
     msg.extend_from_slice(data);
@@ -429,11 +456,16 @@ fn sha256(data: &[u8]) -> [u8; 32] {
             let s1 = w[i - 2].rotate_right(17) ^ w[i - 2].rotate_right(19) ^ (w[i - 2] >> 10);
             w[i] = w[i - 16].wrapping_add(s0).wrapping_add(w[i - 7]).wrapping_add(s1);
         }
-        let (mut a, mut b, mut c, mut d, mut e, mut f, mut g, mut hh) = (h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7]);
+        let (mut a, mut b, mut c, mut d, mut e, mut f, mut g, mut hh) =
+            (h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7]);
         for i in 0..64 {
             let s1 = e.rotate_right(6) ^ e.rotate_right(11) ^ e.rotate_right(25);
             let ch = (e & f) ^ (!e & g);
-            let t1 = hh.wrapping_add(s1).wrapping_add(ch).wrapping_add(K[i]).wrapping_add(w[i]);
+            let t1 = hh
+                .wrapping_add(s1)
+                .wrapping_add(ch)
+                .wrapping_add(K[i])
+                .wrapping_add(w[i]);
             let s0 = a.rotate_right(2) ^ a.rotate_right(13) ^ a.rotate_right(22);
             let maj = (a & b) ^ (a & c) ^ (b & c);
             let t2 = s0.wrapping_add(maj);

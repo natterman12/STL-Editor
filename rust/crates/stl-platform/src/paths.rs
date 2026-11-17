@@ -61,7 +61,9 @@ pub fn install_dir() -> PathBuf {
         return d;
     }
     if cfg!(windows) {
-        var_or("LOCALAPPDATA", &["AppData", "Local"]).join("Programs").join(APP_DIR)
+        var_or("LOCALAPPDATA", &["AppData", "Local"])
+            .join("Programs")
+            .join(APP_DIR)
     } else if cfg!(target_os = "macos") {
         home().join("Applications").join(APP_DIR)
     } else {

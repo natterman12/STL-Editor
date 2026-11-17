@@ -45,15 +45,23 @@ fn lost_soon(app: &StlApp) -> bool {
 #[cfg(not(target_arch = "wasm32"))]
 fn log_device_loss(viewport: &crate::viewport::Viewport, frame: &eframe::Frame) {
     use std::io::Write;
-    let reason = viewport.stats().lost_reason().unwrap_or_else(|| "no reason reported".into());
+    let reason = viewport
+        .stats()
+        .lost_reason()
+        .unwrap_or_else(|| "no reason reported".into());
     let (refused, adapter) = match frame.wgpu_render_state() {
         Some(rs) => {
             let i = rs.adapter.get_info();
-            (rs.renderer.read().upload_refused(), format!("{} ({:?}, driver {} {})", i.name, i.backend, i.driver, i.driver_info))
+            (
+                rs.renderer.read().upload_refused(),
+                format!("{} ({:?}, driver {} {})", i.name, i.backend, i.driver, i.driver_info),
+            )
         }
         None => (false, "unknown adapter".into()),
     };
-    let when = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs());
+    let when = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs());
     let line = format!(
         "[{when}] The graphics device was lost: {reason}; upload refused: {}; adapter: {adapter}",
         if refused { "yes" } else { "no" }
@@ -70,10 +78,12 @@ fn log_device_loss(viewport: &crate::viewport::Viewport, frame: &eframe::Frame) 
 
 impl StlApp {
     /// What the native message box says after a driver reset, once the work is saved.
-    pub const DRIVER_RESTARTED: &'static str = "The graphics driver restarted. STL Editor needs to restart to keep drawing. Your work is saved.";
+    pub const DRIVER_RESTARTED: &'static str =
+        "The graphics driver restarted. STL Editor needs to restart to keep drawing. Your work is saved.";
     /// The same when the copy couldn't be written (pending Nathan's OK: the spec has only the
     /// first message, and "Your work is saved." would not be true).
-    pub const DRIVER_RESTARTED_NOT_SAVED: &'static str = "The graphics driver restarted. STL Editor needs to restart to keep drawing.";
+    pub const DRIVER_RESTARTED_NOT_SAVED: &'static str =
+        "The graphics driver restarted. STL Editor needs to restart to keep drawing.";
     /// The environment variable that tells the restarted window what to open:
     /// `recover:<session>` (the old window's autosave copy) or `open:<path>` (the saved project).
     pub const AFTER_RESET_ENV: &'static str = "STLEDITOR2_AFTER_RESET";
@@ -138,7 +148,11 @@ impl StlApp {
         });
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| run(creator)));
         // the window and its wrapper are gone by now (returned or unwound)
-        let app = slot.borrow_mut().take().and_then(|a| Rc::try_unwrap(a).ok()).map(RefCell::into_inner);
+        let app = slot
+            .borrow_mut()
+            .take()
+            .and_then(|a| Rc::try_unwrap(a).ok())
+            .map(RefCell::into_inner);
         match (result, app) {
             (Ok(r), Some(app)) if app.viewport.device_lost(true) => {
                 // the window closed after the loss; an error from tearing it down doesn't matter now
@@ -170,7 +184,10 @@ impl StlApp {
         self.link.send(self.autosave_command());
         // the engine runs commands in order and always answers this one: once it is back, the
         // autosave above is done (it answers nothing when the last copy was already current)
-        self.link.send(Command::BodyInfo { seq: FENCE_SEQ, id: String::new() });
+        self.link.send(Command::BodyInfo {
+            seq: FENCE_SEQ,
+            id: String::new(),
+        });
         let end = web_time::Instant::now() + wait;
         let mut ok = true;
         while web_time::Instant::now() < end {
@@ -206,7 +223,10 @@ impl StlApp {
         let want_copy = dirty && saved && self.recover.is_some();
         let root = stl_platform::paths::data_dir().join("autosave");
         let ids = |root: &std::path::Path| -> std::collections::HashSet<String> {
-            stl_platform::autosave::recoverable(root, None).into_iter().map(|s| s.id).collect()
+            stl_platform::autosave::recoverable(root, None)
+                .into_iter()
+                .map(|s| s.id)
+                .collect()
         };
         let before = if want_copy { ids(&root) } else { Default::default() };
         drop(self);
@@ -234,14 +254,25 @@ impl StlApp {
             self.open_launch_file(std::path::Path::new(path));
             return;
         }
-        let Some(id) = marker.strip_prefix("recover:").filter(|id| !id.is_empty()) else { return };
+        let Some(id) = marker.strip_prefix("recover:").filter(|id| !id.is_empty()) else {
+            return;
+        };
         // only the old window's own copy; anything else is left for Recover Unsaved Work
         let root = stl_platform::paths::data_dir().join("autosave");
-        let Some(s) = stl_platform::autosave::recoverable(&root, None).into_iter().find(|s| s.id == id) else { return };
+        let Some(s) = stl_platform::autosave::recoverable(&root, None)
+            .into_iter()
+            .find(|s| s.id == id)
+        else {
+            return;
+        };
         match recover::project_bytes(&root, &s.id) {
             Ok(bytes) => {
                 stl_platform::autosave::discard(&root, &s.id);
-                self.open_recovered(Recovered { name: format!("{}.stlx", s.title), bytes, path: s.path });
+                self.open_recovered(Recovered {
+                    name: format!("{}.stlx", s.title),
+                    bytes,
+                    path: s.path,
+                });
             }
             Err(text) => self.toasts.push(Level::Warning, text),
         }
@@ -262,16 +293,21 @@ fn debug_force_loss(app: &mut StlApp, frame: &eframe::Frame) {
     if RESTARTED.load(Ordering::Relaxed) {
         return;
     }
-    let Some(after) = std::env::var("STLEDITOR2_TEST_DEVICE_LOSS").ok().and_then(|v| v.parse::<u32>().ok()) else { return };
+    let Some(after) = std::env::var("STLEDITOR2_TEST_DEVICE_LOSS")
+        .ok()
+        .and_then(|v| v.parse::<u32>().ok())
+    else {
+        return;
+    };
     let n = FRAMES.fetch_add(1, Ordering::Relaxed);
     if let Some(ctx) = app.viewport.egui_ctx() {
         ctx.request_repaint_after(std::time::Duration::from_millis(30));
     }
-    if n == after {
-        if let Some(rs) = frame.wgpu_render_state() {
-            eprintln!("STLEDITOR2_TEST_DEVICE_LOSS: destroying the window's device");
-            crate::viewport::renderer::destroy_device(rs);
-        }
+    if n == after
+        && let Some(rs) = frame.wgpu_render_state()
+    {
+        eprintln!("STLEDITOR2_TEST_DEVICE_LOSS: destroying the window's device");
+        crate::viewport::renderer::destroy_device(rs);
     }
 }
 
@@ -283,7 +319,9 @@ fn debug_force_loss(app: &mut StlApp, frame: &eframe::Frame) {
 fn debug_auto_fins(app: &mut StlApp) {
     use std::sync::Mutex;
     static STATE: Mutex<Option<(u32, web_time::Instant)>> = Mutex::new(None);
-    if std::env::var("STLEDITOR2_TEST_FINS").as_deref() != Ok("1") || RESTARTED.load(std::sync::atomic::Ordering::Relaxed) {
+    if std::env::var("STLEDITOR2_TEST_FINS").as_deref() != Ok("1")
+        || RESTARTED.load(std::sync::atomic::Ordering::Relaxed)
+    {
         return;
     }
     if let Some(ctx) = app.viewport.egui_ctx() {
@@ -320,10 +358,19 @@ fn debug_auto_fins(app: &mut StlApp) {
         3 if tool.is_some() && waited > 5.0 => {
             // one wall between the two lowest vertices that are at least 5 mm apart
             let m = &app.bodies[0].mesh;
-            let mut pts: Vec<[f64; 3]> = m.positions.chunks_exact(3).map(|p| [p[0] as f64, p[1] as f64, p[2] as f64]).collect();
+            let mut pts: Vec<[f64; 3]> = m
+                .positions
+                .chunks_exact(3)
+                .map(|p| [p[0] as f64, p[1] as f64, p[2] as f64])
+                .collect();
             pts.sort_by(|a, b| a[2].total_cmp(&b[2]));
             let a = pts[pts.len() / 10];
-            let b = pts.iter().skip(pts.len() / 10).find(|p| ((p[0] - a[0]).powi(2) + (p[1] - a[1]).powi(2)).sqrt() > 5.0).copied().unwrap_or(a);
+            let b = pts
+                .iter()
+                .skip(pts.len() / 10)
+                .find(|p| ((p[0] - a[0]).powi(2) + (p[1] - a[1]).powi(2)).sqrt() > 5.0)
+                .copied()
+                .unwrap_or(a);
             app.tool_set_value("walls", serde_json::json!([{ "shape": "line", "points": [a, b] }]));
             next(&mut st, &format!("drawing a wall from {a:?} to {b:?} with {tool:?}"));
         }

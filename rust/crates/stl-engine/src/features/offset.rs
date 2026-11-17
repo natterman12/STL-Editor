@@ -27,7 +27,14 @@ fn f_offset(
     for bid in bids {
         let b = state.body(&bid)?.clone();
         let out = offset_solid(b.require_solid()?, d, 12000).map_err(|e| FeatureError(e.to_string()))?;
-        state.bodies.insert(bid.clone(), Body { name: b.name, solid: Some(out), mesh: None });
+        state.bodies.insert(
+            bid.clone(),
+            Body {
+                name: b.name,
+                solid: Some(out),
+                mesh: None,
+            },
+        );
         res.modified.push(bid);
     }
     Ok(())

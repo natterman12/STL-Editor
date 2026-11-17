@@ -3,7 +3,7 @@
 use serde_json::{Map, Value};
 use stl_kernel::Solid;
 
-use super::common::frames::{unit, Vec3};
+use super::common::frames::{Vec3, unit};
 use super::common::pose::par_map;
 use super::common::{affine, float, repeat_features, strings, truthy};
 use crate::state::Body;
@@ -18,7 +18,11 @@ fn vec3(p: &Map<String, Value>, k: &str, default: Vec3) -> Result<Vec3, FeatureE
             if a.len() != 3 {
                 return Err(bad());
             }
-            Ok([a[0].as_f64().ok_or_else(bad)?, a[1].as_f64().ok_or_else(bad)?, a[2].as_f64().ok_or_else(bad)?])
+            Ok([
+                a[0].as_f64().ok_or_else(bad)?,
+                a[1].as_f64().ok_or_else(bad)?,
+                a[2].as_f64().ok_or_else(bad)?,
+            ])
         }
     }
 }
@@ -44,9 +48,17 @@ fn transform(p: &Map<String, Value>, count: i64, i: i64) -> Result<[[f64; 4]; 3]
     let axis = unit(vec3(p, "axis", [0.0, 0.0, 1.0])?)?;
     let c = vec3(p, "center", [0.0; 3])?;
     let total = float(p, "angle", Some(360.0))?;
-    let step = if total.abs() >= 360.0 { total / count as f64 } else { total / (count - 1) as f64 };
+    let step = if total.abs() >= 360.0 {
+        total / count as f64
+    } else {
+        total / (count - 1) as f64
+    };
     let a = (step * i as f64).to_radians();
-    let k = [[0.0, -axis[2], axis[1]], [axis[2], 0.0, -axis[0]], [-axis[1], axis[0], 0.0]];
+    let k = [
+        [0.0, -axis[2], axis[1]],
+        [axis[2], 0.0, -axis[0]],
+        [-axis[1], axis[0], 0.0],
+    ];
     let mut r = [[0.0; 3]; 3];
     for x in 0..3 {
         for y in 0..3 {
@@ -76,7 +88,7 @@ fn f_pattern(
         return Err(FeatureError("Choose a body to pattern.".into()));
     }
     let n = count(p)?;
-    let join = p.get("join").map_or(true, |v| truthy(Some(v)));
+    let join = p.get("join").is_none_or(|v| truthy(Some(v)));
     for bid in bids {
         let b = state.body(&bid)?.clone();
         let s = b.require_solid()?.clone();
@@ -91,7 +103,14 @@ fn f_pattern(
             for (i, cpy) in copies.into_iter().enumerate().skip(1) {
                 let i = i + 1;
                 let nid = format!("{fid}.{bid}.{i}");
-                state.bodies.insert(nid.clone(), Body { name: format!("{} ({i})", b.name), solid: Some(cpy), mesh: None });
+                state.bodies.insert(
+                    nid.clone(),
+                    Body {
+                        name: format!("{} ({i})", b.name),
+                        solid: Some(cpy),
+                        mesh: None,
+                    },
+                );
                 res.created.push(nid);
             }
         }

@@ -12,7 +12,11 @@ pub const NONE_LABEL: &str = "— pick a sketch —";
 /// The chosen sketch's name, or the "pick a sketch" line.
 pub fn selected_label(values: &Values, key: &str, ctx: &Ctx) -> String {
     let id = values.get(key).and_then(Value::as_str).unwrap_or("");
-    ctx.sketches.iter().find(|s| s.id == id).map(|s| s.name.clone()).unwrap_or_else(|| NONE_LABEL.to_owned())
+    ctx.sketches
+        .iter()
+        .find(|s| s.id == id)
+        .map(|s| s.name.clone())
+        .unwrap_or_else(|| NONE_LABEL.to_owned())
 }
 
 /// Choosing a sketch (an empty id is "none").
@@ -20,7 +24,14 @@ pub fn choose(values: &mut Values, key: &str, id: &str) {
     values.insert(key.to_owned(), Value::from(id));
 }
 
-pub fn show(ui: &mut Ui, tk: &Tokens, f: &Field, values: &mut Values, _active: &mut Option<String>, ctx: &Ctx) -> ShowOut {
+pub fn show(
+    ui: &mut Ui,
+    tk: &Tokens,
+    f: &Field,
+    values: &mut Values,
+    _active: &mut Option<String>,
+    ctx: &Ctx,
+) -> ShowOut {
     let cur = values.get(f.key).and_then(Value::as_str).unwrap_or("").to_owned();
     let mut pick: Option<String> = None;
     let shown = selected_label(values, f.key, ctx);

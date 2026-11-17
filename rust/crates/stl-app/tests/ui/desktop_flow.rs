@@ -9,8 +9,8 @@
 #![cfg(not(target_arch = "wasm32"))]
 
 use super::harness::{
-    dblclick_at, empty_harness, enter_sketch_plane, finish_sketch_settle, fixture_stl, import_stl, mesh_volume, select_first_body, settle,
-    sketch_add_rect,
+    dblclick_at, empty_harness, enter_sketch_plane, finish_sketch_settle, fixture_stl, import_stl, mesh_volume,
+    select_first_body, settle, sketch_add_rect,
 };
 use egui_kittest::kittest::Queryable;
 use serde_json::json;
@@ -54,13 +54,20 @@ fn desktop_flow_import_sketch_cut_hole_export() {
     {
         let s = h.state_mut().sketch_mode_mut().unwrap();
         s.s.push();
-        s.s.entities.push(serde_json::from_value(json!({
-            "id": "c1", "type": "circle", "cx": 0.0, "cy": 0.0, "r": 3.0
-        })).unwrap());
+        s.s.entities.push(
+            serde_json::from_value(json!({
+                "id": "c1", "type": "circle", "cx": 0.0, "cy": 0.0, "r": 3.0
+            }))
+            .unwrap(),
+        );
     }
     let params = h.state().sketch().unwrap().step_params();
     assert_eq!(params["entities"].as_array().map(|a| a.len()), Some(2));
-    assert!(params["plane"].is_object() || params["plane"].is_string(), "plane kept: {}", params["plane"]);
+    assert!(
+        params["plane"].is_object() || params["plane"].is_string(),
+        "plane kept: {}",
+        params["plane"]
+    );
 
     let v0 = mesh_volume(&h.state().bodies[0].mesh);
     finish_sketch_settle(&mut h, &link, true);
@@ -74,7 +81,13 @@ fn desktop_flow_import_sketch_cut_hole_export() {
     h.state_mut().tool_ok();
     settle(&mut h, &link);
 
-    let kinds: Vec<_> = h.state().timeline_view.items.iter().map(|i| format!("{}:{:?}", i.kind, i.error)).collect();
+    let kinds: Vec<_> = h
+        .state()
+        .timeline_view
+        .items
+        .iter()
+        .map(|i| format!("{}:{:?}", i.kind, i.error))
+        .collect();
     let extrude = h.state().timeline_view.items.iter().find(|i| i.kind == "extrude");
     assert!(
         extrude.is_some(),

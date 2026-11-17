@@ -13,7 +13,10 @@ const ENGINE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../../web/vendor/support-fins/engine.iife.js"
 ));
-const GOLDEN: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/parity/fins_golden.json"));
+const GOLDEN: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../tests/parity/fins_golden.json"
+));
 const T_BRACKET: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/models/t_bracket.stl"));
 
 const B64: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -24,7 +27,11 @@ fn b64_encode(data: &[u8]) -> String {
         let n = (c[0] as u32) << 16 | (*c.get(1).unwrap_or(&0) as u32) << 8 | *c.get(2).unwrap_or(&0) as u32;
         out.push(B64[(n >> 18) as usize & 63] as char);
         out.push(B64[(n >> 12) as usize & 63] as char);
-        out.push(if c.len() > 1 { B64[(n >> 6) as usize & 63] as char } else { '=' });
+        out.push(if c.len() > 1 {
+            B64[(n >> 6) as usize & 63] as char
+        } else {
+            '='
+        });
         out.push(if c.len() > 2 { B64[n as usize & 63] as char } else { '=' });
     }
     out
@@ -82,7 +89,8 @@ fn js(s: &str) -> String {
 }
 
 fn options(host: &BrowserHost, values: &Value) -> String {
-    host.call("optionsFromDialogJson", &[&js(&values.to_string())]).expect("optionsFromDialogJson")
+    host.call("optionsFromDialogJson", &[&js(&values.to_string())])
+        .expect("optionsFromDialogJson")
 }
 
 struct Outcome {

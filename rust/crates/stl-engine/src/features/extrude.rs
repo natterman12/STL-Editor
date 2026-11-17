@@ -24,12 +24,20 @@ fn extrude(
         Some(v) => v.as_str().unwrap_or("").to_string(),
     };
     let through_all = truthy(p.get("through_all"));
-    let mut d1 = if through_all { big_extent(state.bodies.values()) } else { float(p, "distance", Some(10.0))? };
+    let mut d1 = if through_all {
+        big_extent(state.bodies.values())
+    } else {
+        float(p, "distance", Some(10.0))?
+    };
     let mut direction = match p.get("direction") {
         None => "one".to_string(),
         Some(v) => v.as_str().unwrap_or("").to_string(),
     };
-    let mut d2 = if direction == "two" { float(p, "distance2", Some(0.0))? } else { 0.0 };
+    let mut d2 = if direction == "two" {
+        float(p, "distance2", Some(0.0))?
+    } else {
+        0.0
+    };
     if direction == "two" && through_all {
         d2 = d1;
     }
@@ -52,16 +60,29 @@ fn extrude(
         "two" => (-d2, d1 + d2),
         other => return Err(FeatureError(format!("Unknown direction {other}."))),
     };
-    let taper = if truthy(p.get("taper")) { float(p, "taper", Some(0.0))? } else { 0.0 };
+    let taper = if truthy(p.get("taper")) {
+        float(p, "taper", Some(0.0))?
+    } else {
+        0.0
+    };
     let man = if taper != 0.0 {
         // approximate taper as a uniform scale of the profile about its centroid
         let (lo, hi) = cs.bounds().unwrap_or(([0.0; 2], [0.0; 2]));
         let c = [(lo[0] + hi[0]) / 2.0, (lo[1] + hi[1]) / 2.0];
         let half = f64::max(hi[0] - lo[0], hi[1] - lo[1]) / 2.0;
-        let k = if half > 0.0 { f64::max(0.0, (half - h * taper.to_radians().tan()) / half) } else { 1.0 };
-        let moved: Vec<Vec<P2>> =
-            cs.contours.iter().map(|c0| c0.iter().map(|q| [q[0] - c[0], q[1] - c[1]]).collect()).collect();
-        Shape2d { contours: moved }.extrude_scaled(h, k).translate([c[0], c[1], z0 + start])
+        let k = if half > 0.0 {
+            f64::max(0.0, (half - h * taper.to_radians().tan()) / half)
+        } else {
+            1.0
+        };
+        let moved: Vec<Vec<P2>> = cs
+            .contours
+            .iter()
+            .map(|c0| c0.iter().map(|q| [q[0] - c[0], q[1] - c[1]]).collect())
+            .collect();
+        Shape2d { contours: moved }
+            .extrude_scaled(h, k)
+            .translate([c[0], c[1], z0 + start])
     } else {
         cs.extrude(h).translate([0.0, 0.0, z0 + start])
     };
@@ -114,7 +135,13 @@ fn open_the_face(
     h: f64,
     flipped: bool,
 ) -> stl_kernel::Solid {
-    let place = |s: stl_kernel::Solid| if flipped { s.mirror([0.0, 0.0, 1.0]).transform(m) } else { s.transform(m) };
+    let place = |s: stl_kernel::Solid| {
+        if flipped {
+            s.mirror([0.0, 0.0, 1.0]).transform(m)
+        } else {
+            s.transform(m)
+        }
+    };
     // the start face is the bottom of a "one" cut, the top of a "reverse" one (before flipping)
     let slab_at = if one { lo - OVERSHOOT } else { lo + h };
     let slab = place(cs.extrude(OVERSHOOT).translate([0.0, 0.0, slab_at]));

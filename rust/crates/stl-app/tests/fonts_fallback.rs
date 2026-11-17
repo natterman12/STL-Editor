@@ -11,8 +11,8 @@ mod test_env;
 mod fake_releases;
 
 use egui::{FontFamily, FontId, MissingGlyphPolicy};
-use egui_kittest::kittest::Queryable;
 use egui_kittest::Harness;
+use egui_kittest::kittest::Queryable;
 use stl_app::app::StlApp;
 use stl_app::supports;
 use stl_app::tools::{self, FieldKind};
@@ -46,7 +46,15 @@ fn has(ctx: &egui::Context, family: &FontFamily, c: char) -> bool {
 fn source_chars() -> std::collections::BTreeMap<char, String> {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
     let mut out = std::collections::BTreeMap::new();
-    for krate in ["stl-app", "stl-engine", "stl-io", "stl-platform", "stl-sketch", "stl-mesh", "stl-kernel"] {
+    for krate in [
+        "stl-app",
+        "stl-engine",
+        "stl-io",
+        "stl-platform",
+        "stl-sketch",
+        "stl-mesh",
+        "stl-kernel",
+    ] {
         let mut stack = vec![root.join(krate).join("src")];
         while let Some(dir) = stack.pop() {
             for e in std::fs::read_dir(&dir).into_iter().flatten().flatten() {
@@ -56,7 +64,8 @@ fn source_chars() -> std::collections::BTreeMap<char, String> {
                 } else if p.extension().is_some_and(|x| x == "rs") {
                     let text = std::fs::read_to_string(&p).unwrap();
                     for c in code_chars(&text) {
-                        out.entry(c).or_insert_with(|| p.strip_prefix(&root).unwrap().display().to_string());
+                        out.entry(c)
+                            .or_insert_with(|| p.strip_prefix(&root).unwrap().display().to_string());
                     }
                 }
             }
@@ -80,7 +89,19 @@ fn sketch_strings() -> Vec<(&'static str, String)> {
         let _ = k;
     }
     for key in [
-        "select", "line", "arc3", "trim", "sk_mirror", "sk_corner", "sk_useedge", "rect", "rect_center", "circle", "polygon", "slot", "text",
+        "select",
+        "line",
+        "arc3",
+        "trim",
+        "sk_mirror",
+        "sk_corner",
+        "sk_useedge",
+        "rect",
+        "rect_center",
+        "circle",
+        "polygon",
+        "slot",
+        "text",
     ] {
         let h = stl_app::sketch::draw::hint_for(key);
         if !h.is_empty() {
@@ -96,7 +117,10 @@ fn sketch_strings() -> Vec<(&'static str, String)> {
         ("sketch.session.UNKEPT", stl_app::sketch::session::UNKEPT),
         // U+232F ⌯ (conical taper) is the symmetric mark in relations/dims; not U+233F.
         ("sketch.glyphs", "⌀ƒ•⊙∥⊥◎\u{232F}🔒°×—✓−✕✗"),
-        ("sketch.drawable.sample", "⌀ 12 · ƒ w · • coincident · ⊙ on · ∥ // · ⊥ _| · ◎ o · \u{232F} S · 🔒 F"),
+        (
+            "sketch.drawable.sample",
+            "⌀ 12 · ƒ w · • coincident · ⊙ on · ∥ // · ⊥ _| · ◎ o · \u{232F} S · 🔒 F",
+        ),
     ] {
         push(&mut out, where_, s);
     }
@@ -145,7 +169,9 @@ fn panel_strings() -> Vec<(&'static str, String)> {
                 push(&mut out, "tools.field.placeholder", p);
             }
             match &f.kind {
-                FieldKind::Number { unit: Some(u) } | FieldKind::Vec3 { unit: Some(u) } => push(&mut out, "tools.unit", u),
+                FieldKind::Number { unit: Some(u) } | FieldKind::Vec3 { unit: Some(u) } => {
+                    push(&mut out, "tools.unit", u)
+                }
                 FieldKind::Select { options, .. } => {
                     for (val, lab, _) in options {
                         push(&mut out, "tools.select.value", val);
@@ -203,10 +229,10 @@ fn code_chars(src: &str) -> Vec<char> {
                 if cs.get(i + 1) == Some(&'u') && cs.get(i + 2) == Some(&'{') {
                     let end = (i + 3..n).find(|&j| cs[j] == '}').unwrap_or(n - 1);
                     let hex: String = cs[i + 3..end].iter().filter(|c| **c != '_').collect();
-                    if let Some(ch) = u32::from_str_radix(&hex, 16).ok().and_then(char::from_u32) {
-                        if !ch.is_ascii() {
-                            out.push(ch);
-                        }
+                    if let Some(ch) = u32::from_str_radix(&hex, 16).ok().and_then(char::from_u32)
+                        && !ch.is_ascii()
+                    {
+                        out.push(ch);
                     }
                     i = end + 1;
                     continue;
@@ -254,7 +280,11 @@ fn code_chars(src: &str) -> Vec<char> {
 fn every_character_in_the_string_table_has_a_bundled_glyph() {
     let ctx = bundled_ctx();
     let chars = source_chars();
-    assert!(chars.len() > 8, "the scan found only {} characters: it is broken", chars.len());
+    assert!(
+        chars.len() > 8,
+        "the scan found only {} characters: it is broken",
+        chars.len()
+    );
     let mut missing = Vec::new();
     for (c, file) in &chars {
         for family in [FontFamily::Proportional, FontFamily::Name("bold".into())] {
@@ -263,7 +293,11 @@ fn every_character_in_the_string_table_has_a_bundled_glyph() {
             }
         }
     }
-    assert!(missing.is_empty(), "no glyph in the bundled fonts for:\n{}\nadd it to a bundled font or draw it as an icon", missing.join("\n"));
+    assert!(
+        missing.is_empty(),
+        "no glyph in the bundled fonts for:\n{}\nadd it to a bundled font or draw it as an icon",
+        missing.join("\n")
+    );
 }
 
 #[test]
@@ -293,7 +327,10 @@ fn every_tool_and_supports_panel_string_has_a_bundled_glyph() {
 #[test]
 fn the_colour_pickers_copy_button_has_a_glyph() {
     let ctx = bundled_ctx();
-    assert!(has(&ctx, &FontFamily::Proportional, '\u{1F4CB}'), "bundled fonts lack the colour picker's 📋");
+    assert!(
+        has(&ctx, &FontFamily::Proportional, '\u{1F4CB}'),
+        "bundled fonts lack the colour picker's 📋"
+    );
 }
 
 #[test]
@@ -303,8 +340,15 @@ fn every_sketch_label_hint_toast_and_panel_string_has_a_bundled_glyph() {
     assert!(strings.len() > 20, "sketch string table too small: {}", strings.len());
     // The 1.x sketch marks must be present (Selawik has ƒ •; symbols.ttf has the rest).
     for c in "⌀ƒ•⊙∥⊥◎\u{232F}🔒°−✕✗".chars() {
-        assert!(has(&ctx, &FontFamily::Proportional, c), "bundled fonts lack sketch glyph {c} (U+{:04X})", c as u32);
-        assert!(has(&ctx, &FontFamily::Name("bold".into()), c), "bold family lacks sketch glyph {c}");
+        assert!(
+            has(&ctx, &FontFamily::Proportional, c),
+            "bundled fonts lack sketch glyph {c} (U+{:04X})",
+            c as u32
+        );
+        assert!(
+            has(&ctx, &FontFamily::Name("bold".into()), c),
+            "bold family lacks sketch glyph {c}"
+        );
     }
     let mut missing = Vec::new();
     for (where_, s) in &strings {
@@ -329,22 +373,28 @@ fn every_sketch_label_hint_toast_and_panel_string_has_a_bundled_glyph() {
 fn render_everything(pref: ThemePref) {
     let mut init = false;
     let app = StlApp::empty(&egui::Context::default());
-    let mut h = Harness::builder().with_size(egui::vec2(1500.0, 700.0)).with_accessibility_check(false).build_ui_state(
-        move |ui, app: &mut StlApp| {
-            if !init {
-                init = true;
-                // only the bundled fonts: no Segoe UI, as on the web and on a bare Linux box
-                ui.ctx().set_fonts(stl_app::fonts::bundled_definitions());
-                ui.ctx().set_missing_glyph_policy(MissingGlyphPolicy::Panic);
-                app.set_theme(ui.ctx(), pref);
-            }
-            app.layout(ui);
-        },
-        app,
-    );
+    let mut h = Harness::builder()
+        .with_size(egui::vec2(1500.0, 700.0))
+        .with_accessibility_check(false)
+        .build_ui_state(
+            move |ui, app: &mut StlApp| {
+                if !init {
+                    init = true;
+                    // only the bundled fonts: no Segoe UI, as on the web and on a bare Linux box
+                    ui.ctx().set_fonts(stl_app::fonts::bundled_definitions());
+                    ui.ctx().set_missing_glyph_policy(MissingGlyphPolicy::Panic);
+                    app.set_theme(ui.ctx(), pref);
+                }
+                app.layout(ui);
+            },
+            app,
+        );
     h.run_steps(4);
     // the start page: "Free and open source · Support STL Editor ♥"
-    assert!(h.query_by_label("Support STL Editor").is_some(), "the start page shows its Ko-fi line");
+    assert!(
+        h.query_by_label("Support STL Editor").is_some(),
+        "the start page shows its Ko-fi line"
+    );
     for menu in ["File", "Edit", "View", "Help"] {
         h.get_by_label(menu).click();
         h.run_steps(4);
@@ -353,7 +403,10 @@ fn render_everything(pref: ThemePref) {
     }
     h.get_by_label("Help").click();
     h.run_steps(4);
-    assert!(h.query_by_label("Support STL Editor ♥").is_some(), "the Help menu line with the heart");
+    assert!(
+        h.query_by_label("Support STL Editor ♥").is_some(),
+        "the Help menu line with the heart"
+    );
     h.get_by_label("Keyboard Shortcuts").click();
     h.run_steps(4);
     h.get_by_label("OK").click();
@@ -362,7 +415,10 @@ fn render_everything(pref: ThemePref) {
     h.run_steps(4);
     h.get_by_label("About STL Editor").click();
     h.run_steps(4);
-    assert!(h.query_by_label_contains("you can buy me a coffee on Ko-fi").is_some(), "the About dialog shows the heart line");
+    assert!(
+        h.query_by_label_contains("you can buy me a coffee on Ko-fi").is_some(),
+        "the About dialog shows the heart line"
+    );
 
     // Open a few tool panels so × / Ø / → / ° paint on the bundled fonts.
     h.key_press(egui::Key::Escape);
@@ -397,8 +453,14 @@ fn m5_strings() -> Vec<(&'static str, String)> {
         ("recover.NOTHING_TO_RECOVER", recover::NOTHING_TO_RECOVER.into()),
         ("recover.REPLACE_CONFIRM", recover::REPLACE_CONFIRM.into()),
         ("recover.RECOVERING_MSG", recover::RECOVERING_MSG.into()),
-        ("recover.desktop", "STL Editor didn’t close normally last time. This work was saved automatically:".into()),
-        ("recover.web", "This work wasn’t saved before STL Editor was last closed. A copy was kept in this browser:".into()),
+        (
+            "recover.desktop",
+            "STL Editor didn’t close normally last time. This work was saved automatically:".into(),
+        ),
+        (
+            "recover.web",
+            "This work wasn’t saved before STL Editor was last closed. A copy was kept in this browser:".into(),
+        ),
         ("recover.row", "3 steps · autosaved 14 Nov 2026, 12:00".into()),
         ("updates.CHECKING", updates::CHECKING.into()),
         ("updates.CHECKS_OFF", updates::CHECKS_OFF.into()),
@@ -448,7 +510,11 @@ fn every_recover_update_and_drawer_string_has_a_bundled_glyph() {
             }
         }
     }
-    assert!(missing.is_empty(), "no glyph in the bundled fonts for the Recover / update / drawer text:\n{}", missing.join("\n"));
+    assert!(
+        missing.is_empty(),
+        "no glyph in the bundled fonts for the Recover / update / drawer text:\n{}",
+        missing.join("\n")
+    );
 }
 
 /// A Recover store with fixed copies (one with a title that needs the bundled fonts' non-ASCII).
@@ -507,22 +573,27 @@ fn recover_update_and_drawer_dialogs_render_on_the_bundled_fonts() {
     st.updates.check_now(&st.platform, 1_800_000_000.0);
 
     let mut init = false;
-    let mut h = Harness::builder().with_size(egui::vec2(1000.0, 700.0)).with_accessibility_check(false).build_ui_state(
-        move |ui, st: &mut Dialogs| {
-            if !init {
-                init = true;
-                ui.ctx().set_fonts(stl_app::fonts::bundled_definitions());
-                ui.ctx().set_missing_glyph_policy(MissingGlyphPolicy::Panic);
-            }
-            let tk = stl_app::theme::tokens(false);
-            stl_app::theme::apply(ui.ctx(), &tk);
-            st.recover.show(ui.ctx(), &tk, true);
-            st.updates.show(ui.ctx(), &tk, &st.platform, 1_800_000_000.0);
-        },
-        st,
-    );
+    let mut h = Harness::builder()
+        .with_size(egui::vec2(1000.0, 700.0))
+        .with_accessibility_check(false)
+        .build_ui_state(
+            move |ui, st: &mut Dialogs| {
+                if !init {
+                    init = true;
+                    ui.ctx().set_fonts(stl_app::fonts::bundled_definitions());
+                    ui.ctx().set_missing_glyph_policy(MissingGlyphPolicy::Panic);
+                }
+                let tk = stl_app::theme::tokens(false);
+                stl_app::theme::apply(ui.ctx(), &tk);
+                st.recover.show(ui.ctx(), &tk, true);
+                st.updates.show(ui.ctx(), &tk, &st.platform, 1_800_000_000.0);
+            },
+            st,
+        );
     let end = std::time::Instant::now() + std::time::Duration::from_secs(20);
-    while h.query_by_label("STL Editor 2.0.1 is available").is_none() || h.query_by_label("Recover unsaved work?").is_none() {
+    while h.query_by_label("STL Editor 2.0.1 is available").is_none()
+        || h.query_by_label("Recover unsaved work?").is_none()
+    {
         assert!(std::time::Instant::now() < end, "the dialogs never showed");
         h.run_steps(2);
         std::thread::sleep(std::time::Duration::from_millis(15));
@@ -556,23 +627,32 @@ fn recover_update_and_drawer_dialogs_render_on_the_bundled_fonts() {
     let mut init = false;
     let mut app = StlApp::empty(&egui::Context::default());
     app.browser.drawer_open = false;
-    let mut p = Harness::builder().with_size(egui::vec2(390.0, 844.0)).with_accessibility_check(false).build_ui_state(
-        move |ui, app: &mut StlApp| {
-            if !init {
-                init = true;
-                ui.ctx().set_fonts(stl_app::fonts::bundled_definitions());
-                ui.ctx().set_missing_glyph_policy(MissingGlyphPolicy::Panic);
-                app.set_theme(ui.ctx(), ThemePref::Light);
-            }
-            app.layout(ui);
-        },
-        app,
-    );
+    let mut p = Harness::builder()
+        .with_size(egui::vec2(390.0, 844.0))
+        .with_accessibility_check(false)
+        .build_ui_state(
+            move |ui, app: &mut StlApp| {
+                if !init {
+                    init = true;
+                    ui.ctx().set_fonts(stl_app::fonts::bundled_definitions());
+                    ui.ctx().set_missing_glyph_policy(MissingGlyphPolicy::Panic);
+                    app.set_theme(ui.ctx(), ThemePref::Light);
+                }
+                app.layout(ui);
+            },
+            app,
+        );
     p.run_steps(4);
-    assert!(p.query_all_by_label("Bodies").count() > 0, "the drawer button over the model says Bodies");
+    assert!(
+        p.query_all_by_label("Bodies").count() > 0,
+        "the drawer button over the model says Bodies"
+    );
     p.state_mut().browser.drawer_open = true;
     p.run_steps(12);
-    assert!(p.query_all_by_label("Close").count() > 0, "and Close while the drawer is open");
+    assert!(
+        p.query_all_by_label("Close").count() > 0,
+        "and Close while the drawer is open"
+    );
     p.state_mut().browser.drawer_open = false;
     p.run_steps(12);
 }

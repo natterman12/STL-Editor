@@ -2,10 +2,10 @@
 //! `updatePending`, `addConstraint`, `deleteConstraint`, `pickRef`, the part-edge drawing `_refs`
 //! and the relation glyphs of `buildDims`).
 
-use egui::{vec2, Color32, FontId, Rect, Sense, Shape, Stroke, StrokeKind};
+use egui::{Color32, FontId, Rect, Sense, Shape, Stroke, StrokeKind, vec2};
 use serde_json::Value;
-use stl_sketch::entities::{point, point_keys, P2};
-use stl_sketch::solver::{infer_dimension, make_constraint, solve, Constraint, Outcome, Ref};
+use stl_sketch::entities::{P2, point, point_keys};
+use stl_sketch::solver::{Constraint, Outcome, Ref, infer_dimension, make_constraint, solve};
 
 use super::dims::{self, Pend};
 use super::geom::{dist_to_entity, outline, seg_dist};
@@ -13,21 +13,41 @@ use super::glyphs;
 use super::solve::{all_ents, fixed_ents, fixed_ids};
 use super::{Entity, SketchEffect, SketchInput, SketchSession, SketchTool, ToolCx};
 use crate::engine_link::Level;
-use crate::viewport::overlays::SketchOutline;
 use crate::viewport::Viewport;
+use crate::viewport::overlays::SketchOutline;
 
 /// `CTOOLS`: key, label, hint.
 pub const CTOOLS: [(&str, &str, &str); 11] = [
-    ("c_coincident", "Coincident", "Click two points (or a point, then a line or circle) to join them"),
-    ("c_hv", "Horiz / Vert", "Click a line (or two points) to make it horizontal or vertical"),
+    (
+        "c_coincident",
+        "Coincident",
+        "Click two points (or a point, then a line or circle) to join them",
+    ),
+    (
+        "c_hv",
+        "Horiz / Vert",
+        "Click a line (or two points) to make it horizontal or vertical",
+    ),
     ("c_parallel", "Parallel", "Click two lines"),
     ("c_perpendicular", "Perpendicular", "Click two lines"),
-    ("c_equal", "Equal", "Click two lines (same length) or two circles / arcs (same size)"),
-    ("c_tangent", "Tangent", "Click a line and an arc / circle, or two arcs / circles"),
+    (
+        "c_equal",
+        "Equal",
+        "Click two lines (same length) or two circles / arcs (same size)",
+    ),
+    (
+        "c_tangent",
+        "Tangent",
+        "Click a line and an arc / circle, or two arcs / circles",
+    ),
     ("c_concentric", "Concentric", "Click two circles or arcs"),
     ("c_midpoint", "Midpoint", "Click a point, then a line"),
     ("c_fix", "Fix", "Click a point or shape to lock it in place"),
-    ("c_symmetric", "Symmetric", "Click two points, then the line they mirror about"),
+    (
+        "c_symmetric",
+        "Symmetric",
+        "Click two points, then the line they mirror about",
+    ),
     (
         "c_dimension",
         "Smart Dimension",
@@ -56,7 +76,12 @@ pub struct PickOpts {
 
 impl Default for PickOpts {
     fn default() -> Self {
-        PickOpts { refs: false, sides: false, axes: true, points: true }
+        PickOpts {
+            refs: false,
+            sides: false,
+            axes: true,
+            points: true,
+        }
     }
 }
 
@@ -69,7 +94,11 @@ pub fn pick_ref(s: &SketchSession, vp: &Viewport, uv: P2, o: PickOpts) -> Option
     let px = vp.pixel_size(s.to_3(uv));
     let px = if px.is_finite() && px > 0.0 { px } else { 0.1 };
     let fixed = fixed_ents(s);
-    let pool: Vec<&Entity> = if o.refs { s.entities.iter().chain(fixed.iter()).collect() } else { s.entities.iter().collect() };
+    let pool: Vec<&Entity> = if o.refs {
+        s.entities.iter().chain(fixed.iter()).collect()
+    } else {
+        s.entities.iter().collect()
+    };
     let is_ref = |id: &str| fixed.iter().any(|f| f.id() == Some(id));
     if o.points {
         let (mut best, mut bd) = (None, 9.0 * px);
@@ -104,7 +133,13 @@ pub fn pick_ref(s: &SketchSession, vp: &Viewport, uv: P2, o: PickOpts) -> Option
             continue;
         }
         // the sketch's own shapes win over part edges, and those over the axes, when close
-        let pen = if is_axis(id) { 4.0 * px } else if is_ref(id) { 2.0 * px } else { 0.0 };
+        let pen = if is_axis(id) {
+            4.0 * px
+        } else if is_ref(id) {
+            2.0 * px
+        } else {
+            0.0
+        };
         let d = dist_to_entity(e, uv) + pen;
         if d < bed {
             bed = d;
@@ -113,19 +148,23 @@ pub fn pick_ref(s: &SketchSession, vp: &Viewport, uv: P2, o: PickOpts) -> Option
     }
     let be = be?;
     let id = be.id()?;
-    if let (true, Entity::Rect(r)) = (o.sides, be) {
-        if r.angle.unwrap_or(0.0) == 0.0 {
-            let c: Vec<P2> = ["c0", "c1", "c2", "c3"].iter().filter_map(|k| point(be, k)).collect();
-            let (mut side, mut sd) = (0i64, f64::INFINITY);
-            for i in 0..4 {
-                let d = seg_dist(uv, c[i], c[(i + 1) % 4]);
-                if d < sd {
-                    sd = d;
-                    side = i as i64;
-                }
+    if let (true, Entity::Rect(r)) = (o.sides, be)
+        && r.angle.unwrap_or(0.0) == 0.0
+    {
+        let c: Vec<P2> = ["c0", "c1", "c2", "c3"].iter().filter_map(|k| point(be, k)).collect();
+        let (mut side, mut sd) = (0i64, f64::INFINITY);
+        for i in 0..4 {
+            let d = seg_dist(uv, c[i], c[(i + 1) % 4]);
+            if d < sd {
+                sd = d;
+                side = i as i64;
             }
-            return Some(Ref { e: id.to_string(), k: None, side: Some(side) });
         }
+        return Some(Ref {
+            e: id.to_string(),
+            k: None,
+            side: Some(side),
+        });
     }
     Some(Ref::ent(id))
 }
@@ -142,7 +181,9 @@ pub fn add_constraint(s: &mut SketchSession, c: Constraint) -> Vec<SketchEffect>
     let r = solve(&s.entities, &cons, &[], &fixed_ents(s));
     if !r.ok {
         s.history.pop();
-        return vec![warn("That would conflict with the existing constraints (over-constrained).")];
+        return vec![warn(
+            "That would conflict with the existing constraints (over-constrained).",
+        )];
     }
     s.constraints.push(cc);
     s.entities = r.entities;
@@ -188,7 +229,12 @@ struct RelTool {
 /// One tool for each `CTOOLS` key.
 pub fn tool_for(key: &str) -> Option<Box<dyn SketchTool>> {
     let (k, _, hint) = CTOOLS.iter().find(|(k, _, _)| *k == key)?;
-    Some(Box::new(RelTool { key: k, hint, picks: Vec::new(), cand: None }))
+    Some(Box::new(RelTool {
+        key: k,
+        hint,
+        picks: Vec::new(),
+        cand: None,
+    }))
 }
 
 impl RelTool {
@@ -209,12 +255,26 @@ impl RelTool {
             }
             return self.hint.into();
         }
-        if self.picks.is_empty() { self.hint.into() } else { format!("{} · {} picked", self.hint, self.picks.len()) }
+        if self.picks.is_empty() {
+            self.hint.into()
+        } else {
+            format!("{} · {} picked", self.hint, self.picks.len())
+        }
     }
 
     /// `constraintClick` for the relation tools.
     fn constraint_click(&mut self, cx: &mut ToolCx, uv: P2) {
-        let Some(pick) = pick_ref(cx.s, cx.vp, uv, PickOpts { refs: true, ..Default::default() }) else { return };
+        let Some(pick) = pick_ref(
+            cx.s,
+            cx.vp,
+            uv,
+            PickOpts {
+                refs: true,
+                ..Default::default()
+            },
+        ) else {
+            return;
+        };
         let fixed = fixed_ids(cx.s);
         if self.key == "c_fix" && fixed.contains(&pick.e) {
             cx.out.push(warn("Part edges and the origin are fixed already."));
@@ -234,7 +294,9 @@ impl RelTool {
                 self.picks.clear();
                 let refs = [&c.a, &c.b, &c.c];
                 if refs.into_iter().flatten().all(|r| fixed.contains(&r.e)) {
-                    cx.out.push(warn("Pick at least one shape of the sketch: part edges and the origin don't move."));
+                    cx.out.push(warn(
+                        "Pick at least one shape of the sketch: part edges and the origin don't move.",
+                    ));
                 } else {
                     let fx = add_constraint(cx.s, c);
                     cx.out.extend(fx);
@@ -245,9 +307,16 @@ impl RelTool {
 
     /// `dimClick`.
     fn dim_click(&mut self, cx: &mut ToolCx, uv: P2) {
-        let o = PickOpts { refs: true, sides: true, axes: self.cand.is_none(), points: true };
+        let o = PickOpts {
+            refs: true,
+            sides: true,
+            axes: self.cand.is_none(),
+            points: true,
+        };
         let pick = pick_ref(cx.s, cx.vp, uv, o);
-        let same = pick.as_ref().is_some_and(|p| self.picks.iter().any(|q| q.e == p.e && q.k == p.k && q.side == p.side));
+        let same = pick
+            .as_ref()
+            .is_some_and(|p| self.picks.iter().any(|q| q.e == p.e && q.k == p.k && q.side == p.side));
         if let Some(p) = pick.filter(|_| !same && self.picks.len() < 2) {
             self.picks.push(p);
             let all = all_ents(cx.s);
@@ -330,7 +399,11 @@ impl SketchTool for RelTool {
     }
 
     fn picks_geometry(&self) -> bool {
-        if self.key == "c_dimension" { !self.picks.is_empty() } else { true }
+        if self.key == "c_dimension" {
+            !self.picks.is_empty()
+        } else {
+            true
+        }
     }
 
     fn preview(&self, _s: &SketchSession) -> Vec<SketchOutline> {
@@ -364,12 +437,7 @@ pub fn glyph(kind: &str) -> Option<&'static str> {
     })
 }
 
-fn outline_shapes(
-    sc: &impl Fn(P2) -> egui::Pos2,
-    e: &Entity,
-    stroke: Stroke,
-    dashed: bool,
-) -> Vec<Shape> {
+fn outline_shapes(sc: &impl Fn(P2) -> egui::Pos2, e: &Entity, stroke: Stroke, dashed: bool) -> Vec<Shape> {
     let (pts, closed) = outline(e);
     let mut p: Vec<egui::Pos2> = pts.iter().map(|q| sc(*q)).collect();
     if closed && !p.is_empty() {
@@ -402,9 +470,17 @@ pub fn paint(ui: &egui::Ui, s: &mut SketchSession, vp: &Viewport, inch: bool) ->
             .and_then(|p| vp.ray_to_plane(p, &s.frame))
             .and_then(|p3| {
                 let o = if s.tool == "c_dimension" {
-                    PickOpts { refs: true, sides: true, axes: pend.cand.is_none(), points: true }
+                    PickOpts {
+                        refs: true,
+                        sides: true,
+                        axes: pend.cand.is_none(),
+                        points: true,
+                    }
                 } else {
-                    PickOpts { refs: true, ..Default::default() }
+                    PickOpts {
+                        refs: true,
+                        ..Default::default()
+                    }
                 };
                 pick_ref(s, vp, s.to_uv(p3), o)
             })
@@ -419,7 +495,11 @@ pub fn paint(ui: &egui::Ui, s: &mut SketchSession, vp: &Viewport, inch: bool) ->
     let picked = |id: &str| pend.picks.iter().any(|p| p.e == id);
 
     // part edges
-    let dot_col = if ui.visuals().dark_mode { Color32::from_rgb(0xe9, 0xec, 0xef) } else { Color32::from_rgb(0x49, 0x50, 0x57) };
+    let dot_col = if ui.visuals().dark_mode {
+        Color32::from_rgb(0xe9, 0xec, 0xef)
+    } else {
+        Color32::from_rgb(0x49, 0x50, 0x57)
+    };
     for r in &s.refs {
         let Some(id) = r.ent.id() else { continue };
         let hl = if picked(id) || in_sel.contains(&id) {
@@ -448,7 +528,9 @@ pub fn paint(ui: &egui::Ui, s: &mut SketchSession, vp: &Viewport, inch: bool) ->
     }
     // picks and hover on the sketch's own shapes
     let mark = |p: &Ref, col: Color32| {
-        let Some(e) = s.entities.iter().find(|e| e.id() == Some(p.e.as_str())) else { return };
+        let Some(e) = s.entities.iter().find(|e| e.id() == Some(p.e.as_str())) else {
+            return;
+        };
         if let Some(q) = p.k.as_deref().and_then(|k| point(e, k)) {
             painter.circle_filled(sc(q), 4.0, col);
         } else {
@@ -460,10 +542,10 @@ pub fn paint(ui: &egui::Ui, s: &mut SketchSession, vp: &Viewport, inch: bool) ->
     for p in &pend.picks {
         mark(p, COL_SEL);
     }
-    if let Some(h) = &hover {
-        if !pend.picks.contains(h) {
-            mark(h, COL_HOVER);
-        }
+    if let Some(h) = &hover
+        && !pend.picks.contains(h)
+    {
+        mark(h, COL_HOVER);
     }
 
     // glyph chips (spec 2.3): one per constraint, the dense ones hidden; a click selects the
@@ -471,7 +553,11 @@ pub fn paint(ui: &egui::Ui, s: &mut SketchSession, vp: &Viewport, inch: bool) ->
     let passive = dims::passive(s);
     let px = super::snap::px_at(s, vp, [0.0, 0.0]);
     let mut clicked = None;
-    let chips = if glyphs::shown() { glyphs::visible(&glyphs::spots(s), s.sel_c, px) } else { Vec::new() };
+    let chips = if glyphs::shown() {
+        glyphs::visible(&glyphs::spots(s), s.sel_c, px)
+    } else {
+        Vec::new()
+    };
     for (k, gl) in chips.into_iter().enumerate() {
         let i = gl.constraint;
         let bad = st.conflicts.contains(&i);
@@ -488,10 +574,17 @@ pub fn paint(ui: &egui::Ui, s: &mut SketchSession, vp: &Viewport, inch: bool) ->
         } else {
             (t.cg_bg, t.cg_text, t.cg_line)
         };
-        let r = ui.interact(rect, ui.scope_id().with(("sk_glyph", i, k)), if passive { Sense::hover() } else { Sense::click() });
+        let r = ui.interact(
+            rect,
+            ui.scope_id().with(("sk_glyph", i, k)),
+            if passive { Sense::hover() } else { Sense::click() },
+        );
         let name = format!("{} relation", dims::type_label(&gl.kind));
         r.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, name.clone()));
-        let r = r.on_hover_text(format!("{} · click to select, Delete to remove", dims::type_label(&gl.kind)));
+        let r = r.on_hover_text(format!(
+            "{} · click to select, Delete to remove",
+            dims::type_label(&gl.kind)
+        ));
         painter.rect_filled(rect, 3.0, bg);
         painter.rect_stroke(rect, 3.0, Stroke::new(1.0, line), StrokeKind::Inside);
         let galley = painter.layout_no_wrap(text, font, fg);

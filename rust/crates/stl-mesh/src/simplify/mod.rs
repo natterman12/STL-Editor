@@ -21,7 +21,10 @@ fn solid_from(v: &[f64], f: &[u32]) -> Option<Solid> {
     if f.is_empty() {
         return None;
     }
-    let m = MeshArrays { positions: v.iter().map(|&x| x as f32).collect(), triangles: f.to_vec() };
+    let m = MeshArrays {
+        positions: v.iter().map(|&x| x as f32).collect(),
+        triangles: f.to_vec(),
+    };
     Solid::from_mesh(&m).ok()
 }
 

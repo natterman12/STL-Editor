@@ -14,9 +14,9 @@ use egui_kittest::Harness;
 use stl_app::engine_link::native::NativeLink;
 use stl_app::engine_link::{Command, EngineLink, ExportFormat, Level, Update};
 use stl_app::platform::{Pending, PickedFile, Platform};
+use stl_app::ui::UiEvent;
 use stl_app::ui::files::{FileAction, Files};
 use stl_app::ui::keys::{self, KeyAction, KeyState};
-use stl_app::ui::UiEvent;
 
 // ------------------------------------------------------------------ fakes
 
@@ -45,11 +45,17 @@ impl Platform for FakePlatform {
             (f, path)
         }))
     }
-    fn save_file_path(&self, suggested: &str, bytes: Vec<u8>) -> Pending<Result<stl_app::platform::SaveOutcome, String>> {
+    fn save_file_path(
+        &self,
+        suggested: &str,
+        bytes: Vec<u8>,
+    ) -> Pending<Result<stl_app::platform::SaveOutcome, String>> {
         use stl_app::platform::SaveOutcome;
         *self.dialogs.lock().unwrap() += 1;
         self.saved.lock().unwrap().push((suggested.to_string(), bytes));
-        Pending::ready(Ok(SaveOutcome::Done(self.with_paths.then(|| format!("C:/fake/{suggested}")))))
+        Pending::ready(Ok(SaveOutcome::Done(
+            self.with_paths.then(|| format!("C:/fake/{suggested}")),
+        )))
     }
     fn save_to(&self, path: &str, bytes: Vec<u8>) -> Pending<Result<bool, String>> {
         if self.fail_writes {
@@ -59,7 +65,12 @@ impl Platform for FakePlatform {
         Pending::ready(Ok(true))
     }
     fn open_file(&self, filters: &[(&str, &[&str])]) -> Pending<Option<PickedFile>> {
-        self.filters.lock().unwrap().push(filters.iter().flat_map(|(_, e)| e.iter().map(|s| s.to_string())).collect());
+        self.filters.lock().unwrap().push(
+            filters
+                .iter()
+                .flat_map(|(_, e)| e.iter().map(|s| s.to_string()))
+                .collect(),
+        );
         let next = self.picks.lock().unwrap().pop().unwrap_or(None);
         Pending::ready(next)
     }
@@ -97,7 +108,10 @@ fn fixture_dir() -> PathBuf {
 
 fn fixture(name: &str) -> PickedFile {
     let p = fixture_dir().join(name);
-    PickedFile { name: name.to_string(), bytes: std::fs::read(&p).unwrap_or_else(|e| panic!("{}: {e}", p.display())) }
+    PickedFile {
+        name: name.to_string(),
+        bytes: std::fs::read(&p).unwrap_or_else(|e| panic!("{}: {e}", p.display())),
+    }
 }
 
 /// Runs the link and the file logic until both are idle; returns the toasts.
@@ -163,7 +177,12 @@ fn open_save_round_trip() {
         let saved = platform.saved.lock().unwrap().clone();
         assert_eq!(saved.len(), 1, "{name}: one file written");
         assert_eq!(saved[0].0, name, "the suggested name is the project's");
-        assert!(toasts.iter().any(|(l, t)| *l == Level::Success && t == &format!("Saved {name}")), "{toasts:?}");
+        assert!(
+            toasts
+                .iter()
+                .any(|(l, t)| *l == Level::Success && t == &format!("Saved {name}")),
+            "{toasts:?}"
+        );
         std::fs::write(out_dir.join(name), &saved[0].1).unwrap();
     }
 
@@ -195,7 +214,10 @@ fn open_fixture(platform: &FakePlatform, files: &mut Files, link: &NativeLink, n
 
 #[test]
 fn save_reuses_path() {
-    let platform = FakePlatform { with_paths: true, ..Default::default() };
+    let platform = FakePlatform {
+        with_paths: true,
+        ..Default::default()
+    };
     let link = NativeLink::new();
     let mut files = Files::new();
     open_fixture(&platform, &mut files, &link, "basic.stlx");
@@ -204,7 +226,12 @@ fn save_reuses_path() {
     for _ in 0..2 {
         files.start(&platform, &link, FileAction::Save, None);
         let toasts = settle(&mut files, &platform, &link);
-        assert!(toasts.iter().any(|(l, t)| *l == Level::Success && t == "Saved basic.stlx"), "{toasts:?}");
+        assert!(
+            toasts
+                .iter()
+                .any(|(l, t)| *l == Level::Success && t == "Saved basic.stlx"),
+            "{toasts:?}"
+        );
     }
     assert_eq!(*platform.dialogs.lock().unwrap(), 0, "no dialog");
     let silent = platform.silent.lock().unwrap().clone();
@@ -221,12 +248,18 @@ fn save_reuses_path() {
     files.start(&platform, &link, FileAction::Save, None);
     settle(&mut files, &platform, &link);
     assert_eq!(*platform.dialogs.lock().unwrap(), 1, "the second Save reuses the path");
-    assert_eq!(platform.silent.lock().unwrap().last().unwrap().0, "C:/fake/Untitled.stlx");
+    assert_eq!(
+        platform.silent.lock().unwrap().last().unwrap().0,
+        "C:/fake/Untitled.stlx"
+    );
 }
 
 #[test]
 fn save_as_always_asks() {
-    let platform = FakePlatform { with_paths: true, ..Default::default() };
+    let platform = FakePlatform {
+        with_paths: true,
+        ..Default::default()
+    };
     let link = NativeLink::new();
     let mut files = Files::new();
     open_fixture(&platform, &mut files, &link, "basic.stlx");
@@ -260,14 +293,27 @@ fn accepted() -> Vec<Update> {
     vec![Update::Busy(true), Update::Bodies(Vec::new()), Update::Busy(false)]
 }
 fn refused() -> Vec<Update> {
-    vec![Update::Busy(true), Update::Bodies(Vec::new()), Update::Error("bad file".into()), Update::Busy(false)]
+    vec![
+        Update::Busy(true),
+        Update::Bodies(Vec::new()),
+        Update::Error("bad file".into()),
+        Update::Busy(false),
+    ]
 }
 
 #[test]
 fn failed_open_changes_nothing() {
-    let platform = FakePlatform { with_paths: true, ..Default::default() };
+    let platform = FakePlatform {
+        with_paths: true,
+        ..Default::default()
+    };
     let (link, mut files) = (RecLink::default(), Files::new());
-    let pick = |name: &str| platform.picks.lock().unwrap().push(Some(PickedFile { name: name.into(), bytes: vec![1] }));
+    let pick = |name: &str| {
+        platform.picks.lock().unwrap().push(Some(PickedFile {
+            name: name.into(),
+            bytes: vec![1],
+        }))
+    };
 
     pick("good.stlx");
     files.start(&platform, &link, FileAction::Open, None);
@@ -281,7 +327,10 @@ fn failed_open_changes_nothing() {
     // the bodies and the error may even arrive in separate polls
     let a = files.poll(&platform, &link, &refused()[..2]);
     let b = files.poll(&platform, &link, &refused()[2..]);
-    assert!(!a.view_iso && !b.view_iso, "a failed open must not mark the document clean");
+    assert!(
+        !a.view_iso && !b.view_iso,
+        "a failed open must not mark the document clean"
+    );
     assert_eq!(files.recent_names(), vec!["good.stlx".to_string()]);
 
     // Save goes back to the good file's path, not the bad one
@@ -295,9 +344,17 @@ fn failed_open_changes_nothing() {
 
 #[test]
 fn earlier_command_does_not_commit_a_failing_open() {
-    let platform = FakePlatform { with_paths: true, ..Default::default() };
+    let platform = FakePlatform {
+        with_paths: true,
+        ..Default::default()
+    };
     let (link, mut files) = (RecLink::default(), Files::new());
-    let pick = |name: &str| platform.picks.lock().unwrap().push(Some(PickedFile { name: name.into(), bytes: vec![1] }));
+    let pick = |name: &str| {
+        platform.picks.lock().unwrap().push(Some(PickedFile {
+            name: name.into(),
+            bytes: vec![1],
+        }))
+    };
     pick("good.stlx");
     files.start(&platform, &link, FileAction::Open, None);
     files.poll(&platform, &link, &[]);
@@ -310,7 +367,10 @@ fn earlier_command_does_not_commit_a_failing_open() {
     files.poll(&platform, &link, &[]);
     // the slow command finishes: it must not settle the Open
     let a = files.poll(&platform, &link, &[Update::Bodies(Vec::new()), Update::Busy(false)]);
-    assert!(!a.view_iso && files.project_name.as_deref() == Some("good"), "the earlier command's end is not the Open's");
+    assert!(
+        !a.view_iso && files.project_name.as_deref() == Some("good"),
+        "the earlier command's end is not the Open's"
+    );
     assert_eq!(files.recent_names(), vec!["good.stlx".to_string()]);
     // then the Open runs and fails
     let b = files.poll(&platform, &link, &refused());
@@ -321,9 +381,16 @@ fn earlier_command_does_not_commit_a_failing_open() {
 
 #[test]
 fn failed_write_is_not_in_recent() {
-    let platform = FakePlatform { with_paths: true, fail_writes: true, ..Default::default() };
+    let platform = FakePlatform {
+        with_paths: true,
+        fail_writes: true,
+        ..Default::default()
+    };
     let (link, mut files) = (RecLink::default(), Files::new());
-    platform.picks.lock().unwrap().push(Some(PickedFile { name: "a.stlx".into(), bytes: vec![1] }));
+    platform.picks.lock().unwrap().push(Some(PickedFile {
+        name: "a.stlx".into(),
+        bytes: vec![1],
+    }));
     files.start(&platform, &link, FileAction::Open, None);
     files.poll(&platform, &link, &[]);
     files.poll(&platform, &link, &accepted());
@@ -342,22 +409,35 @@ fn failed_write_is_not_saved() {
     };
     // a project opened with a path: Save writes silently
     let open = |p: &FakePlatform, files: &mut Files, link: &RecLink| {
-        p.picks.lock().unwrap().push(Some(PickedFile { name: "a.stlx".into(), bytes: vec![1] }));
+        p.picks.lock().unwrap().push(Some(PickedFile {
+            name: "a.stlx".into(),
+            bytes: vec![1],
+        }));
         files.start(p, link, FileAction::Open, None);
         files.poll(p, link, &[]);
         files.poll(p, link, &accepted());
     };
 
-    let bad = FakePlatform { with_paths: true, fail_writes: true, ..Default::default() };
+    let bad = FakePlatform {
+        with_paths: true,
+        fail_writes: true,
+        ..Default::default()
+    };
     let (link, mut files) = (RecLink::default(), Files::new());
     open(&bad, &mut files, &link);
     let out = saved_bytes(&bad, &mut files, &link);
     let out2 = files.poll(&bad, &link, &[]);
-    assert!(!out.saved && !out2.saved, "a failed write must not mark the document clean");
+    assert!(
+        !out.saved && !out2.saved,
+        "a failed write must not mark the document clean"
+    );
     let all: Vec<_> = out.messages.iter().chain(&out2.messages).collect();
     assert!(all.iter().any(|(l, _)| *l == Level::Error), "{all:?}");
 
-    let good = FakePlatform { with_paths: true, ..Default::default() };
+    let good = FakePlatform {
+        with_paths: true,
+        ..Default::default()
+    };
     let (link, mut files) = (RecLink::default(), Files::new());
     open(&good, &mut files, &link);
     let out = saved_bytes(&good, &mut files, &link);
@@ -370,28 +450,50 @@ fn failed_write_is_not_saved() {
     files.start(&good, &link, FileAction::SaveAs, None);
     files.poll(&good, &link, &[Update::Error("x".into())]);
     files.poll(&good, &link, &[Update::Saved { bytes: vec![1] }]);
-    assert_eq!(*good.dialogs.lock().unwrap(), 0, "plain Save after an error must not ask");
+    assert_eq!(
+        *good.dialogs.lock().unwrap(),
+        0,
+        "plain Save after an error must not ask"
+    );
 }
 
 #[test]
 fn mesh_open_sets_no_project_path() {
-    let platform = FakePlatform { with_paths: true, ..Default::default() };
+    let platform = FakePlatform {
+        with_paths: true,
+        ..Default::default()
+    };
     let (link, mut files) = (RecLink::default(), Files::new());
-    platform.picks.lock().unwrap().push(Some(PickedFile { name: "part.stl".into(), bytes: vec![1, 2, 3] }));
+    platform.picks.lock().unwrap().push(Some(PickedFile {
+        name: "part.stl".into(),
+        bytes: vec![1, 2, 3],
+    }));
     files.start(&platform, &link, FileAction::Open, None);
     files.poll(&platform, &link, &[]);
     files.start(&platform, &link, FileAction::Save, None);
     files.poll(&platform, &link, &[Update::Saved { bytes: vec![1] }]);
-    assert!(platform.silent.lock().unwrap().is_empty(), "a mesh path is not where the project goes");
+    assert!(
+        platform.silent.lock().unwrap().is_empty(),
+        "a mesh path is not where the project goes"
+    );
     assert_eq!(*platform.dialogs.lock().unwrap(), 1);
 }
 
 #[test]
 fn bare_save_as_name_gets_stlx() {
     use stl_app::platform::native::with_project_ext;
-    assert_eq!(with_project_ext(PathBuf::from("C:/x/foo")), PathBuf::from("C:/x/foo.stlx"));
-    assert_eq!(with_project_ext(PathBuf::from("C:/x/foo.v2")), PathBuf::from("C:/x/foo.v2.stlx"));
-    assert_eq!(with_project_ext(PathBuf::from("C:/x/foo.STLX")), PathBuf::from("C:/x/foo.STLX"));
+    assert_eq!(
+        with_project_ext(PathBuf::from("C:/x/foo")),
+        PathBuf::from("C:/x/foo.stlx")
+    );
+    assert_eq!(
+        with_project_ext(PathBuf::from("C:/x/foo.v2")),
+        PathBuf::from("C:/x/foo.v2.stlx")
+    );
+    assert_eq!(
+        with_project_ext(PathBuf::from("C:/x/foo.STLX")),
+        PathBuf::from("C:/x/foo.STLX")
+    );
 }
 
 #[test]
@@ -399,7 +501,10 @@ fn import_adds_a_body_and_refuses_projects() {
     let platform = FakePlatform::default();
     let link = RecLink::default();
     let mut files = Files::new();
-    platform.picks.lock().unwrap().push(Some(PickedFile { name: "part.stl".into(), bytes: vec![1, 2, 3] }));
+    platform.picks.lock().unwrap().push(Some(PickedFile {
+        name: "part.stl".into(),
+        bytes: vec![1, 2, 3],
+    }));
     files.start(&platform, &link, FileAction::Import, None);
     let out = files.poll(&platform, &link, &[]);
     assert!(out.messages.is_empty());
@@ -423,7 +528,12 @@ fn export_each_format() {
     files.start(&platform, &link, FileAction::Open, None);
     settle(&mut files, &platform, &link);
 
-    for (format, ext) in [(ExportFormat::Stl, "stl"), (ExportFormat::ThreeMf, "3mf"), (ExportFormat::Obj, "obj"), (ExportFormat::Step, "step")] {
+    for (format, ext) in [
+        (ExportFormat::Stl, "stl"),
+        (ExportFormat::ThreeMf, "3mf"),
+        (ExportFormat::Obj, "obj"),
+        (ExportFormat::Step, "step"),
+    ] {
         let before = platform.saved.lock().unwrap().len();
         files.start(&platform, &link, FileAction::Export(format), None);
         let toasts = settle(&mut files, &platform, &link);
@@ -431,16 +541,23 @@ fn export_each_format() {
         assert_eq!(saved.len(), before + 1, "{ext}: one file offered");
         let (name, bytes) = saved.last().unwrap();
         assert!(name.ends_with(&format!(".{ext}")), "{ext}: suggested name {name}");
-        assert!(!name.starts_with('.') && name.len() > ext.len() + 1, "{ext}: the name has a base ({name})");
+        assert!(
+            !name.starts_with('.') && name.len() > ext.len() + 1,
+            "{ext}: the name has a base ({name})"
+        );
         assert!(!bytes.is_empty(), "{ext}: empty file");
         match ext {
             "3mf" => assert_eq!(&bytes[..2], b"PK", "a zip"),
-            "obj" => assert!(String::from_utf8_lossy(bytes).contains("\nv ") || String::from_utf8_lossy(bytes).starts_with("v ")),
+            "obj" => assert!(
+                String::from_utf8_lossy(bytes).contains("\nv ") || String::from_utf8_lossy(bytes).starts_with("v ")
+            ),
             "step" => assert!(String::from_utf8_lossy(bytes).contains("ISO-10303-21")),
             _ => {}
         }
         assert!(
-            toasts.iter().any(|(l, t)| *l == Level::Success && t.starts_with("Exported ") && t.ends_with(name.as_str())),
+            toasts
+                .iter()
+                .any(|(l, t)| *l == Level::Success && t.starts_with("Exported ") && t.ends_with(name.as_str())),
             "{ext}: {toasts:?}"
         );
     }
@@ -451,9 +568,20 @@ fn export_passes_ids_and_date() {
     let platform = FakePlatform::default();
     let link = RecLink::default();
     let mut files = Files::new();
-    files.start(&platform, &link, FileAction::Export(ExportFormat::Obj), Some(vec!["b1".into()]));
+    files.start(
+        &platform,
+        &link,
+        FileAction::Export(ExportFormat::Obj),
+        Some(vec!["b1".into()]),
+    );
     match &link.sent.lock().unwrap()[..] {
-        [Command::Export { format: ExportFormat::Obj, ids: Some(ids), date }] => {
+        [
+            Command::Export {
+                format: ExportFormat::Obj,
+                ids: Some(ids),
+                date,
+            },
+        ] => {
             assert_eq!(ids, &vec!["b1".to_string()]);
             assert_eq!(date, "2026-11-12T10:00:00");
         }
@@ -488,7 +616,10 @@ fn drop_opens_file() {
     });
 
     // while a file is dragged over, the overlay is up
-    harness.input_mut().hovered_files.push(egui::HoveredFile { path: Some(stl.clone()), mime: String::new() });
+    harness.input_mut().hovered_files.push(egui::HoveredFile {
+        path: Some(stl.clone()),
+        mime: String::new(),
+    });
     harness.run_steps(2);
     assert!(files.lock().unwrap().dragging, "the drop overlay shows while dragging");
     harness.input_mut().hovered_files.clear();
@@ -501,14 +632,23 @@ fn drop_opens_file() {
     harness.run();
     {
         let sent = link.sent.lock().unwrap();
-        assert!(matches!(&sent[..], [Command::Import { name, bytes }] if name == "dropped.stl" && bytes.starts_with(b"solid")), "{sent:?}");
+        assert!(
+            matches!(&sent[..], [Command::Import { name, bytes }] if name == "dropped.stl" && bytes.starts_with(b"solid")),
+            "{sent:?}"
+        );
     }
 
     // dropping a project is refused with the 1.x hint
     harness.input_mut().dropped_files.push(Arc::new(PathFile(stlx)));
     harness.run();
     assert_eq!(link.sent.lock().unwrap().len(), 1, "no second command");
-    assert!(outcome.lock().unwrap().iter().any(|(l, t)| *l == Level::Warning && t == "Use File › Open for projects."));
+    assert!(
+        outcome
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|(l, t)| *l == Level::Warning && t == "Use File › Open for projects.")
+    );
 }
 
 #[derive(Debug)]
@@ -532,7 +672,11 @@ fn ctrl() -> Modifiers {
     Modifiers::CTRL
 }
 fn ctrl_shift() -> Modifiers {
-    Modifiers { ctrl: true, shift: true, ..Modifiers::NONE }
+    Modifiers {
+        ctrl: true,
+        shift: true,
+        ..Modifiers::NONE
+    }
 }
 fn shift() -> Modifiers {
     Modifiers::SHIFT
@@ -557,8 +701,8 @@ fn press(key: Key, mods: Modifiers, state: KeyState, field: bool) -> Vec<KeyActi
     harness.run();
     harness.key_press_modifiers(mods, key);
     harness.run();
-    let v = got.lock().unwrap().clone();
-    v
+
+    got.lock().unwrap().clone()
 }
 
 fn st() -> KeyState {
@@ -568,12 +712,32 @@ fn st() -> KeyState {
 #[test]
 fn every_onkey_binding() {
     use KeyAction as A;
-    let tool = KeyState { tool_open: true, ..st() };
-    let sel = KeyState { selection_nonempty: true, ..st() };
-    let gizmo = KeyState { tool_open: true, tool_gizmo_move: true, ..st() };
-    let mode = KeyState { mode_not_model: true, ..st() };
-    let sk = KeyState { sketcher_active: true, ..st() };
-    let walls = KeyState { walls_active: true, walls_pending: true, ..st() };
+    let tool = KeyState {
+        tool_open: true,
+        ..st()
+    };
+    let sel = KeyState {
+        selection_nonempty: true,
+        ..st()
+    };
+    let gizmo = KeyState {
+        tool_open: true,
+        tool_gizmo_move: true,
+        ..st()
+    };
+    let mode = KeyState {
+        mode_not_model: true,
+        ..st()
+    };
+    let sk = KeyState {
+        sketcher_active: true,
+        ..st()
+    };
+    let walls = KeyState {
+        walls_active: true,
+        walls_pending: true,
+        ..st()
+    };
 
     // (name, key, modifiers, state, expected actions)
     let table: Vec<(&str, Key, Modifiers, KeyState, Vec<KeyAction>)> = vec![
@@ -590,12 +754,34 @@ fn every_onkey_binding() {
         ("ctrl+shift+z", Key::Z, ctrl_shift(), st(), vec![A::Undo]),
         ("escape with a tool", Key::Escape, none(), tool, vec![A::PanelCancel]),
         ("escape in a mode", Key::Escape, none(), mode, vec![A::PanelCancel]),
-        ("escape with nothing open", Key::Escape, none(), st(), vec![A::ClearSelection]),
+        (
+            "escape with nothing open",
+            Key::Escape,
+            none(),
+            st(),
+            vec![A::ClearSelection],
+        ),
         ("enter with a tool", Key::Enter, none(), tool, vec![A::PanelOk]),
         ("enter with no tool", Key::Enter, none(), st(), vec![]),
-        ("delete with a selection", Key::Delete, none(), sel, vec![A::Tool("delete")]),
+        (
+            "delete with a selection",
+            Key::Delete,
+            none(),
+            sel,
+            vec![A::Tool("delete")],
+        ),
         ("delete with nothing selected", Key::Delete, none(), st(), vec![]),
-        ("delete with a tool open", Key::Delete, none(), KeyState { tool_open: true, selection_nonempty: true, ..st() }, vec![]),
+        (
+            "delete with a tool open",
+            Key::Delete,
+            none(),
+            KeyState {
+                tool_open: true,
+                selection_nonempty: true,
+                ..st()
+            },
+            vec![],
+        ),
         ("s", Key::S, none(), st(), vec![A::BeginSketch]),
         ("shift+s", Key::S, shift(), st(), vec![A::BeginSketch]),
         ("e", Key::E, none(), st(), vec![A::Tool("extrude")]),
@@ -603,8 +789,20 @@ fn every_onkey_binding() {
         ("m", Key::M, none(), st(), vec![A::Tool("move")]),
         ("f", Key::F, none(), st(), vec![A::Fit]),
         ("x", Key::X, none(), st(), vec![A::ToggleCut]),
-        ("w with the move gizmo", Key::W, none(), gizmo, vec![A::Gizmo { rotate: false }]),
-        ("r with the move gizmo", Key::R, none(), gizmo, vec![A::Gizmo { rotate: true }]),
+        (
+            "w with the move gizmo",
+            Key::W,
+            none(),
+            gizmo,
+            vec![A::Gizmo { rotate: false }],
+        ),
+        (
+            "r with the move gizmo",
+            Key::R,
+            none(),
+            gizmo,
+            vec![A::Gizmo { rotate: true }],
+        ),
         ("w without it", Key::W, none(), st(), vec![]),
         ("1 front", Key::Num1, none(), st(), vec![A::View("front")]),
         ("2 back", Key::Num2, none(), st(), vec![A::View("back")]),
@@ -615,9 +813,36 @@ fn every_onkey_binding() {
         ("0 iso", Key::Num0, none(), st(), vec![A::View("iso")]),
         ("shift+1 is not a view key", Key::Num1, shift(), st(), vec![]),
         ("ctrl+e is not extrude", Key::E, ctrl(), st(), vec![]),
-        ("walls: enter finishes", Key::Enter, none(), walls, vec![A::Walls(keys::KeyPress { key: Key::Enter, mods: none() })]),
-        ("walls: backspace undoes a point", Key::Backspace, none(), walls, vec![A::Walls(keys::KeyPress { key: Key::Backspace, mods: none() })]),
-        ("sketcher gets plain keys", Key::L, none(), sk, vec![A::Sketcher(keys::KeyPress { key: Key::L, mods: none() })]),
+        (
+            "walls: enter finishes",
+            Key::Enter,
+            none(),
+            walls,
+            vec![A::Walls(keys::KeyPress {
+                key: Key::Enter,
+                mods: none(),
+            })],
+        ),
+        (
+            "walls: backspace undoes a point",
+            Key::Backspace,
+            none(),
+            walls,
+            vec![A::Walls(keys::KeyPress {
+                key: Key::Backspace,
+                mods: none(),
+            })],
+        ),
+        (
+            "sketcher gets plain keys",
+            Key::L,
+            none(),
+            sk,
+            vec![A::Sketcher(keys::KeyPress {
+                key: Key::L,
+                mods: none(),
+            })],
+        ),
         ("sketcher still gets file keys first", Key::S, ctrl(), sk, vec![A::Save]),
     ];
     for (name, key, mods, state, want) in table {
@@ -641,18 +866,38 @@ fn keys_while_a_text_field_has_focus() {
         ("ctrl+z", Key::Z, ctrl()),
         ("ctrl+y", Key::Y, ctrl()),
     ] {
-        let state = KeyState { selection_nonempty: true, tool_open: true, ..st() };
-        assert!(press(key, mods, state, true).is_empty(), "{name} must be left to the text box");
+        let state = KeyState {
+            selection_nonempty: true,
+            tool_open: true,
+            ..st()
+        };
+        assert!(
+            press(key, mods, state, true).is_empty(),
+            "{name} must be left to the text box"
+        );
     }
     // the file keys and the tool search still work
     assert_eq!(press(Key::S, ctrl(), st(), true), vec![A::Save]);
     assert_eq!(press(Key::O, ctrl(), st(), true), vec![A::Open]);
     assert_eq!(press(Key::K, ctrl(), st(), true), vec![A::FocusSearch]);
     // the sketcher's own boxes pass keys through, other boxes do not
-    let sk = KeyState { sketcher_active: true, ..st() };
+    let sk = KeyState {
+        sketcher_active: true,
+        ..st()
+    };
     assert!(press(Key::L, none(), sk, true).is_empty());
-    let sk_dyn = KeyState { sketcher_active: true, dyn_field_focused: true, ..st() };
-    assert_eq!(press(Key::Enter, none(), sk_dyn, true), vec![A::Sketcher(keys::KeyPress { key: Key::Enter, mods: none() })]);
+    let sk_dyn = KeyState {
+        sketcher_active: true,
+        dyn_field_focused: true,
+        ..st()
+    };
+    assert_eq!(
+        press(Key::Enter, none(), sk_dyn, true),
+        vec![A::Sketcher(keys::KeyPress {
+            key: Key::Enter,
+            mods: none()
+        })]
+    );
 }
 
 #[test]

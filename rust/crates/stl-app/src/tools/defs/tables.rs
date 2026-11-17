@@ -1,6 +1,6 @@
 //! Tables ported from `web/js/tools.js`.
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use super::util::r2;
 
@@ -11,11 +11,7 @@ pub const OPS: &[(&str, &str)] = &[
     ("intersect", "Intersect"),
 ];
 
-pub const AXES: &[(&str, &str)] = &[
-    ("x", "X"),
-    ("y", "Y"),
-    ("z", "Z"),
-];
+pub const AXES: &[(&str, &str)] = &[("x", "X"), ("y", "Y"), ("z", "Z")];
 
 pub fn axv(name: &str) -> [f64; 3] {
     match name {
@@ -126,57 +122,193 @@ pub const THREAD_SIZES: &[(&str, f64, f64, &str, &str)] = &[
 pub fn hole_preset_options() -> Vec<(String, String, String)> {
     vec![
         ("custom".into(), "Custom".into(), "".into()),
-        ("ins_M1.6".into(), "Heat-set insert M1.6".into(), "Heat-set inserts (metric)".into()),
-        ("ins_M2".into(), "Heat-set insert M2".into(), "Heat-set inserts (metric)".into()),
-        ("ins_M2.5".into(), "Heat-set insert M2.5".into(), "Heat-set inserts (metric)".into()),
-        ("ins_M3".into(), "Heat-set insert M3".into(), "Heat-set inserts (metric)".into()),
-        ("ins_M4".into(), "Heat-set insert M4".into(), "Heat-set inserts (metric)".into()),
-        ("ins_M5".into(), "Heat-set insert M5".into(), "Heat-set inserts (metric)".into()),
-        ("clr_M1.6".into(), "Screw clearance M1.6".into(), "Screws (metric)".into()),
+        (
+            "ins_M1.6".into(),
+            "Heat-set insert M1.6".into(),
+            "Heat-set inserts (metric)".into(),
+        ),
+        (
+            "ins_M2".into(),
+            "Heat-set insert M2".into(),
+            "Heat-set inserts (metric)".into(),
+        ),
+        (
+            "ins_M2.5".into(),
+            "Heat-set insert M2.5".into(),
+            "Heat-set inserts (metric)".into(),
+        ),
+        (
+            "ins_M3".into(),
+            "Heat-set insert M3".into(),
+            "Heat-set inserts (metric)".into(),
+        ),
+        (
+            "ins_M4".into(),
+            "Heat-set insert M4".into(),
+            "Heat-set inserts (metric)".into(),
+        ),
+        (
+            "ins_M5".into(),
+            "Heat-set insert M5".into(),
+            "Heat-set inserts (metric)".into(),
+        ),
+        (
+            "clr_M1.6".into(),
+            "Screw clearance M1.6".into(),
+            "Screws (metric)".into(),
+        ),
         ("clr_M2".into(), "Screw clearance M2".into(), "Screws (metric)".into()),
-        ("clr_M2.5".into(), "Screw clearance M2.5".into(), "Screws (metric)".into()),
+        (
+            "clr_M2.5".into(),
+            "Screw clearance M2.5".into(),
+            "Screws (metric)".into(),
+        ),
         ("clr_M3".into(), "Screw clearance M3".into(), "Screws (metric)".into()),
         ("clr_M4".into(), "Screw clearance M4".into(), "Screws (metric)".into()),
         ("clr_M5".into(), "Screw clearance M5".into(), "Screws (metric)".into()),
         ("clr_M6".into(), "Screw clearance M6".into(), "Screws (metric)".into()),
         ("clr_M8".into(), "Screw clearance M8".into(), "Screws (metric)".into()),
-        ("cb_M2".into(), "Socket head M2 (counterbore)".into(), "Screws (metric)".into()),
-        ("cb_M2.5".into(), "Socket head M2.5 (counterbore)".into(), "Screws (metric)".into()),
-        ("cb_M3".into(), "Socket head M3 (counterbore)".into(), "Screws (metric)".into()),
-        ("cb_M4".into(), "Socket head M4 (counterbore)".into(), "Screws (metric)".into()),
-        ("cb_M5".into(), "Socket head M5 (counterbore)".into(), "Screws (metric)".into()),
-        ("cb_M6".into(), "Socket head M6 (counterbore)".into(), "Screws (metric)".into()),
+        (
+            "cb_M2".into(),
+            "Socket head M2 (counterbore)".into(),
+            "Screws (metric)".into(),
+        ),
+        (
+            "cb_M2.5".into(),
+            "Socket head M2.5 (counterbore)".into(),
+            "Screws (metric)".into(),
+        ),
+        (
+            "cb_M3".into(),
+            "Socket head M3 (counterbore)".into(),
+            "Screws (metric)".into(),
+        ),
+        (
+            "cb_M4".into(),
+            "Socket head M4 (counterbore)".into(),
+            "Screws (metric)".into(),
+        ),
+        (
+            "cb_M5".into(),
+            "Socket head M5 (counterbore)".into(),
+            "Screws (metric)".into(),
+        ),
+        (
+            "cb_M6".into(),
+            "Socket head M6 (counterbore)".into(),
+            "Screws (metric)".into(),
+        ),
         ("nut_M2".into(), "Hex nut trap M2".into(), "Screws (metric)".into()),
         ("nut_M2.5".into(), "Hex nut trap M2.5".into(), "Screws (metric)".into()),
         ("nut_M3".into(), "Hex nut trap M3".into(), "Screws (metric)".into()),
         ("nut_M4".into(), "Hex nut trap M4".into(), "Screws (metric)".into()),
         ("nut_M5".into(), "Hex nut trap M5".into(), "Screws (metric)".into()),
         ("nut_M6".into(), "Hex nut trap M6".into(), "Screws (metric)".into()),
-        ("tap_M1.6".into(), "Self-tapping M1.6 (into plastic)".into(), "Self-tapping into plastic".into()),
-        ("tap_M2".into(), "Self-tapping M2 (into plastic)".into(), "Self-tapping into plastic".into()),
-        ("tap_M2.5".into(), "Self-tapping M2.5 (into plastic)".into(), "Self-tapping into plastic".into()),
-        ("tap_M3".into(), "Self-tapping M3 (into plastic)".into(), "Self-tapping into plastic".into()),
-        ("tap_M4".into(), "Self-tapping M4 (into plastic)".into(), "Self-tapping into plastic".into()),
-        ("tap_M5".into(), "Self-tapping M5 (into plastic)".into(), "Self-tapping into plastic".into()),
-        ("ins_#2-56".into(), "Heat-set insert #2-56".into(), "Heat-set inserts (inch)".into()),
-        ("ins_#4-40".into(), "Heat-set insert #4-40".into(), "Heat-set inserts (inch)".into()),
-        ("ins_#6-32".into(), "Heat-set insert #6-32".into(), "Heat-set inserts (inch)".into()),
-        ("ins_#8-32".into(), "Heat-set insert #8-32".into(), "Heat-set inserts (inch)".into()),
-        ("ins_#10-32".into(), "Heat-set insert #10-32".into(), "Heat-set inserts (inch)".into()),
-        ("ins_1/4\"-20".into(), "Heat-set insert 1/4\"-20".into(), "Heat-set inserts (inch)".into()),
+        (
+            "tap_M1.6".into(),
+            "Self-tapping M1.6 (into plastic)".into(),
+            "Self-tapping into plastic".into(),
+        ),
+        (
+            "tap_M2".into(),
+            "Self-tapping M2 (into plastic)".into(),
+            "Self-tapping into plastic".into(),
+        ),
+        (
+            "tap_M2.5".into(),
+            "Self-tapping M2.5 (into plastic)".into(),
+            "Self-tapping into plastic".into(),
+        ),
+        (
+            "tap_M3".into(),
+            "Self-tapping M3 (into plastic)".into(),
+            "Self-tapping into plastic".into(),
+        ),
+        (
+            "tap_M4".into(),
+            "Self-tapping M4 (into plastic)".into(),
+            "Self-tapping into plastic".into(),
+        ),
+        (
+            "tap_M5".into(),
+            "Self-tapping M5 (into plastic)".into(),
+            "Self-tapping into plastic".into(),
+        ),
+        (
+            "ins_#2-56".into(),
+            "Heat-set insert #2-56".into(),
+            "Heat-set inserts (inch)".into(),
+        ),
+        (
+            "ins_#4-40".into(),
+            "Heat-set insert #4-40".into(),
+            "Heat-set inserts (inch)".into(),
+        ),
+        (
+            "ins_#6-32".into(),
+            "Heat-set insert #6-32".into(),
+            "Heat-set inserts (inch)".into(),
+        ),
+        (
+            "ins_#8-32".into(),
+            "Heat-set insert #8-32".into(),
+            "Heat-set inserts (inch)".into(),
+        ),
+        (
+            "ins_#10-32".into(),
+            "Heat-set insert #10-32".into(),
+            "Heat-set inserts (inch)".into(),
+        ),
+        (
+            "ins_1/4\"-20".into(),
+            "Heat-set insert 1/4\"-20".into(),
+            "Heat-set inserts (inch)".into(),
+        ),
         ("clr_#2".into(), "Screw clearance #2".into(), "Screws (inch)".into()),
         ("clr_#4".into(), "Screw clearance #4".into(), "Screws (inch)".into()),
         ("clr_#6".into(), "Screw clearance #6".into(), "Screws (inch)".into()),
         ("clr_#8".into(), "Screw clearance #8".into(), "Screws (inch)".into()),
         ("clr_#10".into(), "Screw clearance #10".into(), "Screws (inch)".into()),
-        ("clr_1/4\"".into(), "Screw clearance 1/4\"".into(), "Screws (inch)".into()),
-        ("clr_5/16\"".into(), "Screw clearance 5/16\"".into(), "Screws (inch)".into()),
-        ("clr_3/8\"".into(), "Screw clearance 3/8\"".into(), "Screws (inch)".into()),
-        ("cb_#4".into(), "Socket head #4 (counterbore)".into(), "Screws (inch)".into()),
-        ("cb_#6".into(), "Socket head #6 (counterbore)".into(), "Screws (inch)".into()),
-        ("cb_#8".into(), "Socket head #8 (counterbore)".into(), "Screws (inch)".into()),
-        ("cb_#10".into(), "Socket head #10 (counterbore)".into(), "Screws (inch)".into()),
-        ("cb_1/4\"".into(), "Socket head 1/4\" (counterbore)".into(), "Screws (inch)".into()),
+        (
+            "clr_1/4\"".into(),
+            "Screw clearance 1/4\"".into(),
+            "Screws (inch)".into(),
+        ),
+        (
+            "clr_5/16\"".into(),
+            "Screw clearance 5/16\"".into(),
+            "Screws (inch)".into(),
+        ),
+        (
+            "clr_3/8\"".into(),
+            "Screw clearance 3/8\"".into(),
+            "Screws (inch)".into(),
+        ),
+        (
+            "cb_#4".into(),
+            "Socket head #4 (counterbore)".into(),
+            "Screws (inch)".into(),
+        ),
+        (
+            "cb_#6".into(),
+            "Socket head #6 (counterbore)".into(),
+            "Screws (inch)".into(),
+        ),
+        (
+            "cb_#8".into(),
+            "Socket head #8 (counterbore)".into(),
+            "Screws (inch)".into(),
+        ),
+        (
+            "cb_#10".into(),
+            "Socket head #10 (counterbore)".into(),
+            "Screws (inch)".into(),
+        ),
+        (
+            "cb_1/4\"".into(),
+            "Socket head 1/4\" (counterbore)".into(),
+            "Screws (inch)".into(),
+        ),
         ("nut_#4".into(), "Hex nut trap #4".into(), "Screws (inch)".into()),
         ("nut_#6".into(), "Hex nut trap #6".into(), "Screws (inch)".into()),
         ("nut_#8".into(), "Hex nut trap #8".into(), "Screws (inch)".into()),
@@ -191,10 +323,26 @@ pub fn hole_preset_options() -> Vec<(String, String, String)> {
         ("mag_10_3_mm".into(), "Magnet 10 × 3 mm".into(), "Magnet pockets".into()),
         ("mag_12_3_mm".into(), "Magnet 12 × 3 mm".into(), "Magnet pockets".into()),
         ("mag_15_3_mm".into(), "Magnet 15 × 3 mm".into(), "Magnet pockets".into()),
-        ("mag_1_8_1_16_".into(), "Magnet 1/8\" × 1/16\"".into(), "Magnet pockets".into()),
-        ("mag_1_4_1_8_".into(), "Magnet 1/4\" × 1/8\"".into(), "Magnet pockets".into()),
-        ("mag_3_8_1_8_".into(), "Magnet 3/8\" × 1/8\"".into(), "Magnet pockets".into()),
-        ("mag_1_2_1_8_".into(), "Magnet 1/2\" × 1/8\"".into(), "Magnet pockets".into()),
+        (
+            "mag_1_8_1_16_".into(),
+            "Magnet 1/8\" × 1/16\"".into(),
+            "Magnet pockets".into(),
+        ),
+        (
+            "mag_1_4_1_8_".into(),
+            "Magnet 1/4\" × 1/8\"".into(),
+            "Magnet pockets".into(),
+        ),
+        (
+            "mag_3_8_1_8_".into(),
+            "Magnet 3/8\" × 1/8\"".into(),
+            "Magnet pockets".into(),
+        ),
+        (
+            "mag_1_2_1_8_".into(),
+            "Magnet 1/2\" × 1/8\"".into(),
+            "Magnet pockets".into(),
+        ),
     ]
 }
 
@@ -216,7 +364,13 @@ type Rules = Vec<(String, HoleApply)>;
 fn hole_preset_rules() -> Rules {
     let mut v: Rules = Vec::new();
     let ins = |v: &mut Rules, m: &str, d: f64, len: f64| {
-        v.push((format!("ins_{m}"), HoleApply::Insert { d, depth: r2(len + 1.0) }));
+        v.push((
+            format!("ins_{m}"),
+            HoleApply::Insert {
+                d,
+                depth: r2(len + 1.0),
+            },
+        ));
     };
     let clr = |v: &mut Rules, m: &str, d: f64| v.push((format!("clr_{m}"), HoleApply::Clear { d }));
     let tap = |v: &mut Rules, m: &str, d: f64| v.push((format!("tap_{m}"), HoleApply::Tap { d }));
@@ -235,7 +389,16 @@ fn hole_preset_rules() -> Rules {
     ins(&mut v, "M3", 4.0, 5.7);
     ins(&mut v, "M4", 5.6, 8.1);
     ins(&mut v, "M5", 6.4, 9.5);
-    for (m, d) in [("M1.6", 1.8), ("M2", 2.4), ("M2.5", 2.9), ("M3", 3.4), ("M4", 4.5), ("M5", 5.5), ("M6", 6.6), ("M8", 9.0)] {
+    for (m, d) in [
+        ("M1.6", 1.8),
+        ("M2", 2.4),
+        ("M2.5", 2.9),
+        ("M3", 3.4),
+        ("M4", 4.5),
+        ("M5", 5.5),
+        ("M6", 6.6),
+        ("M8", 9.0),
+    ] {
         clr(&mut v, m, d);
     }
     cb(&mut v, "M2", 2.4, 3.8, 2.0);
@@ -250,7 +413,14 @@ fn hole_preset_rules() -> Rules {
     nut(&mut v, "M4", 4.5, 7.0, 3.2);
     nut(&mut v, "M5", 5.5, 8.0, 4.0);
     nut(&mut v, "M6", 6.6, 10.0, 5.0);
-    for (m, d) in [("M1.6", 1.3), ("M2", 1.7), ("M2.5", 2.1), ("M3", 2.6), ("M4", 3.5), ("M5", 4.3)] {
+    for (m, d) in [
+        ("M1.6", 1.3),
+        ("M2", 1.7),
+        ("M2.5", 2.1),
+        ("M3", 2.6),
+        ("M4", 3.5),
+        ("M5", 4.3),
+    ] {
         tap(&mut v, m, d);
     }
     ins(&mut v, "#2-56", r2(0.125 * IN), r2(0.115 * IN));
@@ -357,7 +527,10 @@ pub fn hole_preset_patch(preset: &str, tol: f64) -> Option<serde_json::Map<Strin
 }
 
 pub fn resize_size_diameter(size: &str) -> Option<f64> {
-    RESIZE_SIZES.iter().find(|(k, _, _)| *k == size).and_then(|(_, _, d)| *d)
+    RESIZE_SIZES
+        .iter()
+        .find(|(k, _, _)| *k == size)
+        .and_then(|(_, _, d)| *d)
 }
 
 pub fn connector_patch(connector: &str) -> Option<serde_json::Map<String, Value>> {
@@ -370,7 +543,9 @@ pub fn connector_patch(connector: &str) -> Option<serde_json::Map<String, Value>
 }
 
 pub fn thread_size_patch(size: &str) -> Option<serde_json::Map<String, Value>> {
-    if size == "custom" { return None; }
+    if size == "custom" {
+        return None;
+    }
     let t = THREAD_SIZES.iter().find(|(id, _, _, _, _)| *id == size)?;
     Some(
         serde_json::json!({

@@ -16,7 +16,11 @@ pub fn run(args: impl Iterator<Item = String>) -> Result<(), String> {
         return time_features();
     }
     let quick = args.iter().any(|a| a == "--quick");
-    let results = args.iter().position(|a| a == "--results").and_then(|i| args.get(i + 1)).map(PathBuf::from);
+    let results = args
+        .iter()
+        .position(|a| a == "--results")
+        .and_then(|i| args.get(i + 1))
+        .map(PathBuf::from);
 
     let root = workspace_root()?;
     let md_path = results.unwrap_or_else(|| root.join("tests/UI_BENCH.md"));
@@ -133,7 +137,9 @@ fn time_one(bytes: &[u8], kind: &str, extra: &serde_json::Value) -> Result<Strin
         .map_err(|e| e.to_string())?;
     match rx.recv_timeout(std::time::Duration::from_secs(45)) {
         Ok(r) => r,
-        Err(std::sync::mpsc::RecvTimeoutError::Timeout) => Err(format!("timeout after 45 s ({kind_owned} still running)")),
+        Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+            Err(format!("timeout after 45 s ({kind_owned} still running)"))
+        }
         Err(e) => Err(e.to_string()),
     }
 }
@@ -141,7 +147,7 @@ fn time_one(bytes: &[u8], kind: &str, extra: &serde_json::Value) -> Result<Strin
 fn workspace_root() -> Result<PathBuf, String> {
     // xtask's manifest is rust/xtask; the rust workspace root is one up.
     let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
-    Ok(manifest.join("..").canonicalize().map_err(|e| e.to_string())?)
+    manifest.join("..").canonicalize().map_err(|e| e.to_string())
 }
 
 fn cargo() -> String {
@@ -163,7 +169,11 @@ fn build_app(root: &Path) -> Result<(), String> {
 fn app_bin(root: &Path) -> PathBuf {
     let target = std::env::var("CARGO_TARGET_DIR").unwrap_or_else(|_| "target".into());
     let target = PathBuf::from(target);
-    let base = if target.is_absolute() { target } else { root.join(target) };
+    let base = if target.is_absolute() {
+        target
+    } else {
+        root.join(target)
+    };
     let name = if cfg!(windows) { "stl-app.exe" } else { "stl-app" };
     base.join("release").join(name)
 }
@@ -181,7 +191,9 @@ fn run_app(root: &Path, out_json: &Path, quick: bool) -> Result<(), String> {
     if quick {
         cmd.arg("--quick");
     }
-    let status = cmd.status().map_err(|e| format!("could not run {}: {e}", bin.display()))?;
+    let status = cmd
+        .status()
+        .map_err(|e| format!("could not run {}: {e}", bin.display()))?;
     if !status.success() {
         return Err(format!("{} exited with {status}", bin.display()));
     }
@@ -201,7 +213,12 @@ fn print_trace(report: &Value) {
     for r in t.get("over_16_7").and_then(|v| v.as_array()).into_iter().flatten() {
         println!("uibench: over 16.7 ms {}", trace_line(r));
     }
-    for r in report.get("after_rebuild").and_then(|v| v.as_array()).into_iter().flatten() {
+    for r in report
+        .get("after_rebuild")
+        .and_then(|v| v.as_array())
+        .into_iter()
+        .flatten()
+    {
         println!("uibench: after the rebuild (not counted) {}", trace_line(r));
     }
     if let Some(m) = t.get("max") {
@@ -234,8 +251,16 @@ fn trace_line(r: &Value) -> String {
         num(r, "promote_ms"),
         uint(r, "promoted"),
         num(r, "paint_ms"),
-        if r.get("upload_pending").and_then(|v| v.as_bool()).unwrap_or(false) { ", uploading" } else { "" },
-        if uint(r, "uploads_done") > 0 { ", upload finished" } else { "" },
+        if r.get("upload_pending").and_then(|v| v.as_bool()).unwrap_or(false) {
+            ", uploading"
+        } else {
+            ""
+        },
+        if uint(r, "uploads_done") > 0 {
+            ", upload finished"
+        } else {
+            ""
+        },
         num(r, "other_ms"),
         num(r, "egui_ms"),
         num(r, "wait_ms"),
@@ -259,13 +284,30 @@ fn slowest_note(report: &Value) -> Option<String> {
 
 /// What the open tool row did: how many tools, how many answered a preview, and the slowest ones.
 fn open_tool_note(report: &Value) -> Option<String> {
-    let tools = report.get("open_tool_tools").and_then(|t| t.as_array()).filter(|t| !t.is_empty())?;
+    let tools = report
+        .get("open_tool_tools")
+        .and_then(|t| t.as_array())
+        .filter(|t| !t.is_empty())?;
     let outcome = |t: &Value| t.get("outcome").and_then(|o| o.as_str()).unwrap_or("").to_owned();
     let previews = tools.iter().filter(|t| outcome(t) == "preview").count();
-    let timeouts: Vec<&str> = tools.iter().filter(|t| outcome(t) == "timeout").filter_map(|t| t.get("tool").and_then(|k| k.as_str())).collect();
+    let timeouts: Vec<&str> = tools
+        .iter()
+        .filter(|t| outcome(t) == "timeout")
+        .filter_map(|t| t.get("tool").and_then(|k| k.as_str()))
+        .collect();
     let mut slow: Vec<&Value> = tools.iter().filter(|t| outcome(t) == "preview").collect();
     slow.sort_by(|a, b| num(b, "ms").total_cmp(&num(a, "ms")));
-    let slowest: Vec<String> = slow.iter().take(3).map(|t| format!("{} {:.0} ms", t.get("tool").and_then(|k| k.as_str()).unwrap_or("?"), num(t, "ms"))).collect();
+    let slowest: Vec<String> = slow
+        .iter()
+        .take(3)
+        .map(|t| {
+            format!(
+                "{} {:.0} ms",
+                t.get("tool").and_then(|k| k.as_str()).unwrap_or("?"),
+                num(t, "ms")
+            )
+        })
+        .collect();
     let mut s = format!("Open tool: {} tools opened, {previews} answered a preview", tools.len());
     if !slowest.is_empty() {
         s.push_str(&format!("; slowest first previews: {}", slowest.join(", ")));
@@ -278,7 +320,14 @@ fn open_tool_note(report: &Value) -> Option<String> {
     let worst: Vec<String> = worst
         .iter()
         .take(3)
-        .map(|t| format!("{} {:.1} ms (frame {})", t.get("tool").and_then(|k| k.as_str()).unwrap_or("?"), num(t, "longest_frame_ms"), num(t, "longest_frame_no")))
+        .map(|t| {
+            format!(
+                "{} {:.1} ms (frame {})",
+                t.get("tool").and_then(|k| k.as_str()).unwrap_or("?"),
+                num(t, "longest_frame_ms"),
+                num(t, "longest_frame_no")
+            )
+        })
         .collect();
     if !worst.is_empty() {
         s.push_str(&format!("; longest frames: {}", worst.join(", ")));
@@ -290,16 +339,26 @@ fn open_tool_note(report: &Value) -> Option<String> {
 /// What the autosave row did: whether the copy landed, how long it took, and the verdict on
 /// the one-frame (16.7 ms) limit.
 fn autosave_note(report: &Value) -> Option<String> {
-    let a = report.pointer("/scenarios/autosave").filter(|a| a.get("frames").and_then(|f| f.as_u64()).unwrap_or(0) > 0)?;
-    let written = report.get("autosave_written").and_then(|w| w.as_bool()).unwrap_or(false);
+    let a = report
+        .pointer("/scenarios/autosave")
+        .filter(|a| a.get("frames").and_then(|f| f.as_u64()).unwrap_or(0) > 0)?;
+    let written = report
+        .get("autosave_written")
+        .and_then(|w| w.as_bool())
+        .unwrap_or(false);
     let longest = num(a, "longest_ms");
     let mut s = if written {
-        format!("Autosave: the copy landed {:.0} ms after the command", num(report, "autosave_ms"))
+        format!(
+            "Autosave: the copy landed {:.0} ms after the command",
+            num(report, "autosave_ms")
+        )
     } else {
         "Autosave: the copy was NOT written".to_string()
     };
     if longest > 16.7 {
-        s.push_str(&format!("; the longest frame while it wrote took {longest:.2} ms, over the 16.7 ms limit"));
+        s.push_str(&format!(
+            "; the longest frame while it wrote took {longest:.2} ms, over the 16.7 ms limit"
+        ));
     } else {
         s.push_str(&format!("; no frame went over 16.7 ms (longest {longest:.2} ms)"));
     }
@@ -309,7 +368,9 @@ fn autosave_note(report: &Value) -> Option<String> {
 
 fn scenario<'a>(report: &'a Value, key: &str) -> Result<&'a Value, String> {
     let path = format!("/scenarios/{key}");
-    report.pointer(&path).ok_or_else(|| format!("bench JSON missing scenarios.{key}"))
+    report
+        .pointer(&path)
+        .ok_or_else(|| format!("bench JSON missing scenarios.{key}"))
 }
 
 fn num(v: &Value, key: &str) -> f64 {
@@ -437,7 +498,10 @@ fn append_results(md_path: &Path, table: &str) -> Result<(), String> {
 
 #[allow(dead_code)]
 fn today() -> String {
-    let secs = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+    let secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
     let days = (secs / 86400) as i64;
     let (y, m, d) = civil_from_days(days);
     format!("{y:04}-{m:02}-{d:02}")
@@ -499,7 +563,8 @@ mod tests {
 
     #[test]
     fn format_table_has_the_autosave_row() {
-        let s = json!({"frames": 3, "median_ms": 1.0, "p99_ms": 1.0, "longest_ms": 1.0, "idle_frames": 0, "uploads": 1});
+        let s =
+            json!({"frames": 3, "median_ms": 1.0, "p99_ms": 1.0, "longest_ms": 1.0, "idle_frames": 0, "uploads": 1});
         let report = json!({
             "date": "2026-11-14",
             "autosave_written": true,
@@ -508,17 +573,26 @@ mod tests {
         });
         let t = format_table(&report).unwrap();
         assert!(t.contains("| autosave | 300 | 4.00 | 8.00 | 12.50 | 0 | 1 |"), "{t}");
-        assert!(t.contains("the copy landed 850 ms after the command; no frame went over 16.7 ms (longest 12.50 ms)."), "{t}");
+        assert!(
+            t.contains("the copy landed 850 ms after the command; no frame went over 16.7 ms (longest 12.50 ms)."),
+            "{t}"
+        );
         assert!(t.find("| autosave").unwrap() < t.find("| idle 5 s").unwrap());
         // a slow frame is called out, and a copy that never landed is said so
         let slow = json!({"autosave_written": false, "scenarios": {"orbit": s, "pan": s, "zoom": s, "gizmo_drag": s, "autosave": {"frames": 9, "median_ms": 4.0, "p99_ms": 20.0, "longest_ms": 20.0, "idle_frames": 0, "uploads": 1}, "idle": s, "fillet_rebuild": s}});
         let t = format_table(&slow).unwrap();
-        assert!(t.contains("the copy was NOT written; the longest frame while it wrote took 20.00 ms, over the 16.7 ms limit."), "{t}");
+        assert!(
+            t.contains(
+                "the copy was NOT written; the longest frame while it wrote took 20.00 ms, over the 16.7 ms limit."
+            ),
+            "{t}"
+        );
     }
 
     #[test]
     fn format_table_has_the_open_tool_row() {
-        let s = json!({"frames": 3, "median_ms": 1.0, "p99_ms": 1.0, "longest_ms": 1.0, "idle_frames": 0, "uploads": 1});
+        let s =
+            json!({"frames": 3, "median_ms": 1.0, "p99_ms": 1.0, "longest_ms": 1.0, "idle_frames": 0, "uploads": 1});
         let report = json!({
             "date": "2026-11-13",
             "scenarios": {"orbit": s, "pan": s, "zoom": s, "gizmo_drag": s, "open_tool": {"frames": 90, "median_ms": 4.2, "p99_ms": 6.1, "longest_ms": 9.0, "idle_frames": 0, "uploads": 1}, "idle": s, "fillet_rebuild": s},
@@ -530,13 +604,22 @@ mod tests {
         });
         let t = format_table(&report).unwrap();
         assert!(t.contains("| open tool | 90 | 4.20 | 6.10 | 9.00 | 0 | 1 |"), "{t}");
-        assert!(t.contains("Open tool: 3 tools opened, 2 answered a preview; slowest first previews: hollow 1500 ms, hole 310 ms."), "{t}");
-        assert!(t.find("| open tool").unwrap() < t.find("| idle 5 s").unwrap(), "the row sits between the gizmo drag and idle rows");
+        assert!(
+            t.contains(
+                "Open tool: 3 tools opened, 2 answered a preview; slowest first previews: hollow 1500 ms, hole 310 ms."
+            ),
+            "{t}"
+        );
+        assert!(
+            t.find("| open tool").unwrap() < t.find("| idle 5 s").unwrap(),
+            "the row sits between the gizmo drag and idle rows"
+        );
     }
 
     #[test]
     fn format_table_notes_slowest_rebuild_frame() {
-        let s = json!({"frames": 1, "median_ms": 1.0, "p99_ms": 1.0, "longest_ms": 1.0, "idle_frames": 0, "uploads": 1});
+        let s =
+            json!({"frames": 1, "median_ms": 1.0, "p99_ms": 1.0, "longest_ms": 1.0, "idle_frames": 0, "uploads": 1});
         let report = json!({
             "date": "2026-11-12",
             "scenarios": {"orbit": s, "pan": s, "zoom": s, "gizmo_drag": s, "idle": s, "fillet_rebuild": s},

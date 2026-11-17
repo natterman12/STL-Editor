@@ -91,7 +91,11 @@ pub fn distance_to_path(path: &[P2], p: P2) -> f64 {
 pub(crate) fn point_segment_distance(a: P2, b: P2, p: P2) -> f64 {
     let d = [b[0] - a[0], b[1] - a[1]];
     let l2 = d[0] * d[0] + d[1] * d[1];
-    let t = if l2 == 0.0 { 0.0 } else { (((p[0] - a[0]) * d[0] + (p[1] - a[1]) * d[1]) / l2).clamp(0.0, 1.0) };
+    let t = if l2 == 0.0 {
+        0.0
+    } else {
+        (((p[0] - a[0]) * d[0] + (p[1] - a[1]) * d[1]) / l2).clamp(0.0, 1.0)
+    };
     let q = [a[0] + t * d[0], a[1] + t * d[1]];
     ((q[0] - p[0]).powi(2) + (q[1] - p[1]).powi(2)).sqrt()
 }
@@ -183,10 +187,10 @@ impl NodeMap {
         let (kx, ky) = Self::key(p);
         for dx in -1..=1 {
             for dy in -1..=1 {
-                if let Some(&i) = self.index.get(&(kx + dx, ky + dy)) {
-                    if same(self.pts[i], p) {
-                        return i;
-                    }
+                if let Some(&i) = self.index.get(&(kx + dx, ky + dy))
+                    && same(self.pts[i], p)
+                {
+                    return i;
                 }
             }
         }
@@ -297,9 +301,7 @@ pub fn node_lines(lines: &[Vec<P2>]) -> Vec<Vec<P2>> {
                 }
                 continue;
             }
-            let continues = !chain.is_empty()
-                && nodes.id(*chain.last().unwrap()) == u
-                && !node_ids.contains(&u);
+            let continues = !chain.is_empty() && nodes.id(*chain.last().unwrap()) == u && !node_ids.contains(&u);
             if !continues {
                 if !chain.is_empty() {
                     out.push(std::mem::take(&mut chain));
@@ -348,7 +350,12 @@ impl Graph {
             paths.push(c.clone());
         }
         let alive = vec![true; edges.len()];
-        Graph { pts: nodes.pts, edges, paths, alive }
+        Graph {
+            pts: nodes.pts,
+            edges,
+            paths,
+            alive,
+        }
     }
 
     fn prune_dangles(&mut self) {
@@ -386,12 +393,22 @@ impl Graph {
                 out[b].push(2 * i + 1);
             }
         }
-        let head = |d: usize| if d % 2 == 0 { self.edges[d / 2].1 } else { self.edges[d / 2].0 };
-        
+        let head = |d: usize| {
+            if d.is_multiple_of(2) {
+                self.edges[d / 2].1
+            } else {
+                self.edges[d / 2].0
+            }
+        };
+
         // direction of the first step of a directed edge
         let angle = |d: usize| {
             let p = &self.paths[d / 2];
-            let (t, h) = if d % 2 == 0 { (p[0], p[1]) } else { (p[p.len() - 1], p[p.len() - 2]) };
+            let (t, h) = if d.is_multiple_of(2) {
+                (p[0], p[1])
+            } else {
+                (p[p.len() - 1], p[p.len() - 2])
+            };
             (h[1] - t[1]).atan2(h[0] - t[0])
         };
         for o in out.iter_mut() {
@@ -488,7 +505,11 @@ pub fn polygonize(chains: &[Vec<P2>]) -> Vec<Face> {
             holes[k].push(o);
         }
     }
-    shells.into_iter().zip(holes).map(|(exterior, holes)| Face { exterior, holes }).collect()
+    shells
+        .into_iter()
+        .zip(holes)
+        .map(|(exterior, holes)| Face { exterior, holes })
+        .collect()
 }
 
 /// Direction of the first step of a path, as an angle in `[0, 2π)` (GEOS orders the edges at a
@@ -533,12 +554,22 @@ pub fn linemerge(chains: &[Vec<P2>]) -> Vec<Vec<P2>> {
     }
     let angle = |d: usize| {
         let p = &paths[d / 2];
-        if d % 2 == 0 { start_angle(p[0], p[1]) } else { start_angle(p[p.len() - 1], p[p.len() - 2]) }
+        if d.is_multiple_of(2) {
+            start_angle(p[0], p[1])
+        } else {
+            start_angle(p[p.len() - 1], p[p.len() - 2])
+        }
     };
     for o in out.iter_mut() {
         o.sort_by(|&x, &y| angle(x).total_cmp(&angle(y)));
     }
-    let head = |d: usize| if d % 2 == 0 { edges[d / 2].1 } else { edges[d / 2].0 };
+    let head = |d: usize| {
+        if d.is_multiple_of(2) {
+            edges[d / 2].1
+        } else {
+            edges[d / 2].0
+        }
+    };
     let next = |d: usize| -> Option<usize> {
         let list = &out[head(d)];
         if list.len() != 2 {
@@ -646,7 +677,13 @@ pub(crate) fn orientation(a: P2, b: P2, c: P2) -> i32 {
     let dy2 = add((c[1], 0.0), neg((b[1], 0.0)));
     let det = add(mul(dx1, dy2), neg(mul(dy1, dx2)));
     let v = if det.0 != 0.0 { det.0 } else { det.1 };
-    if v > 0.0 { 1 } else if v < 0.0 { -1 } else { 0 }
+    if v > 0.0 {
+        1
+    } else if v < 0.0 {
+        -1
+    } else {
+        0
+    }
 }
 
 fn unit(a: P2, b: P2) -> Option<P2> {
@@ -671,7 +708,9 @@ fn mitre_corner(prev: Option<P2>, v: P2, next: Option<P2>, d: f64) -> Vec<P2> {
         (Some(a), None) => vec![at(left(unit(a, v).unwrap_or([1.0, 0.0])), v)],
         (None, Some(c)) => vec![at(left(unit(v, c).unwrap_or([1.0, 0.0])), v)],
         (Some(a), Some(c)) => {
-            let (Some(u0), Some(u1)) = (unit(a, v), unit(v, c)) else { return vec![v] };
+            let (Some(u0), Some(u1)) = (unit(a, v), unit(v, c)) else {
+                return vec![v];
+            };
             let (n0, n1) = (left(u0), left(u1));
             let turn = orientation(a, v, c);
             let (o0, o1) = (at(n0, v), at(n1, v));
@@ -768,8 +807,10 @@ fn node_curve(raw: &[P2], closed: bool) -> NodedCurve {
         push(&mut seq, &mut map, s[0]);
         let dir = [s[1][0] - s[0][0], s[1][1] - s[0][1]];
         let l2 = dir[0] * dir[0] + dir[1] * dir[1];
-        let mut c: Vec<(f64, P2)> =
-            cuts[i].iter().map(|&p| (((p[0] - s[0][0]) * dir[0] + (p[1] - s[0][1]) * dir[1]) / l2, p)).collect();
+        let mut c: Vec<(f64, P2)> = cuts[i]
+            .iter()
+            .map(|&p| (((p[0] - s[0][0]) * dir[0] + (p[1] - s[0][1]) * dir[1]) / l2, p))
+            .collect();
         c.sort_by(|a, b| a.0.total_cmp(&b.0));
         for (_, p) in c {
             push(&mut seq, &mut map, p);
@@ -789,7 +830,11 @@ fn node_curve(raw: &[P2], closed: bool) -> NodedCurve {
     for p in cuts.iter().flatten() {
         is_node[map.id(*p)] = true;
     }
-    NodedCurve { pts: map.pts, seq, is_node }
+    NodedCurve {
+        pts: map.pts,
+        seq,
+        is_node,
+    }
 }
 
 /// Winding number of a closed curve around a point (counter-clockwise is positive).
@@ -865,7 +910,7 @@ pub fn buffer_mitre(ring: &[P2], d: f64) -> Vec<Vec<P2>> {
 /// near the distance it should be from the ring.
 fn ring_curve_inverted(ring: &[P2], distance: f64, curve: &[P2]) -> bool {
     let n = ring.len();
-    if distance == 0.0 || n + 1 <= 3 || n + 1 >= 9 || curve.len() + 1 > 4 * (n + 1) {
+    if distance == 0.0 || n < 3 || n + 1 >= 9 || curve.len() + 1 > 4 * (n + 1) {
         return false;
     }
     let mut closed_ring = ring.to_vec();
@@ -892,7 +937,10 @@ fn eroded_completely(r: &[P2], shrink: f64) -> bool {
         let dist = |a: P2, b: P2| (a[0] - b[0]).hypot(a[1] - b[1]);
         let (a, b, c) = (dist(p1, p2), dist(p0, p2), dist(p0, p1));
         let sum = a + b + c;
-        let incentre = [(a * p0[0] + b * p1[0] + c * p2[0]) / sum, (a * p0[1] + b * p1[1] + c * p2[1]) / sum];
+        let incentre = [
+            (a * p0[0] + b * p1[0] + c * p2[0]) / sum,
+            (a * p0[1] + b * p1[1] + c * p2[1]) / sum,
+        ];
         return point_segment_distance(p0, p1, incentre) < shrink;
     }
     let (mut lo, mut hi) = ([f64::INFINITY; 2], [f64::NEG_INFINITY; 2]);
@@ -971,11 +1019,17 @@ fn outline_rings(raw: &[P2], ccw: bool, holes: bool) -> Vec<Vec<P2>> {
     if !in_result.iter().any(|&b| b) {
         return vec![];
     }
-    let tail = |d: usize| if d % 2 == 0 { paths[d / 2][0] } else { *paths[d / 2].last().unwrap() };
+    let tail = |d: usize| {
+        if d.is_multiple_of(2) {
+            paths[d / 2][0]
+        } else {
+            *paths[d / 2].last().unwrap()
+        }
+    };
     let head = |d: usize| tail(d ^ 1);
     let first_step = |d: usize| -> f64 {
         let p = &paths[d / 2];
-        if d % 2 == 0 {
+        if d.is_multiple_of(2) {
             start_angle(pt(p[0]), pt(p[1]))
         } else {
             start_angle(pt(p[p.len() - 1]), pt(p[p.len() - 2]))
@@ -1065,7 +1119,11 @@ mod tests {
 
     #[test]
     fn crossing_lines_split_a_square_and_dangles_go() {
-        let lines = vec![sq(0.0, 0.0, 10.0), vec![[5.0, -3.0], [5.0, 13.0]], vec![[2.0, 2.0], [4.0, 4.0]]];
+        let lines = vec![
+            sq(0.0, 0.0, 10.0),
+            vec![[5.0, -3.0], [5.0, 13.0]],
+            vec![[2.0, 2.0], [4.0, 4.0]],
+        ];
         let f = polygonize(&node_lines(&lines));
         assert_eq!(f.len(), 2);
         assert!(f.iter().all(|f| (f.area() - 50.0).abs() < 1e-9));
@@ -1086,7 +1144,9 @@ mod tests {
     fn noding_10k_segments() {
         let mut state = 12345u64;
         let mut rnd = move || {
-            state = state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            state = state
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
             ((state >> 33) as f64) / ((1u64 << 31) as f64)
         };
         let lines: Vec<Vec<P2>> = (0..10_000)
@@ -1099,7 +1159,12 @@ mod tests {
         let chains = node_lines(&lines);
         let dt = t.elapsed();
         let h: f64 = chains.iter().flatten().map(|p| p[0] * 1.000001 + p[1]).sum();
-        println!("noding 10000 segments: {:?}, {} chains, checksum {:.6}", dt, chains.len(), h);
+        println!(
+            "noding 10000 segments: {:?}, {} chains, checksum {:.6}",
+            dt,
+            chains.len(),
+            h
+        );
     }
 
     #[test]
@@ -1118,8 +1183,18 @@ mod tests {
         assert!(buffer_mitre(&[[0.0, 0.0], [4.0, 0.0], [4.0, 2.0], [0.0, 2.0]], -1.5).is_empty());
         // a thin neck cut through: two pieces, each clockwise
         let d = [
-            [0.0, 0.0], [10.0, 0.0], [10.0, 4.0], [6.0, 4.0], [6.0, 6.0], [10.0, 6.0],
-            [10.0, 10.0], [0.0, 10.0], [0.0, 6.0], [4.0, 6.0], [4.0, 4.0], [0.0, 4.0],
+            [0.0, 0.0],
+            [10.0, 0.0],
+            [10.0, 4.0],
+            [6.0, 4.0],
+            [6.0, 6.0],
+            [10.0, 6.0],
+            [10.0, 10.0],
+            [0.0, 10.0],
+            [0.0, 6.0],
+            [4.0, 6.0],
+            [4.0, 4.0],
+            [0.0, 4.0],
         ];
         let pieces = buffer_mitre(&d, -1.0);
         assert_eq!(pieces.len(), 2);
@@ -1146,15 +1221,27 @@ mod tests {
     #[test]
     fn linemerge_keeps_directions() {
         // three pieces pointing against the order they are met in: the line runs the way they point
-        let pieces = vec![vec![[10.0, 0.0], [0.0, 0.0]], vec![[10.0, 10.0], [10.0, 0.0]], vec![[0.0, 10.0], [10.0, 10.0]]];
+        let pieces = vec![
+            vec![[10.0, 0.0], [0.0, 0.0]],
+            vec![[10.0, 10.0], [10.0, 0.0]],
+            vec![[0.0, 10.0], [10.0, 10.0]],
+        ];
         let m = linemerge(&pieces);
         assert_eq!(m, vec![vec![[0.0, 10.0], [10.0, 10.0], [10.0, 0.0], [0.0, 0.0]]]);
         // a line another line ends on is two pieces, each keeping its direction
-        let t = linemerge(&node_lines(&[vec![[0.0, 0.0], [20.0, 0.0]], vec![[10.0, 0.0], [10.0, 10.0]]]));
+        let t = linemerge(&node_lines(&[
+            vec![[0.0, 0.0], [20.0, 0.0]],
+            vec![[10.0, 0.0], [10.0, 10.0]],
+        ]));
         assert_eq!(t.len(), 3);
         assert!(t.contains(&vec![[0.0, 0.0], [10.0, 0.0]]) && t.contains(&vec![[10.0, 0.0], [20.0, 0.0]]));
         // a closed loop: whichever way most pieces point
-        let ring = linemerge(&[vec![[0.0, 0.0], [0.0, 10.0]], vec![[10.0, 10.0], [0.0, 10.0]], vec![[10.0, 0.0], [10.0, 10.0]], vec![[10.0, 0.0], [0.0, 0.0]]]);
+        let ring = linemerge(&[
+            vec![[0.0, 0.0], [0.0, 10.0]],
+            vec![[10.0, 10.0], [0.0, 10.0]],
+            vec![[10.0, 0.0], [10.0, 10.0]],
+            vec![[10.0, 0.0], [0.0, 0.0]],
+        ]);
         assert_eq!(ring.len(), 1);
         assert!(is_simple_ring(&ring[0]));
     }

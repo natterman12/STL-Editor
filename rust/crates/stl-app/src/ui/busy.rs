@@ -1,8 +1,8 @@
 //! Busy overlay with optional progress and Cancel (engine cancel during rebuild).
 
-use egui::{Context, CornerRadius, RichText};
 use crate::engine_link::Command;
 use crate::theme::Tokens;
+use egui::{Context, CornerRadius, RichText};
 
 #[derive(Clone, Debug, Default)]
 pub struct Busy {

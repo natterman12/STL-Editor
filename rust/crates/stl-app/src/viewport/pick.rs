@@ -16,8 +16,16 @@ pub const DIRECT_PICK_MAX_TRIS: usize = 50_000;
 /// What a click landed on. `face` is the triangle index, as three.js `faceIndex`.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Hit {
-    Body { id: String, face: u32, point: [f64; 3], normal: [f64; 3] },
-    Plane { id: String, point: [f64; 3] },
+    Body {
+        id: String,
+        face: u32,
+        point: [f64; 3],
+        normal: [f64; 3],
+    },
+    Plane {
+        id: String,
+        point: [f64; 3],
+    },
 }
 
 impl Viewport {
@@ -29,8 +37,16 @@ impl Viewport {
             return None;
         }
         let section = self.active_section();
-        let body = if bodies { self.nearest_body(origin, dir, section) } else { None };
-        let plane = if planes { self.nearest_plane(origin, dir, section) } else { None };
+        let body = if bodies {
+            self.nearest_body(origin, dir, section)
+        } else {
+            None
+        };
+        let plane = if planes {
+            self.nearest_plane(origin, dir, section)
+        } else {
+            None
+        };
         match (body, plane) {
             (None, None) => None,
             (Some(b), None) => Some(b.into_hit()),
@@ -84,7 +100,9 @@ impl Viewport {
         for p in &self.preview {
             let hit = match p.bvh.get() {
                 Some(bvh) => bvh.ray_front(&p.mesh, origin, dir),
-                None if p.mesh.triangles.len() / 3 <= DIRECT_PICK_MAX_TRIS => ray_front_direct(&p.mesh, origin, dir, |_| true),
+                None if p.mesh.triangles.len() / 3 <= DIRECT_PICK_MAX_TRIS => {
+                    ray_front_direct(&p.mesh, origin, dir, |_| true)
+                }
                 None => {
                     if let Some(c) = &self.ctx {
                         c.request_repaint(); // look again once the tree is there
@@ -92,10 +110,10 @@ impl Viewport {
                     None
                 }
             };
-            if let Some((_, t)) = hit {
-                if best.as_ref().is_none_or(|(_, bt)| t < *bt) {
-                    best = Some((p.id.clone(), t));
-                }
+            if let Some((_, t)) = hit
+                && best.as_ref().is_none_or(|(_, bt)| t < *bt)
+            {
+                best = Some((p.id.clone(), t));
             }
         }
         best.map(|(id, _)| id)
@@ -137,7 +155,13 @@ impl Viewport {
             if let Some(n) = &nm {
                 normal = camera::normalize([0, 1, 2].map(|r| (0..3).map(|c| n[c][r] * normal[c]).sum()));
             }
-            best = Some(BodyHit { id: e.view.id.clone(), face, t, point: along(origin, dir, t), normal });
+            best = Some(BodyHit {
+                id: e.view.id.clone(),
+                face,
+                t,
+                point: along(origin, dir, t),
+                normal,
+            });
         }
         best
     }
@@ -146,11 +170,17 @@ impl Viewport {
         let shown = self.shown_planes();
         // shown_planes lists base planes first. viewer.js tests construction planes first, then
         // the base planes, and a stable distance sort keeps the earlier one when t ties.
-        let base_n = if self.base_planes_visible() { shown.len().min(3) } else { 0 };
+        let base_n = if self.base_planes_visible() {
+            shown.len().min(3)
+        } else {
+            0
+        };
         let mut best: Option<(String, f64, V3)> = None;
         for i in (base_n..shown.len()).chain(0..base_n) {
             let (id, frame, size) = &shown[i];
-            let Some(t) = ray_quad(origin, dir, *frame, *size) else { continue };
+            let Some(t) = ray_quad(origin, dir, *frame, *size) else {
+                continue;
+            };
             let point = along(origin, dir, t);
             if !keeps(section, point) {
                 continue;
@@ -173,7 +203,12 @@ struct BodyHit {
 
 impl BodyHit {
     fn into_hit(self) -> Hit {
-        Hit::Body { id: self.id, face: self.face, point: self.point, normal: self.normal }
+        Hit::Body {
+            id: self.id,
+            face: self.face,
+            point: self.point,
+            normal: self.normal,
+        }
     }
 }
 
@@ -203,10 +238,10 @@ fn ray_quad(origin: V3, dir: V3, frame: [V3; 4], size: f64) -> Option<f64> {
     let v3 = at(h, -h);
     let mut best: Option<f64> = None;
     for (a, b, c) in [(v0, v2, v1), (v2, v3, v1)] {
-        if let Some(t) = ray_triangle(origin, dir, a, b, c, false) {
-            if best.is_none_or(|bt| t < bt) {
-                best = Some(t);
-            }
+        if let Some(t) = ray_triangle(origin, dir, a, b, c, false)
+            && best.is_none_or(|bt| t < bt)
+        {
+            best = Some(t);
         }
     }
     best

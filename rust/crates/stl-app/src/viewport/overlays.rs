@@ -6,7 +6,7 @@
 use stl_kernel::MeshArrays;
 
 use super::camera::{self, V3};
-use super::scene::{self, rgba, FlatVertex, Frame};
+use super::scene::{self, FlatVertex, Frame, rgba};
 
 /// How an overlay meets the depth buffer.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -37,7 +37,14 @@ pub const DOT_PX: f32 = 8.0;
 
 impl OverlayItem {
     fn new(tag: &str, order: i32, depth: Depth) -> Self {
-        OverlayItem { tag: tag.to_owned(), order, depth, tris: Vec::new(), lines: Vec::new(), dots: Vec::new() }
+        OverlayItem {
+            tag: tag.to_owned(),
+            order,
+            depth,
+            tris: Vec::new(),
+            lines: Vec::new(),
+            dots: Vec::new(),
+        }
     }
 }
 
@@ -56,16 +63,29 @@ pub fn highlight_face(mesh: &MeshArrays, tris: &[u32], tag: &str, color: u32) ->
 
 /// [`highlight_face`] for a body drawn moved by `model` (the gizmo's instant motion): the
 /// triangles are taken from the body's mesh as it is now, so the highlight goes where the face goes.
-pub fn highlight_face_at(mesh: &MeshArrays, tris: &[u32], tag: &str, color: u32, model: Option<&camera::M4>) -> OverlayItem {
+pub fn highlight_face_at(
+    mesh: &MeshArrays,
+    tris: &[u32],
+    tag: &str,
+    color: u32,
+    model: Option<&camera::M4>,
+) -> OverlayItem {
     let mut it = OverlayItem::new(tag, 3, Depth::TestOffset);
     let c = rgba(color, 0.45);
     let n = mesh.triangles.len() / 3;
     for &t in tris.iter().filter(|&&t| (t as usize) < n) {
         for j in 0..3 {
             let v = mesh.triangles[t as usize * 3 + j] as usize * 3;
-            let Some(p) = mesh.positions.get(v..v + 3) else { continue };
+            let Some(p) = mesh.positions.get(v..v + 3) else {
+                continue;
+            };
             let w = moved([p[0] as f64, p[1] as f64, p[2] as f64], model);
-            it.tris.push(FlatVertex { pos: [w[0] as f32, w[1] as f32, w[2] as f32], c0: c, c1: c, t: 0.0 });
+            it.tris.push(FlatVertex {
+                pos: [w[0] as f32, w[1] as f32, w[2] as f32],
+                c0: c,
+                c1: c,
+                t: 0.0,
+            });
         }
     }
     let whole = it.tris.len() / 3 * 3;
@@ -91,7 +111,12 @@ pub fn cut_tint(mesh: &MeshArrays, tag: &str, color: u32, alpha: f32) -> Overlay
     for t in mesh.triangles.chunks_exact(3) {
         for &i in t {
             if let Some(p) = mesh.positions.get(i as usize * 3..i as usize * 3 + 3) {
-                it.tris.push(FlatVertex { pos: [p[0], p[1], p[2]], c0: c, c1: c, t: 0.0 });
+                it.tris.push(FlatVertex {
+                    pos: [p[0], p[1], p[2]],
+                    c0: c,
+                    c1: c,
+                    t: 0.0,
+                });
             }
         }
     }
@@ -156,8 +181,10 @@ pub fn measure(a: V3, b: V3, tag: &str, extent: f64) -> OverlayItem {
         let mut s = 0.0;
         while s < len {
             let e = (s + step).min(len);
-            it.lines.push(FlatVertex::new(camera::add(leg.from, camera::scale(dir, s)), c));
-            it.lines.push(FlatVertex::new(camera::add(leg.from, camera::scale(dir, e)), c));
+            it.lines
+                .push(FlatVertex::new(camera::add(leg.from, camera::scale(dir, s)), c));
+            it.lines
+                .push(FlatVertex::new(camera::add(leg.from, camera::scale(dir, e)), c));
             s += step * 2.0;
         }
     }
@@ -172,7 +199,12 @@ pub fn dist_tris(arr: &[f32], dist: &[f64], limit: f64, tag: &str, near: (u32, f
     for (i, p) in arr.chunks_exact(3).enumerate() {
         let d = dist.get(i).copied().unwrap_or(0.0);
         let t = (d / (2.0 * limit)).min(1.0) as f32;
-        it.tris.push(FlatVertex { pos: [p[0], p[1], p[2]], c0, c1, t });
+        it.tris.push(FlatVertex {
+            pos: [p[0], p[1], p[2]],
+            c0,
+            c1,
+            t,
+        });
     }
     let whole = it.tris.len() / 3 * 3;
     it.tris.truncate(whole);
@@ -186,7 +218,14 @@ fn sphere(out: &mut Vec<FlatVertex>, p: V3, r: f64, c: [u8; 4]) {
         let u = ix as f64 / ws as f64;
         let v = iy as f64 / hs as f64;
         let (phi, theta) = (u * std::f64::consts::TAU, v * std::f64::consts::PI);
-        camera::add(p, [-r * phi.cos() * theta.sin(), r * theta.cos(), r * phi.sin() * theta.sin()])
+        camera::add(
+            p,
+            [
+                -r * phi.cos() * theta.sin(),
+                r * theta.cos(),
+                r * phi.sin() * theta.sin(),
+            ],
+        )
     };
     for iy in 0..hs {
         for ix in 0..ws {
@@ -214,7 +253,11 @@ pub fn marker(p: V3, color: u32, tag: &str, size: Option<f64>, _extent: f64) -> 
 
 /// Any unit vector square to `d`.
 fn perpendicular(d: V3) -> (V3, V3) {
-    let a = if d[0].abs() < 0.9 { [1.0, 0.0, 0.0] } else { [0.0, 1.0, 0.0] };
+    let a = if d[0].abs() < 0.9 {
+        [1.0, 0.0, 0.0]
+    } else {
+        [0.0, 1.0, 0.0]
+    };
     let u = camera::normalize(camera::cross(d, a));
     (u, camera::cross(d, u))
 }
@@ -228,14 +271,20 @@ pub fn arrow(p: V3, dir: V3, len: f64, color: u32, tag: &str) -> OverlayItem {
     let c = rgba(color, 1.0);
     let base = camera::add(p, camera::scale(d, len - head_len));
     it.lines.push(FlatVertex::new(p, c));
-    it.lines.push(FlatVertex::new(camera::add(p, camera::scale(d, (len - head_len).max(1e-4))), c));
+    it.lines.push(FlatVertex::new(
+        camera::add(p, camera::scale(d, (len - head_len).max(1e-4))),
+        c,
+    ));
     let tip = camera::add(p, camera::scale(d, len));
     let (u, v) = perpendicular(d);
     let r = head_w * 0.5;
     let rim: Vec<V3> = (0..5)
         .map(|i| {
             let a = i as f64 / 5.0 * std::f64::consts::TAU;
-            camera::add(base, camera::add(camera::scale(u, r * a.sin()), camera::scale(v, r * a.cos())))
+            camera::add(
+                base,
+                camera::add(camera::scale(u, r * a.sin()), camera::scale(v, r * a.cos())),
+            )
         })
         .collect();
     for i in 0..5 {
@@ -292,7 +341,14 @@ pub fn band(points: &[V3], cursor: Option<(V3, f64)>, color: u32) -> Vec<Overlay
 /// `addPlaneGhost`: a plane at opacity 0.22, `max(extent * 0.35, 20)` across.
 pub fn plane_ghost(frame: &Frame, tag: &str, color: u32, extent: f64) -> OverlayItem {
     let (tris, lines) = scene::plane_mesh(frame, (extent * 0.35).max(20.0), color, 0.22);
-    OverlayItem { tag: tag.to_owned(), order: 2, depth: Depth::Test, tris, lines, dots: Vec::new() }
+    OverlayItem {
+        tag: tag.to_owned(),
+        order: 2,
+        depth: Depth::Test,
+        tris,
+        lines,
+        dots: Vec::new(),
+    }
 }
 
 /// `setBrush`: a ring of `radius` facing `normal`, drawn over everything.
@@ -301,9 +357,20 @@ pub fn brush(point: V3, normal: V3, radius: f64) -> OverlayItem {
     let n = camera::normalize(normal);
     let (u, v) = perpendicular(n);
     let c = rgba(0xe8763a, 0.9);
-    let at = |r: f64, a: f64| camera::add(point, camera::scale(camera::add(camera::scale(u, a.cos()), camera::scale(v, a.sin())), r * radius));
+    let at = |r: f64, a: f64| {
+        camera::add(
+            point,
+            camera::scale(
+                camera::add(camera::scale(u, a.cos()), camera::scale(v, a.sin())),
+                r * radius,
+            ),
+        )
+    };
     for i in 0..64 {
-        let (a0, a1) = (i as f64 / 64.0 * std::f64::consts::TAU, (i + 1) as f64 / 64.0 * std::f64::consts::TAU);
+        let (a0, a1) = (
+            i as f64 / 64.0 * std::f64::consts::TAU,
+            (i + 1) as f64 / 64.0 * std::f64::consts::TAU,
+        );
         let (p0, p1, p2, p3) = (at(0.94, a0), at(1.0, a0), at(1.0, a1), at(0.94, a1));
         it.tris.extend([p0, p1, p2, p0, p2, p3].map(|q| FlatVertex::new(q, c)));
     }
@@ -352,11 +419,23 @@ pub fn regions(frame: &Frame, faces: &[Vec<Vec<[f64; 2]>>], tag: &str) -> Vec<Ov
 
 /// The same faces as [`regions`] in `color` at `alpha`. Render order 8 matches 1.x `_fill`
 /// (`renderOrder` 8), which sits under sketch strokes (order 10).
-pub fn regions_tinted(frame: &Frame, faces: &[Vec<Vec<[f64; 2]>>], tag: &str, color: u32, alpha: f32) -> Vec<OverlayItem> {
+pub fn regions_tinted(
+    frame: &Frame,
+    faces: &[Vec<Vec<[f64; 2]>>],
+    tag: &str,
+    color: u32,
+    alpha: f32,
+) -> Vec<OverlayItem> {
     region_meshes(frame, faces, tag, rgba(color, alpha), 8)
 }
 
-fn region_meshes(frame: &Frame, faces: &[Vec<Vec<[f64; 2]>>], tag: &str, color: [u8; 4], order: i32) -> Vec<OverlayItem> {
+fn region_meshes(
+    frame: &Frame,
+    faces: &[Vec<Vec<[f64; 2]>>],
+    tag: &str,
+    color: [u8; 4],
+    order: i32,
+) -> Vec<OverlayItem> {
     faces
         .iter()
         .filter(|rings| !rings.is_empty())
@@ -379,7 +458,14 @@ fn region_meshes(frame: &Frame, faces: &[Vec<Vec<[f64; 2]>>], tag: &str, color: 
 
 /// `sketchLines`: entity outlines on a sketch plane; construction lines dashed (1.5 on, 1 off)
 /// in 0x8a6a55, left out when `construction` is false.
-pub fn sketch_lines(frame: &Frame, entities: &[SketchOutline], color: u32, opacity: f32, construction: bool, tag: &str) -> OverlayItem {
+pub fn sketch_lines(
+    frame: &Frame,
+    entities: &[SketchOutline],
+    color: u32,
+    opacity: f32,
+    construction: bool,
+    tag: &str,
+) -> OverlayItem {
     let mut it = OverlayItem::new(tag, 10, Depth::Off);
     for e in entities {
         if e.pts.len() < 2 || (e.construction && !construction) {

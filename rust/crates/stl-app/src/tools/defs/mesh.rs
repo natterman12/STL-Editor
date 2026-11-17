@@ -1,6 +1,6 @@
 //! MESH tab tools.
 
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 
 use super::util::*;
 use super::{Ctx, Field, FieldKind, ToolDef, ToolFlags, Values};
@@ -63,7 +63,11 @@ fn to_params_sculpt(v: &Values, _: &Ctx) -> Value {
 
 /// JS `{ mode: 'smooth', radius: 5, strength: 0.5, ...p }`: the params win.
 fn from_params_sculpt(p: Value) -> Values {
-    let mut o = values(&[("mode", json!("smooth")), ("radius", json!(5)), ("strength", json!(0.5))]);
+    let mut o = values(&[
+        ("mode", json!("smooth")),
+        ("radius", json!(5)),
+        ("strength", json!(0.5)),
+    ]);
     if let Some(src) = p.as_object() {
         for (k, v) in src {
             o.insert(k.clone(), v.clone());
@@ -82,7 +86,12 @@ pub fn sculpt() -> ToolDef {
             Field {
                 key: "mode",
                 label: "Brush",
-                kind: super::fields::opts(&[("smooth", "Smooth"), ("flatten", "Flatten"), ("inflate", "Inflate"), ("deflate", "Deflate")]),
+                kind: super::fields::opts(&[
+                    ("smooth", "Smooth"),
+                    ("flatten", "Flatten"),
+                    ("inflate", "Inflate"),
+                    ("deflate", "Deflate"),
+                ]),
                 help: None,
                 placeholder: None,
                 show: None,
@@ -104,9 +113,14 @@ pub fn sculpt() -> ToolDef {
                 show: None,
             },
         ],
-        hint: Some("Drag across the model to brush it · right-drag to orbit · works best on finely meshed bodies (use Remesh first on blocky parts)"),
+        hint: Some(
+            "Drag across the model to brush it · right-drag to orbit · works best on finely meshed bodies (use Remesh first on blocky parts)",
+        ),
         extra: None,
-        flags: ToolFlags { sculpt: true, ..ToolFlags::default() },
+        flags: ToolFlags {
+            sculpt: true,
+            ..ToolFlags::default()
+        },
         defaults: defaults_sculpt,
         to_params: to_params_sculpt,
         from_params: from_params_sculpt,
@@ -140,7 +154,10 @@ pub fn remesh() -> ToolDef {
         ],
         hint: Some("Rebuilds the surface with even triangles of this size, so brushes and smoothing work everywhere"),
         extra: None,
-        flags: ToolFlags { no_live_preview: true, ..ToolFlags::default() },
+        flags: ToolFlags {
+            no_live_preview: true,
+            ..ToolFlags::default()
+        },
         defaults: |ctx| values(&[("body", first_body_slice(ctx)), ("edge", json!(1))]),
         to_params: to_params_remesh,
         from_params: from_params_body_array,
@@ -201,9 +218,14 @@ pub fn repair() -> ToolDef {
                 show: Some(show_repair_resolution),
             },
         ],
-        hint: Some("Quick fix closes small holes and flips bad triangles. Rebuild remakes the mesh as one watertight solid"),
+        hint: Some(
+            "Quick fix closes small holes and flips bad triangles. Rebuild remakes the mesh as one watertight solid",
+        ),
         extra: None,
-        flags: ToolFlags { no_live_preview: true, ..ToolFlags::default() },
+        flags: ToolFlags {
+            no_live_preview: true,
+            ..ToolFlags::default()
+        },
         defaults: defaults_repair,
         to_params: to_params_body0,
         from_params: from_params_body_array,
@@ -214,7 +236,11 @@ pub fn repair() -> ToolDef {
 /// JS `Math.max(0.1, Math.min(100, v.percent)) / 100`; an `=expr` string is NaN, which JSON writes as null.
 fn to_params_simplify(v: &Values, _: &Ctx) -> Value {
     let pct = get_f64(v, "percent");
-    let ratio = if pct.is_nan() { Value::Null } else { js_num(pct.min(100.0).max(0.1) / 100.0) };
+    let ratio = if pct.is_nan() {
+        Value::Null
+    } else {
+        js_num(pct.min(100.0).max(0.1) / 100.0)
+    };
     let mut m = Map::new();
     put_opt(&mut m, "body", first_of(v, "body").as_ref());
     m.insert("ratio".into(), ratio);
@@ -224,7 +250,10 @@ fn to_params_simplify(v: &Values, _: &Ctx) -> Value {
 /// JS `{ body: p.body ? [p.body] : [], percent: Math.round((p.ratio || 0.5) * 100) }`
 fn from_params_simplify(p: Value) -> Values {
     let o = p.as_object();
-    let ratio = o.and_then(|o| o.get("ratio")).filter(|r| js_truthy(r)).map_or(0.5, js_to_number);
+    let ratio = o
+        .and_then(|o| o.get("ratio"))
+        .filter(|r| js_truthy(r))
+        .map_or(0.5, js_to_number);
     let pct = js_round(ratio * 100.0);
     values(&[
         ("body", wrap_truthy(o.and_then(|o| o.get("body")))),
@@ -258,7 +287,10 @@ pub fn simplify() -> ToolDef {
         ],
         hint: Some("Reduces the triangle count while keeping the shape"),
         extra: None,
-        flags: ToolFlags { no_live_preview: true, ..ToolFlags::default() },
+        flags: ToolFlags {
+            no_live_preview: true,
+            ..ToolFlags::default()
+        },
         defaults: |ctx| values(&[("body", first_body_slice(ctx)), ("percent", json!(50))]),
         to_params: to_params_simplify,
         from_params: from_params_simplify,

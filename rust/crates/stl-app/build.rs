@@ -30,7 +30,10 @@ fn git(args: &[&str]) -> Option<String> {
 }
 
 fn main() {
-    let secs = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+    let secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
     let (y, m, d) = civil_from_days((secs / 86_400) as i64);
     println!("cargo:rustc-env=STL_BUILD_DATE={y:04}-{m:02}-{d:02}");
 
@@ -41,7 +44,9 @@ fn main() {
     // named: cargo treats a missing one as always changed and would rebuild every time.
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=src");
-    let manifest = std::env::var_os("CARGO_MANIFEST_DIR").map(PathBuf::from).unwrap_or_default();
+    let manifest = std::env::var_os("CARGO_MANIFEST_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_default();
     let git_path = |name: &str| git(&["rev-parse", "--git-path", name]).map(|p| manifest.join(p));
     let watch = |p: Option<PathBuf>| match p {
         Some(p) if p.exists() => {
@@ -55,10 +60,10 @@ fn main() {
     if let Some(r) = git(&["symbolic-ref", "-q", "HEAD"]) {
         // A branch's ref file appears the first time it is committed to after packing; until
         // then its folder changes instead.
-        if !watch(git_path(&r)) {
-            if let Some(dir) = git_path(&r).and_then(|p| p.parent().map(PathBuf::from)) {
-                watch(Some(dir));
-            }
+        if !watch(git_path(&r))
+            && let Some(dir) = git_path(&r).and_then(|p| p.parent().map(PathBuf::from))
+        {
+            watch(Some(dir));
         }
     }
 }

@@ -100,14 +100,19 @@ fn fixture_stl(name: &str) -> PathBuf {
 
 /// States the 2.0 panels can open for real (Tasks 2–6 landed).
 fn state_ready(state: &str) -> bool {
-    if state.starts_with("tool_") {
-        let key = &state["tool_".len()..];
-        return stl_app::tools::tool(key).is_some()
-            || matches!(key, "supportfins" | "supportwall");
+    if let Some(key) = state.strip_prefix("tool_") {
+        return stl_app::tools::tool(key).is_some() || matches!(key, "supportfins" | "supportwall");
     }
     matches!(
         state,
-        "gizmo_move" | "gizmo_rotate" | "sculpt_brush" | "sf_rotate" | "sf_add" | "sf_remove" | "walls_line" | "walls_curve"
+        "gizmo_move"
+            | "gizmo_rotate"
+            | "sculpt_brush"
+            | "sf_rotate"
+            | "sf_add"
+            | "sf_remove"
+            | "walls_line"
+            | "walls_curve"
     )
 }
 
@@ -134,7 +139,11 @@ fn wait_support(h: &mut Harness<'static, StlApp>, link: &NativeLink, key: &str) 
     while Instant::now() < end {
         settle(h, link);
         h.run_steps(2);
-        if stl_app::supports::is_installed() && h.state().tool().is_some_and(|t| t.def.key == key || (key == "supportwall" && t.def.key == "supportfins")) {
+        if stl_app::supports::is_installed()
+            && h.state()
+                .tool()
+                .is_some_and(|t| t.def.key == key || (key == "supportwall" && t.def.key == "supportfins"))
+        {
             return;
         }
         let _ = h.state_mut().open_tool(key, None);
@@ -323,13 +332,7 @@ fn capture_one(gpu: &Headless, state: &str, theme: &str) -> (PathBuf, u64) {
     let link = Arc::new(NativeLink::new());
     let platform = FakePlatform::default();
     let ctx = egui::Context::default();
-    let mut app = StlApp::new(
-        &ctx,
-        Box::new(platform),
-        Box::new(SharedLink {
-            inner: link.clone(),
-        }),
-    );
+    let mut app = StlApp::new(&ctx, Box::new(platform), Box::new(SharedLink { inner: link.clone() }));
     app.viewport.init_gpu(&gpu.render_state);
 
     let renderer = wgpu_renderer::WgpuRenderer::new(gpu.render_state.clone());
@@ -344,14 +347,7 @@ fn capture_one(gpu: &Headless, state: &str, theme: &str) -> (PathBuf, u64) {
                 if !init {
                     init = true;
                     stl_app::fonts::install(ui.ctx());
-                    app.set_theme(
-                        ui.ctx(),
-                        if dark {
-                            ThemePref::Dark
-                        } else {
-                            ThemePref::Light
-                        },
-                    );
+                    app.set_theme(ui.ctx(), if dark { ThemePref::Dark } else { ThemePref::Light });
                 }
                 app.layout(ui);
             },
@@ -375,13 +371,10 @@ fn capture_one(gpu: &Headless, state: &str, theme: &str) -> (PathBuf, u64) {
     wait_meshes(&mut h);
     h.run();
 
-    let img = h
-        .render()
-        .unwrap_or_else(|e| panic!("render {state}/{theme}: {e}"));
+    let img = h.render().unwrap_or_else(|e| panic!("render {state}/{theme}: {e}"));
     let out = out_dir().join("2x").join(theme).join(format!("{state}.png"));
     std::fs::create_dir_all(out.parent().unwrap()).unwrap();
-    img.save(&out)
-        .unwrap_or_else(|e| panic!("save {}: {e}", out.display()));
+    img.save(&out).unwrap_or_else(|e| panic!("save {}: {e}", out.display()));
     eprintln!("wrote {} ({}x{})", out.display(), img.width(), img.height());
     use std::hash::{Hash, Hasher};
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
@@ -392,10 +385,7 @@ fn capture_one(gpu: &Headless, state: &str, theme: &str) -> (PathBuf, u64) {
 /// Compiles and documents any remaining skip list. GPU capture is behind `--ignored`.
 #[test]
 fn m4b_shots_skip_list_documents_unbuilt_states() {
-    let skipped: Vec<&str> = all_states()
-        .into_iter()
-        .filter(|s| !state_ready(s))
-        .collect();
+    let skipped: Vec<&str> = all_states().into_iter().filter(|s| !state_ready(s)).collect();
     let ready: Vec<&str> = all_states().into_iter().filter(|s| state_ready(s)).collect();
     assert!(!ready.is_empty(), "expected ready 2.0 states after Tasks 2–6");
     eprintln!(
@@ -433,10 +423,7 @@ fn m4b_shots_2x() {
         }
     }
     if !skipped.is_empty() {
-        eprintln!(
-            "m4b_shots skipped (not built yet): {}",
-            skipped.join(", ")
-        );
+        eprintln!("m4b_shots skipped (not built yet): {}", skipped.join(", "));
     }
     assert!(identical.is_empty(), "states_differ FAILED: {identical:?}");
 }

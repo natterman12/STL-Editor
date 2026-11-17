@@ -3,11 +3,11 @@
 
 use std::cell::Cell;
 
-use serde_json::{json, Map, Value};
-use stl_sketch::entities::{point, point_keys, Entity, Line, Point, P2};
+use serde_json::{Map, Value, json};
+use stl_sketch::entities::{Entity, Line, P2, Point, point, point_keys};
 
 use super::guides::{self, Guide};
-use super::{geom, Ref, SketchSession};
+use super::{Ref, SketchSession, geom};
 use crate::viewport::Viewport;
 
 /// What the pointer snapped to.
@@ -156,9 +156,23 @@ fn tagged(kind: &str) -> Map<String, Value> {
 
 /// `baseRefs()`: the origin and the two axes every sketch can measure from.
 pub fn base_refs() -> [Entity; 3] {
-    let line = |id: &str, p1, p2| Entity::Line(Line { id: Some(id.into()), p1, p2, construction: None, extra: tagged("axis") });
+    let line = |id: &str, p1, p2| {
+        Entity::Line(Line {
+            id: Some(id.into()),
+            p1,
+            p2,
+            construction: None,
+            extra: tagged("axis"),
+        })
+    };
     [
-        Entity::Point(Point { id: Some("_o".into()), x: 0.0, y: 0.0, construction: None, extra: tagged("origin") }),
+        Entity::Point(Point {
+            id: Some("_o".into()),
+            x: 0.0,
+            y: 0.0,
+            construction: None,
+            extra: tagged("origin"),
+        }),
         line("_h", [-AXIS, 0.0], [AXIS, 0.0]),
         line("_v", [0.0, -AXIS], [0.0, AXIS]),
     ]
@@ -262,10 +276,21 @@ pub fn tangent_points(e: &Entity, from: P2) -> Vec<P2> {
             norm(t.to_degrees() - a0) <= span + 1e-9
         }
     };
-    [base + alpha, base - alpha].into_iter().filter(|t| on_sweep(*t)).map(|t| [c[0] + r * t.cos(), c[1] + r * t.sin()]).collect()
+    [base + alpha, base - alpha]
+        .into_iter()
+        .filter(|t| on_sweep(*t))
+        .map(|t| [c[0] + r * t.cos(), c[1] + r * t.sin()])
+        .collect()
 }
 
-fn snap_impl(s: &SketchSession, vp: &Viewport, raw: P2, draw_pts: &[P2], straight_from: Option<P2>, track: bool) -> Snap {
+fn snap_impl(
+    s: &SketchSession,
+    vp: &Viewport,
+    raw: P2,
+    draw_pts: &[P2],
+    straight_from: Option<P2>,
+    track: bool,
+) -> Snap {
     let px = px_at(s, vp, raw);
     // (point, what snapping there ties to, what it is, the circle a tangent snap touches)
     let mut cands: Vec<(P2, Option<Ref>, SnapWhat, Option<String>)> = Vec::new();
@@ -310,10 +335,21 @@ fn snap_impl(s: &SketchSession, vp: &Viewport, raw: P2, draw_pts: &[P2], straigh
         }
     }
     if let Some((p, r, what, tangent_to)) = best {
-        return Snap { uv: p, kind: SnapKind::Point, on: r, guides: Vec::new(), what: Some(what), tangent_to };
+        return Snap {
+            uv: p,
+            kind: SnapKind::Point,
+            on: r,
+            guides: Vec::new(),
+            what: Some(what),
+            tangent_to,
+        };
     }
     // lined up with a point's X or Y (the grid still rounds the other coordinate)
-    let (ax, ay) = if track { guides::align(raw, &tracked, guides::TRACK_PX * px) } else { (None, None) };
+    let (ax, ay) = if track {
+        guides::align(raw, &tracked, guides::TRACK_PX * px)
+    } else {
+        (None, None)
+    };
     let (on, _) = grid();
     let step = grid_step_at(px);
     let mut uv = raw;
@@ -341,7 +377,14 @@ fn snap_impl(s: &SketchSession, vp: &Viewport, raw: P2, draw_pts: &[P2], straigh
         from.push(p);
     }
     let guides = from.into_iter().map(|p| Guide { from: p, to: uv }).collect();
-    Snap { uv, kind, on: None, guides, what: None, tangent_to: None }
+    Snap {
+        uv,
+        kind,
+        on: None,
+        guides,
+        what: None,
+        tangent_to: None,
+    }
 }
 
 /// `entityAt`: the sketch shape within 8 px of `uv`, nearest first.

@@ -11,8 +11,8 @@
 //!   replaced when settings.json has been rewritten (and gone bad again) since.
 
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use serde_json::{Map, Value};
 
@@ -51,7 +51,9 @@ pub struct Settings {
 impl Settings {
     /// `settings.json` in `dir`.
     pub fn open(dir: &Path) -> Settings {
-        Settings { path: dir.join("settings.json") }
+        Settings {
+            path: dir.join("settings.json"),
+        }
     }
 
     /// The file this reads and writes.
@@ -69,7 +71,13 @@ impl Settings {
     fn lock_file(&self) -> Option<std::fs::File> {
         let dir = self.path.parent()?;
         std::fs::create_dir_all(dir).ok()?;
-        let f = std::fs::OpenOptions::new().read(true).write(true).create(true).truncate(false).open(dir.join("settings.lock")).ok()?;
+        let f = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .open(dir.join("settings.lock"))
+            .ok()?;
         f.lock().ok()?; // waits for the other window's write, which takes microseconds
         Some(f)
     }

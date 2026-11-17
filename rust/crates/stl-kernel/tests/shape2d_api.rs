@@ -2,7 +2,9 @@ use stl_kernel::{Shape2d, Solid};
 
 #[test]
 fn simplify_removes_collinear_midpoint() {
-    let shape = Shape2d { contours: vec![vec![[0.0, 0.0], [5.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0]]] };
+    let shape = Shape2d {
+        contours: vec![vec![[0.0, 0.0], [5.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0]]],
+    };
     let s = shape.simplify(0.02);
     assert_eq!(s.contours.len(), 1);
     assert_eq!(s.contours[0].len(), 4);
@@ -35,12 +37,19 @@ fn from_even_odd_does_not_snap_to_the_grid() {
     let s = Shape2d::from_even_odd(&[tri]);
     // Clipper2 itself keeps the vertex near x (within 1e-8) but the kernel adds no 1e-8 rounding,
     // so it does not land on the grid value 0.12345679.
-    let v = s.contours.iter().flatten().find(|p| (p[0] - x).abs() < 1e-8 && p[1] == 0.0).expect("vertex near x");
+    let v = s
+        .contours
+        .iter()
+        .flatten()
+        .find(|p| (p[0] - x).abs() < 1e-8 && p[1] == 0.0)
+        .expect("vertex near x");
     assert_ne!(v[0], (x * 1e8).round() / 1e8, "{:?}", s.contours);
 }
 
 fn square(x0: f64, y0: f64, x1: f64, y1: f64) -> Shape2d {
-    Shape2d { contours: vec![vec![[x0, y0], [x1, y0], [x1, y1], [x0, y1]]] }
+    Shape2d {
+        contours: vec![vec![[x0, y0], [x1, y0], [x1, y1], [x0, y1]]],
+    }
 }
 
 #[test]

@@ -4,7 +4,7 @@ use serde_json::{Map, Value};
 use stl_mesh::thread::thread_tool;
 
 use super::common::placement::{lower_first, parse_ref_list, ref_body, resolve_point};
-use super::common::{apply_tool, float, place, truthy, Vec3};
+use super::common::{Vec3, apply_tool, float, place, truthy};
 use crate::{Ctx, FeatureError, FeatureResult, Registry, State};
 
 /// Python `f"{x:g}"` (6 significant digits).
@@ -24,7 +24,7 @@ fn fmt_g(x: f64) -> String {
     let e = format!("{:.5e}", x);
     let (mant, exp) = e.split_once('e').unwrap();
     let exp: i32 = exp.parse().unwrap();
-    if exp < -4 || exp >= 6 {
+    if !(-4..6).contains(&exp) {
         let mant = if mant.contains('.') {
             mant.trim_end_matches('0').trim_end_matches('.')
         } else {
@@ -95,9 +95,16 @@ fn f_thread(
     let mut notes: Vec<String> = Vec::new();
     let refs = parse_ref_list(p.get("position_refs"));
     if !refs.is_empty() {
-        let at = |o: Vec3| -> Vec3 { std::array::from_fn(|i| frame.o[i] + o[0] * frame.x[i] + o[1] * frame.y[i] + o[2] * frame.n[i]) };
+        let at = |o: Vec3| -> Vec3 {
+            std::array::from_fn(|i| frame.o[i] + o[0] * frame.x[i] + o[1] * frame.y[i] + o[2] * frame.n[i])
+        };
         let body = ref_body(p.get("position_refs"))
-            .or_else(|| p.get("plane").and_then(|v| v.get("body")).and_then(Value::as_str).map(str::to_owned))
+            .or_else(|| {
+                p.get("plane")
+                    .and_then(|v| v.get("body"))
+                    .and_then(Value::as_str)
+                    .map(str::to_owned)
+            })
             .unwrap_or_default();
         let (pt, warn) = resolve_point(state, &body, at(off), frame.n, &refs)?;
         let d: Vec3 = std::array::from_fn(|i| pt[i] - frame.o[i]);
@@ -157,12 +164,16 @@ mod tests {
 
     #[test]
     fn null_kind_uses_internal_tool_and_new_operation() {
-        use std::collections::BTreeMap;
         use crate::NullHost;
+        use std::collections::BTreeMap;
 
         let sources = BTreeMap::new();
         let fins = NullHost;
-        let ctx = Ctx { sources: &sources, preview: false, fins: &fins };
+        let ctx = Ctx {
+            sources: &sources,
+            preview: false,
+            fins: &fins,
+        };
 
         let mut state = State::default();
         let mut res = FeatureResult::default();
@@ -180,6 +191,9 @@ mod tests {
         assert_eq!(b.name, "Thread");
         let bb = b.solid.as_ref().unwrap().bounding_box();
         // internal tool goes from z = -6 up to z = 0.6
-        assert!((bb.min[2] - (-6.0)).abs() < 1e-4 && (bb.max[2] - 0.6).abs() < 1e-4, "{bb:?}");
+        assert!(
+            (bb.min[2] - (-6.0)).abs() < 1e-4 && (bb.max[2] - 0.6).abs() < 1e-4,
+            "{bb:?}"
+        );
     }
 }

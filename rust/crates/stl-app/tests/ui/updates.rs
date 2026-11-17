@@ -28,12 +28,12 @@ mod fake_releases;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-use egui_kittest::kittest::Queryable;
 use egui_kittest::Harness;
+use egui_kittest::kittest::Queryable;
 use fake_releases::{FakeReleases, Faults};
-use serde_json::{json, Value};
-use stl_app::platform::native::NativePlatform;
+use serde_json::{Value, json};
 use stl_app::platform::Platform;
+use stl_app::platform::native::NativePlatform;
 use stl_app::theme;
 use stl_app::updates::{self, UpdateAction, Updates};
 use stl_platform::update::ASSET_NAME;
@@ -68,22 +68,34 @@ struct Ui {
 fn window(name: &str, api: &str, current: &str, exe: Option<&Path>) -> Harness<'static, Ui> {
     let cfg = temp(&format!("{name}-cfg"));
     let p = NativePlatform::with_config_dir(&cfg);
-    let u = Updates::custom(api, current, exe.map(Path::to_path_buf), temp(&format!("{name}-windows")));
+    let u = Updates::custom(
+        api,
+        current,
+        exe.map(Path::to_path_buf),
+        temp(&format!("{name}-windows")),
+    );
     let mut fonts = false;
-    Harness::builder().with_size(egui::vec2(1000.0, 700.0)).with_accessibility_check(false).build_ui_state(
-        move |ui, st: &mut Ui| {
-            if !fonts {
-                fonts = true;
-                stl_app::fonts::install(ui.ctx());
-            }
-            let tk = theme::tokens(false);
-            theme::apply(ui.ctx(), &tk);
-            if let Some(a) = st.u.show(ui.ctx(), &tk, &st.p, NOW) {
-                st.actions.push(a);
-            }
-        },
-        Ui { u, p, actions: Vec::new() },
-    )
+    Harness::builder()
+        .with_size(egui::vec2(1000.0, 700.0))
+        .with_accessibility_check(false)
+        .build_ui_state(
+            move |ui, st: &mut Ui| {
+                if !fonts {
+                    fonts = true;
+                    stl_app::fonts::install(ui.ctx());
+                }
+                let tk = theme::tokens(false);
+                theme::apply(ui.ctx(), &tk);
+                if let Some(a) = st.u.show(ui.ctx(), &tk, &st.p, NOW) {
+                    st.actions.push(a);
+                }
+            },
+            Ui {
+                u,
+                p,
+                actions: Vec::new(),
+            },
+        )
 }
 
 /// Steps frames until `ready` (the network work runs on its own threads).
@@ -117,7 +129,13 @@ fn help_menu_has_the_update_items() {
     let (mut h, _link) = empty_harness();
     h.get_by_label("Help").click();
     h.run_steps(4);
-    for item in ["Check for Updates…", "Update Settings…", "Recover Unsaved Work…", "Keyboard Shortcuts", "About STL Editor"] {
+    for item in [
+        "Check for Updates…",
+        "Update Settings…",
+        "Recover Unsaved Work…",
+        "Keyboard Shortcuts",
+        "About STL Editor",
+    ] {
         assert!(h.query_by_label(item).is_some(), "Help › {item}");
     }
 }
@@ -133,7 +151,11 @@ fn check_for_updates() {
     // Check for Updates: the busy note while it asks, then the banner with 1.x's words
     let mut h = window("banner", &api, "2.0.0", Some(&exe));
     check(&mut h, NOW);
-    assert_eq!(h.state().u.busy_note(), Some("Checking for updates…"), "1.x's note while it asks");
+    assert_eq!(
+        h.state().u.busy_note(),
+        Some("Checking for updates…"),
+        "1.x's note while it asks"
+    );
     until(&mut h, "the banner", banner_up);
     h.get_by_label(INSTALL_LINE);
     for button in ["Skip this version", "Later", "What’s new", "Update now"] {
@@ -144,7 +166,12 @@ fn check_for_updates() {
     // What’s new opens the release page and keeps the banner
     h.get_by_label("What’s new").click();
     h.run_steps(3);
-    assert_eq!(h.state().actions, [UpdateAction::OpenUrl("https://github.com/natterman12/STL-Editor/releases/tag/v2.0.1".into())]);
+    assert_eq!(
+        h.state().actions,
+        [UpdateAction::OpenUrl(
+            "https://github.com/natterman12/STL-Editor/releases/tag/v2.0.1".into()
+        )]
+    );
     assert!(banner_up(&h));
 
     // Later puts it away
@@ -162,7 +189,10 @@ fn check_for_updates() {
     let ui = h.state_mut();
     ui.u.start_background(&ui.p, NOW + 60.0);
     h.run_steps(4);
-    assert!(!banner_up(&h), "the skipped version is not offered by the background check");
+    assert!(
+        !banner_up(&h),
+        "the skipped version is not offered by the background check"
+    );
     check(&mut h, NOW + 120.0);
     until(&mut h, "the manual check to offer it anyway", banner_up);
 }
@@ -174,8 +204,17 @@ fn up_to_date_says_so() {
     let mut h = window("latest", &api, "2.0.0", None);
     check(&mut h, NOW);
     until(&mut h, "the answer", |h| !h.state().actions.is_empty());
-    assert_eq!(h.state().actions, [UpdateAction::Toast { text: "You have the latest version (2.0.0).".into(), warn: false }]);
-    assert!(h.query_by_label("STL Editor 2.0.0 is available").is_none(), "no banner when there is nothing newer");
+    assert_eq!(
+        h.state().actions,
+        [UpdateAction::Toast {
+            text: "You have the latest version (2.0.0).".into(),
+            warn: false
+        }]
+    );
+    assert!(
+        h.query_by_label("STL Editor 2.0.0 is available").is_none(),
+        "no banner when there is nothing newer"
+    );
 }
 
 #[test]
@@ -187,10 +226,18 @@ fn a_copy_that_cannot_update_itself_offers_the_download() {
     until(&mut h, "the banner", banner_up);
     h.get_by_label(&format!("You have 2.0.0. {}", updates::DOWNLOAD_LINE));
     h.get_by_label("Download");
-    assert!(h.query_by_label("Update now").is_none(), "only the installed copy can swap itself");
+    assert!(
+        h.query_by_label("Update now").is_none(),
+        "only the installed copy can swap itself"
+    );
     h.get_by_label("Download").click();
     h.run_steps(3);
-    assert_eq!(h.state().actions, [UpdateAction::OpenUrl("https://github.com/natterman12/STL-Editor/releases/tag/v2.0.1".into())]);
+    assert_eq!(
+        h.state().actions,
+        [UpdateAction::OpenUrl(
+            "https://github.com/natterman12/STL-Editor/releases/tag/v2.0.1".into()
+        )]
+    );
     assert!(!banner_up(&h));
 }
 
@@ -200,9 +247,20 @@ fn a_failed_download_shows_why_and_keeps_the_exe() {
     // SAFETY: only the updater reads it, on its own threads, and it is only ever set to this value.
     unsafe { std::env::set_var("STLEDITOR2_UPDATE_TEST_HOST", "127.0.0.1") };
     let data = vec![7u8; 40_000];
-    let assets = FakeReleases::start(json!([]), vec![(ASSET_NAME.into(), data.clone())], Faults { wrong_size: true, ..Default::default() });
+    let assets = FakeReleases::start(
+        json!([]),
+        vec![(ASSET_NAME.into(), data.clone())],
+        Faults {
+            wrong_size: true,
+            ..Default::default()
+        },
+    );
     let asset_url = format!("{}/assets/{ASSET_NAME}", assets.base_url());
-    let srv = FakeReleases::start(json!([release("v2.0.1", &asset_url, data.len())]), vec![], Faults::default());
+    let srv = FakeReleases::start(
+        json!([release("v2.0.1", &asset_url, data.len())]),
+        vec![],
+        Faults::default(),
+    );
     let api = format!("{}/releases", srv.base_url());
     let install = temp("failed-install");
     let exe = install.join("stl-editor-2.exe");
@@ -212,14 +270,34 @@ fn a_failed_download_shows_why_and_keeps_the_exe() {
     check(&mut h, NOW);
     until(&mut h, "the banner", banner_up);
     h.get_by_label("Update now").click();
-    until(&mut h, "the failure", |h| h.query_by_label("Download instead").is_some());
+    until(&mut h, "the failure", |h| {
+        h.query_by_label("Download instead").is_some()
+    });
     h.get_by_label(stl_platform::update::WRONG_SIZE);
     h.get_by_label("Close");
-    assert_eq!(std::fs::read(&exe).unwrap(), b"the installed exe", "the installed exe is as it was");
-    let leftovers: Vec<_> = std::fs::read_dir(&install).unwrap().flatten().map(|e| e.file_name().to_string_lossy().into_owned()).filter(|n| n.ends_with(".new.exe")).collect();
+    assert_eq!(
+        std::fs::read(&exe).unwrap(),
+        b"the installed exe",
+        "the installed exe is as it was"
+    );
+    let leftovers: Vec<_> = std::fs::read_dir(&install)
+        .unwrap()
+        .flatten()
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .filter(|n| n.ends_with(".new.exe"))
+        .collect();
     assert!(leftovers.is_empty(), "no half download left behind: {leftovers:?}");
-    assert!(!install.join(stl_platform::update::OLD_NAME).exists(), "nothing was swapped");
-    assert!(!h.state().actions.iter().any(|a| matches!(a, UpdateAction::Restart { .. })), "no restart");
+    assert!(
+        !install.join(stl_platform::update::OLD_NAME).exists(),
+        "nothing was swapped"
+    );
+    assert!(
+        !h.state()
+            .actions
+            .iter()
+            .any(|a| matches!(a, UpdateAction::Restart { .. })),
+        "no restart"
+    );
 
     // Close puts the banner away
     h.get_by_label("Close").click();
@@ -254,7 +332,13 @@ fn update_settings_dialog() {
     h.run_steps(2);
     h.get_by_label("OK").click();
     h.run_steps(3);
-    assert_eq!(h.state().actions, [UpdateAction::Toast { text: "Update checks are off.".into(), warn: false }]);
+    assert_eq!(
+        h.state().actions,
+        [UpdateAction::Toast {
+            text: "Update checks are off.".into(),
+            warn: false
+        }]
+    );
     assert_eq!(h.state().p.setting_json("update_check"), Some(json!(false)));
     let ui = h.state_mut();
     ui.u.start_background(&ui.p, NOW + 5.0 * 86_400.0);
@@ -269,6 +353,14 @@ fn update_settings_dialog() {
     h.get_by_label("OK").click();
     h.run_steps(3);
     assert_eq!(h.state().p.setting_json("update_check"), Some(json!(true)));
-    until(&mut h, "the check that turning checks on starts", |h| !h.state().actions.is_empty());
-    assert_eq!(h.state().actions, [UpdateAction::Toast { text: "You have the latest version (2.0.0).".into(), warn: false }]);
+    until(&mut h, "the check that turning checks on starts", |h| {
+        !h.state().actions.is_empty()
+    });
+    assert_eq!(
+        h.state().actions,
+        [UpdateAction::Toast {
+            text: "You have the latest version (2.0.0).".into(),
+            warn: false
+        }]
+    );
 }

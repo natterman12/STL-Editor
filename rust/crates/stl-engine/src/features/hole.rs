@@ -3,7 +3,7 @@
 use serde_json::{Map, Value};
 use stl_kernel::Solid;
 
-use super::common::frames::{unit, Vec3};
+use super::common::frames::{Vec3, unit};
 use super::common::placement::{lower_first, parse_refs, ref_body, resolve_point};
 use super::common::{apply_tool, big_extent, float, make_cylinder, truthy};
 use crate::{Ctx, FeatureError, FeatureResult, Registry, State};
@@ -40,19 +40,22 @@ fn hole(
         return Err(FeatureError("Click on a face to place the hole.".into()));
     }
     let targets = p.get("targets");
-    let n = unit(match p.get("normal").and_then(vec3) {
-        Some(v) => v,
-        None => [0.0, 0.0, 1.0],
-    })?;
+    let n = unit(p.get("normal").and_then(vec3).unwrap_or([0.0, 0.0, 1.0]))?;
     // M7: points measured from part edges or sketch lines are re-placed from those references;
     // without `point_refs` nothing here runs, so older projects build exactly as before
     let mut notes: Vec<String> = Vec::new();
     let refs = parse_refs(p.get("point_refs"));
     if refs.iter().any(|r| !r.is_empty()) {
         let raw = p.get("point_refs").and_then(Value::as_array);
-        let first_target = targets.and_then(Value::as_array).and_then(|a| a.first()).and_then(Value::as_str).unwrap_or("");
+        let first_target = targets
+            .and_then(Value::as_array)
+            .and_then(|a| a.first())
+            .and_then(Value::as_str)
+            .unwrap_or("");
         for (i, pt) in pts.iter_mut().enumerate() {
-            let Some(list) = refs.get(i).filter(|l| !l.is_empty()) else { continue };
+            let Some(list) = refs.get(i).filter(|l| !l.is_empty()) else {
+                continue;
+            };
             let body = ref_body(raw.and_then(|a| a.get(i))).unwrap_or_else(|| first_target.to_owned());
             let (np, warn) = resolve_point(state, &body, *pt, n, list)?;
             *pt = np;
@@ -100,13 +103,27 @@ fn hole(
         tools.push(make_cylinder(top, neg_n, depth + eps, r, None, 96)?);
         if !through && truthy(p.get("depth")) && tip {
             let tip_h = r / (118.0_f64 / 2.0).to_radians().tan();
-            tools.push(make_cylinder(add(pt, mul(n, -depth)), neg_n, tip_h, r, Some(0.001), 96)?);
+            tools.push(make_cylinder(
+                add(pt, mul(n, -depth)),
+                neg_n,
+                tip_h,
+                r,
+                Some(0.001),
+                96,
+            )?);
         }
         match kind {
             "counterbore" => {
                 let cbd = float(p, "cb_diameter", Some(d * 1.8))?;
                 let cbh = float(p, "cb_depth", Some(d * 0.6))?;
-                tools.push(make_cylinder(add(pt, mul(n, 1.0)), neg_n, cbh + 1.0, cbd / 2.0, None, 96)?);
+                tools.push(make_cylinder(
+                    add(pt, mul(n, 1.0)),
+                    neg_n,
+                    cbh + 1.0,
+                    cbd / 2.0,
+                    None,
+                    96,
+                )?);
             }
             "hex" => {
                 let af = float(p, "hex_af", Some(d * 1.8))?;
@@ -120,12 +137,23 @@ fn hole(
                 let h = (csd - d) / 2.0 / (ang / 2.0).to_radians().tan();
                 let extra = 1.0;
                 let r_top = csd / 2.0 + extra * (ang / 2.0).to_radians().tan();
-                tools.push(make_cylinder(add(pt, mul(n, extra)), neg_n, h + extra, r_top, Some(r), 96)?);
+                tools.push(make_cylinder(
+                    add(pt, mul(n, extra)),
+                    neg_n,
+                    h + extra,
+                    r_top,
+                    Some(r),
+                    96,
+                )?);
             }
             _ => {}
         }
     }
-    let tool = if tools.len() > 1 { Solid::union_all(&tools) } else { tools.remove(0) };
+    let tool = if tools.len() > 1 {
+        Solid::union_all(&tools)
+    } else {
+        tools.remove(0)
+    };
     res.set_cutter(ctx.preview, &tool);
     apply_tool(state, fid, tool, "cut", targets, "Hole", res)?;
     add_notes(res, notes);

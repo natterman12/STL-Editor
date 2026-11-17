@@ -2,13 +2,13 @@
 
 #![cfg(target_arch = "wasm32")]
 
-use crate::supports::coverage::{publish_result, CoverageInput, CoverageJobResult, CoverageOutput, JobSlot};
+use crate::supports::coverage::{CoverageInput, CoverageJobResult, CoverageOutput, JobSlot, publish_result};
 use js_sys::{Array, Float32Array, Object, Reflect, Uint32Array};
 use std::cell::RefCell;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
-use wasm_bindgen::prelude::*;
+use std::sync::atomic::{AtomicU64, Ordering};
 use wasm_bindgen::JsCast;
+use wasm_bindgen::prelude::*;
 use web_sys::{MessageEvent, Url, Worker, WorkerOptions, WorkerType};
 
 thread_local! {
@@ -26,18 +26,12 @@ impl WasmCoverageSide {
     pub fn stop_worker(&self) {
         WORKER.with(|w| {
             if let Some(worker) = w.borrow_mut().take() {
-                let _ = worker.terminate();
+                worker.terminate();
             }
         });
     }
 
-    pub fn start(
-        &self,
-        generation: Arc<AtomicU64>,
-        slot: Arc<JobSlot>,
-        seq: u64,
-        input: CoverageInput,
-    ) {
+    pub fn start(&self, generation: Arc<AtomicU64>, slot: Arc<JobSlot>, seq: u64, input: CoverageInput) {
         let msg = pack_message(seq, &input);
         let post = WORKER.with(|cell| {
             if cell.borrow().is_none() {
@@ -69,6 +63,12 @@ impl WasmCoverageSide {
     }
 }
 
+impl Default for WasmCoverageSide {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 enum WorkerPost {
     Ok,
     Spawn(CoverageJobResult),
@@ -77,9 +77,7 @@ enum WorkerPost {
 
 fn spawn_worker(generation: Arc<AtomicU64>, slot: Arc<JobSlot>) -> Result<Worker, CoverageJobResult> {
     let href = web_sys::window()
-        .ok_or(CoverageJobResult::Error(
-            "Could not start the coverage worker.".into(),
-        ))?
+        .ok_or(CoverageJobResult::Error("Could not start the coverage worker.".into()))?
         .location()
         .href()
         .map_err(|_| CoverageJobResult::Error("Could not start the coverage worker.".into()))?;
@@ -87,9 +85,8 @@ fn spawn_worker(generation: Arc<AtomicU64>, slot: Arc<JobSlot>) -> Result<Worker
         .map_err(|_| CoverageJobResult::Error("Could not start the coverage worker.".into()))?;
     let opts = WorkerOptions::new();
     opts.set_type(WorkerType::Module);
-    let worker = Worker::new_with_options(&url.href(), &opts).map_err(|_| {
-        CoverageJobResult::Error("Could not start the coverage worker.".into())
-    })?;
+    let worker = Worker::new_with_options(&url.href(), &opts)
+        .map_err(|_| CoverageJobResult::Error("Could not start the coverage worker.".into()))?;
     let slot_cb = slot.clone();
     let gen_cb = generation.clone();
     let closure = Closure::<dyn Fn(MessageEvent)>::new(move |ev: MessageEvent| {
@@ -157,38 +154,30 @@ fn pack_message(seq: u64, input: &CoverageInput) -> JsValue {
 
 fn parse_output(v: &JsValue) -> Option<CoverageOutput> {
     let o = v.dyn_ref::<Object>()?;
-    let total = Reflect::get(o, &JsValue::from_str("total"))
-        .ok()?
-        .as_f64()?;
-    let held = Reflect::get(o, &JsValue::from_str("held"))
-        .ok()?
-        .as_f64()?;
+    let total = Reflect::get(o, &JsValue::from_str("total")).ok()?.as_f64()?;
+    let held = Reflect::get(o, &JsValue::from_str("held")).ok()?.as_f64()?;
     let mut out = CoverageOutput {
         total,
         held,
         ..Default::default()
     };
-    if let Ok(tris) = Reflect::get(o, &JsValue::from_str("tris")) {
-        if let Some(a) = tris.dyn_ref::<Float32Array>() {
-            out.tris = (0..a.length()).map(|i| a.get_index(i)).collect();
-        }
+    if let Ok(tris) = Reflect::get(o, &JsValue::from_str("tris"))
+        && let Some(a) = tris.dyn_ref::<Float32Array>()
+    {
+        out.tris = (0..a.length()).map(|i| a.get_index(i)).collect();
     }
-    if let Ok(dist) = Reflect::get(o, &JsValue::from_str("dist")) {
-        if let Some(a) = dist.dyn_ref::<Float32Array>() {
-            out.dist = (0..a.length()).map(|i| a.get_index(i)).collect();
-        }
+    if let Ok(dist) = Reflect::get(o, &JsValue::from_str("dist"))
+        && let Some(a) = dist.dyn_ref::<Float32Array>()
+    {
+        out.dist = (0..a.length()).map(|i| a.get_index(i)).collect();
     }
     let spots_js = Reflect::get(o, &JsValue::from_str("spots")).ok()?;
     let spots = spots_js.dyn_ref::<Array>()?;
     for i in 0..spots.length() {
         let s = spots.get(i);
         let so = s.dyn_ref::<Object>()?;
-        let area = Reflect::get(so, &JsValue::from_str("area"))
-            .ok()?
-            .as_f64()?;
-        let span = Reflect::get(so, &JsValue::from_str("span"))
-            .ok()?
-            .as_f64()?;
+        let area = Reflect::get(so, &JsValue::from_str("area")).ok()?.as_f64()?;
+        let span = Reflect::get(so, &JsValue::from_str("span")).ok()?.as_f64()?;
         let far = Reflect::get(so, &JsValue::from_str("far")).ok().and_then(|v| {
             if v.is_null() || v.is_undefined() {
                 None

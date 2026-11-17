@@ -98,9 +98,15 @@ fn hollow_and_rebuild_match_1x() {
         let out = hollow(&b, 2.0, Some(hollow_pitch(&b, 2.0, q)), false).expect("hollow");
         let want = golden("hollow.json", &format!("hollow_{q}"));
         let g = stats(&out);
-        println!("hollow_{q}: 1.x volume {} area {}; 2.0 volume {} area {} tri {}", want.volume, want.area, g.volume, g.area, g.triangles);
+        println!(
+            "hollow_{q}: 1.x volume {} area {}; 2.0 volume {} area {} tri {}",
+            want.volume, want.area, g.volume, g.area, g.triangles
+        );
         if (g.volume - 7184.0).abs() > 7.184 || (g.area - 7216.0).abs() > 7.216 {
-            report.push(format!("hollow_{q}: not square: volume {} (7184) area {} (7216)", g.volume, g.area));
+            report.push(format!(
+                "hollow_{q}: not square: volume {} (7184) area {} (7216)",
+                g.volume, g.area
+            ));
         }
         // the bevelled 1.x cavity is a little smaller, so its shell a little larger
         assert!(want.volume > g.volume, "1.x bevel should leave more material");
@@ -109,11 +115,11 @@ fn hollow_and_rebuild_match_1x() {
     // a hollow with a thick wall: the error text
     let cube = Solid::cube([10.0, 10.0, 10.0], false);
     let e = err(hollow(&cube, 6.0, Some(hollow_pitch(&cube, 6.0, "draft")), false));
-    assert_eq!(e, "Wall thickness is too large for this body; nothing would be left hollow.");
     assert_eq!(
-        err(hollow(&cube, 0.0, None, false)),
-        "Wall thickness must be positive."
+        e,
+        "Wall thickness is too large for this body; nothing would be left hollow."
     );
+    assert_eq!(err(hollow(&cube, 0.0, None, false)), "Wall thickness must be positive.");
 
     // two shells: the import repairs the model first
     let (v, f) = soup("two_blobs.stl");
@@ -121,11 +127,19 @@ fn hollow_and_rebuild_match_1x() {
     let rf: Vec<u32> = f.iter().flatten().copied().collect();
     let two = local_repair(&rv, &rf).unwrap_or_else(|| {
         let (qv, qf) = quick_repair(&rv, &rf);
-        let m = MeshArrays { positions: qv.iter().map(|&x| x as f32).collect(), triangles: qf };
+        let m = MeshArrays {
+            positions: qv.iter().map(|&x| x as f32).collect(),
+            triangles: qf,
+        };
         Solid::from_mesh(&m).expect("two_blobs solid")
     });
     let out = hollow(&two, 1.5, Some(hollow_pitch(&two, 1.5, "draft")), false).expect("hollow two shells");
-    check("hollow_two_shells", &golden("hollow.json", "hollow_two_shells"), &out, &mut report);
+    check(
+        "hollow_two_shells",
+        &golden("hollow.json", "hollow_two_shells"),
+        &out,
+        &mut report,
+    );
 
     // voxel_rebuild on the broken models
     let cases: [(&str, &str, Option<f64>, f64); 5] = [
@@ -168,13 +182,31 @@ fn hollow_cavity_only_and_default_pitch_match_1x() {
     assert!((cavity.volume() + full.volume() - b.volume()).abs() < 1e-6 * b.volume());
     // 1.x's bevelled cavity: 100 triangles, volume 10811.0, area 2986.4 (scratch script, 2026-11-11).
     // 2.0 squares the corners (spec 2.7): exactly 26 x 26 x 16.
-    println!("cavity tri {} volume {} area {}", cavity.num_tri(), cavity.volume(), cavity.surface_area());
+    println!(
+        "cavity tri {} volume {} area {}",
+        cavity.num_tri(),
+        cavity.volume(),
+        cavity.surface_area()
+    );
     assert_eq!(cavity.num_tri(), 12);
-    assert!(close(26.0 * 26.0 * 16.0, cavity.volume()), "cavity volume {}", cavity.volume());
-    assert!(close(2.0 * (26.0 * 26.0 + 2.0 * 26.0 * 16.0), cavity.surface_area()), "cavity area {}", cavity.surface_area());
+    assert!(
+        close(26.0 * 26.0 * 16.0, cavity.volume()),
+        "cavity volume {}",
+        cavity.volume()
+    );
+    assert!(
+        close(2.0 * (26.0 * 26.0 + 2.0 * 26.0 * 16.0), cavity.surface_area()),
+        "cavity area {}",
+        cavity.surface_area()
+    );
 
     let d = hollow(&b, 2.0, None, false).expect("default pitch");
-    println!("default tri {} volume {} area {}", d.num_tri(), d.volume(), d.surface_area());
+    println!(
+        "default tri {} volume {} area {}",
+        d.num_tri(),
+        d.volume(),
+        d.surface_area()
+    );
     // 1.x: 112 triangles, volume 7203.6, area 7165.9
     assert!(close(7184.0, d.volume()), "default volume {}", d.volume());
     assert!(close(7216.0, d.surface_area()), "default area {}", d.surface_area());
@@ -216,9 +248,9 @@ fn point_grid_matches_tree_and_sampler_matches_surface_points() {
 
     let tree = PointTree::new(&all);
     let grid = PointGrid::build([0.0; 3], [10.0, 7.0, 9.0], 0.9, all.len(), |f| {
-        sampler.each_vertex(|p| f(p));
+        sampler.each_vertex(f);
         for fi in 0..sampler.face_count() {
-            sampler.each_face_point(fi, |p| f(p));
+            sampler.each_face_point(fi, f);
         }
     })
     .expect("grid");
@@ -245,7 +277,12 @@ fn point_grid_finds_samples_clamped_into_edge_cells() {
         }
     })
     .expect("grid");
-    for q in [[-10.0, 1.0 - 1e-12, 0.0], [10.0, 1.0, 0.0], [0.5, -3.0, 5.0], [-1e-15, 1.0, -7.0]] {
+    for q in [
+        [-10.0, 1.0 - 1e-12, 0.0],
+        [10.0, 1.0, 0.0],
+        [0.5, -3.0, 5.0],
+        [-1e-15, 1.0, -7.0],
+    ] {
         assert_eq!(tree.nearest_dist(q), grid.nearest_dist(q), "query {q:?}");
     }
 }
@@ -314,8 +351,21 @@ fn sample_index_matches_tree_over_all_samples() {
     let n = verts.len() as u32;
     // a skinny sliver 40 mm long (hits the 400 clamp at fine spacing), a collapsed edge, a point
     // triangle, a tiny triangle (one sample), a face with a bad index
-    verts.extend([[0.0, 0.0, 0.0], [40.0, 0.2, 0.1], [40.0, 0.2, 0.3], [5.0, 5.0, 5.0], [5.0, 5.0, 5.0], [9.0, 9.0, 9.0]]);
-    faces.extend([[n, n + 1, n + 2], [n + 3, n + 4, n + 5], [n + 3, n + 3, n + 3], [n + 5, n + 5, n + 4], [0, 1, 999]]);
+    verts.extend([
+        [0.0, 0.0, 0.0],
+        [40.0, 0.2, 0.1],
+        [40.0, 0.2, 0.3],
+        [5.0, 5.0, 5.0],
+        [5.0, 5.0, 5.0],
+        [9.0, 9.0, 9.0],
+    ]);
+    faces.extend([
+        [n, n + 1, n + 2],
+        [n + 3, n + 4, n + 5],
+        [n + 3, n + 3, n + 3],
+        [n + 5, n + 5, n + 4],
+        [0, 1, 999],
+    ]);
     for spacing in [0.4, 1.3, 0.07] {
         let all = surface_points(&verts, &faces, spacing);
         let tree = PointTree::new(&all);
@@ -323,7 +373,11 @@ fn sample_index_matches_tree_over_all_samples() {
         let index = SampleIndex::new(&sampler).expect("index");
         for _ in 0..400 {
             let q = [rnd() * 110.0 - 10.0, rnd() * 20.0 - 7.0, rnd() * 20.0 - 7.0];
-            assert_eq!(tree.nearest_dist(q), index.nearest_dist(q), "spacing {spacing} query {q:?}");
+            assert_eq!(
+                tree.nearest_dist(q),
+                index.nearest_dist(q),
+                "spacing {spacing} query {q:?}"
+            );
         }
         // queries right on and next to samples
         for k in (0..all.len()).step_by(all.len() / 60 + 1) {

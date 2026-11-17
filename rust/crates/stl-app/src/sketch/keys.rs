@@ -3,7 +3,7 @@
 //! a dimension drops its picks on Esc); what it leaves is handled here.
 
 use egui::{Key, Modifiers};
-use stl_sketch::solver::{refs_exist, World};
+use stl_sketch::solver::{World, refs_exist};
 
 use super::session::{Env, SketchMode};
 use super::{SketchEffect, SketchInput, SketchSession};
@@ -49,7 +49,11 @@ pub fn toggle_construction(s: &mut SketchSession) -> Vec<SketchEffect> {
     }
     s.push();
     let sel = s.sel.clone();
-    for e in s.entities.iter_mut().filter(|e| e.id().is_some_and(|id| sel.contains(id))) {
+    for e in s
+        .entities
+        .iter_mut()
+        .filter(|e| e.id().is_some_and(|id| sel.contains(id)))
+    {
         let on = !e.construction();
         set_construction(e, on);
     }
@@ -92,11 +96,9 @@ pub fn on_key(m: &mut SketchMode, env: &Env, key: Key, mods: Modifiers) -> (bool
         out.extend(delete_selected(&mut m.s));
         return (true, out);
     }
-    if !ctrl {
-        if let Some(t) = tool_for_letter(key) {
-            out.extend(m.set_tool(t, env));
-            return (true, out);
-        }
+    if !ctrl && let Some(t) = tool_for_letter(key) {
+        out.extend(m.set_tool(t, env));
+        return (true, out);
     }
     if ctrl && key == Key::Z {
         // `undoLocal`: the sketch's own history, never the document's

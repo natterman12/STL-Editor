@@ -200,12 +200,10 @@ fn read_scalar_bin(data: &[u8], at: &mut usize, ty: Scalar, endian: Endian) -> R
 }
 
 fn face_index_name(props: &[Property]) -> Option<&str> {
-    for n in ["vertex_indices", "vertex_index"] {
-        if props.iter().any(|p| p.name == n) {
-            return Some(n);
-        }
-    }
-    None
+    ["vertex_indices", "vertex_index"]
+        .into_iter()
+        .find(|&n| props.iter().any(|p| p.name == n))
+        .map(|v| v as _)
 }
 
 fn take_list_ascii<'a>(row: &[&'a str], at: &mut usize) -> Result<Vec<&'a str>, ReadError> {
@@ -255,10 +253,7 @@ pub fn read(data: &[u8], base: &str) -> Result<Vec<Part>, ReadError> {
 
     if is_ascii {
         let text = std::str::from_utf8(body).map_err(|_| bad())?;
-        let mut rows = text
-            .lines()
-            .map(str::trim)
-            .filter(|s| !s.is_empty());
+        let mut rows = text.lines().map(str::trim).filter(|s| !s.is_empty());
 
         for el in &elements {
             match el.name.as_str() {
@@ -351,11 +346,7 @@ pub fn read(data: &[u8], base: &str) -> Result<Vec<Part>, ReadError> {
                                 }
                                 PropType::List { count, item } => {
                                     let n = read_scalar_bin(body, &mut at, *count, endian)? as usize;
-                                    let n = list_count_bounded(
-                                        n,
-                                        body.len().saturating_sub(at),
-                                        item.size(),
-                                    )?;
+                                    let n = list_count_bounded(n, body.len().saturating_sub(at), item.size())?;
                                     for _ in 0..n {
                                         let _ = read_scalar_bin(body, &mut at, *item, endian)?;
                                     }
@@ -378,11 +369,7 @@ pub fn read(data: &[u8], base: &str) -> Result<Vec<Part>, ReadError> {
                                 }
                                 PropType::List { count, item } => {
                                     let n = read_scalar_bin(body, &mut at, *count, endian)? as usize;
-                                    let n = list_count_bounded(
-                                        n,
-                                        body.len().saturating_sub(at),
-                                        item.size(),
-                                    )?;
+                                    let n = list_count_bounded(n, body.len().saturating_sub(at), item.size())?;
                                     let mut idxs = Vec::with_capacity(n);
                                     for _ in 0..n {
                                         let v = read_scalar_bin(body, &mut at, *item, endian)? as i64;
@@ -406,11 +393,7 @@ pub fn read(data: &[u8], base: &str) -> Result<Vec<Part>, ReadError> {
                                 }
                                 PropType::List { count, item } => {
                                     let n = read_scalar_bin(body, &mut at, *count, endian)? as usize;
-                                    let n = list_count_bounded(
-                                        n,
-                                        body.len().saturating_sub(at),
-                                        item.size(),
-                                    )?;
+                                    let n = list_count_bounded(n, body.len().saturating_sub(at), item.size())?;
                                     for _ in 0..n {
                                         let _ = read_scalar_bin(body, &mut at, *item, endian)?;
                                     }
@@ -426,5 +409,9 @@ pub fn read(data: &[u8], base: &str) -> Result<Vec<Part>, ReadError> {
     if positions.is_empty() {
         return Ok(Vec::new());
     }
-    Ok(vec![Part { name: base.to_string(), positions, triangles }])
+    Ok(vec![Part {
+        name: base.to_string(),
+        positions,
+        triangles,
+    }])
 }

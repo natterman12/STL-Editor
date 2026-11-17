@@ -4,18 +4,18 @@
 
 use std::fs;
 use std::path::PathBuf;
-use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
+use std::sync::atomic::AtomicU64;
 use std::thread;
 use std::time::{Duration, Instant};
 
 use serde_json::Value;
 use stl_app::supports::coverage::{
-    bare_points, compute, compute_cancellable, ComputeCancel, CoverageInput, CoverageJob, CoverageJobResult,
-    DEFAULT_REACH,
+    ComputeCancel, CoverageInput, CoverageJob, CoverageJobResult, DEFAULT_REACH, bare_points, compute,
+    compute_cancellable,
 };
 use stl_app::supports::walls::{
-    arc_path, wall_line, walls_to_params, Wall, WallClickHit, WallClickMsg, WallDrawer, SHAPE_STORAGE_KEY,
+    SHAPE_STORAGE_KEY, Wall, WallClickHit, WallClickMsg, WallDrawer, arc_path, wall_line, walls_to_params,
 };
 use stl_app::viewport::overhang_faces;
 use stl_kernel::MeshArrays;
@@ -80,7 +80,15 @@ fn shelf_fin() -> Vec<f32> {
     let mut out = Vec::new();
     for i in 0..6 {
         out.extend_from_slice(&[
-            p[i][0], p[i][1], p[i][2], p[i + 1][0], p[i + 1][1], p[i + 1][2], p[i + 2][0], p[i + 2][1], p[i + 2][2],
+            p[i][0],
+            p[i][1],
+            p[i][2],
+            p[i + 1][0],
+            p[i + 1][1],
+            p[i + 1][2],
+            p[i + 2][0],
+            p[i + 2][1],
+            p[i + 2][2],
         ]);
     }
     out
@@ -308,18 +316,20 @@ fn hit(body: &str, p: [f64; 3], n: [f64; 3]) -> WallClickHit {
 }
 
 fn name(id: &str) -> String {
-    if id == "b1" {
-        "Body 1".into()
-    } else {
-        id.into()
-    }
+    if id == "b1" { "Body 1".into() } else { id.into() }
 }
 
 #[test]
 fn wall_shape_line() {
     let mut d = WallDrawer::default();
     d.set_shape("line", |_, _| {});
-    let (_, _) = d.click(Some(&hit("b1", [1.0, 2.0, 3.0], [0.0, 0.0, 1.0])), &[], None, name, false);
+    let (_, _) = d.click(
+        Some(&hit("b1", [1.0, 2.0, 3.0], [0.0, 0.0, 1.0])),
+        &[],
+        None,
+        name,
+        false,
+    );
     let (w, _) = d.click(
         Some(&hit("b1", [4.0, 5.0, 6.0], [0.0, 0.0, 1.0])),
         &[],
@@ -338,9 +348,27 @@ fn wall_shape_line() {
 fn wall_shape_path() {
     let mut d = WallDrawer::default();
     d.set_shape("path", |_, _| {});
-    d.click(Some(&hit("b", [0.0, 0.0, 0.0], [0.0, 1.0, 0.0])), &[], Some("b"), name, false);
-    d.click(Some(&hit("b", [1.0, 0.0, 0.0], [0.0, 1.0, 0.0])), &[], Some("b"), name, false);
-    d.click(Some(&hit("b", [2.0, 0.0, 0.0], [0.0, 1.0, 0.0])), &[], Some("b"), name, false);
+    d.click(
+        Some(&hit("b", [0.0, 0.0, 0.0], [0.0, 1.0, 0.0])),
+        &[],
+        Some("b"),
+        name,
+        false,
+    );
+    d.click(
+        Some(&hit("b", [1.0, 0.0, 0.0], [0.0, 1.0, 0.0])),
+        &[],
+        Some("b"),
+        name,
+        false,
+    );
+    d.click(
+        Some(&hit("b", [2.0, 0.0, 0.0], [0.0, 1.0, 0.0])),
+        &[],
+        Some("b"),
+        name,
+        false,
+    );
     let mut walls = Vec::new();
     assert!(d.finish_path(&mut walls));
     assert_eq!(walls[0].shape, "path");
@@ -371,11 +399,29 @@ fn wall_shape_curve() {
 fn wall_shape_gusset() {
     let mut d = WallDrawer::default();
     d.set_shape("gusset", |_, _| {});
-    let (_, m) = d.click(Some(&hit("b", [0.0, 0.0, 5.0], [1.0, 0.0, 0.0])), &[], Some("b"), name, false);
+    let (_, m) = d.click(
+        Some(&hit("b", [0.0, 0.0, 5.0], [1.0, 0.0, 0.0])),
+        &[],
+        Some("b"),
+        name,
+        false,
+    );
     assert_eq!(m, WallClickMsg::None);
-    let (_, m) = d.click(Some(&hit("b", [0.0, 0.0, 10.0], [0.0, 0.0, -1.0])), &[], Some("b"), name, false);
+    let (_, m) = d.click(
+        Some(&hit("b", [0.0, 0.0, 10.0], [0.0, 0.0, -1.0])),
+        &[],
+        Some("b"),
+        name,
+        false,
+    );
     assert_eq!(m, WallClickMsg::None);
-    let (_, m) = d.click(Some(&hit("b", [0.0, 0.0, 5.0], [0.0, 0.0, 1.0])), &[], Some("b"), name, false);
+    let (_, m) = d.click(
+        Some(&hit("b", [0.0, 0.0, 5.0], [0.0, 0.0, 1.0])),
+        &[],
+        Some("b"),
+        name,
+        false,
+    );
     assert_eq!(
         m,
         WallClickMsg::Warn("Start a gusset on a side of the part: an upright face below the overhang.".into())
@@ -386,9 +432,21 @@ fn wall_shape_gusset() {
 fn wall_shape_anchor() {
     let mut d = WallDrawer::default();
     d.set_shape("anchor", |_, _| {});
-    let (_, m) = d.click(Some(&hit("b", [0.0, 0.0, 0.0], [0.0, 0.0, 1.0])), &[], Some("b"), name, false);
+    let (_, m) = d.click(
+        Some(&hit("b", [0.0, 0.0, 0.0], [0.0, 0.0, 1.0])),
+        &[],
+        Some("b"),
+        name,
+        false,
+    );
     assert!(matches!(m, WallClickMsg::Warn(_)));
-    let (w, _) = d.click(Some(&hit("b", [1.0, 2.0, 3.0], [1.0, 0.0, 0.0])), &[], Some("b"), name, false);
+    let (w, _) = d.click(
+        Some(&hit("b", [1.0, 2.0, 3.0], [1.0, 0.0, 0.0])),
+        &[],
+        Some("b"),
+        name,
+        false,
+    );
     assert_eq!(w.unwrap()[0].shape, "anchor");
 }
 
@@ -426,12 +484,16 @@ fn wall_body_mismatch_message() {
         points: vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]],
         normal: None,
     };
-    let (_, m) = d.click(Some(&hit("other", [0.0, 0.0, 0.0], [0.0, 0.0, 1.0])), &[wall], Some("b1"), name, false);
+    let (_, m) = d.click(
+        Some(&hit("other", [0.0, 0.0, 0.0], [0.0, 0.0, 1.0])),
+        &[wall],
+        Some("b1"),
+        name,
+        false,
+    );
     assert_eq!(
         m,
-        WallClickMsg::Warn(
-            "These walls are on Body 1. Finish (OK) them first, then draw on another body.".into()
-        )
+        WallClickMsg::Warn("These walls are on Body 1. Finish (OK) them first, then draw on another body.".into())
     );
 }
 
@@ -439,8 +501,20 @@ fn wall_body_mismatch_message() {
 fn wall_path_double_click_finishes() {
     let mut d = WallDrawer::default();
     d.set_shape("path", |_, _| {});
-    d.click(Some(&hit("b", [0.0, 0.0, 0.0], [0.0, 1.0, 0.0])), &[], Some("b"), name, false);
-    d.click(Some(&hit("b", [5.0, 0.0, 0.0], [0.0, 1.0, 0.0])), &[], Some("b"), name, false);
+    d.click(
+        Some(&hit("b", [0.0, 0.0, 0.0], [0.0, 1.0, 0.0])),
+        &[],
+        Some("b"),
+        name,
+        false,
+    );
+    d.click(
+        Some(&hit("b", [5.0, 0.0, 0.0], [0.0, 1.0, 0.0])),
+        &[],
+        Some("b"),
+        name,
+        false,
+    );
     let (w, _) = d.click(
         Some(&hit("b", [5.0, 0.0, 0.0], [0.0, 1.0, 0.0])),
         &[],

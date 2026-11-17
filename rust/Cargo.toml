@@ -8,6 +8,26 @@ edition = "2024"
 version = "2.0.0-dev"
 publish = false
 
+# Lints for our crates (each crate has `[lints] workspace = true`). CI runs
+# `cargo clippy --workspace --all-targets -- -D warnings`, so a new warning fails the build.
+# The ones switched off are deliberate here, not oversights:
+[workspace.lints.clippy]
+# `!(a < b)` is written on purpose: it is also true when a value is NaN, which `a >= b` is not.
+neg_cmp_op_on_partial_ord = "allow"
+# `clamp` panics when min > max and treats NaN differently; the engines' results must not change.
+manual_clamp = "allow"
+# Numbers are kept as they are written in the Python and JavaScript engines.
+excessive_precision = "allow"
+# Index loops over vertex and triangle buffers follow the other engines line for line.
+needless_range_loop = "allow"
+chunks_exact_to_as_chunks = "allow"
+# Shape of the code, not mistakes: left for a refactor of their own.
+type_complexity = "allow"
+too_many_arguments = "allow"
+large_enum_variant = "allow"
+# Test files share helper modules by #[path], which is how Cargo test targets share code.
+duplicate_mod = "allow"
+
 [profile.release]
 opt-level = 3
 lto = "fat"

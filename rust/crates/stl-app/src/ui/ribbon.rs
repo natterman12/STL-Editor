@@ -23,7 +23,11 @@ pub enum Item {
     /// Up to four small buttons stacked.
     Stack(Vec<Tool>),
     /// A dropdown (`drop` id, label, tools).
-    Drop { id: &'static str, label: &'static str, items: Vec<Tool> },
+    Drop {
+        id: &'static str,
+        label: &'static str,
+        items: Vec<Tool>,
+    },
     /// A block of icon-only buttons (`{ grid, cols }`).
     Grid { tools: Vec<Tool>, cols: usize },
 }
@@ -62,7 +66,12 @@ pub fn flat_items(items: &[Item]) -> Vec<Tool> {
         .collect()
 }
 
-pub const TABS: [(&str, &str); 4] = [("solid", "Model"), ("print", "Print"), ("supports", "Supports"), ("mesh", "Mesh")];
+pub const TABS: [(&str, &str); 4] = [
+    ("solid", "Model"),
+    ("print", "Print"),
+    ("supports", "Supports"),
+    ("mesh", "Mesh"),
+];
 
 /// The sketch tab's relation buttons (`CTOOLS` without `c_dimension`: key, label).
 pub const RELATIONS: [(&str, &str); 10] = [
@@ -97,22 +106,77 @@ pub fn def(tab: &str) -> Def {
         return sketch_def();
     }
     use Item::*;
-    let planes = vec![t("plane_offset", "Offset Plane", "plane"), t("plane_angle", "Plane at Angle", "plane_angle"), t("plane_3pt", "3-Point Plane", "plane_3pt"), t("plane_mid", "Midplane", "plane_mid")];
-    let pinned = Group { label: "Inspect", items: vec![Stack(vec![t("measure", "Measure", "measure"), t("section", "Section", "section"), t("info", "Properties", "info")])] };
+    let planes = vec![
+        t("plane_offset", "Offset Plane", "plane"),
+        t("plane_angle", "Plane at Angle", "plane_angle"),
+        t("plane_3pt", "3-Point Plane", "plane_3pt"),
+        t("plane_mid", "Midplane", "plane_mid"),
+    ];
+    let pinned = Group {
+        label: "Inspect",
+        items: vec![Stack(vec![
+            t("measure", "Measure", "measure"),
+            t("section", "Section", "section"),
+            t("info", "Properties", "info"),
+        ])],
+    };
     let g = |label, items| Group { label, items };
     let groups = match tab {
         "print" => vec![
-            g("Position", vec![Big(t("layflat", "Lay Flat", "layflat")), Stack(vec![t("move", "Move", "move"), t("rotate", "Rotate", "rotate"), t("scale", "Scale", "scale")])]),
-            g("Fit", vec![Big(t("bedsplit", "Fit to Bed", "bedsplit")), Big(t("plate", "Plate Layout", "bedsplit")), Big(t("fittest", "Fit Test", "hole"))]),
+            g(
+                "Position",
+                vec![
+                    Big(t("layflat", "Lay Flat", "layflat")),
+                    Stack(vec![
+                        t("move", "Move", "move"),
+                        t("rotate", "Rotate", "rotate"),
+                        t("scale", "Scale", "scale"),
+                    ]),
+                ],
+            ),
+            g(
+                "Fit",
+                vec![
+                    Big(t("bedsplit", "Fit to Bed", "bedsplit")),
+                    Big(t("plate", "Plate Layout", "bedsplit")),
+                    Big(t("fittest", "Fit Test", "hole")),
+                ],
+            ),
             g("Check", vec![Big(t("thincheck", "Thin-wall Check", "measure"))]),
-            g("Output", vec![Big(t("export", "Export", "export")), Big(t("send", "Send to Slicer", "slicer"))]),
+            g(
+                "Output",
+                vec![
+                    Big(t("export", "Export", "export")),
+                    Big(t("send", "Send to Slicer", "slicer")),
+                ],
+            ),
         ],
         "supports" => vec![
-            g("Supports", vec![Big(t("supportfins", "Support Fins", "fins")), Big(t("supportwall", "Draw Walls", "finwall"))]),
-            g("Support Fins", vec![Stack(vec![t("sf_about", "About Support Fins", "info")])]),
+            g(
+                "Supports",
+                vec![
+                    Big(t("supportfins", "Support Fins", "fins")),
+                    Big(t("supportwall", "Draw Walls", "finwall")),
+                ],
+            ),
+            g(
+                "Support Fins",
+                vec![Stack(vec![t("sf_about", "About Support Fins", "info")])],
+            ),
         ],
         "mesh" => vec![
-            g("Mesh", vec![Big(t("repair", "Repair", "repair")), Big(t("simplify", "Simplify", "simplify")), Big(t("remesh", "Remesh", "remesh")), Stack(vec![t("separate", "Separate", "separate"), t("delete", "Remove Bodies", "delete")])]),
+            g(
+                "Mesh",
+                vec![
+                    Big(t("repair", "Repair", "repair")),
+                    Big(t("simplify", "Simplify", "simplify")),
+                    Big(t("remesh", "Remesh", "remesh")),
+                    Stack(vec![
+                        t("separate", "Separate", "separate"),
+                        t("delete", "Remove Bodies", "delete"),
+                    ]),
+                ],
+            ),
             g("Sculpt", vec![Big(t("sculpt", "Brushes", "sculpt"))]),
             g("Convert", vec![Big(t("to_step", "To STEP", "step"))]),
         ],
@@ -129,17 +193,64 @@ pub fn def(tab: &str) -> Def {
                     Drop {
                         id: "primitive",
                         label: "Primitive",
-                        items: vec![t("primitive_box", "Box", "box"), t("primitive_cylinder", "Cylinder", "cylinder"), t("primitive_sphere", "Sphere", "sphere"), t("primitive_cone", "Cone", "cone"), t("primitive_torus", "Torus", "torus")],
+                        items: vec![
+                            t("primitive_box", "Box", "box"),
+                            t("primitive_cylinder", "Cylinder", "cylinder"),
+                            t("primitive_sphere", "Sphere", "sphere"),
+                            t("primitive_cone", "Cone", "cone"),
+                            t("primitive_torus", "Torus", "torus"),
+                        ],
                     },
                 ],
             ),
-            g("Modify", vec![Big(t("pushpull", "Push/Pull", "pushpull")), Big(t("combine", "Combine", "combine")), Big(t("split", "Split", "split")), Big(t("mirror", "Mirror", "mirror")), Big(t("pattern", "Pattern", "pattern"))]),
-            g("Holes", vec![Big(t("hole", "Hole", "hole")), Big(t("thread", "Thread", "thread")), Stack(vec![t("resizehole", "Resize Hole", "resizehole")])]),
-            g("Shape", vec![Stack(vec![t("hollow", "Hollow", "hollow"), t("shell", "Shell", "hollow"), t("lattice", "Lattice", "hollow"), t("offset", "Offset Body", "offset")]), Big(t("hinge", "Living hinge", "split"))]),
-            g("Reference", vec![Drop { id: "plane", label: "Plane", items: planes }, Big(t("params", "Parameters", "params"))]),
+            g(
+                "Modify",
+                vec![
+                    Big(t("pushpull", "Push/Pull", "pushpull")),
+                    Big(t("combine", "Combine", "combine")),
+                    Big(t("split", "Split", "split")),
+                    Big(t("mirror", "Mirror", "mirror")),
+                    Big(t("pattern", "Pattern", "pattern")),
+                ],
+            ),
+            g(
+                "Holes",
+                vec![
+                    Big(t("hole", "Hole", "hole")),
+                    Big(t("thread", "Thread", "thread")),
+                    Stack(vec![t("resizehole", "Resize Hole", "resizehole")]),
+                ],
+            ),
+            g(
+                "Shape",
+                vec![
+                    Stack(vec![
+                        t("hollow", "Hollow", "hollow"),
+                        t("shell", "Shell", "hollow"),
+                        t("lattice", "Lattice", "hollow"),
+                        t("offset", "Offset Body", "offset"),
+                    ]),
+                    Big(t("hinge", "Living hinge", "split")),
+                ],
+            ),
+            g(
+                "Reference",
+                vec![
+                    Drop {
+                        id: "plane",
+                        label: "Plane",
+                        items: planes,
+                    },
+                    Big(t("params", "Parameters", "params")),
+                ],
+            ),
         ],
     };
-    Def { tabs: TABS.to_vec(), groups, pinned }
+    Def {
+        tabs: TABS.to_vec(),
+        groups,
+        pinned,
+    }
 }
 
 /// `ribbonDef()` while a sketch is open (app.js:105-118): one tab, no Inspect group.
@@ -152,10 +263,25 @@ pub fn sketch_def() -> Def {
             vec![
                 Big(t("line", "Line", "line")),
                 Big(t("arc3", "Arc", "arc")),
-                Drop { id: "sk_rect", label: "Rectangle", items: vec![t("rect", "Rectangle", "rect"), t("rect_center", "Center Rectangle", "rect_center")] },
+                Drop {
+                    id: "sk_rect",
+                    label: "Rectangle",
+                    items: vec![
+                        t("rect", "Rectangle", "rect"),
+                        t("rect_center", "Center Rectangle", "rect_center"),
+                    ],
+                },
                 Big(t("circle", "Circle", "circle")),
-                Stack(vec![t("polygon", "Polygon", "polygon"), t("slot", "Slot", "slot"), t("text", "Text", "text")]),
-                Stack(vec![t("sk_project", "Project", "project"), t("sk_useedge", "Use Edge", "useedge"), t("sk_import", "Import SVG / DXF", "import")]),
+                Stack(vec![
+                    t("polygon", "Polygon", "polygon"),
+                    t("slot", "Slot", "slot"),
+                    t("text", "Text", "text"),
+                ]),
+                Stack(vec![
+                    t("sk_project", "Project", "project"),
+                    t("sk_useedge", "Use Edge", "useedge"),
+                    t("sk_import", "Import SVG / DXF", "import"),
+                ]),
             ],
         ),
         g(
@@ -163,27 +289,92 @@ pub fn sketch_def() -> Def {
             vec![
                 Big(t("select", "Select", "select")),
                 Big(t("trim", "Trim", "trim")),
-                Stack(vec![t("sk_offset", "Offset", "offset"), t("sk_mirror", "Mirror", "sk_mirror"), t("sk_corner", "Round corner", "arc"), t("sk_delete", "Delete", "delete")]),
-                Stack(vec![t("construction", "Construction", "construction"), t("look", "Look At", "look")]),
+                Stack(vec![
+                    t("sk_offset", "Offset", "offset"),
+                    t("sk_mirror", "Mirror", "sk_mirror"),
+                    t("sk_corner", "Round corner", "arc"),
+                    t("sk_delete", "Delete", "delete"),
+                ]),
+                Stack(vec![
+                    t("construction", "Construction", "construction"),
+                    t("look", "Look At", "look"),
+                ]),
             ],
         ),
-        g("Dimension", vec![Big(t("c_dimension", "Smart Dimension", "c_dimension"))]),
-        g("Relations", vec![Grid { tools: RELATIONS.iter().map(|(k, l)| t(k, l, k)).collect(), cols: 5 }]),
-        g("Finish", vec![Big(t("finish", "Finish", "finish")), Big(t("finish_extrude", "Finish & Extrude", "extrude")), Big(t("sk_cancel", "Cancel", "cancel"))]),
+        g(
+            "Dimension",
+            vec![Big(t("c_dimension", "Smart Dimension", "c_dimension"))],
+        ),
+        g(
+            "Relations",
+            vec![Grid {
+                tools: RELATIONS.iter().map(|(k, l)| t(k, l, k)).collect(),
+                cols: 5,
+            }],
+        ),
+        g(
+            "Finish",
+            vec![
+                Big(t("finish", "Finish", "finish")),
+                Big(t("finish_extrude", "Finish & Extrude", "extrude")),
+                Big(t("sk_cancel", "Cancel", "cancel")),
+            ],
+        ),
     ];
-    Def { tabs: vec![(SKETCH_TAB, "Sketch")], groups, pinned: Group { label: "", items: Vec::new() } }
+    Def {
+        tabs: vec![(SKETCH_TAB, "Sketch")],
+        groups,
+        pinned: Group {
+            label: "",
+            items: Vec::new(),
+        },
+    }
 }
 
 /// The remaining entries of `TOOLS` in web/js/tools.js that have a label (key, label), for the
 /// tool search. Generated by importing tools.js; the ribbon ones are skipped when listed.
 const TOOL_LABELS: &[(&str, &str)] = &[
-    ("extrude", "Extrude"), ("revolve", "Revolve"), ("loft", "Loft"), ("sweep", "Sweep"), ("primitive_box", "Box"), ("primitive_cylinder", "Cylinder"),
-    ("primitive_sphere", "Sphere"), ("primitive_cone", "Cone"), ("primitive_torus", "Torus"), ("snapfit", "Snap-fit"), ("hinge", "Living hinge"), ("hole", "Hole"),
-    ("combine", "Combine"), ("split", "Split"), ("bedsplit", "Fit to Bed"), ("plate", "Plate Layout"), ("layflat", "Lay Flat"), ("thread", "Thread"),
-    ("offset", "Offset Body"), ("thincheck", "Thin-wall Check"), ("fittest", "Fit Test"), ("resizehole", "Resize Hole"), ("pushpull", "Push/Pull"), ("mirror", "Mirror"),
-    ("move", "Move / Rotate"), ("scale", "Scale"), ("pattern", "Pattern"), ("hollow", "Hollow"), ("lattice", "Lattice"), ("shell", "Shell"),
-    ("plane_offset", "Offset Plane"), ("plane_angle", "Plane at Angle"), ("plane_3pt", "3-Point Plane"), ("plane_mid", "Midplane"), ("import", "Imported Mesh"),
-    ("sculpt", "Sculpt"), ("remesh", "Remesh"), ("repair", "Repair"), ("simplify", "Simplify"), ("separate", "Separate"), ("delete", "Remove Bodies"),
+    ("extrude", "Extrude"),
+    ("revolve", "Revolve"),
+    ("loft", "Loft"),
+    ("sweep", "Sweep"),
+    ("primitive_box", "Box"),
+    ("primitive_cylinder", "Cylinder"),
+    ("primitive_sphere", "Sphere"),
+    ("primitive_cone", "Cone"),
+    ("primitive_torus", "Torus"),
+    ("snapfit", "Snap-fit"),
+    ("hinge", "Living hinge"),
+    ("hole", "Hole"),
+    ("combine", "Combine"),
+    ("split", "Split"),
+    ("bedsplit", "Fit to Bed"),
+    ("plate", "Plate Layout"),
+    ("layflat", "Lay Flat"),
+    ("thread", "Thread"),
+    ("offset", "Offset Body"),
+    ("thincheck", "Thin-wall Check"),
+    ("fittest", "Fit Test"),
+    ("resizehole", "Resize Hole"),
+    ("pushpull", "Push/Pull"),
+    ("mirror", "Mirror"),
+    ("move", "Move / Rotate"),
+    ("scale", "Scale"),
+    ("pattern", "Pattern"),
+    ("hollow", "Hollow"),
+    ("lattice", "Lattice"),
+    ("shell", "Shell"),
+    ("plane_offset", "Offset Plane"),
+    ("plane_angle", "Plane at Angle"),
+    ("plane_3pt", "3-Point Plane"),
+    ("plane_mid", "Midplane"),
+    ("import", "Imported Mesh"),
+    ("sculpt", "Sculpt"),
+    ("remesh", "Remesh"),
+    ("repair", "Repair"),
+    ("simplify", "Simplify"),
+    ("separate", "Separate"),
+    ("delete", "Remove Bodies"),
 ];
 
 /// The two tools only the desktop app has (`DESKTOP_TOOLS` in app.js).
@@ -205,10 +396,18 @@ impl DeskTools {
     /// both can be pressed (they say what the desktop app does), as 1.x does.
     pub fn of(platform: &dyn crate::platform::Platform) -> Self {
         if platform.is_web() {
-            return DeskTools { send: true, to_step: true, step_ready: true };
+            return DeskTools {
+                send: true,
+                to_step: true,
+                step_ready: true,
+            };
         }
         let windows = cfg!(windows);
-        DeskTools { send: windows || !platform.slicers().is_empty(), to_step: windows, step_ready: platform.step_available() }
+        DeskTools {
+            send: windows || !platform.slicers().is_empty(),
+            to_step: windows,
+            step_ready: platform.step_available(),
+        }
     }
 }
 
@@ -279,7 +478,13 @@ pub fn all_commands_in(sketch: bool) -> Vec<Command> {
     let mut out: Vec<Command> = Vec::new();
     let mut add = |k: &str, l: &str, ic: &str, tab: Option<&'static str>, group: &str| {
         if !out.iter().any(|c| c.k == k) {
-            out.push(Command { k: k.into(), l: l.into(), ic: ic.into(), tab, group: group.into() });
+            out.push(Command {
+                k: k.into(),
+                l: l.into(),
+                ic: ic.into(),
+                tab,
+                group: group.into(),
+            });
         }
     };
     if sketch {
@@ -324,7 +529,10 @@ pub fn search_in(q: &str, sketch: bool) -> Vec<Command> {
 /// [`all_commands_in`] as this platform has them: a desktop tool the ribbon leaves out (Send to
 /// Slicer where no slicer is found, To STEP off Windows) is not listed either.
 pub fn all_commands_shown(sketch: bool, desk: &DeskTools) -> Vec<Command> {
-    all_commands_in(sketch).into_iter().filter(|c| !hidden(&c.k, desk)).collect()
+    all_commands_in(sketch)
+        .into_iter()
+        .filter(|c| !hidden(&c.k, desk))
+        .collect()
 }
 
 /// [`search_in`] over [`all_commands_shown`].
@@ -348,7 +556,10 @@ fn search_among(q: &str, all: Vec<Command>) -> Vec<Command> {
             let l = c.l.to_lowercase();
             let score = if l.starts_with(&q) {
                 0
-            } else if l.split(|ch: char| ch.is_whitespace() || ch == '/').any(|w| w.starts_with(words[0])) {
+            } else if l
+                .split(|ch: char| ch.is_whitespace() || ch == '/')
+                .any(|w| w.starts_with(words[0]))
+            {
                 1
             } else {
                 2
@@ -434,7 +645,10 @@ fn font(size: f32) -> FontId {
 }
 
 fn text_w(ui: &Ui, s: &str, size: f32) -> f32 {
-    ui.painter().layout_no_wrap(s.to_owned(), font(size), Color32::WHITE).size().x
+    ui.painter()
+        .layout_no_wrap(s.to_owned(), font(size), Color32::WHITE)
+        .size()
+        .x
 }
 
 const CARET_W: f32 = 8.0;
@@ -447,16 +661,18 @@ pub fn split_drop(id: &str) -> bool {
 /// The part of a big dropdown button that opens its list: the label row with the arrow (the
 /// lower part in the tight ribbon, where the arrow sits under the icon).
 pub fn in_caret_row(r: Rect, mode: Mode, at: Pos2) -> bool {
-    let icon_bottom = r.min.y + match mode {
-        Mode::Tight => 7.0 + 18.0,
-        Mode::Compact => 5.0 + 20.0 + 2.0,
-        Mode::Normal => 5.0 + 22.0 + 2.0,
-    };
+    let icon_bottom = r.min.y
+        + match mode {
+            Mode::Tight => 7.0 + 18.0,
+            Mode::Compact => 5.0 + 20.0 + 2.0,
+            Mode::Normal => 5.0 + 22.0 + 2.0,
+        };
     at.y >= icon_bottom
 }
 
 fn tool_w(ui: &Ui, mode: Mode, big: bool, label: &str, caret: bool) -> f32 {
-    let tw = text_w(ui, label, if mode == Mode::Compact && big { 10.0 } else { 11.0 }) + if caret { CARET_W } else { 0.0 };
+    let tw =
+        text_w(ui, label, if mode == Mode::Compact && big { 10.0 } else { 11.0 }) + if caret { CARET_W } else { 0.0 };
     match (big, mode) {
         (true, Mode::Normal) => (tw + 10.0 + 2.0).max(46.0),
         (true, Mode::Compact) => (tw + 4.0 + 2.0).max(40.0),
@@ -469,7 +685,10 @@ fn tool_w(ui: &Ui, mode: Mode, big: bool, label: &str, caret: bool) -> f32 {
 fn item_w(ui: &Ui, mode: Mode, it: &Item) -> f32 {
     match it {
         Item::Big(x) => tool_w(ui, mode, true, x.label, false),
-        Item::Stack(v) => v.iter().map(|x| tool_w(ui, mode, false, x.label, false)).fold(0.0, f32::max),
+        Item::Stack(v) => v
+            .iter()
+            .map(|x| tool_w(ui, mode, false, x.label, false))
+            .fold(0.0, f32::max),
         Item::Drop { label, .. } => tool_w(ui, mode, true, label, true),
         Item::Grid { cols, .. } => grid_w(*cols),
     }
@@ -486,7 +705,8 @@ fn group_w(ui: &Ui, mode: Mode, g: &Group) -> f32 {
         return 0.0;
     }
     let pad = if mode == Mode::Normal { 12.0 } else { 6.0 };
-    let items: f32 = g.items.iter().map(|i| item_w(ui, mode, i)).sum::<f32>() + 2.0 * g.items.len().saturating_sub(1) as f32;
+    let items: f32 =
+        g.items.iter().map(|i| item_w(ui, mode, i)).sum::<f32>() + 2.0 * g.items.len().saturating_sub(1) as f32;
     let label = text_w(ui, g.label, 11.0) + if g.has_drop() { 12.0 } else { 0.0 };
     items.max(label) + pad + 1.0
 }
@@ -496,7 +716,12 @@ pub fn fit(ui: &Ui, d: &Def, avail: f32, desk: DeskTools) -> Fit {
     let total = |m: Mode| d.groups.iter().map(|g| group_w(ui, m, g)).sum::<f32>() + group_w(ui, m, &d.pinned);
     for m in [Mode::Normal, Mode::Compact, Mode::Tight] {
         if total(m) <= avail {
-            return Fit { mode: m, folded: vec![false; d.groups.len()], more: false, desk };
+            return Fit {
+                mode: m,
+                folded: vec![false; d.groups.len()],
+                more: false,
+                desk,
+            };
         }
     }
     let mut folded = vec![false; d.groups.len()];
@@ -508,21 +733,58 @@ pub fn fit(ui: &Ui, d: &Def, avail: f32, desk: DeskTools) -> Fit {
         folded[i] = true;
         sum -= group_w(ui, Mode::Tight, &d.groups[i]);
     }
-    Fit { mode: Mode::Tight, folded, more: true, desk }
+    Fit {
+        mode: Mode::Tight,
+        folded,
+        more: true,
+        desk,
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
-fn paint_tool(ui: &mut Ui, tk: &Tokens, rect: Rect, id: Id, tool: &Tool, icon: &str, label: &str, big: bool, caret: bool, mode: Mode, on: bool, web: bool, dis: bool) -> egui::Response {
+fn paint_tool(
+    ui: &mut Ui,
+    tk: &Tokens,
+    rect: Rect,
+    id: Id,
+    tool: &Tool,
+    icon: &str,
+    label: &str,
+    big: bool,
+    caret: bool,
+    mode: Mode,
+    on: bool,
+    web: bool,
+    dis: bool,
+) -> egui::Response {
     let desk_only = web && matches!(tool.key, "to_step" | "send");
     let resp = ui.interact(rect, id, Sense::click());
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, !dis, label));
     let p = ui.painter();
     let finish = tool.key.starts_with("finish");
-    let (mut fg, ic) = if on { (tk.sel_text, tk.sel_text) } else if finish { (tk.ok, tk.ok) } else { (tk.text, tk.accent) };
+    let (mut fg, ic) = if on {
+        (tk.sel_text, tk.sel_text)
+    } else if finish {
+        (tk.ok, tk.ok)
+    } else {
+        (tk.text, tk.accent)
+    };
     if resp.hovered() && !on {
-        p.rect(rect, CornerRadius::same(tk.radius_sm as u8), tk.hover, Stroke::new(1.0, tk.line), StrokeKind::Inside);
+        p.rect(
+            rect,
+            CornerRadius::same(tk.radius_sm as u8),
+            tk.hover,
+            Stroke::new(1.0, tk.line),
+            StrokeKind::Inside,
+        );
     } else if on {
-        p.rect(rect, CornerRadius::same(tk.radius_sm as u8), tk.sel, Stroke::new(1.0, tk.sel_line), StrokeKind::Inside);
+        p.rect(
+            rect,
+            CornerRadius::same(tk.radius_sm as u8),
+            tk.sel,
+            Stroke::new(1.0, tk.sel_line),
+            StrokeKind::Inside,
+        );
     }
     if dis {
         fg = fg.gamma_multiply(0.45);
@@ -531,10 +793,17 @@ fn paint_tool(ui: &mut Ui, tk: &Tokens, rect: Rect, id: Id, tool: &Tool, icon: &
     }
     let cx = rect.center().x;
     if big {
-        let (isz, fsz) = if mode == Mode::Compact { (20.0, 10.0) } else { (22.0, 11.0) };
+        let (isz, fsz) = if mode == Mode::Compact {
+            (20.0, 10.0)
+        } else {
+            (22.0, 11.0)
+        };
         let top = rect.min.y + if mode == Mode::Tight { 7.0 } else { 5.0 };
         let img = icons::icon(ui.ctx(), icon, isz, ic);
-        egui::Image::new(img).paint_at(ui, Rect::from_center_size(Pos2::new(cx, top + isz / 2.0), Vec2::splat(isz)));
+        egui::Image::new(img).paint_at(
+            ui,
+            Rect::from_center_size(Pos2::new(cx, top + isz / 2.0), Vec2::splat(isz)),
+        );
         if mode != Mode::Tight {
             let g = ui.painter().layout_no_wrap(label.to_owned(), font(fsz), fg);
             let w = g.size().x + if caret { CARET_W } else { 0.0 };
@@ -542,16 +811,35 @@ fn paint_tool(ui: &mut Ui, tk: &Tokens, rect: Rect, id: Id, tool: &Tool, icon: &
             ui.painter().galley(pos, g, fg);
             if caret {
                 let c = Pos2::new(pos.x + w - CARET_W + 4.0, pos.y + 6.5);
-                ui.painter().add(egui::Shape::convex_polygon(vec![c + Vec2::new(-2.5, -1.5), c + Vec2::new(2.5, -1.5), c + Vec2::new(0.0, 1.5)], tk.muted, Stroke::NONE));
+                ui.painter().add(egui::Shape::convex_polygon(
+                    vec![
+                        c + Vec2::new(-2.5, -1.5),
+                        c + Vec2::new(2.5, -1.5),
+                        c + Vec2::new(0.0, 1.5),
+                    ],
+                    tk.muted,
+                    Stroke::NONE,
+                ));
             }
         } else if caret {
             let c = Pos2::new(cx + 12.0, rect.max.y - 12.0);
-            ui.painter().add(egui::Shape::convex_polygon(vec![c + Vec2::new(-2.5, -1.5), c + Vec2::new(2.5, -1.5), c + Vec2::new(0.0, 1.5)], tk.muted, Stroke::NONE));
+            ui.painter().add(egui::Shape::convex_polygon(
+                vec![
+                    c + Vec2::new(-2.5, -1.5),
+                    c + Vec2::new(2.5, -1.5),
+                    c + Vec2::new(0.0, 1.5),
+                ],
+                tk.muted,
+                Stroke::NONE,
+            ));
         }
     } else {
         let x0 = rect.min.x + 4.0;
         let img = icons::icon(ui.ctx(), icon, 15.0, ic);
-        egui::Image::new(img).paint_at(ui, Rect::from_center_size(Pos2::new(x0 + 7.5, rect.center().y), Vec2::splat(15.0)));
+        egui::Image::new(img).paint_at(
+            ui,
+            Rect::from_center_size(Pos2::new(x0 + 7.5, rect.center().y), Vec2::splat(15.0)),
+        );
         if mode != Mode::Tight {
             let g = ui.painter().layout_no_wrap(label.to_owned(), font(11.0), fg);
             let y = rect.center().y - g.size().y / 2.0;
@@ -573,9 +861,21 @@ fn paint_mini(ui: &mut Ui, tk: &Tokens, rect: Rect, id: Id, tool: &Tool, on: boo
     let resp = ui.interact(rect, id, Sense::click());
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, tool.label));
     if on {
-        ui.painter().rect(rect, CornerRadius::same(tk.radius_sm as u8), tk.sel, Stroke::new(1.0, tk.sel_line), StrokeKind::Inside);
+        ui.painter().rect(
+            rect,
+            CornerRadius::same(tk.radius_sm as u8),
+            tk.sel,
+            Stroke::new(1.0, tk.sel_line),
+            StrokeKind::Inside,
+        );
     } else if resp.hovered() {
-        ui.painter().rect(rect, CornerRadius::same(tk.radius_sm as u8), tk.hover, Stroke::new(1.0, tk.line), StrokeKind::Inside);
+        ui.painter().rect(
+            rect,
+            CornerRadius::same(tk.radius_sm as u8),
+            tk.hover,
+            Stroke::new(1.0, tk.line),
+            StrokeKind::Inside,
+        );
     }
     let col = if on { tk.sel_text } else { tk.accent };
     let img = icons::icon(ui.ctx(), tool.icon, 18.0, col);
@@ -592,21 +892,47 @@ pub fn show(ui: &mut Ui, tk: &Tokens, st: &RibbonState) -> (Option<Pick>, Fit) {
     ui.allocate_rect(rect, Sense::hover());
     let mut pick = None;
     ui.painter().rect_filled(rect, 0.0, tk.ribbon);
-    ui.painter().hline(rect.x_range(), rect.max.y - 0.5, Stroke::new(1.0, tk.ribbon_line));
+    ui.painter()
+        .hline(rect.x_range(), rect.max.y - 0.5, Stroke::new(1.0, tk.ribbon_line));
 
     // badge
     let bx = rect.min.x + 8.0;
-    let badge = Rect::from_min_size(Pos2::new(bx, rect.min.y + 6.0), Vec2::new(60.0, (height(st.tab) - 13.0).min(70.0)));
+    let badge = Rect::from_min_size(
+        Pos2::new(bx, rect.min.y + 6.0),
+        Vec2::new(60.0, (height(st.tab) - 13.0).min(70.0)),
+    );
     let br = CornerRadius::same(tk.radius as u8);
     let sk = st.tab == SKETCH_TAB;
     let accent = if sk { tk.sketch } else { tk.accent };
     ui.painter().rect_filled(badge, br, accent);
-    ui.painter().rect_filled(Rect::from_min_max(badge.min + Vec2::new(0.0, 2.0), badge.max), CornerRadius { nw: 0, ne: 0, sw: br.sw, se: br.se }, tk.panel_2);
-    let tab_name = if sk { "Sketch" } else { TABS.iter().find(|x| x.0 == st.tab).map(|x| x.1).unwrap_or("Model") };
+    ui.painter().rect_filled(
+        Rect::from_min_max(badge.min + Vec2::new(0.0, 2.0), badge.max),
+        CornerRadius {
+            nw: 0,
+            ne: 0,
+            sw: br.sw,
+            se: br.se,
+        },
+        tk.panel_2,
+    );
+    let tab_name = if sk {
+        "Sketch"
+    } else {
+        TABS.iter().find(|x| x.0 == st.tab).map(|x| x.1).unwrap_or("Model")
+    };
     let bc = badge.center();
     let img = icons::icon(ui.ctx(), tab_icon(st.tab), 22.0, accent);
-    egui::Image::new(img).paint_at(ui, Rect::from_center_size(Pos2::new(bc.x, bc.y - 9.0), Vec2::splat(22.0)));
-    ui.painter().text(Pos2::new(bc.x, bc.y + 13.0), Align2::CENTER_CENTER, tab_name, FontId::new(11.0, FontFamily::Name("bold".into())), tk.strong);
+    egui::Image::new(img).paint_at(
+        ui,
+        Rect::from_center_size(Pos2::new(bc.x, bc.y - 9.0), Vec2::splat(22.0)),
+    );
+    ui.painter().text(
+        Pos2::new(bc.x, bc.y + 13.0),
+        Align2::CENTER_CENTER,
+        tab_name,
+        FontId::new(11.0, FontFamily::Name("bold".into())),
+        tk.strong,
+    );
 
     // tabs
     let mut x = badge.max.x + 4.0 + 8.0;
@@ -638,97 +964,180 @@ pub fn show(ui: &mut Ui, tk: &Tokens, st: &RibbonState) -> (Option<Pick>, Fit) {
     }
 
     // body
-    let body = Rect::from_min_max(Pos2::new(badge.max.x + 4.0, rect.min.y + 25.0), Pos2::new(rect.max.x, rect.max.y));
+    let body = Rect::from_min_max(
+        Pos2::new(badge.max.x + 4.0, rect.min.y + 25.0),
+        Pos2::new(rect.max.x, rect.max.y),
+    );
     let avail = body.width() - 8.0;
     let fit = fit(ui, &d, avail, st.desk);
     let mode = fit.mode;
     let top = body.min.y + 3.0;
     let mut gx = body.min.x + 4.0;
-    let draw_group = |ui: &mut Ui, g: &Group, gi: Option<usize>, x0: f32, pick: &mut Option<Pick>, border_left: bool| -> f32 {
-        let w = group_w(ui, mode, g);
-        let pad = if mode == Mode::Normal { 6.0 } else { 3.0 };
-        let gr = Rect::from_min_size(Pos2::new(x0, top), Vec2::new(w, items_h + 17.0));
-        if border_left {
-            ui.painter().vline(gr.min.x + 0.5, gr.y_range(), Stroke::new(1.0, tk.divider));
-        } else {
-            ui.painter().vline(gr.max.x - 0.5, gr.y_range(), Stroke::new(1.0, tk.divider));
-        }
-        let mut ix = x0 + pad + if border_left { 1.0 } else { 0.0 };
-        // centre the items when the group label is wider
-        let items_w: f32 = g.items.iter().map(|i| item_w(ui, mode, i)).sum::<f32>() + 2.0 * g.items.len().saturating_sub(1) as f32;
-        ix += ((w - 1.0 - 2.0 * pad - items_w) / 2.0).max(0.0);
-        for it in &g.items {
-            let iw = item_w(ui, mode, it);
-            match it {
-                Item::Big(tool) => {
-                    let r = Rect::from_min_size(Pos2::new(ix, top), Vec2::new(iw, items_h));
-                    let on = st.active == Some(tool.key);
-                    let dis = tool_disabled(tool.key, &st.desk);
-                    if paint_tool(ui, tk, r, ui.scope_id().with(("tool", tool.key)), tool, tool.icon, tool.label, true, false, mode, on, st.web, dis).clicked() && !dis {
-                        *pick = Some(Pick::Tool(tool.key));
-                    }
-                }
-                Item::Stack(v) => {
-                    for (n, tool) in v.iter().enumerate() {
-                        let r = Rect::from_min_size(Pos2::new(ix, top + 18.0 * n as f32), Vec2::new(iw, 18.0));
+    let draw_group =
+        |ui: &mut Ui, g: &Group, gi: Option<usize>, x0: f32, pick: &mut Option<Pick>, border_left: bool| -> f32 {
+            let w = group_w(ui, mode, g);
+            let pad = if mode == Mode::Normal { 6.0 } else { 3.0 };
+            let gr = Rect::from_min_size(Pos2::new(x0, top), Vec2::new(w, items_h + 17.0));
+            if border_left {
+                ui.painter()
+                    .vline(gr.min.x + 0.5, gr.y_range(), Stroke::new(1.0, tk.divider));
+            } else {
+                ui.painter()
+                    .vline(gr.max.x - 0.5, gr.y_range(), Stroke::new(1.0, tk.divider));
+            }
+            let mut ix = x0 + pad + if border_left { 1.0 } else { 0.0 };
+            // centre the items when the group label is wider
+            let items_w: f32 =
+                g.items.iter().map(|i| item_w(ui, mode, i)).sum::<f32>() + 2.0 * g.items.len().saturating_sub(1) as f32;
+            ix += ((w - 1.0 - 2.0 * pad - items_w) / 2.0).max(0.0);
+            for it in &g.items {
+                let iw = item_w(ui, mode, it);
+                match it {
+                    Item::Big(tool) => {
+                        let r = Rect::from_min_size(Pos2::new(ix, top), Vec2::new(iw, items_h));
                         let on = st.active == Some(tool.key);
                         let dis = tool_disabled(tool.key, &st.desk);
-                        if paint_tool(ui, tk, r, ui.scope_id().with(("tool", tool.key)), tool, tool.icon, tool.label, false, false, mode, on, st.web, dis).clicked() && !dis {
+                        if paint_tool(
+                            ui,
+                            tk,
+                            r,
+                            ui.scope_id().with(("tool", tool.key)),
+                            tool,
+                            tool.icon,
+                            tool.label,
+                            true,
+                            false,
+                            mode,
+                            on,
+                            st.web,
+                            dis,
+                        )
+                        .clicked()
+                            && !dis
+                        {
                             *pick = Some(Pick::Tool(tool.key));
                         }
                     }
-                }
-                Item::Grid { tools, cols } => {
-                    for (n, tool) in tools.iter().enumerate() {
-                        let (row, col) = (n / (*cols).max(1), n % (*cols).max(1));
-                        let r = Rect::from_min_size(Pos2::new(ix + col as f32 * (MINI + 2.0), top + 2.0 + row as f32 * (MINI + 1.0)), Vec2::splat(MINI));
-                        let on = st.active == Some(tool.key);
-                        if paint_mini(ui, tk, r, ui.scope_id().with(("tool", tool.key)), tool, on).clicked() {
-                            *pick = Some(Pick::Tool(tool.key));
+                    Item::Stack(v) => {
+                        for (n, tool) in v.iter().enumerate() {
+                            let r = Rect::from_min_size(Pos2::new(ix, top + 18.0 * n as f32), Vec2::new(iw, 18.0));
+                            let on = st.active == Some(tool.key);
+                            let dis = tool_disabled(tool.key, &st.desk);
+                            if paint_tool(
+                                ui,
+                                tk,
+                                r,
+                                ui.scope_id().with(("tool", tool.key)),
+                                tool,
+                                tool.icon,
+                                tool.label,
+                                false,
+                                false,
+                                mode,
+                                on,
+                                st.web,
+                                dis,
+                            )
+                            .clicked()
+                                && !dis
+                            {
+                                *pick = Some(Pick::Tool(tool.key));
+                            }
+                        }
+                    }
+                    Item::Grid { tools, cols } => {
+                        for (n, tool) in tools.iter().enumerate() {
+                            let (row, col) = (n / (*cols).max(1), n % (*cols).max(1));
+                            let r = Rect::from_min_size(
+                                Pos2::new(ix + col as f32 * (MINI + 2.0), top + 2.0 + row as f32 * (MINI + 1.0)),
+                                Vec2::splat(MINI),
+                            );
+                            let on = st.active == Some(tool.key);
+                            if paint_mini(ui, tk, r, ui.scope_id().with(("tool", tool.key)), tool, on).clicked() {
+                                *pick = Some(Pick::Tool(tool.key));
+                            }
+                        }
+                    }
+                    Item::Drop { id, label, items } => {
+                        let r = Rect::from_min_size(Pos2::new(ix, top), Vec2::new(iw, items_h));
+                        let last = st
+                            .drop_last
+                            .get(*id)
+                            .and_then(|k| items.iter().find(|x| x.key == k))
+                            .unwrap_or(&items[0]);
+                        let on = st.active.is_some_and(|a| items.iter().any(|x| x.key == a));
+                        let tool = Tool {
+                            key: id,
+                            label,
+                            icon: last.icon,
+                        };
+                        let resp = paint_tool(
+                            ui,
+                            tk,
+                            r,
+                            ui.scope_id().with(("drop", *id)),
+                            &tool,
+                            last.icon,
+                            label,
+                            true,
+                            true,
+                            mode,
+                            on,
+                            st.web,
+                            false,
+                        );
+                        if resp.clicked() {
+                            // a sketch dropdown is a split button (Nathan, 2026-11-16, as SolidCraft):
+                            // the icon starts the tool last chosen (Rectangle at first), the label with
+                            // its arrow opens the list
+                            let at = resp.interact_pointer_pos().unwrap_or(r.center());
+                            *pick = Some(if split_drop(id) && !in_caret_row(r, mode, at) {
+                                Pick::Tool(last.key)
+                            } else {
+                                Pick::Drop(id, r)
+                            });
                         }
                     }
                 }
-                Item::Drop { id, label, items } => {
-                    let r = Rect::from_min_size(Pos2::new(ix, top), Vec2::new(iw, items_h));
-                    let last = st.drop_last.get(*id).and_then(|k| items.iter().find(|x| x.key == k)).unwrap_or(&items[0]);
-                    let on = st.active.is_some_and(|a| items.iter().any(|x| x.key == a));
-                    let tool = Tool { key: id, label, icon: last.icon };
-                    let resp = paint_tool(ui, tk, r, ui.scope_id().with(("drop", *id)), &tool, last.icon, label, true, true, mode, on, st.web, false);
-                    if resp.clicked() {
-                        // a sketch dropdown is a split button (Nathan, 2026-11-16, as SolidCraft):
-                        // the icon starts the tool last chosen (Rectangle at first), the label with
-                        // its arrow opens the list
-                        let at = resp.interact_pointer_pos().unwrap_or(r.center());
-                        *pick = Some(if split_drop(id) && !in_caret_row(r, mode, at) { Pick::Tool(last.key) } else { Pick::Drop(id, r) });
-                    }
+                ix += iw + 2.0;
+            }
+            // the group name
+            let ly = top + items_h + 2.0;
+            let lr = Rect::from_min_size(Pos2::new(x0 + 1.0, ly), Vec2::new(w - 2.0, 14.0));
+            if let (true, Some(gi)) = (g.has_drop(), gi) {
+                let resp = ui.interact(lr, ui.scope_id().with(("glabel", gi)), Sense::click());
+                resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, format!("{} tools", g.label)));
+                if resp.hovered() {
+                    ui.painter().rect_filled(lr, CornerRadius::same(4), tk.hover);
                 }
+                let col = if resp.hovered() { tk.text } else { tk.muted };
+                let gl = ui.painter().layout_no_wrap(g.label.to_owned(), font(11.0), col);
+                let tw = gl.size().x + 10.0;
+                let px = lr.center().x - tw / 2.0;
+                ui.painter().galley(Pos2::new(px, lr.min.y + 1.0), gl, col);
+                let c = Pos2::new(px + tw - 3.0, lr.min.y + 6.5);
+                ui.painter().line(
+                    vec![
+                        c + Vec2::new(-2.5, -1.5),
+                        c + Vec2::new(0.0, 1.5),
+                        c + Vec2::new(2.5, -1.5),
+                    ],
+                    Stroke::new(1.0, col),
+                );
+                if resp.clicked() {
+                    *pick = Some(Pick::GroupMenu(gi, lr));
+                }
+            } else {
+                ui.painter().text(
+                    Pos2::new(lr.center().x, lr.min.y + 1.0),
+                    Align2::CENTER_TOP,
+                    g.label,
+                    font(11.0),
+                    tk.muted,
+                );
             }
-            ix += iw + 2.0;
-        }
-        // the group name
-        let ly = top + items_h + 2.0;
-        let lr = Rect::from_min_size(Pos2::new(x0 + 1.0, ly), Vec2::new(w - 2.0, 14.0));
-        if let (true, Some(gi)) = (g.has_drop(), gi) {
-            let resp = ui.interact(lr, ui.scope_id().with(("glabel", gi)), Sense::click());
-            resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, format!("{} tools", g.label)));
-            if resp.hovered() {
-                ui.painter().rect_filled(lr, CornerRadius::same(4), tk.hover);
-            }
-            let col = if resp.hovered() { tk.text } else { tk.muted };
-            let gl = ui.painter().layout_no_wrap(g.label.to_owned(), font(11.0), col);
-            let tw = gl.size().x + 10.0;
-            let px = lr.center().x - tw / 2.0;
-            ui.painter().galley(Pos2::new(px, lr.min.y + 1.0), gl, col);
-            let c = Pos2::new(px + tw - 3.0, lr.min.y + 6.5);
-            ui.painter().line(vec![c + Vec2::new(-2.5, -1.5), c + Vec2::new(0.0, 1.5), c + Vec2::new(2.5, -1.5)], Stroke::new(1.0, col));
-            if resp.clicked() {
-                *pick = Some(Pick::GroupMenu(gi, lr));
-            }
-        } else {
-            ui.painter().text(Pos2::new(lr.center().x, lr.min.y + 1.0), Align2::CENTER_TOP, g.label, font(11.0), tk.muted);
-        }
-        w
-    };
+            w
+        };
     for (gi, g) in d.groups.iter().enumerate() {
         if fit.folded[gi] {
             continue;
@@ -742,10 +1151,29 @@ pub fn show(ui: &mut Ui, tk: &Tokens, st: &RibbonState) -> (Option<Pick>, Fit) {
         let mw = 34.0 + 6.0 + 1.0;
         let mx = px - mw;
         let mr = Rect::from_min_size(Pos2::new(mx, top), Vec2::new(mw, items_h + 17.0));
-        ui.painter().vline(mr.min.x + 0.5, mr.y_range(), Stroke::new(1.0, tk.divider));
+        ui.painter()
+            .vline(mr.min.x + 0.5, mr.y_range(), Stroke::new(1.0, tk.divider));
         let br = Rect::from_min_size(Pos2::new(mx + 4.0, top), Vec2::new(34.0, items_h));
-        let mt = Tool { key: "more", label: "More", icon: "more" };
-        let resp = paint_tool(ui, tk, br, ui.scope_id().with("more"), &mt, "more", "More tools", true, false, Mode::Tight, false, st.web, false);
+        let mt = Tool {
+            key: "more",
+            label: "More",
+            icon: "more",
+        };
+        let resp = paint_tool(
+            ui,
+            tk,
+            br,
+            ui.scope_id().with("more"),
+            &mt,
+            "more",
+            "More tools",
+            true,
+            false,
+            Mode::Tight,
+            false,
+            st.web,
+            false,
+        );
         if resp.clicked() {
             pick = Some(Pick::More(br));
         }
@@ -759,5 +1187,10 @@ pub fn show(ui: &mut Ui, tk: &Tokens, st: &RibbonState) -> (Option<Pick>, Fit) {
 /// The tools of the groups folded into "More", as menu rows (headers and tools).
 pub fn folded_groups(st_tab: &str, fit: &Fit) -> Vec<(&'static str, Vec<Tool>)> {
     let d = def_shown(st_tab, &fit.desk);
-    d.groups.iter().enumerate().filter(|(i, _)| fit.folded.get(*i).copied().unwrap_or(false)).map(|(_, g)| (g.label, g.tools())).collect()
+    d.groups
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| fit.folded.get(*i).copied().unwrap_or(false))
+        .map(|(_, g)| (g.label, g.tools()))
+        .collect()
 }

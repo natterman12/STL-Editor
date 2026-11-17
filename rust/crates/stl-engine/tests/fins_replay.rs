@@ -12,8 +12,8 @@
 
 use std::collections::HashSet;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::OnceLock;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use serde_json::Value;
 use sha2::{Digest, Sha256};
@@ -42,7 +42,10 @@ fn recording() -> &'static Recording {
         let s = |e: &Value, k: &str| e[k].as_str().unwrap_or_default().to_string();
         Recording {
             info: v["info"].clone(),
-            has: v["has"].as_array().map(|a| a.iter().filter_map(|x| x.as_str().map(str::to_string)).collect()).unwrap_or_default(),
+            has: v["has"]
+                .as_array()
+                .map(|a| a.iter().filter_map(|x| x.as_str().map(str::to_string)).collect())
+                .unwrap_or_default(),
             entries: v["calls"]
                 .as_array()
                 .map(|a| {
@@ -92,18 +95,22 @@ fn canon_value(v: &Value, out: &mut String) {
 }
 
 fn canon(arg: &str) -> String {
-    if (arg.starts_with('[') || arg.starts_with('{')) && arg.len() < 100_000 {
-        if let Ok(v) = serde_json::from_str::<Value>(arg) {
-            let mut out = String::new();
-            canon_value(&v, &mut out);
-            return out;
-        }
+    if (arg.starts_with('[') || arg.starts_with('{'))
+        && arg.len() < 100_000
+        && let Ok(v) = serde_json::from_str::<Value>(arg)
+    {
+        let mut out = String::new();
+        canon_value(&v, &mut out);
+        return out;
     }
     arg.to_string()
 }
 
 fn sha(s: &str) -> String {
-    Sha256::digest(s.as_bytes()).iter().map(|b| format!("{b:02x}")).collect()
+    Sha256::digest(s.as_bytes())
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect()
 }
 
 const NO_SOUP: [&str; 3] = ["optionsFromDialogJson", "reportLine", "optionsSchemaJson"];
@@ -140,7 +147,9 @@ pub struct ReplayHost {
 impl ReplayHost {
     pub fn new() -> Self {
         recording(); // fail early when the recording is missing
-        ReplayHost { loose: AtomicUsize::new(0) }
+        ReplayHost {
+            loose: AtomicUsize::new(0),
+        }
     }
 
     /// How many calls were matched without their exact arguments.
@@ -182,7 +191,9 @@ impl FinsHost for ReplayHost {
                 return Ok(e.result.clone());
             }
         }
-        Err(format!("Support Fins: replay has no recording for {name} with these arguments"))
+        Err(format!(
+            "Support Fins: replay has no recording for {name} with these arguments"
+        ))
     }
 
     fn has(&self, name: &str) -> bool {

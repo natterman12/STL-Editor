@@ -13,12 +13,7 @@ fn golden_stats() -> HashMap<String, Vec<MeshStats>> {
     serde_json::from_slice(&std::fs::read(path).expect("kernel_golden.json")).expect("valid json")
 }
 
-fn assert_matches_golden(
-    golden: &HashMap<String, Vec<MeshStats>>,
-    name: &str,
-    s: &Solid,
-    ex: Exactness,
-) {
+fn assert_matches_golden(golden: &HashMap<String, Vec<MeshStats>>, name: &str, s: &Solid, ex: Exactness) {
     let want = &golden.get(name).unwrap_or_else(|| panic!("missing golden {name}"))[0];
     let m = s.to_mesh();
     let got = mesh_stats(&m.positions, &m.triangles);
@@ -35,15 +30,27 @@ fn wrappers_match_manifold3d() {
     assert_eq!(sp8.num_tri(), 32);
     assert_eq!(sp8.num_vert(), 18);
     assert!(rel(sp8.volume(), 2.9428090415820636) <= 1e-9, "vol {}", sp8.volume());
-    assert!(rel(sp8.surface_area(), 10.41775152135782) <= 1e-9, "area {}", sp8.surface_area());
+    assert!(
+        rel(sp8.surface_area(), 10.41775152135782) <= 1e-9,
+        "area {}",
+        sp8.surface_area()
+    );
     assert_matches_golden(&golden, "sphere_r1_s8", &sp8, Exactness::Exact);
 
     // 2. Minkowski sum and difference of a 4 mm centred cube with that sphere.
     let cube = Solid::cube([4.0, 4.0, 4.0], true);
     let sum = cube.minkowski_sum(&sp8);
     assert_eq!(sum.num_tri(), 92);
-    assert!(rel(sum.volume(), 196.88393453853635) <= 1e-9, "sum vol {}", sum.volume());
-    assert!(rel(sum.surface_area(), 179.89297053545505) <= 1e-9, "sum area {}", sum.surface_area());
+    assert!(
+        rel(sum.volume(), 196.88393453853635) <= 1e-9,
+        "sum vol {}",
+        sum.volume()
+    );
+    assert!(
+        rel(sum.surface_area(), 179.89297053545505) <= 1e-9,
+        "sum area {}",
+        sum.surface_area()
+    );
     let sb = sum.bounding_box();
     assert_eq!((sb.min, sb.max), ([-3.0; 3], [3.0; 3]));
     assert_matches_golden(&golden, "minkowski_sum_cube_sphere", &sum, Exactness::Exact);
@@ -51,7 +58,11 @@ fn wrappers_match_manifold3d() {
     let diff = cube.minkowski_difference(&sp8);
     assert_eq!(diff.num_tri(), 12);
     assert!(rel(diff.volume(), 8.0) <= 1e-9, "diff vol {}", diff.volume());
-    assert!(rel(diff.surface_area(), 24.0) <= 1e-9, "diff area {}", diff.surface_area());
+    assert!(
+        rel(diff.surface_area(), 24.0) <= 1e-9,
+        "diff area {}",
+        diff.surface_area()
+    );
     let db = diff.bounding_box();
     assert_eq!((db.min, db.max), ([-1.0; 3], [1.0; 3]));
     assert!(cube.minkowski_difference(&Solid::sphere(3.0, 8)).is_empty());
@@ -62,8 +73,16 @@ fn wrappers_match_manifold3d() {
     assert_eq!(sp96.num_tri(), 4608);
     let simp = sp96.simplify(0.01);
     assert_eq!(simp.num_tri(), 2126);
-    assert!(rel(simp.volume(), 4.152733474491687) <= 1e-9, "simp vol {}", simp.volume());
-    assert!(rel(simp.surface_area(), 12.524381517730026) <= 1e-9, "simp area {}", simp.surface_area());
+    assert!(
+        rel(simp.volume(), 4.152733474491687) <= 1e-9,
+        "simp vol {}",
+        simp.volume()
+    );
+    assert!(
+        rel(simp.surface_area(), 12.524381517730026) <= 1e-9,
+        "simp area {}",
+        simp.surface_area()
+    );
     assert!(
         (simp.bounding_box().max[2] - 0.9978589232386036).abs() <= 1e-12,
         "simp bbox {:?}",

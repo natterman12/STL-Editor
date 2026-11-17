@@ -41,7 +41,11 @@ fn desktop_place_import_then_edit_place_keep() {
     settle(&mut h, &link);
     assert!(h.state().tool().is_none());
     assert!(!h.state().bodies.is_empty(), "body remains after place=keep OK");
-    assert_eq!(h.state().bodies[0].mesh.positions.len(), bbox_before.len(), "mesh kept after place=keep");
+    assert_eq!(
+        h.state().bodies[0].mesh.positions.len(),
+        bbox_before.len(),
+        "mesh kept after place=keep"
+    );
 }
 
 /// Ctrl+Z after editing the import back to place=keep undoes the edit only: the Import step and its
@@ -50,7 +54,14 @@ fn desktop_place_import_then_edit_place_keep() {
 fn desktop_place_undo_after_keep() {
     let (mut h, link) = empty_harness();
     import_stl(&mut h, &link, &fixture_stl("off.stl"));
-    let import = h.state().timeline_view.items.iter().find(|i| i.kind == "import").cloned().expect("Import step");
+    let import = h
+        .state()
+        .timeline_view
+        .items
+        .iter()
+        .find(|i| i.kind == "import")
+        .cloned()
+        .expect("Import step");
     let placed = h.state().bodies[0].mesh.positions.clone();
     assert!(h.state_mut().edit_feature(&import.id));
     h.run_steps(4);
@@ -58,12 +69,28 @@ fn desktop_place_undo_after_keep() {
     h.state_mut().tool_ok();
     settle(&mut h, &link);
     let kept = h.state().bodies[0].mesh.positions.clone();
-    assert_ne!(kept, placed, "keep leaves the mesh where the file had it, not moved to the bed");
+    assert_ne!(
+        kept, placed,
+        "keep leaves the mesh where the file had it, not moved to the bed"
+    );
     h.state_mut().link.send(stl_app::engine_link::Command::Undo);
     settle(&mut h, &link);
-    assert_eq!(h.state().timeline_view.items.iter().filter(|i| i.kind == "import").count(), 1, "undo kept the Import step");
+    assert_eq!(
+        h.state()
+            .timeline_view
+            .items
+            .iter()
+            .filter(|i| i.kind == "import")
+            .count(),
+        1,
+        "undo kept the Import step"
+    );
     assert_eq!(h.state().bodies.len(), 1);
-    assert_eq!(h.state().bodies[0].mesh.positions, placed, "the mesh is back as it was placed");
+    assert_eq!(
+        h.state().bodies[0].mesh.positions,
+        placed,
+        "the mesh is back as it was placed"
+    );
 }
 
 #[test]

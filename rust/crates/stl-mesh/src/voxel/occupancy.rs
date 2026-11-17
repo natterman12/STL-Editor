@@ -12,7 +12,9 @@ pub fn mesh_occupancy(
     pitch: f64,
 ) -> Result<(Grid3<bool>, [f64; 3]), MeshError> {
     if verts.is_empty() {
-        return Err(MeshError::Message("Voxel rebuild produced an invalid mesh.".to_string()));
+        return Err(MeshError::Message(
+            "Voxel rebuild produced an invalid mesh.".to_string(),
+        ));
     }
     let mut lo = [f64::INFINITY; 3];
     let mut hi = [f64::NEG_INFINITY; 3];

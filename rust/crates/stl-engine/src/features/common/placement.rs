@@ -17,8 +17,8 @@
 
 use std::collections::BTreeMap;
 
-use serde_json::{json, Value};
-use stl_kernel::{cross, dot, MeshArrays, Vec3};
+use serde_json::{Value, json};
+use stl_kernel::{MeshArrays, Vec3, cross, dot};
 use stl_sketch::contours::entity_path;
 
 use crate::{FeatureError, State};
@@ -27,9 +27,19 @@ use crate::{FeatureError, State};
 #[derive(Clone, Debug, PartialEq)]
 pub enum PlaceRef {
     /// A sketch line: `along` is the distance from its start; `dist` the distance from the line.
-    SketchLine { sketch: String, entity: String, along: Option<f64>, dist: Option<f64> },
+    SketchLine {
+        sketch: String,
+        entity: String,
+        along: Option<f64>,
+        dist: Option<f64>,
+    },
     /// A straight part edge (its end points when picked) on the face with this normal.
-    Edge { a: Vec3, b: Vec3, face_normal: Vec3, dist: f64 },
+    Edge {
+        a: Vec3,
+        b: Vec3,
+        face_normal: Vec3,
+        dist: f64,
+    },
 }
 
 // ------------------------------------------------------------------ small vector helpers
@@ -98,25 +108,39 @@ pub fn parse_ref(v: &Value) -> Option<PlaceRef> {
 
 /// One point's list of references (Thread's `position_refs`).
 pub fn parse_ref_list(v: Option<&Value>) -> Vec<PlaceRef> {
-    v.and_then(Value::as_array).map(|a| a.iter().filter_map(parse_ref).collect()).unwrap_or_default()
+    v.and_then(Value::as_array)
+        .map(|a| a.iter().filter_map(parse_ref).collect())
+        .unwrap_or_default()
 }
 
 /// The param `point_refs`: one list per point; absent means none (Task 5).
 pub fn parse_refs(v: Option<&Value>) -> Vec<Vec<PlaceRef>> {
-    v.and_then(Value::as_array).map(|a| a.iter().map(|l| parse_ref_list(Some(l))).collect()).unwrap_or_default()
+    v.and_then(Value::as_array)
+        .map(|a| a.iter().map(|l| parse_ref_list(Some(l))).collect())
+        .unwrap_or_default()
 }
 
 /// A reference as stored (the inverse of [`parse_ref`]); `body` is kept on part edges.
 pub fn ref_json(r: &PlaceRef, body: Option<&str>) -> Value {
     match r {
-        PlaceRef::Edge { a, b, face_normal, dist } => {
+        PlaceRef::Edge {
+            a,
+            b,
+            face_normal,
+            dist,
+        } => {
             let mut v = json!({"kind": "edge", "a": a, "b": b, "normal": face_normal, "dist": dist});
             if let Some(id) = body.filter(|s| !s.is_empty()) {
                 v["body"] = json!(id);
             }
             v
         }
-        PlaceRef::SketchLine { sketch, entity, along, dist } => {
+        PlaceRef::SketchLine {
+            sketch,
+            entity,
+            along,
+            dist,
+        } => {
             let mut v = json!({"kind": "sketch_line", "sketch": sketch, "entity": entity});
             if let Some(x) = along {
                 v["along"] = json!(x);
@@ -131,7 +155,12 @@ pub fn ref_json(r: &PlaceRef, body: Option<&str>) -> Value {
 
 /// The body a stored list of references was picked on (the first part edge's `"body"`).
 pub fn ref_body(list: Option<&Value>) -> Option<String> {
-    list?.as_array()?.iter().find_map(|r| r.get("body").and_then(Value::as_str).filter(|s| !s.is_empty()).map(str::to_owned))
+    list?.as_array()?.iter().find_map(|r| {
+        r.get("body")
+            .and_then(Value::as_str)
+            .filter(|s| !s.is_empty())
+            .map(str::to_owned)
+    })
 }
 
 // ------------------------------------------------------------------ part edges
@@ -140,7 +169,9 @@ pub fn ref_body(list: Option<&Value>) -> Option<String> {
 /// `face_normal` (same side), with touching collinear pieces joined into one edge. Sorted, so the
 /// result does not depend on the mesh's vertex order beyond the positions.
 pub fn straight_edges(mesh: &MeshArrays, face_normal: Vec3) -> Vec<(Vec3, Vec3)> {
-    let Some(fnrm) = unit(face_normal) else { return Vec::new() };
+    let Some(fnrm) = unit(face_normal) else {
+        return Vec::new();
+    };
     // weld vertices by position (a solid's mesh may repeat a vertex per face)
     let q = |x: f32| (x as f64 * 1e5).round() as i64;
     let mut ids: BTreeMap<(i64, i64, i64), u32> = BTreeMap::new();
@@ -158,7 +189,10 @@ pub fn straight_edges(mesh: &MeshArrays, face_normal: Vec3) -> Vec<(Vec3, Vec3)>
     let mut normals: Vec<Option<Vec3>> = Vec::new();
     let mut edges: BTreeMap<(u32, u32), Vec<usize>> = BTreeMap::new();
     for (t, tri) in mesh.triangles.chunks_exact(3).enumerate() {
-        let v: Vec<u32> = tri.iter().map(|&i| remap.get(i as usize).copied().unwrap_or(0)).collect();
+        let v: Vec<u32> = tri
+            .iter()
+            .map(|&i| remap.get(i as usize).copied().unwrap_or(0))
+            .collect();
         let (a, b, c) = (pos[v[0] as usize], pos[v[1] as usize], pos[v[2] as usize]);
         normals.push(unit(cross(sub(b, a), sub(c, a))));
         for (i, j) in [(v[0], v[1]), (v[1], v[2]), (v[2], v[0])] {
@@ -195,7 +229,9 @@ pub fn straight_edges(mesh: &MeshArrays, face_normal: Vec3) -> Vec<(Vec3, Vec3)>
     for list in by_vertex.values() {
         for x in 0..list.len() {
             for y in x + 1..list.len() {
-                let (Some(dx), Some(dy)) = (dir(segs[list[x]]), dir(segs[list[y]])) else { continue };
+                let (Some(dx), Some(dy)) = (dir(segs[list[x]]), dir(segs[list[y]])) else {
+                    continue;
+                };
                 if dot(dx, dy).abs() >= COS_1DEG {
                     let (rx, ry) = (root(&mut parent, list[x]), root(&mut parent, list[y]));
                     if rx != ry {
@@ -236,16 +272,14 @@ pub fn straight_edges(mesh: &MeshArrays, face_normal: Vec3) -> Vec<(Vec3, Vec3)>
 }
 
 fn cmp_pt(a: Vec3, b: Vec3) -> std::cmp::Ordering {
-    a[0].total_cmp(&b[0]).then(a[1].total_cmp(&b[1])).then(a[2].total_cmp(&b[2]))
+    a[0].total_cmp(&b[0])
+        .then(a[1].total_cmp(&b[1]))
+        .then(a[2].total_cmp(&b[2]))
 }
 
 /// The pair with the lower end point first.
 fn low_first(a: Vec3, b: Vec3) -> (Vec3, Vec3) {
-    if cmp_pt(a, b).is_le() {
-        (a, b)
-    } else {
-        (b, a)
-    }
+    if cmp_pt(a, b).is_le() { (a, b) } else { (b, a) }
 }
 
 /// Distance from `p` to the infinite line through `a` with unit direction `d`.
@@ -317,17 +351,19 @@ pub struct DistLine {
 /// The side of the line `a -> b` (in the plane with this normal) `p` is on; +1 when on it.
 pub fn side_of(p: Vec3, a: Vec3, b: Vec3, normal: Vec3) -> f64 {
     let s = dot(sub(p, a), cross(normal, sub(b, a)));
-    if s < 0.0 {
-        -1.0
-    } else {
-        1.0
-    }
+    if s < 0.0 { -1.0 } else { 1.0 }
 }
 
 /// Where a point goes: `fixed` (a point along a sketch line) wins; else it keeps its distance
 /// from one or two lines, staying in the plane through `plane_at` with this normal (one line: it
 /// moves straight away from that line only). `Err` when two lines are parallel.
-pub fn place(stored: Vec3, normal: Vec3, plane_at: Vec3, fixed: Option<Vec3>, lines: &[DistLine]) -> Result<Vec3, String> {
+pub fn place(
+    stored: Vec3,
+    normal: Vec3,
+    plane_at: Vec3,
+    fixed: Option<Vec3>,
+    lines: &[DistLine],
+) -> Result<Vec3, String> {
     let n = unit(normal).ok_or_else(|| "The face has no direction.".to_owned())?;
     let h = dot(plane_at, n);
     let onto_plane = |p: Vec3| add(p, mul(n, h - dot(p, n)));
@@ -338,7 +374,8 @@ pub fn place(stored: Vec3, normal: Vec3, plane_at: Vec3, fixed: Option<Vec3>, li
     let mut rows: Vec<(Vec3, f64, Vec3)> = Vec::new();
     for l in lines.iter().take(2) {
         let d = sub(l.b, l.a);
-        let d = unit(sub(d, mul(n, dot(d, n)))).ok_or_else(|| "An edge it was measured from runs along the face normal.".to_owned())?;
+        let d = unit(sub(d, mul(n, dot(d, n))))
+            .ok_or_else(|| "An edge it was measured from runs along the face normal.".to_owned())?;
         let s = mul(cross(n, d), l.side);
         rows.push((s, l.dist + dot(l.a, s), d));
     }
@@ -347,7 +384,9 @@ pub fn place(stored: Vec3, normal: Vec3, plane_at: Vec3, fixed: Option<Vec3>, li
         [(s, c, d)] => Ok(add(add(mul(n, h), mul(*s, *c)), mul(*d, dot(stored, *d)))),
         [(s1, c1, _), (s2, c2, _), ..] => {
             if len(cross(*s1, *s2)) < (1.0f64).to_radians().sin() {
-                return Err("The two edges it was measured from are parallel, so only one distance can hold.".to_owned());
+                return Err(
+                    "The two edges it was measured from are parallel, so only one distance can hold.".to_owned(),
+                );
             }
             Ok(solve3([n, *s1, *s2], [h, *c1, *c2]))
         }
@@ -388,14 +427,27 @@ pub fn sketch_line(state: &State, sketch: &str, entity: &str) -> Option<(Vec3, V
 /// Where a point goes from its references: (point, warning). With no references, or one that can
 /// no longer be found, the stored point is kept (with a warning in the second case) (Task 5).
 /// `body` is the body its part edges are on; empty means any body.
-pub fn resolve_point(state: &State, body: &str, stored: Vec3, normal: Vec3, refs: &[PlaceRef]) -> Result<(Vec3, Option<String>), FeatureError> {
+pub fn resolve_point(
+    state: &State,
+    body: &str,
+    stored: Vec3,
+    normal: Vec3,
+    refs: &[PlaceRef],
+) -> Result<(Vec3, Option<String>), FeatureError> {
     if refs.is_empty() {
         return Ok((stored, None));
     }
     let missing = |what: &str| -> Result<(Vec3, Option<String>), FeatureError> {
-        Ok((stored, Some(format!("{what} this point was measured from can no longer be found, so the point stays where it was."))))
+        Ok((
+            stored,
+            Some(format!(
+                "{what} this point was measured from can no longer be found, so the point stays where it was."
+            )),
+        ))
     };
-    let Some(n) = unit(normal) else { return Ok((stored, None)) };
+    let Some(n) = unit(normal) else {
+        return Ok((stored, None));
+    };
     // the meshes part edges are looked for on, made once
     let mut edges: Option<Vec<(Vec3, Vec3)>> = None;
     let mut fixed: Option<Vec3> = None;
@@ -404,7 +456,12 @@ pub fn resolve_point(state: &State, body: &str, stored: Vec3, normal: Vec3, refs
     let mut moved_plane = false;
     for r in refs {
         match r {
-            PlaceRef::Edge { a, b, face_normal, dist } => {
+            PlaceRef::Edge {
+                a,
+                b,
+                face_normal,
+                dist,
+            } => {
                 let cands = edges.get_or_insert_with(|| {
                     let meshes: Vec<MeshArrays> = state
                         .bodies
@@ -418,19 +475,35 @@ pub fn resolve_point(state: &State, body: &str, stored: Vec3, normal: Vec3, refs
                         .collect();
                     meshes.iter().flat_map(|m| straight_edges(m, *face_normal)).collect()
                 });
-                let Some((na, nb)) = pick_edge(cands, *a, *b) else { return missing("An edge") };
+                let Some((na, nb)) = pick_edge(cands, *a, *b) else {
+                    return missing("An edge");
+                };
                 if !moved_plane {
                     // the face moved along its normal as much as the edge did
                     plane_at = add(stored, mul(n, dot(sub(na, *a), n)));
                     moved_plane = true;
                 }
-                lines.push(DistLine { a: na, b: nb, dist: *dist, side: side_of(stored, *a, *b, n) });
+                lines.push(DistLine {
+                    a: na,
+                    b: nb,
+                    dist: *dist,
+                    side: side_of(stored, *a, *b, n),
+                });
             }
-            PlaceRef::SketchLine { sketch, entity, along, dist } => {
-                let Some((a, b)) = sketch_line(state, sketch, entity) else { return missing("A sketch line") };
+            PlaceRef::SketchLine {
+                sketch,
+                entity,
+                along,
+                dist,
+            } => {
+                let Some((a, b)) = sketch_line(state, sketch, entity) else {
+                    return missing("A sketch line");
+                };
                 match (along, dist) {
                     (Some(t), off) => {
-                        let Some(d) = unit(sub(b, a)) else { return missing("A sketch line") };
+                        let Some(d) = unit(sub(b, a)) else {
+                            return missing("A sketch line");
+                        };
                         let mut p = add(a, mul(d, *t));
                         if let Some(o) = off {
                             // sideways in the face's plane, the same rule as the panel
@@ -439,7 +512,12 @@ pub fn resolve_point(state: &State, body: &str, stored: Vec3, normal: Vec3, refs
                         }
                         fixed.get_or_insert(p);
                     }
-                    (None, Some(o)) => lines.push(DistLine { a, b, dist: *o, side: side_of(stored, a, b, n) }),
+                    (None, Some(o)) => lines.push(DistLine {
+                        a,
+                        b,
+                        dist: *o,
+                        side: side_of(stored, a, b, n),
+                    }),
                     (None, None) => {}
                 }
             }

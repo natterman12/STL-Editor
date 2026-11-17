@@ -25,7 +25,8 @@ fn engine_js() -> PathBuf {
 
 fn golden() -> serde_json::Map<String, Value> {
     let p = repo().join("rust/tests/parity/fins_golden.json");
-    match serde_json::from_str(&std::fs::read_to_string(&p).unwrap_or_else(|e| panic!("{}: {e}", p.display()))).unwrap() {
+    match serde_json::from_str(&std::fs::read_to_string(&p).unwrap_or_else(|e| panic!("{}: {e}", p.display()))).unwrap()
+    {
         Value::Object(m) => m,
         _ => panic!("fins_golden.json is not an object"),
     }
@@ -39,7 +40,11 @@ fn b64_encode(data: &[u8]) -> String {
         let n = (c[0] as u32) << 16 | (*c.get(1).unwrap_or(&0) as u32) << 8 | *c.get(2).unwrap_or(&0) as u32;
         out.push(B64[(n >> 18) as usize & 63] as char);
         out.push(B64[(n >> 12) as usize & 63] as char);
-        out.push(if c.len() > 1 { B64[(n >> 6) as usize & 63] as char } else { '=' });
+        out.push(if c.len() > 1 {
+            B64[(n >> 6) as usize & 63] as char
+        } else {
+            '='
+        });
         out.push(if c.len() > 2 { B64[n as usize & 63] as char } else { '=' });
     }
     out
@@ -76,7 +81,8 @@ fn js(s: &str) -> String {
 }
 
 fn options(host: &dyn FinsHost, values: &Value) -> String {
-    host.call("optionsFromDialogJson", &[&js(&values.to_string())]).expect("optionsFromDialogJson")
+    host.call("optionsFromDialogJson", &[&js(&values.to_string())])
+        .expect("optionsFromDialogJson")
 }
 
 struct Outcome {
@@ -90,9 +96,15 @@ struct Outcome {
 fn run_case(host: &dyn FinsHost, case: &Value) -> Outcome {
     let (v, f) = load_model(case["model"].as_str().unwrap());
     let opts = options(host, &case["options"]);
-    let raw: Value =
-        serde_json::from_str(&host.call("computeFinsB64", &[&js(&soup(&v, &f)), &js(&opts)]).expect("computeFinsB64")).unwrap();
-    let report = host.call("reportLine", &[&raw["stats"].to_string()]).expect("reportLine");
+    let raw: Value = serde_json::from_str(
+        &host
+            .call("computeFinsB64", &[&js(&soup(&v, &f)), &js(&opts)])
+            .expect("computeFinsB64"),
+    )
+    .unwrap();
+    let report = host
+        .call("reportLine", &[&raw["stats"].to_string()])
+        .expect("reportLine");
     Outcome {
         stats: raw["stats"].clone(),
         pieces: raw["pieces"].as_array().unwrap().len(),
@@ -126,7 +138,10 @@ fn compare(name: &str, want: &Value, got: &Outcome) -> Vec<String> {
         bad.push(format!("{name}: pieces: want {}, got {}", want["pieces"], got.pieces));
     }
     if want["report"].as_str().unwrap() != got.report {
-        bad.push(format!("{name}: report: want {:?}, got {:?}", want["report"], got.report));
+        bad.push(format!(
+            "{name}: report: want {:?}, got {:?}",
+            want["report"], got.report
+        ));
     }
     if want["over"].as_u64().unwrap() as usize != got.over || want["small"].as_u64().unwrap() as usize != got.small {
         bad.push(format!(

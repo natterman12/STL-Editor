@@ -3,17 +3,36 @@
 
 use egui::Ui;
 use serde_json::Value;
-use stl_mesh::fit::{fit_cylinder, CylKind};
+use stl_mesh::fit::{CylKind, fit_cylinder};
 
-use super::bodies::{handle_box, pt4, sel_box, PickOut, ShowOut};
+use super::bodies::{PickOut, ShowOut, handle_box, pt4, sel_box};
 use crate::engine_link::Level;
 use crate::theme::Tokens;
 use crate::tools::{Ctx, Field, Values};
 use crate::viewport::pick::Hit;
 
-pub fn show(ui: &mut Ui, tk: &Tokens, f: &Field, values: &mut Values, active: &mut Option<String>, _ctx: &Ctx) -> ShowOut {
-    let chips: Vec<String> = values.get(f.key).and_then(|v| v.get("label")).and_then(Value::as_str).map(|s| vec![s.to_owned()]).unwrap_or_default();
-    let b = sel_box(ui, tk, egui::Id::unique(("pick", f.key)), active.as_deref() == Some(f.key), &chips, "Click the wall of a round hole or pin");
+pub fn show(
+    ui: &mut Ui,
+    tk: &Tokens,
+    f: &Field,
+    values: &mut Values,
+    active: &mut Option<String>,
+    _ctx: &Ctx,
+) -> ShowOut {
+    let chips: Vec<String> = values
+        .get(f.key)
+        .and_then(|v| v.get("label"))
+        .and_then(Value::as_str)
+        .map(|s| vec![s.to_owned()])
+        .unwrap_or_default();
+    let b = sel_box(
+        ui,
+        tk,
+        egui::Id::unique(("pick", f.key)),
+        active.as_deref() == Some(f.key),
+        &chips,
+        "Click the wall of a round hole or pin",
+    );
     let mut out = ShowOut::default();
     handle_box(&b, f.key, active, &mut out, |_| {
         values.insert(f.key.to_owned(), Value::Array(vec![]));
@@ -31,14 +50,22 @@ pub fn fmt_mm(x: f64) -> String {
 
 /// `U.str(mm)`: the length in the display unit with its suffix ("5 mm", "0.1969 in").
 pub fn u_str(mm: f64, inch: bool) -> String {
-    format!("{} {}", super::number::fmt_len(mm, None, inch), super::number::unit_name(inch))
+    format!(
+        "{} {}",
+        super::number::fmt_len(mm, None, inch),
+        super::number::unit_name(inch)
+    )
 }
 
 /// A click on a body: measure the round feature under it. No cylinder there: the engine's
 /// message as an error line.
 pub fn feed_pick(f: &Field, values: &mut Values, hit: &Hit, ctx: &Ctx) -> PickOut {
-    let Hit::Body { id, face, point, .. } = hit else { return PickOut::used() };
-    let Some(b) = ctx.bodies.iter().find(|b| &b.id == id) else { return PickOut::used() };
+    let Hit::Body { id, face, point, .. } = hit else {
+        return PickOut::used();
+    };
+    let Some(b) = ctx.bodies.iter().find(|b| &b.id == id) else {
+        return PickOut::used();
+    };
     let m = &b.mesh;
     let v: Vec<[f32; 3]> = m.positions.chunks_exact(3).map(|p| [p[0], p[1], p[2]]).collect();
     let t: Vec<[u32; 3]> = m.triangles.chunks_exact(3).map(|p| [p[0], p[1], p[2]]).collect();
@@ -66,7 +93,12 @@ pub fn feed_pick(f: &Field, values: &mut Values, hit: &Hit, ctx: &Ctx) -> PickOu
     out.highlight = Some((id.clone(), tris));
     out.message = Some((
         Level::Info,
-        format!("Measured {} Ø{}. Type the new diameter{}.", what.to_lowercase(), u_str(diameter, ctx.inch), if pin { "" } else { " or choose Fill" }),
+        format!(
+            "Measured {} Ø{}. Type the new diameter{}.",
+            what.to_lowercase(),
+            u_str(diameter, ctx.inch),
+            if pin { "" } else { " or choose Fill" }
+        ),
     ));
     out.advance = true;
     out

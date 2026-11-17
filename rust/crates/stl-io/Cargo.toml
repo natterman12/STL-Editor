@@ -13,3 +13,6 @@ serde_json = "1"
 
 [dev-dependencies]
 stl-parity = { path = "../stl-parity" }
+
+[lints]
+workspace = true

@@ -5,7 +5,9 @@ fn title_says_test_build() {
     let t = stl_app::build_info::title();
     assert!(t.starts_with("STL Editor 2.0 (test build "), "{t}");
     assert!(t.ends_with(')'), "{t}");
-    let inner = t.trim_start_matches("STL Editor 2.0 (test build ").trim_end_matches(')');
+    let inner = t
+        .trim_start_matches("STL Editor 2.0 (test build ")
+        .trim_end_matches(')');
     let (date, commit) = inner.split_once(' ').expect("date and commit");
     let d: Vec<&str> = date.split('-').collect();
     assert_eq!(d.len(), 3, "{date}");

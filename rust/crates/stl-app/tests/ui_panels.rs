@@ -7,33 +7,43 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use egui_kittest::kittest::{NodeT, Queryable};
 use egui_kittest::Harness;
+use egui_kittest::kittest::{NodeT, Queryable};
 use stl_app::engine_link::native::NativeLink;
 use stl_app::engine_link::{BodyView, Command, EngineLink, Level, ParamView, TimelineView, Update};
 use stl_app::engine_link::{PlaneView, SketchView, TimelineItem};
 use stl_app::theme;
-use stl_app::ui::browser::{Browser, BrowserView};
+use stl_app::ui::UiEvent;
 use stl_app::ui::browser::show as show_browser;
+use stl_app::ui::browser::{Browser, BrowserView};
 use stl_app::ui::busy::{Busy, show as show_busy};
 use stl_app::ui::params::{Params, show as show_params};
 use stl_app::ui::status::show as show_status;
 use stl_app::ui::timeline::{Timeline, show as show_timeline};
 use stl_app::ui::toasts::{Toasts, show as show_toasts, toast_colours};
-use stl_app::ui::UiEvent;
 use stl_kernel::MeshArrays;
 
-#[path = "support/wgpu_renderer.rs"]
-mod wgpu_renderer;
 #[path = "support/gpu.rs"]
 mod gpu;
+#[path = "support/wgpu_renderer.rs"]
+mod wgpu_renderer;
 
 fn empty_mesh() -> Arc<MeshArrays> {
-    Arc::new(MeshArrays { positions: Vec::new(), triangles: Vec::new() })
+    Arc::new(MeshArrays {
+        positions: Vec::new(),
+        triangles: Vec::new(),
+    })
 }
 
 fn param_view(name: &str, v: f64) -> ParamView {
-    ParamView { name: name.into(), expr: format!("{v}"), note: String::new(), value: Some(v), error: None, used: false }
+    ParamView {
+        name: name.into(),
+        expr: format!("{v}"),
+        note: String::new(),
+        value: Some(v),
+        error: None,
+        used: false,
+    }
 }
 
 fn test_body(id: &str, name: &str, hidden: bool) -> BodyView {
@@ -50,13 +60,26 @@ fn test_body(id: &str, name: &str, hidden: bool) -> BodyView {
 }
 
 fn item(id: &str, kind: &str, label: &str, active: bool) -> TimelineItem {
-    TimelineItem { id: id.into(), kind: kind.into(), label: label.into(), error: None, suppressed: false, warning: None, active, ..Default::default() }
+    TimelineItem {
+        id: id.into(),
+        kind: kind.into(),
+        label: label.into(),
+        error: None,
+        suppressed: false,
+        warning: None,
+        active,
+        ..Default::default()
+    }
 }
 
 fn sample_timeline(marker: Option<usize>) -> TimelineView {
-    let on = |i: usize| marker.map_or(true, |m| i < m);
+    let on = |i: usize| marker.is_none_or(|m| i < m);
     TimelineView {
-        items: vec![item("f1", "import", "Import", on(0)), item("f2", "box", "Box", on(1)), item("f3", "hole", "Hole", on(2))],
+        items: vec![
+            item("f1", "import", "Import", on(0)),
+            item("f2", "box", "Box", on(1)),
+            item("f3", "hole", "Hole", on(2)),
+        ],
         marker,
         can_undo: marker.is_some(),
         can_redo: false,
@@ -293,7 +316,10 @@ fn timeline_nav_locked_during_sketch() {
     );
     harness.run();
     for tip in ["Roll back to start", "Step back", "Step forward", "Roll forward to end"] {
-        assert!(harness.get_by_label(tip).accesskit_node().is_disabled(), "{tip} should be disabled while a sketch is open");
+        assert!(
+            harness.get_by_label(tip).accesskit_node().is_disabled(),
+            "{tip} should be disabled while a sketch is open"
+        );
     }
     click_label(&harness, "Step back");
     harness.run();
@@ -369,10 +395,7 @@ fn timeline_drag_marker_rollback() {
     harness.hover_at(target);
     harness.drop_at(target);
     harness.run();
-    assert!(matches!(
-        commands.borrow().last(),
-        Some(Command::Rollback(Some(1)))
-    ));
+    assert!(matches!(commands.borrow().last(), Some(Command::Rollback(Some(1)))));
 }
 
 #[test]
@@ -414,7 +437,10 @@ fn timeline_marker_tooltip_matches_1x() {
         harness.input_mut().time = Some(t);
         harness.step();
     }
-    assert!(harness.query_by_label("End of history").is_none(), "mid marker must not say End of history");
+    assert!(
+        harness.query_by_label("End of history").is_none(),
+        "mid marker must not say End of history"
+    );
 }
 
 #[test]
@@ -443,7 +469,10 @@ fn browser_hide_body() {
     harness.run();
     harness.get_by_label("Part").click_secondary();
     harness.run();
-    assert!(matches!(events.borrow().last(), Some(UiEvent::BodyMenu(id, _)) if id == "b1"), "right-click asks for the body menu");
+    assert!(
+        matches!(events.borrow().last(), Some(UiEvent::BodyMenu(id, _)) if id == "b1"),
+        "right-click asks for the body menu"
+    );
     harness.get_by_label("Hide Part").click();
     harness.run();
     assert!(matches!(
@@ -548,7 +577,13 @@ fn browser_lists_planes_and_sketches() {
                 normal: [0.0, 0.0, 1.0],
                 visible: true,
             }],
-            sketches: vec![SketchView { id: "s1".into(), name: "Sketch1".into(), plane: "Top".into(), hidden: false, ..Default::default() }],
+            sketches: vec![SketchView {
+                id: "s1".into(),
+                name: "Sketch1".into(),
+                plane: "Top".into(),
+                hidden: false,
+                ..Default::default()
+            }],
             selection: Vec::new(),
             origin_visible: true,
             params: vec![param_view("dx", 5.0), param_view("spare", 1.0)],
@@ -566,7 +601,9 @@ fn browser_lists_planes_and_sketches() {
 }
 
 fn fixture(name: &str) -> Vec<u8> {
-    let p = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/projects").join(name);
+    let p = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/projects")
+        .join(name);
     std::fs::read(&p).unwrap_or_else(|e| panic!("{}: {e}", p.display()))
 }
 
@@ -587,12 +624,21 @@ fn drain(link: &NativeLink) -> Vec<Update> {
 #[test]
 fn browser_basic_fixture_context_colour() {
     let link = NativeLink::new();
-    link.send(Command::Open { name: "basic.stlx".into(), bytes: fixture("basic.stlx") });
+    link.send(Command::Open {
+        name: "basic.stlx".into(),
+        bytes: fixture("basic.stlx"),
+    });
     let ups = drain(&link);
     let bodies: Vec<BodyView> = ups
         .iter()
         .rev()
-        .find_map(|u| if let Update::Bodies(b) = u { Some(b.clone()) } else { None })
+        .find_map(|u| {
+            if let Update::Bodies(b) = u {
+                Some(b.clone())
+            } else {
+                None
+            }
+        })
         .expect("bodies");
     assert!(!bodies.is_empty());
     let mut harness = browser_harness(
@@ -617,7 +663,10 @@ fn browser_basic_fixture_context_colour() {
     let commands = harness.state().commands.clone();
     let events = harness.state().events.clone();
     harness.run();
-    let (id, name) = (harness.state().bodies[0].id.clone(), harness.state().bodies[0].name.clone());
+    let (id, name) = (
+        harness.state().bodies[0].id.clone(),
+        harness.state().bodies[0].name.clone(),
+    );
     // right-click asks the app for the body's menu; its Colour… row opens the colour window
     // (the app does this: `tests/ui/no_silent_buttons.rs` presses the real row)
     harness.get_by_label(name.as_str()).click_secondary();
@@ -631,14 +680,22 @@ fn browser_basic_fixture_context_colour() {
         h.event(egui::Event::PointerMoved(at));
         h.step();
         for pressed in [true, false] {
-            h.event(egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() });
+            h.event(egui::Event::PointerButton {
+                pos: at,
+                button: egui::PointerButton::Primary,
+                pressed,
+                modifiers: Default::default(),
+            });
             h.step();
         }
         h.run();
     };
     let well = harness.get_by_role(egui::accesskit::Role::ColorWell).rect().center();
     press(&mut harness, well);
-    let red = harness.get_by_role_and_label(egui::accesskit::Role::SpinButton, "R").rect().center();
+    let red = harness
+        .get_by_role_and_label(egui::accesskit::Role::SpinButton, "R")
+        .rect()
+        .center();
     press(&mut harness, red);
     harness.event(egui::Event::Text("200".to_owned()));
     harness.run();
@@ -665,22 +722,22 @@ fn params_edit_expr() {
         .with_size(egui::vec2(800.0, 340.0))
         .with_accessibility_check(false)
         .build_ui_state(
-        |ui, st: &mut ParamsUi| st.draw(ui),
-        ParamsUi {
-            params,
-            views: vec![ParamView {
-                name: "width".into(),
-                expr: "40".into(),
-                note: String::new(),
-                value: Some(40.0),
-                error: None,
-                used: false,
-            }],
-            used: HashSet::new(),
-            dark: true,
-            commands: commands.clone(),
-        },
-    );
+            |ui, st: &mut ParamsUi| st.draw(ui),
+            ParamsUi {
+                params,
+                views: vec![ParamView {
+                    name: "width".into(),
+                    expr: "40".into(),
+                    note: String::new(),
+                    value: Some(40.0),
+                    error: None,
+                    used: false,
+                }],
+                used: HashSet::new(),
+                dark: true,
+                commands: commands.clone(),
+            },
+        );
     harness.run();
     harness
         .get_all_by_role(egui::accesskit::Role::TextInput)
@@ -708,36 +765,36 @@ fn params_resolved_shows_used_marker() {
         .with_size(egui::vec2(800.0, 340.0))
         .with_accessibility_check(false)
         .build_ui_state(
-        |ui, st: &mut ParamsUi| st.draw(ui),
-        ParamsUi {
-            params: {
-                let mut p = Params::default();
-                p.set_open(true);
-                p
+            |ui, st: &mut ParamsUi| st.draw(ui),
+            ParamsUi {
+                params: {
+                    let mut p = Params::default();
+                    p.set_open(true);
+                    p
+                },
+                views: vec![
+                    ParamView {
+                        name: "width".into(),
+                        expr: "40".into(),
+                        note: String::new(),
+                        value: Some(40.0),
+                        error: None,
+                        used: false,
+                    },
+                    ParamView {
+                        name: "height".into(),
+                        expr: "=width".into(),
+                        note: String::new(),
+                        value: Some(40.0),
+                        error: None,
+                        used: true,
+                    },
+                ],
+                used: HashSet::from(["width".into()]),
+                dark: true,
+                commands: Rc::new(RefCell::new(Vec::new())),
             },
-            views: vec![
-                ParamView {
-                    name: "width".into(),
-                    expr: "40".into(),
-                    note: String::new(),
-                    value: Some(40.0),
-                    error: None,
-                    used: false,
-                },
-                ParamView {
-                    name: "height".into(),
-                    expr: "=width".into(),
-                    note: String::new(),
-                    value: Some(40.0),
-                    error: None,
-                    used: true,
-                },
-            ],
-            used: HashSet::from(["width".into()]),
-            dark: true,
-            commands: Rc::new(RefCell::new(Vec::new())),
-        },
-    );
+        );
     harness.run();
     harness.get_by_label("= 40 · used");
 }
@@ -749,26 +806,26 @@ fn params_cancel_closes() {
         .with_size(egui::vec2(800.0, 340.0))
         .with_accessibility_check(false)
         .build_ui_state(
-        |ui, st: &mut ParamsUi| st.draw(ui),
-        ParamsUi {
-            params: {
-                let mut p = Params::default();
-                p.set_open(true);
-                p
+            |ui, st: &mut ParamsUi| st.draw(ui),
+            ParamsUi {
+                params: {
+                    let mut p = Params::default();
+                    p.set_open(true);
+                    p
+                },
+                views: vec![ParamView {
+                    name: "width".into(),
+                    expr: "40".into(),
+                    note: String::new(),
+                    value: Some(40.0),
+                    error: None,
+                    used: false,
+                }],
+                used: HashSet::new(),
+                dark: true,
+                commands: commands.clone(),
             },
-            views: vec![ParamView {
-                name: "width".into(),
-                expr: "40".into(),
-                note: String::new(),
-                value: Some(40.0),
-                error: None,
-                used: false,
-            }],
-            used: HashSet::new(),
-            dark: true,
-            commands: commands.clone(),
-        },
-    );
+        );
     harness.run();
     harness.get_by_label("Cancel").click();
     harness.run();
@@ -784,15 +841,15 @@ fn status_and_toasts_visible() {
         .with_size(egui::vec2(640.0, 120.0))
         .with_accessibility_check(false)
         .build_ui_state(
-        move |ui, app: &mut (Toasts, bool)| {
-            let (toasts, dark) = app;
-            theme::apply(ui.ctx(), &theme::tokens(*dark));
-            let tokens = theme::tokens(*dark);
-            show_status(ui, &tokens, "Box — last feature in the history");
-            show_toasts(ui.ctx(), &tokens, toasts);
-        },
-        (toasts, true),
-    );
+            move |ui, app: &mut (Toasts, bool)| {
+                let (toasts, dark) = app;
+                theme::apply(ui.ctx(), &theme::tokens(*dark));
+                let tokens = theme::tokens(*dark);
+                show_status(ui, &tokens, "Box — last feature in the history");
+                show_toasts(ui.ctx(), &tokens, toasts);
+            },
+            (toasts, true),
+        );
     harness.run();
     harness.get_by_label("Saved");
     harness.get_by_label("Box — last feature in the history");
@@ -807,20 +864,23 @@ fn busy_cancel_after_delay() {
         .with_size(egui::vec2(400.0, 300.0))
         .with_accessibility_check(false)
         .build_ui_state(
-        move |ui, app: &mut (Busy, Rc<RefCell<Vec<Command>>>, bool)| {
-            let (busy, cmds, dark) = app;
-            theme::apply(ui.ctx(), &theme::tokens(*dark));
-            let tokens = theme::tokens(*dark);
-            show_busy(ui.ctx(), &tokens, busy, &mut cmds.borrow_mut());
-        },
-        (busy, commands.clone(), true),
-    );
+            move |ui, app: &mut (Busy, Rc<RefCell<Vec<Command>>>, bool)| {
+                let (busy, cmds, dark) = app;
+                theme::apply(ui.ctx(), &theme::tokens(*dark));
+                let tokens = theme::tokens(*dark);
+                show_busy(ui.ctx(), &tokens, busy, &mut cmds.borrow_mut());
+            },
+            (busy, commands.clone(), true),
+        );
     // the overlay waits 350 ms of egui time; the spinner repaints forever, so step instead of run
     harness.input_mut().time = Some(0.0);
     harness.step();
     harness.input_mut().time = Some(0.2);
     harness.step();
-    assert!(harness.query_by_label("Cancel").is_none(), "the overlay must not show before the delay");
+    assert!(
+        harness.query_by_label("Cancel").is_none(),
+        "the overlay must not show before the delay"
+    );
     harness.input_mut().time = Some(0.4);
     harness.step();
     harness.input_mut().time = Some(0.5);
@@ -851,12 +911,16 @@ fn timeline_menu_move_buttons_follow_position() {
     );
     harness.run();
     let button = |h: &Harness<'_, TimelineUi>, name: &str| {
-        h.get_by(|n| n.role() == egui::accesskit::Role::Button && n.label() == Some(name.into())).rect().center()
+        h.get_by(|n| n.role() == egui::accesskit::Role::Button && n.label() == Some(name.into()))
+            .rect()
+            .center()
     };
     // the last step cannot move right, the first cannot move left
     let hole = button(&harness, "Hole");
     harness.hover_at(hole);
-    harness.get_by(|n| n.role() == egui::accesskit::Role::Button && n.label() == Some("Hole".into())).click_secondary();
+    harness
+        .get_by(|n| n.role() == egui::accesskit::Role::Button && n.label() == Some("Hole".into()))
+        .click_secondary();
     harness.run();
     assert!(menu_item_disabled(&harness, "Move right"));
     assert!(!menu_item_disabled(&harness, "Move left"));
@@ -880,12 +944,20 @@ fn timeline_menu_first_step_cannot_move_left() {
         400.0,
     );
     harness.run();
-    harness.get_by(|n| n.role() == egui::accesskit::Role::Button && n.label() == Some("Import".into())).click_secondary();
+    harness
+        .get_by(|n| n.role() == egui::accesskit::Role::Button && n.label() == Some("Import".into()))
+        .click_secondary();
     harness.run();
     assert!(menu_item_disabled(&harness, "Move left"));
     assert!(!menu_item_disabled(&harness, "Move right"));
-    assert!(!menu_item_disabled(&harness, "Roll Forward to End"), "marker is not at the end");
-    assert!(!menu_item_disabled(&harness, "Suppress"), "Suppress is available when no sketch is open");
+    assert!(
+        !menu_item_disabled(&harness, "Roll Forward to End"),
+        "marker is not at the end"
+    );
+    assert!(
+        !menu_item_disabled(&harness, "Suppress"),
+        "Suppress is available when no sketch is open"
+    );
 }
 
 #[test]
@@ -904,12 +976,17 @@ fn timeline_menu_suppress_sends_set_suppressed() {
         400.0,
     );
     harness.run();
-    harness.get_by(|n| n.role() == egui::accesskit::Role::Button && n.label() == Some("Import".into())).click_secondary();
+    harness
+        .get_by(|n| n.role() == egui::accesskit::Role::Button && n.label() == Some("Import".into()))
+        .click_secondary();
     harness.run();
     harness.get_by_label("Suppress").click();
     harness.run();
     assert!(
-        matches!(commands.borrow().last(), Some(Command::SetSuppressed { suppressed: true, .. })),
+        matches!(
+            commands.borrow().last(),
+            Some(Command::SetSuppressed { suppressed: true, .. })
+        ),
         "Suppress must send SetSuppressed with suppressed: true, got {:?}",
         commands.borrow().last().map(|_| "a different command")
     );
@@ -919,29 +996,45 @@ fn timeline_menu_suppress_sends_set_suppressed() {
 fn timeline_double_click_opens_the_step() {
     let events = Rc::new(RefCell::new(Vec::new()));
     // egui calls two clicks a double-click when they are under 0.3 s apart; the default test frame is 0.25 s
-    let mut harness = Harness::builder().with_size(egui::vec2(720.0, 80.0)).with_step_dt(0.05).with_accessibility_check(false).build_ui_state(
-        |ui, st: &mut TimelineUi| {
-            stl_app::fonts::install(ui.ctx());
-            st.draw(ui);
-        },
-        TimelineUi {
-            tl: Timeline::default(),
-            view: sample_timeline(None),
-            sketch_active: false,
-            dark: true,
-            commands: Rc::new(RefCell::new(Vec::new())),
-            events: events.clone(),
-        },
-    );
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(720.0, 80.0))
+        .with_step_dt(0.05)
+        .with_accessibility_check(false)
+        .build_ui_state(
+            |ui, st: &mut TimelineUi| {
+                stl_app::fonts::install(ui.ctx());
+                st.draw(ui);
+            },
+            TimelineUi {
+                tl: Timeline::default(),
+                view: sample_timeline(None),
+                sketch_active: false,
+                dark: true,
+                commands: Rc::new(RefCell::new(Vec::new())),
+                events: events.clone(),
+            },
+        );
     harness.run();
     let box_node = |h: &Harness<'_, TimelineUi>| {
-        h.get_by(|n| n.role() == egui::accesskit::Role::Button && n.label() == Some("Box".into())).rect().center()
+        h.get_by(|n| n.role() == egui::accesskit::Role::Button && n.label() == Some("Box".into()))
+            .rect()
+            .center()
     };
     let at = box_node(&harness);
     for _ in 0..2 {
         harness.event(egui::Event::PointerMoved(at));
-        harness.event(egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed: true, modifiers: Default::default() });
-        harness.event(egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed: false, modifiers: Default::default() });
+        harness.event(egui::Event::PointerButton {
+            pos: at,
+            button: egui::PointerButton::Primary,
+            pressed: true,
+            modifiers: Default::default(),
+        });
+        harness.event(egui::Event::PointerButton {
+            pos: at,
+            button: egui::PointerButton::Primary,
+            pressed: false,
+            modifiers: Default::default(),
+        });
         harness.step();
     }
     harness.run();
@@ -968,7 +1061,10 @@ fn timeline_click_on_failed_step_shows_the_error() {
     harness.run();
     click_label(&harness, "Box");
     harness.run();
-    assert_eq!(harness.state_mut().tl.take_status().as_deref(), Some("Box — The cut misses the part"));
+    assert_eq!(
+        harness.state_mut().tl.take_status().as_deref(),
+        Some("Box — The cut misses the part")
+    );
 }
 
 #[test]
@@ -994,7 +1090,11 @@ fn browser_marks_a_body_that_is_not_watertight() {
     );
     harness.run();
     harness.get_by_label("needs repair");
-    assert_eq!(harness.query_all_by_label("needs repair").count(), 1, "only the broken body is tagged");
+    assert_eq!(
+        harness.query_all_by_label("needs repair").count(),
+        1,
+        "only the broken body is tagged"
+    );
     harness.get_by_label("2 bodies");
 }
 
@@ -1002,22 +1102,35 @@ fn browser_marks_a_body_that_is_not_watertight() {
 fn params_show_the_1x_hint_and_three_decimals() {
     let mut params = Params::default();
     params.set_open(true);
-    let mut harness = Harness::builder().with_size(egui::vec2(800.0, 340.0)).with_accessibility_check(false).build_ui_state(
-        |ui, st: &mut ParamsUi| st.draw(ui),
-        ParamsUi {
-            params,
-            views: vec![ParamView { name: "r".into(), expr: "1.23456".into(), value: Some(1.23456), ..Default::default() }],
-            used: HashSet::new(),
-            dark: true,
-            commands: Rc::new(RefCell::new(Vec::new())),
-        },
-    );
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(800.0, 340.0))
+        .with_accessibility_check(false)
+        .build_ui_state(
+            |ui, st: &mut ParamsUi| st.draw(ui),
+            ParamsUi {
+                params,
+                views: vec![ParamView {
+                    name: "r".into(),
+                    expr: "1.23456".into(),
+                    value: Some(1.23456),
+                    ..Default::default()
+                }],
+                used: HashSet::new(),
+                dark: true,
+                commands: Rc::new(RefCell::new(Vec::new())),
+            },
+        );
     harness.run();
     // web/js/app.js:1157, word for word
     harness.get_by_label("Name a value once and use it in any number: type the name (or =width/2 + 3) in a tool's field. Change a value here and every step that uses it is rebuilt. Lengths are in mm, angles in degrees; a parameter can use others.");
     harness.get_by_label("= 1.235");
     // the list changes in the engine (undo, a new file): the table follows it
-    harness.state_mut().views = vec![ParamView { name: "r".into(), expr: "7".into(), value: Some(7.0), ..Default::default() }];
+    harness.state_mut().views = vec![ParamView {
+        name: "r".into(),
+        expr: "7".into(),
+        value: Some(7.0),
+        ..Default::default()
+    }];
     harness.run();
     harness.get_by_label("= 7");
 }
@@ -1027,38 +1140,82 @@ fn params_dialog_matches_1x_layout() {
     let long_note = "X shift for the second blob";
     let mut params = Params::default();
     params.set_open(true);
-    let mut harness = Harness::builder().with_size(egui::vec2(800.0, 340.0)).with_accessibility_check(false).build_ui_state(
-        |ui, st: &mut ParamsUi| st.draw(ui),
-        ParamsUi {
-            params,
-            views: vec![
-                ParamView { name: "dx".into(), expr: "=width/2 + 3".into(), note: long_note.into(), value: Some(5.0), ..Default::default() },
-                ParamView { name: "spare_length".into(), expr: "1".into(), note: "unused".into(), value: Some(1.0), ..Default::default() },
-            ],
-            used: HashSet::new(),
-            dark: true,
-            commands: Rc::new(RefCell::new(Vec::new())),
-        },
-    );
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(800.0, 340.0))
+        .with_accessibility_check(false)
+        .build_ui_state(
+            |ui, st: &mut ParamsUi| st.draw(ui),
+            ParamsUi {
+                params,
+                views: vec![
+                    ParamView {
+                        name: "dx".into(),
+                        expr: "=width/2 + 3".into(),
+                        note: long_note.into(),
+                        value: Some(5.0),
+                        ..Default::default()
+                    },
+                    ParamView {
+                        name: "spare_length".into(),
+                        expr: "1".into(),
+                        note: "unused".into(),
+                        value: Some(1.0),
+                        ..Default::default()
+                    },
+                ],
+                used: HashSet::new(),
+                dark: true,
+                commands: Rc::new(RefCell::new(Vec::new())),
+            },
+        );
     harness.run();
     // like 1.x: Cancel then Apply at the bottom right, below "+ Add parameter"
     let add = harness.get_by_label("+ Add parameter").rect();
     let cancel = harness.get_by_label("Cancel").rect();
     let apply = harness.get_by_label("Apply").rect();
-    assert!(cancel.max.x < apply.min.x, "Cancel is left of Apply: {cancel:?} {apply:?}");
-    assert!(apply.min.y > add.max.y && cancel.min.y > add.max.y, "the action row is below the add button");
+    assert!(
+        cancel.max.x < apply.min.x,
+        "Cancel is left of Apply: {cancel:?} {apply:?}"
+    );
+    assert!(
+        apply.min.y > add.max.y && cancel.min.y > add.max.y,
+        "the action row is below the add button"
+    );
     assert!((apply.center().y - cancel.center().y).abs() < 1.0, "one row");
     // the table is as wide as 1.x's card (720 px): Apply ends at its right edge, Add starts at its left
-    assert!(apply.max.x - add.min.x > 700.0, "buttons span the card: {add:?} {apply:?}");
+    assert!(
+        apply.max.x - add.min.x > 700.0,
+        "buttons span the card: {add:?} {apply:?}"
+    );
     // the cells are as wide as 1.x's, so the text is not cut off
     let cells: Vec<_> = harness.query_all_by_role(egui::accesskit::Role::TextInput).collect();
-    let find = |v: &str| cells.iter().find(|n| n.value().as_deref() == Some(v)).unwrap_or_else(|| panic!("no field {v:?}")).rect();
-    assert!(find("spare_length").width() >= 150.0, "name cell width {:?}", find("spare_length"));
-    assert!(find("=width/2 + 3").width() >= 178.0, "value cell width {:?}", find("=width/2 + 3"));
-    assert!(find(long_note).width() >= 174.0, "note cell width {:?}", find(long_note));
+    let find = |v: &str| {
+        cells
+            .iter()
+            .find(|n| n.value().as_deref() == Some(v))
+            .unwrap_or_else(|| panic!("no field {v:?}"))
+            .rect()
+    };
+    assert!(
+        find("spare_length").width() >= 150.0,
+        "name cell width {:?}",
+        find("spare_length")
+    );
+    assert!(
+        find("=width/2 + 3").width() >= 178.0,
+        "value cell width {:?}",
+        find("=width/2 + 3")
+    );
+    assert!(
+        find(long_note).width() >= 174.0,
+        "note cell width {:?}",
+        find(long_note)
+    );
     // and the long note really fits in its cell
     let font = egui::FontId::proportional(13.0);
-    let need = harness.ctx.fonts_mut(|f| f.layout_no_wrap(long_note.into(), font, egui::Color32::WHITE).size().x);
+    let need = harness
+        .ctx
+        .fonts_mut(|f| f.layout_no_wrap(long_note.into(), font, egui::Color32::WHITE).size().x);
     assert!(need + 10.0 <= find(long_note).width(), "{long_note:?} needs {need}px");
 }
 
@@ -1078,7 +1235,8 @@ fn params_dialog_snapshots_dark_light() {
             .renderer(renderer)
             .build_ui_state(
                 |ui, st: &mut ParamsUi| {
-                    ui.painter().rect_filled(ui.max_rect(), 0.0, theme::tokens(st.dark).panel);
+                    ui.painter()
+                        .rect_filled(ui.max_rect(), 0.0, theme::tokens(st.dark).panel);
                     ui.add_space(14.0);
                     st.draw(ui);
                 },
@@ -1089,8 +1247,20 @@ fn params_dialog_snapshots_dark_light() {
                         p
                     },
                     views: vec![
-                        ParamView { name: "dx".into(), expr: "5".into(), note: "X shift".into(), value: Some(5.0), ..Default::default() },
-                        ParamView { name: "spare".into(), expr: "1".into(), note: "unused".into(), value: Some(1.0), ..Default::default() },
+                        ParamView {
+                            name: "dx".into(),
+                            expr: "5".into(),
+                            note: "X shift".into(),
+                            value: Some(5.0),
+                            ..Default::default()
+                        },
+                        ParamView {
+                            name: "spare".into(),
+                            expr: "1".into(),
+                            note: "unused".into(),
+                            value: Some(1.0),
+                            ..Default::default()
+                        },
                     ],
                     used: HashSet::from(["dx".to_string()]),
                     dark,
@@ -1099,9 +1269,20 @@ fn params_dialog_snapshots_dark_light() {
             );
         harness.run();
         gpu::snapshot_2d(&mut harness, &gpu, name);
-        let errors: Vec<String> = harness.take_snapshot_results().into_inner().iter().map(|e| e.to_string()).collect();
-        assert!(errors.is_empty(), "{}", errors.join("
-"));
+        let errors: Vec<String> = harness
+            .take_snapshot_results()
+            .into_inner()
+            .iter()
+            .map(|e| e.to_string())
+            .collect();
+        assert!(
+            errors.is_empty(),
+            "{}",
+            errors.join(
+                "
+"
+            )
+        );
     }
 }
 
@@ -1117,13 +1298,16 @@ fn success_toast_uses_the_default_toast_background() {
 #[test]
 fn status_line_with_long_multibyte_text_does_not_panic() {
     let text = "é—".repeat(400);
-    let mut harness = Harness::builder().with_size(egui::vec2(300.0, 60.0)).with_accessibility_check(false).build_ui_state(
-        |ui, text: &mut String| {
-            let tokens = theme::tokens(true);
-            show_status(ui, &tokens, text);
-        },
-        text,
-    );
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(300.0, 60.0))
+        .with_accessibility_check(false)
+        .build_ui_state(
+            |ui, text: &mut String| {
+                let tokens = theme::tokens(true);
+                show_status(ui, &tokens, text);
+            },
+            text,
+        );
     harness.run();
 }
 
@@ -1168,24 +1352,52 @@ fn panel_snapshots_dark_light() {
 // ------------------------------------------------------------------ params.js with the real engine
 
 fn last_params(ups: &[Update]) -> Vec<ParamView> {
-    ups.iter().rev().find_map(|u| if let Update::Params(p) = u { Some(p.clone()) } else { None }).expect("params update")
+    ups.iter()
+        .rev()
+        .find_map(|u| {
+            if let Update::Params(p) = u {
+                Some(p.clone())
+            } else {
+                None
+            }
+        })
+        .expect("params update")
 }
 
 fn last_timeline_view(ups: &[Update]) -> TimelineView {
-    ups.iter().rev().find_map(|u| if let Update::Timeline(t) = u { Some(t.clone()) } else { None }).expect("timeline update")
+    ups.iter()
+        .rev()
+        .find_map(|u| {
+            if let Update::Timeline(t) = u {
+                Some(t.clone())
+            } else {
+                None
+            }
+        })
+        .expect("timeline update")
 }
 
 fn param(name: &str, expr: &str) -> stl_engine::params::Param {
-    stl_engine::params::Param { name: name.into(), expr: expr.into(), note: String::new() }
+    stl_engine::params::Param {
+        name: name.into(),
+        expr: expr.into(),
+        note: String::new(),
+    }
 }
 
 /// Real engine: a box sized by `width` and `height`; the Parameters table sends the commands.
 #[test]
 fn params_undo_and_removing_a_used_parameter_with_the_engine() {
     let link = NativeLink::new();
-    link.send(Command::Open { name: "basic.stlx".into(), bytes: fixture("basic.stlx") });
+    link.send(Command::Open {
+        name: "basic.stlx".into(),
+        bytes: fixture("basic.stlx"),
+    });
     drain(&link);
-    link.send(Command::SetParams(vec![param("width", "40"), param("height", "width / 4 + 5")]));
+    link.send(Command::SetParams(vec![
+        param("width", "40"),
+        param("height", "width / 4 + 5"),
+    ]));
     link.send(Command::AddFeature {
         kind: "primitive".into(),
         params: serde_json::json!({"shape": "box", "size": ["=width", 10.0, "=height*2"]}),
@@ -1194,23 +1406,37 @@ fn params_undo_and_removing_a_used_parameter_with_the_engine() {
     });
     let ups = drain(&link);
     let views = last_params(&ups);
-    assert_eq!(views.iter().map(|p| p.value).collect::<Vec<_>>(), vec![Some(40.0), Some(15.0)]);
+    assert_eq!(
+        views.iter().map(|p| p.value).collect::<Vec<_>>(),
+        vec![Some(40.0), Some(15.0)]
+    );
     assert!(views.iter().all(|p| p.used), "both parameters are used by the new box");
-    assert!(last_timeline_view(&ups).items.iter().find(|i| i.kind == "primitive").unwrap().error.is_none());
+    assert!(
+        last_timeline_view(&ups)
+            .items
+            .iter()
+            .find(|i| i.kind == "primitive")
+            .unwrap()
+            .error
+            .is_none()
+    );
 
     let commands = Rc::new(RefCell::new(Vec::new()));
     let mut params = Params::default();
     params.set_open(true);
-    let mut harness = Harness::builder().with_size(egui::vec2(800.0, 340.0)).with_accessibility_check(false).build_ui_state(
-        |ui, st: &mut ParamsUi| st.draw(ui),
-        ParamsUi {
-            params,
-            used: views.iter().filter(|p| p.used).map(|p| p.name.clone()).collect(),
-            views: views.clone(),
-            dark: true,
-            commands: commands.clone(),
-        },
-    );
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(800.0, 340.0))
+        .with_accessibility_check(false)
+        .build_ui_state(
+            |ui, st: &mut ParamsUi| st.draw(ui),
+            ParamsUi {
+                params,
+                used: views.iter().filter(|p| p.used).map(|p| p.name.clone()).collect(),
+                views: views.clone(),
+                dark: true,
+                commands: commands.clone(),
+            },
+        );
     harness.run();
 
     // width = 60 changes the live values and, once applied, the engine's value
@@ -1223,7 +1449,10 @@ fn params_undo_and_removing_a_used_parameter_with_the_engine() {
     harness.get_by_label("Apply").click();
     harness.run();
     let sent: Vec<Command> = commands.borrow_mut().drain(..).collect();
-    assert!(matches!(sent.last(), Some(Command::SetParams(p)) if p[0].expr == "60"), "no confirm when nothing used is removed");
+    assert!(
+        matches!(sent.last(), Some(Command::SetParams(p)) if p[0].expr == "60"),
+        "no confirm when nothing used is removed"
+    );
     for c in sent {
         link.send(c);
     }
@@ -1250,7 +1479,9 @@ fn params_undo_and_removing_a_used_parameter_with_the_engine() {
     harness.run();
     harness.get_by_label("Apply").click();
     harness.run();
-    harness.get_by_label("height is used in the timeline. Remove it anyway? Those steps will show an error until you fix them.");
+    harness.get_by_label(
+        "height is used in the timeline. Remove it anyway? Those steps will show an error until you fix them.",
+    );
     assert!(commands.borrow().is_empty(), "nothing is sent before OK");
     // Cancel keeps the table (without the row) and still sends nothing
     harness.get_by_label("Cancel").click();
@@ -1267,7 +1498,14 @@ fn params_undo_and_removing_a_used_parameter_with_the_engine() {
     }
     let ups = drain(&link);
     let tl = last_timeline_view(&ups);
-    let err = tl.items.iter().find(|i| i.kind == "primitive").unwrap().error.clone().unwrap_or_else(|| panic!("the box step shows an error: {tl:?}"));
+    let err = tl
+        .items
+        .iter()
+        .find(|i| i.kind == "primitive")
+        .unwrap()
+        .error
+        .clone()
+        .unwrap_or_else(|| panic!("the box step shows an error: {tl:?}"));
     assert!(err.starts_with("Parameter:"), "{err}");
     assert_eq!(last_params(&ups).len(), 1);
 }

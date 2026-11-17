@@ -14,7 +14,10 @@ fn extrude_main_rows_come_first() {
     let keys: Vec<&str> = main.iter().map(|f| f.key).collect();
     assert_eq!(&keys[..3], &["regions", "sketch", "direction"], "{keys:?}");
     assert!(keys.iter().position(|k| *k == "distance") < keys.iter().position(|k| *k == "operation"));
-    assert_eq!(more.iter().map(|f| f.key).collect::<Vec<_>>(), ["start_offset", "taper"]);
+    assert_eq!(
+        more.iter().map(|f| f.key).collect::<Vec<_>>(),
+        ["start_offset", "taper"]
+    );
     assert_eq!(main.len() + more.len(), def.fields.len(), "no field is lost or doubled");
 }
 

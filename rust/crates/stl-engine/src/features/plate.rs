@@ -21,12 +21,20 @@ fn fmt_g(x: f64) -> String {
     let e = format!("{:.5e}", x);
     let (mant, exp) = e.split_once('e').unwrap();
     let exp: i32 = exp.parse().unwrap();
-    if exp < -4 || exp >= 6 {
-        let mant = if mant.contains('.') { mant.trim_end_matches('0').trim_end_matches('.') } else { mant };
+    if !(-4..6).contains(&exp) {
+        let mant = if mant.contains('.') {
+            mant.trim_end_matches('0').trim_end_matches('.')
+        } else {
+            mant
+        };
         return format!("{}e{}{:02}", mant, if exp < 0 { '-' } else { '+' }, exp.abs());
     }
     let s = format!("{:.*}", (5 - exp).max(0) as usize, x);
-    if s.contains('.') { s.trim_end_matches('0').trim_end_matches('.').to_string() } else { s }
+    if s.contains('.') {
+        s.trim_end_matches('0').trim_end_matches('.').to_string()
+    } else {
+        s
+    }
 }
 
 /// 1.x `_mm`: `f"{round(x, 1):g}"`. Python rounds the exact binary value (ties to even),
@@ -60,7 +68,10 @@ fn body_points(b: &Body) -> Vec<[f64; 3]> {
         (None, Some(m)) => m.as_ref(),
         (None, None) => return Vec::new(),
     };
-    mesh.positions.chunks_exact(3).map(|p| [p[0] as f64, p[1] as f64, p[2] as f64]).collect()
+    mesh.positions
+        .chunks_exact(3)
+        .map(|p| [p[0] as f64, p[1] as f64, p[2] as f64])
+        .collect()
 }
 
 /// The box round a body's vertices, `None` for a body with no geometry.
@@ -118,7 +129,10 @@ fn f_plate(
         if rotate {
             options.push((true, size[1], size[0]));
         }
-        let fits: Vec<_> = options.into_iter().filter(|o| o.1 <= w + 1e-9 && o.2 <= h + 1e-9).collect();
+        let fits: Vec<_> = options
+            .into_iter()
+            .filter(|o| o.1 <= w + 1e-9 && o.2 <= h + 1e-9)
+            .collect();
         if fits.is_empty() {
             let turn = if rotate { "" } else { "turn on Rotate, " };
             return Err(FeatureError(format!(
@@ -138,7 +152,18 @@ fn f_plate(
                 best = *o;
             }
         }
-        items.push(Item { i, bid: bid.clone(), name: b.name.clone(), lo, hi, rot: best.0, dx: best.1, dy: best.2, x: 0.0, y: 0.0 });
+        items.push(Item {
+            i,
+            bid: bid.clone(),
+            name: b.name.clone(),
+            lo,
+            hi,
+            rot: best.0,
+            dx: best.1,
+            dy: best.2,
+            x: 0.0,
+            y: 0.0,
+        });
     }
     let mut order: Vec<usize> = (0..items.len()).collect();
     order.sort_by(|&a, &b| {
@@ -173,12 +198,22 @@ fn f_plate(
     let height = items.iter().map(|it| it.y + it.dy).fold(f64::NEG_INFINITY, f64::max);
     let (ox, oy) = (-width / 2.0, -height / 2.0);
     let moved = {
-        let jobs: Vec<(&Item, &Body)> =
-            order.iter().map(|&k| Ok((&items[k], state.body(&items[k].bid)?))).collect::<Result<_, FeatureError>>()?;
+        let jobs: Vec<(&Item, &Body)> = order
+            .iter()
+            .map(|&k| Ok((&items[k], state.body(&items[k].bid)?)))
+            .collect::<Result<_, FeatureError>>()?;
         par_map(jobs.len(), |n| {
             let (it, b) = jobs[n];
-            let r = if it.rot { rotation(0.0, 0.0, 90.0) } else { [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]] };
-            let (mx, my) = if it.rot { (-it.hi[1], it.lo[0]) } else { (it.lo[0], it.lo[1]) };
+            let r = if it.rot {
+                rotation(0.0, 0.0, 90.0)
+            } else {
+                [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
+            };
+            let (mx, my) = if it.rot {
+                (-it.hi[1], it.lo[0])
+            } else {
+                (it.lo[0], it.lo[1])
+            };
             let t = [ox + it.x - mx, oy + it.y - my, -it.lo[2]];
             transform_body(b, affine(r, t))
         })

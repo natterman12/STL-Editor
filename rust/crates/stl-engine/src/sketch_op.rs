@@ -5,13 +5,13 @@
 
 use std::collections::HashSet;
 
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 use stl_kernel::{Frame, Shape2d};
-use stl_mesh::{outline, outline_entities, ref_geometry, OutlineEntity, RefEntity};
-use stl_sketch::entities::{parse_entities, Circle, Entity, Polyline};
+use stl_mesh::{OutlineEntity, RefEntity, outline, outline_entities, ref_geometry};
+use stl_sketch::entities::{Circle, Entity, Polyline, parse_entities};
 use stl_sketch::ops::{explode, mirror, offset, trim};
 use stl_sketch::profile::faces;
-use stl_sketch::text::{text_contours, TextOpts};
+use stl_sketch::text::{TextOpts, text_contours};
 
 use crate::{Document, FeatureError};
 
@@ -230,14 +230,23 @@ fn frame_of(data: &Value) -> Result<Frame, GeometryError> {
             p[2].as_f64().unwrap_or(0.0),
         ])
     };
-    Ok(Frame { o: v3(&a[0])?, x: v3(&a[1])?, y: v3(&a[2])?, n: v3(&a[3])? })
+    Ok(Frame {
+        o: v3(&a[0])?,
+        x: v3(&a[1])?,
+        y: v3(&a[2])?,
+        n: v3(&a[3])?,
+    })
 }
 
 impl Document {
     fn op_project(&self, entities: &[Entity], data: &Value, seed: &str) -> Result<Value, GeometryError> {
         let solids = self.project_solids(data)?;
         let frame = frame_of(data)?;
-        let mode = data.get("mode").and_then(Value::as_str).filter(|s| !s.is_empty()).unwrap_or("section");
+        let mode = data
+            .get("mode")
+            .and_then(Value::as_str)
+            .filter(|s| !s.is_empty())
+            .unwrap_or("section");
         let tolerance = num_nullish(data, "tolerance", 0.02);
         let off = num_or(data, "offset", 0.0);
         let construction = data.get("construction").and_then(Value::as_bool).unwrap_or(false);
@@ -274,9 +283,11 @@ impl Document {
 
     /// Bodies named in `data.bodies`, or every visible solid.
     fn project_solids(&self, data: &Value) -> Result<Vec<&stl_kernel::Solid>, GeometryError> {
-        let wanted: Option<Vec<&str>> = data.get("bodies").and_then(Value::as_array).filter(|a| !a.is_empty()).map(|a| {
-            a.iter().filter_map(Value::as_str).collect()
-        });
+        let wanted: Option<Vec<&str>> = data
+            .get("bodies")
+            .and_then(Value::as_array)
+            .filter(|a| !a.is_empty())
+            .map(|a| a.iter().filter_map(Value::as_str).collect());
         let mut solids = Vec::new();
         if let Some(ids) = wanted {
             for id in ids {
@@ -329,7 +340,13 @@ fn outline_entity(o: OutlineEntity, id: String) -> Entity {
     let mut extra = Map::new();
     extra.insert("projected".into(), Value::Bool(true));
     match o {
-        OutlineEntity::Circle { cx, cy, r, construction, .. } => Entity::Circle(Circle {
+        OutlineEntity::Circle {
+            cx,
+            cy,
+            r,
+            construction,
+            ..
+        } => Entity::Circle(Circle {
             id: Some(id),
             cx,
             cy,
@@ -337,7 +354,12 @@ fn outline_entity(o: OutlineEntity, id: String) -> Entity {
             construction: construction.then_some(true),
             extra,
         }),
-        OutlineEntity::Polyline { pts, closed, construction, .. } => Entity::Polyline(Polyline {
+        OutlineEntity::Polyline {
+            pts,
+            closed,
+            construction,
+            ..
+        } => Entity::Polyline(Polyline {
             id: Some(id),
             pts,
             closed: Some(closed),
@@ -391,12 +413,24 @@ fn op_text(entities: &[Entity], data: &Value, seed: &str) -> Result<Value, Geome
     let bold = data.get("bold").and_then(Value::as_bool).unwrap_or(false);
     let italic = data.get("italic").and_then(Value::as_bool).unwrap_or(false);
     let spacing = num_or(data, "spacing", 0.0);
-    let align = data.get("align").and_then(Value::as_str).filter(|s| !s.is_empty()).unwrap_or("left");
-    let anchor = data.get("anchor").and_then(Value::as_str).filter(|s| !s.is_empty()).unwrap_or("baseline");
+    let align = data
+        .get("align")
+        .and_then(Value::as_str)
+        .filter(|s| !s.is_empty())
+        .unwrap_or("left");
+    let anchor = data
+        .get("anchor")
+        .and_then(Value::as_str)
+        .filter(|s| !s.is_empty())
+        .unwrap_or("baseline");
     let angle = num_or(data, "angle", 0.0);
     let x0 = num_or(data, "x", 0.0);
     let y0 = num_or(data, "y", 0.0);
-    let opts = TextOpts { spacing, align: align.to_string(), line_gap: 1.2 };
+    let opts = TextOpts {
+        spacing,
+        align: align.to_string(),
+        line_gap: 1.2,
+    };
     // 1.x web `fontData`: the app sends a font that isn't bundled (a system font or an added
     // file) with the request; without it, the bundled DejaVu fonts
     let supplied = data.get("fontData").and_then(Value::as_str).and_then(base64_decode);
@@ -438,7 +472,10 @@ fn op_text(entities: &[Entity], data: &Value, seed: &str) -> Result<Value, Geome
                 .map(|p| {
                     let u = p[0] - ox;
                     let w = p[1] - oy;
-                    [js_to_fixed(x0 + ca * u - sa * w, 4), js_to_fixed(y0 + sa * u + ca * w, 4)]
+                    [
+                        js_to_fixed(x0 + ca * u - sa * w, 4),
+                        js_to_fixed(y0 + sa * u + ca * w, 4),
+                    ]
                 })
                 .collect();
             let mut extra = Map::new();
@@ -493,7 +530,9 @@ fn extent_corners(contours: &[Vec<[f64; 2]>]) -> ([f64; 2], [f64; 2]) {
 
 fn text_meta(data: &Value) -> Map<String, Value> {
     let mut meta = Map::new();
-    for k in ["text", "font", "size", "bold", "italic", "spacing", "align", "angle", "x", "y", "anchor"] {
+    for k in [
+        "text", "font", "size", "bold", "italic", "spacing", "align", "angle", "x", "y", "anchor",
+    ] {
         meta.insert(k.to_string(), data.get(k).cloned().unwrap_or(Value::Null));
     }
     meta
@@ -570,7 +609,7 @@ fn font_bytes(family: &str, bold: bool, italic: bool) -> &'static [u8] {
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod font_data {
-    use serde_json::{json, Value};
+    use serde_json::{Value, json};
 
     use super::*;
 
@@ -580,14 +619,23 @@ mod font_data {
         for c in b.chunks(3) {
             let n = (c[0] as u32) << 16 | (*c.get(1).unwrap_or(&0) as u32) << 8 | *c.get(2).unwrap_or(&0) as u32;
             for k in 0..4 {
-                out.push(if k <= c.len() { B64[(n >> (18 - 6 * k) & 63) as usize] as char } else { '=' });
+                out.push(if k <= c.len() {
+                    B64[(n >> (18 - 6 * k) & 63) as usize] as char
+                } else {
+                    '='
+                });
             }
         }
         out
     }
 
     fn pts(v: &Value) -> Vec<Value> {
-        v["entities"].as_array().unwrap().iter().map(|e| e["pts"].clone()).collect()
+        v["entities"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|e| e["pts"].clone())
+            .collect()
     }
 
     /// A font that isn't bundled is drawn from the bytes the app supplies (1.x web `fontData`),
@@ -605,8 +653,15 @@ mod font_data {
         let serif = with(json!({"font": "DejaVu Serif"}));
         let supplied = with(json!({"font": "My Font", "fontData": b64(font_bytes("DejaVu Serif", false, false))}));
         assert_eq!(pts(&supplied), pts(&serif), "drawn from the supplied bytes");
-        assert_eq!(supplied["entities"][0]["text"]["font"], json!("My Font"), "the step keeps the family name");
-        assert!(supplied["entities"][0]["text"].get("fontData").is_none(), "the bytes are not saved");
+        assert_eq!(
+            supplied["entities"][0]["text"]["font"],
+            json!("My Font"),
+            "the step keeps the family name"
+        );
+        assert!(
+            supplied["entities"][0]["text"].get("fontData").is_none(),
+            "the bytes are not saved"
+        );
         let unknown = with(json!({"font": "My Font"}));
         let sans = with(json!({"font": "DejaVu Sans"}));
         assert_eq!(pts(&unknown), pts(&sans), "no bytes: DejaVu Sans, as before");
@@ -625,7 +680,7 @@ mod golden {
     use std::fs;
     use std::path::PathBuf;
 
-    use serde_json::{json, Map, Value};
+    use serde_json::{Map, Value, json};
 
     use super::*;
     use crate::Registry;
@@ -719,7 +774,12 @@ mod golden {
             let path = repo_root().join("tests/ui/fixtures/tipped.stl");
             let bytes = fs::read(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
             let sid = doc.add_source("tipped.stl", bytes);
-            doc.add_feature("import", object(json!({"source": sid, "repair": true, "place": "center"})), None).expect("tipped");
+            doc.add_feature(
+                "import",
+                object(json!({"source": sid, "repair": true, "place": "center"})),
+                None,
+            )
+            .expect("tipped");
         }
         doc
     }
@@ -727,18 +787,32 @@ mod golden {
     #[test]
     fn matches_routes_js() {
         let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/parity/sketchop");
-        let mut names: Vec<String> = fs::read_dir(&dir).unwrap().filter_map(|e| e.ok()).filter_map(|e| {
-            e.file_name().to_string_lossy().strip_suffix(".json").map(str::to_string)
-        }).collect();
+        let mut names: Vec<String> = fs::read_dir(&dir)
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .filter_map(|e| {
+                e.file_name()
+                    .to_string_lossy()
+                    .strip_suffix(".json")
+                    .map(str::to_string)
+            })
+            .collect();
         names.sort();
         assert_eq!(names.len(), 24, "{names:?}");
         let mut failures = Vec::new();
         for name in &names {
-            let case: Value = serde_json::from_str(&fs::read_to_string(dir.join(format!("{name}.json"))).unwrap()).unwrap();
-            let got = document_for(name).sketch_op(case["op"].as_str().unwrap(), &case["data"]).unwrap_or_else(|e| panic!("{name}: {e}"));
+            let case: Value =
+                serde_json::from_str(&fs::read_to_string(dir.join(format!("{name}.json"))).unwrap()).unwrap();
+            let got = document_for(name)
+                .sketch_op(case["op"].as_str().unwrap(), &case["data"])
+                .unwrap_or_else(|e| panic!("{name}: {e}"));
             // 1e-12 mm everywhere: sin/cos round their last bit differently in each platform's
             // maths library (Linux glibc gave -8.660254037844384 where Windows and Node give ...386)
-            let tol = if name == "offset_open" { OFFSET_OPEN_ABS_TOL.max(PLATFORM_ABS_TOL) } else { PLATFORM_ABS_TOL };
+            let tol = if name == "offset_open" {
+                OFFSET_OPEN_ABS_TOL.max(PLATFORM_ABS_TOL)
+            } else {
+                PLATFORM_ABS_TOL
+            };
             let mut found = Vec::new();
             all_diffs(&norm(&got), &norm(&case["result"]), name, tol, &mut found);
             if !found.is_empty() {

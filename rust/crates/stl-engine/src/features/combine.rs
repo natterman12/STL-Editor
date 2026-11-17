@@ -27,9 +27,12 @@ fn f_combine(
 ) -> Result<(), FeatureError> {
     let tgt = p.get("target").and_then(Value::as_str).unwrap_or("").to_string();
     let tools: Vec<String> = match p.get("tools") {
-        Some(Value::Array(a)) => {
-            a.iter().filter_map(|x| x.as_str()).filter(|t| !t.is_empty() && *t != tgt).map(String::from).collect()
-        }
+        Some(Value::Array(a)) => a
+            .iter()
+            .filter_map(|x| x.as_str())
+            .filter(|t| !t.is_empty() && *t != tgt)
+            .map(String::from)
+            .collect(),
         _ => Vec::new(),
     };
     if tgt.is_empty() || tools.is_empty() {
@@ -55,8 +58,7 @@ fn f_combine(
                 let mut grown = Vec::with_capacity(ts.len());
                 for t in &ts {
                     grown.push(
-                        stl_mesh::offset::offset_solid(t, clearance, 12000)
-                            .map_err(|e| FeatureError(e.to_string()))?,
+                        stl_mesh::offset::offset_solid(t, clearance, 12000).map_err(|e| FeatureError(e.to_string()))?,
                     );
                 }
                 ts = grown;
@@ -79,7 +81,14 @@ fn f_combine(
     if out.is_empty() {
         return Err(FeatureError("The result is empty.".into()));
     }
-    state.bodies.insert(tgt.clone(), Body { name: b.name, solid: Some(out), mesh: None });
+    state.bodies.insert(
+        tgt.clone(),
+        Body {
+            name: b.name,
+            solid: Some(out),
+            mesh: None,
+        },
+    );
     res.modified.push(tgt);
     if !truthy(p.get("keep_tools")) {
         for t in &tools {

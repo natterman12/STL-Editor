@@ -14,8 +14,8 @@ use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 
 use stl_app::app::StlApp;
-use stl_app::engine_link::native::NativeLink;
 use stl_app::engine_link::Command;
+use stl_app::engine_link::native::NativeLink;
 use stl_app::viewport::pick::Hit;
 use stl_app::viewport::renderer::{Headless, Stats};
 
@@ -63,7 +63,10 @@ fn sphere_stl(path: &Path, r: f32, rings: usize, segs: usize) -> usize {
 
 fn input(events: Vec<egui::Event>) -> egui::RawInput {
     egui::RawInput {
-        screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(W as f32, H as f32))),
+        screen_rect: Some(egui::Rect::from_min_size(
+            egui::Pos2::ZERO,
+            egui::vec2(W as f32, H as f32),
+        )),
         events,
         ..Default::default()
     }
@@ -82,7 +85,9 @@ impl Run {
     /// One frame: the app's `ui`, then a paint through egui-wgpu. Fails on a lost device.
     fn frame(&mut self, events: Vec<egui::Event>) {
         let app = &mut self.app;
-        let out = self.ctx.run_ui(input(events), |ui| eframe::App::ui(app, ui, &mut self.frame));
+        let out = self
+            .ctx
+            .run_ui(input(events), |ui| eframe::App::ui(app, ui, &mut self.frame));
         self.gpu.paint_egui(&self.ctx, out, W, H);
         let refused = self.gpu.render_state.renderer.read().upload_refused();
         assert!(
@@ -118,8 +123,18 @@ impl Run {
     fn click(&mut self, at: egui::Pos2) {
         use egui::{Event, Modifiers, PointerButton};
         self.frame(vec![Event::PointerMoved(at)]);
-        self.frame(vec![Event::PointerButton { pos: at, button: PointerButton::Primary, pressed: true, modifiers: Modifiers::NONE }]);
-        self.frame(vec![Event::PointerButton { pos: at, button: PointerButton::Primary, pressed: false, modifiers: Modifiers::NONE }]);
+        self.frame(vec![Event::PointerButton {
+            pos: at,
+            button: PointerButton::Primary,
+            pressed: true,
+            modifiers: Modifiers::NONE,
+        }]);
+        self.frame(vec![Event::PointerButton {
+            pos: at,
+            button: PointerButton::Primary,
+            pressed: false,
+            modifiers: Modifiers::NONE,
+        }]);
         self.frame(Vec::new());
     }
 }
@@ -134,14 +149,19 @@ fn tmp_dir() -> PathBuf {
 #[test]
 fn fins_and_walls_on_a_large_part_keep_the_device() {
     if std::env::var("STLEDITOR2_GPU_TESTS").as_deref() != Ok("1") {
-        println!("fins_gpu: not run (set STLEDITOR2_GPU_TESTS=1 to run fins_and_walls_on_a_large_part_keep_the_device on the real GPU)");
+        println!(
+            "fins_gpu: not run (set STLEDITOR2_GPU_TESTS=1 to run fins_and_walls_on_a_large_part_keep_the_device on the real GPU)"
+        );
         return;
     }
     let Some(gpu) = Headless::new() else {
         panic!("STLEDITOR2_GPU_TESTS=1 but there is no GPU adapter");
     };
     let info = gpu.render_state.adapter.get_info();
-    println!("adapter: {} ({:?}, {} {})", info.name, info.backend, info.driver, info.driver_info);
+    println!(
+        "adapter: {} ({:?}, {} {})",
+        info.name, info.backend, info.driver, info.driver_info
+    );
 
     let dir = tmp_dir();
     let part = dir.join("sphere_200k.stl");
@@ -155,16 +175,30 @@ fn fins_and_walls_on_a_large_part_keep_the_device() {
     let mut viewport = stl_app::viewport::Viewport::new();
     viewport.init_gpu(&gpu.render_state);
     let st = viewport.stats_handle();
-    let mut app = StlApp::new(&cc.egui_ctx, Box::new(FakePlatform::default()), Box::new(SharedLink { inner: link.clone() }));
+    let mut app = StlApp::new(
+        &cc.egui_ctx,
+        Box::new(FakePlatform::default()),
+        Box::new(SharedLink { inner: link.clone() }),
+    );
     app.viewport = viewport;
     let mut frame = eframe::Frame::_new_kittest();
     frame.wgpu_render_state = Some(gpu.render_state.clone());
-    let mut run = Run { gpu, ctx, frame, app, link, st };
+    let mut run = Run {
+        gpu,
+        ctx,
+        frame,
+        app,
+        link,
+        st,
+    };
     stl_app::fonts::install(&run.ctx);
 
     // the part, as File > Import does
     let bytes = std::fs::read(&part).unwrap();
-    run.app.link.send(Command::Import { name: "sphere_200k.stl".into(), bytes });
+    run.app.link.send(Command::Import {
+        name: "sphere_200k.stl".into(),
+        bytes,
+    });
     run.until("the import", |a| !a.bodies.is_empty());
     run.settle("the part to draw");
     let body = run.app.bodies[0].id.clone();
@@ -191,7 +225,10 @@ fn fins_and_walls_on_a_large_part_keep_the_device() {
     run.app.tool_ok();
     run.until("the Support Fins step", |a| a.timeline_view.items.len() > steps);
     run.settle("the fins");
-    assert!(run.app.timeline_view.items.iter().any(|i| i.kind == "supportfins"), "a Support Fins step was added");
+    assert!(
+        run.app.timeline_view.items.iter().any(|i| i.kind == "supportfins"),
+        "a Support Fins step was added"
+    );
     println!("Support Fins done: {:.1} s", t.elapsed().as_secs_f64());
 
     // ---- Draw Walls ("Draw Fins"): open, draw one wall with two clicks on the part. With fins
@@ -202,7 +239,11 @@ fn fins_and_walls_on_a_large_part_keep_the_device() {
     loop {
         let _ = run.app.open_tool("supportwall", None);
         run.settle("Draw Walls");
-        if let Some(t) = run.app.tool().filter(|t| matches!(t.def.key, "supportwall" | "supportfins")) {
+        if let Some(t) = run
+            .app
+            .tool()
+            .filter(|t| matches!(t.def.key, "supportwall" | "supportfins"))
+        {
             println!("Draw Walls opened {} (mode {:?})", t.def.key, t.values.get("_mode"));
             break;
         }
@@ -213,30 +254,48 @@ fn fins_and_walls_on_a_large_part_keep_the_device() {
     let mut hits = Vec::new();
     'scan: for iy in (0..60).rev() {
         for ix in 20..40 {
-            let at = egui::pos2(rect.min.x + rect.width() * ix as f32 / 60.0, rect.min.y + rect.height() * iy as f32 / 60.0);
-            if let Some(Hit::Body { id, .. }) = run.app.viewport.pick(at, true, false) {
-                if id == body && hits.iter().all(|h: &egui::Pos2| (h.y - at.y).abs() < 1.0 && (h.x - at.x).abs() >= 60.0) {
-                    hits.push(at);
-                    if hits.len() == 2 {
-                        break 'scan;
-                    }
+            let at = egui::pos2(
+                rect.min.x + rect.width() * ix as f32 / 60.0,
+                rect.min.y + rect.height() * iy as f32 / 60.0,
+            );
+            if let Some(Hit::Body { id, .. }) = run.app.viewport.pick(at, true, false)
+                && id == body
+                && hits
+                    .iter()
+                    .all(|h: &egui::Pos2| (h.y - at.y).abs() < 1.0 && (h.x - at.x).abs() >= 60.0)
+            {
+                hits.push(at);
+                if hits.len() == 2 {
+                    break 'scan;
                 }
             }
         }
         hits.clear();
     }
     assert_eq!(hits.len(), 2, "no two points on the part to draw a wall between");
-    let walls_before = run.app.tool().and_then(|t| t.values.get("walls").and_then(|w| w.as_array().map(Vec::len))).unwrap_or(0);
+    let walls_before = run
+        .app
+        .tool()
+        .and_then(|t| t.values.get("walls").and_then(|w| w.as_array().map(Vec::len)))
+        .unwrap_or(0);
     run.click(hits[0]);
     run.click(hits[1]);
     run.settle("the wall preview");
-    let walls = run.app.tool().and_then(|t| t.values.get("walls").and_then(|w| w.as_array().map(Vec::len))).unwrap_or(0);
+    let walls = run
+        .app
+        .tool()
+        .and_then(|t| t.values.get("walls").and_then(|w| w.as_array().map(Vec::len)))
+        .unwrap_or(0);
     assert_eq!(walls, walls_before + 1, "two clicks drew one wall");
     run.app.tool_ok();
     run.until("the tool to close", |a| a.tool().is_none());
     run.settle("the wall");
     let walled = run.app.timeline_view.items.iter().any(|i| {
-        matches!(i.kind.as_str(), "supportfins" | "supportwall") && i.params.get("walls").and_then(|w| w.as_array()).is_some_and(|w| !w.is_empty())
+        matches!(i.kind.as_str(), "supportfins" | "supportwall")
+            && i.params
+                .get("walls")
+                .and_then(|w| w.as_array())
+                .is_some_and(|w| !w.is_empty())
     });
     assert!(walled, "the drawn wall is in a support step");
     println!("Draw Walls done: {:.1} s", t.elapsed().as_secs_f64());
@@ -244,7 +303,11 @@ fn fins_and_walls_on_a_large_part_keep_the_device() {
     for _ in 0..30 {
         run.frame(Vec::new());
     }
-    assert!(run.st.lost_reason().is_none(), "the device-lost callback ran: {:?}", run.st.lost_reason());
+    assert!(
+        run.st.lost_reason().is_none(),
+        "the device-lost callback ran: {:?}",
+        run.st.lost_reason()
+    );
     drop(run);
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -257,7 +320,9 @@ fn fins_and_walls_on_a_large_part_keep_the_device() {
 #[test]
 fn fins_and_walls_in_the_real_window() {
     if std::env::var("STLEDITOR2_GPU_TESTS").as_deref() != Ok("1") {
-        println!("fins_gpu: not run (set STLEDITOR2_GPU_TESTS=1 to run fins_and_walls_in_the_real_window; it opens a window)");
+        println!(
+            "fins_gpu: not run (set STLEDITOR2_GPU_TESTS=1 to run fins_and_walls_in_the_real_window; it opens a window)"
+        );
         return;
     }
     if !cfg!(debug_assertions) {
@@ -297,12 +362,24 @@ fn fins_and_walls_in_the_real_window() {
         std::thread::sleep(Duration::from_millis(200));
     };
     let stderr = reader.join().unwrap();
-    for line in stderr.lines().filter(|l| l.starts_with("STLEDITOR2_TEST_FINS") || l.contains("device was lost")) {
+    for line in stderr
+        .lines()
+        .filter(|l| l.starts_with("STLEDITOR2_TEST_FINS") || l.contains("device was lost"))
+    {
         println!("{line}");
     }
-    assert!(status.success(), "the app ended with {status:?} (0xc000041d is the M6 crash)\n{stderr}");
-    assert!(stderr.contains("STLEDITOR2_TEST_FINS: done"), "the app closed before finishing:\n{stderr}");
-    assert!(!stderr.contains("device was lost"), "the GPU device was lost:\n{stderr}");
+    assert!(
+        status.success(),
+        "the app ended with {status:?} (0xc000041d is the M6 crash)\n{stderr}"
+    );
+    assert!(
+        stderr.contains("STLEDITOR2_TEST_FINS: done"),
+        "the app closed before finishing:\n{stderr}"
+    );
+    assert!(
+        !stderr.contains("device was lost"),
+        "the GPU device was lost:\n{stderr}"
+    );
     let log = std::fs::read_to_string(dir.join("cfg").join("data").join("log.txt")).unwrap_or_default();
     assert!(log.is_empty(), "log.txt: {log}");
     let _ = std::fs::remove_dir_all(&dir);
