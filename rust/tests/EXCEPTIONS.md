@@ -451,6 +451,12 @@ Nathan answered these on 2026-11-14: accepted unless marked otherwise.
   (the Move handles carry them while dragging). 1.x leaves the fins where they were built. A Move of a part with supports
   goes before the supports only when nothing but support steps follow them; otherwise at the end, with a note (1.x
   `insertBeforeSupports` always puts it before, so a later Split or Thread ran on the moved part at its old place).
+- **Accepted by Nathan (2026-11-17): Support Fins rebuild for split and moved parts.** A Move, Scale, Lay Flat or Split
+  added at the end of the History for a part with Support Fins (or a half a later Split made of it) puts that Support
+  Fins step last again, on the parts as they are now (`body`/`bodies` set to the halves still there), in the same Undo
+  as the add (`Document::keep_supports_last`, called by the app's worker). Walls drawn by hand in it are taken out, with
+  a note. It stays where it is (fins carried, as above) for Draw Walls, or when a later step uses its fins body. 1.x
+  adds the step at the end and never moves the supports.
 - **Accepted by Nathan (2026-11-16): Send to Slicer writes a 3MF.** 1.x's `r_send_to` writes an STL (the 1.x UI doesn't pass `slicer` to the
   export route).
 - **Accepted by Nathan (2026-11-16): the Send to Slicer menu lists only the slicers found.** 1.x shows Bambu Studio and OrcaSlicer greyed out

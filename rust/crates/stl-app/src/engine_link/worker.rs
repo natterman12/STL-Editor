@@ -346,17 +346,25 @@ impl Worker {
                 }
                 self.ensure_fins(&kind);
                 let params = object(params);
-                let r = self.doc.transact(|d| {
+                let (r, notes) = self.doc.transact(|d| {
                     let before = d.rollback;
                     let active = before.map_or(d.features.len(), |r| r.min(d.features.len()));
                     match index.filter(|&i| i < active) {
                         // 1.x addFeatureSmart: roll back to the place, add, and put the marker back
                         // where it was, one step further along
-                        Some(at) => d.add_feature_at(at, &kind, params, name),
-                        None => d.add_feature(&kind, params, name),
+                        Some(at) => d.add_feature_at(at, &kind, params, name).map(|id| (id, Vec::new())),
+                        None => {
+                            let id = d.add_feature(&kind, params, name)?;
+                            // a Move or Split of a part with supports: they go last again, rebuilt
+                            let notes = d.keep_supports_last(&id);
+                            Ok((id, notes))
+                        }
                     }
                 })?;
                 self.report(&r);
+                for text in notes {
+                    self.send(Update::Message { level: Level::Info, text });
+                }
                 Ok(())
             }
             Command::EditFeature { id, params, rollback_after } => {

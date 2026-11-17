@@ -77,6 +77,27 @@ fn fail<T>(m: impl Into<String>) -> Result<T, FeatureError> {
 }
 
 /// Python's `str.strip()`: it also strips the four ASCII separators Rust doesn't count as space.
+/// The bodies a step works on: its `bodies` list, or its one `body`.
+fn body_ids(p: &Map<String, Value>) -> Vec<String> {
+    match p.get("bodies").and_then(Value::as_array) {
+        Some(a) if !a.is_empty() => a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect(),
+        _ => p.get("body").and_then(Value::as_str).filter(|s| !s.is_empty()).map(|s| vec![s.to_string()]).unwrap_or_default(),
+    }
+}
+
+/// Some string anywhere in `p` is one of `ids`.
+fn mentions(p: &Map<String, Value>, ids: &[String]) -> bool {
+    fn walk(v: &Value, ids: &[String]) -> bool {
+        match v {
+            Value::String(s) => ids.iter().any(|i| i == s),
+            Value::Array(a) => a.iter().any(|x| walk(x, ids)),
+            Value::Object(o) => o.values().any(|x| walk(x, ids)),
+            _ => false,
+        }
+    }
+    !ids.is_empty() && p.values().any(|v| walk(v, ids))
+}
+
 fn py_strip(s: &str) -> &str {
     s.trim_matches(|c: char| c.is_whitespace() || ('\u{1c}'..='\u{1f}').contains(&c))
 }
@@ -770,6 +791,97 @@ impl Document {
         self.features.insert(new_index.min(self.features.len()), f);
         self.rebuild();
         Ok(())
+    }
+
+    /// Support Fins rebuild for split and moved parts (Nathan 2026-11-17). `new_id` was just
+    /// added at the end of the History. When it moves, scales, lays flat or splits a part that a
+    /// Support Fins step holds up (or a half a later Split made of it), that step goes last
+    /// again, after it, on the parts as they are now, so its fins are made fresh for them. It is
+    /// part of the same Undo as the add. Gives the notes to show.
+    ///
+    /// A step that can't go last stays where it is, and its fins (a body of their own) move with
+    /// the part as they are (`supports_follow`): Draw Walls (walls drawn on the part where it
+    /// stood), or one whose fins a later step uses.
+    pub fn keep_supports_last(&mut self, new_id: &str) -> Vec<String> {
+        let mut notes = Vec::new();
+        if self.rollback.is_some() {
+            return notes;
+        }
+        let Some(n) = self.features.last().filter(|f| f.id == new_id).cloned() else { return notes };
+        let copy = n.params.get("copy").and_then(Value::as_bool).unwrap_or(false);
+        if n.suppressed || copy || !matches!(n.kind.as_str(), "move" | "scale" | "layflat" | "split") {
+            return notes;
+        }
+        let targets = body_ids(&n.params);
+        let results = self.results.clone();
+        let last = self.features.len() - 1;
+        let mut chosen: Vec<(usize, Map<String, Value>)> = Vec::new();
+        for s in 0..last {
+            let f = &self.features[s];
+            if f.suppressed || !matches!(f.kind.as_str(), "supportfins" | "supportwall") {
+                continue;
+            }
+            // the parts it holds up and the halves later splits made of them; its fins bodies
+            let mut family = body_ids(&f.params);
+            let mut fins: Vec<String> = results.get(s).map(|r| r.created.clone()).unwrap_or_default();
+            let mut used = false;
+            for i in s + 1..=last {
+                let g = &self.features[i];
+                if g.suppressed {
+                    continue;
+                }
+                used |= mentions(&g.params, &fins);
+                let split_of_family = g.kind == "split" && g.params.get("body").and_then(Value::as_str).is_some_and(|b| family.iter().any(|x| x == b));
+                if split_of_family {
+                    for c in results.get(i).map(|r| r.created.as_slice()).unwrap_or(&[]) {
+                        if c.contains(".pin") {
+                            continue;
+                        }
+                        // `<split>.2` is a half, `<split>.2s` the fins it was given
+                        if c.ends_with('s') { fins.push(c.clone()) } else { family.push(c.clone()) }
+                    }
+                }
+            }
+            if !targets.iter().any(|t| family.contains(t)) {
+                continue;
+            }
+            let name = f.name.clone().filter(|n| !n.is_empty()).unwrap_or_else(|| "Support Fins".into());
+            if f.kind == "supportwall" {
+                notes.push(format!("{name} has walls drawn by hand on the part where it stood, so it isn't rebuilt. Check it for the new position."));
+                continue;
+            }
+            if used {
+                notes.push(format!("A later step uses the fins of {name}, so they aren't rebuilt for the new position: they move with the part as they are."));
+                continue;
+            }
+            let alive: Vec<String> = family.into_iter().filter(|b| self.state.bodies.contains_key(b)).collect();
+            if alive.is_empty() {
+                continue;
+            }
+            let mut p = f.params.clone();
+            p.insert("body".into(), Value::String(alive[0].clone()));
+            p.insert("bodies".into(), Value::Array(alive.into_iter().map(Value::String).collect()));
+            let hand = p.remove("walls").is_some_and(|w| w.as_array().is_some_and(|a| !a.is_empty()));
+            notes.push(if hand {
+                format!("{name} is rebuilt for the new position. Walls you drew by hand were for the part where it stood, so they were taken out: draw them again in {name} if you still need them.")
+            } else {
+                format!("{name} is rebuilt for the new position.")
+            });
+            chosen.push((s, p));
+        }
+        if chosen.is_empty() {
+            return notes;
+        }
+        let mut moved = Vec::new();
+        for (s, p) in chosen.into_iter().rev() {
+            let mut f = self.features.remove(s);
+            f.params = p;
+            moved.push(f);
+        }
+        moved.reverse();
+        self.features.extend(moved);
+        self.rebuild();
+        notes
     }
 
     /// Roll the timeline back to before feature `index`; `None`, or an index at or past the

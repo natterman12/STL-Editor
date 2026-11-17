@@ -1089,17 +1089,9 @@ fn a_move_stays_at_the_end_when_steps_follow_the_supports() {
         Command::AddFeature { kind, index, .. } if kind == "move" => Some(*index),
         _ => None,
     });
+    // the engine then puts the supports last again and rebuilds them
+    // (stl-engine tests/supports_rebuild.rs)
     assert_eq!(index, Some(None), "the Move goes at the end, after the Split");
-    rec.push(timeline(vec![
-        step_item("f1", "primitive", json!({})),
-        step_item("s1", "supportfins", json!({})),
-        step_item("t1", "thread", json!({})),
-        step_item("p1", "split", json!({})),
-        step_item("m9", "move", json!({})),
-    ]));
-    h.run_steps(2);
-    let toasts = format!("{:?}", h.state().toasts);
-    assert!(toasts.contains("supportfins s1 was made before thread t1"), "{toasts}");
 }
 
 /// The quick red paint still being worked out cannot land over the engine's exact faces.

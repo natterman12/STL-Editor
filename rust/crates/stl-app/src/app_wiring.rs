@@ -131,21 +131,12 @@ fn walls_of(values: &Values) -> Vec<Wall> {
 /// Only when nothing but support steps follow: a Split, Thread, Hole or sketch after the supports
 /// was placed on the part where it stood, and would run on the moved part at its old place (the
 /// split plane seemed to move with the part, the thread missed it). Then the Move goes at the end
-/// ([`supports_followed_by`] names the step that kept it there), and the engine carries the
-/// fins along with the part (`supports_follow`).
+/// and the engine puts the supports last again, after it, and rebuilds them
+/// (`Document::keep_supports_last`).
 pub(super) fn insert_before_supports(tl: &TimelineView, marker: Option<usize>, kind: &str, params: &Value) -> Option<usize> {
     let at = first_supports_of(tl, marker, kind, params)?;
     let end = marker.unwrap_or(tl.items.len()).min(tl.items.len());
     tl.items[at + 1..end].iter().all(|f| f.suppressed || is_sf(&f.kind)).then_some(at)
-}
-
-/// The part's first support step and the first other step after it, when there is one (so a
-/// Move of the part can't go before the supports).
-pub(super) fn supports_followed_by(tl: &TimelineView, marker: Option<usize>, kind: &str, params: &Value) -> Option<(usize, usize)> {
-    let at = first_supports_of(tl, marker, kind, params)?;
-    let end = marker.unwrap_or(tl.items.len()).min(tl.items.len());
-    let after = (at + 1..end).find(|&i| !tl.items[i].suppressed && !is_sf(&tl.items[i].kind))?;
-    Some((at, after))
 }
 
 fn first_supports_of(tl: &TimelineView, marker: Option<usize>, kind: &str, params: &Value) -> Option<usize> {
@@ -869,17 +860,10 @@ impl StlApp {
     pub(super) fn add_step(&mut self, kind: String, params: Value) {
         let index = insert_before_supports(&self.timeline_view, self.marker_now(), &kind, &params);
         if index.is_none() {
-            // the part has supports, but other steps come after them: the Move goes at the end
-            // and the fins (a body of their own) move with the part as they are
-            let ids: Vec<String> = self.timeline_view.items.iter().map(|i| i.id.clone()).collect();
-            self.sf.insert_note = supports_followed_by(&self.timeline_view, self.marker_now(), &kind, &params).map(|(sf, after)| {
-                let (sf, after) = (&self.timeline_view.items[sf].label, &self.timeline_view.items[after].label);
-                (
-                    ids,
-                    Level::Info,
-                    format!("{sf} was made before {after}, so its fins move with the part as they are and aren't rebuilt. To rebuild them for the new position, right-click {sf} in the History and choose Move right until it is last."),
-                )
-            });
+            // at the end: when the part has supports and other steps come after them, the engine
+            // puts the supports last again and rebuilds them (`Document::keep_supports_last`),
+            // and says so
+            self.sf.insert_note = None;
             self.link.send(Command::AddFeature { kind, params, index, name: None });
             return;
         }
