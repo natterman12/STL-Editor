@@ -42,7 +42,7 @@ fn block(id: &str, z0: f32, z1: f32) -> BodyView {
     ];
     let t: [u32; 36] = [0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7, 0, 1, 5, 0, 5, 4, 1, 2, 6, 1, 6, 5, 2, 3, 7, 2, 7, 6, 3, 0, 4, 3, 4, 7];
     let mesh = Arc::new(MeshArrays { positions: p.iter().flatten().copied().collect(), triangles: t.to_vec() });
-    BodyView { id: id.into(), name: "Block".into(), color: Some("#9aa7b4".into()), hidden: false, solid: true, mesh, revision: 1 }
+    BodyView { id: id.into(), name: "Block".into(), color: Some("#9aa7b4".into()), hidden: false, solid: true, mesh, revision: 1, holds_up: None }
 }
 
 /// Render `vp` in a `w` x `h` window through egui and the paint callback; check the snapshot

@@ -73,7 +73,7 @@ fn mesh() -> Arc<MeshArrays> {
 }
 
 fn body(id: &str, hidden: bool) -> BodyView {
-    BodyView { id: id.into(), name: id.into(), color: None, hidden, solid: true, mesh: mesh(), revision: 1 }
+    BodyView { id: id.into(), name: id.into(), color: None, hidden, solid: true, mesh: mesh(), revision: 1, holds_up: None }
 }
 
 fn project<'a>(bodies: &'a [BodyView], features: &'a [TimelineItem], selection: &'a [String]) -> Ctx<'a> {

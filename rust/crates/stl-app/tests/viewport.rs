@@ -42,7 +42,7 @@ fn cube_mesh() -> Arc<MeshArrays> {
 }
 
 fn cube(revision: u64) -> BodyView {
-    BodyView { id: "b1".into(), name: "Cube".into(), color: Some("#9aa7b4".into()), hidden: false, solid: true, mesh: cube_mesh(), revision }
+    BodyView { id: "b1".into(), name: "Cube".into(), color: Some("#9aa7b4".into()), hidden: false, solid: true, mesh: cube_mesh(), revision, holds_up: None }
 }
 
 #[test]

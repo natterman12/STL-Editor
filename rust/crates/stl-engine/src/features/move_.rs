@@ -102,6 +102,8 @@ fn f_move(
             res.modified.push(bid.clone());
             // a copy leaves the original (and its sketches) where it was
             state.record_transform(bid, whole);
+            // its fins (made as a body of their own) go with it
+            super::supports_follow::carry_on_move(state, bid, whole, &bids, res);
         }
     }
     Ok(())

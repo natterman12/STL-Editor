@@ -116,6 +116,7 @@ impl Views {
                 solid: body.solid.is_some(),
                 mesh: entry.mesh.clone(),
                 revision: entry.revision,
+                holds_up: doc.state.attached.get(id).cloned(),
             });
             fresh.insert(id.clone(), entry);
         }

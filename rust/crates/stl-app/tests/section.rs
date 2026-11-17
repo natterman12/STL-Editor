@@ -56,7 +56,7 @@ fn cube_mesh() -> Arc<MeshArrays> {
 }
 
 fn cube(revision: u64) -> BodyView {
-    BodyView { id: "b1".into(), name: "Cube".into(), color: Some("#9aa7b4".into()), hidden: false, solid: true, mesh: cube_mesh(), revision }
+    BodyView { id: "b1".into(), name: "Cube".into(), color: Some("#9aa7b4".into()), hidden: false, solid: true, mesh: cube_mesh(), revision, holds_up: None }
 }
 
 fn close4(a: [f64; 4], b: [f64; 4]) -> bool {
@@ -378,7 +378,7 @@ fn pocket_preview() -> (BodyView, PreviewPack) {
     doc.add_feature("primitive", obj(boxp), None).unwrap();
     let sk = json!({"plane": {"origin": [0, 0, 20], "normal": [0, 0, 1]}, "entities": [{"type": "rect", "id": "r1", "x": 5, "y": 5, "w": 10, "h": 10}]});
     doc.add_feature("sketch", obj(sk), None).unwrap();
-    let body = BodyView { id: "f1".into(), name: "Box".into(), color: Some("#9aa7b4".into()), hidden: false, solid: true, mesh: Arc::new(doc.state.bodies["f1"].solid.as_ref().unwrap().to_mesh()), revision: 1 };
+    let body = BodyView { id: "f1".into(), name: "Box".into(), color: Some("#9aa7b4".into()), hidden: false, solid: true, mesh: Arc::new(doc.state.bodies["f1"].solid.as_ref().unwrap().to_mesh()), revision: 1, holds_up: None };
     let (state, res) = doc.preview("extrude", obj(json!({"sketch": "f2", "operation": "cut", "distance": 8, "direction": "one", "targets": ["f1"]})), None);
     assert_eq!(res.error, None);
     let pack = stl_app::engine_link::views::preview_pack(&state, &res);

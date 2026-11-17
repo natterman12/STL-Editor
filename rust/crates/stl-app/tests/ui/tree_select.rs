@@ -58,6 +58,7 @@ fn body(id: &str, name: &str) -> BodyView {
         solid: true,
         mesh: Arc::new(MeshArrays { positions: Vec::new(), triangles: Vec::new() }),
         revision: 1,
+        holds_up: None,
     }
 }
 

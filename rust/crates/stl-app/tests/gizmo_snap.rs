@@ -36,7 +36,7 @@ fn box_mesh(sx: f32, sy: f32, sz: f32, z0: f32) -> Arc<MeshArrays> {
 }
 
 fn body(id: &str, mesh: Arc<MeshArrays>) -> BodyView {
-    BodyView { id: id.into(), name: id.into(), color: Some("#9aa7b4".into()), hidden: false, solid: true, mesh, revision: 1 }
+    BodyView { id: id.into(), name: id.into(), color: Some("#9aa7b4".into()), hidden: false, solid: true, mesh, revision: 1, holds_up: None }
 }
 
 fn view(bodies: &[BodyView]) -> Viewport {
@@ -139,6 +139,27 @@ fn translate_snaps_to_grid() {
     let t = vec3(&live["translate"])[0];
     assert!((t - 2.0 * fine).abs() < 1e-6, "{t} (step {fine})");
     assert!(!is_multiple(t, far), "not the coarser step's snap: {t} (was {far})");
+}
+
+/// A part's fins (a body of their own) ride along while its arrow is dragged, as the engine
+/// moves them when the Move goes in; other bodies stay put (Nathan 2026-11-16, "fins follow").
+#[test]
+fn the_fins_follow_the_dragged_part() {
+    let mut fins = body("s", box_mesh(4.0, 4.0, 10.0, 0.0));
+    fins.holds_up = Some("b1".into());
+    let mut vp = view(&[body("b1", box_mesh(20.0, 20.0, 20.0, 10.0)), fins, body("other", box_mesh(5.0, 5.0, 5.0, 0.0))]);
+    let mut g = Gizmo::new(GizmoKind::Move);
+    g.sync(&mut vp, &move_values());
+    let (live, _, _) = drag_axis(&mut vp, &mut g, 0, 12.0, true);
+    let t = vec3(&live["translate"]);
+    let part = *vp.body_transform("b1").unwrap();
+    let fin = *vp.body_transform("s").expect("the fins move with the part");
+    assert_eq!(gizmo::apply(&part, [1.0, 2.0, 3.0]), gizmo::apply(&fin, [1.0, 2.0, 3.0]));
+    assert!((gizmo::apply(&fin, [0.0; 3])[0] - t[0]).abs() < 1e-6);
+    assert!(vp.body_transform("other").is_none(), "a body that isn't its fins stays");
+    // put back with the part
+    g.reset(&mut vp);
+    assert!(vp.body_transform("s").is_none());
 }
 
 #[test]

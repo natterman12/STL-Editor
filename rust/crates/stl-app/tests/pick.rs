@@ -22,7 +22,7 @@ fn close(a: [f64; 3], b: [f64; 3], tol: f64) -> bool {
 }
 
 fn body(id: &str, mesh: MeshArrays, hidden: bool) -> BodyView {
-    BodyView { id: id.into(), name: id.into(), color: None, hidden, solid: true, mesh: Arc::new(mesh), revision: 1 }
+    BodyView { id: id.into(), name: id.into(), color: None, hidden, solid: true, mesh: Arc::new(mesh), revision: 1, holds_up: None }
 }
 
 /// 20 mm cube on the bed, centred in X and Y. Face 4 is the y = -10 side (triangles 0,1,5).
@@ -89,6 +89,7 @@ fn view(mesh: MeshArrays) -> (Viewport, Arc<MeshArrays>) {
         solid: true,
         mesh: Arc::clone(&mesh),
         revision: 1,
+        holds_up: None,
     }]);
     vp.flush();
     (vp, mesh)
@@ -339,7 +340,7 @@ fn pick_without_tree_matches_brute_force() {
     let mut vp = Viewport::new();
     vp.set_view_size(800.0, 600.0);
     vp.set_pick_trees(false);
-    vp.sync_bodies(&[BodyView { id: "part".into(), name: "Part".into(), color: None, hidden: false, solid: true, mesh: mesh.clone(), revision: 1 }]);
+    vp.sync_bodies(&[BodyView { id: "part".into(), name: "Part".into(), color: None, hidden: false, solid: true, mesh: mesh.clone(), revision: 1, holds_up: None }]);
     vp.flush();
     assert!(!vp.pick_tree_ready("part"));
     vp.fit_all();

@@ -555,6 +555,7 @@ pub fn add_supports(
         }
         state.bodies.insert(nid.clone(), Body { name: format!("{} {suffix}", b.name), solid: Some(fins), mesh: None });
         res.created.push(nid.clone());
+        state.attached.insert(nid.clone(), bid.to_string());
         if preview {
             extras.colors.insert(nid, Value::String(SUPPORT_COLOR.into()));
         }

@@ -58,7 +58,7 @@ fn pin() -> MeshArrays {
 }
 
 fn body(id: &str, name: &str, mesh: MeshArrays) -> BodyView {
-    BodyView { id: id.into(), name: name.into(), color: None, hidden: false, solid: true, mesh: Arc::new(mesh), revision: 1 }
+    BodyView { id: id.into(), name: name.into(), color: None, hidden: false, solid: true, mesh: Arc::new(mesh), revision: 1, holds_up: None }
 }
 
 fn item(id: &str, kind: &str, label: &str, params: Value) -> TimelineItem {

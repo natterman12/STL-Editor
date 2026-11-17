@@ -663,7 +663,7 @@ fn cube(s: f32) -> Arc<MeshArrays> {
 
 fn scene(rec: &Rec) -> Harness<'static, StlApp> {
     let app = StlApp::new(&egui::Context::default(), Box::new(NullPlatform), Box::new(rec.clone()));
-    let body = BodyView { id: "b1".into(), name: "b1".into(), color: Some("#9aa7b4".into()), hidden: false, solid: true, mesh: cube(20.0), revision: 1 };
+    let body = BodyView { id: "b1".into(), name: "b1".into(), color: Some("#9aa7b4".into()), hidden: false, solid: true, mesh: cube(20.0), revision: 1, holds_up: None };
     rec.inbox.lock().unwrap().push(Update::Bodies(vec![body]));
     let mut init = false;
     let mut h = Harness::builder().with_size(egui::vec2(1280.0, 800.0)).with_accessibility_check(false).build_ui_state(
@@ -805,7 +805,7 @@ mod shots {
         let mut vp = Viewport::new();
         vp.init_gpu(&gpu.render_state);
         vp.set_theme(dark);
-        let body = BodyView { id: "b1".into(), name: "Box".into(), color: Some("#9aa7b4".into()), hidden: false, solid: true, mesh: box_mesh(), revision: 1 };
+        let body = BodyView { id: "b1".into(), name: "Box".into(), color: Some("#9aa7b4".into()), hidden: false, solid: true, mesh: box_mesh(), revision: 1, holds_up: None };
         vp.sync_bodies(&[body]);
         vp.flush();
         vp.set_view_size(480.0, 360.0);

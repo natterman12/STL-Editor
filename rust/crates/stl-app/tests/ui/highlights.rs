@@ -74,7 +74,7 @@ fn cube() -> BodyView {
     let p = [[-10.0, -10.0, 0.0], [10.0, -10.0, 0.0], [10.0, 10.0, 0.0], [-10.0, 10.0, 0.0], [-10.0, -10.0, 20.0], [10.0, -10.0, 20.0], [10.0, 10.0, 20.0], [-10.0, 10.0, 20.0]];
     let t: [u32; 36] = [0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7, 0, 1, 5, 0, 5, 4, 1, 2, 6, 1, 6, 5, 2, 3, 7, 2, 7, 6, 3, 0, 4, 3, 4, 7];
     let mesh = Arc::new(MeshArrays { positions: p.iter().flatten().map(|&v| v as f32).collect(), triangles: t.to_vec() });
-    BodyView { id: "b1".into(), name: "Cube".into(), color: None, hidden: false, solid: true, mesh, revision: 1 }
+    BodyView { id: "b1".into(), name: "Cube".into(), color: None, hidden: false, solid: true, mesh, revision: 1, holds_up: None }
 }
 
 /// The highlight's triangles as drawn (the overlay batch of draw order 3).

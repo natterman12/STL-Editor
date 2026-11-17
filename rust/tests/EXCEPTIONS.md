@@ -444,6 +444,13 @@ Nathan answered these on 2026-11-14: accepted unless marked otherwise.
   body. Drag the arrow or change Distance to move it into the part."**, at Distance 0 and for 1.x steps too (1.x: "The plane
   doesn't cut through this body."). The parity cases `split/split_plane_misses` and `split/split_tangent_plane` pass by exception
   (`tests/parity/exceptions.json`).
+- **Accepted by Nathan (2026-11-16): fins made as a body of their own follow their part.** Support Fins / Draw Walls with
+  output "separate" record the part they hold up (`State::attached`). A Split shares the fins out, each fin going with the
+  half it overlaps most (the first half's stay in the supports body, renamed "<half> supports"; the other half's go in a
+  new body `<split id>.2s`; fins under a half thrown away by Keep go with it), and a Move of the part moves its fins too
+  (the Move handles carry them while dragging). 1.x leaves the fins where they were built. A Move of a part with supports
+  goes before the supports only when nothing but support steps follow them; otherwise at the end, with a note (1.x
+  `insertBeforeSupports` always puts it before, so a later Split or Thread ran on the moved part at its old place).
 - **Accepted by Nathan (2026-11-16): Send to Slicer writes a 3MF.** 1.x's `r_send_to` writes an STL (the 1.x UI doesn't pass `slicer` to the
   export route).
 - **Accepted by Nathan (2026-11-16): the Send to Slicer menu lists only the slicers found.** 1.x shows Bambu Studio and OrcaSlicer greyed out

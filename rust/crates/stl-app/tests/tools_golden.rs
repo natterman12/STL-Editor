@@ -70,6 +70,7 @@ fn fixture_data() -> (Vec<BodyView>, Vec<PlaneView>, Vec<SketchView>, Vec<Timeli
             solid: true,
             mesh: Arc::new(box_mesh([0.0, 0.0, 0.0], [40.0, 20.0, 10.0])),
             revision: 0,
+            holds_up: None,
         },
         BodyView {
             id: "body_b".into(),
@@ -79,6 +80,7 @@ fn fixture_data() -> (Vec<BodyView>, Vec<PlaneView>, Vec<SketchView>, Vec<Timeli
             solid: true,
             mesh: Arc::new(box_mesh([50.0, 0.0, 0.0], [70.0, 20.0, 10.0])),
             revision: 0,
+            holds_up: None,
         },
     ];
     let mut p0 = PlaneView::default();
@@ -166,6 +168,7 @@ fn body(id: &str, name: &str, solid: bool, mesh: MeshArrays) -> BodyView {
         solid,
         mesh: Arc::new(mesh),
         revision: 0,
+        holds_up: None,
     }
 }
 

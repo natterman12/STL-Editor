@@ -33,6 +33,11 @@ pub struct State {
     pub sketches: IndexMap<String, SketchRec>,
     /// The tool solid each feature used, so mirror and pattern can repeat the feature.
     pub tools: IndexMap<String, ToolRecord>,
+    /// Supports made as a body of their own (Support Fins or Draw Walls with output
+    /// "separate"), by body id: the part they hold up. A Split shares them out between the
+    /// halves and a Move of the part carries them along
+    /// ([`crate::features::supports_follow`]).
+    pub attached: IndexMap<String, String>,
 }
 
 /// A 3x4 affine transform (rows), as `affine` builds them.

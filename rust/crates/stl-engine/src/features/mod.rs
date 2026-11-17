@@ -38,6 +38,7 @@ pub mod snapfit;
 pub mod hinge;
 pub mod supportfins;
 pub mod supportwall;
+pub mod supports_follow;
 
 use crate::Registry;
 

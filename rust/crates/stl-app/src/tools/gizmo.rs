@@ -853,9 +853,13 @@ impl Gizmo {
     fn apply_transforms(&mut self, vp: &mut Viewport, vals: &Values) {
         for b in self.bodies.clone() {
             let m = self.matrix_for(&b, vals);
-            vp.set_body_transform(&b.id, Some(m));
-            if !self.moved.contains(&b.id) {
-                self.moved.push(b.id.clone());
+            // a moved part's fins (a body of their own) go with it, as the engine moves them
+            let fins = if self.kind == GizmoKind::Scale { Vec::new() } else { vp.held_by(&b.id) };
+            for id in std::iter::once(b.id.clone()).chain(fins.into_iter().filter(|f| !self.bodies.iter().any(|o| &o.id == f))) {
+                vp.set_body_transform(&id, Some(m));
+                if !self.moved.contains(&id) {
+                    self.moved.push(id);
+                }
             }
         }
     }

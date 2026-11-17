@@ -191,6 +191,7 @@ fn body(id: &str, color: Option<&str>) -> BodyView {
         solid: true,
         mesh: Arc::new(MeshArrays { positions: Vec::new(), triangles: Vec::new() }),
         revision: 0,
+        holds_up: None,
     }
 }
 

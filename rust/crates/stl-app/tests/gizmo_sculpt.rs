@@ -30,7 +30,7 @@ fn box_mesh(sx: f32, sy: f32, sz: f32) -> Arc<MeshArrays> {
 }
 
 fn body(id: &str, mesh: Arc<MeshArrays>) -> BodyView {
-    BodyView { id: id.into(), name: id.into(), color: Some("#9aa7b4".into()), hidden: false, solid: true, mesh, revision: 1 }
+    BodyView { id: id.into(), name: id.into(), color: Some("#9aa7b4".into()), hidden: false, solid: true, mesh, revision: 1, holds_up: None }
 }
 
 fn view(bodies: &[BodyView]) -> Viewport {

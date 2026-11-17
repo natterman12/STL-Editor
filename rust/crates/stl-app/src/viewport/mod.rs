@@ -810,6 +810,12 @@ impl Viewport {
         self.entry(id).and_then(|e| e.current()).map(|r| &r.mesh)
     }
 
+    /// The supports bodies that hold up `part` (made as a body of their own): they go with it
+    /// when it moves.
+    pub fn held_by(&self, part: &str) -> Vec<String> {
+        self.bodies.iter().filter(|e| e.view.holds_up.as_deref() == Some(part)).map(|e| e.view.id.clone()).collect()
+    }
+
     /// The revision of a body that picks and highlights use (the one on screen).
     pub fn shown_revision(&self, id: &str) -> Option<u64> {
         self.entry(id).and_then(|e| e.current()).map(|r| r.revision)
@@ -1497,6 +1503,7 @@ impl Viewport {
                 solid: true,
                 mesh: Arc::new(MeshArrays { positions: p.positions.iter().map(|&v| v as f32).collect(), triangles: p.triangles }),
                 revision: 1,
+                holds_up: None,
             })
             .collect();
         self.sync_bodies(&views);

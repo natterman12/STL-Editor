@@ -45,6 +45,7 @@ fn test_body(id: &str, name: &str, hidden: bool) -> BodyView {
         solid: true,
         mesh: empty_mesh(),
         revision: 1,
+        holds_up: None,
     }
 }
 

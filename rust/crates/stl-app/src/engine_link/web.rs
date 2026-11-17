@@ -328,6 +328,7 @@ fn emit_bodies(bodies: Vec<BodyView>) {
             ("hidden".into(), Value::Bool(b.hidden)),
             ("solid".into(), Value::Bool(b.solid)),
             ("revision".into(), Value::from(b.revision)),
+            ("holds_up".into(), b.holds_up.map(Value::String).unwrap_or(Value::Null)),
         ])));
         bufs.push((pos_buf, pos.len() as u32));
         bufs.push((tri_buf, tri.len() as u32));
@@ -1309,6 +1310,7 @@ fn decode_bodies(data: &JsValue) -> Vec<BodyView> {
             hidden: get(&b, "hidden").as_bool().unwrap_or(false),
             solid: get(&b, "solid").as_bool().unwrap_or(true),
             revision: num_usize(&get(&b, "revision")) as u64,
+            holds_up: opt_string(&get(&b, "holds_up")),
             mesh: Arc::new(MeshArrays {
                 positions: f32s(&bytes_of(&get(&b, "positions"))),
                 triangles: u32s(&bytes_of(&get(&b, "triangles"))),

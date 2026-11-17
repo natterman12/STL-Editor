@@ -136,6 +136,9 @@ pub struct BodyView {
     pub solid: bool,
     pub mesh: Arc<MeshArrays>,
     pub revision: u64,
+    /// Supports made as a body of their own: the part they hold up. The Move handles carry them
+    /// along with that part while dragging, as the engine does when the Move goes in.
+    pub holds_up: Option<String>,
 }
 
 #[derive(Clone, Debug, Default)]

@@ -64,6 +64,12 @@ fn split(
         state.bodies.insert(id.clone(), Body { name: format!("Pin {}", i + 1), solid: Some(ex), mesh: None });
         res.created.push(id);
     }
+    // the half thrown away (Keep above / below): its fins go with it
+    let gone = match keep.as_str() {
+        "above" => Some(below.clone()),
+        "below" => Some(above.clone()),
+        _ => None,
+    };
     match keep.as_str() {
         "above" => {
             res.set_cutter(ctx.preview, &below);
@@ -86,13 +92,17 @@ fn split(
     }
     let (first, second) = if !above.is_empty() { (above, below) } else { (below, Solid::compose(&[])) };
     let name = if second.is_empty() { b.name.clone() } else { format!("{} (1)", b.name) };
+    let mut halves = vec![(bid.clone(), first.clone())];
     state.bodies.insert(bid.clone(), Body { name, solid: Some(first), mesh: None });
-    res.modified.push(bid);
+    res.modified.push(bid.clone());
     if !second.is_empty() {
         let nid = format!("{fid}.2");
-        state.bodies.insert(nid.clone(), Body { name: format!("{} (2)", b.name), solid: Some(second), mesh: None });
-        res.created.push(nid);
+        state.bodies.insert(nid.clone(), Body { name: format!("{} (2)", b.name), solid: Some(second.clone()), mesh: None });
+        res.created.push(nid.clone());
+        halves.push((nid, second));
     }
+    // fins made as a body of their own go with the half they hold up
+    super::supports_follow::share_on_split(state, &bid, &halves, gone.as_ref(), fid, res);
     Ok(())
 }
 

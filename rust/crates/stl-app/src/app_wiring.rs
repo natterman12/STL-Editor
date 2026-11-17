@@ -131,7 +131,8 @@ fn walls_of(values: &Values) -> Vec<Wall> {
 /// Only when nothing but support steps follow: a Split, Thread, Hole or sketch after the supports
 /// was placed on the part where it stood, and would run on the moved part at its old place (the
 /// split plane seemed to move with the part, the thread missed it). Then the Move goes at the end
-/// ([`supports_followed_by`] names the step that kept it there).
+/// ([`supports_followed_by`] names the step that kept it there), and the engine carries the
+/// fins along with the part (`supports_follow`).
 pub(super) fn insert_before_supports(tl: &TimelineView, marker: Option<usize>, kind: &str, params: &Value) -> Option<usize> {
     let at = first_supports_of(tl, marker, kind, params)?;
     let end = marker.unwrap_or(tl.items.len()).min(tl.items.len());
@@ -869,14 +870,14 @@ impl StlApp {
         let index = insert_before_supports(&self.timeline_view, self.marker_now(), &kind, &params);
         if index.is_none() {
             // the part has supports, but other steps come after them: the Move goes at the end
-            // and the fins stay where they were built
+            // and the fins (a body of their own) move with the part as they are
             let ids: Vec<String> = self.timeline_view.items.iter().map(|i| i.id.clone()).collect();
             self.sf.insert_note = supports_followed_by(&self.timeline_view, self.marker_now(), &kind, &params).map(|(sf, after)| {
                 let (sf, after) = (&self.timeline_view.items[sf].label, &self.timeline_view.items[after].label);
                 (
                     ids,
-                    Level::Warning,
-                    format!("{sf} was made before {after}, so its fins stay where they were and don't move with the part. To rebuild them where the part is now, right-click {sf} in the History and choose Move right until it is last."),
+                    Level::Info,
+                    format!("{sf} was made before {after}, so its fins move with the part as they are and aren't rebuilt. To rebuild them for the new position, right-click {sf} in the History and choose Move right until it is last."),
                 )
             });
             self.link.send(Command::AddFeature { kind, params, index, name: None });
