@@ -1065,6 +1065,43 @@ fn a_move_before_the_supports_says_so() {
     }
 }
 
+/// A Move goes before the supports only when nothing else comes after them: steps that rely on
+/// where the part is (a Split's plane, a Thread's face) would otherwise run on the moved part
+/// at their old places (Nathan 2026-11-16: moving a split half moved the split plane too).
+#[test]
+fn a_move_stays_at_the_end_when_steps_follow_the_supports() {
+    let rec = Rec::default();
+    let mut h = scene(&rec);
+    let sf = json!({"body": "b1", "walls": [], "removed": [], "output": "separate", "options": {}});
+    rec.push(timeline(vec![
+        step_item("f1", "primitive", json!({})),
+        step_item("s1", "supportfins", sf),
+        step_item("t1", "thread", json!({})),
+        step_item("p1", "split", json!({"body": "b1"})),
+    ]));
+    h.run_steps(2);
+    let mut v = serde_json::Map::new();
+    v.insert("bodies".into(), json!(["b1"]));
+    assert!(h.state_mut().open_tool("move", Some(v)));
+    h.run_steps(2);
+    h.state_mut().tool_ok();
+    let index = rec.commands().iter().rev().find_map(|c| match c {
+        Command::AddFeature { kind, index, .. } if kind == "move" => Some(*index),
+        _ => None,
+    });
+    assert_eq!(index, Some(None), "the Move goes at the end, after the Split");
+    rec.push(timeline(vec![
+        step_item("f1", "primitive", json!({})),
+        step_item("s1", "supportfins", json!({})),
+        step_item("t1", "thread", json!({})),
+        step_item("p1", "split", json!({})),
+        step_item("m9", "move", json!({})),
+    ]));
+    h.run_steps(2);
+    let toasts = format!("{:?}", h.state().toasts);
+    assert!(toasts.contains("supportfins s1 was made before thread t1"), "{toasts}");
+}
+
 /// The quick red paint still being worked out cannot land over the engine's exact faces.
 #[test]
 fn a_late_quick_paint_does_not_cover_the_exact_one() {
