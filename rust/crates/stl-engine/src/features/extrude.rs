@@ -86,8 +86,44 @@ fn extrude(
     };
     if op == "cut" {
         res.set_cutter(ctx.preview, &tool);
+        if taper == 0.0 && (direction == "one" || direction == "reverse") {
+            tool = open_the_face(state, p, &cs, &tool, m, direction == "one", z0 + start, h, res.flipped);
+        }
     }
     apply_tool(state, fid, tool, &op, p.get("targets"), &name, res)
+}
+
+/// How far a cut starting on the part's surface reaches back out of it.
+const OVERSHOOT: f64 = 0.01;
+
+/// A one-sided cut sketched on a face starts exactly on that face, and the face picked from
+/// the mesh can sit a rounding error inside the part (x = 9.999999999999998 on a face at 10).
+/// The cut then stops just under the surface and leaves a skin thinner than a hair over the
+/// pocket. When the space just outside the cut's start is empty, start the cut `OVERSHOOT`
+/// further out. A start inside the material (a sketch on a plane through the part) keeps its
+/// exact depth.
+#[allow(clippy::too_many_arguments)]
+fn open_the_face(
+    state: &State,
+    p: &Map<String, Value>,
+    cs: &Shape2d,
+    tool: &stl_kernel::Solid,
+    m: [[f64; 4]; 3],
+    one: bool,
+    lo: f64,
+    h: f64,
+    flipped: bool,
+) -> stl_kernel::Solid {
+    let place = |s: stl_kernel::Solid| if flipped { s.mirror([0.0, 0.0, 1.0]).transform(m) } else { s.transform(m) };
+    // the start face is the bottom of a "one" cut, the top of a "reverse" one (before flipping)
+    let slab_at = if one { lo - OVERSHOOT } else { lo + h };
+    let slab = place(cs.extrude(OVERSHOOT).translate([0.0, 0.0, slab_at]));
+    let targets = strings(p.get("targets"));
+    if material_volume(&state.bodies, &slab, &targets) > slab.volume() * 0.5 {
+        return tool.clone();
+    }
+    let from = if one { lo - OVERSHOOT } else { lo };
+    place(cs.extrude(h + OVERSHOOT).translate([0.0, 0.0, from]))
 }
 
 pub fn register(r: Registry) -> Registry {
