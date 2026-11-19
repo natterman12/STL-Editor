@@ -628,6 +628,10 @@ fn cube_harness() -> (Harness<'static>, Rc<RefCell<Viewport>>, V3) {
     let mut vp = Viewport::new();
     vp.set_view_size(W as f32, H as f32);
     vp.sync_bodies(&[body]);
+    // the cube is prepared on a worker thread. Wait for it before the fit: a fit asked for while
+    // a body is still being prepared is put off until it lands, and then flies the camera there
+    // over the next frames, under the test's zoom
+    vp.flush();
     vp.fit(Aabb {
         min: [-10.0, -10.0, 0.0],
         max: [10.0, 10.0, 20.0],
@@ -641,10 +645,6 @@ fn cube_harness() -> (Harness<'static>, Rc<RefCell<Viewport>>, V3) {
             shown.borrow_mut().show(ui);
         });
     h.run_steps(3);
-    // the cube is prepared on a worker thread: wait until it is pickable (a slow CI machine
-    // could otherwise pick nothing)
-    vp.borrow_mut().flush();
-    h.run_steps(1);
     // a point on the top face, off the view axis
     (h, vp, [6.0, 4.0, 20.0])
 }
