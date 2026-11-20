@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>STL Editor: CAD tools for STL files</title>
-<meta name="description" content="Free, open-source Windows app that lets you sketch, extrude, cut, drill, thread and split STL meshes like a CAD model, then send them to your slicer.">
+<meta name="description" content="Free, open-source app for Windows, Mac, Linux and the browser that lets you sketch, extrude, cut, drill, thread and split STL meshes like a CAD model, then send them to your slicer.">
 <meta property="og:title" content="STL Editor: CAD tools for STL files">
 <meta property="og:description" content="Sketch, extrude, cut, drill holes, add printable threads and split big parts to fit your printer, right on the STL.">
 <meta property="og:image" content="https://natterman12.github.io/STL-Editor/img/hero.png">
@@ -926,6 +926,7 @@ footer {
       <span>STL Editor</span>
     </a>
     <div class="nav-links">
+      <a href="#new">What's new</a>
       <a href="#features">Features</a>
       <a href="#tools">Tools</a>
       <a href="#download">Download</a>
@@ -940,7 +941,7 @@ footer {
   <div class="wrap">
     <div class="hero-badge-wrap">
       <span class="hero-badge-dot"></span>
-      <span>Free · Open-source · Windows and browser</span>
+      <span>New: STL Editor 2.0, rebuilt from the ground up · Free · Open-source</span>
     </div>
     <h1>Edit STL files like a <span class="gradient-text">CAD model</span>.</h1>
     <p class="hero-summary">
@@ -949,14 +950,14 @@ footer {
 
     <div class="hero-actions">
       <!-- Big Button 1: Download for Windows -->
-      <a class="btn-big btn-primary" href="https://github.com/natterman12/STL-Editor/releases/latest/download/STL-Editor-Windows-portable.zip">
+      <a class="btn-big btn-primary" href="https://github.com/natterman12/STL-Editor/releases/latest/download/STL-Editor-2-Windows.exe">
         <div class="btn-title-row">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 3v13M6 11l6 6 6-6M4 21h16"/>
           </svg>
           <span>Download for Windows</span>
         </div>
-        <span class="btn-note">v1.17.0 · about 79 MB · no install</span>
+        <span class="btn-note">v2.0.0 · one file · no install</span>
       </a>
 
       <!-- Big Button 2: Open the web app -->
@@ -1002,14 +1003,60 @@ footer {
         <span class="window-dot"></span>
         <span class="window-dot"></span>
         <span class="window-dot"></span>
-        <span class="window-title">STL Editor — 3D Mesh CAD Workspace</span>
+        <span class="window-title">STL Editor 2.0</span>
       </div>
       <div class="hero-img-box">
-        <img src="img/hero.png" width="1600" height="960" alt="STL Editor workspace showing a loaded 3D model, toolbar tabs, sketch tools, and feature timeline">
+        <img src="img/hero.png" width="1584" height="884" alt="STL Editor 2.0 workspace showing a bracket, the Model tab of the toolbar, the Browser panel and the History bar">
       </div>
     </div>
   </div>
 </header>
+
+<!-- What's new in 2.0 -->
+<section class="section section-alt" id="new">
+  <div class="wrap">
+    <div class="section-header">
+      <span class="section-tag">New in 2.0</span>
+      <h2 class="section-title">Same tools, rebuilt from the ground up</h2>
+      <p class="section-desc">STL Editor 2.0 does everything 1.x does, with the same tabs, panels and shortcuts, so there is nothing to relearn. What changed is underneath: it is now written in Rust.</p>
+    </div>
+
+    <div class="cards-grid">
+      <div class="benefit-card">
+        <div class="benefit-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+          </svg>
+        </div>
+        <h3>One small program</h3>
+        <p>The Windows download is a single file. No zip to unpack, no Python, nothing to install. It starts in a moment, and the 3D view draws on your graphics card, so big meshes stay smooth when you turn them.</p>
+      </div>
+
+      <div class="benefit-card">
+        <div class="benefit-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+            <line x1="8" y1="21" x2="16" y2="21"/>
+            <line x1="12" y1="17" x2="12" y2="21"/>
+          </svg>
+        </div>
+        <h3>The same app everywhere</h3>
+        <p>Windows, Mac, Linux and the web edition are now built from the same code, so they look and work the same. The web edition is the full app, running in your browser.</p>
+      </div>
+
+      <div class="benefit-card">
+        <div class="benefit-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </div>
+        <h3>Your projects come with you</h3>
+        <p>Projects saved in 1.x open and rebuild in 2.0. Settings live in their own folder, so you can keep 1.x installed while you switch.</p>
+      </div>
+    </div>
+  </div>
+</section>
 
 <!-- Problem-Solution Alternating Sections -->
 <section class="section" id="features">
@@ -1035,11 +1082,11 @@ footer {
       </div>
       <div class="feature-media dual-media">
         <div class="media-half">
-          <img src="img/sketch.png" width="640" height="400" loading="lazy" alt="Sketching on a 3D model face with dimensions, constraints, and extrude options in STL Editor">
+          <img src="img/sketch.png" width="1584" height="884" loading="lazy" alt="Sketching on a 3D model face with dimensions, constraints, and extrude options in STL Editor">
           <div class="media-caption">Sketch &amp; Extrude</div>
         </div>
         <div class="media-half">
-          <img src="img/holes-threads.png" width="640" height="400" loading="lazy" alt="Hardware holes with presets for heat-set inserts and printable threads">
+          <img src="img/holes-threads.png" width="1584" height="884" loading="lazy" alt="Hardware holes with presets for heat-set inserts and printable threads">
           <div class="media-caption">Holes &amp; Threads</div>
         </div>
       </div>
@@ -1054,12 +1101,13 @@ footer {
         <ul class="feature-list">
           <li><strong>Printer presets</strong>: one-click sizing for popular Bambu Lab, Creality, and Prusa printers.</li>
           <li><strong>Smart cut locations</strong>: finds natural thin seams to keep cuts subtle and joints strong.</li>
-          <li><strong>Snap-fit connectors</strong>: printed pins, matching sockets, or 1.75 mm filament dowels.</li>
+          <li><strong>Connectors at every seam</strong>: printed pins and matching holes, 1.75 mm filament dowels, or magnet pockets.</li>
+          <li><strong>Plate Layout</strong>: sets all the pieces side by side on the bed, ready to slice.</li>
           <li><strong>Lay Flat tool</strong>: quickly lands any face or the most stable orientation flat on the build plate.</li>
         </ul>
       </div>
       <div class="feature-media">
-        <img src="img/fit-to-bed.png" width="1280" height="800" loading="lazy" alt="Large 3D model split into bed-sized interlocking pieces with connector pins in STL Editor">
+        <img src="img/fit-to-bed.png" width="1584" height="884" loading="lazy" alt="Large 3D model split into bed-sized interlocking pieces with connector pins in STL Editor">
       </div>
     </div>
 
@@ -1077,7 +1125,7 @@ footer {
         </ul>
       </div>
       <div class="feature-media">
-        <img src="img/support-fins.png" width="1280" height="800" loading="lazy" alt="Support Fins interface adding rigid breakaway support walls to steep overhangs on a 3D model">
+        <img src="img/support-fins.png" width="1584" height="884" loading="lazy" alt="Support Fins interface adding rigid breakaway support walls to steep overhangs on a 3D model">
       </div>
     </div>
 
@@ -1089,13 +1137,13 @@ footer {
         <p>No digging through endless sub-menus or navigating confusing multi-tier ribbons. All tools are clearly organized into four main tabs: Model, Print, Supports, and Mesh. Press Ctrl+K anytime, type the tool you need, and jump straight into action.</p>
         <ul class="feature-list">
           <li><strong>Ctrl+K command search</strong>: find any tool, setting, or command in milliseconds.</li>
-          <li><strong>Compact responsive toolbar</strong>: collapses neatly to icons on smaller screens.</li>
-          <li><strong>Inspect always ready</strong>: Measure, Section view, and volume/weight Properties on every tab.</li>
-          <li><strong>Native dark theme</strong>: gentle on your eyes during long modeling and print-prep sessions.</li>
+          <li><strong>Compact toolbar</strong>: shrinks to fit narrow windows instead of scrolling.</li>
+          <li><strong>Inspect always ready</strong>: Measure, Section View (drag the cut to any plane or face) and volume/weight Properties on every tab.</li>
+          <li><strong>Light and dark themes</strong>: dark is gentle on your eyes during long sessions.</li>
         </ul>
       </div>
       <div class="feature-media">
-        <img src="img/tool-search.png" width="1280" height="800" loading="lazy" alt="Ctrl+K tool search command palette open over the STL Editor workspace">
+        <img src="img/tool-search.png" width="1584" height="884" loading="lazy" alt="Ctrl+K tool search command palette open over the STL Editor workspace">
       </div>
     </div>
 
@@ -1123,7 +1171,7 @@ footer {
           </svg>
         </div>
         <h3>No account</h3>
-        <p>No logins, no sign-ups, no monthly fees, and no telemetry. Open the web version or launch the portable Windows executable and start modifying models instantly. 100% free and open-source under GPL-3.0.</p>
+        <p>No logins, no sign-ups, no monthly fees, and no telemetry. Open the web version or start the Windows app and start changing models right away. 100% free and open-source under GPL-3.0.</p>
       </div>
 
       <!-- Card 2 -->
@@ -1137,7 +1185,7 @@ footer {
           </svg>
         </div>
         <h3>Works offline</h3>
-        <p>Your 3D models and proprietary designs never leave your computer. Both the Windows desktop app and the web edition execute all geometry operations locally using fast WebAssembly and C++ Manifold kernels.</p>
+        <p>Your 3D models and designs never leave your computer. The desktop app and the web edition do all their geometry on your own machine, with the same fast Rust engine.</p>
       </div>
 
       <!-- Card 3 -->
@@ -1183,6 +1231,8 @@ footer {
               <span class="tool-chip">Sketch</span>
               <span class="tool-chip">Extrude</span>
               <span class="tool-chip">Revolve</span>
+              <span class="tool-chip">Loft</span>
+              <span class="tool-chip">Sweep</span>
               <span class="tool-chip">Primitive</span>
             </div>
           </div>
@@ -1209,7 +1259,9 @@ footer {
             <div class="chips-list">
               <span class="tool-chip">Hollow</span>
               <span class="tool-chip">Shell</span>
+              <span class="tool-chip">Lattice</span>
               <span class="tool-chip">Offset Body</span>
+              <span class="tool-chip">Living hinge</span>
             </div>
           </div>
           <div>
@@ -1233,13 +1285,31 @@ footer {
         </div>
         <div class="tool-subsections">
           <div>
-            <div class="tool-subgroup-label">Print Prep &amp; Slicing</div>
+            <div class="tool-subgroup-label">Position</div>
             <div class="chips-list">
               <span class="tool-chip">Lay Flat</span>
               <span class="tool-chip">Move</span>
               <span class="tool-chip">Rotate</span>
               <span class="tool-chip">Scale</span>
+            </div>
+          </div>
+          <div>
+            <div class="tool-subgroup-label">Fit</div>
+            <div class="chips-list">
               <span class="tool-chip">Fit to Bed</span>
+              <span class="tool-chip">Plate Layout</span>
+              <span class="tool-chip">Fit Test</span>
+            </div>
+          </div>
+          <div>
+            <div class="tool-subgroup-label">Check</div>
+            <div class="chips-list">
+              <span class="tool-chip">Thin-wall Check</span>
+            </div>
+          </div>
+          <div>
+            <div class="tool-subgroup-label">Output</div>
+            <div class="chips-list">
               <span class="tool-chip">Export</span>
               <span class="tool-chip">Send to Slicer <span class="desktop-badge">Desktop only</span></span>
             </div>
@@ -1262,6 +1332,7 @@ footer {
             <div class="chips-list">
               <span class="tool-chip">Support Fins</span>
               <span class="tool-chip">Draw Walls</span>
+              <span class="tool-chip">About Support Fins</span>
             </div>
           </div>
         </div>
@@ -1278,14 +1349,24 @@ footer {
         </div>
         <div class="tool-subsections">
           <div>
-            <div class="tool-subgroup-label">Mesh Repair &amp; Sculpting</div>
+            <div class="tool-subgroup-label">Mesh</div>
             <div class="chips-list">
               <span class="tool-chip">Repair</span>
               <span class="tool-chip">Simplify</span>
               <span class="tool-chip">Remesh</span>
               <span class="tool-chip">Separate</span>
               <span class="tool-chip">Remove Bodies</span>
+            </div>
+          </div>
+          <div>
+            <div class="tool-subgroup-label">Sculpt</div>
+            <div class="chips-list">
               <span class="tool-chip">Brushes</span>
+            </div>
+          </div>
+          <div>
+            <div class="tool-subgroup-label">Convert</div>
+            <div class="chips-list">
               <span class="tool-chip">To STEP <span class="desktop-badge">Desktop only</span></span>
             </div>
           </div>
@@ -1324,7 +1405,7 @@ footer {
         </div>
         <div class="tool-subsections">
           <div>
-            <div class="tool-subgroup-label">2D CAD &amp; Constraints</div>
+            <div class="tool-subgroup-label">Draw</div>
             <div class="chips-list">
               <span class="tool-chip">Line</span>
               <span class="tool-chip">Arc</span>
@@ -1336,12 +1417,36 @@ footer {
               <span class="tool-chip">Text</span>
               <span class="tool-chip">Project</span>
               <span class="tool-chip">Use Edge</span>
+              <span class="tool-chip">Import SVG / DXF</span>
+            </div>
+          </div>
+          <div>
+            <div class="tool-subgroup-label">Modify</div>
+            <div class="chips-list">
+              <span class="tool-chip">Select</span>
               <span class="tool-chip">Trim</span>
               <span class="tool-chip">Offset</span>
               <span class="tool-chip">Mirror</span>
-              <span class="tool-chip">Smart Dimension</span>
+              <span class="tool-chip">Round corner</span>
+              <span class="tool-chip">Delete</span>
               <span class="tool-chip">Construction</span>
               <span class="tool-chip">Look At</span>
+            </div>
+          </div>
+          <div>
+            <div class="tool-subgroup-label">Dimensions &amp; Relations</div>
+            <div class="chips-list">
+              <span class="tool-chip">Smart Dimension</span>
+              <span class="tool-chip">Coincident</span>
+              <span class="tool-chip">Horiz / Vert</span>
+              <span class="tool-chip">Parallel</span>
+              <span class="tool-chip">Perpendicular</span>
+              <span class="tool-chip">Equal</span>
+              <span class="tool-chip">Tangent</span>
+              <span class="tool-chip">Concentric</span>
+              <span class="tool-chip">Midpoint</span>
+              <span class="tool-chip">Fix</span>
+              <span class="tool-chip">Symmetric</span>
             </div>
           </div>
         </div>
@@ -1357,30 +1462,30 @@ footer {
     <div class="section-header">
       <span class="section-tag">Get Started</span>
       <h2 class="section-title">Download or launch in your browser</h2>
-      <p class="section-desc">Single zip download with zero installation required, or run the full WebAssembly version directly online.</p>
+      <p class="section-desc">One file to download with nothing to install, or run the full app right in your browser.</p>
     </div>
 
     <div class="download-grid">
       <!-- Windows Download Box -->
       <div class="dl-box">
-        <h3>Windows Portable Edition</h3>
-        <p>Pre-packaged portable executable. Extract anywhere (Desktop, Documents, or USB drive) and run immediately without administrator privileges.</p>
-        
+        <h3>Windows</h3>
+        <p>One file. Put it anywhere (Desktop, Documents, or a USB stick) and run it. No installer and no admin rights.</p>
+
         <ol class="steps-list">
-          <li>Download <strong>STL-Editor-Windows-portable.zip</strong> (~79 MB).</li>
-          <li>Extract the zip archive to any folder on your computer.</li>
-          <li>Double-click <strong>STL Editor.exe</strong> to start.</li>
+          <li>Download <strong>STL-Editor-2-Windows.exe</strong>.</li>
+          <li>Move it to any folder you like.</li>
+          <li>Double-click it to start.</li>
         </ol>
 
         <div style="display:flex; gap:14px; flex-wrap:wrap; align-items:center;">
-          <a class="btn-big btn-primary" style="min-width:auto; padding:12px 20px;" href="https://github.com/natterman12/STL-Editor/releases/latest/download/STL-Editor-Windows-portable.zip">
+          <a class="btn-big btn-primary" style="min-width:auto; padding:12px 20px;" href="https://github.com/natterman12/STL-Editor/releases/latest/download/STL-Editor-2-Windows.exe">
             <div class="btn-title-row">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 3v13M6 11l6 6 6-6M4 21h16"/>
               </svg>
               <span>Download for Windows</span>
             </div>
-            <span class="btn-note">v1.17.0 · ~79 MB · portable zip</span>
+            <span class="btn-note">v2.0.0 · one .exe · no install</span>
           </a>
 
           <a href="https://github.com/natterman12/STL-Editor/releases" target="_blank" rel="noopener" style="font-size:14.5px; font-weight:600;">
@@ -1403,8 +1508,8 @@ footer {
               <td>Windows 10 or 11 (64-bit)</td>
             </tr>
             <tr>
-              <td>Disk Space</td>
-              <td>~150 MB unzipped</td>
+              <td>Graphics</td>
+              <td>Any graphics card with DirectX 12 or Vulkan</td>
             </tr>
             <tr>
               <td>Input</td>
@@ -1422,7 +1527,7 @@ footer {
         </table>
 
         <h3 style="margin-top:28px;">Web Edition</h3>
-        <p>Works in any modern browser (Chrome, Edge, Firefox, Safari) on Windows, macOS, Linux, ChromeOS, and tablets. Runs completely offline once loaded.</p>
+        <p>The same app, compiled for the browser. Works in a recent Chrome, Edge, Firefox or Safari on Windows, macOS, Linux, ChromeOS and tablets. Runs offline once loaded.</p>
         <a class="btn-big btn-secondary" style="min-width:auto; padding:12px 20px; width:100%;" href="https://natterman12.github.io/STL-Editor/app/">
           <div class="btn-title-row">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1440,20 +1545,31 @@ footer {
     <!-- Mac and Linux (beta) -->
     <div class="dl-box" style="margin-top: 24px;">
       <h3>Mac and Linux (beta)</h3>
-      <p>The Linux build is a beta: it works like the Windows version, but it is newer and less tested. If something goes wrong, the web edition is the safe choice.</p>
+      <p>2.0 builds for Mac and Linux from the same code as Windows. They are betas: newer and less tested. If something goes wrong, the web edition is the safe choice.</p>
       <ol class="steps-list">
-        <li><strong>Linux:</strong> download <strong>STL-Editor-Linux-x86_64.tar.gz</strong>, extract it, and run <strong>STL Editor</strong> inside the folder. Nothing to install.</li>
-        <li><strong>Mac:</strong> there is no Mac download yet. Build the app from the source code (the <a href="https://github.com/natterman12/STL-Editor/blob/main/USER_GUIDE.md#linux-and-mac-beta" target="_blank" rel="noopener">user guide</a> has the steps), or use the web edition in Safari, Chrome, Edge or Firefox. Intel Macs should use the web edition.</li>
+        <li><strong>Mac:</strong> download <strong>STL-Editor-2-macOS.app.zip</strong>, unzip it and drag <strong>STL Editor 2</strong> to Applications. It isn't signed yet, so the first time, right-click it and choose <strong>Open</strong>.</li>
+        <li><strong>Linux:</strong> download <strong>STL-Editor-2-x86_64.AppImage</strong>, make it executable (<code>chmod +x</code>, or tick "Allow executing" in its properties) and run it. Nothing to install.</li>
       </ol>
-      <a class="btn-big btn-secondary" style="min-width:auto; padding:12px 20px; margin-bottom:20px;" href="https://github.com/natterman12/STL-Editor/releases/latest/download/STL-Editor-Linux-x86_64.tar.gz">
-        <div class="btn-title-row">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 3v13M6 11l6 6 6-6M4 21h16"/>
-          </svg>
-          <span>Download for Linux (beta)</span>
-        </div>
-        <span class="btn-note">v1.16.0 · tar.gz · no install</span>
-      </a>
+      <div style="display:flex; gap:14px; flex-wrap:wrap; margin-bottom:20px;">
+        <a class="btn-big btn-secondary" style="min-width:auto; padding:12px 20px;" href="https://github.com/natterman12/STL-Editor/releases/latest/download/STL-Editor-2-macOS.app.zip">
+          <div class="btn-title-row">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3v13M6 11l6 6 6-6M4 21h16"/>
+            </svg>
+            <span>Download for Mac (beta)</span>
+          </div>
+          <span class="btn-note">v2.0.0 · zipped app</span>
+        </a>
+        <a class="btn-big btn-secondary" style="min-width:auto; padding:12px 20px;" href="https://github.com/natterman12/STL-Editor/releases/latest/download/STL-Editor-2-x86_64.AppImage">
+          <div class="btn-title-row">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3v13M6 11l6 6 6-6M4 21h16"/>
+            </svg>
+            <span>Download for Linux (beta)</span>
+          </div>
+          <span class="btn-note">v2.0.0 · AppImage · no install</span>
+        </a>
+      </div>
       <p>Send to Slicer on Mac and Linux finds Bambu Studio, OrcaSlicer and PrusaSlicer. To STEP is Windows only.</p>
     </div>
   </div>
@@ -1479,7 +1595,7 @@ footer {
       <details class="faq-item">
         <summary class="faq-question">Does it upload my 3D models to any cloud server?</summary>
         <div class="faq-answer">
-          No. Everything stays private on your local computer. The desktop app only binds to your local loopback address (127.0.0.1) and never transmits model files. In the web edition, the geometry kernel runs locally inside your browser via WebAssembly; no files are ever sent over the internet.
+          No. Everything stays on your own computer. The desktop app never sends your files anywhere; its only network request is an optional check for a new version. The web edition runs entirely inside your browser, so your files are never uploaded.
         </div>
       </details>
 
@@ -1493,7 +1609,13 @@ footer {
       <details class="faq-item">
         <summary class="faq-question">What is the difference between the desktop app and the web edition?</summary>
         <div class="faq-answer">
-          Both editions share the exact same interface, modeling capabilities, and .stlx project format. The desktop app is recommended for very large meshes and enables direct integration to launch Bambu Studio / OrcaSlicer (Send to Slicer) and export to STEP. The web edition runs on any operating system (including macOS, Linux, and ChromeOS) with no download.
+          In 2.0 they are the same app built from the same code, with the same tools and the same .stlx project files. The desktop app is faster on very large meshes and can start your slicer (Send to Slicer: Bambu Studio, OrcaSlicer, PrusaSlicer) and convert to STEP. The web edition runs on any system with a recent browser (including ChromeOS and tablets) with no download.
+        </div>
+      </details>
+      <details class="faq-item">
+        <summary class="faq-question">I use STL Editor 1.x. What changes with 2.0?</summary>
+        <div class="faq-answer">
+          Very little that you will notice: the tabs, panels and shortcuts are the same, and your 1.x projects open in 2.0. 2.0 keeps its settings in its own folder, so you can run both side by side while you switch. The one tool 1.x had that 2.0 doesn't offer is Snap-fit; projects that already use it still open and rebuild.
         </div>
       </details>
     </div>
@@ -1517,7 +1639,7 @@ footer {
       </div>
     </div>
     <div class="footer-credits">
-      Built with <a href="https://github.com/elalish/manifold" target="_blank" rel="noopener">Manifold</a>, <a href="https://threejs.org" target="_blank" rel="noopener">three.js</a>, <a href="https://trimesh.org" target="_blank" rel="noopener">trimesh</a>, and <a href="https://github.com/gittrahan/support-fins" target="_blank" rel="noopener">Support Fins</a>. All trademarks belong to their respective owners.
+      Built with Rust, <a href="https://github.com/natterman12/manifold-rust" target="_blank" rel="noopener">manifold-rust</a> (a Rust port of <a href="https://github.com/elalish/manifold" target="_blank" rel="noopener">Manifold</a>), <a href="https://github.com/emilk/egui" target="_blank" rel="noopener">egui</a>, <a href="https://wgpu.rs" target="_blank" rel="noopener">wgpu</a>, and <a href="https://github.com/gittrahan/support-fins" target="_blank" rel="noopener">Support Fins</a>. All trademarks belong to their respective owners.
     </div>
   </div>
 </footer>
