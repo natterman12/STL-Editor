@@ -1,5 +1,5 @@
 // Engine worker. A second instance of the same wasm module owns the Document.
-// The page sets __STL_ENGINE_WORKER__ so init does not run the canvas entry.
+// __STL_ENGINE_WORKER__ tells the module's `main` (stl-app/src/main.rs) not to start the page.
 // Mesh ArrayBuffers are transferred (detached here) and the page is told.
 //
 // A command runs inside one wasm call, which cannot see worker messages.

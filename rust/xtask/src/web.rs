@@ -120,8 +120,6 @@ fn build(measure: bool) -> Result<PathBuf, String> {
     if !js.contains("engine_worker") {
         return Err("stl-app.js does not export engine_worker. The app binary dropped the web worker entry.".into());
     }
-    let patched = patch_start(&js)?;
-    fs::write(&js_path, patched).map_err(|e| e.to_string())?;
     let web = rust.join("crates/stl-app/web");
     fs::copy(web.join("index.html"), out.join("index.html")).map_err(|e| e.to_string())?;
     fs::copy(web.join("worker.js"), out.join("worker.js")).map_err(|e| e.to_string())?;
@@ -134,18 +132,6 @@ fn build(measure: bool) -> Result<PathBuf, String> {
         fs::copy(src.join(f), fins.join(f)).map_err(|e| format!("no support-fins/{f}: {e}"))?;
     }
     Ok(out)
-}
-
-fn patch_start(js: &str) -> Result<String, String> {
-    const NEEDLE: &str = "wasm.__wbindgen_start();";
-    if !js.contains(NEEDLE) {
-        return Err("wasm-bindgen output has no wasm.__wbindgen_start(); the worker cannot skip the page entry".into());
-    }
-    Ok(js.replacen(
-        NEEDLE,
-        "if (!globalThis.__STL_ENGINE_WORKER__ && !globalThis.__STL_COVERAGE_WORKER__) { wasm.__wbindgen_start(); }",
-        1,
-    ))
 }
 
 fn wasm_bindgen_bin() -> Result<PathBuf, String> {

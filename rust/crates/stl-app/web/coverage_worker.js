@@ -1,5 +1,5 @@
 // Support Fins coverage worker (1.x `sfcoverage.worker.js` contract).
-// A second wasm instance; `__STL_COVERAGE_WORKER__` skips the page entry in stl-app.js.
+// A second wasm instance; `__STL_COVERAGE_WORKER__` tells the module's `main` not to start the page.
 self.__STL_COVERAGE_WORKER__ = true;
 
 const here = new URL(self.location.href);

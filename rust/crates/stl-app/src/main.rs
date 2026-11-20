@@ -388,6 +388,14 @@ mod web_main {
                         format!(";others={}", others.join(","))
                     }
                 );
+                // A second request to the engine, after the load (a rebuild, which pauses between
+                // features). It needs no answer here: an engine that cannot take a request after a
+                // pause is lost, and the last step of this check fails on that.
+                app.link.send(Command::SketchOp {
+                    seq: 0,
+                    op: "faces".into(),
+                    data: serde_json::json!({ "op": "faces", "entities": [] }),
+                });
                 *check = Check::PreOff(4, details);
             }
             Check::PreOff(n, details) => {
@@ -477,6 +485,13 @@ mod web_main {
             },
             Check::Settle { frames, since, details } => {
                 // Keep drawing with the section view on: WebGPU reports some errors a few frames late.
+                if app.engine_lost {
+                    return fail(
+                        check,
+                        backend,
+                        "the engine stopped on a request made after the project loaded",
+                    );
+                }
                 if frames >= 60 && since.elapsed().as_millis() >= 1000 {
                     set_check_status(format!("ok:{backend}:{details}"));
                     *check = Check::Done;
@@ -655,5 +670,19 @@ mod web_main {
 
 #[cfg(target_arch = "wasm32")]
 fn main() {
+    // The engine and coverage workers load this same module and only want its exports, not the
+    // page. The check is here, and not around the glue's `wasm.__wbindgen_start()` call, because
+    // that start function also records the empty stack position that wasm-bindgen's JSPI support
+    // returns to after a command that paused. A worker that skipped it went back to position 0,
+    // and its next command failed with "memory access out of bounds".
+    let global = js_sys::global();
+    let worker = ["__STL_ENGINE_WORKER__", "__STL_COVERAGE_WORKER__"].iter().any(|key| {
+        js_sys::Reflect::get(&global, &(*key).into())
+            .map(|v| v.is_truthy())
+            .unwrap_or(false)
+    });
+    if worker {
+        return;
+    }
     web_main::start();
 }
