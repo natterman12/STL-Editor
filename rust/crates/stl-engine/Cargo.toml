@@ -22,6 +22,8 @@ stl-parity = { path = "../stl-parity" }
 # Real Support Fins hosts for tests/parity.rs (STL_FINS_HOST=webview|boa). A dev-dependency cycle is allowed.
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 stl-platform = { path = "../stl-platform" }
+# Property tests (tests/prop_expr.rs): generated inputs and rules that must hold for all of them.
+proptest = { version = "1.12", default-features = false, features = ["std"] }
 
 [lints]
 workspace = true

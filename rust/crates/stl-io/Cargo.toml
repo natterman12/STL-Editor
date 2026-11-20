@@ -14,5 +14,9 @@ serde_json = "1"
 [dev-dependencies]
 stl-parity = { path = "../stl-parity" }
 
+# Property tests (tests/prop_readers.rs): damaged and random files must open or give a message.
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+proptest = { version = "1.12", default-features = false, features = ["std"] }
+
 [lints]
 workspace = true
