@@ -115,6 +115,24 @@ fn spawn_worker(generation: Arc<AtomicU64>, slot: Arc<JobSlot>) -> Result<Worker
     });
     worker.set_onmessage(Some(closure.as_ref().unchecked_ref()));
     closure.forget();
+    // A worker that fails to load or stops mid-job sends no answer. Say so, and drop it so the
+    // next check starts a new one, instead of leaving the panel calculating for ever.
+    let failed = Closure::<dyn Fn(web_sys::Event)>::new(move |_: web_sys::Event| {
+        WORKER.with(|w| {
+            if let Some(dead) = w.borrow_mut().take() {
+                dead.terminate();
+            }
+        });
+        let seq = generation.load(Ordering::SeqCst);
+        publish_result(
+            &slot,
+            &generation,
+            seq,
+            CoverageJobResult::Error("The coverage check stopped. Change a setting to run it again.".into()),
+        );
+    });
+    worker.set_onerror(Some(failed.as_ref().unchecked_ref()));
+    failed.forget();
     Ok(worker)
 }
 
