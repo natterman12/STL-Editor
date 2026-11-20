@@ -587,6 +587,17 @@ pub fn tool_marks(tool: &ToolDef, values: &Values, ctx: &Ctx) -> Vec<Mark> {
         }
     }
     if tool.key == "thread" {
+        // the thread's point, as a dot to move it by (Hole's points draw theirs)
+        if let Some((_, p)) = super::place_refs::thread_point(values, ctx) {
+            out.push(Mark::Marker {
+                p,
+                color: if super::place_refs::thread_has_refs(values) {
+                    super::place_refs::SNAPPED
+                } else {
+                    super::facepoints::MARKER
+                },
+            });
+        }
         out.extend(super::place_refs::thread_dim_marks(values, ctx));
     }
     if tool.key == "hinge" {

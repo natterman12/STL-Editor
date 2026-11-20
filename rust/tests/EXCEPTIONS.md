@@ -546,6 +546,13 @@ Nathan answered these on 2026-11-14: accepted unless marked otherwise.
   fill 0x7896c8 at alpha 40, in both themes, not 1.x's peach 0xf6c7a8 (Nathan: "make it blue like solidcraft"). The sketch plane's grid is the same
   grey-blue (0x7896c8 at 0.16 / 0.32) on a cool sheet 0xe8eef8, not 1.x's rust 0xc58a68 on 0xfff1e8. The Recover screen has "Discard
   all", which asks once before deleting every copy.
+- **Asked for by Nathan (2026-11-19): a placed Hole or Thread point can be moved in the viewport.** Press its dot and drag:
+  the point follows the pointer on its face (the preview follows when the pointer rests). Thread now draws a dot at its
+  point for this. A click on a Hole dot picks that point (amber): the next click on the same face moves it there instead of
+  adding a hole, the "From" rows are that point's rows, and a click on the dot again or Esc lets go (Esc then closes the
+  panel as before). This works as soon as a step is reopened. Distances from edges and sketch lines stay and take the
+  values they have at the new place; a point with none snaps to sketch geometry as a click does. 1.x can only clear the
+  points and click again. `tests/ui/hole_place.rs`.
 - **Asked for by Nathan (2026-11-19): Thread has a Screw head choice for tapped holes**, under Size: Flush (no pocket, the
   1.x tapped hole and the default), Socket head cap (counterbore) and Countersunk. A pocket for the head is cut into the
   surface and the thread starts at its bottom, so Length is still all thread. New params, stored only with a pocket:

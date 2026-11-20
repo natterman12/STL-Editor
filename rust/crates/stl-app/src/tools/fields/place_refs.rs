@@ -30,6 +30,11 @@ pub const POSITION_REFS: &str = "position_refs";
 /// While set, a click on the part picks an edge or sketch line for the "From" row instead of
 /// adding a point. A `_` key, so it never reaches the engine (`params_cleanup`).
 pub const FROM_PICK: &str = "_from_pick";
+/// The index of the Hole point picked in the viewport (click its dot): the next click on the face
+/// moves that point instead of adding one, and the "From" rows are its rows. A `_` key.
+pub const SEL: &str = "_sel";
+/// The marker colour of the selected point.
+pub const SELECTED: u32 = 0xffc94a;
 /// The marker colour of a point that snapped to sketch geometry or is measured from something.
 pub const SNAPPED: u32 = 0x2f9e44;
 /// At most this many distances per point.
@@ -496,6 +501,90 @@ pub fn refresh_thread(values: &mut Values, ctx: &Ctx) -> bool {
     changed
 }
 
+// ------------------------------------------------------------------ moving a placed point
+
+/// The selected point of `field`, if there is one and it still exists.
+pub fn selected(values: &Values, field: &str) -> Option<usize> {
+    let n = values.get(field).and_then(Value::as_array).map_or(0, Vec::len);
+    let i = values.get(SEL).and_then(Value::as_u64)? as usize;
+    (i < n).then_some(i)
+}
+
+/// The point the "From" rows and an edge pick act on: the selected one, else the last.
+pub fn from_index(values: &Values, field: &str) -> Option<usize> {
+    let n = values.get(field).and_then(Value::as_array).map_or(0, Vec::len);
+    selected(values, field).or(n.checked_sub(1))
+}
+
+/// Whether a click at `hit` (face normal `hit_n`) is on the face the point `at` sits on.
+pub fn same_face(at: V3, n: V3, hit: V3, hit_n: V3) -> bool {
+    let (Some(n), Some(h)) = (unit(n), unit(hit_n)) else {
+        return false;
+    };
+    dot(n, h) > 0.999 && dot(sub(hit, at), n).abs() < 1e-2
+}
+
+/// A point moved by hand to `p` (on its face, normal `n`), and what becomes of its references.
+/// Distances from edges and sketch lines stay and take the values they have at `p`, so the
+/// point is still measured from the same things. A point with none of those snaps to the
+/// sketch geometry near `p`, as a click does.
+fn moved_refs(refs: &[Value], p: V3, n: V3, ctx: &Ctx, tol: f64) -> (V3, Vec<Value>) {
+    let kept: Vec<Value> = refs
+        .iter()
+        .filter(|r| r.get("along").is_none() && r.get("dist").is_some())
+        .map(|r| {
+            let mut r = r.clone();
+            if let Some((a, b)) = ref_line(&r) {
+                r["dist"] = json!(r4(dist_in_plane(p, a, b, n)));
+            }
+            r
+        })
+        .collect();
+    if !kept.is_empty() {
+        return (p, kept);
+    }
+    match snap(p, n, ctx, tol) {
+        Some(s) => (s.p, s.line_ref.into_iter().collect()),
+        None => (p, Vec::new()),
+    }
+}
+
+/// Move Hole's point `i` to `to`, kept on its face. False when there is no such point.
+pub fn move_point(values: &mut Values, field: &str, i: usize, to: V3, ctx: &Ctx, tol: f64) -> bool {
+    let mut pts: Vec<Value> = values.get(field).and_then(Value::as_array).cloned().unwrap_or_default();
+    let (Some(at), Some(n)) = (
+        pts.get(i).and_then(pt_from),
+        values.get("normal").and_then(pt_from).and_then(unit),
+    ) else {
+        return false;
+    };
+    let mut lists = ref_lists(values, POINT_REFS);
+    lists.resize(pts.len(), Vec::new());
+    let (p, refs) = moved_refs(&lists[i], onto_plane(to, n, at), n, ctx, tol);
+    pts[i] = pt4(p);
+    lists[i] = refs;
+    values.insert(field.to_owned(), Value::Array(pts));
+    set_ref_lists(values, POINT_REFS, lists);
+    true
+}
+
+/// Move Thread's point to `to`, kept on its face or plane. False when it has no plane yet.
+pub fn move_thread(values: &mut Values, ctx: &Ctx, to: V3, tol: f64) -> bool {
+    let Some((fr, at)) = thread_point(values, ctx) else {
+        return false;
+    };
+    let Some(n) = unit(fr.normal) else { return false };
+    let (p, refs) = moved_refs(&thread_refs(values), onto_plane(to, n, at), n, ctx, tol);
+    set_thread_point(values, &fr, p);
+    set_thread_refs(values, refs);
+    true
+}
+
+/// Whether Thread's point is placed from something (drawn in [`SNAPPED`]).
+pub fn thread_has_refs(values: &Values) -> bool {
+    !thread_refs(values).is_empty()
+}
+
 /// The reference lists, as stored (`key` holds one list per point).
 pub fn ref_lists(values: &Values, key: &str) -> Vec<Vec<Value>> {
     values
@@ -629,7 +718,7 @@ fn push_ref(refs: &mut Vec<Value>, r: Value) {
     refs.push(r);
 }
 
-/// The "From" rows under a point list. They act on the last point. `active` is set to `field`
+/// The "From" rows under a point list. They act on the selected point, else the last. `active` is set to `field`
 /// while picking, so the click comes to that field. True when a value changed.
 pub fn show_from(
     ui: &mut Ui,
@@ -640,7 +729,7 @@ pub fn show_from(
     inch: bool,
 ) -> bool {
     let mut pts: Vec<Value> = values.get(field).and_then(Value::as_array).cloned().unwrap_or_default();
-    let Some(i) = pts.len().checked_sub(1) else {
+    let Some(i) = from_index(values, field) else {
         return false;
     };
     let Some(at) = pt_from(&pts[i]) else { return false };
@@ -663,10 +752,10 @@ pub fn show_from(
     out.changed || out.toggle_pick
 }
 
-/// Add a picked reference to the last point and move the point so the distances hold.
+/// Add a picked reference to the selected point (else the last) and move the point so the distances hold.
 pub fn add_ref(values: &mut Values, field: &str, r: Value) {
     let mut pts: Vec<Value> = values.get(field).and_then(Value::as_array).cloned().unwrap_or_default();
-    let Some(i) = pts.len().checked_sub(1) else { return };
+    let Some(i) = from_index(values, field) else { return };
     let mut lists = ref_lists(values, POINT_REFS);
     lists.resize(pts.len(), Vec::new());
     push_ref(&mut lists[i], r);
@@ -806,7 +895,7 @@ pub fn thread_dim_marks(values: &Values, ctx: &Ctx) -> Vec<Mark> {
 // ------------------------------------------------------------------ the viewport
 
 /// A frame in the face's plane at `o`.
-fn face_frame(o: V3, n: V3) -> Option<PlaneFrame> {
+pub fn face_frame(o: V3, n: V3) -> Option<PlaneFrame> {
     let f = stl_engine::features::common::frames::plane_frame(o, n, None).ok()?;
     Some(PlaneFrame {
         origin: f.o,

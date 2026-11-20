@@ -51,7 +51,8 @@ pub fn show(
             clear(values, f.key);
             true
         });
-        // M7: the "From" rows (distances from part edges and sketch lines) for the last point
+        // M7: the "From" rows (distances from part edges and sketch lines) for the selected
+        // point, else the last
         if n > 0 && place_refs::show_from(ui, tk, values, f.key, active, ctx.inch) {
             out.changed = true;
         }
@@ -65,6 +66,7 @@ pub fn clear(values: &mut Values, key: &str) {
     values.insert("normal".to_owned(), Value::Null);
     values.remove(POINT_REFS);
     values.remove(FROM_PICK);
+    values.remove(place_refs::SEL);
 }
 
 /// A click adds a point. The first one also stores the face normal (the flat face's, else the
@@ -96,7 +98,10 @@ pub fn feed_pick(f: &Field, values: &mut Values, hit: &Hit, ctx: &Ctx) -> PickOu
     let mut pts = points(values, f.key);
     if values.get(FROM_PICK).and_then(Value::as_bool).unwrap_or(false) {
         values.remove(FROM_PICK);
-        let (Some(at), Some(n)) = (pts.last().and_then(pt_from), values.get("normal").and_then(pt_from)) else {
+        let at = place_refs::from_index(values, f.key)
+            .and_then(|i| pts.get(i))
+            .and_then(pt_from);
+        let (Some(at), Some(n)) = (at, values.get("normal").and_then(pt_from)) else {
             return PickOut::changed();
         };
         return match place_refs::pick_ref(ctx, id, *point, n, at, tol) {
@@ -113,6 +118,20 @@ pub fn feed_pick(f: &Field, values: &mut Values, hit: &Hit, ctx: &Ctx) -> PickOu
                 o
             }
         };
+    }
+    // a point picked by its dot: this click moves it, on the face it is on
+    if let Some(i) = place_refs::selected(values, f.key) {
+        let (Some(at), Some(n)) = (pts.get(i).and_then(pt_from), values.get("normal").and_then(pt_from)) else {
+            return PickOut::used();
+        };
+        if !place_refs::same_face(at, n, *point, face_n()) {
+            return PickOut::said(
+                Level::Warning,
+                "That's a different face. Click the face this hole is on, or click its dot again to stop moving it.",
+            );
+        }
+        place_refs::move_point(values, f.key, i, *point, ctx, tol);
+        return PickOut::changed();
     }
     let n = values.get("normal").and_then(pt_from).unwrap_or_else(face_n);
     let snapped = place_refs::snap(*point, n, ctx, tol);
@@ -135,13 +154,16 @@ pub fn feed_pick(f: &Field, values: &mut Values, hit: &Hit, ctx: &Ctx) -> PickOu
 }
 
 pub fn marks(f: &Field, values: &Values) -> Vec<Mark> {
+    let sel = place_refs::selected(values, f.key);
     let mut out: Vec<Mark> = points(values, f.key)
         .iter()
         .enumerate()
         .filter_map(|(i, v)| {
             pt_from(v).map(|p| Mark::Marker {
                 p,
-                color: if place_refs::has_refs(values, i) {
+                color: if sel == Some(i) {
+                    place_refs::SELECTED
+                } else if place_refs::has_refs(values, i) {
                     SNAPPED
                 } else {
                     MARKER

@@ -29,6 +29,24 @@ const IDENT: M4 = [
     [0.0, 0.0, 0.0, 1.0],
 ];
 
+/// A Hole point or the Thread's point held by its dot.
+pub(super) struct PlaceDrag {
+    /// Which point (Thread has one, 0).
+    idx: usize,
+    /// Where the press was, to tell a click from a drag.
+    press: Pos2,
+    moved: bool,
+    /// The plane the point moves in: its face, through the point as it was pressed.
+    frame: crate::viewport::PlaneFrame,
+    /// The snap distance for this part.
+    tol: f64,
+}
+
+/// A stored point (`[x, y, z]`).
+fn pk_point(v: &Value) -> Option<[f64; 3]> {
+    crate::tools::fields::bodies::pt_from(v)
+}
+
 /// The Support Fins turn applied so far (`t._pose`).
 pub(super) struct Pose {
     fid: Option<String>,
@@ -930,6 +948,214 @@ impl StlApp {
             self.walls_redraw();
         }
         consumed
+    }
+
+    // ------------------------------------------------------------------ moving a placed point
+    //
+    // Hole's points and Thread's point are dots in the viewport. Press a dot and drag: the point
+    // follows the pointer on its face. A click on a Hole dot picks that point, and the next click
+    // on the face moves it there (a click on the face otherwise adds another hole).
+
+    /// The points that can be held now: `(index, point, the plane it moves in)`. Empty unless
+    /// Hole or Thread is open and nothing else owns the pointer.
+    fn place_points(&self) -> Vec<(usize, [f64; 3], crate::viewport::PlaneFrame)> {
+        use crate::tools::fields::place_refs as pr;
+        let Some(t) = self.tool.as_ref() else { return Vec::new() };
+        if self.gizmo.is_some() || t.def.flags.sculpt || self.walls_active() {
+            return Vec::new();
+        }
+        // while "Pick edge" is on, clicks pick what to measure from
+        if t.values.get(pr::FROM_PICK).and_then(Value::as_bool).unwrap_or(false) {
+            return Vec::new();
+        }
+        match t.def.key {
+            "hole" => {
+                let Some(n) = t.values.get("normal").and_then(pk_point) else {
+                    return Vec::new();
+                };
+                t.values
+                    .get("points")
+                    .and_then(Value::as_array)
+                    .into_iter()
+                    .flatten()
+                    .enumerate()
+                    .filter_map(|(i, v)| {
+                        let p = pk_point(v)?;
+                        Some((i, p, pr::face_frame(p, n)?))
+                    })
+                    .collect()
+            }
+            "thread" => {
+                let ctx = make_ctx(
+                    &self.bodies,
+                    &self.planes,
+                    &self.sketches,
+                    &self.timeline_view.items,
+                    &self.shell.selection,
+                    self.shell.inch,
+                );
+                match pr::thread_point(&t.values, &ctx) {
+                    Some((mut fr, p)) => {
+                        fr.origin = p;
+                        vec![(0, p, fr)]
+                    }
+                    None => Vec::new(),
+                }
+            }
+            _ => Vec::new(),
+        }
+    }
+
+    /// Right after `tool_frame`. True when this frame's press or click was on a point.
+    pub(super) fn place_frame(&mut self, ui: &egui::Ui, resp: &egui::Response) -> bool {
+        /// How near the pointer must be to a dot to hold it, and how far it must travel before a
+        /// press is a drag and not a click (both in points).
+        const GRAB: f32 = 9.0;
+        const SLOP: f32 = 4.0;
+        let pts = self.place_points();
+        if pts.is_empty() {
+            if self.place_drag.take().is_some() {
+                self.viewport.set_camera_locked(false);
+            }
+            return false;
+        }
+        let (pos, pressed, down) = ui.input(|i| {
+            (
+                i.pointer.latest_pos(),
+                i.pointer.primary_pressed(),
+                i.pointer.primary_down(),
+            )
+        });
+        let ring = |ui: &egui::Ui, at: Pos2| {
+            ui.painter()
+                .circle_stroke(at, 8.0, egui::Stroke::new(1.5, Color32::from_rgb(0xff, 0xc9, 0x4a)));
+        };
+        if let Some(mut d) = self.place_drag.take() {
+            if !down {
+                // let go: a press that never travelled was a click on the dot
+                self.viewport.set_camera_locked(false);
+                if !d.moved {
+                    self.place_select(d.idx);
+                }
+                return true;
+            }
+            if let Some(at) = pos {
+                if !d.moved && at.distance(d.press) > SLOP {
+                    d.moved = true;
+                }
+                if d.moved
+                    && let Some(to) = self.viewport.ray_to_plane(at, &d.frame)
+                {
+                    self.place_move(d.idx, to, d.tol);
+                }
+            }
+            if let Some((_, p, _)) = self.place_points().into_iter().find(|(i, ..)| *i == d.idx) {
+                ring(ui, self.viewport.world_to_screen(p));
+            }
+            ui.ctx().set_cursor_icon(egui::CursorIcon::Grabbing);
+            ui.ctx().request_repaint();
+            self.place_drag = Some(d);
+            return true;
+        }
+        let Some(at) = pos.filter(|_| resp.contains_pointer()) else {
+            return false;
+        };
+        let near = pts
+            .iter()
+            .map(|(i, p, fr)| (*i, *p, *fr, self.viewport.world_to_screen(*p).distance(at)))
+            .filter(|(.., d)| *d <= GRAB)
+            .min_by(|a, b| a.3.total_cmp(&b.3));
+        let Some((idx, p, frame, _)) = near else { return false };
+        ring(ui, self.viewport.world_to_screen(p));
+        ui.ctx().set_cursor_icon(egui::CursorIcon::Grab);
+        if !pressed {
+            return false;
+        }
+        let tol = self.place_tolerance();
+        self.place_drag = Some(PlaceDrag {
+            idx,
+            press: at,
+            moved: false,
+            frame,
+            tol,
+        });
+        // a finger on a dot moves the point; it does not turn the view
+        self.viewport.set_camera_locked(true);
+        true
+    }
+
+    /// The snap distance for the open tool's part (see `place_refs::tolerance`).
+    fn place_tolerance(&self) -> f64 {
+        let ctx = make_ctx(
+            &self.bodies,
+            &self.planes,
+            &self.sketches,
+            &self.timeline_view.items,
+            &self.shell.selection,
+            self.shell.inch,
+        );
+        let Some(t) = self.tool.as_ref() else { return 1.0 };
+        let body = match t.def.key {
+            "thread" => t
+                .values
+                .get("plane")
+                .and_then(|v| v.get("body"))
+                .and_then(Value::as_str),
+            _ => t
+                .values
+                .get("targets")
+                .and_then(Value::as_array)
+                .and_then(|a| a.first())
+                .and_then(Value::as_str),
+        };
+        crate::tools::fields::place_refs::tolerance(&ctx, body.unwrap_or(""))
+    }
+
+    /// The held point follows the pointer to `to`; the preview is asked for again.
+    fn place_move(&mut self, idx: usize, to: [f64; 3], tol: f64) {
+        use crate::tools::fields::place_refs as pr;
+        let ctx = make_ctx(
+            &self.bodies,
+            &self.planes,
+            &self.sketches,
+            &self.timeline_view.items,
+            &self.shell.selection,
+            self.shell.inch,
+        );
+        let Some(t) = self.tool.as_mut() else { return };
+        let before = (t.values.get("points").cloned(), t.values.get("offset").cloned());
+        match t.def.key {
+            "hole" => pr::move_point(&mut t.values, "points", idx, to, &ctx, tol),
+            "thread" => pr::move_thread(&mut t.values, &ctx, to, tol),
+            _ => false,
+        };
+        if before != (t.values.get("points").cloned(), t.values.get("offset").cloned()) {
+            t.schedule_preview(60);
+        }
+    }
+
+    /// A click on a Hole dot picks that point (the next click on the face moves it); a click on
+    /// the picked one lets go of it. Thread has one point, and a click on the face already moves it.
+    fn place_select(&mut self, idx: usize) {
+        use crate::tools::fields::place_refs as pr;
+        let Some(t) = self.tool.as_mut() else { return };
+        if t.def.key != "hole" {
+            return;
+        }
+        if pr::selected(&t.values, "points") == Some(idx) {
+            t.values.remove(pr::SEL);
+        } else {
+            t.values.insert(pr::SEL.to_owned(), json!(idx));
+            // the click that moves it goes to the points field
+            t.active_field = Some("points".to_owned());
+        }
+    }
+
+    /// Esc: let go of the picked Hole point. False when none was picked.
+    pub(super) fn place_deselect(&mut self) -> bool {
+        use crate::tools::fields::place_refs as pr;
+        let Some(t) = self.tool.as_mut() else { return false };
+        t.def.key == "hole" && t.values.remove(pr::SEL).is_some()
     }
 
     /// The strokes overlay after an Undo stroke (a drawn stroke is already on screen).

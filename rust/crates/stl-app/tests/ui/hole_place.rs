@@ -365,3 +365,166 @@ fn reopen_shows_the_point_a_rebuild_moved() {
         item.params
     );
 }
+
+// ---------------------------------------------------------------- moving a placed point
+// (Nathan 2026-11-19): press a point's dot and drag it along its face; or, for a hole, click the
+// dot and then click where it should go. Distances from edges stay and take their new values.
+
+fn pointer(h: &mut H, at: egui::Pos2, pressed: Option<bool>) {
+    h.event(egui::Event::PointerMoved(at));
+    if let Some(p) = pressed {
+        h.event(egui::Event::PointerButton {
+            pos: at,
+            button: egui::PointerButton::Primary,
+            pressed: p,
+            modifiers: Default::default(),
+        });
+    }
+    h.step();
+}
+
+/// Press at world point `from`, drag to `to`, let go.
+fn drag_world(h: &mut H, from: [f64; 3], to: [f64; 3]) {
+    let (a, b) = {
+        let vp = &h.state().viewport;
+        (vp.world_to_screen(from), vp.world_to_screen(to))
+    };
+    let mid = a + (b - a) * 0.5;
+    pointer(h, a, None);
+    pointer(h, a, Some(true));
+    pointer(h, mid, None);
+    pointer(h, b, None);
+    pointer(h, b, Some(false));
+    h.run_steps(3);
+}
+
+fn point_xy(v: &Value) -> (f64, f64) {
+    (v[0].as_f64().unwrap(), v[1].as_f64().unwrap())
+}
+
+fn near(got: (f64, f64), want: (f64, f64)) -> bool {
+    (got.0 - want.0).abs() < 0.15 && (got.1 - want.1).abs() < 0.15
+}
+
+#[test]
+fn dragging_a_hole_dot_moves_that_hole() {
+    let (mut h, link) = plate_with_sketch();
+    assert!(open_tool(&mut h, "hole"));
+    click_world(&mut h, [25.0, 20.0, 5.0]);
+    click_world(&mut h, [12.0, 22.0, 5.0]);
+    drag_world(&mut h, [25.0, 20.0, 5.0], [20.0, 24.0, 5.0]);
+    let pts = values(&h)["points"].clone();
+    assert_eq!(pts.as_array().map(Vec::len), Some(2), "a drag adds no hole: {pts}");
+    assert!(near(point_xy(&pts[0]), (20.0, 24.0)), "the first hole moved: {pts}");
+    assert!(near(point_xy(&pts[1]), (12.0, 22.0)), "the second stayed: {pts}");
+    assert!(
+        (pts[0][2].as_f64().unwrap() - 5.0).abs() < 1e-6,
+        "still on the face: {pts}"
+    );
+    assert!(values(&h).get("_sel").is_none(), "a drag picks nothing");
+
+    // the step, reopened: the dots can be dragged straight away
+    h.state_mut().tool_ok();
+    settle(&mut h, &link);
+    let item = h
+        .state()
+        .timeline_view
+        .items
+        .iter()
+        .find(|i| i.kind == "hole")
+        .cloned()
+        .expect("the Hole step");
+    assert_eq!(item.error, None);
+    assert!(item.params.get("_sel").is_none());
+    assert!(h.state_mut().edit_feature(&item.id));
+    h.run_steps(4);
+    drag_world(&mut h, [12.0, 22.0, 5.0], [10.0, 12.0, 5.0]);
+    let pts = values(&h)["points"].clone();
+    assert!(near(point_xy(&pts[1]), (10.0, 12.0)), "moved after reopening: {pts}");
+    assert_eq!(pts.as_array().map(Vec::len), Some(2));
+}
+
+#[test]
+fn click_a_hole_dot_then_the_face_moves_it() {
+    let (mut h, _link) = plate_with_sketch();
+    assert!(open_tool(&mut h, "hole"));
+    click_world(&mut h, [25.0, 20.0, 5.0]);
+    click_world(&mut h, [12.0, 22.0, 5.0]);
+
+    // a click on the first dot picks it; the next click on the face moves it there
+    let dot = h.state().viewport.world_to_screen([25.0, 20.0, 5.0]);
+    click_at(&mut h, dot);
+    assert_eq!(values(&h).get("_sel"), Some(&json!(0)), "the first hole is picked");
+    assert_eq!(
+        values(&h)["points"].as_array().map(Vec::len),
+        Some(2),
+        "no hole was added"
+    );
+    click_world(&mut h, [20.0, 14.0, 5.0]);
+    let pts = values(&h)["points"].clone();
+    assert_eq!(pts.as_array().map(Vec::len), Some(2), "{pts}");
+    assert!(near(point_xy(&pts[0]), (20.0, 14.0)), "{pts}");
+
+    // Esc lets go of it and leaves the panel open; a click then adds a hole again
+    h.key_press(egui::Key::Escape);
+    h.run_steps(3);
+    assert!(h.state().tool().is_some(), "Esc only let go of the point");
+    assert!(values(&h).get("_sel").is_none());
+    click_world(&mut h, [8.0, 25.0, 5.0]);
+    assert_eq!(values(&h)["points"].as_array().map(Vec::len), Some(3));
+
+    // a click on the picked dot lets go of it too
+    let dot = h.state().viewport.world_to_screen([8.0, 25.0, 5.0]);
+    click_at(&mut h, dot);
+    assert_eq!(values(&h).get("_sel"), Some(&json!(2)));
+    click_at(&mut h, dot);
+    assert!(values(&h).get("_sel").is_none());
+    assert_eq!(values(&h)["points"].as_array().map(Vec::len), Some(3));
+}
+
+#[test]
+fn a_dragged_point_keeps_the_edges_it_is_measured_from() {
+    let (mut h, _link) = plate_with_sketch();
+    assert!(open_tool(&mut h, "hole"));
+    click_world(&mut h, [12.0, 19.0, 5.0]);
+    pick_edge_at(&mut h, [0.4, 24.0, 5.0]); // the left edge: 12 mm away
+    drag_world(&mut h, [12.0, 19.0, 5.0], [20.0, 15.0, 5.0]);
+    let v = values(&h);
+    assert!(near(point_xy(&v["points"][0]), (20.0, 15.0)), "{:?}", v["points"]);
+    let r = &v["point_refs"][0][0];
+    assert_eq!(r["kind"], json!("edge"), "still measured from the edge: {r}");
+    assert!(
+        (r["dist"].as_f64().unwrap() - 20.0).abs() < 0.15,
+        "now 20 mm from it: {r}"
+    );
+    // and it stays there: the panel does not pull it back to the old distance
+    h.run_steps(5);
+    assert!(near(point_xy(&values(&h)["points"][0]), (20.0, 15.0)));
+}
+
+#[test]
+fn dragging_the_thread_dot_moves_the_thread() {
+    let (mut h, _link) = plate_with_sketch();
+    assert!(open_tool(&mut h, "thread"));
+    click_world(&mut h, [25.0, 20.0, 5.0]);
+    let world = |h: &H| -> (f64, f64, f64) {
+        let v = values(h);
+        let (pl, off) = (&v["plane"], &v["offset"]);
+        let a = |v: &Value| -> [f64; 3] { std::array::from_fn(|i| v[i].as_f64().unwrap()) };
+        let (o, n, x) = (a(&pl["origin"]), a(&pl["normal"]), a(&pl["xdir"]));
+        let y = [
+            n[1] * x[2] - n[2] * x[1],
+            n[2] * x[0] - n[0] * x[2],
+            n[0] * x[1] - n[1] * x[0],
+        ];
+        let (u, w) = (off[0].as_f64().unwrap(), off[1].as_f64().unwrap());
+        let p: [f64; 3] = std::array::from_fn(|i| o[i] + u * x[i] + w * y[i]);
+        (p[0], p[1], p[2])
+    };
+    let p = world(&h);
+    assert!(near((p.0, p.1), (25.0, 20.0)), "placed by the click: {p:?}");
+    drag_world(&mut h, [25.0, 20.0, 5.0], [20.0, 24.0, 5.0]);
+    let p = world(&h);
+    assert!(near((p.0, p.1), (20.0, 24.0)), "moved by the drag: {p:?}");
+    assert!((p.2 - 5.0).abs() < 1e-6, "still on the face: {p:?}");
+}

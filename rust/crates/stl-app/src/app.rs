@@ -115,6 +115,8 @@ pub struct StlApp {
     runtime_tools: HashMap<String, &'static ToolDef>,
     /// The handles of Move / Rotate / Scale (and Support Fins' rings) while that tool is open.
     gizmo: Option<Gizmo>,
+    /// A Hole point or the Thread's point held by its dot (`app_wiring.rs`, `place_frame`).
+    place_drag: Option<wiring::PlaceDrag>,
     sculpt: Sculpt,
     /// Support Fins, coverage and Draw Walls (`app_wiring.rs`).
     sf: wiring::Sf,
@@ -331,6 +333,7 @@ impl StlApp {
             committing: false,
             runtime_tools: HashMap::new(),
             gizmo: None,
+            place_drag: None,
             sculpt: Sculpt::new(),
             sf: Default::default(),
             sketch: None,
@@ -844,7 +847,12 @@ impl StlApp {
                     KeyAction::ToggleCut => self.toggle_cut(),
                     KeyAction::New => self.shell.file_requests.push(UiAction::New),
                     KeyAction::BeginSketch => self.push_ui_event(UiEvent::OpenTool("sketch".into())),
-                    KeyAction::PanelCancel => self.tool_cancel(),
+                    // Esc first lets go of a Hole point picked to be moved, then closes the panel
+                    KeyAction::PanelCancel => {
+                        if !self.place_deselect() {
+                            self.tool_cancel();
+                        }
+                    }
                     KeyAction::PanelOk => self.tool_ok(),
                     KeyAction::Walls(_) | KeyAction::Gizmo { .. } => self.tool_key(&a),
                     KeyAction::Sketcher(press)
@@ -2087,6 +2095,10 @@ impl StlApp {
             // the handles, the Sculpt brush and Draw Walls' pointer first: a click on one of
             // them isn't a click on the part
             let mut consumed = self.tool_frame(ui, &vr.response);
+            // a press on a placed Hole or Thread point moves that point; it is not a new click
+            if !consumed && self.sketch.is_none() {
+                consumed |= self.place_frame(ui, &vr.response);
+            }
             consumed |= self.viewport.drag_plane_hot();
             if let Some(g) = self.gizmo.as_mut() {
                 consumed |= g.consume_click();
