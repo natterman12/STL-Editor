@@ -596,6 +596,17 @@ fn slower_than_saved(saved: f64, now: f64) -> bool {
     now > saved * SLOWER_RATIO && now - saved > SLOWER_BY_S
 }
 
+/// True when both paths name one file, however each was written.
+fn same_file(a: &Path, b: &Path) -> bool {
+    a == b || matches!((a.canonicalize(), b.canonicalize()), (Ok(a), Ok(b)) if a == b)
+}
+
+/// True when `--save` must leave its file alone: the run was slower than the saved run in that
+/// same file, and writing the slow times over it would make the next `--compare` pass.
+fn keep_saved_run(save: &Path, compare: Option<&Path>, slower: bool) -> bool {
+    slower && compare.is_some_and(|c| same_file(save, c))
+}
+
 /// The saved 2.0 seconds by row key, and the note of what was saved (commit).
 fn read_saved(path: &Path) -> Result<(Map<String, Value>, String), String> {
     let text = std::fs::read_to_string(path).map_err(|e| {
@@ -648,6 +659,7 @@ fn write_saved(path: &Path, root: &Path, rust: &[f64]) -> Result<(), String> {
 ///
 /// `--save [file]` keeps this run's 2.0 times; `--compare [file]` sets a later run beside them,
 /// so a change that makes 2.0 slower than it was shows even where 2.0 is still far ahead of 1.x.
+/// With both on one file, a run that is slower than the saved one is not saved over it.
 /// `--skip-1x` leaves the 1.x timing out (it needs Python and takes the longer half of the run).
 pub fn run(args: impl Iterator<Item = String>) -> Result<bool, String> {
     let root: PathBuf = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -696,6 +708,7 @@ pub fn run(args: impl Iterator<Item = String>) -> Result<bool, String> {
             ok &= ratio <= 1.0;
         }
     }
+    let mut slower_than_saved_run = false;
     if let Some((times, commit)) = &saved {
         println!("\n2.0 now ({}) beside the saved run ({commit}):", commit_note(&root));
         println!("{:<38} {:>9} {:>9} {:>8}", "operation", "saved s", "now s", "change");
@@ -708,8 +721,9 @@ pub fn run(args: impl Iterator<Item = String>) -> Result<bool, String> {
             let slower = slower_than_saved(s, *r);
             let flag = if slower { "  SLOWER" } else { "" };
             println!("{label:<38} {s:>9.3} {r:>9.3} {:>+7.0}%{flag}", (r / s - 1.0) * 100.0);
-            ok &= !slower;
+            slower_than_saved_run |= slower;
         }
+        ok &= !slower_than_saved_run;
     } else if py.is_none() {
         println!("\n{:<38} {:>9}", "operation", "2.0 s");
         for ((_, label), r) in NAMES.iter().zip(&rust) {
@@ -717,8 +731,15 @@ pub fn run(args: impl Iterator<Item = String>) -> Result<bool, String> {
         }
     }
     if let Some(p) = &opts.save {
-        write_saved(p, &root, &rust)?;
-        println!("\nbench: saved this run's 2.0 times to {}", p.display());
+        if keep_saved_run(p, opts.compare.as_deref(), slower_than_saved_run) {
+            println!(
+                "\nbench: not saved: this run is slower than the saved run in {}, which stays as it was",
+                p.display()
+            );
+        } else {
+            write_saved(p, &root, &rust)?;
+            println!("\nbench: saved this run's 2.0 times to {}", p.display());
+        }
     }
     Ok(ok)
 }
@@ -758,6 +779,29 @@ mod tests {
         assert!(parse_args(&args(&["--fast"]), root).is_err());
         let o = parse_args(&[], root).unwrap();
         assert!(o.save.is_none() && o.compare.is_none() && !o.skip_1x);
+    }
+
+    #[test]
+    fn a_slower_run_does_not_replace_the_run_it_was_compared_with() {
+        let saved = Path::new("root").join(SAVED_RUN);
+        // slower than the saved run in the same file: keep the file
+        assert!(keep_saved_run(&saved, Some(&saved), true));
+        // not slower, or nothing compared: save as usual
+        assert!(!keep_saved_run(&saved, Some(&saved), false));
+        assert!(!keep_saved_run(&saved, None, false));
+        // compared with one file and saved to another: both are kept, so save
+        assert!(!keep_saved_run(
+            Path::new("after.json"),
+            Some(Path::new("before.json")),
+            true
+        ));
+        // one file written two ways is still one file
+        let path = std::env::temp_dir().join(format!("stl-bench-same-{}.json", std::process::id()));
+        std::fs::write(&path, "{}").unwrap();
+        let other = path.parent().unwrap().join(".").join(path.file_name().unwrap());
+        let same = keep_saved_run(&other, Some(&path), true);
+        let _ = std::fs::remove_file(&path);
+        assert!(same);
     }
 
     #[test]
