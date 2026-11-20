@@ -8,6 +8,7 @@ on:
       - "stleditor/**"
       - "requirements.txt"
       - ".github/workflows/rust.yml"
+      - ".github/actions/**"
   pull_request:
     paths:
       - "rust/**"
@@ -15,6 +16,7 @@ on:
       - "stleditor/**"
       - "requirements.txt"
       - ".github/workflows/rust.yml"
+      - ".github/actions/**"
   workflow_dispatch:
 
 permissions:
@@ -64,8 +66,9 @@ jobs:
 
       - name: Install WebKitGTK and Xvfb (Linux Support Fins host)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev xvfb
-        working-directory: .
+        uses: ./.github/actions/apt-install
+        with:
+          packages: libwebkit2gtk-4.1-dev xvfb
 
       # The test runner (settings: rust/.config/nextest.toml). A ready-built copy, so no build time.
       - name: Install cargo-nextest
@@ -302,20 +305,19 @@ jobs:
       # stl-platform (wry) needs WebKitGTK on Linux.
       - name: Install eframe / wgpu system libraries (Linux)
         if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libxkbcommon-dev \
-            libwayland-dev \
-            libx11-dev \
-            libxcursor-dev \
-            libxrandr-dev \
-            libxi-dev \
-            libgl1-mesa-dev \
-            pkg-config \
-            libwebkit2gtk-4.1-dev \
+        uses: ./.github/actions/apt-install
+        with:
+          packages: >-
+            libxkbcommon-dev
+            libwayland-dev
+            libx11-dev
+            libxcursor-dev
+            libxrandr-dev
+            libxi-dev
+            libgl1-mesa-dev
+            pkg-config
+            libwebkit2gtk-4.1-dev
             xvfb
-        working-directory: .
 
       - name: Build stl-app (release)
         run: cargo build -p stl-app --release
@@ -369,19 +371,18 @@ jobs:
 
       # Host build of xtask pulls stl-platform (wry/WebKitGTK) via glib-sys.
       - name: Install eframe / wgpu system libraries
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libxkbcommon-dev \
-            libwayland-dev \
-            libx11-dev \
-            libxcursor-dev \
-            libxrandr-dev \
-            libxi-dev \
-            libgl1-mesa-dev \
-            pkg-config \
+        uses: ./.github/actions/apt-install
+        with:
+          packages: >-
+            libxkbcommon-dev
+            libwayland-dev
+            libx11-dev
+            libxcursor-dev
+            libxrandr-dev
+            libxi-dev
+            libgl1-mesa-dev
+            pkg-config
             libwebkit2gtk-4.1-dev
-        working-directory: .
 
       - name: Install Chrome
         id: chrome
@@ -456,19 +457,18 @@ jobs:
 
       - name: Install eframe / wgpu system libraries (Linux)
         if: matrix.kind == 'linux' || matrix.kind == 'web'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libxkbcommon-dev \
-            libwayland-dev \
-            libx11-dev \
-            libxcursor-dev \
-            libxrandr-dev \
-            libxi-dev \
-            libgl1-mesa-dev \
-            pkg-config \
+        uses: ./.github/actions/apt-install
+        with:
+          packages: >-
+            libxkbcommon-dev
+            libwayland-dev
+            libx11-dev
+            libxcursor-dev
+            libxrandr-dev
+            libxi-dev
+            libgl1-mesa-dev
+            pkg-config
             libwebkit2gtk-4.1-dev
-        working-directory: .
 
       # Release build of the desktop app (Windows, macOS, Linux).
       - name: Build stl-app (release)

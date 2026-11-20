@@ -1,0 +1,47 @@
+name: Install Linux packages
+description: >
+  apt-get install, with the downloaded package files kept in the Actions cache. The Ubuntu mirror
+  the runners use is sometimes very slow (the same 67 MB took 8 seconds in one job and 19 minutes
+  in the next), so the files are downloaded only when the list of packages or a version changes.
+
+inputs:
+  packages:
+    description: Package names, separated by spaces.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    # The cache key is made from the exact files apt would download (names, sizes and hashes), so a
+    # new version of any package gives a new key and a fresh download.
+    - name: Work out which package files are needed
+      id: list
+      shell: bash
+      env:
+        PACKAGES: ${{ inputs.packages }}
+      run: |
+        sudo apt-get update
+        key=$(sudo apt-get install -y --print-uris $PACKAGES | grep "^'" | sort | sha256sum | cut -c1-20)
+        echo "key=$key" >> "$GITHUB_OUTPUT"
+
+    - name: Package files from the cache
+      uses: actions/cache@v6
+      with:
+        path: ~/apt-debs
+        key: apt-debs-${{ runner.os }}-${{ runner.arch }}-${{ steps.list.outputs.key }}
+
+    # apt takes the files it finds in the folder and downloads only the ones that are missing.
+    # Afterwards the folder is handed back to the runner's user, so the cache step can read it.
+    - name: Install
+      shell: bash
+      env:
+        PACKAGES: ${{ inputs.packages }}
+      run: |
+        mkdir -p "$HOME/apt-debs/partial"
+        sudo apt-get install -y \
+          -o Dir::Cache::Archives="$HOME/apt-debs/" \
+          -o APT::Keep-Downloaded-Packages=true \
+          $PACKAGES
+        sudo rm -rf "$HOME/apt-debs/partial" "$HOME/apt-debs/lock"
+        sudo chown -R "$(id -u):$(id -g)" "$HOME/apt-debs"
+        echo "package files kept: $(ls "$HOME/apt-debs" | wc -l)"
