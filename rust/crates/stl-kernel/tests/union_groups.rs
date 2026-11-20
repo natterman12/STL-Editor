@@ -71,9 +71,9 @@ fn union_of_a_ring_is_unchanged() {
     // differently), so its hash was recorded on Windows; elsewhere the size is checked and
     // `union_of_groups_repeats` checks the bytes don't depend on the order groups finish in
     if cfg!(windows) {
-        assert_eq!(hash(&u), EXPECTED_RING, "ring: {:?}", hash(&u));
+        assert!(EXPECTED_RING.contains(&hash(&u)), "ring: {:?}", hash(&u));
     } else {
-        assert_eq!(hash(&u).0, EXPECTED_RING.0, "ring: {:?}", hash(&u));
+        assert_eq!(hash(&u).0, EXPECTED_RING[0].0, "ring: {:?}", hash(&u));
     }
 }
 
@@ -89,10 +89,9 @@ fn union_of_groups_repeats() {
 }
 
 const EXPECTED_ROW: (usize, u64) = (11042, 11494398696467308062);
-/// The ring's bytes differ between debug and release builds of the kernel (the code before the
-/// parallel groups gives the same two values), so each build has its own recorded hash.
-const EXPECTED_RING: (usize, u64) = if cfg!(debug_assertions) {
-    (15682, 4315223761225570891)
-} else {
-    (15682, 17949423041799652355)
-};
+/// The ring's bytes come out as one of two values, by how the kernel was built (the code before
+/// the parallel groups gives the same two). The first is what debug builds give, and optimised
+/// builds without fat LTO (the test-fast profile CI uses) or with the MSVC toolchain; the second
+/// is the release profile (fat LTO) with the GNU toolchain. A test cannot ask which build it is
+/// in, so either is accepted; any other value means the union changed.
+const EXPECTED_RING: [(usize, u64); 2] = [(15682, 4315223761225570891), (15682, 17949423041799652355)];
