@@ -9,6 +9,10 @@ all-features = true
 # Known security problems (the RustSec advisory database, downloaded on each run).
 # A crate with an advisory fails the check; to accept one, list its id under `ignore` with the reason.
 [advisories]
+# "No longer maintained" is reported only for crates we use directly. The ones deep inside other
+# crates (GTK's, for the Linux window) are for those crates to replace, and none has a known flaw:
+# a real security problem fails the check wherever it is.
+unmaintained = "workspace"
 ignore = [
     # ttf-parser (reads fonts for sketch text) is no longer maintained; there is no fixed version
     # and no known security problem in it. Moving to skrifa is a job of its own, because the text
