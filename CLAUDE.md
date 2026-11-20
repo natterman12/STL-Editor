@@ -32,8 +32,10 @@ Rust workspace (`rust/`, the 2.0 rewrite), run from `rust/`: `cargo fmt --all` a
 `cargo clippy --workspace --all-targets -- -D warnings` before saying a Rust change is done
 (CI's "Format and lints" job fails on either). Settings: `rust/rustfmt.toml` and
 `[workspace.lints]` in `rust/Cargo.toml`; `rust/third_party` is vendored and left alone.
-Rust tests: `cargo nextest run --workspace --release` (what CI runs; about a minute once built;
-install once with `cargo install cargo-nextest --locked`; settings in `rust/.config/nextest.toml`).
+Rust tests: `cargo nextest run --workspace --release` (about a minute once built; install once
+with `cargo install cargo-nextest --locked`; settings in `rust/.config/nextest.toml`). CI runs
+them with `--cargo-profile test-fast` in place of `--release`: optimised but no fat LTO, so the
+120 test programs build in minutes (profile in `rust/Cargo.toml`).
 `cargo test` still works. After adding or updating a crate: `cargo deny check` from `rust/`
 (advisories and licences; CI's "Dependencies" job; install once with
 `cargo install cargo-deny --locked`; settings and exceptions in `rust/deny.toml`).

@@ -75,13 +75,14 @@ jobs:
 
       # Every test in its own process, many at a time. With the ci profile a test that fails is
       # tried twice more and listed as FLAKY if it then passes. Support Fins' webview host needs a
-      # display on Linux.
+      # display on Linux. The tests are built with the test-fast profile (rust/Cargo.toml): optimised
+      # like release but without fat LTO, which took most of an hour over the 120 test programs.
       - name: Test
-        run: ${{ runner.os == 'Linux' && 'xvfb-run -a ' || '' }}cargo nextest run --workspace --release --profile ci
+        run: ${{ runner.os == 'Linux' && 'xvfb-run -a ' || '' }}cargo nextest run --workspace --cargo-profile test-fast --profile ci
 
       # nextest does not run the examples in doc comments; cargo does.
       - name: Doc tests
-        run: cargo test --workspace --release --doc
+        run: cargo test --workspace --profile test-fast --doc
 
       - name: Upload snapshot differences
         if: failure()
@@ -95,7 +96,7 @@ jobs:
 
       - name: Support Fins cases on the WebView2 host
         if: runner.os == 'Windows'
-        run: STL_FINS_HOST=webview cargo test --release -p stl-engine --test parity -- --nocapture
+        run: STL_FINS_HOST=webview cargo test --profile test-fast -p stl-engine --test parity -- --nocapture
 
       - name: Build for WebAssembly
         run: |

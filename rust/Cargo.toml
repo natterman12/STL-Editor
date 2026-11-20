@@ -33,6 +33,15 @@ opt-level = 3
 lto = "fat"
 codegen-units = 1
 
+# For running the tests on CI (`--cargo-profile test-fast` with nextest, `--profile test-fast` with
+# cargo test). Optimised like release, but without optimising each program as a whole: the
+# workspace has about 120 test programs and fat LTO on each took most of an hour on CI.
+# The app that ships is still built with the release profile above.
+[profile.test-fast]
+inherits = "release"
+lto = false
+codegen-units = 16
+
 # Our copy of manifold-rust, so the kernel's speed can be fixed here (third_party/manifold-rust/VENDORED.md).
 [patch.crates-io]
 manifold-rust = { path = "third_party/manifold-rust" }
