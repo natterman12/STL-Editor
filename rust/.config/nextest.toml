@@ -1,0 +1,22 @@
+# Settings for cargo-nextest, the test runner CI uses for the workspace's tests
+# (`cargo nextest run --workspace --release`; install once with `cargo install cargo-nextest --locked`).
+# It runs every test in a process of its own, many at a time, so the whole workspace takes about
+# a minute once built. `cargo test` still works and needs none of this.
+
+[profile.default]
+# Run everything and list every failure, as `cargo test --no-fail-fast` does.
+fail-fast = false
+# Say so when a test has run for 2 minutes; stop it after 6 (the UI harness waits up to 120 s
+# for the engine to go idle, so a healthy test can be slow, but not that slow).
+slow-timeout = { period = "120s", terminate-after = 3 }
+
+# Tests that hold a frame or a pick to a time budget are run alone: beside 19 other tests they
+# measure the other tests' load, not the app.
+[[profile.default.overrides]]
+filter = 'package(stl-app) & test(/under_\d+ms|never_stalls|in_its_frame|inside_a_frame|fits_a_frame|under_budget|off_the_ui_thread|off_ui_thread/)'
+threads-required = "num-cpus"
+
+# CI (`--profile ci`): a test that fails is tried twice more. One that then passes is listed as
+# FLAKY in the summary instead of failing the run; one that fails three times fails it.
+[profile.ci]
+retries = 2

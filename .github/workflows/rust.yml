@@ -67,9 +67,21 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev xvfb
         working-directory: .
 
-      # Support Fins' webview host needs a display on Linux.
+      # The test runner (settings: rust/.config/nextest.toml). A ready-built copy, so no build time.
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: nextest
+
+      # Every test in its own process, many at a time. With the ci profile a test that fails is
+      # tried twice more and listed as FLAKY if it then passes. Support Fins' webview host needs a
+      # display on Linux.
       - name: Test
-        run: ${{ runner.os == 'Linux' && 'xvfb-run -a ' || '' }}cargo test --workspace --release --no-fail-fast
+        run: ${{ runner.os == 'Linux' && 'xvfb-run -a ' || '' }}cargo nextest run --workspace --release --profile ci
+
+      # nextest does not run the examples in doc comments; cargo does.
+      - name: Doc tests
+        run: cargo test --workspace --release --doc
 
       - name: Upload snapshot differences
         if: failure()

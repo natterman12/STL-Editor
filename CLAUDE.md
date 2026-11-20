@@ -32,6 +32,10 @@ Rust workspace (`rust/`, the 2.0 rewrite), run from `rust/`: `cargo fmt --all` a
 `cargo clippy --workspace --all-targets -- -D warnings` before saying a Rust change is done
 (CI's "Format and lints" job fails on either). Settings: `rust/rustfmt.toml` and
 `[workspace.lints]` in `rust/Cargo.toml`; `rust/third_party` is vendored and left alone.
+Rust tests: `cargo nextest run --workspace --release` (what CI runs; about a minute once built;
+install once with `cargo install cargo-nextest --locked`; settings in `rust/.config/nextest.toml`).
+`cargo test` still works. Tests that hold a frame to a time budget run alone under nextest: give
+a new one a name the filter in that file matches.
 
 Before saying a change is done: `python packaging/build_web.py`, `python -m pytest -q tests`,
 and the UI tests that cover what you touched (`node tests/ui/run.js <names>`). The pytest run
