@@ -154,6 +154,18 @@ fn browser_call_reports_thrown_error() {
     assert_eq!(err, "Error: boom");
 }
 
+/// `__info` is the engine's VERSION.json as the worker script left it on the global. Without it
+/// the web edition's About Support Fins read "Support Fins  ()" (Nathan 2026-11-19).
+#[wasm_bindgen_test]
+fn browser_info_is_the_version_file_the_worker_left() {
+    js_sys::eval("delete globalThis.__STL_FINS_INFO__").expect("clear");
+    assert_eq!(BrowserHost.call("__info", &[]).unwrap(), "{}");
+    let text = r#"{"version":"9.9.9","commit":"abcdef0123"}"#;
+    js_sys::eval(&format!("globalThis.__STL_FINS_INFO__ = '{text}'")).expect("set");
+    assert_eq!(BrowserHost.call("__info", &[]).unwrap(), text);
+    js_sys::eval("delete globalThis.__STL_FINS_INFO__").expect("clear");
+}
+
 #[wasm_bindgen_test]
 fn browser_options_schema_json() {
     let host = load_engine();

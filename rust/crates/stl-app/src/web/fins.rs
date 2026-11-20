@@ -40,6 +40,14 @@ fn err_string(v: JsValue) -> String {
 
 impl FinsHost for BrowserHost {
     fn call(&self, name: &str, args: &[&str]) -> Result<String, String> {
+        // the engine's `VERSION.json`, which the worker script fetched beside the engine and
+        // left on its global (the desktop hosts read the file themselves)
+        if name == "__info" {
+            return Ok(Reflect::get(&js_sys::global(), &JsValue::from_str("__STL_FINS_INFO__"))
+                .ok()
+                .and_then(|v| v.as_string())
+                .unwrap_or_else(|| "{}".into()));
+        }
         let e = engine().ok_or_else(|| format!("TypeError: SupportFinsEngine.{name} is not a function"))?;
         let raw = Reflect::get(&e, &JsValue::from_str(name))
             .map_err(|_| format!("TypeError: SupportFinsEngine.{name} is not a function"))?;

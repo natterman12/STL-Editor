@@ -57,6 +57,18 @@ try {
 } catch (e) {
   // without it Support Fins reports that its engine is missing; the rest of the app is unaffected
 }
+// Which engine that is (its version and commit, for the panel's credit and Help > About
+// Support Fins): the VERSION.json beside it, kept as text for the wasm host's `__info`.
+try {
+  const r = await fetch(new URL("./support-fins/VERSION.json", here));
+  if (r.ok) {
+    const text = await r.text();
+    JSON.parse(text);
+    self.__STL_FINS_INFO__ = text;
+  }
+} catch (e) {
+  // the version then shows as unknown
+}
 const mod = await import(glue);
 await mod.default(wasmUrl);
 mod.engine_worker();
