@@ -542,6 +542,81 @@ pub fn connector_patch(connector: &str) -> Option<serde_json::Map<String, Value>
     ]))
 }
 
+/// Screw head sizes by thread diameter, in the unit of the standard: socket head cap screw head
+/// diameter (ISO 4762, ASME B18.3) and flat (countersunk) head diameter (ISO 10642 / DIN 7991,
+/// ISO 2009 below M3; ASME B18.3, 82°). A cap screw's head is as high as the thread is wide.
+const METRIC_HEADS: &[(f64, f64, f64)] = &[
+    (1.6, 3.0, 3.0),
+    (2.0, 3.8, 3.8),
+    (2.5, 4.5, 4.7),
+    (3.0, 5.5, 6.0),
+    (4.0, 7.0, 8.0),
+    (5.0, 8.5, 10.0),
+    (6.0, 10.0, 12.0),
+    (8.0, 13.0, 16.0),
+    (10.0, 16.0, 20.0),
+    (12.0, 18.0, 24.0),
+    (14.0, 21.0, 27.0),
+    (16.0, 24.0, 30.0),
+    (20.0, 30.0, 36.0),
+    (24.0, 36.0, 39.0),
+];
+
+/// As [`METRIC_HEADS`], in inches: #0 to #10, then 1/4" to 3/4".
+const INCH_HEADS: &[(f64, f64, f64)] = &[
+    (0.060, 0.096, 0.138),
+    (0.073, 0.118, 0.168),
+    (0.086, 0.140, 0.197),
+    (0.112, 0.183, 0.255),
+    (0.138, 0.226, 0.307),
+    (0.164, 0.270, 0.359),
+    (0.190, 0.312, 0.411),
+    (0.250, 0.375, 0.531),
+    (0.3125, 0.469, 0.656),
+    (0.375, 0.562, 0.781),
+    (0.4375, 0.656, 0.844),
+    (0.500, 0.750, 0.938),
+    (0.625, 0.938, 1.188),
+    (0.750, 1.125, 1.438),
+];
+
+/// `(cap head diameter, flat head diameter, flat head angle)` in mm for a screw `d` mm wide.
+/// A width that is no standard size gets the usual proportions: 1.5 and 2 times the thread, 90°.
+fn screw_head(d: f64) -> (f64, f64, f64) {
+    if let Some(r) = METRIC_HEADS.iter().find(|r| (r.0 - d).abs() < 0.01) {
+        return (r.1, r.2, 90.0);
+    }
+    if let Some(r) = INCH_HEADS.iter().find(|r| (r.0 * IN - d).abs() < 0.01) {
+        return (r.1 * IN, r.2 * IN, 82.0);
+    }
+    (1.5 * d, 2.0 * d, 90.0)
+}
+
+/// The Thread tool's head pocket sizes for a `d` mm screw printed with `tol` mm clearance:
+/// the same allowances as the Hole tool's socket head presets (head + 0.5 mm + clearance
+/// across, head height + 0.3 mm deep). `None` for a flush head.
+pub fn thread_head_patch(head: &str, d: f64, tol: f64) -> Option<serde_json::Map<String, Value>> {
+    use super::util::js_num;
+    if !d.is_finite() || d <= 0.0 {
+        return None;
+    }
+    let t = if tol.is_nan() { 0.0 } else { tol };
+    let (cap, flat, angle) = screw_head(d);
+    let mut m = serde_json::Map::new();
+    match head {
+        "counterbore" => {
+            m.insert("head_diameter".into(), js_num(r2(cap + 0.5 + t)));
+            m.insert("head_depth".into(), js_num(r2(d + 0.3)));
+        }
+        "countersink" => {
+            m.insert("head_diameter".into(), js_num(r2(flat + 0.5 + t)));
+            m.insert("head_angle".into(), js_num(angle));
+        }
+        _ => return None,
+    }
+    Some(m)
+}
+
 pub fn thread_size_patch(size: &str) -> Option<serde_json::Map<String, Value>> {
     if size == "custom" {
         return None;

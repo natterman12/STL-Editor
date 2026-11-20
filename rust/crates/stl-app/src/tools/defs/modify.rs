@@ -482,11 +482,61 @@ fn defaults_thread(_: &Ctx) -> Values {
         ("offset", json!([0, 0, 0])),
         ("operation", json!("cut")),
         ("targets", json!([])),
+        // 2.0 only: the screw head pocket, sized for an M8 socket head cap screw until a head is picked
+        ("head", json!("flush")),
+        ("head_diameter", json!(13.8)),
+        ("head_depth", json!(8.3)),
+        ("head_angle", json!(90)),
     ])
+}
+
+/// The head of a tapped hole: `"counterbore"`, `"countersink"`, or `None` for flush and for screws.
+fn thread_head(v: &Values) -> Option<&str> {
+    if get_str(v, "kind") != Some("internal") {
+        return None;
+    }
+    get_str(v, "head").filter(|h| matches!(*h, "counterbore" | "countersink"))
+}
+
+fn thread_show_head(v: &Values) -> bool {
+    get_str(v, "kind") == Some("internal")
+}
+
+fn thread_show_pocket(v: &Values) -> bool {
+    thread_head(v).is_some()
+}
+
+fn thread_show_bore(v: &Values) -> bool {
+    thread_head(v) == Some("counterbore")
+}
+
+fn thread_show_sink(v: &Values) -> bool {
+    thread_head(v) == Some("countersink")
+}
+
+/// The pocket sizes for the head, the thread diameter and the print clearance in `v`.
+fn thread_head_sizes(v: &Values, diameter: f64) -> Option<Values> {
+    let tol = get_f64(v, "tolerance");
+    tables::thread_head_patch(thread_head(v)?, diameter, tol)
 }
 
 fn to_params_thread(v: &Values, _: &Ctx) -> Value {
     let mut m = v.clone();
+    // a flush tapped hole and a screw are stored exactly as 1.x stores them; a pocket keeps
+    // only the sizes it uses
+    match thread_head(v) {
+        Some("counterbore") => {
+            m.remove("head_angle");
+        }
+        Some(_) => {
+            m.remove("head_depth");
+        }
+        None => {
+            for key in ["head", "head_diameter", "head_depth", "head_angle"] {
+                m.remove(key);
+            }
+        }
+    }
     let row = THREAD_SIZES
         .iter()
         .find(|(id, _, _, _, _)| Some(*id) == get_str(v, "size") && *id != "custom");
@@ -503,6 +553,8 @@ fn to_params_thread(v: &Values, _: &Ctx) -> Value {
 fn from_params_thread(p: Value) -> Values {
     let mut o = Map::new();
     o.insert("size".into(), json!("custom"));
+    // a step with no head (every 1.x step) is a flush tapped hole
+    o.insert("head".into(), json!("flush"));
     if let Some(src) = p.as_object() {
         for (k, v) in src {
             o.insert(k.clone(), v.clone());
@@ -526,8 +578,16 @@ fn on_change_thread(key: &str, v: &Values, _: &Ctx) -> Option<Values> {
                 let n = p.as_f64().unwrap_or(0.0);
                 m.insert("pitch".into(), json_f64(n));
             }
+            // the head pocket follows the screw size
+            let d = m.get("diameter").map_or(f64::NAN, js_to_number);
+            if let Some(sizes) = thread_head_sizes(v, d) {
+                m.extend(sizes);
+            }
             m
         }),
+        "head" => thread_head_sizes(v, get_f64(v, "diameter")),
+        // more clearance widens the pocket too, while the sizes are the standard ones
+        "tolerance" if get_str(v, "size") != Some("custom") => thread_head_sizes(v, get_f64(v, "diameter")),
         "kind" => Some(values(&[(
             "operation",
             json!(if get_str(v, "kind") == Some("internal") {
@@ -568,6 +628,44 @@ pub fn thread() -> ToolDef {
                 help: None,
                 placeholder: None,
                 show: None,
+            },
+            Field {
+                key: "head",
+                label: "Screw head",
+                kind: super::fields::opts(&[
+                    ("flush", "Flush (no pocket)"),
+                    ("counterbore", "Socket head cap (counterbore)"),
+                    ("countersink", "Countersunk"),
+                ]),
+                help: Some(
+                    "A pocket in the surface for the screw's head. The thread starts at the bottom of the pocket, so Length is all thread.",
+                ),
+                placeholder: None,
+                show: Some(thread_show_head),
+            },
+            Field {
+                key: "head_diameter",
+                label: "Pocket Ø",
+                kind: FieldKind::Number { unit: Some("mm") },
+                help: None,
+                placeholder: None,
+                show: Some(thread_show_pocket),
+            },
+            Field {
+                key: "head_depth",
+                label: "Pocket depth",
+                kind: FieldKind::Number { unit: Some("mm") },
+                help: None,
+                placeholder: None,
+                show: Some(thread_show_bore),
+            },
+            Field {
+                key: "head_angle",
+                label: "Sink angle",
+                kind: FieldKind::Number { unit: Some("°") },
+                help: None,
+                placeholder: None,
+                show: Some(thread_show_sink),
             },
             Field {
                 key: "diameter",

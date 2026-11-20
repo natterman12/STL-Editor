@@ -704,6 +704,108 @@ fn without_split_distance(v: &mut Value) {
     }
 }
 
+/// Thread's screw head pocket is 2.0 only (Nathan 2026-11-19; `EXCEPTIONS.md`): the `head`
+/// choice, its three size fields and the cases recorded for the choice are taken out, and what is
+/// left is compared with 1.x. `thread_head_pocket_is_the_one_difference` checks what was taken out.
+fn without_thread_head(v: &mut Value) {
+    let is_head = |s: &str| s == "head" || s.starts_with("head_");
+    match v {
+        Value::Object(o) => {
+            o.retain(|k, _| !is_head(k));
+            if let Some(Value::Array(fields)) = o.get_mut("fields") {
+                fields.retain(|f| !f["key"].as_str().is_some_and(is_head));
+            }
+            o.values_mut().for_each(without_thread_head);
+        }
+        Value::Array(a) => {
+            a.retain(|x| {
+                !x.as_str().is_some_and(is_head) && !x["name"].as_str().is_some_and(|n| n.starts_with("select:head="))
+            });
+            a.iter_mut().for_each(without_thread_head);
+        }
+        _ => {}
+    }
+}
+
+#[test]
+fn thread_head_pocket_is_the_one_difference() {
+    let (bodies, planes, sketches, features, selection) = fixture_data();
+    let ctx = fixture_ctx(&bodies, &planes, &sketches, &features, &selection);
+    let def = tool("thread").unwrap();
+    let keys: Vec<&str> = def.fields.iter().map(|f| f.key).collect();
+    assert_eq!(
+        &keys[..6],
+        ["kind", "size", "head", "head_diameter", "head_depth", "head_angle"],
+        "Screw head sits right under Size"
+    );
+    let shown = |v: &Values| -> Vec<String> {
+        shown_keys(def, v)
+            .into_iter()
+            .filter(|k| k.starts_with("head"))
+            .collect()
+    };
+    let on_change = def.on_change.unwrap();
+    let mut v = (def.defaults)(&ctx);
+
+    // flush is the default: one row, and the step is stored exactly as 1.x stores it
+    assert_eq!(v["head"], json!("flush"));
+    assert_eq!(shown(&v), ["head"]);
+    let p = (def.to_params)(&v, &ctx);
+    assert!(p.as_object().unwrap().keys().all(|k| !k.starts_with("head")), "{p}");
+    assert_eq!(on_change("head", &v, &ctx), None);
+
+    // M8 socket head cap screw: 13 mm head + 0.5 + the 0.3 clearance, 8 mm high + 0.3
+    v.insert("head".into(), json!("counterbore"));
+    assert_eq!(shown(&v), ["head", "head_diameter", "head_depth"]);
+    let patch = on_change("head", &v, &ctx).unwrap();
+    assert_eq!(
+        Value::Object(patch.clone()),
+        json!({"head_diameter": 13.8, "head_depth": 8.3})
+    );
+    v.extend(patch);
+    let p = (def.to_params)(&v, &ctx);
+    assert_eq!(
+        (&p["head"], &p["head_diameter"], &p["head_depth"], p.get("head_angle")),
+        (&json!("counterbore"), &json!(13.8), &json!(8.3), None)
+    );
+    // the step opens again as it was saved
+    let back = (def.from_params)(p.clone());
+    assert_eq!((def.to_params)(&back, &ctx), p);
+
+    // M8 countersunk: 16 mm head + 0.5 + 0.3, 90°
+    v.insert("head".into(), json!("countersink"));
+    assert_eq!(shown(&v), ["head", "head_diameter", "head_angle"]);
+    let patch = on_change("head", &v, &ctx).unwrap();
+    assert_eq!(
+        Value::Object(patch.clone()),
+        json!({"head_diameter": 16.8, "head_angle": 90})
+    );
+    v.extend(patch);
+    assert!((def.to_params)(&v, &ctx).get("head_depth").is_none());
+
+    // another size re-sizes the pocket with it: 1/4" flat head is 0.531" across, 82°
+    v.insert("size".into(), json!("1/4\"-20"));
+    let patch = on_change("size", &v, &ctx).unwrap();
+    assert_eq!(patch["diameter"], json!(6.35));
+    assert_eq!(patch["head_diameter"], json!(14.29)); // 13.4874 + 0.5 + 0.3
+    assert_eq!(patch["head_angle"], json!(82));
+    v.extend(patch);
+
+    // more print clearance widens the pocket by the same amount
+    v.insert("tolerance".into(), json!(0.5));
+    assert_eq!(on_change("tolerance", &v, &ctx).unwrap()["head_diameter"], json!(14.49));
+
+    // a screw has no pocket: no rows, nothing stored
+    v.insert("kind".into(), json!("external"));
+    assert!(shown(&v).is_empty());
+    let p = (def.to_params)(&v, &ctx);
+    assert!(p.as_object().unwrap().keys().all(|k| !k.starts_with("head")), "{p}");
+
+    // a 1.x step has no head and opens as flush
+    let old = (def.from_params)(json!({"kind": "internal", "diameter": 8, "pitch": 1.25, "length": 10}));
+    assert_eq!(old["head"], json!("flush"));
+}
+
 /// Living Hinge's hint (milestone 7, spec 2.13; `EXCEPTIONS.md`): two numbered steps, then what
 /// the slot does and what the orange line and the arrow mean. Everything else is compared with 1.x.
 #[test]
@@ -772,6 +874,9 @@ fn tools_golden_all_41() {
         let mut recorded = record_tool(def, &ctx, &golden["extra"]);
         if *key == "split" {
             without_split_distance(&mut recorded);
+        }
+        if *key == "thread" {
+            without_thread_head(&mut recorded);
         }
         if *key == "hinge" {
             // milestone 7 (spec 2.13): the hint is rewritten; checked in `hinge_hint_says_what_to_pick`

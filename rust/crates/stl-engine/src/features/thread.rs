@@ -1,10 +1,11 @@
 //! 1.x `f_thread`: build an external screw or cut an internal tapped hole on a plane.
 
 use serde_json::{Map, Value};
+use stl_kernel::Solid;
 use stl_mesh::thread::thread_tool;
 
 use super::common::placement::{lower_first, parse_ref_list, ref_body, resolve_point};
-use super::common::{Vec3, apply_tool, float, place, truthy};
+use super::common::{Vec3, apply_tool, float, make_cylinder, place, truthy};
 use crate::{Ctx, FeatureError, FeatureResult, Registry, State};
 
 /// Python `f"{x:g}"` (6 significant digits).
@@ -57,6 +58,59 @@ fn vec3_offset(p: &Map<String, Value>) -> Result<Vec3, FeatureError> {
         }
         _ => Err(bad()),
     }
+}
+
+/// The cutter for a screw head pocket and its depth below the surface, for `head` =
+/// `"counterbore"` (a flat-bottomed round pocket, `head_diameter` wide and `head_depth` deep) or
+/// `"countersink"` (a cone from `head_diameter` at the surface down to the thread's diameter,
+/// `head_angle` across). Anything else, `"flush"` included, has no pocket.
+fn head_pocket(
+    p: &Map<String, Value>,
+    d: f64,
+    frame: &stl_kernel::Frame,
+    off: Vec3,
+) -> Result<Option<(Solid, f64)>, FeatureError> {
+    let head = p.get("head").and_then(Value::as_str).unwrap_or("flush");
+    if head != "counterbore" && head != "countersink" {
+        return Ok(None);
+    }
+    // the cutter starts this far above the surface, so no skin is left over the pocket
+    const ABOVE: f64 = 1.0;
+    let start: Vec3 =
+        std::array::from_fn(|i| frame.o[i] + off[0] * frame.x[i] + off[1] * frame.y[i] + (off[2] + ABOVE) * frame.n[i]);
+    let down: Vec3 = std::array::from_fn(|i| -frame.n[i]);
+    let sink = head == "countersink";
+    let wide = float(
+        p,
+        "head_diameter",
+        Some(if sink { 2.0 * d + 0.5 } else { 1.5 * d + 0.5 }),
+    )?;
+    if wide.partial_cmp(&d) != Some(std::cmp::Ordering::Greater) {
+        return Err(FeatureError("The head pocket must be wider than the thread.".into()));
+    }
+    if sink {
+        let angle = float(p, "head_angle", Some(90.0))?;
+        if !(angle > 0.0 && angle < 180.0) {
+            return Err(FeatureError("The countersink angle must be between 0 and 180°.".into()));
+        }
+        let slope = (angle / 2.0).to_radians().tan();
+        let depth = (wide - d) / 2.0 / slope;
+        let cone = make_cylinder(
+            start,
+            down,
+            depth + ABOVE,
+            wide / 2.0 + ABOVE * slope,
+            Some(d / 2.0),
+            96,
+        )?;
+        return Ok(Some((cone, depth)));
+    }
+    let depth = float(p, "head_depth", Some(d))?;
+    if depth.partial_cmp(&0.0) != Some(std::cmp::Ordering::Greater) {
+        return Err(FeatureError("The head pocket depth must be more than 0.".into()));
+    }
+    let bore = make_cylinder(start, down, depth + ABOVE, wide / 2.0, None, 96)?;
+    Ok(Some((bore, depth)))
 }
 
 fn f_thread(
@@ -114,7 +168,21 @@ fn f_thread(
             notes.push(format!("Thread position: {}", lower_first(&w)));
         }
     }
+    // 2.0 only (Nathan 2026-11-19, `EXCEPTIONS.md`): a pocket for the screw head above a tapped
+    // hole. The thread starts at the bottom of the pocket, so Length is still all thread.
+    let pocket = if kind == "internal" {
+        head_pocket(p, d, &frame, off)?
+    } else {
+        None
+    };
+    if let Some((_, depth)) = &pocket {
+        off[2] -= depth;
+    }
     let tool = place(&tool, &frame, off);
+    let tool = match pocket {
+        Some((pocket, _)) => Solid::union_all(&[tool, pocket]),
+        None => tool,
+    };
     let op = match p.get("operation").and_then(Value::as_str) {
         Some(s) if !s.is_empty() => s,
         _ => {

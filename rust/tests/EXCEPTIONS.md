@@ -546,3 +546,12 @@ Nathan answered these on 2026-11-14: accepted unless marked otherwise.
   fill 0x7896c8 at alpha 40, in both themes, not 1.x's peach 0xf6c7a8 (Nathan: "make it blue like solidcraft"). The sketch plane's grid is the same
   grey-blue (0x7896c8 at 0.16 / 0.32) on a cool sheet 0xe8eef8, not 1.x's rust 0xc58a68 on 0xfff1e8. The Recover screen has "Discard
   all", which asks once before deleting every copy.
+- **Asked for by Nathan (2026-11-19): Thread has a Screw head choice for tapped holes**, under Size: Flush (no pocket, the
+  1.x tapped hole and the default), Socket head cap (counterbore) and Countersunk. A pocket for the head is cut into the
+  surface and the thread starts at its bottom, so Length is still all thread. New params, stored only with a pocket:
+  `head` (`"counterbore"` / `"countersink"`), `head_diameter`, and `head_depth` (counterbore) or `head_angle` (countersink,
+  whose depth follows from the diameter and angle). Picking a size fills them from the standard head sizes with the Hole
+  tool's socket head allowances (head + 0.5 mm + print clearance across, head height + 0.3 mm deep); countersunk is 90°
+  metric and 82° inch. Screws (`external`) have no head. 1.x has none of this; a 2.0 project with a pocket opened in 1.x
+  cuts the plain tapped hole. `tools_golden` compares everything else and `thread_head_pocket_is_the_one_difference` checks
+  the choice; volumes are in `stl-engine/tests/thread_head.rs`.
