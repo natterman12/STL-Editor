@@ -1043,6 +1043,11 @@ fn ribbon_opens_every_tool() {
     // tools() is the registry (Task 1): every key in it is reachable too
     keys.extend(stl_app::tools::tools().iter().map(|t| t.key));
     for k in keys {
+        // 2.0 has no way to start a Snap-fit (rust/tests/EXCEPTIONS.md); a step that has one
+        // still opens from the timeline
+        if k == "snapfit" {
+            continue;
+        }
         assert!(
             on_ribbon.contains(&k) || commands.iter().any(|c| c.k == k),
             "tool {k} has no ribbon button, menu entry or search entry"
@@ -1097,7 +1102,16 @@ fn ribbon_opens_every_tool() {
 #[test]
 fn search_finds_every_tool() {
     let commands = ribbon::all_commands();
-    for k in TOOLS_1X.iter().chain(["supportfins", "supportwall", "rotate"].iter()) {
+    // 2.0 leaves Snap-fit out of the ribbon and the search (rust/tests/EXCEPTIONS.md)
+    assert!(
+        commands.iter().all(|c| c.k != "snapfit"),
+        "Snap-fit is back in the tool search"
+    );
+    for k in TOOLS_1X
+        .iter()
+        .filter(|k| **k != "snapfit")
+        .chain(["supportfins", "supportwall", "rotate"].iter())
+    {
         let c = commands
             .iter()
             .find(|c| c.k == *k)

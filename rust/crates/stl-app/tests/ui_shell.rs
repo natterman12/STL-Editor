@@ -91,8 +91,10 @@ fn model_ribbon_source() -> String {
 
 #[test]
 fn ribbon_tools_match_ribbon_def() {
-    let want = triples(&model_ribbon_source());
+    let mut want = triples(&model_ribbon_source());
     assert!(want.len() > 50, "parsed {} tools", want.len());
+    // 2.0 has no Snap-fit button (rust/tests/EXCEPTIONS.md)
+    want.retain(|t| t.0 != "snapfit");
     let mut have: Vec<(String, String, String)> = Vec::new();
     for t in ribbon::def("solid").pinned.tools() {
         have.push((t.key.into(), t.label.into(), t.icon.into()));

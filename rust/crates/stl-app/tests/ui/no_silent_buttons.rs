@@ -306,7 +306,8 @@ fn walk_button_menus(w: &mut Walk, desk: &DeskTools, web: bool) {
 /// The More menu a narrow window folds groups into: every row in it.
 fn walk_more(web: bool) -> usize {
     let mut walked = 0;
-    for width in [1000.0, 900.0, 800.0] {
+    // without the Snap-fit button every tab fits at 800; the narrower widths fold again
+    for width in [1000.0, 900.0, 800.0, 700.0, 600.0] {
         let platform = if web {
             RecordPlatform::web()
         } else {
@@ -357,7 +358,7 @@ fn walk_more(web: bool) -> usize {
     }
     assert!(
         walked > 0,
-        "no tab folded anything into the More menu at 1000, 900 or 800 wide"
+        "no tab folded anything into the More menu from 1000 down to 600 wide"
     );
     walked
 }

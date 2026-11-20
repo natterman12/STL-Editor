@@ -189,7 +189,6 @@ pub fn def(tab: &str) -> Def {
                     Big(t("revolve", "Revolve", "revolve")),
                     Big(t("loft", "Loft", "extrude")),
                     Big(t("sweep", "Sweep", "revolve")),
-                    Big(t("snapfit", "Snap-fit", "extrude")),
                     Drop {
                         id: "primitive",
                         label: "Primitive",
@@ -343,7 +342,8 @@ const TOOL_LABELS: &[(&str, &str)] = &[
     ("primitive_sphere", "Sphere"),
     ("primitive_cone", "Cone"),
     ("primitive_torus", "Torus"),
-    ("snapfit", "Snap-fit"),
+    // no "snapfit": Snap-fit has no button and no search entry in 2.0 (Nathan 2026-11-20); its
+    // tool definition stays, so a Snap-fit step in a 1.x project still rebuilds and can be edited
     ("hinge", "Living hinge"),
     ("hole", "Hole"),
     ("combine", "Combine"),

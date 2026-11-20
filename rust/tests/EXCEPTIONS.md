@@ -562,3 +562,7 @@ Nathan answered these on 2026-11-14: accepted unless marked otherwise.
   metric and 82° inch. Screws (`external`) have no head. 1.x has none of this; a 2.0 project with a pocket opened in 1.x
   cuts the plain tapped hole. `tools_golden` compares everything else and `thread_head_pocket_is_the_one_difference` checks
   the choice; volumes are in `stl-engine/tests/thread_head.rs`.
+- **Asked for by Nathan (2026-11-20): 2.0 has no Snap-fit tool.** Its button is gone from MODEL > Create and the tool
+  search no longer lists it ("doesn't work great"). The engine feature and the tool definition stay, so a 1.x project with
+  a Snap-fit step still rebuilds the same and the step can still be opened from the timeline and edited. 1.x keeps the
+  tool. `ribbon_tools_match_ribbon_def` and `search_finds_every_tool` leave it out and the second checks it stays out.
