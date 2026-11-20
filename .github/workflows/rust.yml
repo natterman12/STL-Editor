@@ -145,6 +145,33 @@ jobs:
       - name: Lints (web)
         run: cargo clippy --target wasm32-unknown-unknown -p stl-kernel -p stl-parity -p stl-mesh -p stl-sketch -p stl-engine -p stl-io -p stl-app -- -D warnings
 
+  # Checks the crates the workspace depends on: known security problems (the RustSec list,
+  # fetched on each run), licences that fit GPL-3.0, and where crates come from. Settings and
+  # the reasons for each exception are in rust/deny.toml. A new advisory can fail this job on a
+  # commit that didn't cause it: update the crate, or list the advisory under `ignore` there
+  # with the reason. Locally: `cargo deny check` from rust/.
+  deps:
+    name: Dependencies
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install the pinned toolchain
+        run: |
+          rustup toolchain install --profile minimal
+          rustup show
+
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny
+
+      - name: Check dependencies
+        run: cargo deny check
+
   golden:
     name: Golden files and project round trip (Windows)
     runs-on: windows-latest

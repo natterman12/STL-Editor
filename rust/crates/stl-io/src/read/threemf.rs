@@ -7,6 +7,7 @@
 use std::collections::HashMap;
 use std::io::{Cursor, Read};
 
+use quick_xml::XmlVersion;
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::reader::Reader;
 
@@ -69,8 +70,11 @@ fn attrs(e: &BytesStart) -> Result<HashMap<String, String>, ReadError> {
     let mut m = HashMap::new();
     for a in e.attributes() {
         let a = a.map_err(|_| bad())?;
-        let k = String::from_utf8_lossy(local(a.key.as_ref())).into_owned();
-        let v = a.unescape_value().map_err(|_| bad())?.into_owned();
+        let k = String::from_utf8_lossy(local(a.key.as_ref().as_bytes())).into_owned();
+        let v = a
+            .normalized_value(XmlVersion::Implicit1_0)
+            .map_err(|_| bad())?
+            .into_owned();
         // first wins for same local name (xmlns variants are not expected)
         m.entry(k).or_insert(v);
     }
@@ -98,7 +102,7 @@ fn parse_model(data: &[u8]) -> Result<Model, ReadError> {
             Event::Start(e) => (Some(e), true, false),
             Event::Empty(e) => (Some(e), false, true),
             Event::End(e) => {
-                match local(e.name().as_ref()) {
+                match local(e.name().as_ref().as_bytes()) {
                     b"mesh" => {
                         if let Some(ms) = mesh.take() {
                             match cur.as_mut() {
@@ -121,7 +125,7 @@ fn parse_model(data: &[u8]) -> Result<Model, ReadError> {
             _ => (None, false, false),
         };
         if let Some(e) = e {
-            let name = local(e.name().as_ref()).to_vec();
+            let name = local(e.name().as_ref().as_bytes()).to_vec();
             match name.as_slice() {
                 b"object" => {
                     let a = attrs(e)?;

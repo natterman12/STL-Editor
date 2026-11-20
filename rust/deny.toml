@@ -1,0 +1,57 @@
+# Settings for cargo-deny, which checks the crates the workspace depends on
+# (`cargo deny check`, run from rust/; install once with `cargo install cargo-deny --locked`).
+# CI's "Dependencies" job runs it. It looks at four things: known security problems, licences,
+# crates that are banned or built twice, and where crates come from.
+
+[graph]
+all-features = true
+
+# Known security problems (the RustSec advisory database, downloaded on each run).
+# A crate with an advisory fails the check; to accept one, list its id under `ignore` with the reason.
+[advisories]
+ignore = [
+    # ttf-parser (reads fonts for sketch text) is no longer maintained; there is no fixed version
+    # and no known security problem in it. Moving to skrifa is a job of its own, because the text
+    # outlines must stay the same as the 1.x engines'.
+    { id = "RUSTSEC-2026-0192", reason = "unmaintained, no known vulnerability; replacing it changes sketch text outlines" },
+]
+
+# Licences. STL Editor is GPL-3.0, so every dependency must have a licence that can be combined
+# with it. A crate under a licence not listed here fails the check: read the licence, then add
+# it here if it is compatible.
+[licenses]
+allow = [
+    # Permissive: use as you like, keep the notice.
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "BSL-1.0",
+    # Unicode's data tables (the icu crates) and the list of web certificate roots.
+    "Unicode-3.0",
+    "CDLA-Permissive-2.0",
+    # Changes to the crate's own files stay under this licence; it allows use in GPL programs.
+    "MPL-2.0",
+    # The fonts built into the interface (egui's default fonts).
+    "OFL-1.1",
+    "Ubuntu-font-1.0",
+]
+confidence-threshold = 0.8
+
+# Our own crates are not published and carry no licence field.
+[licenses.private]
+ignore = true
+
+# Two versions of one crate in the build are let through: there are about 45, nearly all from
+# dependencies of dependencies, which can only be fixed upstream. Set this to "warn" to list them.
+[bans]
+multiple-versions = "allow"
+wildcards = "allow"
+
+# Crates come from crates.io or from this repository (third_party/), nowhere else.
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
