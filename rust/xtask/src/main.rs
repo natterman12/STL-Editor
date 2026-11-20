@@ -61,7 +61,7 @@ fn main() -> ExitCode {
                 ExitCode::FAILURE
             }
         },
-        Some("bench") => match bench::run() {
+        Some("bench") => match bench::run(std::env::args().skip(2)) {
             Ok(true) => ExitCode::SUCCESS,
             Ok(false) => ExitCode::FAILURE,
             Err(e) => {
@@ -92,7 +92,7 @@ fn main() -> ExitCode {
         },
         _ => {
             eprintln!(
-                "usage: cargo run -p xtask -- pure-rust | cargo run --release -p xtask -- bench | cargo run --release -p xtask -- uibench [--quick] | cargo run -p xtask -- install [--exe <path>] | cargo run -p xtask -- uninstall [--purge] | cargo run -p xtask -- web [--serve | --check [--webgl2] | --measure-preview]"
+                "usage: cargo run -p xtask -- pure-rust | cargo run --release -p xtask -- bench [--save [file]] [--compare [file]] [--skip-1x] | cargo run --release -p xtask -- uibench [--quick] | cargo run -p xtask -- install [--exe <path>] | cargo run -p xtask -- uninstall [--purge] | cargo run -p xtask -- web [--serve | --check [--webgl2] | --measure-preview]"
             );
             ExitCode::FAILURE
         }

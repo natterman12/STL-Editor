@@ -1,5 +1,6 @@
 //! `cargo run --release -p xtask -- bench`: the same operations on `dev/bench/test_mesh.stl`
 //! through the 1.x `Document` (`dev/parity/bench_1x.py`) and the Rust one; fails if 2.0 is slower.
+//! `--save [file]` keeps the 2.0 times and `--compare [file]` sets a later run beside them (see `run`).
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -543,12 +544,123 @@ fn time_python(root: &Path) -> Result<Value, String> {
     serde_json::from_str(line).map_err(|e| format!("bad output from bench_1x.py ({e}): {text}"))
 }
 
-/// Run the benchmark. `Ok(true)` when every ratio is at most 1.0.
-pub fn run() -> Result<bool, String> {
+/// A 2.0 row counts as slower than the saved run when it took over 20% longer and over 30 ms
+/// longer. Rows move by 10 to 20% between quiet runs of the same code, and the short rows by more.
+const SLOWER_RATIO: f64 = 1.2;
+const SLOWER_BY_S: f64 = 0.03;
+
+/// Where `--save` and `--compare` keep the saved run when no file is named (git-ignored: the
+/// times belong to this PC).
+const SAVED_RUN: &str = "dev/bench/saved_run.json";
+
+struct Opts {
+    save: Option<PathBuf>,
+    compare: Option<PathBuf>,
+    skip_1x: bool,
+}
+
+/// `--save [file]`, `--compare [file]`, `--skip-1x`.
+fn parse_args(args: &[String], root: &Path) -> Result<Opts, String> {
+    let mut o = Opts {
+        save: None,
+        compare: None,
+        skip_1x: false,
+    };
+    let mut i = 0;
+    while i < args.len() {
+        // the file is the next argument unless that is another option
+        let file = |i: &mut usize| match args.get(*i + 1) {
+            Some(a) if !a.starts_with("--") => {
+                *i += 1;
+                PathBuf::from(a)
+            }
+            _ => root.join(SAVED_RUN),
+        };
+        match args[i].as_str() {
+            "--save" => o.save = Some(file(&mut i)),
+            "--compare" => o.compare = Some(file(&mut i)),
+            "--skip-1x" => o.skip_1x = true,
+            other => {
+                return Err(format!(
+                    "unknown option {other}; use --save [file], --compare [file], --skip-1x"
+                ));
+            }
+        }
+        i += 1;
+    }
+    Ok(o)
+}
+
+/// True when `now` is slower than `saved` by more than run-to-run noise.
+fn slower_than_saved(saved: f64, now: f64) -> bool {
+    now > saved * SLOWER_RATIO && now - saved > SLOWER_BY_S
+}
+
+/// The saved 2.0 seconds by row key, and the note of what was saved (commit).
+fn read_saved(path: &Path) -> Result<(Map<String, Value>, String), String> {
+    let text = std::fs::read_to_string(path).map_err(|e| {
+        format!(
+            "no saved run at {} ({e}); make one with `xtask -- bench --save`",
+            path.display()
+        )
+    })?;
+    let v: Value = serde_json::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))?;
+    let times = v["times"]
+        .as_object()
+        .cloned()
+        .ok_or_else(|| format!("{}: no \"times\"", path.display()))?;
+    Ok((times, v["commit"].as_str().unwrap_or("unknown commit").to_string()))
+}
+
+/// The commit the code was built from, with `+changes` when files differ from it.
+fn commit_note(root: &Path) -> String {
+    let git = |args: &[&str]| {
+        Command::new("git")
+            .args(args)
+            .current_dir(root)
+            .output()
+            .ok()
+            .filter(|o| o.status.success())
+            .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+    };
+    let Some(hash) = git(&["rev-parse", "--short", "HEAD"]) else {
+        return "unknown commit".into();
+    };
+    match git(&["status", "--porcelain", "--untracked-files=no"]) {
+        Some(s) if !s.is_empty() => format!("{hash}+changes"),
+        _ => hash,
+    }
+}
+
+fn write_saved(path: &Path, root: &Path, rust: &[f64]) -> Result<(), String> {
+    let times: Map<String, Value> = NAMES
+        .iter()
+        .zip(rust)
+        .map(|((key, _), s)| (key.to_string(), json!(s)))
+        .collect();
+    let v = json!({"commit": commit_note(root), "runs": RUNS, "times": times});
+    let text = serde_json::to_string_pretty(&v).map_err(|e| e.to_string())?;
+    std::fs::write(path, text + "\n").map_err(|e| format!("{}: {e}", path.display()))
+}
+
+/// Run the benchmark. `Ok(true)` when no 2.0 row is slower than 1.x and, with `--compare`, none
+/// is slower than the saved run.
+///
+/// `--save [file]` keeps this run's 2.0 times; `--compare [file]` sets a later run beside them,
+/// so a change that makes 2.0 slower than it was shows even where 2.0 is still far ahead of 1.x.
+/// `--skip-1x` leaves the 1.x timing out (it needs Python and takes the longer half of the run).
+pub fn run(args: impl Iterator<Item = String>) -> Result<bool, String> {
     let root: PathBuf = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../..")
         .canonicalize()
         .map_err(|e| e.to_string())?;
+    let args: Vec<String> = args.collect();
+    let opts = parse_args(&args, &root)?;
+    // read the saved run first: a missing file should stop the run before minutes of timing
+    let saved = match &opts.compare {
+        Some(p) => Some(read_saved(p)?),
+        None => None,
+    };
     let mesh = root.join("dev/bench/test_mesh.stl");
     if !mesh.exists() {
         println!("bench: making {} with node", mesh.display());
@@ -564,19 +676,102 @@ pub fn run() -> Result<bool, String> {
     let data = std::fs::read(&mesh).map_err(|e| e.to_string())?;
     println!("bench: timing 2.0 (median of {RUNS})...");
     let rust = time_rust(&root, &data)?;
-    println!("bench: timing 1.x (median of {RUNS})...");
-    let py = time_python(&root)?;
+    let py = if opts.skip_1x {
+        None
+    } else {
+        println!("bench: timing 1.x (median of {RUNS})...");
+        Some(time_python(&root)?)
+    };
 
-    println!("\n{:<38} {:>9} {:>9} {:>8}", "operation", "1.x s", "2.0 s", "ratio");
     let mut ok = true;
-    for ((key, label), r) in NAMES.iter().zip(rust) {
-        let p = py[key]
-            .as_f64()
-            .ok_or_else(|| format!("bench_1x.py gave no \"{key}\""))?;
-        let ratio = r / p;
-        let flag = if ratio > 1.0 { "  SLOWER" } else { "" };
-        println!("{label:<38} {p:>9.3} {r:>9.3} {ratio:>8.2}{flag}");
-        ok &= ratio <= 1.0;
+    if let Some(py) = &py {
+        println!("\n{:<38} {:>9} {:>9} {:>8}", "operation", "1.x s", "2.0 s", "ratio");
+        for ((key, label), r) in NAMES.iter().zip(&rust) {
+            let p = py[key]
+                .as_f64()
+                .ok_or_else(|| format!("bench_1x.py gave no \"{key}\""))?;
+            let ratio = r / p;
+            let flag = if ratio > 1.0 { "  SLOWER" } else { "" };
+            println!("{label:<38} {p:>9.3} {r:>9.3} {ratio:>8.2}{flag}");
+            ok &= ratio <= 1.0;
+        }
+    }
+    if let Some((times, commit)) = &saved {
+        println!("\n2.0 now ({}) beside the saved run ({commit}):", commit_note(&root));
+        println!("{:<38} {:>9} {:>9} {:>8}", "operation", "saved s", "now s", "change");
+        for ((key, label), r) in NAMES.iter().zip(&rust) {
+            // a row added since the run was saved has nothing to stand beside
+            let Some(s) = times.get(*key).and_then(Value::as_f64) else {
+                println!("{label:<38} {:>9} {r:>9.3} {:>8}", "-", "new");
+                continue;
+            };
+            let slower = slower_than_saved(s, *r);
+            let flag = if slower { "  SLOWER" } else { "" };
+            println!("{label:<38} {s:>9.3} {r:>9.3} {:>+7.0}%{flag}", (r / s - 1.0) * 100.0);
+            ok &= !slower;
+        }
+    } else if py.is_none() {
+        println!("\n{:<38} {:>9}", "operation", "2.0 s");
+        for ((_, label), r) in NAMES.iter().zip(&rust) {
+            println!("{label:<38} {r:>9.3}");
+        }
+    }
+    if let Some(p) = &opts.save {
+        write_saved(p, &root, &rust)?;
+        println!("\nbench: saved this run's 2.0 times to {}", p.display());
     }
     Ok(ok)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn args(a: &[&str]) -> Vec<String> {
+        a.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn a_row_is_slower_only_beyond_the_noise() {
+        // 1.000 s saved: 19% over is noise, 25% over is slower
+        assert!(!slower_than_saved(1.0, 1.19));
+        assert!(slower_than_saved(1.0, 1.25));
+        // a 10 ms row that doubles is 10 ms slower: too short to tell
+        assert!(!slower_than_saved(0.010, 0.020));
+        // a 100 ms row that goes to 140 ms is over both limits
+        assert!(slower_than_saved(0.100, 0.140));
+        // faster and equal are never slower
+        assert!(!slower_than_saved(2.0, 1.0));
+        assert!(!slower_than_saved(2.0, 2.0));
+    }
+
+    #[test]
+    fn options_take_a_file_or_the_usual_one() {
+        let root = Path::new("root");
+        let o = parse_args(&args(&["--save", "--skip-1x"]), root).unwrap();
+        assert_eq!(o.save, Some(root.join(SAVED_RUN)));
+        assert!(o.skip_1x && o.compare.is_none());
+        let o = parse_args(&args(&["--compare", "before.json", "--save", "after.json"]), root).unwrap();
+        assert_eq!(o.compare, Some(PathBuf::from("before.json")));
+        assert_eq!(o.save, Some(PathBuf::from("after.json")));
+        assert!(!o.skip_1x);
+        assert!(parse_args(&args(&["--fast"]), root).is_err());
+        let o = parse_args(&[], root).unwrap();
+        assert!(o.save.is_none() && o.compare.is_none() && !o.skip_1x);
+    }
+
+    #[test]
+    fn a_saved_run_reads_back() {
+        let path = std::env::temp_dir().join(format!("stl-bench-saved-{}.json", std::process::id()));
+        let times: Vec<f64> = (0..NAMES.len()).map(|i| 0.5 + i as f64).collect();
+        write_saved(&path, Path::new("."), &times).unwrap();
+        let (read, commit) = read_saved(&path).unwrap();
+        let _ = std::fs::remove_file(&path);
+        assert_eq!(read.len(), NAMES.len());
+        assert_eq!(read["import"].as_f64(), Some(0.5));
+        assert_eq!(read["export_step"].as_f64(), Some(0.5 + (NAMES.len() - 1) as f64));
+        assert!(!commit.is_empty());
+        // a missing file says how to make one
+        assert!(read_saved(&path).unwrap_err().contains("--save"));
+    }
 }

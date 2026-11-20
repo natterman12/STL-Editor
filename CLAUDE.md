@@ -36,7 +36,11 @@ Rust tests: `cargo nextest run --workspace --release` (what CI runs; about a min
 install once with `cargo install cargo-nextest --locked`; settings in `rust/.config/nextest.toml`).
 `cargo test` still works. After adding or updating a crate: `cargo deny check` from `rust/`
 (advisories and licences; CI's "Dependencies" job; install once with
-`cargo install cargo-deny --locked`; settings and exceptions in `rust/deny.toml`). Tests that hold a frame to a time budget run alone under nextest: give
+`cargo install cargo-deny --locked`; settings and exceptions in `rust/deny.toml`).
+Speed: before a change that could slow a tool, `cargo run --release -p xtask -- bench --skip-1x --save`;
+after it, the same with `--compare` (fails on a row over 20% and 30 ms slower than the saved run;
+run both with nothing else building). Without `--skip-1x` it also times 1.x and fails where 2.0
+is slower. Not on CI: the runners' timings are too noisy. Tests that hold a frame to a time budget run alone under nextest: give
 a new one a name the filter in that file matches.
 
 Before saying a change is done: `python packaging/build_web.py`, `python -m pytest -q tests`,
