@@ -101,16 +101,15 @@ def desk_tray():
 
 
 def leaning_arm():
-    """A rounded arm leaning 50 degrees off vertical on a small foot: its whole underside hangs
-    out over the bed, the plain case Support Fins is for."""
-    foot = rounded_2d(rect(-25, -20, 25, 20), 6).extrude(5)
+    """A rounded arm leaning 50 degrees off vertical, standing on its flat-cut end: its whole
+    underside hangs out over the bed, the plain case Support Fins is for."""
     lean = math.radians(50)
     # the arm: 30 x 20 mm, 100 mm long, tipped about the y axis so it leans toward +x
     arm = rounded_2d(rect(-15, -10, 15, 10), 5).extrude(100)
     c, s_ = math.cos(lean), math.sin(lean)
-    arm = arm.transform(np.array([[c, 0, s_, -12], [0, 1, 0, 0], [-s_, 0, c, 4]], dtype=float))
+    arm = arm.transform(np.array([[c, 0, s_, -12], [0, 1, 0, 0], [-s_, 0, c, 2]], dtype=float))
     arm = arm - mf.Manifold.cube((400, 400, 50)).translate((-200, -200, -50))  # flat on the bed
-    return on_bed(soften(foot + arm, 0.6))
+    return on_bed(soften(arm, 0.6))
 
 
 if __name__ == "__main__":
