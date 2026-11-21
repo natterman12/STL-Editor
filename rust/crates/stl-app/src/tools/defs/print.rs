@@ -26,6 +26,13 @@ fn defaults_bedsplit(ctx: &Ctx) -> Values {
         ("clearance", json!(0.15)),
         ("optimize", json!(true)),
     ])
+    .into_iter()
+    .chain(
+        super::fields::CONNECTOR_EXTRAS
+            .iter()
+            .map(|(k, v)| (k.to_string(), v())),
+    )
+    .collect()
 }
 
 fn show_bed(v: &Values) -> bool {
@@ -39,6 +46,9 @@ fn to_params_bedsplit(v: &Values, _: &Ctx) -> Value {
     if get_str(v, "printer") != Some("custom") {
         m.remove("bed");
     }
+    // Fit to Bed makes several cuts: no spots placed by hand
+    m.remove("connector_place");
+    super::fields::connector_extras_strip(&mut m);
     params_cleanup(Value::Object(m))
 }
 
@@ -50,6 +60,7 @@ fn from_params_bedsplit(p: Value) -> Values {
             o.insert(k.clone(), v.clone());
         }
     }
+    super::fields::connector_extras_fill(&mut o);
     let body = wrap_truthy(o.get("body"));
     o.insert("body".into(), body);
     o

@@ -122,6 +122,21 @@ it off; also "drop to bed" and "centre on origin"; Scale by factor, to size, or 
 conversion), Pattern (linear or circular, of bodies or of features), Mirror (bodies or
 features). Split can add connectors at the cut.
 
+**Split connectors** (2.0):
+- *Connectors* adds pins, holes with loose pins, filament pins, magnet pockets or a
+  *Dovetail*. A dovetail is a tongue on one half and a matching groove in the other. It runs
+  out to the edge of the cut, so you slide the halves together from the side and they can't
+  pull apart. *Dovetail width* is how wide it is at the cut face; it gets wider towards its tip.
+  *Slide* picks whether it runs along the long side of the cut (grips more) or the short side
+  (a shorter slide). Print each half lying on its cut face and the dovetail needs no supports.
+- *Placement*: *Auto* spreads the connectors over the cut face; set *How many* to ask for a
+  number on each piece of the cut (0 lets the app choose). *Centre* puts one in the middle of
+  each piece. *Place by hand* opens the view at the cut so you can see the face: click where
+  you want each connector. Each spot shows how far it is from the left and bottom edges of the
+  cut face; type a new number to move it. A spot too close to the edge gets a warning.
+- *Each piece its own body*: when the cut goes through several separate parts of the model
+  (two legs, say), each one becomes its own body. It's on for new Splits.
+
 **Shape**: Hollow, Shell, Lattice and Offset Body.
 
 - **Hollow** makes the part a closed shell with walls of the thickness you set. Use it to
@@ -147,7 +162,8 @@ FDM; pitches of 1 mm and up print most reliably).
 **Print**: Lay Flat (click the face to put on the bed, or let it pick the most stable side).
 Fit to Bed: pick your printer and big parts are cut into pieces that fit, with
 connectors at every seam. Connector types: printed pins, holes plus loose printed pins,
-holes for 1.75 mm filament (good for thin shells like helmets), 6×3 magnet pockets, or none.
+holes for 1.75 mm filament (good for thin shells like helmets), 6×3 magnet pockets, a
+dovetail (2.0), or none. *How many* (2.0) sets the number on each seam.
 "Smart cut positions" moves each seam to where the part is thinnest.
 
 **Fit Test** (Print tab): builds one plate with a row of pegs and matching holes so you can see

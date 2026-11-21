@@ -3,7 +3,9 @@
 use serde_json::{Map, Value};
 use stl_kernel::Solid;
 
+use super::common::connector_place::ConnectorOpts;
 use super::common::connectors::split_with_connectors;
+use super::common::truthy;
 use crate::state::Body;
 use crate::{Ctx, FeatureError, FeatureResult, Registry, State};
 
@@ -66,9 +68,16 @@ fn split(
         p.get("pin_d"),
         p.get("pin_len"),
         p.get("clearance"),
+        &ConnectorOpts::from_params(p)?,
     )?;
     if conn != "none" && r.skipped {
         res.warning = Some("The cut face is too thin for connectors here; split without them.".into());
+    } else if conn != "none" && r.short {
+        res.warning = Some(format!(
+            "The cut face only has room for {} connector{}, so that's how many it got.",
+            r.connectors,
+            if r.connectors == 1 { "" } else { "s" }
+        ));
     } else if conn != "none" {
         res.warning = None;
     }
@@ -112,38 +121,43 @@ fn split(
                 .into(),
         ));
     }
-    let (first, second) = if !above.is_empty() {
-        (above, below)
+    // 2.0 `separate`: every separate piece its own body (a cut through two legs gives four)
+    let parts: Vec<Solid> = if truthy(p.get("separate")) {
+        [above, below]
+            .iter()
+            .filter(|h| !h.is_empty())
+            .flat_map(Solid::decompose)
+            .collect()
     } else {
-        (below, Solid::compose(&[]))
+        [above, below].into_iter().filter(|h| !h.is_empty()).collect()
     };
-    let name = if second.is_empty() {
-        b.name.clone()
-    } else {
-        format!("{} (1)", b.name)
-    };
-    let mut halves = vec![(bid.clone(), first.clone())];
-    state.bodies.insert(
-        bid.clone(),
-        Body {
-            name,
-            solid: Some(first),
-            mesh: None,
-        },
-    );
-    res.modified.push(bid.clone());
-    if !second.is_empty() {
-        let nid = format!("{fid}.2");
+    let many = parts.len() > 1;
+    let mut halves = Vec::with_capacity(parts.len());
+    for (i, part) in parts.into_iter().enumerate() {
+        let id = if i == 0 {
+            bid.clone()
+        } else {
+            format!("{fid}.{}", i + 1)
+        };
+        let name = if many {
+            format!("{} ({})", b.name, i + 1)
+        } else {
+            b.name.clone()
+        };
         state.bodies.insert(
-            nid.clone(),
+            id.clone(),
             Body {
-                name: format!("{} (2)", b.name),
-                solid: Some(second.clone()),
+                name,
+                solid: Some(part.clone()),
                 mesh: None,
             },
         );
-        res.created.push(nid.clone());
-        halves.push((nid, second));
+        if i == 0 {
+            res.modified.push(id.clone());
+        } else {
+            res.created.push(id.clone());
+        }
+        halves.push((id, part));
     }
     // fins made as a body of their own go with the half they hold up
     super::supports_follow::share_on_split(state, &bid, &halves, gone.as_ref(), fid, res);

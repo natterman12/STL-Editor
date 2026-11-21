@@ -69,6 +69,7 @@ pub const CONNECTOR_OPTS: &[(&str, &str)] = &[
     ("dowels", "Holes + loose pins"),
     ("filament", "Filament pins (1.75)"),
     ("magnets", "Magnets 6×3"),
+    ("dovetail", "Dovetail (slide together)"),
     ("none", "None"),
 ];
 

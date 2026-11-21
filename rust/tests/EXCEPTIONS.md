@@ -440,6 +440,15 @@ Nathan answered these on 2026-11-14: accepted unless marked otherwise.
 - **Accepted by Nathan (2026-11-16): Split has a Distance field (`offset`, mm) after Split plane, with the drag arrow.** 1.x has no such field.
   It is saved only when it isn't 0, so 1.x projects and the 1.x goldens are unchanged; `tests/tools_golden.rs` leaves it out
   before comparing with the 1.x definition. A fresh plane pick sets it: 0 when the plane passes through the body, else halfway.
+- **Asked by Nathan (2026-11-21), to review: better split connectors.** 2.0 only, all new keys, so 1.x projects and the 1.x goldens are
+  unchanged (`tests/tools_golden.rs` `without_connector_extras` leaves them out before comparing; `split_connectors_are_the_one_difference`
+  checks them). Split and Fit to Bed get a *Dovetail* connector (`connector: "dovetail"`, `dovetail_width`, `dovetail_depth`,
+  `dovetail_slide`: a sliding dovetail with 15° sides, tongue on the half above, groove in the half below, `stl-engine`
+  `common/dovetail.rs`) and *How many* (`connector_count`, per piece of the cut face; 0 is 1.x's own count). Split also gets
+  *Placement* (`connector_place`: `auto`, `centre`, or `manual` with the clicked `connector_points`, world mm, moved onto the cut;
+  a spot without room is an error naming it) and *Each piece its own body* (`separate`: every separate lump its own body; on for a
+  new Split, off for a step saved without it). While Place by hand shows, the view is cut open at the split plane
+  (`Viewport::set_tool_clip`). Tests: `stl-engine/tests/split_connectors.rs`, `stl-app/tests/ui/split_connectors.rs`.
 - **Accepted by Nathan (2026-11-14): Split's message for a plane that misses the body is always "The plane doesn't cut through this
   body. Drag the arrow or change Distance to move it into the part."**, at Distance 0 and for 1.x steps too (1.x: "The plane
   doesn't cut through this body."). The parity cases `split/split_plane_misses` and `split/split_tangent_plane` pass by exception

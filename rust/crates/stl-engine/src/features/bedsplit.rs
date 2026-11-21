@@ -3,10 +3,21 @@
 use serde_json::{Map, Value};
 
 use super::common::bed::split_to_bed;
+use super::common::connector_place::{ConnectorOpts, Placement};
 use super::common::printers::bed_from_params;
 use super::common::{float, truthy};
 use crate::state::Body;
 use crate::{Ctx, FeatureError, FeatureResult, Registry, State};
+
+/// 2.0 connector settings for Fit to Bed: dovetails and how many, or one in the centre. Spots
+/// clicked by hand belong to one cut, and Fit to Bed makes several, so it has none.
+fn bed_connector_opts(p: &Map<String, Value>) -> Result<ConnectorOpts, FeatureError> {
+    let mut o = ConnectorOpts::from_params(p)?;
+    if matches!(o.place, Placement::Manual(_)) {
+        o.place = Placement::Auto(None);
+    }
+    Ok(o)
+}
 
 fn f_bedsplit(
     state: &mut State,
@@ -35,6 +46,7 @@ fn f_bedsplit(
         p.get("pin_len"),
         p.get("clearance"),
         optimize,
+        &bed_connector_opts(p)?,
     )?;
     // 1.x res["info"]: the split_to_bed dict (cut positions rounded to 2 places)
     let mut cuts = Map::new();

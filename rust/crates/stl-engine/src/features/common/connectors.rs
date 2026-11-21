@@ -2,10 +2,12 @@
 //! alignment connectors (pins, dowels, filament holes, magnet pockets) across the cut.
 
 use serde_json::{Map, Value};
-use stl_kernel::Solid;
+use stl_kernel::{Shape2d, Solid};
 
+use super::connector_place::{ConnectorOpts, Placement, dovetails, place_points};
+use super::dovetail::Dovetail;
 use super::float;
-use super::frames::{Vec3, dot, plane_frame, unit};
+use super::frames::{Frame, Vec3, dot, plane_frame, unit};
 use crate::FeatureError;
 
 /// `(pin diameter, total pin length, hole clearance per side)` for a connector mode.
@@ -26,6 +28,8 @@ pub struct SplitResult {
     pub extras: Vec<Solid>,
     pub connectors: usize,
     pub skipped: bool,
+    /// 2.0: a "How many" asked for more than the cut face had room for.
+    pub short: bool,
 }
 
 fn add_scaled(a: Vec3, b: Vec3, s: f64) -> Vec3 {
@@ -46,7 +50,9 @@ pub fn make_cylinder(p0: Vec3, dir: Vec3, length: f64, r0: f64, r1: f64, segment
 
 /// Split a solid by the plane through `o` with normal `n`. `mode` is "none" or a connector
 /// kind; `pin_d`, `pin_len` and `clearance` fall back to the mode's defaults (0 counts as
-/// unset for the first two, as in 1.x).
+/// unset for the first two, as in 1.x). `opts` holds the 2.0 settings (where they go, the
+/// dovetail's size); its default cuts as 1.x does.
+#[allow(clippy::too_many_arguments)]
 pub fn split_with_connectors(
     solid: &Solid,
     o: Vec3,
@@ -55,6 +61,7 @@ pub fn split_with_connectors(
     pin_d: Option<&Value>,
     pin_len: Option<&Value>,
     clearance: Option<&Value>,
+    opts: &ConnectorOpts,
 ) -> Result<SplitResult, FeatureError> {
     let n = unit(n)?;
     let (above, below) = solid.split_by_plane(n, dot(n, o));
@@ -64,11 +71,16 @@ pub fn split_with_connectors(
         extras: Vec::new(),
         connectors: 0,
         skipped: false,
+        short: false,
     };
     if matches!(mode, "" | "none") || out.above.is_empty() || out.below.is_empty() {
         return Ok(out);
     }
-    let (d0, l0, c0) = connector_defaults(mode).ok_or_else(|| FeatureError(format!("Unknown connector {mode}.")))?;
+    let (d0, l0, c0) = if mode == "dovetail" {
+        (opts.dovetail_width, opts.dovetail_depth, 0.15)
+    } else {
+        connector_defaults(mode).ok_or_else(|| FeatureError(format!("Unknown connector {mode}.")))?
+    };
     // 1.x: float(pin_d or d0), float(pin_len or L0), float(clearance if clearance is not None else c0)
     let falsy = |v: &Value| match v {
         Value::Null => true,
@@ -95,10 +107,26 @@ pub fn split_with_connectors(
         Some(v) => num(v, "clearance")?,
         None => c0,
     };
+    if mode == "dovetail" {
+        let f = plane_frame(o, n, None)?;
+        let dt = Dovetail {
+            width: opts.dovetail_width,
+            depth: opts.dovetail_depth,
+            clearance: c,
+        };
+        return finish_dovetails(out, solid, &f, &dt, opts);
+    }
     let r = d / 2.0;
     // filament pins are meant for thin shells, so they may sit closer to the surface
     let wall = if mode == "filament" { 0.45 } else { (0.6 * r).max(1.2) };
-    let pts = connector_points(solid, o, n, r + c, wall)?;
+    let pts = if opts.place == Placement::Auto(None) {
+        connector_points(solid, o, n, r + c, wall)?
+    } else {
+        let f = plane_frame(o, n, None)?;
+        let (uv, short) = place_points(solid, &f, r + c, wall, &opts.place)?;
+        out.short = short;
+        uv.into_iter().map(|p| to_world(&f, p)).collect()
+    };
     if pts.is_empty() {
         out.skipped = true;
         return Ok(out);
@@ -175,9 +203,32 @@ pub fn split_with_connectors(
     Ok(out)
 }
 
+/// The dovetail half of [`split_with_connectors`]: tongues joined to the half above (in one
+/// union, as the pins are), grooves cut from the half below.
+fn finish_dovetails(
+    mut out: SplitResult,
+    solid: &Solid,
+    f: &Frame,
+    dt: &Dovetail,
+    opts: &ConnectorOpts,
+) -> Result<SplitResult, FeatureError> {
+    let cut = dovetails(solid, &out.below, f, dt, opts)?;
+    out.short = cut.short;
+    if cut.tongues.is_empty() {
+        out.skipped = true;
+        return Ok(out);
+    }
+    out.connectors = cut.tongues.len();
+    let mut add = vec![out.above.clone()];
+    add.extend(cut.tongues);
+    out.above = Solid::union_all(&add);
+    out.below = out.below.difference(&Solid::union_all(&cut.grooves));
+    Ok(out)
+}
+
 /// Even-odd containment against all contours (what 1.x gets from the symmetric difference of
 /// the contour polygons).
-fn inside(contours: &[Vec<[f64; 2]>], x: f64, y: f64) -> bool {
+pub(crate) fn inside(contours: &[Vec<[f64; 2]>], x: f64, y: f64) -> bool {
     let mut odd = false;
     for c in contours {
         let mut j = c.len() - 1;
@@ -193,7 +244,7 @@ fn inside(contours: &[Vec<[f64; 2]>], x: f64, y: f64) -> bool {
 }
 
 /// Distance from a point to the nearest contour segment (shapely `distance` to the boundary).
-fn edge_distance(contours: &[Vec<[f64; 2]>], x: f64, y: f64) -> f64 {
+pub(crate) fn edge_distance(contours: &[Vec<[f64; 2]>], x: f64, y: f64) -> f64 {
     let mut best = f64::INFINITY;
     for c in contours {
         let mut j = c.len() - 1;
@@ -262,15 +313,44 @@ fn representative_point(contours: &[Vec<[f64; 2]>], lo: [f64; 2], hi: [f64; 2]) 
 /// world coordinates, keeping `wall` of material round each (and at most 4 per piece).
 fn connector_points(solid: &Solid, o: Vec3, n: Vec3, radius: f64, wall: f64) -> Result<Vec<Vec3>, FeatureError> {
     let f = plane_frame(o, n, None)?;
+    let (pts, _) = connector_points_uv(solid, &f, radius, wall, None)?;
+    Ok(pts.into_iter().map(|p| to_world(&f, p)).collect())
+}
+
+/// A point at `u, v` on the plane of `f`, in world coordinates.
+pub(crate) fn to_world(f: &Frame, [u, v]: [f64; 2]) -> Vec3 {
+    [
+        f.o[0] + u * f.x[0] + v * f.y[0],
+        f.o[1] + u * f.x[1] + v * f.y[1],
+        f.o[2] + u * f.x[2] + v * f.y[2],
+    ]
+}
+
+/// The cut face: the section of `solid` with the plane of `f`, in the plane's `u, v`.
+pub(crate) fn section(solid: &Solid, f: &Frame) -> Shape2d {
     // world -> plane frame: rows x, y, n; translation -R o
     let m = [
         [f.x[0], f.x[1], f.x[2], -dot(f.x, f.o)],
         [f.y[0], f.y[1], f.y[2], -dot(f.y, f.o)],
         [f.n[0], f.n[1], f.n[2], -dot(f.n, f.o)],
     ];
-    let inner = solid.transform(m).slice(0.0).offset_round(-(radius + wall));
+    solid.transform(m).slice(0.0)
+}
+
+/// [`connector_points`] in the plane's `u, v`. `count` (2.0 "How many") asks for that many on
+/// each piece of the cut face in place of the number worked out from its size; the second
+/// value is true when a piece had room for fewer.
+pub(crate) fn connector_points_uv(
+    solid: &Solid,
+    f: &Frame,
+    radius: f64,
+    wall: f64,
+    count: Option<usize>,
+) -> Result<(Vec<[f64; 2]>, bool), FeatureError> {
+    let mut short = false;
+    let inner = section(solid, f).offset_round(-(radius + wall));
     if inner.is_empty() || inner.area() <= 1e-9 {
-        return Ok(Vec::new());
+        return Ok((Vec::new(), count.is_some()));
     }
     // area once per piece; stable sort, largest first (1.x sorted(key=-area))
     let mut comps: Vec<(f64, _)> = inner.decompose().into_iter().map(|c| (c.area(), c)).collect();
@@ -310,7 +390,16 @@ fn connector_points(solid: &Solid, o: Vec3, n: Vec3, radius: f64, wall: f64) -> 
         if cand.is_empty() {
             cand.push(representative_point(contours, lo, hi));
         }
-        let n_here = ((ext / (radius * 10.0)).round_ties_even().clamp(1.0, 4.0)) as usize;
+        let n_here = match count {
+            Some(k) => k.max(1),
+            None => ((ext / (radius * 10.0)).round_ties_even().clamp(1.0, 4.0)) as usize,
+        };
+        // asked-for counts may sit closer: holes just clear of each other with a wall between
+        let spacing = if count.is_some() {
+            2.0 * radius + wall
+        } else {
+            radius * 4.0
+        };
         let argmax = |v: &[f64]| -> usize {
             let mut k = 0;
             for (i, x) in v.iter().enumerate() {
@@ -333,27 +422,18 @@ fn connector_points(solid: &Solid, o: Vec3, n: Vec3, radius: f64, wall: f64) -> 
                 })
                 .collect();
             let k = argmax(&dmin);
-            if dmin[k] < radius * 4.0 {
+            if dmin[k] < spacing {
                 break;
             }
             chosen.push(cand[k]);
         }
+        short |= chosen.len() < n_here;
         pts.extend(chosen);
-        if pts.len() >= 8 {
+        if count.is_none() && pts.len() >= 8 {
             break;
         }
     }
-
-    Ok(pts
-        .into_iter()
-        .map(|[u, v]| {
-            [
-                f.o[0] + u * f.x[0] + v * f.y[0],
-                f.o[1] + u * f.x[1] + v * f.y[1],
-                f.o[2] + u * f.x[2] + v * f.y[2],
-            ]
-        })
-        .collect())
+    Ok((pts, short))
 }
 
 #[cfg(test)]

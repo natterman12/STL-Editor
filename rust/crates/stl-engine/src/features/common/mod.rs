@@ -2,7 +2,9 @@
 //! combining a tool with the design, and reading numbers from parameters.
 
 pub mod bed;
+pub mod connector_place;
 pub mod connectors;
+pub mod dovetail;
 pub mod fins;
 pub mod frames;
 pub mod params;

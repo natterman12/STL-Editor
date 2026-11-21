@@ -340,7 +340,16 @@ fn defaults_split(ctx: &Ctx) -> Values {
         ("pin_d", json!(5)),
         ("pin_len", json!(10)),
         ("clearance", json!(0.15)),
+        // 2.0: a new Split gives each separate piece its own body
+        ("separate", json!(true)),
     ])
+    .into_iter()
+    .chain(
+        super::fields::CONNECTOR_EXTRAS
+            .iter()
+            .map(|(k, v)| (k.to_string(), v())),
+    )
+    .collect()
 }
 
 fn to_params_split(v: &Values, _: &Ctx) -> Value {
@@ -357,6 +366,7 @@ fn to_params_split(v: &Values, _: &Ctx) -> Value {
     if zero {
         m.remove("offset");
     }
+    super::fields::connector_extras_strip(&mut m);
     params_cleanup(Value::Object(m))
 }
 
@@ -372,6 +382,9 @@ fn from_params_split(p: Value) -> Values {
         }
     }
     o.entry("offset").or_insert(json!(0));
+    super::fields::connector_extras_fill(&mut o);
+    // a step saved without it keeps each half whole, as it always did
+    o.entry("separate").or_insert(json!(false));
     let body = wrap_truthy(o.get("body"));
     o.insert("body".into(), body);
     o
@@ -443,6 +456,16 @@ pub fn split() -> ToolDef {
         },
     ];
     fields.extend(connector_fields_split());
+    fields.push(Field {
+        key: "separate",
+        label: "Each piece its own body",
+        kind: FieldKind::Bool,
+        help: Some(
+            "When the cut goes through several separate parts of the model (two legs, say), each one becomes its own body. Off: everything on one side of the cut stays one body.",
+        ),
+        placeholder: None,
+        show: None,
+    });
     ToolDef {
         key: "split",
         label: "Split",

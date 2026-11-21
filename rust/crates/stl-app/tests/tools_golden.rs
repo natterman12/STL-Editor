@@ -395,6 +395,7 @@ fn field_kind_name(k: &FieldKind) -> &'static str {
         FieldKind::Regions => "regions",
         FieldKind::Features => "features",
         FieldKind::FacePoints => "facepoints",
+        FieldKind::CutPoints => "cutpoints",
         FieldKind::PFace { .. } => "pface",
         FieldKind::CylFace => "cylface",
         FieldKind::Points3 => "points3",
@@ -727,6 +728,120 @@ fn without_thread_head(v: &mut Value) {
     }
 }
 
+/// 2.0 split connectors (dovetails, Placement, How many, spots placed by hand, "Each piece its
+/// own body"; `EXCEPTIONS.md`): their fields, keys, the Dovetail choice and the cases recorded for
+/// it are taken out, and what is left is compared with 1.x. `split_connectors_are_the_one_difference`
+/// checks what was taken out.
+fn without_connector_extras(v: &mut Value) {
+    const KEYS: &[&str] = &[
+        "connector_place",
+        "connector_count",
+        "connector_points",
+        "dovetail_width",
+        "dovetail_depth",
+        "dovetail_slide",
+        "separate",
+    ];
+    let new_key = |s: &str| KEYS.contains(&s);
+    match v {
+        Value::Object(o) => {
+            o.retain(|k, _| !new_key(k));
+            if let Some(Value::Array(fields)) = o.get_mut("fields") {
+                fields.retain(|f| !f["key"].as_str().is_some_and(new_key));
+            }
+            o.values_mut().for_each(without_connector_extras);
+        }
+        Value::Array(a) => {
+            a.retain(|x| {
+                !x.as_str().is_some_and(new_key)
+                    && !x["name"].as_str().is_some_and(|n| {
+                        // "select:connector=dovetail", "bool:separate=true", ...
+                        let k = n.split_once(':').map_or(n, |(_, r)| r);
+                        n.ends_with("=dovetail") || new_key(k.split_once('=').map_or(k, |(k, _)| k))
+                    })
+                    && x.get(0).and_then(Value::as_str) != Some("dovetail")
+            });
+            a.iter_mut().for_each(without_connector_extras);
+        }
+        _ => {}
+    }
+}
+
+#[test]
+fn split_connectors_are_the_one_difference() {
+    let (bodies, planes, sketches, features, selection) = fixture_data();
+    let ctx = fixture_ctx(&bodies, &planes, &sketches, &features, &selection);
+    for key in ["split", "bedsplit"] {
+        let def = tool(key).unwrap();
+        // a 1.x step opens with the new settings at their defaults and is saved as 1.x saved it
+        let old = json!({"body": "body_a", "plane": "XY", "keep": "both", "connector": "pins",
+                         "pin_d": 5, "pin_len": 10, "clearance": 0.15});
+        let v = (def.from_params)(old.clone());
+        assert_eq!(v["connector_place"], json!("auto"), "{key}");
+        assert_eq!(v["dovetail_width"], json!(10), "{key}");
+        let p = (def.to_params)(&v, &ctx);
+        let mut want = old.clone();
+        if key == "bedsplit" {
+            want["bed"] = json!(null);
+            want.as_object_mut().unwrap().remove("bed");
+        }
+        for (k, w) in want.as_object().unwrap() {
+            assert_eq!(p.get(k), Some(w), "{key}: {k} in {p}");
+        }
+        for k in [
+            "connector_place",
+            "connector_count",
+            "connector_points",
+            "dovetail_width",
+            "separate",
+        ] {
+            assert!(p.get(k).is_none(), "{key}: a 1.x step gains no {k}: {p}");
+        }
+        // Dovetail shows its own sizes in place of the pin ones
+        let mut v = (def.defaults)(&ctx);
+        v.insert("connector".into(), json!("dovetail"));
+        let shown = shown_keys(def, &v);
+        for k in [
+            "dovetail_width",
+            "dovetail_depth",
+            "dovetail_slide",
+            "clearance",
+            "connector_count",
+        ] {
+            assert!(shown.iter().any(|s| s == k), "{key}: {k} shows: {shown:?}");
+        }
+        assert!(
+            !shown.iter().any(|s| s == "pin_d" || s == "pin_len"),
+            "{key}: {shown:?}"
+        );
+        let p = (def.to_params)(&v, &ctx);
+        assert_eq!(
+            (&p["dovetail_width"], &p["dovetail_depth"]),
+            (&json!(10), &json!(5)),
+            "{key}"
+        );
+        assert!(p.get("dovetail_slide").is_none(), "the long side is the default: {p}");
+    }
+    // Split: Place by hand swaps How many for the spots; a new Split separates pieces
+    let def = tool("split").unwrap();
+    let mut v = (def.defaults)(&ctx);
+    assert_eq!(v["separate"], json!(true));
+    v.insert("connector".into(), json!("pins"));
+    v.insert("connector_place".into(), json!("manual"));
+    v.insert("connector_points".into(), json!([[1, 2, 3]]));
+    let shown = shown_keys(def, &v);
+    assert!(shown.iter().any(|s| s == "connector_points") && !shown.iter().any(|s| s == "connector_count"));
+    let p = (def.to_params)(&v, &ctx);
+    assert_eq!(
+        (&p["connector_place"], &p["connector_points"], &p["separate"]),
+        (&json!("manual"), &json!([[1, 2, 3]]), &json!(true))
+    );
+    let back = (def.from_params)(p.clone());
+    assert_eq!((def.to_params)(&back, &ctx), p, "opens again as saved");
+    // a 1.x Split keeps each half whole
+    assert_eq!((def.from_params)(json!({"body": "body_a"}))["separate"], json!(false));
+}
+
 #[test]
 fn thread_head_pocket_is_the_one_difference() {
     let (bodies, planes, sketches, features, selection) = fixture_data();
@@ -877,6 +992,9 @@ fn tools_golden_all_41() {
         }
         if *key == "thread" {
             without_thread_head(&mut recorded);
+        }
+        if *key == "split" || *key == "bedsplit" {
+            without_connector_extras(&mut recorded);
         }
         if *key == "hinge" {
             // milestone 7 (spec 2.13): the hint is rewritten; checked in `hinge_hint_says_what_to_pick`

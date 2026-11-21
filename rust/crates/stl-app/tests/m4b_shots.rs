@@ -78,6 +78,7 @@ const EXTRA_STATES: &[&str] = &[
     "sf_remove",
     "walls_line",
     "walls_curve",
+    "split_by_hand",
 ];
 
 const THEMES: &[&str] = &["dark", "light"];
@@ -113,6 +114,7 @@ fn state_ready(state: &str) -> bool {
             | "sf_remove"
             | "walls_line"
             | "walls_curve"
+            | "split_by_hand"
     )
 }
 
@@ -182,6 +184,41 @@ fn apply_state(h: &mut Harness<'static, StlApp>, link: &NativeLink, state: &str)
         return;
     }
     match state {
+        "split_by_hand" => {
+            // 2.0 Split connectors: two dovetails placed by hand, the view opened at the cut
+            select_first(h);
+            assert!(h.state_mut().open_tool("split", None));
+            let m = h.state().bodies[0].mesh.clone();
+            let (mut lo, mut hi) = ([f64::INFINITY; 3], [f64::NEG_INFINITY; 3]);
+            for p in m.positions.chunks_exact(3) {
+                for i in 0..3 {
+                    lo[i] = lo[i].min(f64::from(p[i]));
+                    hi[i] = hi[i].max(f64::from(p[i]));
+                }
+            }
+            let c = [(lo[0] + hi[0]) / 2.0, (lo[1] + hi[1]) / 2.0, (lo[2] + hi[2]) / 2.0];
+            h.state_mut().tool_set_value(
+                "plane",
+                json!({"origin": c, "normal": [0, 0, 1], "xdir": [1, 0, 0], "label": "Plane"}),
+            );
+            h.state_mut().tool_set_value("connector", json!("dovetail"));
+            h.state_mut().tool_set_value("dovetail_width", json!(4));
+            h.state_mut().tool_set_value("dovetail_depth", json!(2));
+            h.state_mut().tool_set_value("connector_place", json!("manual"));
+            let dy = (hi[1] - lo[1]) / 4.0;
+            h.state_mut().tool_set_value(
+                "connector_points",
+                json!([[c[0], lo[1] + dy, c[2]], [c[0], hi[1] - dy, c[2]]]),
+            );
+            h.state_mut().viewport.set_view("iso");
+            h.run_steps(4);
+            // the preview runs after its delay: give it time, then let the engine finish
+            for _ in 0..30 {
+                std::thread::sleep(Duration::from_millis(20));
+                settle(h, link);
+            }
+            h.run_steps(4);
+        }
         "gizmo_move" => {
             select_first(h);
             assert!(h.state_mut().open_tool("move", None));
@@ -394,6 +431,18 @@ fn m4b_shots_skip_list_documents_unbuilt_states() {
         skipped.len(),
         skipped.join(", ")
     );
+}
+
+/// Just the Split "Place by hand" state, in both themes.
+#[test]
+#[ignore = "writes GPU screenshots to dev/out/m4b-shots/2x; run with --ignored"]
+fn split_by_hand_shot() {
+    let Some(gpu) = Headless::new() else {
+        panic!("no GPU adapter for m4b_shots");
+    };
+    for theme in THEMES {
+        capture_one(&gpu, "split_by_hand", theme);
+    }
 }
 
 #[test]

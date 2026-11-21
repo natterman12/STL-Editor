@@ -252,6 +252,18 @@ impl OpenTool {
         if self.def.key == "scale" && key == "size" {
             self.keep_proportions();
         }
+        // 2.0: an empty spots field that shows (Split's Placement set to Place by hand) takes
+        // the next clicks at once
+        for f in self
+            .def
+            .fields
+            .iter()
+            .filter(|f| matches!(f.kind, FieldKind::CutPoints))
+        {
+            if key != f.key && f.show.is_none_or(|s| s(&self.values)) && arr_len(self.values.get(f.key)) == 0 {
+                self.active_field = Some(f.key.to_owned());
+            }
+        }
     }
 
     /// Scale: with "uniform" on, an edit of one axis scales the others from `_size0` (app.js:826).
@@ -309,7 +321,7 @@ impl OpenTool {
             let ok = match f.kind {
                 FieldKind::Bodies { .. } => is_optional_bodies(f) || !is_empty_sel(val),
                 FieldKind::Plane { .. } | FieldKind::Sketch => val.is_some_and(truthy),
-                FieldKind::FacePoints => arr_len(val) > 0,
+                FieldKind::FacePoints | FieldKind::CutPoints => arr_len(val) > 0,
                 FieldKind::Points3 => arr_len(val) == 3,
                 FieldKind::Features => arr_len(val) > 0,
                 FieldKind::PFace { .. } | FieldKind::CylFace => val.is_some_and(truthy),

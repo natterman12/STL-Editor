@@ -329,6 +329,9 @@ pub struct Viewport {
     preview_counter: u64,
     section_plane: Option<[f64; 4]>,
     section_on: bool,
+    /// 2.0: a cut the open tool asks for (Split's Place by hand), in force over the section
+    /// view's own while it is set; not the section view's, so it never changes that.
+    tool_clip: Option<[f64; 4]>,
     drag_plane: Option<plane_drag::DragPlane>,
     /// The arrow being dragged (`drag_draw.rs`).
     drag: Option<drag_draw::Grab>,
@@ -435,6 +438,7 @@ impl Default for Viewport {
             preview_counter: 0,
             section_plane: None,
             section_on: false,
+            tool_clip: None,
             drag_plane: None,
             drag: None,
             drag_hover: false,
@@ -1191,7 +1195,21 @@ impl Viewport {
 
     /// The cut in force: enabled and set.
     pub fn active_section(&self) -> Option<[f64; 4]> {
-        self.section_plane.filter(|_| self.section_on)
+        self.tool_clip.or(self.section_plane.filter(|_| self.section_on))
+    }
+
+    /// The open tool's cut ([`Self::active_section`] uses it over the section view's). Set
+    /// every frame by the app; a change repaints.
+    pub fn set_tool_clip(&mut self, plane: Option<[f64; 4]>) {
+        if self.tool_clip != plane {
+            self.tool_clip = plane;
+            self.changed();
+        }
+    }
+
+    /// The camera's position (for which side of a plane it is on).
+    pub fn camera_position(&self) -> [f64; 3] {
+        self.camera.position
     }
 
     /// The drag-the-plane control to show (`None` hides it). Set every frame by the app.
