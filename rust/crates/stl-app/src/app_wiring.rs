@@ -2459,14 +2459,16 @@ impl StlApp {
             Ok(v) => {
                 let before = self.sketch.as_ref().map(|m| m.s.history.len()).unwrap_or(0);
                 let mut fx = self.sk_call(|m, env| m.op_result(&op, &v, env)).unwrap_or_default();
-                // a one-shot op (Offset from the ribbon) has no tool to take the answer: replace the shapes
+                // a one-shot op (Offset from the ribbon) has no tool to take the answer: replace the shapes.
+                // Text is one too: its dialog switches to Select before Add text, so the letters come
+                // back to a tool that ignores them (tests/ui/sketch_text_add.rs).
                 let took = self
                     .sketch
                     .as_ref()
                     .map(|m| m.s.history.len() != before)
                     .unwrap_or(true);
                 if !took
-                    && matches!(op.as_str(), "offset" | "mirror" | "trim" | "explode")
+                    && matches!(op.as_str(), "offset" | "mirror" | "trim" | "explode" | "text")
                     && let Some(list) = v.get("entities").and_then(Value::as_array)
                     && let Ok(ents) = stl_sketch::entities::parse_entities(list)
                     && let Some(m) = self.sketch.as_mut()
