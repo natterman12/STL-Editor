@@ -1,11 +1,12 @@
 //! The website's clips of the 2.0 tools (`docs/img/<name>.mp4`, with a still of the last frame as
-//! `<name>.jpg` for the poster): short loops of the real app, drawn frame by frame on the GPU with
+//! `<name>.jpg` for the poster, and `<name>.captions.json`, the caption the page shows for each
+//! step): short loops of the real app, drawn frame by frame on the GPU with
 //! the mouse pointer showing, in the dark theme. The 2.0 app's own counterpart to a screen
 //! recording, so they can be made again whenever the interface changes.
 //!
 //! Ignored by default: it needs a GPU, `ffmpeg` (with libx264) on the PATH, and writes into
 //! `docs/img`. Run with `cargo test -p stl-app --profile test-fast --test site_videos -- --ignored`.
-//! To make only some, list them in `SITE_VIDEOS` (`sketch_cut`, `hole_insert`, `fit_to_bed`,
+//! To make only some, list them in `SITE_VIDEOS` (`hero`, `sketch_cut`, `hole_insert`, `fit_to_bed`,
 //! `support_fins`, `section_view`, `timeline_edit`, comma-separated). The window is drawn at
 //! `SITE_SCALE` pixels per point (2 unless set) and the clip scaled to [`VIDEO_WIDTH`]. Lavapipe
 //! works but draws the ground grid badly, so the grid is hidden unless `SITE_SHOTS_GRID=1`
@@ -33,7 +34,7 @@ mod harness;
 #[path = "support/site.rs"]
 mod site;
 
-use harness::{fixture_stl, import_stl, repo, settle};
+use harness::{import_stl, repo, settle};
 use site::{H, build_bracket, crop_to_window, img_dir, iso, wait_meshes};
 
 /// The window the clips are drawn in (points); the video is scaled to [`VIDEO_WIDTH`] pixels.
@@ -49,6 +50,8 @@ struct Clip {
     last: Option<image::RgbaImage>,
     frames: usize,
     pointer: Pos2,
+    /// The captions: from this many seconds in, this text (`<name>.captions.json`).
+    captions: Vec<(f32, &'static str)>,
 }
 
 impl Clip {
@@ -60,7 +63,13 @@ impl Clip {
             last: None,
             frames: 0,
             pointer: pos2(SIZE.x * 0.75, SIZE.y * 0.8),
+            captions: Vec::new(),
         }
+    }
+
+    /// The caption the page shows from now on.
+    fn caption(&mut self, text: &'static str) {
+        self.captions.push((self.frames as f32 / FPS as f32, text));
     }
 
     fn out(&self, ext: &str) -> PathBuf {
@@ -199,6 +208,16 @@ impl Clip {
             .status()
             .expect("ffmpeg is on the PATH");
         assert!(status.success(), "ffmpeg made the poster of {}", self.name);
+        let captions: Vec<_> = self
+            .captions
+            .iter()
+            .map(|(t, text)| json!({"t": (f64::from(*t) * 10.0).round() / 10.0, "text": text}))
+            .collect();
+        std::fs::write(
+            self.out("captions.json"),
+            serde_json::to_string_pretty(&captions).unwrap() + "\n",
+        )
+        .unwrap();
         let kb = |e| std::fs::metadata(self.out(e)).map(|m| m.len() / 1024).unwrap_or(0);
         eprintln!(
             "wrote {} ({} frames, {:.1} s, {} KB; poster {} KB)",
@@ -248,6 +267,194 @@ fn sketch_uv(h: &H, uv: [f64; 2]) -> Pos2 {
     h.state().viewport.world_to_screen(s.to_3(uv))
 }
 
+/// One of the website's demo parts (`dev/site-models`, drawn by `make_models.py`).
+fn model(name: &str) -> PathBuf {
+    repo().join("dev/site-models").join(format!("{name}.stl"))
+}
+
+/// Turn the view about its target by `deg` degrees, over `seconds`, as frames.
+fn turn(c: &mut Clip, h: &mut H, deg: f64, seconds: f32) {
+    let n = ((seconds * FPS as f32).round() as usize).max(1);
+    let height = f64::from(h.state().viewport.rect().height());
+    // ease in and out: the share of the turn each frame makes
+    let e = |t: f64| t * t * (3.0 - 2.0 * t);
+    for i in 0..n {
+        let (a, b) = (i as f64 / n as f64, (i + 1) as f64 / n as f64);
+        let dx = (e(b) - e(a)) * deg / 360.0 * height;
+        h.state_mut().viewport.camera_mut().rotate(dx, 0.0);
+        c.frame(h);
+    }
+}
+
+/// Click Sketch, then the face at `at` (world), as in the app; `face` is the plane the sketch
+/// opens on if the click didn't open one.
+fn open_sketch(c: &mut Clip, h: &mut H, link: &NativeLink, at: [f64; 3], face: serde_json::Value) {
+    c.click_button(h, "Sketch");
+    let p = world(h, at);
+    c.glide(h, p, 0.7);
+    c.click(h);
+    settle(h, link);
+    if h.state().sketch().is_none() {
+        h.state_mut().enter_sketch(Some(face), None);
+    }
+    settle(h, link);
+    c.run(h, 24);
+    assert!(h.state().sketch().is_some(), "the sketch opened");
+}
+
+/// Where the world point `p` is on the open sketch's plane (mm), whatever frame the sketch has.
+fn uv_of(h: &H, p: [f64; 3]) -> [f64; 2] {
+    let s = h.state().sketch().expect("a sketch is open");
+    let (o, x, y) = (s.to_3([0.0, 0.0]), s.to_3([1.0, 0.0]), s.to_3([0.0, 1.0]));
+    let d = [p[0] - o[0], p[1] - o[1], p[2] - o[2]];
+    let dot = |a: [f64; 3]| d[0] * (a[0] - o[0]) + d[1] * (a[1] - o[1]) + d[2] * (a[2] - o[2]);
+    [dot(x), dot(y)]
+}
+
+/// A rectangle from `a` to `b` (sketch mm), drawn with the pointer.
+fn draw_rect(c: &mut Clip, h: &mut H, link: &NativeLink, a: [f64; 2], b: [f64; 2]) {
+    h.state_mut().sketch_set_tool("rect");
+    let pa = sketch_uv(h, a);
+    c.glide(h, pa, 0.6);
+    c.click(h);
+    let pb = sketch_uv(h, b);
+    c.glide(h, pb, 0.9);
+    c.click(h);
+    settle(h, link);
+}
+
+/// Finish & Extrude as a cut `depth` mm deep, seen as `view` sets it, then OK.
+fn finish_cut(c: &mut Clip, h: &mut H, link: &NativeLink, depth: f64, view: &str) {
+    h.state_mut().sketch_set_tool("select");
+    c.click_button(h, "Finish & Extrude");
+    if h.state().tool().is_none() {
+        h.state_mut().finish_sketch(true);
+    }
+    settle(h, link);
+    harness::wait_for(h, link, "Extrude to open", |h| {
+        h.state().tool().is_some_and(|t| t.def.key == "extrude")
+    });
+    h.state_mut().viewport.set_view(view);
+    h.state_mut().tool_set_value("operation", json!("cut"));
+    h.state_mut().tool_set_value("distance", json!(depth));
+    preview(h, link);
+    c.run(h, 24);
+    c.hold(h, 0.6);
+    let ok = ok_button(h);
+    c.glide(h, ok, 0.6);
+    c.click(h);
+    if h.state().tool().is_some() {
+        h.state_mut().tool_ok();
+    }
+    settle(h, link);
+    harness::wait_for(h, link, "Extrude to close", |h| h.state().tool().is_none());
+    h.state_mut().shell.selection.clear();
+}
+
+/// The page's first picture: a downloaded phone stand gets a slot for the charging cable and a
+/// name engraved on its front, then turns to show it.
+fn hero(h: &mut H, link: &NativeLink) -> Clip {
+    let mut c = Clip::new("hero");
+    import_stl(h, link, &model("phone-stand"));
+    iso(h);
+    prepare(h);
+    let body = h.state().bodies[0].id.clone();
+    c.caption("A phone stand you downloaded");
+    c.hold(h, 1.2);
+
+    // a slot through the base, behind the front lip, for the charging cable
+    c.caption("Sketch a slot for the charging cable");
+    let top = json!({"origin": [0.0, -31.0, 7.2], "normal": [0.0, 0.0, 1.0], "xdir": [1.0, 0.0, 0.0],
+        "label": "Top", "body": body});
+    open_sketch(&mut c, h, link, [0.0, -31.0, 7.2], top);
+    let (a, b) = (uv_of(h, [-14.0, -35.0, 7.2]), uv_of(h, [14.0, -27.0, 7.2]));
+    draw_rect(&mut c, h, link, a, b);
+    c.hold(h, 0.4);
+    c.caption("Cut it through the base");
+    finish_cut(&mut c, h, link, 10.0, "iso");
+    c.run(h, 12);
+
+    // a name on the front of the lip, engraved 1 mm
+    c.caption("Type a name on the front");
+    let front = json!({"origin": [0.0, -48.6, 12.0], "normal": [0.0, -1.0, 0.0], "xdir": [1.0, 0.0, 0.0],
+        "label": "Front", "body": body});
+    open_sketch(&mut c, h, link, [10.0, -48.6, 14.0], front);
+    let before = h.state().sketch().map_or(0, |s| s.entities.len());
+    h.state_mut().sketch_set_tool("text");
+    // the text's start: left end of the lip, its baseline 6 mm up
+    let start = uv_of(h, [-27.0, -48.6, 6.5]);
+    let at = sketch_uv(h, start);
+    c.glide(h, at, 0.6);
+    c.click(h);
+    for _ in 0..30 {
+        if h.query_by_label("Add text").is_some() {
+            break;
+        }
+        c.frame(h);
+    }
+    c.run(h, 4);
+    // the text box (it starts as "Text"): type the name a letter at a time
+    // (the dialog's title says "Text" too: the box is the bigger of the two)
+    let text_box = h
+        .query_all_by_value("Text")
+        .max_by(|a, b| a.rect().area().total_cmp(&b.rect().area()))
+        .map(|n| n.rect().center());
+    if let Some(p) = text_box {
+        c.glide(h, p, 0.5);
+        c.click(h);
+        h.event(Event::Key {
+            key: egui::Key::A,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers: egui::Modifiers::COMMAND,
+        });
+        h.step();
+        for ch in "MY DESK".chars() {
+            h.event(Event::Text(ch.to_string()));
+            c.run(h, 3);
+        }
+        c.hold(h, 0.4);
+        if let Some(add) = h.query_by_label("Add text").map(|n| n.rect().center()) {
+            c.glide(h, add, 0.6);
+            c.click(h);
+        }
+        settle(h, link);
+        c.run(h, 4);
+        settle(h, link);
+    }
+    if h.state().sketch().map_or(0, |s| s.entities.len()) <= before {
+        eprintln!("hero: the text dialog could not be typed into; adding the text directly");
+        let data = {
+            let s = h.state().sketch().expect("sketch open");
+            let form = stl_app::sketch::text::TextForm {
+                text: "MY DESK".into(),
+                x: start[0],
+                y: start[1],
+                ..Default::default()
+            };
+            stl_app::sketch::text::sketch_op_data(s, &form, None)
+        };
+        h.state_mut()
+            .sketch_apply(vec![stl_app::sketch::SketchEffect::SketchOp {
+                op: "text".into(),
+                data,
+            }]);
+        settle(h, link);
+    }
+    c.run(h, 8);
+    c.hold(h, 0.6);
+    c.caption("Engrave it 1 mm deep");
+    finish_cut(&mut c, h, link, 1.0, "front");
+    h.state_mut().viewport.set_view("iso");
+    c.run(h, 20);
+    c.caption("Ready for your slicer");
+    c.glide(h, pos2(SIZE.x * 0.75, SIZE.y * 0.8), 0.4);
+    turn(&mut c, h, 35.0, 2.5);
+    c.hold(h, 1.5);
+    c
+}
+
 /// Sketch a rectangle on the bracket's top, give it its sizes, and cut it 5 mm into the part.
 fn sketch_cut(h: &mut H, link: &NativeLink) -> Clip {
     let mut c = Clip::new("sketch-cut");
@@ -256,6 +463,7 @@ fn sketch_cut(h: &mut H, link: &NativeLink) -> Clip {
     c.hold(h, 0.8);
 
     // open a sketch on the top face
+    c.caption("Sketch on the top face");
     c.click_button(h, "Sketch");
     let top = world(h, [22.0, -10.0, 8.0]);
     c.glide(h, top, 0.7);
@@ -282,6 +490,7 @@ fn sketch_cut(h: &mut H, link: &NativeLink) -> Clip {
     settle(h, link);
     c.hold(h, 0.4);
 
+    c.caption("Give it sizes: 16 × 10 mm");
     // its sizes: 16 × 10 mm (drawn to them, so the solver leaves it where it is)
     let rect = {
         let s = h.state().sketch().expect("sketch open");
@@ -308,6 +517,7 @@ fn sketch_cut(h: &mut H, link: &NativeLink) -> Clip {
     }
 
     // Finish & Extrude, as a 5 mm cut
+    c.caption("Finish & Extrude as a 5 mm cut");
     c.click_button(h, "Finish & Extrude");
     if h.state().tool().is_none() {
         h.state_mut().finish_sketch(true);
@@ -344,6 +554,7 @@ fn hole_insert(h: &mut H, link: &NativeLink) -> Clip {
     build_bracket(h, link);
     prepare(h);
     c.hold(h, 0.8);
+    c.caption("Hole tool, heat-set insert M3 preset");
     c.click_button(h, "Hole");
     harness::select_first_body(h);
     if h.state().tool().is_none() {
@@ -353,6 +564,7 @@ fn hole_insert(h: &mut H, link: &NativeLink) -> Clip {
     h.state_mut().tool_set_value("preset", json!("ins_M3"));
     c.run(h, 8);
     c.hold(h, 0.6);
+    c.caption("Click where each insert goes");
     for p in [[28.0, 0.0, 8.0], [-30.0, 0.0, 8.0]] {
         let at = world(h, p);
         c.glide(h, at, 0.7);
@@ -362,6 +574,7 @@ fn hole_insert(h: &mut H, link: &NativeLink) -> Clip {
     }
     preview(h, link);
     c.hold(h, 1.5);
+    c.caption("OK: sized for the insert, with print tolerance");
     let ok = ok_button(h);
     c.glide(h, ok, 0.6);
     c.click(h);
@@ -379,23 +592,28 @@ fn hole_insert(h: &mut H, link: &NativeLink) -> Clip {
 /// A part too long for the bed is cut into pieces that fit, with pins at the seam.
 fn fit_to_bed(h: &mut H, link: &NativeLink) -> Clip {
     let mut c = Clip::new("fit-to-bed");
-    import_stl(h, link, &fixture_stl("long.stl"));
+    import_stl(h, link, &model("desk-tray"));
     iso(h);
     prepare(h);
+    c.caption("A 300 mm desk tray: too long for the bed");
     c.hold(h, 0.8);
     c.click_button(h, "Print");
     h.state_mut().shell.tab = "print".into();
     c.run(h, 6);
     let body = h.state().bodies.last().unwrap().id.clone();
     h.state_mut().shell.selection = vec![body.clone()];
+    c.caption("Fit to Bed: pick your printer");
     c.click_button(h, "Fit to Bed");
     if h.state().tool().is_none() {
         let mut v = serde_json::Map::new();
         v.insert("body".into(), json!([body]));
         assert!(h.state_mut().open_tool("bedsplit", Some(v)), "Fit to Bed opens");
     }
+    // thin walls: pins of 1.75 mm filament fit where printed pins would not
+    h.state_mut().tool_set_value("connector", json!("filament"));
     preview(h, link);
     c.hold(h, 1.5);
+    c.caption("Pieces that fit, with filament pins at the seam");
     let ok = ok_button(h);
     c.glide(h, ok, 0.6);
     c.click(h);
@@ -414,14 +632,16 @@ fn fit_to_bed(h: &mut H, link: &NativeLink) -> Clip {
 /// Support Fins on the mushroom: the fins grow under the cap while the tool works them out.
 fn support_fins(h: &mut H, link: &NativeLink) -> Clip {
     let mut c = Clip::new("support-fins");
-    import_stl(h, link, &fixture_stl("mushroom.stl"));
+    import_stl(h, link, &model("headphone-stand"));
     iso(h);
     prepare(h);
+    c.caption("A headphone stand with big overhangs");
     c.hold(h, 0.8);
     c.click_button(h, "Supports");
     h.state_mut().shell.tab = "supports".into();
     c.run(h, 6);
     harness::select_first_body(h);
+    c.caption("Support Fins adds breakaway walls");
     c.click_button(h, "Support Fins");
     harness::wait_support_open(h, link, "supportfins");
     // the Rotate mode's rings would cover the fins: show the Add fins mode
@@ -440,6 +660,7 @@ fn support_fins(h: &mut H, link: &NativeLink) -> Clip {
         }
     }
     c.hold(h, 1.5);
+    c.caption("OK: the fins snap off after printing");
     let ok = ok_button(h);
     c.glide(h, ok, 0.6);
     c.click(h);
@@ -461,6 +682,7 @@ fn section_view(h: &mut H, link: &NativeLink) -> Clip {
     build_bracket(h, link);
     prepare(h);
     c.hold(h, 0.8);
+    c.caption("Section View cuts the view open");
     c.click_button(h, "Section");
     if !h.state().section_open() {
         h.state_mut().open_section();
@@ -479,6 +701,7 @@ fn section_view(h: &mut H, link: &NativeLink) -> Clip {
     };
     // grab the arrow and drag it down (along -Z) to just above the plate, then back up a little
     c.glide(h, at(0.6), 0.8);
+    c.caption("Drag the arrow to look inside");
     c.button(h, true);
     let len = ((tip[0] - base[0]).powi(2) + (tip[1] - base[1]).powi(2)).sqrt();
     let mm = len / plane_drag::arrow_len(&cam, &p);
@@ -505,17 +728,20 @@ fn timeline_edit(h: &mut H, link: &NativeLink) -> Clip {
         .find(|p| p.y > SIZE.y - 120.0)
         .unwrap_or_else(|| panic!("no timeline step {}", step.label));
     c.glide(h, chip, 0.9);
+    c.caption("Double-click a step on the History bar");
     c.double_click(h);
     if h.state().tool().is_none() {
         assert!(h.state_mut().edit_feature(&step.id), "the step opens");
     }
     c.run(h, 8);
     c.hold(h, 0.8);
+    c.caption("Make the boss wider and lower");
     for (key, v) in [("radius", 18.0), ("height", 15.0)] {
         h.state_mut().tool_set_value(key, json!(v));
         preview(h, link);
         c.hold(h, 0.9);
     }
+    c.caption("Every step after it is made again");
     let ok = ok_button(h);
     c.glide(h, ok, 0.6);
     c.click(h);
@@ -531,6 +757,7 @@ fn timeline_edit(h: &mut H, link: &NativeLink) -> Clip {
 }
 
 const CLIPS: &[(&str, fn(&mut H, &NativeLink) -> Clip)] = &[
+    ("hero", hero),
     ("sketch_cut", sketch_cut),
     ("hole_insert", hole_insert),
     ("fit_to_bed", fit_to_bed),

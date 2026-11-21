@@ -107,8 +107,8 @@ strong { font-weight: 500; color: var(--text); }
 .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
 .hero-side .hero-meta { margin-top: 16px; line-height: 1.6; font-family: var(--mono); font-size: 12px; color: var(--text-3); }
 .hero-shot { margin-top: 64px; margin-bottom: -2px; position: relative; }
-.hero-shot img {
-  width: 100%;
+.hero-shot video {
+  display: block; width: 100%; height: auto;
   border: 1px solid var(--line-strong); border-bottom: 0;
   border-radius: 14px 14px 0 0;
   box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.04), 0 24px 64px rgba(0, 0, 0, 0.5);
@@ -153,6 +153,42 @@ strong { font-weight: 500; color: var(--text); }
 .media img, .media video { display: block; width: 100%; height: auto; }
 .media figcaption { padding: 10px 14px; font-family: var(--mono); font-size: 12px; color: var(--text-3); border-top: 1px solid var(--line); }
 .kbd { font-family: var(--mono); font-size: 12px; padding: 1px 6px; border: 1px solid var(--line-strong); border-bottom-width: 2px; border-radius: 4px; background: var(--raised); color: var(--text); }
+
+.clip { position: relative; }
+.clip video { display: block; width: 100%; height: auto; }
+.cap {
+  position: absolute; left: 50%; bottom: 7%; transform: translate(-50%, 6px);
+  max-width: calc(100% - 32px); padding: 7px 14px; border-radius: 999px;
+  background: rgba(13, 15, 18, 0.86); border: 1px solid var(--line-strong); color: var(--text);
+  font-size: 14px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  opacity: 0; transition: opacity .25s ease, transform .25s ease; pointer-events: none;
+}
+.cap.on { opacity: 1; transform: translate(-50%, 0); }
+.hero-shot .cap { font-size: 16px; bottom: 9%; }
+
+/* how it compares */
+.compare-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
+.compare { width: 100%; border-collapse: collapse; min-width: 640px; font-size: 15px; }
+.compare th, .compare td { padding: 14px 16px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+.compare tr:last-child td { border-bottom: 0; }
+.compare thead th { font-weight: 500; font-size: 14px; color: var(--text-2); }
+.compare thead th.us { color: var(--text); }
+.compare tbody th { font-weight: 400; color: var(--text); width: 30%; }
+.compare td { color: var(--text-3); }
+.compare td.us { color: var(--text); background: rgba(232, 118, 58, 0.06); }
+.compare .y { color: var(--text); }
+.compare-note { margin-top: 16px; font-size: 14px; color: var(--text-3); max-width: 48rem; }
+
+/* the tools list folds away */
+.tools-fold > summary {
+  list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 10px;
+  height: 44px; padding: 0 18px; border-radius: 10px; border: 1px solid var(--line-strong);
+  background: var(--raised); color: var(--text); font-size: 15px;
+}
+.tools-fold > summary::-webkit-details-marker { display: none; }
+.tools-fold > summary::after { content: "+"; font-family: var(--mono); color: var(--text-3); }
+.tools-fold[open] > summary::after { content: "−"; }
+.tools-fold[open] > summary { margin-bottom: 32px; }
 
 /* the plain facts */
 .facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
@@ -244,10 +280,11 @@ footer .kofi a { color: var(--text-2); }
     <div class="nav-links">
       <a href="#new">What's new</a>
       <a href="#features">Features</a>
+      <a href="#compare">Compare</a>
       <a href="#tools">Tools</a>
       <a href="#download">Download</a>
       <a href="https://github.com/natterman12/STL-Editor" target="_blank" rel="noopener">GitHub</a>
-      <a class="btn btn-secondary btn-small" href="https://natterman12.github.io/STL-Editor/app/">Open the web app</a>
+      <a class="btn btn-secondary btn-small" href="https://natterman12.github.io/STL-Editor/app/?project=https%3A%2F%2Fnatterman12.github.io%2FSTL-Editor%2Fsamples%2Fphone-stand.stl">Try it now</a>
     </div>
   </div>
 </nav>
@@ -263,14 +300,16 @@ footer .kofi a { color: var(--text-2); }
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
             Download for Windows
           </a>
-          <a class="btn btn-secondary" href="https://natterman12.github.io/STL-Editor/app/">Open in your browser</a>
+          <a class="btn btn-secondary" href="https://natterman12.github.io/STL-Editor/app/?project=https%3A%2F%2Fnatterman12.github.io%2FSTL-Editor%2Fsamples%2Fphone-stand.stl">Try it now, no download</a>
         </div>
-        <p class="hero-meta">v2.0.0 · one file, no install · Mac and Linux beta · free, GPL-3.0</p>
+        <p class="hero-meta">v2.0.0 · one file, no install · Mac and Linux beta · free, GPL-3.0<br>"Try it now" opens the phone stand from the video in your browser.</p>
       </div>
     </div>
     <div class="hero-shot">
-      <span class="callout">a 90 mm bracket, five steps on the timeline</span>
-      <img src="img/hero.webp" width="3168" height="1768" alt="STL Editor 2.0 with a bracket open: the Model tab of the toolbar, the Browser panel and the History bar">
+      <span class="callout">a downloaded phone stand, two changes</span>
+      <div class="clip">
+        <video data-clip="hero" src="img/hero.mp4" poster="img/hero.jpg" width="1920" height="1070" muted loop playsinline controls preload="none" aria-label="STL Editor 2.0: a downloaded phone stand gets a slot for the charging cable cut through its base and the words MY DESK engraved on its front"></video>
+      </div>
     </div>
   </div>
 </header>
@@ -323,11 +362,11 @@ footer .kofi a { color: var(--text-2); }
       </div>
       <div class="media">
         <figure>
-          <video src="img/sketch-cut.mp4" poster="img/sketch-cut.jpg" width="1920" height="1070" muted loop playsinline controls preload="none" aria-label="A rectangle is sketched on the bracket's top face, sized 16 by 10 mm, and cut 5 mm into the part"></video>
+          <div class="clip"><video data-clip="sketch-cut" src="img/sketch-cut.mp4" poster="img/sketch-cut.jpg" width="1920" height="1070" muted loop playsinline controls preload="none" aria-label="A rectangle is sketched on the bracket's top face, sized 16 by 10 mm, and cut 5 mm into the part"></video></div>
           <figcaption>Sketch, size, Finish &amp; Extrude as a cut</figcaption>
         </figure>
         <figure>
-          <video src="img/hole-insert.mp4" poster="img/hole-insert.jpg" width="1920" height="1070" muted loop playsinline controls preload="none" aria-label="The Hole tool with the heat-set insert M3 preset places two holes on the bracket"></video>
+          <div class="clip"><video data-clip="hole-insert" src="img/hole-insert.mp4" poster="img/hole-insert.jpg" width="1920" height="1070" muted loop playsinline controls preload="none" aria-label="The Hole tool with the heat-set insert M3 preset places two holes on the bracket"></video></div>
           <figcaption>Hole › Heat-set insert M3, two clicks, OK</figcaption>
         </figure>
       </div>
@@ -346,8 +385,8 @@ footer .kofi a { color: var(--text-2); }
       </div>
       <div class="media">
         <figure>
-          <video src="img/fit-to-bed.mp4" poster="img/fit-to-bed.jpg" width="1920" height="1070" muted loop playsinline controls preload="none" aria-label="Fit to Bed cuts a long part into two pieces that fit a Bambu Lab bed"></video>
-          <figcaption>Print › Fit to Bed, preview, OK</figcaption>
+          <div class="clip"><video data-clip="fit-to-bed" src="img/fit-to-bed.mp4" poster="img/fit-to-bed.jpg" width="1920" height="1070" muted loop playsinline controls preload="none" aria-label="Fit to Bed cuts a 300 mm desk tray into two pieces that fit a Bambu Lab bed, with filament pins at the seam"></video></div>
+          <figcaption>Print › Fit to Bed, filament pins, OK</figcaption>
         </figure>
       </div>
     </div>
@@ -365,7 +404,7 @@ footer .kofi a { color: var(--text-2); }
       </div>
       <div class="media">
         <figure>
-          <video src="img/support-fins.mp4" poster="img/support-fins.jpg" width="1920" height="1070" muted loop playsinline controls preload="none" aria-label="Support Fins adds breakaway walls under a mushroom-shaped part's overhang, then OK makes them part of the model"></video>
+          <div class="clip"><video data-clip="support-fins" src="img/support-fins.mp4" poster="img/support-fins.jpg" width="1920" height="1070" muted loop playsinline controls preload="none" aria-label="Support Fins adds breakaway walls under the arms of a headphone stand, then OK makes them part of the model"></video></div>
           <figcaption>Supports › Support Fins, OK</figcaption>
         </figure>
       </div>
@@ -388,7 +427,7 @@ footer .kofi a { color: var(--text-2); }
           <figcaption>Ctrl+K, "ho"</figcaption>
         </figure>
         <figure>
-          <video src="img/section-view.mp4" poster="img/section-view.jpg" width="1920" height="1070" muted loop playsinline controls preload="none" aria-label="Section View cuts the bracket open halfway up, then the arrow drags the cut down through the holes"></video>
+          <div class="clip"><video data-clip="section-view" src="img/section-view.mp4" poster="img/section-view.jpg" width="1920" height="1070" muted loop playsinline controls preload="none" aria-label="Section View cuts the bracket open halfway up, then the arrow drags the cut down through the holes"></video></div>
           <figcaption>Section, drag the arrow</figcaption>
         </figure>
       </div>
@@ -406,11 +445,38 @@ footer .kofi a { color: var(--text-2); }
       </div>
       <div class="media">
         <figure>
-          <video src="img/timeline-edit.mp4" poster="img/timeline-edit.jpg" width="1920" height="1070" muted loop playsinline controls preload="none" aria-label="The round boss's step is double-clicked on the History bar, made wider and lower, and the holes after it are made again"></video>
+          <div class="clip"><video data-clip="timeline-edit" src="img/timeline-edit.mp4" poster="img/timeline-edit.jpg" width="1920" height="1070" muted loop playsinline controls preload="none" aria-label="The round boss's step is double-clicked on the History bar, made wider and lower, and the holes after it are made again"></video></div>
           <figcaption>Double-click a step, change it, OK</figcaption>
         </figure>
       </div>
     </div>
+  </div>
+</section>
+
+<section class="section" id="compare">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="dim"><b>Compare</b></span>
+      <h2>Looking for a Meshmixer alternative?</h2>
+      <p>Autodesk no longer develops Meshmixer, and most people only used it for a few jobs: fix a downloaded part, add a hole, cut it to fit the bed. Here is how STL Editor compares with the tools people usually try next.</p>
+    </div>
+    <div class="compare-wrap">
+      <table class="compare">
+        <thead>
+          <tr><th></th><th class="us">STL Editor</th><th>Meshmixer</th><th>Tinkercad</th><th>Fusion</th><th>Blender</th></tr>
+        </thead>
+        <tbody>
+          <tr><th>Edit the STL you downloaded</th><td class="us">Yes, directly</td><td class="y">Yes</td><td>Add or subtract shapes</td><td>After converting the mesh</td><td class="y">Yes</td></tr>
+          <tr><th>Sketch with real sizes on a face</th><td class="us">Yes</td><td>No</td><td>Shapes with sizes</td><td class="y">Yes</td><td>No</td></tr>
+          <tr><th>Holes for inserts, printable threads</th><td class="us">Presets, one click each</td><td>No</td><td>By hand</td><td class="y">Yes</td><td>By hand</td></tr>
+          <tr><th>Split to fit the bed, with pins</th><td class="us">Yes, automatic</td><td>Plane cut, no pins</td><td>By hand</td><td>By hand</td><td>By hand</td></tr>
+          <tr><th>Change an earlier step later</th><td class="us">Yes, on the timeline</td><td>No</td><td>No</td><td class="y">Yes</td><td>Partly</td></tr>
+          <tr><th>Account needed</th><td class="us">No</td><td class="y">No</td><td>Yes</td><td>Yes</td><td class="y">No</td></tr>
+          <tr><th>Still being developed</th><td class="us">Yes</td><td>No</td><td class="y">Yes</td><td class="y">Yes</td><td class="y">Yes</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="compare-note">Fusion and Blender can do far more than this table shows; they are just a long way round for a quick change to a print. STL Editor is built for exactly that, and it's free.</p>
   </div>
 </section>
 
@@ -444,6 +510,8 @@ footer .kofi a { color: var(--text-2); }
       <h2>Every tool, as the toolbar has them</h2>
       <p>Each tool lives on one tab. The tool search finds all of them.</p>
     </div>
+    <details class="tools-fold">
+      <summary>Show every tool</summary>
     <div class="tools">
       <div class="tools-row">
         <h3>Model<span>tab 1</span></h3>
@@ -494,6 +562,7 @@ footer .kofi a { color: var(--text-2); }
         </div>
       </div>
     </div>
+    </details>
   </div>
 </section>
 
@@ -530,6 +599,7 @@ footer .kofi a { color: var(--text-2); }
         <p>The same app, built for the browser. Works in a recent Chrome, Edge, Firefox or Safari on Windows, macOS, Linux, ChromeOS and tablets, and keeps working offline once it has loaded.</p>
         <div class="row" style="margin-top:24px">
           <a class="btn btn-secondary" href="https://natterman12.github.io/STL-Editor/app/">Open in your browser</a>
+          <a class="btn-note" href="https://natterman12.github.io/STL-Editor/app/?project=https%3A%2F%2Fnatterman12.github.io%2FSTL-Editor%2Fsamples%2Fphone-stand.stl">or try it with the sample phone stand</a>
         </div>
         <table class="specs">
           <tbody>
@@ -603,10 +673,41 @@ footer .kofi a { color: var(--text-2); }
 </footer>
 
 <script>
-// The clips play while they are on screen, without controls, unless the reader asked for less
-// motion: then they stay still on their poster, with controls to play them.
+// The clips play while they are on screen, without controls, with a caption for each step
+// (img/<name>.captions.json, written by the program that records them). For a reader who asked
+// for less motion they stay still on their poster, with controls to play them.
 (function () {
   var still = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var clips = document.querySelectorAll('video[data-clip]');
+  clips.forEach(function (v) {
+    var cap = document.createElement('span');
+    cap.className = 'cap';
+    cap.setAttribute('aria-hidden', 'true');
+    v.parentNode.appendChild(cap);
+    var steps = null, shown = -1;
+    function show() {
+      if (!steps) return;
+      var i = -1;
+      for (var k = 0; k < steps.length; k++) if (steps[k].t <= v.currentTime + 0.05) i = k;
+      if (i === shown) return;
+      shown = i;
+      cap.classList.remove('on');
+      if (i < 0) return;
+      cap.textContent = steps[i].text;
+      void cap.offsetWidth; // restart the fade
+      cap.classList.add('on');
+    }
+    v.addEventListener('play', function () {
+      if (steps) return;
+      steps = [];
+      fetch('img/' + v.dataset.clip + '.captions.json')
+        .then(function (r) { return r.ok ? r.json() : []; })
+        .then(function (j) { steps = j; show(); })
+        .catch(function () {});
+    }, { once: true });
+    v.addEventListener('timeupdate', show);
+    v.addEventListener('seeked', show);
+  });
   if (still || !('IntersectionObserver' in window)) return;
   var io = new IntersectionObserver(function (es) {
     es.forEach(function (e) {
@@ -614,7 +715,7 @@ footer .kofi a { color: var(--text-2); }
       else e.target.pause();
     });
   }, { threshold: 0.4 });
-  document.querySelectorAll('.media video').forEach(function (v) {
+  clips.forEach(function (v) {
     v.removeAttribute('controls');
     v.preload = 'metadata';
     io.observe(v);
