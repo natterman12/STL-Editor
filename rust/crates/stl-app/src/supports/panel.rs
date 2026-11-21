@@ -1683,6 +1683,12 @@ pub struct Session {
     pub plastic: Option<Plastic>,
     pub strength: Option<Value>,
     pub suggest: SuggestUi,
+    /// The support-section check and tilt hint for the last build (`check.rs`).
+    pub check: super::check::CheckUi,
+    /// The flagged spot outlined in the view, if any.
+    pub finding: Option<usize>,
+    /// The last build had fins removed or walls drawn by hand, which the check doesn't see.
+    pub check_edited: bool,
     pub version: String,
     /// Draw Walls: the shape picked, the points of the wall in progress, how each wall came out.
     pub wall_shape: String,
@@ -1728,6 +1734,9 @@ impl Session {
             plastic: None,
             strength: None,
             suggest: SuggestUi::Idle,
+            check: Default::default(),
+            finding: None,
+            check_edited: false,
             version: engine_version().to_string(),
             wall_shape: "line".into(),
             wall_pending: 0,
@@ -1752,6 +1761,10 @@ pub enum PanelEvent {
     Suggest,
     UseCandidate(usize),
     UseStrongest,
+    /// Turn the part the way the tilt hint says.
+    UseTilt,
+    /// Outline a flagged support spot (`None` hides it).
+    Finding(Option<usize>),
     FillGaps,
     RestoreRemoved,
     Material(String),
@@ -2253,6 +2266,7 @@ fn draw_status(ui: &mut egui::Ui, tk: &Tokens, session: &mut Session, cover: boo
             }
         });
     }
+    super::check::draw(ui, tk, session, out);
     ui.add_space(2.0);
 }
 

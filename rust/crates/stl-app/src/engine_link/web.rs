@@ -621,6 +621,10 @@ fn decode_command(data: &JsValue) -> Result<Command, String> {
                     options: json_field(data, "options"),
                     top: get(data, "top").as_f64().unwrap_or(3.0) as i64,
                 },
+                "check" => FinsAsk::Check {
+                    body: req_string(data, "body")?,
+                    options: json_field(data, "options"),
+                },
                 other => {
                     return Err(format!(
                         "The engine got a message it doesn't understand (fins {other})."
@@ -803,6 +807,10 @@ fn encode_command(c: &Command) -> JsValue {
                     m.insert("body".into(), Value::String(body.clone()));
                     m.insert("options".into(), options.clone());
                     m.insert("top".into(), Value::from(*top));
+                }
+                FinsAsk::Check { body, options } => {
+                    m.insert("body".into(), Value::String(body.clone()));
+                    m.insert("options".into(), options.clone());
                 }
             }
         }

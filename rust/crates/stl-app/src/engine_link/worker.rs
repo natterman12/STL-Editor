@@ -312,6 +312,13 @@ impl Worker {
                     fins::orient::suggest(&*host, &mesh, &options, top).map_err(|e| e.0)
                 }
             },
+            FinsAsk::Check { body, options } => match self.doc.state.bodies.get(&body) {
+                None => Err(format!("Body '{body}' no longer exists.")),
+                Some(b) => {
+                    let mesh = fins::body_mesh(b);
+                    fins::check::check(&*host, &mesh, &options).map_err(|e| e.0)
+                }
+            },
         };
         self.send(Update::Fins { seq, ask: name, result });
     }

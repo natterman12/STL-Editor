@@ -209,6 +209,13 @@ any slicer with supports turned off.
    grams, from their exact volume). Under them are Suggest orientations and Strength (in
    Rotate), *Material* (your filament for the plastic estimate: PLA, PETG, ABS, ASA, TPU or
    Nylon) and *Bare beyond*.
+   A moment after the fins appear, the check under the cards looks at them once more. When some
+   overhangs are too shallow for a fin the way the part sits, it names a turn that leaves fewer
+   (for example *Laying it on its right side leaves none of them*), and **Turn it that way** does
+   it. When a support is thinner than one line of your nozzle, or starts in mid-air, it says how
+   many such spots there are; **Show** outlines each one in orange (*Previous* / *Next* to step
+   through them). Look at those spots in your slicer's preview before printing. Fins you removed
+   or drew by hand aren't part of the check.
 
 The settings are Support Fins' own: Auto or Full coverage placement, overhang angle, nozzle,
 tines (grip, horizontal for FDM or vertical pins for resin, layer height), support gap, bed
