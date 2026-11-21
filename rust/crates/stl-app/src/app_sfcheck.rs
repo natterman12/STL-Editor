@@ -55,7 +55,10 @@ impl StlApp {
         if seq != self.sf.check_seq {
             return;
         }
+        // a new answer: any spot outlined from the one before is gone
+        self.viewport.clear_overlay(FINDING_TAG);
         if let Some(s) = self.tool.as_mut().and_then(|t| t.sf.as_mut()) {
+            s.finding = None;
             // a failed check says nothing: the build itself went through, and its own line stands
             s.check = match result {
                 Ok(v) => CheckUi::Ready(check::parse(&v)),

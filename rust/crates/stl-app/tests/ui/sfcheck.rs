@@ -128,6 +128,16 @@ fn sfcheck_findings_are_outlined_one_at_a_time() {
     wait_for(&mut h, &link, "the support check", |h| {
         matches!(check_of(h), CheckUi::Ready(_))
     });
+    // the coverage check runs on a thread of its own and its card can change height when it
+    // lands, which would move the buttons between frames: let it finish first
+    wait_for(&mut h, &link, "the coverage check", |h| {
+        h.state()
+            .tool()
+            .and_then(|t| t.sf.as_ref())
+            .is_some_and(|s| s.cover.as_ref().is_some_and(|c| !c.busy))
+    });
+    settle(&mut h, &link);
+    h.run_steps(3);
     // none of our test parts gets a finding from this engine, so two are put in by hand
     let spots = vec![
         Finding {
