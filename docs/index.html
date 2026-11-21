@@ -150,6 +150,7 @@ strong { font-weight: 500; color: var(--text); }
 .feature li strong { display: block; margin-bottom: 2px; }
 .media { display: grid; gap: 16px; }
 .media figure { border: 1px solid var(--line-strong); border-radius: 12px; overflow: hidden; background: var(--card); }
+.media img, .media video { display: block; width: 100%; height: auto; }
 .media figcaption { padding: 10px 14px; font-family: var(--mono); font-size: 12px; color: var(--text-3); border-top: 1px solid var(--line); }
 .kbd { font-family: var(--mono); font-size: 12px; padding: 1px 6px; border: 1px solid var(--line-strong); border-bottom-width: 2px; border-radius: 4px; background: var(--raised); color: var(--text); }
 
@@ -269,7 +270,7 @@ footer .kofi a { color: var(--text-2); }
     </div>
     <div class="hero-shot">
       <span class="callout">a 90 mm bracket, five steps on the timeline</span>
-      <img src="img/hero.png" width="1584" height="884" alt="STL Editor 2.0 with a bracket open: the Model tab of the toolbar, the Browser panel and the History bar">
+      <img src="img/hero.webp" width="3168" height="1768" alt="STL Editor 2.0 with a bracket open: the Model tab of the toolbar, the Browser panel and the History bar">
     </div>
   </div>
 </header>
@@ -322,11 +323,11 @@ footer .kofi a { color: var(--text-2); }
       </div>
       <div class="media">
         <figure>
-          <img src="img/sketch-cut.gif" width="960" height="535" loading="lazy" alt="A rectangle is sketched on the bracket's top face, sized 16 by 10 mm, and cut 5 mm into the part">
+          <video src="img/sketch-cut.mp4" poster="img/sketch-cut.jpg" width="1920" height="1070" muted loop playsinline controls preload="none" aria-label="A rectangle is sketched on the bracket's top face, sized 16 by 10 mm, and cut 5 mm into the part"></video>
           <figcaption>Sketch, size, Finish &amp; Extrude as a cut</figcaption>
         </figure>
         <figure>
-          <img src="img/hole-insert.gif" width="960" height="535" loading="lazy" alt="The Hole tool with the heat-set insert M3 preset places two holes on the bracket">
+          <video src="img/hole-insert.mp4" poster="img/hole-insert.jpg" width="1920" height="1070" muted loop playsinline controls preload="none" aria-label="The Hole tool with the heat-set insert M3 preset places two holes on the bracket"></video>
           <figcaption>Hole › Heat-set insert M3, two clicks, OK</figcaption>
         </figure>
       </div>
@@ -345,7 +346,7 @@ footer .kofi a { color: var(--text-2); }
       </div>
       <div class="media">
         <figure>
-          <img src="img/fit-to-bed.gif" width="960" height="535" loading="lazy" alt="Fit to Bed cuts a long part into two pieces that fit a Bambu Lab bed">
+          <video src="img/fit-to-bed.mp4" poster="img/fit-to-bed.jpg" width="1920" height="1070" muted loop playsinline controls preload="none" aria-label="Fit to Bed cuts a long part into two pieces that fit a Bambu Lab bed"></video>
           <figcaption>Print › Fit to Bed, preview, OK</figcaption>
         </figure>
       </div>
@@ -364,8 +365,8 @@ footer .kofi a { color: var(--text-2); }
       </div>
       <div class="media">
         <figure>
-          <img src="img/support-fins.png" width="1584" height="884" loading="lazy" alt="Support Fins adds breakaway walls under a mushroom-shaped part's overhang">
-          <figcaption>Supports › Support Fins</figcaption>
+          <video src="img/support-fins.mp4" poster="img/support-fins.jpg" width="1920" height="1070" muted loop playsinline controls preload="none" aria-label="Support Fins adds breakaway walls under a mushroom-shaped part's overhang, then OK makes them part of the model"></video>
+          <figcaption>Supports › Support Fins, OK</figcaption>
         </figure>
       </div>
     </div>
@@ -383,8 +384,30 @@ footer .kofi a { color: var(--text-2); }
       </div>
       <div class="media">
         <figure>
-          <img src="img/tool-search.png" width="1584" height="884" loading="lazy" alt="The tool search open over the workspace, with Hole, Hollow, Resize Hole and Thread listed for the letters ho">
+          <img src="img/tool-search.webp" width="3168" height="1768" loading="lazy" alt="The tool search open over the workspace, with Hole, Hollow, Resize Hole and Thread listed for the letters ho">
           <figcaption>Ctrl+K, "ho"</figcaption>
+        </figure>
+        <figure>
+          <video src="img/section-view.mp4" poster="img/section-view.jpg" width="1920" height="1070" muted loop playsinline controls preload="none" aria-label="Section View cuts the bracket open halfway up, then the arrow drags the cut down through the holes"></video>
+          <figcaption>Section, drag the arrow</figcaption>
+        </figure>
+      </div>
+    </div>
+
+    <div class="feature">
+      <div class="feature-text">
+        <h3>Change your mind later</h3>
+        <p>Every sketch, cut, hole and split is a step on the History bar. Double-click an earlier step, change a size, and everything after it is worked out again, holes and all.</p>
+        <ul>
+          <li><strong>Parameters</strong>Name a size once, like <code>wall</code>, and use it in any step. Change it and the whole part follows.</li>
+          <li><strong>Roll back</strong>Drag the marker to see the part as it was at any step, and add new steps there.</li>
+          <li><strong>Turn a step off</strong>Suppress a step to try the part without it, then turn it back on.</li>
+        </ul>
+      </div>
+      <div class="media">
+        <figure>
+          <video src="img/timeline-edit.mp4" poster="img/timeline-edit.jpg" width="1920" height="1070" muted loop playsinline controls preload="none" aria-label="The round boss's step is double-clicked on the History bar, made wider and lower, and the holes after it are made again"></video>
+          <figcaption>Double-click a step, change it, OK</figcaption>
         </figure>
       </div>
     </div>
@@ -579,5 +602,24 @@ footer .kofi a { color: var(--text-2); }
   </div>
 </footer>
 
+<script>
+// The clips play while they are on screen, without controls, unless the reader asked for less
+// motion: then they stay still on their poster, with controls to play them.
+(function () {
+  var still = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (still || !('IntersectionObserver' in window)) return;
+  var io = new IntersectionObserver(function (es) {
+    es.forEach(function (e) {
+      if (e.isIntersecting) { var p = e.target.play(); if (p) p.catch(function () {}); }
+      else e.target.pause();
+    });
+  }, { threshold: 0.4 });
+  document.querySelectorAll('.media video').forEach(function (v) {
+    v.removeAttribute('controls');
+    v.preload = 'metadata';
+    io.observe(v);
+  });
+})();
+</script>
 </body>
 </html>
