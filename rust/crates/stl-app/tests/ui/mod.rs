@@ -29,6 +29,7 @@ mod recover;
 mod section_view;
 mod sf11;
 mod sf9;
+mod sfcheck;
 mod sfcov;
 mod sfpanel;
 mod skdim;

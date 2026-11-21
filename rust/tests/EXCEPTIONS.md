@@ -566,3 +566,11 @@ Nathan answered these on 2026-11-14: accepted unless marked otherwise.
   search no longer lists it ("doesn't work great"). The engine feature and the tool definition stay, so a 1.x project with
   a Snap-fit step still rebuilds the same and the step can still be opened from the timeline and edited. 1.x keeps the
   tool. `ribbon_tools_match_ribbon_def` and `search_finds_every_tool` leave it out and the second checks it stays out.
+
+## After milestone 7
+
+- **2.0 shows two Support Fins checks 1.x doesn't (Nathan asked, 2026-11-21).** After a Support Fins
+  preview the panel asks the engine for `check` (`stl-engine` `fins/check.rs`): it builds the fins once
+  more with the engine's support-section check on (Support Fins 1.0.8, `diagnostics: true`) and, when
+  overhangs were too shallow for a fin, asks for the tilt hint (1.0.9, `tiltHintB64`). The build itself
+  and its info line are unchanged, so the golden files and the fins replay are too.
