@@ -51,7 +51,7 @@ The interface keeps your focus on the model: the part fills the window, with a f
 2.0 does everything 1.x does, with the same tabs, panels and shortcuts, so there's nothing to relearn. What changed is underneath:
 
 - **One small program.** The Windows download is a single `.exe` with no Python, no zip to unpack and nothing to install. Settings live in their own folder, so 1.x and 2.0 can sit side by side while you switch.
-- **Quicker and smoother.** It starts in a moment, and turning and editing big meshes stays smooth because the 3D view draws on your graphics card.
+- **Much faster.** On the same test parts, Hollow went from 57 s to 1.4 s, Repair › Rebuild from 11.3 s to 1.3 s, Remesh from 10 s to 2.4 s and opening a file from 1.6 s to 0.6 s. No tool is slower than in 1.x, and the 3D view draws on your graphics card, so big meshes stay smooth.
 - **The same app everywhere.** Windows, Mac, Linux and the web edition are now built from the same code, so they look and behave the same.
 - **Your projects come with you.** `.stlx` projects from 1.x open and rebuild in 2.0.
 - **Better Section and Split.** Pick any plane or flat face, then drag an arrow (or type a distance) to move the cut. Section View draws the cut faces with hatch lines so they're easy to tell apart.
@@ -83,7 +83,7 @@ The interface keeps your focus on the model: the part fills the window, with a f
   - **Support Fins** ([Support Fins](https://github.com/gittrahan/support-fins) by gittrahan, built in): tip a part to its strong print orientation and add the breakaway fins and bed pad that hold up its overhangs, baked into the mesh. Every Support Fins setting is there (placement, tines, nozzle, sway braces for tall parts, cutouts...), plus orientation ranking, strength checks, support plastic shown in grams, and bright red overhang coverage checks. New Support Fins releases reach both editions automatically.
   - **Draw Walls:** place custom support walls by hand (straight, multi-section, curved, gussets off a side and anchor fins).
   - **About Support Fins:** which version is built in, and where it comes from.
-- **MESH:** Repair (quick fix, or rebuild as one watertight solid) · Simplify · Remesh · Separate · Remove Bodies · Brushes (smooth / flatten / inflate / deflate) · To STEP *(desktop only)* (through SolidCraft)
+- **MESH:** Repair (quick fix, or rebuild as one watertight solid) · Simplify · Remesh · Separate · Remove Bodies · Brushes (smooth / flatten / inflate / deflate) · To STEP *(Windows desktop only)*
 - **INSPECT** *(on every tab)*: Measure · Section (cut the view open on X, Y, Z, any plane or a flat face, drag it into place, with hatched cut faces; stays on while you work, X turns it off and on) · Properties (size, volume, triangle count and print weight)
 - **SKETCH:** Line · Arc · Rectangle · Center Rectangle · Circle · Polygon · Slot · Text (any installed font) · Project (section or silhouette of the model, with offset) · Use Edge · Import SVG / DXF · Select · Trim · Offset · Mirror · Round corner · Delete · Smart Dimension (length, diameter, radius, distance, angle; to part edges; reference dimensions; parameters) · Construction · Look At · 11 relations (coincident, horizontal/vertical, parallel, perpendicular, equal, tangent, concentric, midpoint, symmetric, fix)
 - **Everything else:** undo/redo · `.stlx` projects that keep the whole timeline (1.x projects open too) · inch mode with fractions (`1 3/8`) · light and dark themes · autosave with crash recovery · one-click updates
@@ -138,7 +138,7 @@ The 1.x app (Python and JavaScript) is still in the repository (`stleditor/`, `w
    ├─ stl-sketch     sketches, constraints and dimensions, text, SVG / DXF import
    ├─ stl-mesh       repair, simplify, remesh, voxel work, sculpt brushes
    ├─ stl-io         STL, 3MF, OBJ, PLY, OFF, GLB in; STL, 3MF, OBJ, STEP out
-   ├─ stl-platform   desktop only: settings, autosave, updates, slicer and SolidCraft hand-off
+   ├─ stl-platform   desktop only: settings, autosave, updates, slicer and STEP hand-off
    └─ stl-kernel     solids and 2D shapes on manifold-rust
 ```
 
@@ -150,7 +150,7 @@ The 1.x app (Python and JavaScript) is still in the repository (`stleditor/`, `w
 
 ## Limits
 
-- STL files have no real edges, so **fillet and chamfer on mesh edges aren't available**. For blocky mechanical parts, *To STEP* hands the mesh to SolidCraft.
+- STL files have no real edges, so **fillet and chamfer on mesh edges aren't available**. For blocky mechanical parts, *To STEP* turns the mesh into a STEP file for your CAD program.
 - Bodies that aren't watertight show and export fine, but need **Repair** before you can edit them.
 - Hollow and *Repair › Rebuild* use a voxel grid. Pick *Quality › Fine* for small details.
 - Snap-fit from 1.x isn't offered in 2.0. Projects that already have a Snap-fit step still open and rebuild.
