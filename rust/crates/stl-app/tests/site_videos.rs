@@ -258,6 +258,24 @@ fn ok_button(h: &H) -> Pos2 {
         .expect("the OK button")
 }
 
+/// The first body's volume (mm³), from its mesh.
+fn volume(h: &H) -> f64 {
+    let m = &h.state().bodies[0].mesh;
+    let p = |i: u32| {
+        let i = i as usize * 3;
+        [0, 1, 2].map(|k| f64::from(m.positions[i + k]))
+    };
+    m.triangles
+        .chunks_exact(3)
+        .map(|t| {
+            let (a, b, c) = (p(t[0]), p(t[1]), p(t[2]));
+            (a[0] * (b[1] * c[2] - b[2] * c[1]) - a[1] * (b[0] * c[2] - b[2] * c[0])
+                + a[2] * (b[0] * c[1] - b[1] * c[0]))
+                / 6.0
+        })
+        .sum()
+}
+
 fn world(h: &H, p: [f64; 3]) -> Pos2 {
     h.state().viewport.world_to_screen(p)
 }
@@ -294,6 +312,24 @@ fn open_sketch(c: &mut Clip, h: &mut H, link: &NativeLink, at: [f64; 3], face: s
     c.glide(h, p, 0.7);
     c.click(h);
     settle(h, link);
+    // the click must have opened the face meant, not one in front of it
+    let meant = |h: &H| {
+        h.state().sketch().is_some_and(|s| {
+            let n = face["normal"]
+                .as_array()
+                .map(|v| v.iter().map(|x| x.as_f64().unwrap_or(0.0)).collect::<Vec<_>>());
+            let n = n.unwrap_or_default();
+            let f = &s.frame;
+            let along = (0..3).map(|i| f.normal[i] * n[i]).sum::<f64>();
+            let off = (0..3).map(|i| (at[i] - f.origin[i]) * f.normal[i]).sum::<f64>();
+            n.len() == 3 && along > 0.99 && off.abs() < 0.5
+        })
+    };
+    if h.state().sketch().is_some() && !meant(h) {
+        eprintln!("open_sketch: the click opened another face; opening the one meant");
+        h.state_mut().cancel_sketch();
+        settle(h, link);
+    }
     if h.state().sketch().is_none() {
         h.state_mut().enter_sketch(Some(face), None);
     }
@@ -364,25 +400,32 @@ fn hero(h: &mut H, link: &NativeLink) -> Clip {
 
     // a slot through the base, behind the front lip, for the charging cable
     c.caption("Sketch a slot for the charging cable");
-    let top = json!({"origin": [0.0, -31.0, 7.2], "normal": [0.0, 0.0, 1.0], "xdir": [1.0, 0.0, 0.0],
+    let top = json!({"origin": [0.0, -20.0, 7.2], "normal": [0.0, 0.0, 1.0], "xdir": [1.0, 0.0, 0.0],
         "label": "Top", "body": body});
-    open_sketch(&mut c, h, link, [0.0, -31.0, 7.2], top);
-    let (a, b) = (uv_of(h, [-14.0, -35.0, 7.2]), uv_of(h, [14.0, -27.0, 7.2]));
+    open_sketch(&mut c, h, link, [0.0, -20.0, 7.2], top);
+    let (a, b) = (uv_of(h, [-14.0, -24.0, 7.2]), uv_of(h, [14.0, -16.0, 7.2]));
     draw_rect(&mut c, h, link, a, b);
     c.hold(h, 0.4);
     c.caption("Cut it through the base");
+    let before = volume(h);
     finish_cut(&mut c, h, link, 10.0, "iso");
+    // about 28 x 8 mm (grid snap may round it up) through the 7.2 mm base: 1600-2200 mm³ less
+    let cut = before - volume(h);
+    assert!(
+        (1300.0..2400.0).contains(&cut),
+        "the slot cut {cut:.0} mm³, not through the base"
+    );
     c.run(h, 12);
 
     // a name on the front of the lip, engraved 1 mm
     c.caption("Type a name on the front");
-    let front = json!({"origin": [0.0, -48.6, 12.0], "normal": [0.0, -1.0, 0.0], "xdir": [1.0, 0.0, 0.0],
+    let front = json!({"origin": [0.0, -48.6, 8.0], "normal": [0.0, -1.0, 0.0], "xdir": [1.0, 0.0, 0.0],
         "label": "Front", "body": body});
-    open_sketch(&mut c, h, link, [10.0, -48.6, 14.0], front);
+    open_sketch(&mut c, h, link, [10.0, -48.6, 10.0], front);
     let before = h.state().sketch().map_or(0, |s| s.entities.len());
     h.state_mut().sketch_set_tool("text");
-    // the text's start: left end of the lip, its baseline 6 mm up
-    let start = uv_of(h, [-27.0, -48.6, 6.5]);
+    // the text's start: left end of the lip, its baseline 3.5 mm up
+    let start = uv_of(h, [-27.0, -48.6, 3.5]);
     let at = sketch_uv(h, start);
     c.glide(h, at, 0.6);
     c.click(h);
@@ -632,10 +675,10 @@ fn fit_to_bed(h: &mut H, link: &NativeLink) -> Clip {
 /// Support Fins on the mushroom: the fins grow under the cap while the tool works them out.
 fn support_fins(h: &mut H, link: &NativeLink) -> Clip {
     let mut c = Clip::new("support-fins");
-    import_stl(h, link, &model("headphone-stand"));
+    import_stl(h, link, &model("leaning-arm"));
     iso(h);
     prepare(h);
-    c.caption("A headphone stand with big overhangs");
+    c.caption("A part that leans out over the bed");
     c.hold(h, 0.8);
     c.click_button(h, "Supports");
     h.state_mut().shell.tab = "supports".into();

@@ -40,7 +40,10 @@ fn add_text_puts_the_letters_in_the_sketch() {
     });
     h.event(egui::Event::Text("HI".into()));
     h.run_steps(3);
-    assert!(h.query_all_by_value("HI").next().is_some(), "the text box took the typing");
+    assert!(
+        h.query_all_by_value("HI").next().is_some(),
+        "the text box took the typing"
+    );
     h.get_by_label("Add text").click();
     h.run_steps(2);
     settle(&mut h, &link);

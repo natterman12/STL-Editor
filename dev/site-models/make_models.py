@@ -1,4 +1,4 @@
-"""The website's demo parts: a phone stand, a long desk tray and a headphone stand.
+"""The website's demo parts: a phone stand, a long desk tray and a leaning arm.
 
 Drawn here from scratch (no downloaded models, so they are ours to show and to give away as the
 "Try it now" sample). The clips in rust/crates/stl-app/tests/site_videos.rs import these STLs the
@@ -65,10 +65,11 @@ def phone_stand():
     Extruded 80 mm along x. The front lip faces -y (toward the iso camera)."""
     t = 6.0
     base = rect(0, 0, 96, t)
-    lip = rect(0, 0, t, 22)
+    # a low lip, and the plate set well back, so the iso view sees the base between them
+    lip = rect(0, 0, t, 15)
     # the back plate, leaning back at 65 degrees from the base
     a = math.radians(65)
-    p = (30.0, t / 2)
+    p = (42.0, t / 2)
     q = (p[0] + 100 * math.cos(a), p[1] + 100 * math.sin(a))
     plate = bar(p, q, t)
     # a rear brace from the back of the base up under the plate
@@ -99,19 +100,17 @@ def desk_tray():
     return on_bed(soften(tray, 0.6))
 
 
-def headphone_stand():
-    """A round weighted base, a post, and a curved saddle on top that overhangs both sides."""
-    base = mf.Manifold.cylinder(8, 50, 50).translate((0, 0, 0))
-    post = rounded_2d(rect(-11, -11, 11, 11), 4).extrude(150).translate((0, 0, 6))
-    # the saddle: an arc strip in (x, z), 30 mm deep along y
-    r_in, r_out = 70.0, 80.0
-    arc = mf.CrossSection.circle(r_out) - mf.CrossSection.circle(r_in)
-    arc = arc - rect(-200, -200, 200, 40)  # keep the top of the ring
-    arc = rounded_2d(arc - rect(-200, -200, -62, 200) - rect(62, -200, 200, 200), 2.5)
-    saddle = arc.extrude(30).transform(np.array([[1, 0, 0, 0], [0, 0, 1, -15], [0, 1, 0, 0]], dtype=float))
-    # the post's top goes 6 mm into the saddle's middle
-    saddle = saddle.translate((0, 0, 150 - r_in))
-    return on_bed(soften(base, 0.6) + soften(post, 0.6) + soften(saddle, 0.6))
+def leaning_arm():
+    """A rounded arm leaning 50 degrees off vertical on a small foot: its whole underside hangs
+    out over the bed, the plain case Support Fins is for."""
+    foot = rounded_2d(rect(-25, -20, 25, 20), 6).extrude(5)
+    lean = math.radians(50)
+    # the arm: 30 x 20 mm, 100 mm long, tipped about the y axis so it leans toward +x
+    arm = rounded_2d(rect(-15, -10, 15, 10), 5).extrude(100)
+    c, s_ = math.cos(lean), math.sin(lean)
+    arm = arm.transform(np.array([[c, 0, s_, -12], [0, 1, 0, 0], [-s_, 0, c, 4]], dtype=float))
+    arm = arm - mf.Manifold.cube((400, 400, 50)).translate((-200, -200, -50))  # flat on the bed
+    return on_bed(soften(foot + arm, 0.6))
 
 
 if __name__ == "__main__":
@@ -121,4 +120,4 @@ if __name__ == "__main__":
     os.makedirs(samples, exist_ok=True)
     write_stl(stand, os.path.join(samples, "phone-stand.stl"))
     write_stl(desk_tray(), os.path.join(HERE, "desk-tray.stl"))
-    write_stl(headphone_stand(), os.path.join(HERE, "headphone-stand.stl"))
+    write_stl(leaning_arm(), os.path.join(HERE, "leaning-arm.stl"))
