@@ -148,6 +148,7 @@ pub fn is_sel_kind(k: &FieldKind) -> bool {
         FieldKind::Bodies { .. }
             | FieldKind::Plane { .. }
             | FieldKind::FacePoints
+            | FieldKind::CutPoints
             | FieldKind::Points3
             | FieldKind::PFace { .. }
             | FieldKind::CylFace
@@ -458,6 +459,7 @@ pub fn show_pick(
         FieldKind::Regions => regions::show(ui, tk, f, values, active, ctx),
         FieldKind::Features => features::show(ui, tk, f, values, ctx, edit_id),
         FieldKind::FacePoints => facepoints::show(ui, tk, f, values, active, ctx),
+        FieldKind::CutPoints => super::cutpoints::show(ui, tk, f, values, active, ctx),
         FieldKind::PFace { .. } => pface::show(ui, tk, f, values, active, ctx),
         FieldKind::CylFace => cylface::show(ui, tk, f, values, active, ctx),
         FieldKind::Points3 => points3::show(ui, tk, f, values, active, ctx),
@@ -581,6 +583,7 @@ pub fn tool_marks(tool: &ToolDef, values: &Values, ctx: &Ctx) -> Vec<Mark> {
         match f.kind {
             FieldKind::Plane { .. } => out.extend(plane::marks(f, values, ctx, tool.flags.plane_tool)),
             FieldKind::FacePoints => out.extend(facepoints::marks(f, values)),
+            FieldKind::CutPoints => out.extend(super::cutpoints::marks(f, values, ctx)),
             FieldKind::Points3 => out.extend(points3::marks(f, values)),
             FieldKind::Regions => out.extend(regions::marks(f, values, ctx)),
             _ => {}

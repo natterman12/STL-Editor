@@ -53,6 +53,8 @@ pub enum FieldKind {
     Regions,
     Features,
     FacePoints,
+    /// 2.0: spots clicked on Split's cut face (`fields/cutpoints.rs`).
+    CutPoints,
     PFace {
         any_face: bool,
     },

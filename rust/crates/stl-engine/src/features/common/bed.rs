@@ -108,6 +108,7 @@ pub fn split_to_bed(
     pin_len: Option<&Value>,
     clearance: Option<&Value>,
     optimize: bool,
+    opts: &super::connector_place::ConnectorOpts,
 ) -> Result<BedSplit, FeatureError> {
     let mut usable = [bed[0] - 2.0 * margin, bed[1] - 2.0 * margin, bed[2] - 2.0 * margin];
     if usable.iter().any(|u| *u <= 5.0) {
@@ -143,7 +144,7 @@ pub fn split_to_bed(
                 }
                 let mut o = [0.0; 3];
                 o[ax] = pos;
-                let r = split_with_connectors(&pc, o, nvec, mode, pin_d, pin_len, clearance)?;
+                let r = split_with_connectors(&pc, o, nvec, mode, pin_d, pin_len, clearance, opts)?;
                 out.connectors += r.connectors;
                 out.faces_without_connectors += usize::from(r.skipped);
                 out.extras.extend(r.extras);

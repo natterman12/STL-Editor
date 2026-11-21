@@ -1194,6 +1194,9 @@ impl StlApp {
         if self.tool.is_none() {
             return;
         }
+        if self.cut_points_click(pos) {
+            return;
+        }
         let planes = self.viewport.base_planes_visible() || !self.planes.is_empty();
         let Some(hit) = self.viewport.pick(pos, true, planes) else {
             return;
@@ -1209,6 +1212,59 @@ impl StlApp {
         let Some(t) = self.tool.as_mut() else { return };
         let out = pk::feed(t.def, t.active_field.as_deref(), &mut t.values, &hit, &ctx);
         self.apply_pick(out);
+    }
+
+    /// 2.0 Split "Place by hand": while its spots field is active, a click drops a spot where the
+    /// view ray meets the cut plane, not on the part's surface (the cut runs inside the part).
+    fn cut_points_click(&mut self, pos: Pos2) -> bool {
+        use crate::tools::FieldKind;
+        let Some(t) = self.tool.as_ref() else { return false };
+        let Some(f) = t
+            .def
+            .fields
+            .iter()
+            .find(|f| Some(f.key) == t.active_field.as_deref() && matches!(f.kind, FieldKind::CutPoints))
+        else {
+            return false;
+        };
+        if f.show.is_some_and(|s| !s(&t.values)) {
+            return false;
+        }
+        let (origin, dir) = self.viewport.ray(pos);
+        let ctx = make_ctx(
+            &self.bodies,
+            &self.planes,
+            &self.sketches,
+            &self.timeline_view.items,
+            &self.shell.selection,
+            self.shell.inch,
+        );
+        let Some(t) = self.tool.as_mut() else { return false };
+        let out = crate::tools::fields::cutpoints::feed_ray(f, &mut t.values, origin, dir, &ctx);
+        let used = out.used;
+        self.apply_pick(out);
+        used
+    }
+
+    /// The view's cut the open tool asks for: Split opens the view at its cut while its spots
+    /// field shows (Place by hand), so the cut face can be clicked.
+    fn feed_tool_clip(&mut self) {
+        use crate::tools::FieldKind;
+        let clip = self.tool.as_ref().and_then(|t| {
+            if !t.shown_fields().any(|f| matches!(f.kind, FieldKind::CutPoints)) {
+                return None;
+            }
+            let ctx = make_ctx(
+                &self.bodies,
+                &self.planes,
+                &self.sketches,
+                &self.timeline_view.items,
+                &self.shell.selection,
+                self.shell.inch,
+            );
+            crate::tools::fields::cutpoints::clip_plane(&t.values, &ctx, self.viewport.camera_position())
+        });
+        self.viewport.set_tool_clip(clip);
     }
 
     /// A body row in the tree while a tool is open fills the active Bodies field the same way a
@@ -2082,6 +2138,7 @@ impl StlApp {
                 self.viewport.set_view_size(avail.x, avail.y);
             }
             self.feed_drag_plane();
+            self.feed_tool_clip();
             let vr = self.viewport.show(ui);
             if !self.sk.fly_started {
                 // the first frame after the viewport shows: the opening fly-in (`start()` in 1.x)

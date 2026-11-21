@@ -15,6 +15,7 @@ use crate::tools::{Ctx, Field, Values};
 pub mod axisline;
 pub mod bodies;
 pub mod r#bool;
+pub mod cutpoints;
 pub mod cylface;
 pub mod facepoints;
 pub mod features;
@@ -365,6 +366,7 @@ pub fn pick_field(
             | K::Regions
             | K::Features
             | K::FacePoints
+            | K::CutPoints
             | K::PFace { .. }
             | K::CylFace
             | K::Points3

@@ -33,6 +33,7 @@ mod sfcov;
 mod sfpanel;
 mod skdim;
 mod skdim2;
+mod split_connectors;
 mod split_face;
 mod tap;
 mod tool_picking;
