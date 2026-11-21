@@ -1,4 +1,5 @@
-//! The website and README screenshots of the 2.0 app (`docs/img/*.png`, dark theme, 1600×900),
+//! The website and README screenshots of the 2.0 app (`docs/img/*.png`, dark theme, 1600×900
+//! points at `SITE_SCALE` pixels per point, 2 unless set),
 //! the 2.0 counterpart of 1.x's `dev/capture_site_screenshots.mjs`: the same six pictures of the
 //! same mounting bracket and test meshes, drawn by the real app on the GPU.
 //!
@@ -191,7 +192,7 @@ fn site_shots() {
         if !only.is_empty() && !only.split(',').any(|o| o.trim() == *name) {
             continue;
         }
-        let (mut h, link) = site::fresh(&gpu, SIZE, false);
+        let (mut h, link) = site::fresh(&gpu, SIZE, false, None);
         take(&mut h, &link);
     }
 }

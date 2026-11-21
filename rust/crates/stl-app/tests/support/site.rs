@@ -1,5 +1,5 @@
-//! What the website pictures share (`site_shots.rs`, the screenshots, and `site_gifs.rs`, the
-//! GIFs): the app on the headless GPU in the dark theme, the 1.x site's mounting bracket, and
+//! What the website pictures share (`site_shots.rs`, the screenshots, and `site_videos.rs`, the
+//! clips): the app on the headless GPU in the dark theme, the 1.x site's mounting bracket, and
 //! cropping a frame to the window.
 //!
 //! Use from a test file that also declares `mod harness` (`ui/harness.rs`) and
@@ -25,9 +25,19 @@ pub fn img_dir() -> PathBuf {
     repo().join("docs/img")
 }
 
+/// How sharp the pictures are: pixels per point, from `SITE_SCALE` (2 unless set), so a
+/// 1600 × 900 point window is a 3200 × 1800 picture, sharp on a high-density screen.
+pub fn scale() -> f32 {
+    std::env::var("SITE_SCALE")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(2.0)
+}
+
 /// The app in the dark theme on the headless GPU, `size` points big, with an empty project.
-/// `cursor` draws the mouse pointer (for the GIFs).
-pub fn fresh(gpu: &Headless, size: egui::Vec2, cursor: bool) -> (H, Arc<NativeLink>) {
+/// `cursor` draws the mouse pointer (for the clips). `step_dt` is the app time one harness step
+/// stands for: a clip's frame interval, so camera flights move as fast as in the app.
+pub fn fresh(gpu: &Headless, size: egui::Vec2, cursor: bool, step_dt: Option<f32>) -> (H, Arc<NativeLink>) {
     let link = Arc::new(NativeLink::new());
     let ctx = egui::Context::default();
     let mut app = StlApp::new(
@@ -38,8 +48,11 @@ pub fn fresh(gpu: &Headless, size: egui::Vec2, cursor: bool) -> (H, Arc<NativeLi
     app.viewport.init_gpu(&gpu.render_state);
     let renderer = wgpu_renderer::WgpuRenderer::new(gpu.render_state.clone());
     let mut init = false;
-    let mut h = Harness::builder()
-        .with_size(size)
+    let mut b = Harness::builder().with_size(size).with_pixels_per_point(scale());
+    if let Some(dt) = step_dt {
+        b = b.with_step_dt(dt);
+    }
+    let mut h = b
         .with_render_cursor(cursor)
         .with_accessibility_check(false)
         .renderer(renderer)
