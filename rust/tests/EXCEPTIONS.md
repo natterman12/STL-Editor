@@ -580,3 +580,11 @@ Nathan answered these on 2026-11-14: accepted unless marked otherwise.
   `crates/stl-app/assets/icon/make_icon.py`, which writes every file: the exe's icon (`build.rs`, through the Windows
   resource compiler), the window's, the Mac bundle's, the AppImage's and the web page's tab icon. 1.x's icon files are
   not changed. The web build is still not an installable app (no manifest).
+- **Asked for by Nathan (2026-11-22): the 2.0 web edition works offline, installs as an app and saves in place**, as 1.x's
+  does, with these differences. The offline copy is kept by `crates/stl-app/web/sw.js` (filled in by `xtask web`) in caches
+  named `stle2-…`, apart from 1.x's `stl-editor-…`, so the two can live on the same site. The update bar is a plain page
+  element over the canvas ("Save your project first"; 1.x asks to confirm and flushes the autosave). There is no
+  *Help › Install STL Editor* item (the browser's own install button is used) and the installed app is named "STL Editor 2".
+  Files are opened and saved in place through the File System Access API (`platform/web_fsa.rs`): Open, Save, Save As and
+  Recent in Chrome and Edge; Export asks where to save there. Kept file handles are in IndexedDB `stle2-files`. Other
+  browsers keep the file input and downloads, and their Recent list lasts for the session (1.x kept copies up to 25 MB).

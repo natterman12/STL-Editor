@@ -435,16 +435,23 @@ impl StlApp {
                 return;
             }
         };
-        let project = name.to_ascii_lowercase().ends_with(".stlx");
-        if project {
+        let file = crate::platform::PickedFile { name, bytes };
+        self.open_launched(file, Some(path.display().to_string()));
+    }
+
+    /// A file the app was started with: a `.stlx` is opened as a project, any other file is
+    /// inserted.
+    fn open_launched(&mut self, file: crate::platform::PickedFile, path: Option<String>) {
+        if file.name.to_ascii_lowercase().ends_with(".stlx") {
             // goes through the same path as File > Open: the title, Recent, the isometric view and
             // "clean" follow once the engine has accepted the file (a refused file changes nothing)
-            let file = crate::platform::PickedFile { name, bytes };
-            self.files
-                .open_bytes(&*self.link, file, Some(path.display().to_string()));
+            self.files.open_bytes(&*self.link, file, path);
         } else {
             self.launch_file = Some(true);
-            self.link.send(Command::Import { name, bytes });
+            self.link.send(Command::Import {
+                name: file.name,
+                bytes: file.bytes,
+            });
         }
     }
 
@@ -588,8 +595,12 @@ impl StlApp {
 
     /// Apply the engine's updates. Returns true when there were any (the caller repaints).
     pub fn poll(&mut self) -> bool {
+        let launched = self.platform.take_launched();
         let mut updates = self.link.poll();
-        let mut any = !updates.is_empty();
+        let mut any = !updates.is_empty() || launched.is_some();
+        if let Some((file, path)) = launched {
+            self.open_launched(file, path);
+        }
         self.handoff_updates(&mut updates);
         let out = self.files.poll(&*self.platform, &*self.link, &updates);
         any |= self.files.busy() || !out.messages.is_empty();
