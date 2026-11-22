@@ -148,6 +148,10 @@ pub struct OpenTool {
     /// The newest preview arrived while a handle was held and was dropped: it is asked for again
     /// when the handle is let go, unless the drop brings a preview of its own.
     pub preview_dropped: bool,
+    /// A click in the viewport said something (a warning) and also asked for a new preview: the
+    /// message stays until a preview newer than this number answers. Without it the preview the
+    /// click itself asked for, which has nothing to say, wiped the warning a moment later.
+    pub keep_msg_until: Option<u64>,
     /// OK was pressed while a handle's Add was still on its way: OK goes out once that step is
     /// in (as an edit of it), instead of adding a second step.
     pub ok_after_add: bool,
@@ -200,6 +204,7 @@ impl OpenTool {
             accepting: None,
             accept_again: false,
             preview_dropped: false,
+            keep_msg_until: None,
             ok_after_add: false,
         }
     }

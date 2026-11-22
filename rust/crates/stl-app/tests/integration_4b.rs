@@ -1259,6 +1259,14 @@ fn a_failed_turn_is_not_counted() {
         format!("{:?}", h.state().tool().unwrap().msg).contains("That turn cannot be built."),
         "the panel says why"
     );
+    // the red overhangs are worked out on another thread and can answer late: "no overhangs"
+    // must not take the place of the error
+    h.state_mut().on_overhangs_ready("b1", 0);
+    h.run_steps(1);
+    assert!(
+        format!("{:?}", h.state().tool().unwrap().msg).contains("That turn cannot be built."),
+        "a late overhang answer leaves the error"
+    );
     // not blocked, and the same turn again starts from the same pose
     h.state_mut().use_pose(&quarter);
     let adds = rec.adds("move");

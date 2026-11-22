@@ -276,6 +276,11 @@ fn u32_list(v: Option<&Value>) -> Vec<u32> {
         .unwrap_or_default()
 }
 
+/// The tool's line under the form is an error: a note ("no overhangs") must not replace it.
+fn says_error(t: &crate::tools::panel::OpenTool) -> bool {
+    t.msg.as_ref().is_some_and(|m| m.kind == MsgKind::Err)
+}
+
 impl StlApp {
     pub(super) fn param_map(&self) -> BTreeMap<String, f64> {
         self.param_views
@@ -695,17 +700,22 @@ impl StlApp {
         if let Some(faces) = self.viewport.show_overhangs_async(&body, thr)
             && faces.is_empty()
             && !wall
+            && !says_error(t)
         {
             t.msg = Some(ToolMsg::new(MsgKind::Info, supports::NO_OVERHANG_MSG));
         }
     }
 
-    fn on_overhangs_ready(&mut self, body: &str, n: usize) {
+    /// The red overhangs worked out on another thread are ready: `n` faces on `body`. The answer
+    /// can land any number of frames later, so it never replaces an error (a refused turn).
+    #[doc(hidden)]
+    pub fn on_overhangs_ready(&mut self, body: &str, n: usize) {
         let Some(t) = self.tool.as_mut() else { return };
         if n == 0
             && t.def.flags.paint
             && !t.def.flags.wall_tool
             && supports::body_id(&t.values).as_deref() == Some(body)
+            && !says_error(t)
         {
             t.msg = Some(ToolMsg::new(MsgKind::Info, supports::NO_OVERHANG_MSG));
         }

@@ -322,8 +322,15 @@ jobs:
       - name: Build stl-app (release)
         run: cargo build -p stl-app --release
 
+      # The same runner as the Test job (settings: rust/.config/nextest.toml), so a UI test that
+      # fails is tried twice more and listed as FLAKY if it then passes, instead of failing the run.
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: nextest
+
       - name: egui_kittest UI tests
-        run: ${{ runner.os == 'Linux' && 'xvfb-run -a ' || '' }}cargo test -p stl-app --test ui
+        run: ${{ runner.os == 'Linux' && 'xvfb-run -a ' || '' }}cargo nextest run -p stl-app --test ui --profile ci
 
       - name: Tools golden (2.0 registry)
         run: ${{ runner.os == 'Linux' && 'xvfb-run -a ' || '' }}cargo test -p stl-app --test tools_golden

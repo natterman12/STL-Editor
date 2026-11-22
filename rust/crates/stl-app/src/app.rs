@@ -1182,7 +1182,10 @@ impl StlApp {
         if !t.valid() || (t.def.flags.sculpt && arr_empty(t.values.get("strokes"))) {
             // a preview still on its way is out of date now: it mustn't land after this
             t.preview.invalidate(seq);
-            t.msg = None;
+            if !t.keep_msg_until.is_some_and(|k| seq <= k) {
+                t.keep_msg_until = None;
+                t.msg = None;
+            }
             let paint_no_body = t.def.flags.paint && crate::supports::body_id(&t.values).is_none();
             self.viewport.clear_preview();
             // no part picked: its red overhangs and the coverage go too (with a part, they stay)
@@ -1307,7 +1310,11 @@ impl StlApp {
         if !out.used {
             return;
         }
+        let next_seq = self.preview_seq + 1;
         let Some(t) = self.tool.as_mut() else { return };
+        // what this click says outlives the preview it asks for (the next one sent, which also
+        // covers one already on its way); a click with nothing to say ends that
+        t.keep_msg_until = out.message.as_ref().map(|_| next_seq);
         if out.changed {
             if out.advance
                 && let Some(cur) = t.active_field.clone()
@@ -1492,7 +1499,12 @@ impl StlApp {
             }
         }
         if let Some(t) = self.tool.as_mut() {
-            t.msg = msg.map(|m| ToolMsg::new(if warn { MsgKind::Warn } else { MsgKind::Info }, m));
+            // a preview with nothing to say leaves the warning of the click that asked for it
+            let keep = msg.is_none() && t.keep_msg_until.is_some_and(|k| seq <= k);
+            if !keep {
+                t.keep_msg_until = None;
+                t.msg = msg.map(|m| ToolMsg::new(if warn { MsgKind::Warn } else { MsgKind::Info }, m));
+            }
         }
         self.sf_on_preview(&result, &pack);
         // the record is kept for whoever reads it next (Support Fins reads paint, walls, pieces)

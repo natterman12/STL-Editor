@@ -280,13 +280,18 @@ fn thread_edge_distance_reopens_with_the_reference() {
 /// no reference.
 #[test]
 fn pick_edge_mid_face_warns_and_stores_nothing() {
-    let (mut h, _link) = plate_with_sketch();
+    let (mut h, link) = plate_with_sketch();
     assert!(open_tool(&mut h, "hole"));
     click_world(&mut h, [20.0, 15.0, 5.0]);
     h.get_by_label("Pick edge").click();
     h.run_steps(2);
     click_world(&mut h, [20.0, 15.0, 5.0]); // the middle: 15 mm from every edge
     h.run_steps(2);
+    // the click also asks for a new preview, which answers a moment later with nothing to say:
+    // the warning must still be there after it
+    std::thread::sleep(std::time::Duration::from_millis(150));
+    h.run_steps(2);
+    settle(&mut h, &link);
     let t = h.state().tool().expect("the Hole tool is open");
     assert!(
         t.values.get("point_refs").is_none(),
