@@ -29,7 +29,33 @@ fn git(args: &[&str]) -> Option<String> {
     (!s.is_empty()).then_some(s)
 }
 
+/// Windows: the exe carries `assets/icon/icon.ico` (drawn by `assets/icon/make_icon.py`), so
+/// Explorer, the taskbar and shortcuts show it. This needs the resource compiler of the
+/// toolchain in use. When it is missing the build goes on with a warning and the exe has no
+/// icon, unless `STL_REQUIRE_ICON` is set (CI's release build), where that fails the build.
+#[cfg(windows)]
+fn exe_icon() {
+    println!("cargo:rerun-if-changed=assets/icon/icon.ico");
+    println!("cargo:rerun-if-env-changed=STL_REQUIRE_ICON");
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() != Ok("windows") {
+        return; // the web build, made on Windows
+    }
+    let mut res = winresource::WindowsResource::new();
+    res.set_icon("assets/icon/icon.ico");
+    res.set("ProductName", "STL Editor");
+    res.set("FileDescription", "STL Editor");
+    if let Err(e) = res.compile() {
+        if std::env::var_os("STL_REQUIRE_ICON").is_some() {
+            panic!("could not put the icon in the exe: {e}");
+        }
+        println!("cargo:warning=the exe has no icon: {e}");
+    }
+}
+
 fn main() {
+    #[cfg(windows)]
+    exe_icon();
+
     let secs = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs())

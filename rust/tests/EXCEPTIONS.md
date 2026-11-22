@@ -575,3 +575,8 @@ Nathan answered these on 2026-11-14: accepted unless marked otherwise.
   search no longer lists it ("doesn't work great"). The engine feature and the tool definition stay, so a 1.x project with
   a Snap-fit step still rebuilds the same and the step can still be opened from the timeline and edited. 1.x keeps the
   tool. `ribbon_tools_match_ribbon_def` and `search_finds_every_tool` leave it out and the second checks it stays out.
+- **Asked for by Nathan (2026-11-22): 2.0 has its own icon.** A dark navy tile, a pale blue cube with one top corner cut
+  away and an orange line along the edge of the cut (1.x: a bright blue tile, a whole cube and an orange slash). Drawn by
+  `crates/stl-app/assets/icon/make_icon.py`, which writes every file: the exe's icon (`build.rs`, through the Windows
+  resource compiler), the window's, the Mac bundle's, the AppImage's and the web page's tab icon. 1.x's icon files are
+  not changed. The web build is still not an installable app (no manifest).

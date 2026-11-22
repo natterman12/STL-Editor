@@ -124,6 +124,9 @@ fn build(measure: bool) -> Result<PathBuf, String> {
     fs::copy(web.join("index.html"), out.join("index.html")).map_err(|e| e.to_string())?;
     fs::copy(web.join("worker.js"), out.join("worker.js")).map_err(|e| e.to_string())?;
     fs::copy(web.join("coverage_worker.js"), out.join("coverage_worker.js")).map_err(|e| e.to_string())?;
+    for icon in ["icon-32.png", "icon-192.png"] {
+        fs::copy(web.join(icon), out.join(icon)).map_err(|e| format!("no {icon}: {e}"))?;
+    }
     // Support Fins' own engine, for the worker to load (rust/crates/stl-app/web/worker.js)
     let fins = out.join("support-fins");
     fs::create_dir_all(&fins).map_err(|e| e.to_string())?;

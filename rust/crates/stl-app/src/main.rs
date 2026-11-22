@@ -23,6 +23,17 @@ fn init_log() {
     }));
 }
 
+/// The window's icon (title bar, taskbar, Alt+Tab): 256 x 256 raw RGBA, written by
+/// `assets/icon/make_icon.py`. The exe's own icon is put in by `build.rs`.
+#[cfg(not(target_arch = "wasm32"))]
+fn window_icon() -> egui::IconData {
+    egui::IconData {
+        rgba: include_bytes!("../assets/icon/icon-256.rgba").to_vec(),
+        width: 256,
+        height: 256,
+    }
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 fn main() -> eframe::Result {
     // A restart after a graphics driver reset says what to open (`StlApp::after_device_reset`).
@@ -57,6 +68,7 @@ fn main() -> eframe::Result {
     let mut options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title(stl_app::build_info::title())
+            .with_icon(window_icon())
             .with_inner_size([1280.0, 800.0]),
         ..Default::default()
     };
