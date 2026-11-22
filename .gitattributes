@@ -4,3 +4,7 @@ web/vendor/** -text
 docs/app/vendor/** -text
 rust/tests/** -text
 rust/tests/parity/import2d/** -text
+# The 2.0 icon files are written by rust/crates/stl-app/assets/icon/make_icon.py; keep them as written.
+*.rgba binary
+*.icns binary
+*.ico binary

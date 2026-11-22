@@ -472,8 +472,12 @@ jobs:
             libwebkit2gtk-4.1-dev
 
       # Release build of the desktop app (Windows, macOS, Linux).
+      # STL_REQUIRE_ICON: on Windows the build fails if the icon can't be put in the exe
+      # (crates/stl-app/build.rs), instead of going on without one.
       - name: Build stl-app (release)
         if: matrix.kind != 'web'
+        env:
+          STL_REQUIRE_ICON: "1"
         run: cargo build -p stl-app --release
 
       # The Windows exe is uploaded under the name the 2.0 updater looks for in a release
@@ -501,6 +505,22 @@ jobs:
           Stop-Process -Id $p.Id -Force
           "The app started and stayed open"
 
+      # The icon must really be inside the exe (an icon group resource), not just compiled.
+      - name: Check the Windows exe has its icon
+        if: matrix.kind == 'windows'
+        shell: pwsh
+        run: |
+          Add-Type -Namespace Win -Name Res -MemberDefinition @'
+          [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] public static extern IntPtr LoadLibraryExW(string path, IntPtr file, uint flags);
+          [DllImport("kernel32.dll")] public static extern IntPtr FindResourceW(IntPtr module, IntPtr name, IntPtr type);
+          '@
+          $exe = (Resolve-Path dist/STL-Editor-2-Windows.exe).Path
+          $h = [Win.Res]::LoadLibraryExW($exe, [IntPtr]::Zero, 2)   # 2: as a data file
+          if ($h -eq [IntPtr]::Zero) { throw "Could not open $exe" }
+          # 14 is an icon group; build.rs gives it id 1
+          if ([Win.Res]::FindResourceW($h, [IntPtr]1, [IntPtr]14) -eq [IntPtr]::Zero) { throw "The exe has no icon" }
+          "The exe has its icon"
+
       - name: Upload Windows exe
         if: matrix.kind == 'windows'
         uses: actions/upload-artifact@v4
@@ -522,6 +542,7 @@ jobs:
           app="dist/STL Editor 2.app"
           mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
           cp target/release/stl-app "$app/Contents/MacOS/stl-app"
+          cp crates/stl-app/assets/icon/icon.icns "$app/Contents/Resources/icon.icns"
           cat > "$app/Contents/Info.plist" <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -531,6 +552,7 @@ jobs:
             <key>CFBundleDisplayName</key><string>STL Editor 2</string>
             <key>CFBundleIdentifier</key><string>$BUNDLE_ID</string>
             <key>CFBundleExecutable</key><string>stl-app</string>
+            <key>CFBundleIconFile</key><string>icon</string>
             <key>CFBundlePackageType</key><string>APPL</string>
             <key>CFBundleShortVersionString</key><string>$VERSION</string>
             <key>LSMinimumSystemVersion</key><string>11.0</string>
@@ -556,7 +578,7 @@ jobs:
           appdir=dist/STL_Editor_2.AppDir
           mkdir -p "$appdir/usr/bin"
           cp target/release/stl-app "$appdir/usr/bin/stl-app"
-          cp ../web/icon-512.png "$appdir/stl-editor-2.png"
+          cp crates/stl-app/assets/icon/icon-512.png "$appdir/stl-editor-2.png"
           cat > "$appdir/stl-editor-2.desktop" <<'DESKTOP'
           [Desktop Entry]
           Type=Application
