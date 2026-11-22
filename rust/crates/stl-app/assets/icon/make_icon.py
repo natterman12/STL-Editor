@@ -11,7 +11,10 @@ taskbar. Run this again after changing the drawing, and commit what it writes:
     icon.icns         Mac app icon (the bundle step in .github/workflows/rust.yml)
     icon-256.rgba     the window icon: 256 x 256 raw RGBA (main.rs; no PNG reader needed)
     icon-512.png      Linux AppImage
-    ../../web/icon-32.png, icon-192.png    the web page's tab and home-screen icons
+    ../../web/icon-32.png, icon-192.png, icon-512.png    the web page's tab, home-screen and
+                      installed-app icons
+    ../../web/icon-maskable.png    the same for phones that cut icons to their own shape: the
+                      tile fills the square and the cube is smaller, so nothing is cut off
 """
 
 from pathlib import Path
@@ -51,18 +54,27 @@ def line_width(size: int) -> float:
     return 13.0
 
 
-def draw(size: int) -> Image.Image:
-    """The icon at `size` pixels, drawn larger and scaled down for smooth edges."""
+def draw(size: int, maskable: bool = False) -> Image.Image:
+    """The icon at `size` pixels, drawn larger and scaled down for smooth edges. `maskable`:
+    a square tile with the cube at 72%, for launchers that cut icons to their own shape."""
     over = 8 if size <= 256 else 4
     n = size * over
     k = n / 240
+    s = 0.72 if maskable else 1.0
+
+    def at(p):
+        return ((120 + (p[0] - 120) * s) * k, (120 + (p[1] - 120) * s) * k)
+
     img = Image.new("RGBA", (n, n), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    d.rounded_rectangle([0, 0, n - 1, n - 1], radius=RADIUS * k, fill=TILE)
+    if maskable:
+        d.rectangle([0, 0, n, n], fill=TILE)
+    else:
+        d.rounded_rectangle([0, 0, n - 1, n - 1], radius=RADIUS * k, fill=TILE)
     for colour, points in FACES:
-        d.polygon([(x * k, y * k) for x, y in points], fill=colour)
-    w = line_width(size) * k
-    pts = [(x * k, y * k) for x, y in LINE]
+        d.polygon([at(p) for p in points], fill=colour)
+    w = line_width(size) * k * s
+    pts = [at(p) for p in LINE]
     d.line(pts, fill=ORANGE, width=round(w), joint="curve")
     for x, y in pts:  # round ends and a round corner
         d.ellipse([x - w / 2, y - w / 2, x + w / 2, y + w / 2], fill=ORANGE)
@@ -99,6 +111,8 @@ def main() -> None:
     draw(512).save(HERE / "icon-512.png", optimize=True)
     draw(32).save(WEB / "icon-32.png", optimize=True)
     draw(192).save(WEB / "icon-192.png", optimize=True)
+    draw(512).save(WEB / "icon-512.png", optimize=True)
+    draw(512, maskable=True).save(WEB / "icon-maskable.png", optimize=True)
 
     for p in sorted(list(HERE.glob("icon*")) + list(WEB.glob("icon-*.png"))):
         print(f"{p.stat().st_size:>8}  {p.relative_to(HERE.parent.parent)}")

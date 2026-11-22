@@ -138,11 +138,14 @@ orbiting turns around the middle of your parts.
 
 **Web edition**
 
-- **Save** downloads the project each time, as Export does. It doesn't save straight back to
-  the file you opened yet.
-- *File › Recent* lasts until you close the tab.
-- You need a connection to open the page, and it can't be installed as an app yet. Once the
-  page is open it needs no connection.
+- **Saving, Recent, offline and installing** work as described under *Web edition* below,
+  with these differences:
+- **Export** asks where to put the file in Chrome and Edge, and downloads it in other browsers.
+- *File › Recent* reopens files you opened or saved in place (Chrome and Edge; the browser may
+  ask for permission again). In Firefox and Safari it lasts until you close the tab.
+- **Installing:** use the install icon in the browser's address bar. There is no
+  *Help › Install STL Editor* item. The installed app is called *STL Editor 2*.
+- **A new version:** a small bar at the bottom offers *Reload now*. Save your project first.
 - Cancel can stop a job that is already running in a recent browser (Chrome or Edge 137,
   Firefox 153, Safari 27, or newer). In older ones the job finishes first.
 

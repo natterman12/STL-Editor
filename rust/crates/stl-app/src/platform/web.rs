@@ -1,11 +1,13 @@
-//! The browser: a file input to open, a download link to save, and `Date` for the clock.
+//! The browser: a file input to open, a download link to save, and `Date` for the clock. Where
+//! the browser can open and save files in place (`web_fsa`), Open, Save and Recent use that.
 
 use js_sys::{Date, Function, Uint8Array};
 use wasm_bindgen::{JsCast, JsValue};
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{Blob, Document, File, HtmlAnchorElement, HtmlElement, HtmlInputElement, Url};
 
-use super::{Pending, PickedFile, Platform};
+use super::web_fsa as fsa;
+use super::{Pending, PickedFile, Platform, SaveOutcome};
 
 pub struct WebPlatform;
 
@@ -87,10 +89,102 @@ impl Platform for WebPlatform {
         pending
     }
 
+    /// Export. Where the browser has a save dialog it asks where to put the file; elsewhere,
+    /// or when the dialog can't open (the browser wants a fresh click), it is a download.
     fn save_file(&self, suggested: &str, bytes: Vec<u8>) -> Pending<Result<bool, String>> {
         let pending = Pending::new();
-        pending.set(save_download(suggested, &bytes));
+        if !fsa::can() {
+            pending.set(save_download(suggested, &bytes));
+            return pending;
+        }
+        let (p, name) = (pending.clone(), suggested.to_owned());
+        wasm_bindgen_futures::spawn_local(async move {
+            p.set(match fsa::save_as(&name, &bytes, false).await {
+                Ok(saved) => Ok(saved.is_some()),
+                Err(_) => save_download(&name, &bytes),
+            });
+        });
         pending
+    }
+
+    /// File > Open. With the browser's own file dialog the file's handle is kept, so Save can
+    /// write back to it and Recent can open it again; the "path" is the handle's token.
+    fn open_file_path(&self, filters: &[(&str, &[&str])]) -> Pending<Option<(PickedFile, Option<String>)>> {
+        if !fsa::can() {
+            return self.open_file(filters).map(|p| p.map(|f| (f, None)));
+        }
+        let pending = Pending::new();
+        let exts: Vec<String> = accept(filters)
+            .split(',')
+            .filter(|e| !e.is_empty())
+            .map(str::to_owned)
+            .collect();
+        let p = pending.clone();
+        wasm_bindgen_futures::spawn_local(async move {
+            p.set(fsa::open(exts).await.unwrap_or(None));
+        });
+        pending
+    }
+
+    /// Save As, or the first Save. Says where it wrote when the browser can save in place.
+    fn save_file_path(&self, suggested: &str, bytes: Vec<u8>) -> Pending<Result<SaveOutcome, String>> {
+        let pending = Pending::new();
+        if !fsa::can() {
+            pending.set(save_download(suggested, &bytes).map(|_| SaveOutcome::Done(None)));
+            return pending;
+        }
+        let (p, name) = (pending.clone(), suggested.to_owned());
+        wasm_bindgen_futures::spawn_local(async move {
+            p.set(match fsa::save_as(&name, &bytes, true).await {
+                Ok(Some(token)) => Ok(SaveOutcome::Done(Some(token).filter(|t| !t.is_empty()))),
+                Ok(None) => Ok(SaveOutcome::Cancelled),
+                Err(_) => save_download(&name, &bytes).map(|_| SaveOutcome::Done(None)),
+            });
+        });
+        pending
+    }
+
+    /// Save: write straight back to the file the project was opened from or last saved to.
+    fn save_to(&self, path: &str, bytes: Vec<u8>) -> Pending<Result<bool, String>> {
+        let name = fsa::name_of(path).to_owned();
+        let pending = Pending::new();
+        if !path.starts_with(fsa::TOKEN_PREFIX) || !fsa::can() {
+            pending.set(save_download(&name, &bytes));
+            return pending;
+        }
+        let (p, token) = (pending.clone(), path.to_owned());
+        wasm_bindgen_futures::spawn_local(async move {
+            p.set(match fsa::save_to(&token, &bytes).await {
+                Ok(fsa::Wrote::Ok) => Ok(true),
+                Ok(fsa::Wrote::Denied) => Err(format!(
+                    "The browser wasn\u{2019}t allowed to save over {name}. Use File \u{203a} Save As."
+                )),
+                // the handle is gone, or the write failed: the work must not be lost
+                Ok(fsa::Wrote::Gone) | Err(_) => save_download(&name, &bytes),
+            });
+        });
+        pending
+    }
+
+    /// File > Recent, for a file opened or saved in place.
+    fn read_path(&self, path: &str) -> Pending<Result<PickedFile, String>> {
+        let pending = Pending::new();
+        let (p, token) = (pending.clone(), path.to_owned());
+        wasm_bindgen_futures::spawn_local(async move {
+            p.set(match fsa::read(&token).await {
+                Ok(Some(file)) => Ok(file),
+                Ok(None) => Err(format!(
+                    "That file isn\u{2019}t there any more ({}). It was taken off the Recent list.",
+                    fsa::name_of(&token)
+                )),
+                Err(e) => Err(e),
+            });
+        });
+        pending
+    }
+
+    fn take_launched(&self) -> Option<(PickedFile, Option<String>)> {
+        fsa::launched()
     }
 
     fn now_iso_utc(&self) -> String {

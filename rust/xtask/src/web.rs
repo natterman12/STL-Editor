@@ -124,8 +124,14 @@ fn build(measure: bool) -> Result<PathBuf, String> {
     fs::copy(web.join("index.html"), out.join("index.html")).map_err(|e| e.to_string())?;
     fs::copy(web.join("worker.js"), out.join("worker.js")).map_err(|e| e.to_string())?;
     fs::copy(web.join("coverage_worker.js"), out.join("coverage_worker.js")).map_err(|e| e.to_string())?;
-    for icon in ["icon-32.png", "icon-192.png"] {
-        fs::copy(web.join(icon), out.join(icon)).map_err(|e| format!("no {icon}: {e}"))?;
+    for f in [
+        "icon-32.png",
+        "icon-192.png",
+        "icon-512.png",
+        "icon-maskable.png",
+        "manifest.webmanifest",
+    ] {
+        fs::copy(web.join(f), out.join(f)).map_err(|e| format!("no {f}: {e}"))?;
     }
     // Support Fins' own engine, for the worker to load (rust/crates/stl-app/web/worker.js)
     let fins = out.join("support-fins");
@@ -134,7 +140,66 @@ fn build(measure: bool) -> Result<PathBuf, String> {
     for f in ["engine.iife.js", "VERSION.json"] {
         fs::copy(src.join(f), fins.join(f)).map_err(|e| format!("no support-fins/{f}: {e}"))?;
     }
+    // last, so it lists and stamps everything above
+    let template = fs::read_to_string(web.join("sw.js")).map_err(|e| format!("no sw.js: {e}"))?;
+    let files = offline_files(&out)?;
+    let sw = fill_service_worker(&template, &files, &out)?;
+    fs::write(out.join("sw.js"), sw).map_err(|e| e.to_string())?;
     Ok(out)
+}
+
+/// The files the service worker keeps for offline use: everything in the build except the
+/// worker itself and the TypeScript listings (`*.d.ts`, which the page never loads and the web
+/// preview leaves out). Relative paths with `/`, sorted, so the list is the same on every machine.
+fn offline_files(out: &Path) -> Result<Vec<String>, String> {
+    fn walk(dir: &Path, base: &Path, into: &mut Vec<String>) -> Result<(), String> {
+        for entry in fs::read_dir(dir).map_err(|e| e.to_string())? {
+            let path = entry.map_err(|e| e.to_string())?.path();
+            if path.is_dir() {
+                walk(&path, base, into)?;
+                continue;
+            }
+            let rel = path
+                .strip_prefix(base)
+                .map_err(|e| e.to_string())?
+                .to_string_lossy()
+                .replace('\\', "/");
+            if rel != "sw.js" && !rel.ends_with(".d.ts") {
+                into.push(rel);
+            }
+        }
+        Ok(())
+    }
+    let mut files = Vec::new();
+    walk(out, out, &mut files)?;
+    files.sort();
+    Ok(files)
+}
+
+/// `web/sw.js` with its two markers filled in: the file list, and a build stamp that changes
+/// whenever a listed file does (the browser then fetches the new version).
+fn fill_service_worker(template: &str, files: &[String], out: &Path) -> Result<String, String> {
+    // FNV-1a over each name and its bytes: plain arithmetic, so the stamp doesn't depend on the
+    // Rust version the way the standard library's hasher may.
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    let mut eat = |bytes: &[u8]| {
+        for b in bytes {
+            hash ^= u64::from(*b);
+            hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+        }
+    };
+    for f in files {
+        eat(f.as_bytes());
+        eat(&[0]);
+        eat(&fs::read(out.join(f)).map_err(|e| format!("{f}: {e}"))?);
+    }
+    if !template.contains("'__BUILD__'") || !template.contains("/*__FILES__*/") {
+        return Err("sw.js has lost its __BUILD__ or __FILES__ marker".into());
+    }
+    let list = files.iter().map(|f| format!("{f:?}")).collect::<Vec<_>>().join(",");
+    Ok(template
+        .replace("'__BUILD__'", &format!("'{hash:016x}'"))
+        .replace("/*__FILES__*/", &list))
 }
 
 fn wasm_bindgen_bin() -> Result<PathBuf, String> {
@@ -507,6 +572,8 @@ fn content_type(path: &Path) -> &'static str {
         "js" => "text/javascript; charset=utf-8",
         "wasm" => "application/wasm",
         "json" => "application/json",
+        "webmanifest" => "application/manifest+json",
+        "png" => "image/png",
         _ => "application/octet-stream",
     }
 }
@@ -741,4 +808,67 @@ fn find_chrome() -> Result<PathBuf, String> {
         }
     }
     Err("could not find Chrome or Edge for the headless check".into())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn scratch(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("xtask-web-{name}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(dir.join("support-fins")).unwrap();
+        dir
+    }
+
+    /// The offline list leaves out the worker itself and the TypeScript listings, uses `/`, and
+    /// is sorted; the stamp follows the files' contents.
+    #[test]
+    fn service_worker_lists_and_stamps_the_build() {
+        let out = scratch("sw");
+        for (name, body) in [
+            ("index.html", "page"),
+            ("stl-app.js", "glue"),
+            ("stl-app.d.ts", "types"),
+            ("sw.js", "old worker"),
+            ("support-fins/engine.iife.js", "fins"),
+        ] {
+            fs::write(out.join(name), body).unwrap();
+        }
+        let files = offline_files(&out).unwrap();
+        assert_eq!(files, ["index.html", "stl-app.js", "support-fins/engine.iife.js"]);
+
+        let template = "const BUILD = '__BUILD__';\nconst FILES = [/*__FILES__*/];\n";
+        let first = fill_service_worker(template, &files, &out).unwrap();
+        assert!(
+            first.contains(r#"const FILES = ["index.html","stl-app.js","support-fins/engine.iife.js"];"#),
+            "{first}"
+        );
+        assert!(!first.contains("__BUILD__") && !first.contains("__FILES__"), "{first}");
+        assert_eq!(
+            first,
+            fill_service_worker(template, &files, &out).unwrap(),
+            "the same build, the same stamp"
+        );
+
+        fs::write(out.join("stl-app.js"), "new glue").unwrap();
+        assert_ne!(
+            first,
+            fill_service_worker(template, &files, &out).unwrap(),
+            "a changed file, a new stamp"
+        );
+
+        assert!(
+            fill_service_worker("const BUILD = 'x';", &files, &out).is_err(),
+            "a worker without its markers"
+        );
+        let _ = fs::remove_dir_all(&out);
+    }
+
+    /// The real worker still has both markers, so `xtask web` can fill it.
+    #[test]
+    fn the_real_service_worker_has_its_markers() {
+        let sw = fs::read_to_string(rust_dir().join("crates/stl-app/web/sw.js")).unwrap();
+        assert!(sw.contains("'__BUILD__'") && sw.contains("/*__FILES__*/"));
+    }
 }

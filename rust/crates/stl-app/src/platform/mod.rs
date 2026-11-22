@@ -4,6 +4,8 @@
 pub mod native;
 #[cfg(target_arch = "wasm32")]
 pub mod web;
+#[cfg(target_arch = "wasm32")]
+pub mod web_fsa;
 
 use std::sync::{Arc, Mutex};
 
@@ -137,6 +139,11 @@ pub trait Platform {
     /// Read a file by path (Open Recent). Default (web): not possible.
     fn read_path(&self, _path: &str) -> Pending<Result<PickedFile, String>> {
         Pending::ready(Err("Opening a file by its path is not possible here.".into()))
+    }
+    /// A file the app was started with after its window opened, with its path when there is one
+    /// (web: a file opened with the installed app). Asked every frame. Default: none.
+    fn take_launched(&self) -> Option<(PickedFile, Option<String>)> {
+        None
     }
     /// The slicers found on this computer: (key, name), as 1.x `slicerItems`. Default: none.
     fn slicers(&self) -> Vec<(String, String)> {
