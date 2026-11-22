@@ -115,6 +115,19 @@ ad-like.
 Installed copies find the release through the update check; "Update now" downloads and swaps
 the portable build, or `git pull`s a git checkout (`stleditor/updates.py`).
 
+### Releasing 2.0 (only when asked)
+
+2.0 has its own workflow, **Release 2.0** (`.github/workflows/release-2.yml`); `release.yml` only
+answers `v1.*` tags. Set `version` in `rust/Cargo.toml` (`[workspace.package]`), write
+`.github/release-notes/v<version>.md`, commit, then tag `v<version>` and push the commit and the
+tag. The tag push starts the Rust workflow too; Release 2.0 waits for that run to pass (an hour
+or so) and publishes the files it built: `STL-Editor-2-Windows.exe` (keep that name: the 2.0
+updater looks for it), `STL-Editor-2-macOS.app.zip` and `STL-Editor-2-x86_64.AppImage`. A tag
+with a suffix (`v2.0.0-beta.1`) is a pre-release. The release is not marked "Latest" while
+`MAKE_LATEST` in that file is `"false"`, so the website's download button and 1.x installs stay
+on 1.x; change it together with the website. If a flaky test fails the Rust run, re-run its
+failed jobs, then the failed Release 2.0 job. The web edition is not published by this workflow.
+
 ## Ideas not built yet
 
 - Sketches tied to part edges follow a moved edge only when the sketch is next opened, not when

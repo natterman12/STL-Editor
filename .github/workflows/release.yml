@@ -5,9 +5,11 @@ name: Release
 # a GitHub release. The publish job needs both builds, so nothing is published if either fails.
 # Optional release notes: .github/release-notes/<tag>.md (otherwise GitHub writes them).
 
+# Only v1.* tags: a v2.* tag is a 2.0 release, published by release-2.yml.
+
 on:
   push:
-    tags: ["v*"]
+    tags: ["v1.*"]
   workflow_dispatch:
     inputs:
       tag:
