@@ -417,8 +417,9 @@ jobs:
           CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
         run: cargo run -p xtask -- web --check --webgl2
 
-  # M5 Task 0: test-build artefacts on every push, kept as workflow artefacts. Nothing is
-  # attached to a release and no tag is made (spec 2.5).
+  # Test-build artefacts on every push, kept as workflow artefacts. This workflow attaches
+  # nothing to a release and makes no tag. A pushed v2.* tag also starts this workflow (path
+  # filters don't apply to tags), and release-2.yml then publishes that run's artefacts.
   artefacts:
     name: Artefacts (${{ matrix.label }})
     if: github.event_name == 'push'
@@ -475,34 +476,63 @@ jobs:
         if: matrix.kind != 'web'
         run: cargo build -p stl-app --release
 
-      # The Windows exe is uploaded as it is.
+      # The Windows exe is uploaded under the name the 2.0 updater looks for in a release
+      # (stl_platform::update::ASSET_NAME). The Release 2.0 workflow publishes these artefacts
+      # as they are, so what is released is what was built and checked here.
+      - name: Name the Windows exe as a release does
+        if: matrix.kind == 'windows'
+        run: |
+          mkdir -p dist
+          cp target/release/stl-app.exe dist/STL-Editor-2-Windows.exe
+
+      # The exe must open its window and stay up. The runner has no graphics card, so this is
+      # the software renderer; it shows a missing DLL or a crash at start, not how it looks.
+      - name: Check the Windows exe starts
+        if: matrix.kind == 'windows'
+        shell: pwsh
+        run: |
+          $p = Start-Process dist/STL-Editor-2-Windows.exe -PassThru
+          Start-Sleep 20
+          if ($p.HasExited) {
+            Get-ChildItem $env:LOCALAPPDATA, $env:APPDATA -Filter log.txt -Recurse -Depth 2 -ErrorAction SilentlyContinue |
+              Where-Object FullName -match 'STL Editor' | ForEach-Object { "--- $($_.FullName)"; Get-Content $_.FullName -Tail 40 }
+            throw "The app closed by itself within 20 seconds (exit code $($p.ExitCode))"
+          }
+          Stop-Process -Id $p.Id -Force
+          "The app started and stayed open"
+
       - name: Upload Windows exe
         if: matrix.kind == 'windows'
         uses: actions/upload-artifact@v4
         with:
           name: stl-editor-2-windows-exe
-          path: rust/target/release/stl-app.exe
+          path: rust/dist/STL-Editor-2-Windows.exe
           if-no-files-found: error
 
       # macOS: a minimal .app bundle around the release binary, zipped with ditto (keeps the
-      # bundle's symlinks and attributes).
+      # bundle's symlinks and attributes). The version is the workspace's; a build that is not
+      # for a v2.* tag gets its own bundle id, so a test build keeps its settings apart.
       - name: Make the macOS app bundle
         if: matrix.kind == 'mac'
         run: |
+          VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
+          BUNDLE_ID=com.natterman12.stl-editor-2
+          case "$GITHUB_REF" in refs/tags/v2.*) ;; *) BUNDLE_ID="$BUNDLE_ID.test" ;; esac
+          echo "Version $VERSION, bundle id $BUNDLE_ID"
           app="dist/STL Editor 2.app"
           mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
           cp target/release/stl-app "$app/Contents/MacOS/stl-app"
-          cat > "$app/Contents/Info.plist" <<'PLIST'
+          cat > "$app/Contents/Info.plist" <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
           <dict>
             <key>CFBundleName</key><string>STL Editor 2</string>
             <key>CFBundleDisplayName</key><string>STL Editor 2</string>
-            <key>CFBundleIdentifier</key><string>com.natterman12.stl-editor-2.test</string>
+            <key>CFBundleIdentifier</key><string>$BUNDLE_ID</string>
             <key>CFBundleExecutable</key><string>stl-app</string>
             <key>CFBundlePackageType</key><string>APPL</string>
-            <key>CFBundleShortVersionString</key><string>2.0.0-test</string>
+            <key>CFBundleShortVersionString</key><string>$VERSION</string>
             <key>LSMinimumSystemVersion</key><string>11.0</string>
             <key>NSHighResolutionCapable</key><true/>
           </dict>

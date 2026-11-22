@@ -1,0 +1,139 @@
+name: Release 2.0
+
+# Push a tag like v2.0.0 (matching the version in rust/Cargo.toml) and this publishes a GitHub
+# release of STL Editor 2.0: the Windows exe, the Mac app and the Linux AppImage.
+#
+# It builds nothing itself. The same tag push starts the Rust workflow (rust.yml), which tests
+# the commit and builds the three files. This workflow waits for the tag's Rust run to pass and
+# publishes that run's files, so what is released is what was tested. Expect an hour or so.
+# (A Rust run of the same commit on its branch is not used: its Mac app is marked as a test
+# build.)
+#
+# Nothing is published unless the Rust run passed. If a Rust job failed for no good reason
+# (a flaky test), re-run its failed jobs, then re-run this workflow's failed job.
+#
+# Release notes are required: .github/release-notes/<tag>.md
+#
+# A tag with a suffix (v2.0.0-beta.1) is published as a pre-release. 2.0 installs are still
+# offered it (the 2.0 updater compares versions and counts pre-releases); 1.x installs never
+# see a v2.* release.
+
+on:
+  push:
+    tags: ["v2.*"]
+  # Publish an existing tag again. GitHub offers this only for workflows on the default branch.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to publish again, e.g. v2.0.0"
+        required: true
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: release-2-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
+  GH_TOKEN: ${{ github.token }}
+  GH_REPO: ${{ github.repository }}
+  # "false" keeps GitHub's "Latest" mark on 1.x, so the website's download button
+  # (releases/latest/download/STL-Editor-Windows-portable.zip) and 1.x's update check keep
+  # working. Set to "true" in the same change that moves the website to 2.0.
+  MAKE_LATEST: "false"
+  # The Windows name is the one the 2.0 updater looks for (stl_platform::update::ASSET_NAME).
+  WIN_ASSET: STL-Editor-2-Windows.exe
+  MAC_ASSET: STL-Editor-2-macOS.app.zip
+  LINUX_ASSET: STL-Editor-2-x86_64.AppImage
+
+jobs:
+  release:
+    name: Publish ${{ inputs.tag || github.ref_name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}
+
+      - name: Check the tag, the version and the notes
+        run: |
+          case "$TAG" in
+            v2.*) ;;
+            *) echo "::error::$TAG is not a v2.* tag. 1.x releases use the Release workflow."; exit 1 ;;
+          esac
+          ver=$(sed -n 's/^version = "\(.*\)"/\1/p' rust/Cargo.toml | head -n 1)
+          if [ "v$ver" != "$TAG" ]; then
+            echo "::error::Tag $TAG doesn't match version = \"$ver\" in rust/Cargo.toml. Set the version first."
+            exit 1
+          fi
+          if [ ! -s ".github/release-notes/$TAG.md" ]; then
+            echo "::error::No release notes: write .github/release-notes/$TAG.md first."
+            exit 1
+          fi
+          echo "Releasing version $ver from $(git rev-parse HEAD)"
+
+      # The run started by the push of this tag (for a tag, a run's branch is the tag's name).
+      - name: Wait for the tag's Rust run to pass
+        id: rust
+        run: |
+          sha=$(git rev-parse HEAD)
+          while :; do
+            runs=$(gh run list --workflow rust.yml --commit "$sha" --branch "$TAG" --event push \
+                     --limit 30 --json databaseId,status,conclusion)
+            ok=$(jq -r '[.[] | select(.status == "completed" and .conclusion == "success")][0].databaseId // empty' <<<"$runs")
+            if [ -n "$ok" ]; then break; fi
+            waiting=$(jq '[.[] | select(.status != "completed")] | length' <<<"$runs")
+            # The first minutes: the tag's own Rust run may not be listed yet.
+            if [ "$waiting" = 0 ] && [ "$SECONDS" -gt 300 ]; then
+              echo "::error::The Rust run of tag $TAG ($sha) did not pass and none is running. Re-run its failed jobs, then re-run this job."
+              jq -r '.[] | "run \(.databaseId): \(.status) \(.conclusion)"' <<<"$runs"
+              exit 1
+            fi
+            if [ "$SECONDS" -gt 12600 ]; then
+              echo "::error::Waited three and a half hours for the Rust run of $sha."
+              exit 1
+            fi
+            echo "Waiting: $waiting Rust run(s) of $TAG still going"
+            sleep 60
+          done
+          echo "Using Rust run $ok"
+          echo "run=$ok" >> "$GITHUB_OUTPUT"
+
+      - name: Fetch the files that run built
+        run: |
+          mkdir assets
+          for name in stl-editor-2-windows-exe stl-editor-2-macos-app stl-editor-2-linux-appimage; do
+            gh run download "${{ steps.rust.outputs.run }}" --name "$name" --dir assets
+          done
+          for f in "$WIN_ASSET" "$MAC_ASSET" "$LINUX_ASSET"; do
+            if [ ! -s "assets/$f" ]; then
+              echo "::error::The Rust run has no $f; not publishing."
+              ls -l assets
+              exit 1
+            fi
+          done
+          ls -l assets
+
+      - name: Publish the release
+        run: |
+          files=("assets/$WIN_ASSET" "assets/$MAC_ASSET" "assets/$LINUX_ASSET")
+          {
+            cat ".github/release-notes/$TAG.md"
+            printf '\n\nSHA-256:\n\n'
+            for f in "${files[@]}"; do
+              printf -- '- %s: `%s`\n' "$(basename "$f")" "$(sha256sum "$f" | cut -d ' ' -f 1)"
+            done
+          } > notes.md
+          flags=("--latest=$MAKE_LATEST")
+          case "$TAG" in *-*) flags=(--prerelease --latest=false) ;; esac
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" "${files[@]}" --clobber
+          else
+            gh release create "$TAG" "${files[@]}" --verify-tag \
+              --title "STL Editor ${TAG#v}" --notes-file notes.md "${flags[@]}"
+          fi
+          gh release view "$TAG"

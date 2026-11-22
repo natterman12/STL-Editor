@@ -115,6 +115,27 @@ ad-like.
 Installed copies find the release through the update check; "Update now" downloads and swaps
 the portable build, or `git pull`s a git checkout (`stleditor/updates.py`).
 
+### Releasing 2.0 (only when asked)
+
+2.0 has its own workflow, **Release 2.0** (`.github/workflows/release-2.yml`); `release.yml` only
+answers `v1.*` tags. Set `version` in `rust/Cargo.toml` (`[workspace.package]`), write
+`.github/release-notes/v<version>.md`, commit, then tag `v<version>` and push the commit and the
+tag. The tag push starts the Rust workflow too; Release 2.0 waits for that run to pass (an hour
+or so) and publishes the files it built: `STL-Editor-2-Windows.exe` (keep that name: the 2.0
+updater looks for it), `STL-Editor-2-macOS.app.zip` and `STL-Editor-2-x86_64.AppImage`. A tag
+with a suffix (`v2.0.0-beta.1`) is a pre-release. The release is not marked "Latest" while
+`MAKE_LATEST` in that file is `"false"`, so the website's download button and 1.x installs stay
+on 1.x; change it together with the website. If a flaky test fails the Rust run, re-run its
+failed jobs, then the failed Release 2.0 job.
+
+The 2.0 web edition is a preview at https://natterman12.github.io/STL-Editor/app2/, published by
+**Web preview (2.0)** (`.github/workflows/web-preview.yml`, the same file on `main` and here). It
+commits the web build of a green Rust run to `docs/app2` on `main`: by hand
+(`gh workflow run web-preview.yml`, the newest green run of `v2-main`) and on each `v2.*` tag.
+About 8 MB of repository per changed build, so not on every push. Never edit `docs/app2` by
+hand, and only publish when Nathan asks. The page is marked noindex; `/app2/build.json` names
+the commit. `/app/` stays 1.x until the release moves it.
+
 ## Ideas not built yet
 
 - Sketches tied to part edges follow a moved edge only when the sketch is next opened, not when
