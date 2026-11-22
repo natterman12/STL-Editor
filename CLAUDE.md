@@ -126,7 +126,15 @@ updater looks for it), `STL-Editor-2-macOS.app.zip` and `STL-Editor-2-x86_64.App
 with a suffix (`v2.0.0-beta.1`) is a pre-release. The release is not marked "Latest" while
 `MAKE_LATEST` in that file is `"false"`, so the website's download button and 1.x installs stay
 on 1.x; change it together with the website. If a flaky test fails the Rust run, re-run its
-failed jobs, then the failed Release 2.0 job. The web edition is not published by this workflow.
+failed jobs, then the failed Release 2.0 job.
+
+The 2.0 web edition is a preview at https://natterman12.github.io/STL-Editor/app2/, published by
+**Web preview (2.0)** (`.github/workflows/web-preview.yml`, the same file on `main` and here). It
+commits the web build of a green Rust run to `docs/app2` on `main`: by hand
+(`gh workflow run web-preview.yml`, the newest green run of `v2-main`) and on each `v2.*` tag.
+About 8 MB of repository per changed build, so not on every push. Never edit `docs/app2` by
+hand, and only publish when Nathan asks. The page is marked noindex; `/app2/build.json` names
+the commit. `/app/` stays 1.x until the release moves it.
 
 ## Ideas not built yet
 
