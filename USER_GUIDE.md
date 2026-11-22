@@ -15,6 +15,133 @@ goes into an editable history (the timeline), so you can change an earlier step 
 - Web edition: open https://natterman12.github.io/STL-Editor/app/ in Chrome, Edge, Firefox or Safari.
   Nothing is installed. See *Web edition* below for what's different.
 
+## What's different in 2.0
+
+STL Editor 2.0 is the same editor rebuilt from the ground up. It is not released yet; this
+section is for the test builds. The tools, the timeline and `.stlx` projects work as described
+in the rest of this guide, except for what is listed here. Things marked **(2.0)** further down
+are only in 2.0.
+
+**Your projects.** A project made in 1.x opens in 2.0 and rebuilds the same. Going the other
+way is not promised: a project that uses something new in 2.0 (a dovetail, a screw head pocket,
+a hole tied to an edge) may not rebuild the same in 1.x. 2.0 keeps its own settings, recent
+files and autosave copies, so it does not pick up the ones from 1.x, and the two can be
+installed side by side.
+
+**Moving the view.** 2.0 uses the mouse the way Fusion does:
+
+| Action | How (2.0) |
+|---|---|
+| Orbit | Right-drag, or Shift + middle-drag |
+| Pan | Middle-drag |
+| Zoom | Wheel (zooms toward the part under the cursor) |
+| Trackpad | Two-finger scroll pans; with Shift it orbits |
+
+The left button never moves the view, so a stray drag can't spin the part while you pick. On a
+touch screen one finger still orbits. *View › Orbit Around* chooses what the view turns
+around: *View Centre* (the start), *Origin* or *Under the Cursor*. After Sketch or Look At,
+orbiting turns around the middle of your parts.
+
+**While you work**
+
+- **Cancel a long job.** The "working" note has a **Cancel** button. It stops the rebuild and
+  leaves the project exactly as it was. Opening a project can't be cancelled.
+- **You can keep clicking** in the Browser and on the timeline while a rebuild runs.
+- **Drag the timeline marker** to roll back to an earlier step, or forward again.
+- **Cuts show in red.** While a tool that removes material is open, the shape it will cut away
+  is tinted see-through red. *View › Tint Cuts in Previews* turns that off.
+- **Clicked points are small dots** that stay the same size on screen, so they don't cover the
+  spot when you zoom in.
+- **Planes show when you need one.** While a tool waits for you to pick a plane, the three
+  origin planes appear, and go away again afterwards.
+- **More options.** Tool panels put the settings you use most at the top; the rest are folded
+  under *More options*.
+
+**Tools**
+
+- **Hole and Thread: place from an edge.** Under the point, **Pick edge** lets you click a
+  straight edge of the part or a sketch line and type how far the hole is from it. Pick two
+  edges to fix the spot exactly. If the part changes size later, the hole keeps its distances.
+- **Hole and Thread: move a placed point.** Press its dot and drag it along the face. For a
+  Hole you can also click the dot (it turns amber) and then click where it should go. Esc lets
+  go of it. Distances from edges stay and show their new values.
+- **Thread: Screw head.** For a tapped hole, choose *Flush* (no pocket), *Socket head cap*
+  (a flat-bottomed pocket) or *Countersunk* (a cone). The pocket is cut for the head and the
+  thread starts at its bottom, so *Length* is still all thread. Picking a screw size fills in
+  the head sizes; change them if your screws differ.
+- **Split: Distance.** After you pick the split plane, drag the arrow or type *Distance* to
+  slide the cut through the part. See also *Split connectors* below.
+- **Move** snaps to the grid and to the plate; hold Shift to move freely. *Drop to bed* is now
+  **Drop to plate**, and it sets a turned part down on its lowest point.
+- **Shell and Hollow** make square inside corners and a wall of exactly the thickness you set.
+  In 1.x the inside corners were slightly bevelled.
+- **Measure** also shows how far apart the two points are along X, Y and Z, as dotted lines
+  with their lengths.
+- **Bodies in a tool:** once the picks above it are filled, a *Bodies* box takes clicks, on
+  the part or on its row in the Browser.
+- **Snap-fit is gone** from the toolbar and the tool search. A Snap-fit step in an older
+  project still rebuilds, and you can still open it from the timeline.
+
+**Section view**
+
+- Besides X, Y and Z you can click any flat face or plane to cut along it.
+- A **Distance** box and a drag arrow replace the slider. The box takes inches and
+  expressions like `=height/2`.
+- The cut face is drawn in the part's own colour, a little darker, with diagonal **Hatch**
+  lines (untick *Hatch* for a plain face). Nothing behind the cut shows through it.
+
+**Sketching**
+
+- **Sizes go in boxes beside the shape** as you draw. Type a number and the other sizes keep
+  following the pointer. A typed line angle is kept as an angle dimension.
+- **Colours:** the shape you are drawing is green, and closed shapes are filled pale blue.
+  In the dark theme, shapes that can still move are blue, fully defined ones are near-white
+  and the selected shape is amber. In the light theme, shapes that can still move are
+  near-black, fully defined ones are dark blue and the selected shape is bright blue. Red
+  still means relations that can't all be met.
+- **Snaps** show a small marker with a word saying what was found, and a line can snap
+  tangent to a circle or arc. Grid snap starts on *Auto*, which follows the grid you see at
+  the current zoom.
+- **Only the sketch's own grid shows** while a sketch is open; the bed grid is hidden.
+- **A sketch on a face follows the part.** If you later Move, Rotate or Mirror that body, the
+  sketch goes with it.
+- **Text fonts:** the list starts with the built-in fonts and any you added. *More: fonts on
+  this computer…* adds the fonts installed on your computer. Font files must be `.ttf` or `.otf`.
+
+**Supports**
+
+- **Fins kept as a separate body follow their part.** Move the part and its fins move too.
+  Split it and each fin goes with the half it stands under.
+- **Fins are rebuilt after you change the part.** When you Move, Scale, Lay Flat or Split a
+  part that has Support Fins, the Support Fins step is run again last, on the part as it is
+  now. Walls you drew by hand in that step are taken out, and a note tells you, so draw them
+  again afterwards. Draw Walls steps are carried along instead.
+
+**Output**
+
+- **Send to Slicer** sends a 3MF (1.x sent an STL), and the menu lists only the slicers found
+  on your computer.
+- **Export › STEP** is in the desktop app too, not just the web edition. It writes flat
+  faces, as described under *Output* below.
+
+**Saving and updates**
+
+- **Recover Unsaved Work** has **Discard all**, which asks once and then removes every copy.
+- **Help › Update Settings** is one switch: *Check for new versions once a day*.
+- **Update now** works for the installed Windows app. Close other STL Editor 2.0 windows
+  first. Other copies get a *Download* button.
+- **If the graphics driver restarts,** 2.0 saves your work, tells you, and starts again with
+  your work open.
+- **If the engine stops unexpectedly,** a **Restart** button reopens the last project you
+  opened or saved.
+- The log is in `%LOCALAPPDATA%\STL Editor 2\log.txt`.
+
+**Web edition**
+
+- *File › Recent* lasts until you close the tab.
+- Cancel can stop a job that is already running in a recent browser (Chrome or Edge 137,
+  Firefox 153, Safari 27, or newer). In older ones the job finishes first.
+
 ## Linux and Mac (beta)
 
 The Linux build is a beta: it works like the Windows version, but it is newer and less tested.
@@ -58,6 +185,8 @@ To run without building, from the same folder: python3 main.py (after the instal
 | Body menu | Right-click a body |
 
 In a sketch, the left button draws; orbit with right-drag and pan with middle-drag.
+
+2.0 uses different buttons (right-drag orbits, middle-drag pans): see *What's different in 2.0*.
 
 ## Typical workflow: cut a pocket into an STL
 
@@ -157,7 +286,9 @@ features). Split can add connectors at the cut.
 **Threads**: Thread tool: tapped holes or screws/studs, ISO metric M1.6–M30, UNC #1-64 to
 3/4"-10 and the common UNF sizes (#0-80, #10-32, 1/4"-28…) or any
 size, right or left hand, chamfered ends and a print clearance (0.2–0.4 mm works well on
-FDM; pitches of 1 mm and up print most reliably).
+FDM; pitches of 1 mm and up print most reliably). **(2.0)** *Screw head* adds a pocket for a
+socket head cap or countersunk screw above a tapped hole, and a placed point can be dragged or
+set from an edge: see *What's different in 2.0*.
 
 **Print**: Lay Flat (click the face to put on the bed, or let it pick the most stable side).
 Fit to Bed: pick your printer and big parts are cut into pieces that fit, with
@@ -236,7 +367,9 @@ already has them opens the same step to change it, rather than stacking a second
 Double-clicking the step on the timeline does the same. If you move, turn, scale or lay flat
 a part after its fins were added, the move goes in before the fins on the timeline, so the
 fins are rebuilt for the new position instead of tipping over with the part. Walls you drew
-by hand stay where you drew them, so check those afterwards.
+by hand stay where you drew them, so check those afterwards. **(2.0)** This works differently:
+the Support Fins step is run again after the change, and hand-drawn walls in it are taken
+out. See *What's different in 2.0*.
 
 **Draw Walls** is Support Fins' Draw mode: the red faces show where support is needed, and
 you place breakaway walls under them by hand, as many as you like:
@@ -316,7 +449,7 @@ level / plumb automatically. Change a dimension and the shape follows; drag poin
 with the Select tool and the constraints hold. Small glyphs (H, V, ∥, ⊥, =, T, ◎…) show
 each constraint: click one and press Delete to remove it, or use the list in the panel.
 
-**Snap-fit** (Create): a thin arm that stands up from a face, with a hook at its tip, so a
+**Snap-fit** (Create; not offered in 2.0, where older Snap-fit steps still rebuild): a thin arm that stands up from a face, with a hook at its tip, so a
 part can click into another. Pick the face with *On*, then set the arm length, width and
 thickness and the hook height. *Position X / Y* is where the arm's foot sits on that face.
 The hook sticks out by one arm thickness. The arm is joined to the body you choose
@@ -341,11 +474,12 @@ you use other tools. Turn it off and on with the **Section** button at the right
 bar, the `X` key, or *View › Section View (X)*. *View › Edit Section…* moves it again, and
 *View › Remove Section* (or *Remove cut* in the panel) takes it away. Cancel or `Esc` puts
 back the cut you had before. The cut only changes what you see: export, Properties and
-Measure still use the whole part, and it isn't saved in projects.
+Measure still use the whole part, and it isn't saved in projects. **(2.0)** You can also cut
+along any flat face or plane, and a *Distance* box and a drag arrow replace the slider.
 
 **Output**: Export STL / 3MF / OBJ (selected bodies, or all visible bodies), Send to Bambu
-Studio / OrcaSlicer / SolidCraft. In the web edition, Export also writes **STEP (.step)** for
-CAD programs. Curves come out as flat faces, so a round hole is a ring of small flat strips:
+Studio / OrcaSlicer / SolidCraft. In the web edition (and in 2.0 on the desktop too), Export
+also writes **STEP (.step)** for CAD programs. Curves come out as flat faces, so a round hole is a ring of small flat strips:
 it looks the same and opens as a solid, but it isn't a smooth curve you can edit in CAD. Use
 it to bring a part into a CAD program, not to model curves there. The part must be closed
 (no holes); Repair it first if the export says so.
@@ -423,7 +557,7 @@ saved to your computer; nothing is uploaded.
   slide up from the bottom.
 - **Desktop only:** Send to Slicer and To STEP (the SolidCraft conversion, which makes
   smooth solids). Their buttons are dimmed and point you to the download. Export › STEP is
-  in the web edition only, as flat faces.
+  in the web edition only, as flat faces (2.0 has it on the desktop as well).
 - **Hollow, Repair › Rebuild and Remesh** take a few seconds on big models. The browser has
   less memory than the desktop app, so *Fine* quality on a very large model may ask you to
   pick a coarser setting.
@@ -448,6 +582,9 @@ A local Python engine (Manifold for booleans, trimesh/scikit-image for repair an
 work) serves a three.js interface shown in a desktop window (pywebview / WebView2).
 The web edition runs a JavaScript port of the engine (Manifold compiled to WebAssembly)
 inside the page. Nothing leaves your computer in either.
+
+2.0 is one program written in Rust, with the same engine in the desktop app and the web
+edition. Help › About lists what it is built with.
 
 Libraries: manifold3d (Apache-2.0), three.js (MIT), three-mesh-bvh (MIT), trimesh (MIT), Shapely (BSD-3),
 scikit-image (BSD-3), SciPy (BSD-3), NumPy (BSD-3), fast-simplification (MIT),
