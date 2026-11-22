@@ -102,7 +102,9 @@ Nothing gets installed and no admin rights are needed. Settings live in `%APPDAT
 
 **[Open the web app](https://natterman12.github.io/STL-Editor/app/)**: nothing to download, works on Windows, macOS, Linux, ChromeOS and tablets in a recent Chrome, Edge, Firefox or Safari. It's the same app as the desktop one, compiled to WebAssembly, with the same `.stlx` project files. Everything runs inside the page, so your models never leave your computer.
 
-Every modelling tool works in the browser, including Hollow, Remesh, Brushes and *Repair › Rebuild*. It keeps autosave copies for recovery and a recent-files list, saves straight back to the project you opened (Chrome and Edge), works offline after the first visit, and can be installed as an app that opens `.stlx` and mesh files. Only Send to Slicer and To STEP need the desktop app, because they start programs on your computer. The desktop app is also faster on very large meshes.
+Every modelling tool works in the browser, including Hollow, Remesh, Brushes and *Repair › Rebuild*. Unsaved work is copied into the browser as you go, so it can be recovered after a crash or a closed tab. **Save** and **Export** download the file, like any download from a web page, and *File › Recent* lasts until you close the tab. You need a connection to open the page; once it's open, it needs none. Only Send to Slicer and To STEP need the desktop app, because they start programs on your computer. The desktop app is also faster on very large meshes.
+
+Not in the 2.0 web edition yet: opening it with no connection, installing it as an app, and saving straight back to the file you opened. The 1.x web edition had these.
 
 ### Quick start
 

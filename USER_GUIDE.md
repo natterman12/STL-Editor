@@ -138,7 +138,11 @@ orbiting turns around the middle of your parts.
 
 **Web edition**
 
+- **Save** downloads the project each time, as Export does. It doesn't save straight back to
+  the file you opened yet.
 - *File › Recent* lasts until you close the tab.
+- You need a connection to open the page, and it can't be installed as an app yet. Once the
+  page is open it needs no connection.
 - Cancel can stop a job that is already running in a recent browser (Chrome or Edge 137,
   Firefox 153, Safari 27, or newer). In older ones the job finishes first.
 
