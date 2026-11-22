@@ -33,6 +33,7 @@ mod sfcov;
 mod sfpanel;
 mod skdim;
 mod skdim2;
+mod sketch_text_add;
 mod split_connectors;
 mod split_face;
 mod tap;
