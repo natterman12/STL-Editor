@@ -2,3 +2,5 @@
 # and against each other; keep them byte for byte on every checkout.
 web/vendor/** -text
 docs/app/vendor/** -text
+# The 2.0 web preview is a build committed by the Web preview (2.0) workflow; keep it as built.
+docs/app2/** -text
