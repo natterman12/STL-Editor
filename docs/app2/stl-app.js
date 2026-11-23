@@ -59,7 +59,7 @@ function __wbg_get_imports() {
             const ret = arg0.WorkerGlobalScope;
             return ret;
         },
-        __wbg___stlYield_33fe54e380f74a15: ((__inner) => new WebAssembly.Suspending(function(...args) {
+        __wbg___stlYield_170e5024c8125974: ((__inner) => new WebAssembly.Suspending(function(...args) {
             try { return __inner.apply(this, args); }
             catch (e) { return Promise.reject(e); }
         }))(function() {
@@ -3025,7 +3025,7 @@ function __wbg_get_imports() {
             return ret;
         },
         __wbindgen_generic_0000000000000005: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("Event")], shim_idx: 584, ret: Unit, inner_ret: Some(Unit) }, mutable: false }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("Event")], shim_idx: 583, ret: Unit, inner_ret: Some(Unit) }, mutable: false }) -> Externref`.
             const ret = makeClosure(arg0, arg1, wasm_bindgen_7e9e74c35c2bb8c5___convert__closures_____invoke___web_sys_6a528687d7c04bd0___features__gen_MessageEvent__MessageEvent______true_);
             return ret;
         },
@@ -3045,7 +3045,7 @@ function __wbg_get_imports() {
             return ret;
         },
         __wbindgen_generic_0000000000000009: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("MessageEvent")], shim_idx: 584, ret: Unit, inner_ret: Some(Unit) }, mutable: false }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("MessageEvent")], shim_idx: 583, ret: Unit, inner_ret: Some(Unit) }, mutable: false }) -> Externref`.
             const ret = makeClosure(arg0, arg1, wasm_bindgen_7e9e74c35c2bb8c5___convert__closures_____invoke___web_sys_6a528687d7c04bd0___features__gen_MessageEvent__MessageEvent______true__13);
             return ret;
         },
