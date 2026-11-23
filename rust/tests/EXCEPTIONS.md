@@ -398,7 +398,7 @@ Nathan answered these on 2026-11-14: accepted unless marked otherwise.
   (`update_repo`), which 2.0 doesn't need.
 - **Fixed in milestone 6 (2026-11-14): 1.x's update check never offers a 2.x release.** `stleditor/updates.py` lists the releases
   and takes the newest `v1.*` (drafts and prereleases skipped), for the check and for one-click install; `tests/test_updates.py`.
-- **Accepted (2026-11-14): The title and About say "STL Editor 2.0 (test build <date> <commit>)"**; the date is the UTC build date.
+- **Accepted (2026-11-14): The title and About say "STL Editor 2.0 (test build <date> <commit>)"**; the date is the UTC build date. Since 2026-11-22 only while the version ends in `-dev`: a released build's title is "STL Editor <version>" and About says "Version <version> (built <date>, <commit>)". About names the GPL-3.0 and links the source on the desktop as well as in the web edition.
 - **Accepted (2026-11-14): The phone drawer's button sits above the tool panel** (1.x puts it below), because 2.0's tool panel isn't yet a
   bottom sheet on phones.
 - **Changed in milestone 6 (accepted by Nathan 2026-11-16): after a graphics driver reset the desktop window restarts itself.** eframe 0.37 can't

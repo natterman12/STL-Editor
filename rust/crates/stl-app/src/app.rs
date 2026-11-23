@@ -252,7 +252,7 @@ STL Editor is free and made in spare time. If it saves you time, you can buy me 
             )
         })
         .collect();
-    let (date, commit) = (crate::build_info::build_date(), crate::build_info::commit());
+    let line = crate::build_info::version_line_for(version);
     let edition = if web {
         format!(
             "Web edition {version}
@@ -260,17 +260,14 @@ CAD-style editing for STL, 3MF and OBJ meshes, running entirely in your browser:
         )
     } else {
         format!(
-            "Version {version} (test build {date} {commit})
+            "{line}
 CAD-style editing for STL, 3MF and OBJ meshes."
         )
     };
-    let gpl = if web {
-        "
+    // both editions: the licence asks that whoever gets the program is told where the source is
+    let gpl = "
 
-Free software under the GPL-3.0: source on GitHub."
-    } else {
-        ""
-    };
+Free software under the GPL-3.0: source on GitHub.";
     format!(
         "{edition}
 
@@ -1875,13 +1872,10 @@ impl StlApp {
             "help.kofi" => ctx.open_url(egui::OpenUrl::new_tab(KOFI)),
             "help.about" => {
                 let web = self.platform.is_web();
-                let mut links = Vec::new();
-                if web {
-                    links.push((
-                        "source on GitHub".to_owned(),
-                        "https://github.com/natterman12/STL-Editor".to_owned(),
-                    ));
-                }
+                let mut links = vec![(
+                    "source on GitHub".to_owned(),
+                    "https://github.com/natterman12/STL-Editor".to_owned(),
+                )];
                 links.push(("Buy me a coffee on Ko-fi".to_owned(), KOFI.to_owned()));
                 self.shell
                     .dialogs
