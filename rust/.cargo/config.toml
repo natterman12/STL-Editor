@@ -1,0 +1,5 @@
+# The Windows app is one file that needs nothing beside it. Built for MSVC, the WebView2 loader is
+# linked into the exe (the GNU build wants WebView2Loader.dll next to it), and with `crt-static`
+# so is the C runtime, so a PC without the Visual C++ runtime installed can still start the app.
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]

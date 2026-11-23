@@ -464,9 +464,12 @@ jobs:
 
       - uses: actions/checkout@v7
 
-      - name: Use the GNU host on Windows
+      # The Windows exe is built for MSVC, not for the GNU host the test jobs use: only the MSVC
+      # build has the WebView2 loader and the C runtime inside the exe (rust/.cargo/config.toml).
+      # A GNU build asks for WebView2Loader.dll beside it and shows an error box at start.
+      - name: Use the MSVC host on Windows
         if: matrix.kind == 'windows'
-        run: rustup set default-host x86_64-pc-windows-gnu
+        run: rustup set default-host x86_64-pc-windows-msvc
 
       - name: Install the pinned toolchain
         run: |
@@ -510,8 +513,25 @@ jobs:
           mkdir -p dist
           cp target/release/stl-app.exe dist/STL-Editor-2-Windows.exe
 
+      # The exe may only need files that are part of Windows. A DLL that is missing on the user's
+      # PC stops the app with an error box before it starts (2.0.0-beta.1: WebView2Loader.dll),
+      # and the process stays alive behind that box, so "still running" does not catch it.
+      - name: Check the Windows exe needs no extra DLL
+        if: matrix.kind == 'windows'
+        shell: pwsh
+        run: |
+          $objdump = Get-ChildItem "$(rustc --print sysroot)" -Recurse -Filter llvm-objdump.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $objdump) { rustup component add llvm-tools; $objdump = Get-ChildItem "$(rustc --print sysroot)" -Recurse -Filter llvm-objdump.exe | Select-Object -First 1 }
+          $dlls = & $objdump.FullName -p dist/STL-Editor-2-Windows.exe | Select-String 'DLL Name: (.+)$' | ForEach-Object { $_.Matches[0].Groups[1].Value.Trim() } | Sort-Object -Unique
+          "Needs: $($dlls -join ', ')"
+          if (-not $dlls) { throw "Could not read the exe's list of DLLs" }
+          $extra = $dlls | Where-Object { $_ -notmatch '^(api-ms-|ext-ms-)' -and -not (Test-Path (Join-Path $env:WINDIR "System32\$_")) }
+          $runtime = $dlls | Where-Object { $_ -match '^(vcruntime|msvcp|WebView2Loader|libgcc|libstdc|libwinpthread)' }
+          if ($extra -or $runtime) { throw "The exe needs files that are not part of Windows: $(@($extra) + @($runtime) | Sort-Object -Unique)" }
+          "The exe needs only DLLs that are part of Windows"
+
       # The exe must open its window and stay up. The runner has no graphics card, so this is
-      # the software renderer; it shows a missing DLL or a crash at start, not how it looks.
+      # the software renderer; it shows a crash at start, not how it looks.
       - name: Check the Windows exe starts
         if: matrix.kind == 'windows'
         shell: pwsh
