@@ -105,10 +105,17 @@ pub fn show(ctx: &egui::Context, tk: &Tokens, workspace: Rect, recent: &[String]
                         ui.spacing_mut().item_spacing.x = 0.0;
                         ui.label(RichText::new("Free and open source · ").size(11.5).color(tk.muted));
                         let r = ui.add(
-                            egui::Label::new(RichText::new("Support STL Editor ").size(11.5).color(tk.muted))
-                                .sense(Sense::click()),
+                            // looks like a link (blue, underlined), as in the About dialog
+                            egui::Label::new(
+                                RichText::new("Support STL Editor")
+                                    .size(11.5)
+                                    .color(tk.accent)
+                                    .underline(),
+                            )
+                            .sense(Sense::click()),
                         );
-                        ui.add_space(3.0);
+                        let r = r.on_hover_cursor(egui::CursorIcon::PointingHand);
+                        ui.add_space(6.0);
                         ui.label(RichText::new("♥").size(11.5).color(tk.heart));
                         r.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Link, true, "Support STL Editor"));
                         if r.clicked() {
