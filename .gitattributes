@@ -4,6 +4,9 @@ web/vendor/** -text
 docs/app/vendor/** -text
 rust/tests/** -text
 rust/tests/parity/import2d/** -text
+# The 2.0 licences page is written by `cargo run -p xtask -- licences` and built into the app;
+# keep it as written, so the app is the same whichever system it was checked out on.
+rust/crates/stl-app/assets/licences.html -text
 # The 2.0 icon files are written by rust/crates/stl-app/assets/icon/make_icon.py; keep them as written.
 *.rgba binary
 *.icns binary

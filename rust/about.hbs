@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>STL Editor: third-party licences</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: "Segoe UI", system-ui, sans-serif; line-height: 1.5; margin: 0; padding: 24px 16px; }
+  main { max-width: 820px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; }
+  h2 { font-size: 1.15rem; margin-top: 2rem; }
+  h3 { font-size: 1rem; margin-bottom: 0.25rem; }
+  ul.used { margin: 0 0 0.5rem; padding-left: 1.2rem; columns: 2; }
+  pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.8rem; padding: 12px; border: 1px solid #8884; border-radius: 6px; max-height: 260px; overflow-y: auto; }
+  @media (max-width: 560px) { ul.used { columns: 1; } }
+</style>
+</head>
+<body>
+<main>
+<h1>STL Editor: third-party licences</h1>
+<p>STL Editor is free software under the GPL-3.0; its source is at
+<a href="https://github.com/natterman12/STL-Editor">github.com/natterman12/STL-Editor</a>.
+It is built from the open-source projects below. Thank you to everyone who made them.
+Each one is listed with the licence it comes under.</p>
+
+<h2>The licences</h2>
+<ul>
+{{#each overview}}
+<li><a href="#{{id}}">{{name}}</a> ({{count}})</li>
+{{/each}}
+<li><a href="#fonts">The fonts</a></li>
+</ul>
+
+<h2>The projects and their licence texts</h2>
+{{#each licenses}}
+<h3 id="{{id}}">{{name}}</h3>
+<ul class="used">
+{{#each used_by}}
+<li><a href="{{#if crate.repository}}{{crate.repository}}{{else}}https://crates.io/crates/{{crate.name}}{{/if}}">{{crate.name}} {{crate.version}}</a></li>
+{{/each}}
+</ul>
+<pre>{{text}}</pre>
+{{/each}}
+
+<!--FONTS-->
+</main>
+</body>
+</html>

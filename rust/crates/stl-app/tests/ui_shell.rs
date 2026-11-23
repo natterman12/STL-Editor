@@ -464,6 +464,71 @@ fn help_menu_has_kofi_and_about() {
     );
 }
 
+/// Help › About › Third-party licences: the page built into the app is written to the temporary
+/// folder and opened from there (the app is one file, so the licence texts travel inside it).
+#[test]
+fn about_opens_the_licences_page_built_into_the_app() {
+    let page = stl_app::app::LICENCES_HTML;
+    assert!(page.contains("<title>STL Editor: third-party licences</title>"));
+    // the kernel, the interface, the fonts that are not crates, and a full licence text
+    for part in [
+        ">manifold-rust ",
+        ">egui ",
+        ">wgpu ",
+        "Selawik, the font of the interface",
+        "Noto Emoji",
+        "SIL OPEN FONT LICENSE",
+        "Permission is hereby granted, free of charge",
+        "Apache License",
+    ] {
+        assert!(page.contains(part), "the licences page has no {part:?}");
+    }
+
+    let mut h = shell(1500.0, 700.0);
+    h.run_steps(4);
+    h.get_by_label("Help").click();
+    h.run_steps(4);
+    h.get_by_label("About STL Editor").click();
+    h.run_steps(4);
+    assert!(
+        h.query_by_label("source on GitHub").is_some(),
+        "the source link, on the desktop too"
+    );
+    h.get_by_label("Third-party licences").click();
+    let mut opened: Vec<String> = Vec::new();
+    for _ in 0..4 {
+        h.step();
+        opened.extend(h.output().platform_output.commands.iter().filter_map(|c| match c {
+            egui::OutputCommand::OpenUrl(u) => Some(u.url.clone()),
+            _ => None,
+        }));
+    }
+    let path = std::env::temp_dir().join("STL-Editor-2-licences.html");
+    assert_eq!(
+        opened,
+        [stl_app::app::file_url(&path)],
+        "the browser is sent to the written file"
+    );
+    assert_eq!(
+        std::fs::read_to_string(&path).unwrap(),
+        page,
+        "the whole page was written"
+    );
+}
+
+#[test]
+fn a_file_address_for_the_browser() {
+    use std::path::Path;
+    assert_eq!(
+        stl_app::app::file_url(Path::new(r"C:\Users\a b\Temp\page.html")),
+        "file:///C:/Users/a%20b/Temp/page.html"
+    );
+    assert_eq!(
+        stl_app::app::file_url(Path::new("/tmp/é/page.html")),
+        "file:///tmp/%C3%A9/page.html"
+    );
+}
+
 #[test]
 fn file_edit_view_menus_match_app_js() {
     let mut h = shell(1500.0, 700.0);

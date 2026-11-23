@@ -1,0 +1,40 @@
+# Settings for cargo-about, which collects the licence texts of everything the app is built from
+# into one page: rust/crates/stl-app/assets/licences.html (Help > About > Third-party licences in
+# the desktop app, licences.html in the web edition). Write the page again after adding or
+# updating a crate: `cargo run -p xtask -- licences` from rust/ (install the tool once with
+# `cargo install cargo-about --locked --features cli`). CI's "Dependencies" job fails when the page
+# is out of date. The page's layout is rust/about.hbs.
+
+# The same licences rust/deny.toml allows: a crate under any other fails here too.
+accepted = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "BSL-1.0",
+    "Unicode-3.0",
+    "CDLA-Permissive-2.0",
+    "MPL-2.0",
+    "OFL-1.1",
+    "Ubuntu-font-1.0",
+]
+
+# Every system a download is made for, so the page is the same whichever machine writes it.
+targets = [
+    "x86_64-pc-windows-gnu",
+    "x86_64-pc-windows-msvc",
+    "x86_64-apple-darwin",
+    "aarch64-apple-darwin",
+    "x86_64-unknown-linux-gnu",
+    "wasm32-unknown-unknown",
+]
+
+# Only what ends up in the program: not the test tools, not what runs while it is being built.
+ignore-dev-dependencies = true
+ignore-build-dependencies = true
+
+# Our own crates are not published and carry no licence field (they are GPL-3.0 with the app).
+private = { ignore = true }

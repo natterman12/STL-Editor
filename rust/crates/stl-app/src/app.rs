@@ -44,6 +44,31 @@ const DESKTOP_URL: &str = "https://natterman12.github.io/STL-Editor/#download";
 /// is 1.x's and has no "What's different in 2.0". Back to `blob/main` when 2.0 moves to `main`.
 const GUIDE_URL: &str = "https://github.com/natterman12/STL-Editor/blob/v2-main/USER_GUIDE.md";
 const ISSUES_URL: &str = "https://github.com/natterman12/STL-Editor/issues/new/choose";
+/// The link "Third-party licences" in Help › About. Not a web address: the page travels with the
+/// app (see [`StlApp::open_licences`]).
+pub const LICENCES_URL: &str = "stl-editor:licences";
+/// The licence texts of everything the app is built from, as one page. Written by
+/// `cargo run -p xtask -- licences` (settings `rust/about.toml`); the web edition has it as a
+/// file beside the app instead.
+#[cfg(not(target_arch = "wasm32"))]
+pub const LICENCES_HTML: &str = include_str!("../assets/licences.html");
+/// The licences page beside the web edition.
+#[cfg(target_arch = "wasm32")]
+const LICENCES_PAGE: &str = "licences.html";
+
+/// A file's address for the browser: `file:///C:/Users/a%20b/page.html`.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn file_url(path: &std::path::Path) -> String {
+    let p = path.to_string_lossy().replace('\\', "/");
+    let mut url = String::from(if p.starts_with('/') { "file://" } else { "file:///" });
+    for b in p.bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'/' | b':' | b'-' | b'_' | b'.' | b'~' => url.push(b as char),
+            _ => url.push_str(&format!("%{b:02X}")),
+        }
+    }
+    url
+}
 
 pub struct StlApp {
     pub dark: bool,
@@ -235,6 +260,27 @@ pub const CREDITS: &[(&str, &str)] = &[
     ("zip, quick-xml, reading and writing project and 3MF files", "MIT"),
     ("usvg, resvg, for SVG shapes in sketches", "Apache-2.0 or MIT"),
 ];
+
+impl StlApp {
+    /// Help › About › Third-party licences. The desktop app is one file, so the page is inside
+    /// it: it is written to the temporary folder and opened in the browser from there. The web
+    /// edition opens the copy beside the app.
+    fn open_licences(&mut self, ctx: &egui::Context) {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let path = std::env::temp_dir().join("STL-Editor-2-licences.html");
+            match std::fs::write(&path, LICENCES_HTML) {
+                Ok(()) => ctx.open_url(egui::OpenUrl::new_tab(file_url(&path))),
+                Err(e) => self.toasts.push(
+                    Level::Warning,
+                    format!("Could not write the licences page to {}: {e}", path.display()),
+                ),
+            }
+        }
+        #[cfg(target_arch = "wasm32")]
+        ctx.open_url(egui::OpenUrl::new_tab(LICENCES_PAGE));
+    }
+}
 
 /// 1.x's About text (app.js:2546-2547) plus `THANKS` (app.js:31), as plain lines, with the credits of
 /// what 2.0 actually uses in place of 1.x's library list.
@@ -1876,6 +1922,7 @@ impl StlApp {
                     "source on GitHub".to_owned(),
                     "https://github.com/natterman12/STL-Editor".to_owned(),
                 )];
+                links.push(("Third-party licences".to_owned(), LICENCES_URL.to_owned()));
                 links.push(("Buy me a coffee on Ko-fi".to_owned(), KOFI.to_owned()));
                 self.shell
                     .dialogs
@@ -2249,6 +2296,8 @@ impl StlApp {
         if let Some(url) = dialogs::show(&ctx, &tk, &mut self.shell.dialogs) {
             if url == wiring::RESTART_URL {
                 self.restart_app(&ctx);
+            } else if url == LICENCES_URL {
+                self.open_licences(&ctx);
             } else {
                 ctx.open_url(egui::OpenUrl::new_tab(url));
             }

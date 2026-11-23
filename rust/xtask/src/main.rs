@@ -1,5 +1,6 @@
 mod bench;
 mod install;
+mod licences;
 mod pure;
 mod uibench;
 mod web;
@@ -83,6 +84,13 @@ fn main() -> ExitCode {
                 ExitCode::FAILURE
             }
         },
+        Some("licences") => match licences::run(std::env::args().skip(2)) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("licences: {e}");
+                ExitCode::FAILURE
+            }
+        },
         Some("uibench") => match uibench::run(std::env::args().skip(2)) {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
@@ -92,7 +100,7 @@ fn main() -> ExitCode {
         },
         _ => {
             eprintln!(
-                "usage: cargo run -p xtask -- pure-rust | cargo run --release -p xtask -- bench [--save [file]] [--compare [file]] [--skip-1x] | cargo run --release -p xtask -- uibench [--quick] | cargo run -p xtask -- install [--exe <path>] | cargo run -p xtask -- uninstall [--purge] | cargo run -p xtask -- web [--serve | --check [--webgl2] | --measure-preview]"
+                "usage: cargo run -p xtask -- pure-rust | cargo run --release -p xtask -- bench [--save [file]] [--compare [file]] [--skip-1x] | cargo run --release -p xtask -- uibench [--quick] | cargo run -p xtask -- install [--exe <path>] | cargo run -p xtask -- uninstall [--purge] | cargo run -p xtask -- web [--serve | --check [--webgl2] | --measure-preview] | cargo run -p xtask -- licences [--check]"
             );
             ExitCode::FAILURE
         }

@@ -11,7 +11,9 @@ stl-sketch = { path = "../stl-sketch" }
 stl-engine = { path = "../stl-engine" }
 stl-io = { path = "../stl-io" }
 stl-platform = { path = "../stl-platform" }
-eframe = { version = "0.37", default-features = false, features = ["wgpu_no_default_features", "default_fonts", "x11"] }
+# "links": without it a link in the desktop app (Help > User Guide, Ko-fi, What's new, the licences
+# page) is only logged, never opened.
+eframe = { version = "0.37", default-features = false, features = ["wgpu_no_default_features", "default_fonts", "x11", "links"] }
 egui = "0.37"
 egui-wgpu = { version = "0.37", default-features = false, features = ["winit"] }
 wgpu = { version = "30", default-features = false, features = ["std", "parking_lot", "wgsl", "dx12", "metal", "vulkan"] }

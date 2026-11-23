@@ -133,6 +133,12 @@ fn build(measure: bool) -> Result<PathBuf, String> {
     ] {
         fs::copy(web.join(f), out.join(f)).map_err(|e| format!("no {f}: {e}"))?;
     }
+    // the third-party licence texts (Help > About links to it; `xtask licences` writes it)
+    fs::copy(
+        rust.join("crates/stl-app/assets/licences.html"),
+        out.join("licences.html"),
+    )
+    .map_err(|e| format!("no licences.html: {e}"))?;
     // Support Fins' own engine, for the worker to load (rust/crates/stl-app/web/worker.js)
     let fins = out.join("support-fins");
     fs::create_dir_all(&fins).map_err(|e| e.to_string())?;

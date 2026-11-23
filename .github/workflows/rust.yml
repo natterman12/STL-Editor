@@ -109,6 +109,20 @@ jobs:
       - name: Check the pure-Rust rule
         run: cargo run -p xtask -- pure-rust
 
+      # The page of third-party licence texts built into the app (Help > About) must match the
+      # crates in Cargo.lock. If this fails: `cargo run -p xtask -- licences` from rust/, commit
+      # crates/stl-app/assets/licences.html. One system is enough: the page lists every target.
+      # The tool's version is fixed so a new one can't change the page's layout under us.
+      - name: Install cargo-about
+        if: runner.os == 'Linux'
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-about@0.9.3
+
+      - name: Check the licences page is up to date
+        if: runner.os == 'Linux'
+        run: cargo run -p xtask -- licences --check
+
   # Formatting and lints for our crates (third_party is outside the workspace). On Windows, the
   # same host as the development PC, so the code checked here is the code checked there. The
   # settings are rust/rustfmt.toml and [workspace.lints] in rust/Cargo.toml. To fix a failure:
