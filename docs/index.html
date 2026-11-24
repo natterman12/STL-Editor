@@ -156,15 +156,6 @@ strong { font-weight: 500; color: var(--text); }
 
 .clip { position: relative; }
 .clip video { display: block; width: 100%; height: auto; }
-.cap {
-  position: absolute; left: 50%; bottom: 7%; transform: translate(-50%, 6px);
-  max-width: calc(100% - 32px); padding: 7px 14px; border-radius: 999px;
-  background: rgba(13, 15, 18, 0.86); border: 1px solid var(--line-strong); color: var(--text);
-  font-size: 14px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  opacity: 0; transition: opacity .25s ease, transform .25s ease; pointer-events: none;
-}
-.cap.on { opacity: 1; transform: translate(-50%, 0); }
-.hero-shot .cap { font-size: 16px; bottom: 9%; }
 
 /* how it compares */
 .compare-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
@@ -673,41 +664,11 @@ footer .kofi a { color: var(--text-2); }
 </footer>
 
 <script>
-// The clips play while they are on screen, without controls, with a caption for each step
-// (img/<name>.captions.json, written by the program that records them). For a reader who asked
-// for less motion they stay still on their poster, with controls to play them.
+// The clips play while they are on screen, without controls and with no text over them. For a
+// reader who asked for less motion they stay still on their poster, with controls to play them.
 (function () {
   var still = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   var clips = document.querySelectorAll('video[data-clip]');
-  clips.forEach(function (v) {
-    var cap = document.createElement('span');
-    cap.className = 'cap';
-    cap.setAttribute('aria-hidden', 'true');
-    v.parentNode.appendChild(cap);
-    var steps = null, shown = -1;
-    function show() {
-      if (!steps) return;
-      var i = -1;
-      for (var k = 0; k < steps.length; k++) if (steps[k].t <= v.currentTime + 0.05) i = k;
-      if (i === shown) return;
-      shown = i;
-      cap.classList.remove('on');
-      if (i < 0) return;
-      cap.textContent = steps[i].text;
-      void cap.offsetWidth; // restart the fade
-      cap.classList.add('on');
-    }
-    v.addEventListener('play', function () {
-      if (steps) return;
-      steps = [];
-      fetch('img/' + v.dataset.clip + '.captions.json')
-        .then(function (r) { return r.ok ? r.json() : []; })
-        .then(function (j) { steps = j; show(); })
-        .catch(function () {});
-    }, { once: true });
-    v.addEventListener('timeupdate', show);
-    v.addEventListener('seeked', show);
-  });
   if (still || !('IntersectionObserver' in window)) return;
   var io = new IntersectionObserver(function (es) {
     es.forEach(function (e) {

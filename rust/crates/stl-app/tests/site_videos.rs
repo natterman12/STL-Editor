@@ -1,6 +1,5 @@
 //! The website's clips of the 2.0 tools (`docs/img/<name>.mp4`, with a still of the last frame as
-//! `<name>.jpg` for the poster, and `<name>.captions.json`, the caption the page shows for each
-//! step): short loops of the real app, drawn frame by frame on the GPU with
+//! `<name>.jpg` for the poster): short loops of the real app, drawn frame by frame on the GPU with
 //! the mouse pointer showing, in the dark theme. The 2.0 app's own counterpart to a screen
 //! recording, so they can be made again whenever the interface changes.
 //!
@@ -50,8 +49,6 @@ struct Clip {
     last: Option<image::RgbaImage>,
     frames: usize,
     pointer: Pos2,
-    /// The captions: from this many seconds in, this text (`<name>.captions.json`).
-    captions: Vec<(f32, &'static str)>,
 }
 
 impl Clip {
@@ -63,14 +60,12 @@ impl Clip {
             last: None,
             frames: 0,
             pointer: pos2(SIZE.x * 0.75, SIZE.y * 0.8),
-            captions: Vec::new(),
         }
     }
 
-    /// The caption the page shows from now on.
-    fn caption(&mut self, text: &'static str) {
-        self.captions.push((self.frames as f32 / FPS as f32, text));
-    }
+    /// What the clip shows from here on: a note for whoever reads the script. Nothing is drawn
+    /// or written; the website shows the clips with no text over them (Nathan, 2026-11-24).
+    fn caption(&mut self, _text: &'static str) {}
 
     fn out(&self, ext: &str) -> PathBuf {
         img_dir().join(format!("{}.{ext}", self.name))
@@ -208,16 +203,6 @@ impl Clip {
             .status()
             .expect("ffmpeg is on the PATH");
         assert!(status.success(), "ffmpeg made the poster of {}", self.name);
-        let captions: Vec<_> = self
-            .captions
-            .iter()
-            .map(|(t, text)| json!({"t": (f64::from(*t) * 10.0).round() / 10.0, "text": text}))
-            .collect();
-        std::fs::write(
-            self.out("captions.json"),
-            serde_json::to_string_pretty(&captions).unwrap() + "\n",
-        )
-        .unwrap();
         let kb = |e| std::fs::metadata(self.out(e)).map(|m| m.len() / 1024).unwrap_or(0);
         eprintln!(
             "wrote {} ({} frames, {:.1} s, {} KB; poster {} KB)",
