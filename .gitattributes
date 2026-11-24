@@ -11,3 +11,5 @@ rust/crates/stl-app/assets/licences.html -text
 *.rgba binary
 *.icns binary
 *.ico binary
+# The 2.0 web preview is a build committed by the Web preview (2.0) workflow; keep it as built.
+docs/app2/** -text
