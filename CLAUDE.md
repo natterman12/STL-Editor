@@ -70,7 +70,9 @@ don't load (`serve.js` sends the right types).
   Support Fins engine updates from that address (`build_web.py` writes it).
 - **Never edit `web/vendor/support-fins/`** by hand: it's Support Fins' own engine, bundled
   unmodified by `packaging/update_support_fins.py`. A daily workflow
-  (`.github/workflows/support-fins.yml`) updates it and pushes. Its tool panels are built from
+  (`.github/workflows/support-fins.yml`) brings in each new engine by pull request (with the 2.0
+  golden files rebuilt by `dev/parity/fins_bump.py`) and merges it when the Rust and Tests
+  checks pass and the fins came out the same. Its tool panels are built from
   the engine's options schema, so don't hard-code its settings; only values that differ from
   the defaults are saved in projects.
 - **Millimetres** everywhere in the engines; inch mode only changes what the UI shows (`U` in
