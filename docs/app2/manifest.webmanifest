@@ -1,6 +1,6 @@
 {
-  "name": "STL Editor 2",
-  "short_name": "STL Editor 2",
+  "name": "STL Editor",
+  "short_name": "STL Editor",
   "description": "CAD-style editing for STL, 3MF and OBJ meshes, in your browser.",
   "id": "./",
   "start_url": "./",

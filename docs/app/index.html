@@ -1,116 +1,162 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<title>STL Editor</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="icon" href="icon.png">
-<link rel="stylesheet" href="css/app.css">
-<script type="importmap">
-{ "imports": {
-  "three": "./vendor/three.module.min.js",
-  "three/addons/": "./vendor/"
-} }
-</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>STL Editor</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#1c1e22">
+  <style>
+    html, body { margin: 0; height: 100%; background: #1c1e22; }
+    #stl-canvas { display: block; width: 100%; height: 100%; }
+    #web-bar {
+      position: fixed; left: 16px; right: 16px; bottom: 56px; z-index: 10; margin: 0 auto;
+      width: fit-content; max-width: 620px; box-sizing: border-box;
+      display: flex; gap: 14px; align-items: center;
+      padding: 10px 14px; border-radius: 8px; background: #262a31; color: #e8eaee;
+      border: 1px solid #3a404a; font: 13px/1.4 "Segoe UI", system-ui, sans-serif;
+    }
+    #web-bar a { color: #6ea8ff; white-space: nowrap; }
+    #web-bar button { background: none; border: 0; color: #9aa3ae; font-size: 18px; cursor: pointer; }
+  </style>
 </head>
 <body>
-<div id="app">
-  <header id="topbar">
-    <div class="brand"><span class="logo"></span>STL Editor</div>
-    <div class="menus">
-      <button class="menu-btn" data-menu="file">File</button>
-      <button class="menu-btn" data-menu="edit">Edit</button>
-      <button class="menu-btn" data-menu="view">View</button>
-      <button class="menu-btn" data-menu="help">Help</button>
-    </div>
-    <div class="quick">
-      <button class="icon-btn" id="btn-save" title="Save (Ctrl+S)"></button>
-      <button class="icon-btn" id="btn-undo" title="Undo (Ctrl+Z)"></button>
-      <button class="icon-btn" id="btn-redo" title="Redo (Ctrl+Y)"></button>
-      <span class="qsep"></span>
-      <button class="icon-btn" id="btn-insert" title="Insert Mesh (Ctrl+I)"></button>
-      <button class="icon-btn" id="btn-export" title="Export"></button>
-    </div>
-    <div id="doc-title">Untitled</div>
-    <div id="title-search"><input id="tool-search" type="search" placeholder="Search tools  Ctrl+K" autocomplete="off" spellcheck="false"></div>
-  </header>
+  <canvas id="stl-canvas"></canvas>
+  <script type="module">
+    // The wasm glue constructs WebAssembly.Suspending at startup. Browsers
+    // without JS Promise Integration would throw there and never draw.
+    // A plain stand-in lets the module start; Cancel then waits until the
+    // current command has finished (see worker.js).
+    const pass = function (fn) { return fn; };
+    if (typeof WebAssembly.Suspending !== "function") WebAssembly.Suspending = pass;
+    if (typeof WebAssembly.promising !== "function") WebAssembly.promising = pass;
+    // Headless check only: read the viewport's pixels back from the canvas. The app calls this
+    // from a microtask right after it painted a frame, while the canvas still holds that frame.
+    // `label` "off" keeps the pixels; "on" also counts how many pixels in the middle of the view
+    // differ from the "off" grab (the viewcube corner is left out, its button changes by itself).
+    const grabs = {};
+    globalThis.__stlGrab = (label, x, y, w, h) => {
+      const canvas = document.getElementById("stl-canvas");
+      x = Math.min(x, canvas.width - 1);
+      y = Math.min(y, canvas.height - 1);
+      w = Math.max(1, Math.min(w, canvas.width - x));
+      h = Math.max(1, Math.min(h, canvas.height - y));
+      const flat = document.createElement("canvas");
+      flat.width = canvas.width;
+      flat.height = canvas.height;
+      const ctx = flat.getContext("2d", { willReadFrequently: true });
+      ctx.drawImage(canvas, 0, 0);
+      const img = ctx.getImageData(x, y, w, h);
+      const px = new Uint32Array(img.data.buffer);
+      const counts = new Map();
+      let top = 0;
+      for (let i = 0; i < px.length; i++) {
+        const n = (counts.get(px[i]) || 0) + 1;
+        counts.set(px[i], n);
+        if (n > top) top = n;
+      }
+      grabs[label] = { px, w, h };
+      let differ = -1;
+      if (label !== "off" && grabs.off && grabs.off.w === w && grabs.off.h === h) {
+        differ = 0;
+        const a = grabs.off.px;
+        for (let yy = Math.floor(h * 0.15); yy < Math.floor(h * 0.85); yy++) {
+          for (let xx = Math.floor(w * 0.15); xx < Math.floor(w * 0.85); xx++) {
+            if (a[yy * w + xx] !== px[yy * w + xx]) differ++;
+          }
+        }
+      }
+      return JSON.stringify({ w, h, distinct: counts.size, mode: top / px.length, differ });
+    };
+    // Files opened with the installed app ("Open with", a double-click). They are read here and
+    // the app takes them from this list once it is running (platform/web_fsa.rs).
+    globalThis.__stlLaunch = [];
+    if ("launchQueue" in window) {
+      window.launchQueue.setConsumer(async (params) => {
+        for (const handle of params.files || []) {
+          try {
+            const f = await handle.getFile();
+            globalThis.__stlLaunch.push({ name: f.name, bytes: new Uint8Array(await f.arrayBuffer()), handle });
+          } catch (e) { /* a file that can't be read is left out */ }
+        }
+      });
+    }
 
-  <nav id="ribbon">
-    <div id="ribbon-badge"></div>
-    <div id="ribbon-tabs"></div>
-    <div id="ribbon-body"></div>
-  </nav>
+    // The offline copy. Not on a local test server (it would keep serving old files while you
+    // work on them), unless the address has ?sw. When a newer version has been fetched, a small
+    // bar offers to reload into it; until then the page keeps running the version it started with.
+    const local = ["localhost", "127.0.0.1"].includes(location.hostname);
+    const wantSw = local ? new URLSearchParams(location.search).has("sw") : location.protocol === "https:";
+    if ("serviceWorker" in navigator && wantSw) {
+      let reloadOnUpdate = false;
+      let reloading = false;
+      const updateReady = (worker) => {
+        if (document.getElementById("web-bar")) return;
+        const bar = document.createElement("div");
+        bar.id = "web-bar";
+        const text = document.createElement("span");
+        text.textContent = "A new version of STL Editor is ready. It starts next time you open it, or now if you reload. Save your project first.";
+        const reload = document.createElement("a");
+        reload.href = "#";
+        reload.textContent = "Reload now";
+        reload.onclick = (e) => { e.preventDefault(); reloadOnUpdate = true; worker.postMessage("skip-waiting"); };
+        const later = document.createElement("button");
+        later.title = "Later";
+        later.textContent = "×";
+        later.onclick = () => bar.remove();
+        bar.append(text, reload, later);
+        document.body.appendChild(bar);
+      };
+      navigator.serviceWorker.register("sw.js").then((reg) => {
+        const offer = (w) => {
+          if (!navigator.serviceWorker.controller) return; // first visit: nothing to replace
+          w.addEventListener("statechange", () => { if (w.state === "installed") updateReady(w); });
+          if (w.state === "installed") updateReady(w);
+        };
+        if (reg.waiting && navigator.serviceWorker.controller) updateReady(reg.waiting);
+        reg.addEventListener("updatefound", () => reg.installing && offer(reg.installing));
+      }).catch(() => { /* no offline copy: the app still works online */ });
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (reloadOnUpdate && !reloading) { reloading = true; location.reload(); }
+      });
+    }
 
-  <main id="workspace">
-    <aside id="browser" class="panel">
-      <div class="panel-title"><span>Browser</span><span id="browser-count" class="count"></span></div>
-      <div id="tree"></div>
-    </aside>
-
-    <section id="viewport">
-      <canvas id="view3d"></canvas>
-      <div id="viewcube">
-        <button data-view="top">Top</button>
-        <button data-view="front">Front</button>
-        <button data-view="right">Right</button>
-        <button data-view="iso">Iso</button>
-        <button data-view="left">Left</button>
-        <button data-view="back">Back</button>
-        <button data-view="bottom">Bottom</button>
-        <button data-view="fit" title="Fit all (F)">Fit</button>
-        <button id="btn-section" aria-pressed="false" title="Section view: cut the view open to look inside (X)">Section</button>
-      </div>
-      <div id="hud" class="hidden"></div>
-      <div id="sketch-hud" class="hidden">
-        <div class="row"><label id="dyn-a-label">Length</label><input id="dyn-a" type="text" autocomplete="off"></div>
-        <div class="row"><label id="dyn-b-label">Angle</label><input id="dyn-b" type="text" autocomplete="off"></div>
-      </div>
-      <div id="hint"></div>
-      <div id="empty-state">
-        <div class="empty-card">
-          <h2>Open an STL to get started</h2>
-          <p>Drop STL, 3MF or OBJ files here, or</p>
-          <div class="empty-actions">
-            <button class="primary" id="empty-open">Open mesh&hellip;</button>
-            <button id="empty-box">Start with a box</button>
-          </div>
-          <div id="empty-recent"></div>
-          <div class="empty-foot">Free and open source · <a href="#" data-url="https://ko-fi.com/natterman12">Support STL Editor <span>&hearts;</span></a></div>
-        </div>
-      </div>
-      <div id="drop-overlay" class="hidden"><div>Drop to insert meshes</div></div>
-    </section>
-
-    <aside id="tool-panel" class="panel hidden">
-      <div class="panel-title"><span id="tool-icon"></span><span id="tool-title">Tool</span><button class="x" id="tool-close" title="Cancel (Esc)">&times;</button></div>
-      <div id="tool-form"></div>
-      <div id="tool-msg"></div>
-      <div class="tool-actions">
-        <span id="tool-credit"></span>
-        <button id="tool-cancel">Cancel</button>
-        <button id="tool-ok" class="primary">OK</button>
-      </div>
-    </aside>
-
-    <footer id="timeline-bar">
-      <span class="tl-label">History</span>
-      <div class="tl-controls">
-        <button class="icon-btn" id="tl-start" title="Roll back to start"></button>
-        <button class="icon-btn" id="tl-prev" title="Step back"></button>
-        <button class="icon-btn" id="tl-next" title="Step forward"></button>
-        <button class="icon-btn" id="tl-end" title="Roll forward to end"></button>
-      </div>
-      <div id="timeline"></div>
-      <div id="status"></div>
-    </footer>
-  </main>
-</div>
-
-<div id="menu" class="hidden"></div>
-<div id="toasts"></div>
-<div id="busy" class="hidden"><div class="spinner"></div><div id="busy-msg">Working&hellip;</div></div>
-<div id="modal" class="hidden"><div class="modal-card"><div id="modal-body"></div><div class="modal-actions" id="modal-actions"></div></div></div>
-
-<script type="module" src="js/app.js"></script>
+    const { default: init, stl_browser_body_count, stl_check_status } = await import("./stl-app.js");
+    await init();
+    const q = new URLSearchParams(location.search);
+    if (q.get("report") === "1") {
+      const deadline = performance.now() + 80000;
+      let shown = "error:timed out waiting for the browser tree";
+      while (performance.now() < deadline) {
+        if (globalThis.__STL_CHECK_ERROR__) {
+          shown = "error:" + globalThis.__STL_CHECK_ERROR__;
+          break;
+        }
+        const n = stl_browser_body_count();
+        if (typeof n === "number" && n >= 0) {
+          shown = String(n);
+          break;
+        }
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      // `full=1`: also wait for the backend, pick and section-view result (a count, then
+      // "ok:<backend>:<bodies hit>" or "error:...", joined by "|").
+      if (q.get("full") === "1" && !shown.startsWith("error:")) {
+        let status = "";
+        const until = performance.now() + 60000;
+        while (performance.now() < until) {
+          if (globalThis.__STL_CHECK_ERROR__) { status = "error:" + globalThis.__STL_CHECK_ERROR__; break; }
+          status = stl_check_status();
+          if (status) break;
+          await new Promise((r) => setTimeout(r, 50));
+        }
+        shown = shown + "|" + (status || "error:timed out waiting for the pick and section check");
+      }
+      await fetch("/__report", { method: "POST", body: shown });
+    }
+  </script>
 </body>
 </html>
