@@ -17,7 +17,8 @@ name: Release 2.0
 # A tag with a suffix (v2.0.0-beta.1) is published as a pre-release. 2.0 installs are still
 # offered it (the 2.0 updater compares versions and counts pre-releases). A full release is
 # marked "Latest", which is what the website's download buttons fetch; 1.x installs from
-# 1.17.1 on only look at v1.* releases.
+# 1.17.1 on only look at v1.* releases. Older 1.x copies do look at "Latest", so a full release
+# also carries the last 1.x downloads under their own names (see the step that fetches them).
 
 on:
   push:
@@ -119,7 +120,31 @@ jobs:
           done
           ls -l assets
 
+      # Copies of STL Editor older than 1.17.1 ask GitHub for the "Latest" release, which is this
+      # one, and their Update now looks in it for the 1.x download by name. Without these files it
+      # stops with "The release has no STL-Editor-Windows-portable.zip". With them, such a copy
+      # updates to the last 1.x, which from then on only looks at v1.* releases.
+      # (A pre-release is never "Latest", so it doesn't carry them.)
+      - name: Fetch the last 1.x build for older 1.x copies
+        id: old
+        run: |
+          mkdir old
+          case "$TAG" in *-*) exit 0 ;; esac
+          last=$(gh release list --limit 200 --json tagName,isDraft,isPrerelease \
+                   -q '.[] | select((.isDraft | not) and (.isPrerelease | not)) | .tagName | select(startswith("v1."))' \
+                 | sort -V | tail -n 1)
+          if [ -z "$last" ]; then echo "::error::No 1.x release was found."; exit 1; fi
+          gh release download "$last" --dir old --pattern 'STL-Editor-Windows-portable.zip' \
+            --pattern 'STL-Editor-Linux-x86_64.tar.gz' --pattern 'STL-Editor-macOS-*.zip'
+          if [ ! -s old/STL-Editor-Windows-portable.zip ]; then
+            echo "::error::$last has no STL-Editor-Windows-portable.zip."; exit 1
+          fi
+          ls -l old
+          echo "last=${last#v}" >> "$GITHUB_OUTPUT"
+
       - name: Publish the release
+        env:
+          LAST_1X: ${{ steps.old.outputs.last }}
         run: |
           files=("assets/$WIN_ASSET" "assets/$MAC_ASSET" "assets/$LINUX_ASSET")
           {
@@ -128,7 +153,12 @@ jobs:
             for f in "${files[@]}"; do
               printf -- '- %s: `%s`\n' "$(basename "$f")" "$(sha256sum "$f" | cut -d ' ' -f 1)"
             done
+            if [ -n "$LAST_1X" ]; then
+              printf '\nThe files without a 2 in their name are STL Editor %s. They are only here so that older 1.x copies can still update themselves.\n' "$LAST_1X"
+            fi
           } > notes.md
+          shopt -s nullglob
+          files+=(old/*)
           flags=("--latest=$MAKE_LATEST")
           case "$TAG" in *-*) flags=(--prerelease --latest=false) ;; esac
           if gh release view "$TAG" > /dev/null 2>&1; then
