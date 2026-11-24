@@ -4722,7 +4722,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "stl-app"
-version = "2.0.2"
+version = "2.0.3-dev"
 dependencies = [
  "eframe",
  "egui",
@@ -4753,7 +4753,7 @@ dependencies = [
 
 [[package]]
 name = "stl-engine"
-version = "2.0.2"
+version = "2.0.3-dev"
 dependencies = [
  "indexmap",
  "proptest",
@@ -4771,7 +4771,7 @@ dependencies = [
 
 [[package]]
 name = "stl-io"
-version = "2.0.2"
+version = "2.0.3-dev"
 dependencies = [
  "proptest",
  "quick-xml",
@@ -4784,7 +4784,7 @@ dependencies = [
 
 [[package]]
 name = "stl-kernel"
-version = "2.0.2"
+version = "2.0.3-dev"
 dependencies = [
  "manifold-rust",
  "rayon",
@@ -4794,7 +4794,7 @@ dependencies = [
 
 [[package]]
 name = "stl-mesh"
-version = "2.0.2"
+version = "2.0.3-dev"
 dependencies = [
  "rayon",
  "serde",
@@ -4805,14 +4805,14 @@ dependencies = [
 
 [[package]]
 name = "stl-parity"
-version = "2.0.2"
+version = "2.0.3-dev"
 dependencies = [
  "serde",
 ]
 
 [[package]]
 name = "stl-platform"
-version = "2.0.2"
+version = "2.0.3-dev"
 dependencies = [
  "boa_engine",
  "rustls",
@@ -4828,7 +4828,7 @@ dependencies = [
 
 [[package]]
 name = "stl-sketch"
-version = "2.0.2"
+version = "2.0.3-dev"
 dependencies = [
  "serde",
  "serde_json",
@@ -6447,7 +6447,7 @@ checksum = "ec7a2a501ed189703dba8b08142f057e887dfc4b2cc4db2d343ac6376ba3e0b9"
 
 [[package]]
 name = "xtask"
-version = "2.0.2"
+version = "2.0.3-dev"
 dependencies = [
  "serde_json",
  "stl-engine",
