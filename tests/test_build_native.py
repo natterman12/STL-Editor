@@ -16,7 +16,8 @@ def test_asset_names_per_target():
 
 
 def test_version_is_read_from_package():
-    assert B.read_version() == "1.17.0"
+    from stleditor import __version__
+    assert B.read_version() == __version__
 
 
 def test_linux_command_line():
