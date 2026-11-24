@@ -5,7 +5,7 @@ resolver = "3"
 
 [workspace.package]
 edition = "2024"
-version = "2.0.1"
+version = "2.0.2-dev"
 publish = false
 
 # Lints for our crates (each crate has `[lints] workspace = true`). CI runs

@@ -11,7 +11,7 @@ pub fn commit() -> &'static str {
     env!("STL_BUILD_COMMIT")
 }
 
-/// The version in `rust/Cargo.toml`: "2.0.1-dev" between releases, "2.0.0" or "2.0.0-beta.1" in a
+/// The version in `rust/Cargo.toml`: "2.0.2-dev" between releases, "2.0.0" or "2.0.0-beta.1" in a
 /// released build.
 pub fn version() -> &'static str {
     env!("CARGO_PKG_VERSION")
