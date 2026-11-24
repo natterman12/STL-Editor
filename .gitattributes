@@ -16,3 +16,7 @@ rust/crates/stl-app/assets/licences.html -text
 *.ico binary
 # The 2.0 web preview is a build committed by the Web preview (2.0) workflow; keep it as built.
 docs/app2/** -text
+# Vendored crates are kept byte for byte. Their licence files are read into the 2.0 licences page:
+# with Windows line ends cargo-about takes a text for a different one, and the page comes out
+# unlike the one CI builds on Linux.
+rust/third_party/** -text
