@@ -13,7 +13,9 @@ stl-io = { path = "../stl-io" }
 stl-platform = { path = "../stl-platform" }
 # "links": without it a link in the desktop app (Help > User Guide, Ko-fi, What's new, the licences
 # page) is only logged, never opened.
-eframe = { version = "0.37", default-features = false, features = ["wgpu_no_default_features", "default_fonts", "x11", "links"] }
+# "clipboard": without it copy and paste only work inside the app; a number copied in another
+# program can't be pasted into a size box (the web build uses the browser's clipboard either way).
+eframe = { version = "0.37", default-features = false, features = ["wgpu_no_default_features", "default_fonts", "x11", "links", "clipboard"] }
 egui = "0.37"
 egui-wgpu = { version = "0.37", default-features = false, features = ["winit"] }
 wgpu = { version = "30", default-features = false, features = ["std", "parking_lot", "wgsl", "dx12", "metal", "vulkan"] }
