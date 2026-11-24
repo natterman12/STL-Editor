@@ -365,7 +365,8 @@ next start offers to recover it (also Help › Recover Unsaved Work).
 
 Help › Check for Updates asks the project's GitHub Releases page whether a newer version
 exists (only that public page is contacted; nothing about you or your files is sent). The
-repository is set in Help › Update Settings (default: `natterman12/STL-Editor`; leave it empty to turn checks off).
+repository is set in Help › Update Settings (default: `natterman12/STL-Editor`; leave it empty to turn checks off). Only newer 1.x versions are
+offered: STL Editor 2.0 is a separate download and never replaces 1.x by itself.
 
 When there's a new version, **Update now** installs it in one click: the app downloads the
 release, checks it against its SHA-256, swaps it in and starts again (unsaved work is kept for
