@@ -1,7 +1,7 @@
 """Bring the 2.0 golden files up to a newly bundled Support Fins engine, and say whether the fins changed.
 
 Run after packaging/update_support_fins.py has bundled the new engine (the daily "Support Fins update"
-workflow does this on v2-main). The golden files that depend on the engine are rebuilt with it:
+workflow does this on a branch off main). The golden files that depend on the engine are rebuilt with it:
 
   rust/tests/parity/features_golden/supportfins.json, supportwall.json   (make_golden.py, BATCH5 only)
   rust/tests/parity/fins_golden.json                                     (make_fins_golden.py)

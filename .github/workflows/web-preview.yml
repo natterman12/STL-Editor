@@ -9,18 +9,18 @@ name: Web preview (2.0)
 #     (packaging/build_web.py writes it).
 # The 1.x web edition is docs/app1 and is not touched.
 #
-# It builds nothing. The Rust workflow (rust.yml, on the 2.0 branch) tests every push and keeps
+# It builds nothing. The Rust workflow (rust.yml) tests every push and keeps
 # the web build as the artefact "stl-editor-2-web"; this workflow publishes one of those:
 #   - Run by hand (Actions > Web preview (2.0) > Run workflow): the newest Rust run that passed
-#     on the chosen branch (v2-main unless you type another).
+#     on the chosen branch (main unless you type another).
 #   - A pushed v2.* tag: that tag's own Rust run, once it has passed (about an hour).
 #
 # The preview is marked "noindex" so search engines leave it alone (the copy in docs/app is
 # not), and build.json says which commit it came from. Each publish of a changed build adds about 8 MB to the repository,
 # which is why this does not run on every push.
 #
-# This file is the same on main and on the 2.0 branch: GitHub only offers "Run workflow" for a
-# file on the default branch, and a tag uses the file in the tagged commit.
+# GitHub only offers "Run workflow" for a file on the default branch; a tag uses the file in the
+# tagged commit.
 
 on:
   push:
@@ -30,7 +30,7 @@ on:
       branch:
         description: "Branch whose newest green Rust run is published"
         required: true
-        default: v2-main
+        default: main
 
 permissions:
   contents: write

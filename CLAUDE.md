@@ -70,9 +70,10 @@ don't load (`serve.js` sends the right types).
   Support Fins engine updates from that address (`build_web.py` writes it).
 - **Never edit `web/vendor/support-fins/`** by hand: it's Support Fins' own engine, bundled
   unmodified by `packaging/update_support_fins.py`. A daily workflow
-  (`.github/workflows/support-fins.yml`) brings in each new engine by pull request (with the 2.0
-  golden files rebuilt by `dev/parity/fins_bump.py`) and merges it when the Rust and Tests
-  checks pass and the fins came out the same. Its tool panels are built from
+  (`.github/workflows/support-fins.yml`) brings in each new engine on a branch `support-fins/vX.Y.Z` (with the 2.0
+  golden files rebuilt by `dev/parity/fins_bump.py`) and merges it into `main` when the Rust and
+  Tests checks pass and the fins came out the same; otherwise it opens an issue "Support Fins
+  vX.Y.Z is waiting for a review" and leaves the branch. Its tool panels are built from
   the engine's options schema, so don't hard-code its settings; only values that differ from
   the defaults are saved in projects.
 - **Millimetres** everywhere in the engines; inch mode only changes what the UI shows (`U` in
@@ -138,9 +139,9 @@ failed jobs, then the failed Release 2.0 job.
 
 The 2.0 web edition is https://natterman12.github.io/STL-Editor/app/, with a preview of newer
 builds at https://natterman12.github.io/STL-Editor/app2/. Both are published by
-**Web preview (2.0)** (`.github/workflows/web-preview.yml`, the same file on `main` and here). It
+**Web preview (2.0)** (`.github/workflows/web-preview.yml`). It
 commits the web build of a green Rust run to `docs/app2` on `main`: by hand
-(`gh workflow run web-preview.yml`, the newest green run of `v2-main`) and on each `v2.*` tag.
+(`gh workflow run web-preview.yml`, the newest green Rust run of `main`) and on each `v2.*` tag.
 The tag of a full release (no suffix) is also committed to `docs/app`.
 About 8 MB of repository per changed build, so not on every push. Never edit `docs/app2` by
 hand, and only publish when Nathan asks. The preview is marked noindex; `build.json` beside each
