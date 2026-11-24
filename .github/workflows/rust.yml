@@ -530,6 +530,11 @@ jobs:
           $runtime = $dlls | Where-Object { $_ -match '^(vcruntime|msvcp|WebView2Loader|libgcc|libstdc|libwinpthread)' }
           if ($extra -or $runtime) { throw "The exe needs files that are not part of Windows: $(@($extra) + @($runtime) | Sort-Object -Unique)" }
           "The exe needs only DLLs that are part of Windows"
+          # A console program opens a terminal window behind the app when it is started from
+          # Explorer or a shortcut (2.0.0 did). The exe must be a window program.
+          $sub = & $objdump.FullName -p dist/STL-Editor-2-Windows.exe | Select-String '^Subsystem\s' | Select-Object -First 1
+          "$sub"
+          if ("$sub" -notmatch 'Windows GUI') { throw "The exe is not a window program (its subsystem is not Windows GUI), so Windows would open a console window with it" }
 
       # The exe must open its window and stay up. The runner has no graphics card, so this is
       # the software renderer; it shows a crash at start, not how it looks.

@@ -1,3 +1,8 @@
+// A released Windows build is a window program: without this, Windows opens a console window
+// behind the app whenever the exe is started from Explorer or a shortcut. Test builds keep the
+// console, so cargo run shows what the app prints.
+#![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
+
 #[cfg(not(target_arch = "wasm32"))]
 use stl_app::app::StlApp;
 
