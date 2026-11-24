@@ -118,7 +118,8 @@ pub enum Command {
     },
 }
 
-/// What the Support Fins panel asks the engine (1.x `supportfins/info`, `/strength`, `/suggest`).
+/// What the Support Fins panel asks the engine (1.x `supportfins/info`, `/strength`, `/suggest`;
+/// `check` is 2.0's own).
 #[derive(Clone, Debug, PartialEq)]
 pub enum FinsAsk {
     Info,
@@ -132,6 +133,11 @@ pub enum FinsAsk {
         options: serde_json::Value,
         top: i64,
     },
+    /// After a build: the support-section check and the tilt hint (`fins::check::check`).
+    Check {
+        body: String,
+        options: serde_json::Value,
+    },
 }
 
 impl FinsAsk {
@@ -140,6 +146,7 @@ impl FinsAsk {
             FinsAsk::Info => "info",
             FinsAsk::Strength { .. } => "strength",
             FinsAsk::Suggest { .. } => "suggest",
+            FinsAsk::Check { .. } => "check",
         }
     }
 }

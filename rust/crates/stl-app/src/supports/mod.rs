@@ -4,6 +4,7 @@
 //! their own modules (Task 6). The ribbon and the engine link stay with their owners;
 //! this module only exposes the calls those pieces make.
 
+pub mod check;
 pub mod coverage;
 pub mod panel;
 pub mod strength;

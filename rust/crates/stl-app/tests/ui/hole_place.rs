@@ -283,6 +283,9 @@ fn pick_edge_mid_face_warns_and_stores_nothing() {
     let (mut h, link) = plate_with_sketch();
     assert!(open_tool(&mut h, "hole"));
     click_world(&mut h, [20.0, 15.0, 5.0]);
+    // the first click's preview answer replaces the tool's message: let it land first, or on a
+    // busy machine it arrives after the warning and clears it
+    settle(&mut h, &link);
     h.get_by_label("Pick edge").click();
     h.run_steps(2);
     click_world(&mut h, [20.0, 15.0, 5.0]); // the middle: 15 mm from every edge

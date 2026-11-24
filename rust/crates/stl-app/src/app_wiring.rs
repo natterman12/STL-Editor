@@ -70,6 +70,8 @@ pub(super) struct Sf {
     strength_seq: u64,
     suggest_seq: u64,
     suggest_gen: u64,
+    /// The support check last asked for (`app_sfcheck.rs`); 0 when none is wanted.
+    pub(super) check_seq: u64,
     pub cover: CoverageJob,
     /// The record the last preview came with (its paint, walls, pieces).
     cover_last: Option<(String, Vec<u32>)>,
@@ -104,6 +106,7 @@ impl Default for Sf {
             strength_seq: 0,
             suggest_seq: 0,
             suggest_gen: 0,
+            check_seq: 0,
             cover: CoverageJob::new(),
             cover_last: None,
             fin_meshes: Vec::new(),
@@ -306,7 +309,7 @@ impl StlApp {
         }
     }
 
-    fn fins_ask(&mut self, ask: FinsAsk) -> u64 {
+    pub(super) fn fins_ask(&mut self, ask: FinsAsk) -> u64 {
         self.sf.seq += 1;
         let seq = self.sf.seq;
         self.link.send(Command::Fins { seq, ask });
@@ -505,7 +508,14 @@ impl StlApp {
             self.sculpt.close(&mut self.viewport);
         }
         if t.def.flags.paint {
-            for tag in ["sf-over", "sf-small", "sf-bare", "sf-held", "walls"] {
+            for tag in [
+                "sf-over",
+                "sf-small",
+                "sf-bare",
+                "sf-held",
+                "walls",
+                sfcheck::FINDING_TAG,
+            ] {
                 self.viewport.clear_overlay(tag);
             }
             self.viewport.set_band(&[], None, Color32::WHITE);
@@ -633,6 +643,7 @@ impl StlApp {
                     };
                 }
             }
+            "check" => self.sf_on_check(seq, result),
             _ => {}
         }
     }
@@ -888,6 +899,7 @@ impl StlApp {
                 .collect();
             if fins {
                 self.sf_coverage();
+                self.sf_check();
             }
         }
     }
@@ -897,6 +909,7 @@ impl StlApp {
         if !fins {
             return;
         }
+        self.sf_check_clear();
         self.sf.cover.bump_generation();
         if let Some(s) = self.tool.as_mut().and_then(|t| t.sf.as_mut())
             && !s.cover.as_ref().is_some_and(|c| c.none)
@@ -1649,6 +1662,7 @@ impl StlApp {
                         self.use_pose(&r);
                     }
                 }
+                PanelEvent::UseTilt | PanelEvent::Finding(_) => self.sf_check_event(&e),
                 PanelEvent::FillGaps => {
                     let spots = self.sf.spots.clone();
                     self.sf_fill(&spots);

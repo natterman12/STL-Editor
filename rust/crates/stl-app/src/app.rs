@@ -32,6 +32,8 @@ mod handoff;
 mod measure;
 #[path = "app_section.rs"]
 mod section;
+#[path = "app_sfcheck.rs"]
+mod sfcheck;
 #[path = "app_tools_planes.rs"]
 mod tools_planes;
 #[path = "app_wiring.rs"]

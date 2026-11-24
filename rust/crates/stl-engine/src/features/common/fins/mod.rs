@@ -5,12 +5,14 @@
 //! * `results.rs`: `fins`, `match_removed`, the solids a result turns into.
 //! * `walls.rs`: `walls`, `wall`, `arc_path`, `wall_sections`.
 //! * `orient.rs`: `suggest`, `strength`, `nearest_face`.
+//! * `check.rs`: `check`, the support-section check and tilt hint shown after a build.
 //!
 //! The engine file is `web/vendor/support-fins/engine.iife.js`; the calls are the same names and
 //! string arguments 1.x passes to `ctx.call("SupportFinsEngine.<name>", ...)`. The host also
 //! answers one extra name, `__info`, with the JSON of the active engine's `VERSION.json` fields
 //! (`version`, `tag`, `commit`, `source`) and `pending`: the engine itself doesn't know them.
 
+pub mod check;
 pub mod orient;
 pub mod results;
 pub mod walls;

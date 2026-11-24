@@ -590,7 +590,15 @@ Nathan answered these on 2026-11-14: accepted unless marked otherwise.
   does, with these differences. The offline copy is kept by `crates/stl-app/web/sw.js` (filled in by `xtask web`) in caches
   named `stle2-…`, apart from 1.x's `stl-editor-…`, so the two can live on the same site. The update bar is a plain page
   element over the canvas ("Save your project first"; 1.x asks to confirm and flushes the autosave). There is no
-  *Help › Install STL Editor* item (the browser's own install button is used) and the installed app is named "STL Editor 2".
+  *Help › Install STL Editor* item (the browser's own install button is used) and the installed app is named "STL Editor" (it was "STL Editor 2" until 2.0.0).
   Files are opened and saved in place through the File System Access API (`platform/web_fsa.rs`): Open, Save, Save As and
   Recent in Chrome and Edge; Export asks where to save there. Kept file handles are in IndexedDB `stle2-files`. Other
   browsers keep the file input and downloads, and their Recent list lasts for the session (1.x kept copies up to 25 MB).
+
+## After milestone 7
+
+- **2.0 shows two Support Fins checks 1.x doesn't (Nathan asked, 2026-11-21).** After a Support Fins
+  preview the panel asks the engine for `check` (`stl-engine` `fins/check.rs`): it builds the fins once
+  more with the engine's support-section check on (Support Fins 1.0.8, `diagnostics: true`) and, when
+  overhangs were too shallow for a fin, asks for the tilt hint (1.0.9, `tiltHintB64`). The build itself
+  and its info line are unchanged, so the golden files and the fins replay are too.
