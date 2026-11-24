@@ -6,21 +6,36 @@ goes into an editable history (the timeline), so you can change an earlier step 
 
 ## Start
 
+**STL Editor 2.0 (beta)** is one file per system, from the
+[release page](https://github.com/natterman12/STL-Editor/releases). Nothing is installed.
+
+- **Windows:** download **STL-Editor-2-Windows.exe**, put it anywhere and double-click it. It
+  isn't code-signed yet, so Windows may say "Windows protected your PC": click
+  **More info › Run anyway**.
+- **Mac and Linux:** see *Linux and Mac (beta)* below.
+- **In your browser:** open https://natterman12.github.io/STL-Editor/app2/ in Chrome, Edge,
+  Firefox or Safari. See *Web edition* below for what's different.
+- Drag files onto the window to insert them, or use **Open mesh…** on the start page.
+- If something goes wrong, the log is in `%LOCALAPPDATA%\STL Editor 2\log.txt`.
+
+**STL Editor 1.x** is still the version the website's download button gives:
+
 - Portable version: double-click **STL Editor.exe** in the unzipped folder.
 - Installed from source with `install.ps1`: double-click **STL Editor** on the Desktop (or the Start Menu).
 - Right-click any `.stl`, `.3mf` or `.obj` file → **Edit in STL Editor** (after `install.ps1`).
-- Drag files onto the window to insert them.
 - `STL Editor (debug).bat` starts it with a console window if something goes wrong.
   The log is in `%LOCALAPPDATA%\STL Editor\log.txt`.
 - Web edition: open https://natterman12.github.io/STL-Editor/app/ in Chrome, Edge, Firefox or Safari.
-  Nothing is installed. See *Web edition* below for what's different.
+
+1.x and 2.0 can sit side by side: neither replaces the other, and 1.x does not update itself
+to 2.0.
 
 ## What's different in 2.0
 
-STL Editor 2.0 is the same editor rebuilt from the ground up. It is not released yet; this
-section is for the test builds. The tools, the timeline and `.stlx` projects work as described
-in the rest of this guide, except for what is listed here. Things marked **(2.0)** further down
-are only in 2.0.
+STL Editor 2.0 is the same editor rebuilt from the ground up. It is in beta: ready to try, and
+still being tested. The tools, the timeline and `.stlx` projects work as described in the rest
+of this guide, except for what is listed here. Things marked **(2.0)** further down are only
+in 2.0.
 
 **Your projects.** A project made in 1.x opens in 2.0 and rebuilds the same. Going the other
 way is not promised: a project that uses something new in 2.0 (a dovetail, a screw head pocket,
@@ -154,8 +169,37 @@ orbiting turns around the middle of your parts.
 
 ## Linux and Mac (beta)
 
-The Linux build is a beta: it works like the Windows version, but it is newer and less tested.
-If something goes wrong, the web edition is the safe choice.
+The Mac and Linux builds are betas: they work like the Windows version, but they are newer and
+less tested. If something goes wrong, the web edition is the safe choice.
+
+### 2.0
+
+Both downloads are on the [release page](https://github.com/natterman12/STL-Editor/releases).
+Nothing is installed.
+
+**Mac** (Apple Silicon: M1 or newer):
+
+1. Download **STL-Editor-2-macOS.app.zip** and unzip it.
+2. Move **STL Editor 2** to your Applications folder if you like.
+3. The app isn't signed by Apple, so the first time, right-click it and choose **Open**. If
+   macOS still blocks it, open **System Settings › Privacy & Security** and click
+   **Open Anyway**.
+
+Intel Macs should use the web edition.
+
+**Linux** (64-bit Intel or AMD):
+
+1. Download **STL-Editor-2-x86_64.AppImage**.
+2. Make it executable: right-click it, **Properties › Permissions**, and tick *Allow running
+   as a program* (or `chmod +x STL-Editor-2-x86_64.AppImage` in a terminal).
+3. Double-click it.
+
+When there is a new version, the app tells you and offers a **Download** button. *Update now*
+is for Windows.
+
+**To STEP** is Windows only.
+
+### 1.x
 
 **Linux:**
 
@@ -164,8 +208,7 @@ If something goes wrong, the web edition is the safe choice.
 
 Linux needs no install.
 
-**Mac:** there is no Mac download. Mac users build the app themselves, or use the web edition.
-Intel Macs should use the web edition.
+**Mac:** there is no 1.x Mac download. Use 2.0 or the web edition, or build 1.x yourself.
 
 To build it, you need an Apple Silicon Mac, macOS 13 or newer, and Python 3.12 (from python.org
 or Homebrew). Open Terminal, go to the folder with the source code, then run:

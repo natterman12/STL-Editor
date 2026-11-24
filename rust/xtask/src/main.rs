@@ -8,7 +8,7 @@ mod web;
 use std::process::{Command, ExitCode};
 
 const TARGETS: [&str; 4] = [
-    "x86_64-pc-windows-gnu",
+    "x86_64-pc-windows-msvc",
     "x86_64-unknown-linux-gnu",
     "aarch64-apple-darwin",
     "wasm32-unknown-unknown",
