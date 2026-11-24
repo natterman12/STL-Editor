@@ -13,9 +13,7 @@ stl-io = { path = "../stl-io" }
 stl-platform = { path = "../stl-platform" }
 # "links": without it a link in the desktop app (Help > User Guide, Ko-fi, What's new, the licences
 # page) is only logged, never opened.
-# "clipboard": without it copy and paste only work inside the app; a number copied in another
-# program can't be pasted into a size box (the web build uses the browser's clipboard either way).
-eframe = { version = "0.37", default-features = false, features = ["wgpu_no_default_features", "default_fonts", "x11", "links", "clipboard"] }
+eframe = { version = "0.37", default-features = false, features = ["wgpu_no_default_features", "default_fonts", "x11", "links"] }
 egui = "0.37"
 egui-wgpu = { version = "0.37", default-features = false, features = ["winit"] }
 wgpu = { version = "30", default-features = false, features = ["std", "parking_lot", "wgsl", "dx12", "metal", "vulkan"] }
@@ -24,6 +22,11 @@ serde_json = "1"
 resvg = { version = "0.45", default-features = false }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+# The system clipboard. Without "arboard" copy and paste only work inside the app: a number copied
+# in another program can't be pasted into a size box. Not eframe's "clipboard" feature: on Linux
+# that adds smithay-clipboard (Wayland, which this app doesn't use), and with it a C compiler and
+# pkg-config at build time (the pure-Rust rule, xtask). The web build uses the browser's clipboard.
+egui-winit = { version = "0.37", default-features = false, features = ["arboard"] }
 rfd = { version = "0.18", default-features = false, features = ["xdg-portal", "pollster"] }
 rayon = "1.12"
 
