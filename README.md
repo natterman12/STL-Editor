@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="web/icon.png" width="88" alt="">
+<img src="docs/img/icon.png" width="88" alt="">
 
 # STL Editor
 

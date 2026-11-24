@@ -15,6 +15,7 @@ taskbar. Run this again after changing the drawing, and commit what it writes:
                       installed-app icons
     ../../web/icon-maskable.png    the same for phones that cut icons to their own shape: the
                       tile fills the square and the cube is smaller, so nothing is cut off
+    docs/img/icon.png the website's tab icon and the icon beside its name; the README's too
 """
 
 from pathlib import Path
@@ -23,6 +24,7 @@ from PIL import Image, ImageDraw
 
 HERE = Path(__file__).resolve().parent
 WEB = HERE.parent.parent / "web"
+SITE = HERE.parents[4] / "docs" / "img"
 
 # The drawing, on a 240 x 240 tile.
 TILE = "#1b2a4a"
@@ -113,6 +115,7 @@ def main() -> None:
     draw(192).save(WEB / "icon-192.png", optimize=True)
     draw(512).save(WEB / "icon-512.png", optimize=True)
     draw(512, maskable=True).save(WEB / "icon-maskable.png", optimize=True)
+    draw(256).save(SITE / "icon.png", optimize=True)
 
     for p in sorted(list(HERE.glob("icon*")) + list(WEB.glob("icon-*.png"))):
         print(f"{p.stat().st_size:>8}  {p.relative_to(HERE.parent.parent)}")
