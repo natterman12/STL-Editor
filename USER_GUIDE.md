@@ -197,6 +197,9 @@ Intel Macs should use the web edition.
 When there is a new version, the app tells you and offers a **Download** button. *Update now*
 is for Windows.
 
+**Send to Slicer** finds Bambu Studio, OrcaSlicer and PrusaSlicer. On a Mac the slicer must be
+in the Applications folder. On Linux it must be installed as a normal program or as a Flatpak;
+a slicer that is only an AppImage file is not found, so export a 3MF and open it there.
 **To STEP** is Windows only.
 
 ### 1.x
