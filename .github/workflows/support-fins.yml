@@ -1,14 +1,17 @@
 name: Support Fins update
 
 # Keeps the Support Fins engine (github.com/gittrahan/support-fins) current in every edition.
-# Every day, if Support Fins has published a new vX.Y.Z release, this brings it in through a
-# pull request into main:
+# Every day, if Support Fins has published a new vX.Y.Z release, this brings it in on a branch
+# (support-fins/vX.Y.Z, made from main):
 #   1. bundle the engine (packaging/update_support_fins.py), rebuild the 1.x web edition's copy
 #      and the copy installed apps download (packaging/build_web.py), and rebuild the 2.0 golden
 #      files that name the engine (dev/parity/fins_bump.py);
 #   2. run the Rust and Tests workflows on that branch;
-#   3. merge when both pass and only the version number moved. If the fins came out different,
-#      or a check failed, the pull request stays open for a person and an issue says so.
+#   3. merge the branch into main when both pass and only the version number moved. If the fins
+#      or the engine's report came out different, or a check failed, the branch is left for a
+#      person and an issue says what to look at. Nothing is tried again for that engine while
+#      the issue is open.
+# (No pull request: this repository doesn't let workflows open one.)
 # After the merge:
 #   - The 1.x web edition (/app1/) updates when GitHub Pages deploys.
 #   - Installed desktop apps, 1.x and 2.0, download the new engine from the Pages site
@@ -31,7 +34,6 @@ permissions:
   contents: write
   issues: write
   pages: write
-  pull-requests: write
   actions: write
 
 concurrency:
@@ -75,16 +77,18 @@ jobs:
           branch="support-fins/$tag"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
-          open=$(gh api "repos/${GITHUB_REPOSITORY}/pulls?state=open&head=${GITHUB_REPOSITORY_OWNER}:${branch}" -q 'length')
-          if [ "$open" != "0" ]; then
-            echo "A pull request for $branch is already open."
+          # an open "waiting for a review" issue means this engine was already bundled and is
+          # waiting for a person; a run started by hand tries again anyway
+          waiting=$(gh issue list --state open --search "\"Support Fins $tag is waiting for a review\" in:title" --json number -q '.[].number' | head -n 1)
+          if [ -n "$waiting" ] && [ "$GITHUB_EVENT_NAME" = schedule ]; then
+            echo "Support Fins $tag is waiting for a review: issue #$waiting."
             echo "go=false" >> "$GITHUB_OUTPUT"
           else
             echo "go=true" >> "$GITHUB_OUTPUT"
           fi
 
   bump:
-    name: Bundle the engine and open the pull request
+    name: Bundle the engine on a branch
     needs: want
     if: ${{ needs.want.outputs.go == 'true' }}
     # the golden job of the Rust workflow checks the golden files on Windows, so they're made there
@@ -95,9 +99,9 @@ jobs:
       TAG: ${{ needs.want.outputs.tag }}
       BRANCH: ${{ needs.want.outputs.branch }}
     outputs:
-      pr: ${{ steps.pr.outputs.pr }}
       sha: ${{ steps.push.outputs.sha }}
       changed: ${{ steps.bump.outputs.changed }}
+      summary: ${{ steps.bump.outputs.summary }}
     defaults:
       run:
         shell: bash
@@ -129,39 +133,25 @@ jobs:
           python dev/parity/fins_bump.py --summary "$RUNNER_TEMP/bump.json"
           changed=$(python -c "import json;print('true' if json.load(open(r'$RUNNER_TEMP/bump.json'))['changed'] else 'false')")
           echo "changed=$changed" >> "$GITHUB_OUTPUT"
+          # the summary on one line, for the issue the last job may write
+          echo "summary=$(python -c "import json;print(json.dumps(json.load(open(r'$RUNNER_TEMP/bump.json'))))")" >> "$GITHUB_OUTPUT"
 
-      - name: Push the branch
+      - name: Push the branch and start its checks
         id: push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A web docs rust/tests/parity
+          if git diff --cached --quiet; then
+            echo "main already has Support Fins $TAG: nothing to do."
+            exit 0
+          fi
           git commit -m "Support Fins $TAG" \
             -m "Bundled by the Support Fins update workflow; golden files rebuilt by dev/parity/fins_bump.py."
-          git push origin "HEAD:refs/heads/$BRANCH"
+          # made again from today's main each time, so an earlier try's branch is replaced
+          git push --force origin "HEAD:refs/heads/$BRANCH"
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-
-      - name: Open the pull request and start its checks
-        id: pr
-        run: |
-          python - "$RUNNER_TEMP/bump.json" "$RUNNER_TEMP/body.md" "$TAG" <<'EOF'
-          import json, sys
-          s = json.load(open(sys.argv[1])); tag = sys.argv[3]
-          lines = [f"Support Fins {tag} for STL Editor, from the daily Support Fins update.", ""]
-          if s["changed"]:
-              lines += ["**The fins came out different with this engine, so this waits for a review.** Files that changed:", ""]
-              lines += [f"- `{p}`" for p in s["changed"]]
-          else:
-              lines += ["Only the version number in the golden files moved; the fins are the same. "
-                        "This merges itself when the Rust and Tests checks pass."]
-          if s["notes"]:
-              lines += ["", "Notes:", ""] + [f"- {n}" for n in s["notes"]]
-          open(sys.argv[2], "w").write("\n".join(lines) + "\n")
-          EOF
-          pr=$(gh api "repos/${GITHUB_REPOSITORY}/pulls" -f base=main -f head="$BRANCH" \
-                -f title="Support Fins $TAG" -F body=@"$RUNNER_TEMP/body.md" -q .number)
-          echo "pr=$pr" >> "$GITHUB_OUTPUT"
-          # a pull request opened with the workflow's own token doesn't start them itself
+          # a branch pushed with the workflow's own token doesn't start them itself
           for wf in rust.yml tests.yml; do
             gh api -X POST "repos/${GITHUB_REPOSITORY}/actions/workflows/$wf/dispatches" -f ref="$BRANCH"
           done
@@ -171,23 +161,25 @@ jobs:
         run: |
           title="Support Fins $TAG couldn't be bundled"
           if [ -z "$(gh issue list --state open --search "\"$title\" in:title" --json number -q '.[].number')" ]; then
-            gh issue create --title "$title" --body "The Support Fins update couldn't bundle $TAG on a branch, rebuild the golden files or open the pull request. Nothing was published; every edition keeps the previous engine.
+            gh issue create --title "$title" --body "The Support Fins update couldn't bundle $TAG on a branch, rebuild the golden files or start the checks. Nothing was published; every edition keeps the previous engine.
 
           Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           fi
 
   merge:
     name: Merge when the checks pass
-    needs: bump
-    if: ${{ needs.bump.outputs.pr != '' }}
+    needs: [want, bump]
+    if: ${{ needs.bump.outputs.sha != '' }}
     runs-on: ubuntu-latest
     # the Rust workflow builds and tests on three systems: allow it time
     timeout-minutes: 240
     env:
       GH_TOKEN: ${{ github.token }}
-      PR: ${{ needs.bump.outputs.pr }}
+      TAG: ${{ needs.want.outputs.tag }}
+      BRANCH: ${{ needs.want.outputs.branch }}
       SHA: ${{ needs.bump.outputs.sha }}
       CHANGED: ${{ needs.bump.outputs.changed }}
+      SUMMARY: ${{ needs.bump.outputs.summary }}
     steps:
       - name: Wait for the checks
         id: wait
@@ -208,27 +200,59 @@ jobs:
           done
           echo "ok=$ok" >> "$GITHUB_OUTPUT"
 
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+
       - name: Merge when only the version moved
         if: steps.wait.outputs.ok == 'true' && env.CHANGED == 'false'
         run: |
-          # only the commit the checks ran on; if main moved since, GitHub merges it with the
-          # newer main, which is fine for a version-only change
-          gh api -X PUT "repos/${GITHUB_REPOSITORY}/pulls/${PR}/merge" -f sha="$SHA" -f merge_method=merge \
-            -f commit_title="Support Fins update (#${PR})"
-          # ask Pages to deploy now (a merge made by this workflow may not start a build on its own)
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin "$BRANCH"
+          # only the commit the checks ran on; if main moved since, it is merged with the newer
+          # main, which is fine for a version-only change
+          if [ "$(git rev-parse FETCH_HEAD)" != "$SHA" ]; then
+            echo "::error::$BRANCH is no longer at $SHA, the commit that was checked."; exit 1
+          fi
+          git merge --no-ff "$SHA" -m "Support Fins $TAG" \
+            -m "Merged by the Support Fins update workflow: the Rust and Tests checks passed and the fins are the same."
+          git push origin HEAD:main
+          git push origin --delete "$BRANCH"
+          # ask Pages to deploy now (a push made by this workflow may not start a build on its own)
           gh api -X POST "repos/${GITHUB_REPOSITORY}/pages/builds" >/dev/null || true
 
-      - name: Say why it's left open
-        if: steps.wait.outputs.ok != 'true' || env.CHANGED != 'false'
+      - name: Say why it's left for a person
+        if: always() && (failure() || steps.wait.outputs.ok != 'true' || env.CHANGED != 'false')
+        env:
+          OK: ${{ steps.wait.outputs.ok }}
         run: |
-          if [ "${{ steps.wait.outputs.ok }}" != "true" ]; then
-            msg="The Rust or Tests checks didn't pass on this pull request, so it was not merged."
-            title="Support Fins update didn't pass the tests"
-            if [ -z "$(gh issue list --state open --search "\"$title\" in:title" --json number -q '.[].number')" ]; then
-              gh issue create --title "$title" --body "$msg Every edition keeps the previous engine. See #${PR}. Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-            fi
-          else
-            msg="The checks passed, but the fins came out different with this engine, so this waits for a review."
-          fi
-          gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" -f body="$msg"
-          gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/assignees" -f "assignees[]=${GITHUB_REPOSITORY_OWNER}" >/dev/null || true
+          title="Support Fins $TAG is waiting for a review"
+          if [ -n "$(gh issue list --state open --search "\"$title\" in:title" --json number -q '.[].number')" ]; then exit 0; fi
+          python - > body.md <<'EOF'
+          import json, os
+          e = os.environ
+          s = json.loads(e.get("SUMMARY") or "{}")
+          repo, branch, tag = e["GITHUB_REPOSITORY"], e["BRANCH"], e["TAG"]
+          site = e["GITHUB_SERVER_URL"]
+          out = [f"The daily Support Fins update bundled {tag} on the branch `{branch}`, but did not merge it. "
+                 "Every edition keeps the previous engine until it is merged.", ""]
+          if e.get("OK") != "true":
+              out += ["**The Rust or Tests checks didn't pass on the branch.**", ""]
+          elif s.get("changed"):
+              out += ["**The checks passed, but the fins or the engine's report came out different with this engine.** "
+                      "Golden files that changed:", ""]
+              out += [f"- `{p}`" for p in s["changed"]]
+          else:
+              out += ["**The checks passed and only the version moved, but the merge into main didn't go through.**"]
+          if s.get("notes"):
+              out += ["", "Notes:", ""] + [f"- {n}" for n in s["notes"]]
+          out += ["", f"What changed: {site}/{repo}/compare/main...{branch}",
+                  f"Run: {site}/{repo}/actions/runs/{e['GITHUB_RUN_ID']}", "",
+                  f"To take the engine: merge `{branch}` into `main` and close this issue. "
+                  "To try again from today's main: close this issue and run the workflow by hand."]
+          print("\n".join(out))
+          EOF
+          gh issue create --title "$title" --body-file body.md --assignee "$GITHUB_REPOSITORY_OWNER" \
+            || gh issue create --title "$title" --body-file body.md
