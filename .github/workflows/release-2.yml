@@ -15,8 +15,9 @@ name: Release 2.0
 # Release notes are required: .github/release-notes/<tag>.md
 #
 # A tag with a suffix (v2.0.0-beta.1) is published as a pre-release. 2.0 installs are still
-# offered it (the 2.0 updater compares versions and counts pre-releases); 1.x installs never
-# see a v2.* release.
+# offered it (the 2.0 updater compares versions and counts pre-releases). A full release is
+# marked "Latest", which is what the website's download buttons fetch; 1.x installs from
+# 1.17.1 on only look at v1.* releases.
 
 on:
   push:
@@ -40,10 +41,10 @@ env:
   TAG: ${{ inputs.tag || github.ref_name }}
   GH_TOKEN: ${{ github.token }}
   GH_REPO: ${{ github.repository }}
-  # "false" keeps GitHub's "Latest" mark on 1.x, so the website's download button
-  # (releases/latest/download/STL-Editor-Windows-portable.zip) and 1.x's update check keep
-  # working. Set to "true" in the same change that moves the website to 2.0.
-  MAKE_LATEST: "false"
+  # 2.0 holds GitHub's "Latest" mark since 2.0.0: the website's download buttons are
+  # releases/latest/download/STL-Editor-2-Windows.exe and so on. (A pre-release never takes it,
+  # and 1.x releases leave it alone: release.yml.)
+  MAKE_LATEST: "true"
   # The Windows name is the one the 2.0 updater looks for (stl_platform::update::ASSET_NAME).
   WIN_ASSET: STL-Editor-2-Windows.exe
   MAC_ASSET: STL-Editor-2-macOS.app.zip

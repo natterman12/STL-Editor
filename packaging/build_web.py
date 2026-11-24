@@ -1,11 +1,15 @@
-"""Publishes the web edition: copies web/ to docs/app/, which GitHub Pages serves at
-https://natterman12.github.io/STL-Editor/app/
+"""Publishes the 1.x web edition: copies web/ to docs/app1/, which GitHub Pages serves at
+https://natterman12.github.io/STL-Editor/app1/
+(/app/ is the 2.0 web edition, committed by the "Web preview (2.0)" workflow.)
+
+It also copies the Support Fins engine to docs/app/vendor/support-fins/: installed desktop
+apps, 1.x and 2.0, download engine updates from that address, so it stays where it was.
 
     python packaging/build_web.py
 
 The web edition is the same page as the desktop app; it runs the JavaScript engine in
 web/engine (manifold-3d WebAssembly) instead of the Python one. Run this after changing
-anything in web/ — tests/test_web_engine.py fails while docs/app is out of date.
+anything in web/ — tests/test_web_engine.py fails while docs/app1 is out of date.
 """
 import hashlib
 import json
@@ -16,7 +20,9 @@ import sys
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 SRC = os.path.join(ROOT, "web")
-DST = os.path.join(ROOT, "docs", "app")
+DST = os.path.join(ROOT, "docs", "app1")
+FINS_SRC = os.path.join(SRC, "vendor", "support-fins")
+FINS_FEED = os.path.join(ROOT, "docs", "app", "vendor", "support-fins")
 SKIP_DIRS = {"__pycache__"}
 SKIP_FILES = {".DS_Store", "Thumbs.db"}
 
@@ -76,9 +82,13 @@ def main():
             shutil.copy2(os.path.join(d, f), os.path.join(out, f))
             n += 1
             size += os.path.getsize(os.path.join(d, f))
+    # the engine update address of installed desktop apps (only this folder of docs/app is ours)
+    if os.path.isdir(FINS_FEED):
+        shutil.rmtree(FINS_FEED)
+    shutil.copytree(FINS_SRC, FINS_FEED)
     # GitHub Pages: serve files as they are (no Jekyll processing of folders like _shared)
     open(os.path.join(ROOT, "docs", ".nojekyll"), "w").close()
-    print(f"Published {n} files ({size / 1e6:.1f} MB) to docs/app")
+    print(f"Published {n} files ({size / 1e6:.1f} MB) to docs/app1")
 
 
 if __name__ == "__main__":

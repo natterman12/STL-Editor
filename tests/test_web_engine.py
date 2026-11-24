@@ -1,5 +1,5 @@
 """Runs the web edition's JavaScript engine tests (tests/web_engine.test.mjs) under Node, and
-checks the published copy of the web app (docs/app) matches web/."""
+checks the published copy of the web app (docs/app1) matches web/."""
 import hashlib
 import json
 import os
@@ -36,12 +36,22 @@ def _tree(base):
     return out
 
 
-@pytest.mark.skipif(not os.path.isdir(os.path.join(ROOT, "docs", "app")), reason="no published web app")
+@pytest.mark.skipif(not os.path.isdir(os.path.join(ROOT, "docs", "app1")), reason="no published web app")
 def test_published_web_app_is_current():
-    """docs/app is what GitHub Pages serves: run packaging/build_web.py after changing web/."""
-    src, dst = _tree(os.path.join(ROOT, "web")), _tree(os.path.join(ROOT, "docs", "app"))
+    """docs/app1 is what GitHub Pages serves: run packaging/build_web.py after changing web/."""
+    src, dst = _tree(os.path.join(ROOT, "web")), _tree(os.path.join(ROOT, "docs", "app1"))
     stale = sorted(k for k in src if dst.get(k) != src[k])
-    assert not stale, "docs/app is out of date (run python packaging/build_web.py): " + ", ".join(stale[:10])
+    assert not stale, "docs/app1 is out of date (run python packaging/build_web.py): " + ", ".join(stale[:10])
+
+
+@pytest.mark.skipif(not os.path.isdir(os.path.join(ROOT, "docs", "app1")), reason="no published web app")
+def test_support_fins_engine_is_published_where_installed_apps_look():
+    """Installed desktop apps (1.x and 2.0) download Support Fins engine updates from
+    /app/vendor/support-fins/ on the Pages site. /app/ is the 2.0 web edition now, but that
+    folder must stay, with the engine web/ has."""
+    sub = os.path.join("vendor", "support-fins")
+    src, dst = _tree(os.path.join(ROOT, "web", sub)), _tree(os.path.join(ROOT, "docs", "app", sub))
+    assert src and src == dst, "docs/app/vendor/support-fins is out of date (run python packaging/build_web.py)"
 
 
 def test_service_worker_lists_the_current_app():

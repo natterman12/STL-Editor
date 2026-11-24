@@ -7,8 +7,8 @@ breakaway support fins) with an editable timeline. Two editions share one UI:
   behind a local JSON API (`stleditor/server.py`), shown in pywebview / WebView2. `main.py`
   starts it. Shipped as a portable zip built by PyInstaller.
 - **Web edition**: the same UI (`web/`) with a JavaScript port of the engine (`web/engine/`,
-  manifold-3d WASM) in a Web Worker. Published from `docs/app/` on GitHub Pages:
-  https://natterman12.github.io/STL-Editor/app/
+  manifold-3d WASM) in a Web Worker. Published from `docs/app1/` on GitHub Pages:
+  https://natterman12.github.io/STL-Editor/app1/ (`/app/` is the 2.0 web edition since 2.0.0)
 
 Read `CONTRIBUTING.md` for the code map and how to add a tool. `dev/DESIGN.md` has the
 internals of the bigger features (Support Fins, sketch dimensions, parameters, updates, the
@@ -21,7 +21,7 @@ pip install -r requirements.txt pytest       # once
 python main.py                               # desktop window (python main.py --browser: in a browser)
 python -m pytest -q tests                    # engine tests, both engines (runs the Node tests too)
 node --test tests/web_engine.test.mjs        # just the web engine's tests
-python packaging/build_web.py                # copy web/ to docs/app and update web/sw.js: after ANY change in web/
+python packaging/build_web.py                # copy web/ to docs/app1 and update web/sw.js: after ANY change in web/
 python packaging/smoke_test.py main.py       # every engine tool once through the HTTP API
 cd tests/ui; npm install; npx playwright install chromium   # once, for the UI tests
 node tests/ui/run.js [web|desktop|<name>...]  # UI tests (Playwright); see tests/ui/README.md
@@ -52,7 +52,7 @@ a new one a name the filter in that file matches.
 
 Before saying a change is done: `python packaging/build_web.py`, `python -m pytest -q tests`,
 and the UI tests that cover what you touched (`node tests/ui/run.js <names>`). The pytest run
-fails if `docs/app` or `web/sw.js` is out of date. Don't serve `web/` with
+fails if `docs/app1`, `docs/app/vendor/support-fins` or `web/sw.js` is out of date. Don't serve `web/` with
 `python -m http.server` on Windows: it can send `.js` as text/plain, and the UI's modules then
 don't load (`serve.js` sends the right types).
 
@@ -65,7 +65,9 @@ don't load (`serve.js` sends the right types).
   To STEP are desktop-only (`DESKTOP_TOOLS` in app.js).
 - **Version parity**: `__version__` in `stleditor/__init__.py` must equal `VERSION` in
   `web/engine/routes.js` (a test checks).
-- **Never edit `docs/app/`** (generated) or the `FILES` / `BUILD` lines of `web/sw.js`.
+- **Never edit `docs/app1/` or `docs/app/`** (generated) or the `FILES` / `BUILD` lines of
+  `web/sw.js`. `docs/app/vendor/support-fins/` must stay: installed apps, 1.x and 2.0, download
+  Support Fins engine updates from that address (`build_web.py` writes it).
 - **Never edit `web/vendor/support-fins/`** by hand: it's Support Fins' own engine, bundled
   unmodified by `packaging/update_support_fins.py`. A daily workflow
   (`.github/workflows/support-fins.yml`) updates it and pushes. Its tool panels are built from
@@ -107,12 +109,12 @@ ad-like.
    Linux box if those builds changed.
 2. Commit, then `git tag v<version>`, `git push`, `git push origin v<version>`.
 3. The **Release** workflow tests, builds, smoke-tests and publishes
-   `STL-Editor-Windows-portable.zip` (keep that asset name: the website links to
-   `releases/latest/download/STL-Editor-Windows-portable.zip`). About 3–4 minutes. Pushing
-   `docs/app` also redeploys the web edition (pages-build-deployment, 1–2 minutes).
+   `STL-Editor-Windows-portable.zip` (keep that asset name: 1.x's *Update now* looks for it).
+   A 1.x release is not marked "Latest": that mark is 2.0's. About 3–4 minutes. Pushing
+   `docs/app1` also redeploys the 1.x web edition (pages-build-deployment, 1–2 minutes).
 4. Check: `gh run list --limit 3` (Release, Tests and Pages all green),
    `gh release view v<version>`, and that the live site serves the new version
-   (`https://natterman12.github.io/STL-Editor/app/engine/routes.js` contains the new `VERSION`).
+   (`https://natterman12.github.io/STL-Editor/app1/engine/routes.js` contains the new `VERSION`).
 5. If a Pages deploy hangs ("Getting Pages deployment status... Timeout"), wait for the run to
    end, then `gh api -X POST repos/natterman12/STL-Editor/pages/builds`. A failed Release run
    publishes nothing, so deleting and re-pushing the tag is safe.
@@ -128,18 +130,19 @@ answers `v1.*` tags. Set `version` in `rust/Cargo.toml` (`[workspace.package]`),
 tag. The tag push starts the Rust workflow too; Release 2.0 waits for that run to pass (an hour
 or so) and publishes the files it built: `STL-Editor-2-Windows.exe` (keep that name: the 2.0
 updater looks for it), `STL-Editor-2-macOS.app.zip` and `STL-Editor-2-x86_64.AppImage`. A tag
-with a suffix (`v2.0.0-beta.1`) is a pre-release. The release is not marked "Latest" while
-`MAKE_LATEST` in that file is `"false"`, so the website's download button and 1.x installs stay
-on 1.x; change it together with the website. If a flaky test fails the Rust run, re-run its
+with a suffix (`v2.0.0-beta.1`) is a pre-release. A full release is marked "Latest"
+(`MAKE_LATEST` in that file), which is what the website's download buttons fetch. If a flaky test fails the Rust run, re-run its
 failed jobs, then the failed Release 2.0 job.
 
-The 2.0 web edition is a preview at https://natterman12.github.io/STL-Editor/app2/, published by
+The 2.0 web edition is https://natterman12.github.io/STL-Editor/app/, with a preview of newer
+builds at https://natterman12.github.io/STL-Editor/app2/. Both are published by
 **Web preview (2.0)** (`.github/workflows/web-preview.yml`, the same file on `main` and here). It
 commits the web build of a green Rust run to `docs/app2` on `main`: by hand
 (`gh workflow run web-preview.yml`, the newest green run of `v2-main`) and on each `v2.*` tag.
+The tag of a full release (no suffix) is also committed to `docs/app`.
 About 8 MB of repository per changed build, so not on every push. Never edit `docs/app2` by
-hand, and only publish when Nathan asks. The page is marked noindex; `/app2/build.json` names
-the commit. `/app/` stays 1.x until the release moves it.
+hand, and only publish when Nathan asks. The preview is marked noindex; `build.json` beside each
+names the commit.
 
 ## Ideas not built yet
 

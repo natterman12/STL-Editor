@@ -36,7 +36,7 @@ const TESTS = [
   ['kofi', 'kofi.js', 'web', 'Ko-fi links: start screen, Help menu, About'],
   ['web2', 'web2.js', 'web', 'Web edition tools: threads, holes, sketch, export, round trip'],
   ['web4', 'web4.js', 'web', 'Web edition files: save in place, recent files, autosave and recovery'],
-  ['web6', 'web6.js', 'docs', 'Published web app: installable, works offline, update bar (edits docs/app/sw.js, then restores it)'],
+  ['web6', 'web6.js', 'docs', 'Published web app: installable, works offline, update bar (edits docs/app1/sw.js, then restores it)'],
   ['touch', 'touch.js', 'web', 'Tablet layout and touch gestures'],
   ['tap', 'tap.js', 'web', 'Phone layout, sketching by tapping'],
   ['skdim-desktop', 'skdim.js', 'desktop', 'Smart Dimension on the desktop engine', { BASE: DESKTOP }],
@@ -83,9 +83,9 @@ function runOne([name, file, , , env]) {
     const timer = setTimeout(() => { out += '\nTIMEOUT (240 s)'; p.kill(); }, 240000);
     p.on('close', code => {
       clearTimeout(timer);
-      // web6 edits docs/app/sw.js for a moment; if it was stopped half way, put the file back
+      // web6 edits docs/app1/sw.js for a moment; if it was stopped half way, put the file back
       const bak = path.join(OUT, 'sw.js.bak');
-      if (fs.existsSync(bak)) { fs.copyFileSync(bak, path.join(ROOT, 'docs', 'app', 'sw.js')); fs.rmSync(bak); out += '\n(put docs/app/sw.js back)'; }
+      if (fs.existsSync(bak)) { fs.copyFileSync(bak, path.join(ROOT, 'docs', 'app1', 'sw.js')); fs.rmSync(bak); out += '\n(put docs/app1/sw.js back)'; }
       fs.writeFileSync(path.join(OUT, `${name}.log`), out);
       const bad = code !== 0 || /^ERRORS$|^pageerror|TIMEOUT \(240 s\)|TimeoutError|^FAIL\b/m.test(out);
       res({ name, ok: !bad, secs: ((Date.now() - t0) / 1000).toFixed(0), out });
@@ -100,7 +100,7 @@ function runOne([name, file, , , env]) {
   const groups = new Set(list.map(t => t[2]));
   try {
     if (groups.has('web')) await ensureStatic('http://127.0.0.1:8790/index.html', path.join(ROOT, 'web'), 8790);
-    if (groups.has('docs')) await ensureStatic('http://127.0.0.1:8791/app/index.html', path.join(ROOT, 'docs'), 8791);
+    if (groups.has('docs')) await ensureStatic('http://127.0.0.1:8791/app1/index.html', path.join(ROOT, 'docs'), 8791);
     // a throwaway settings folder, so the test files stay out of the user's File › Recent
     if (groups.has('desktop')) await ensure(DESKTOP + 'api/state', PY, [path.join(ROOT, 'main.py'), '--server', '--no-autosave'], { cwd: ROOT, env: { ...process.env, STLEDITOR_PORT: new URL(DESKTOP).port || '8765', STLEDITOR_CONFIG_DIR: fs.mkdtempSync(path.join(require('os').tmpdir(), 'stleditor-ui-config-')) } });
   } catch (e) { console.error(e.message); started.forEach(p => p.kill()); servers.forEach(x => x.close()); process.exit(2); }

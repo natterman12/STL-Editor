@@ -2,8 +2,8 @@
 const { FIX, OUT, WEB, DESKTOP } = require('./common');
 const { chromium } = require('playwright');
 const fs = require('fs');
-const ROOT = process.env.ROOT || 'http://127.0.0.1:8791/app/';
-const SWFILE = process.env.SWFILE || require('path').join(require('./common').ROOT, 'docs', 'app', 'sw.js');
+const ROOT = process.env.ROOT || 'http://127.0.0.1:8791/app1/';
+const SWFILE = process.env.SWFILE || require('path').join(require('./common').ROOT, 'docs', 'app1', 'sw.js');
 const SP = FIX;
 const log = m => console.log(m);
 (async () => {

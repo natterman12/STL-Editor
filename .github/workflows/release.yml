@@ -162,11 +162,13 @@ jobs:
           $body += "`n`nSHA-256 of $($env:LINUX_ASSET): ``$((Get-FileHash $linux -Algorithm SHA256).Hash.ToLower())``"
           Set-Content notes.md $body -Encoding utf8
           $files = @($win, $linux)
+          # "Latest" belongs to 2.0 since 2.0.0 (the website's download buttons fetch
+          # releases/latest), so a 1.x release leaves it alone.
           gh release view $env:TAG *> $null
           if ($LASTEXITCODE -eq 0) {
             gh release upload $env:TAG $files --clobber
           } elseif (Test-Path $notes) {
-            gh release create $env:TAG $files --title "STL Editor $($env:TAG.TrimStart('v'))" --notes-file notes.md --latest
+            gh release create $env:TAG $files --title "STL Editor $($env:TAG.TrimStart('v'))" --notes-file notes.md --latest=false
           } else {
-            gh release create $env:TAG $files --title "STL Editor $($env:TAG.TrimStart('v'))" --generate-notes --notes-file notes.md --latest
+            gh release create $env:TAG $files --title "STL Editor $($env:TAG.TrimStart('v'))" --generate-notes --notes-file notes.md --latest=false
           }

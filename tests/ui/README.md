@@ -29,7 +29,7 @@ on 8791 (the published copy, for the offline / update test), both by `serve.js`,
 test files don't land in your File › Recent. If one of them is already running, it's used as it
 is (a desktop engine you started yourself then writes to your real settings). Set
 `PYTHON` to the Python that has the app's packages if `python` (Windows) / `python3` isn't it. `WEB_URL` / `DESKTOP_URL` point the tests elsewhere, e.g.
-`WEB_URL=https://natterman12.github.io/STL-Editor/app/?web` for the live site.
+`WEB_URL=https://natterman12.github.io/STL-Editor/app1/?web` for the live site.
 
 A test fails when it crashes, times out or the page reports errors. Each one also prints what it
 saw (sizes, volumes, timeline steps, messages); the log and screenshots are in `tests/ui/out/`.

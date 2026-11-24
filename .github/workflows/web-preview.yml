@@ -1,9 +1,13 @@
 name: Web preview (2.0)
 
-# Publishes the STL Editor 2.0 web build as a preview at
-#   https://natterman12.github.io/STL-Editor/app2/
-# by committing it to docs/app2 on main (GitHub Pages serves docs/ from main). The 1.x web
-# edition in docs/app is not touched.
+# Publishes the STL Editor 2.0 web build by committing it to main (GitHub Pages serves docs/
+# from main):
+#   - docs/app2, the preview at https://natterman12.github.io/STL-Editor/app2/ : every time.
+#   - docs/app, the web edition itself at https://natterman12.github.io/STL-Editor/app/ : only
+#     for the tag of a full release (v2.0.0, v2.1.3; not v2.1.0-beta.1). docs/app/vendor/support-fins
+#     is left alone: installed desktop apps download Support Fins engine updates from there
+#     (packaging/build_web.py writes it).
+# The 1.x web edition is docs/app1 and is not touched.
 #
 # It builds nothing. The Rust workflow (rust.yml, on the 2.0 branch) tests every push and keeps
 # the web build as the artefact "stl-editor-2-web"; this workflow publishes one of those:
@@ -11,8 +15,8 @@ name: Web preview (2.0)
 #     on the chosen branch (v2-main unless you type another).
 #   - A pushed v2.* tag: that tag's own Rust run, once it has passed (about an hour).
 #
-# The page is marked "noindex" so search engines leave the preview alone, and build.json says
-# which commit it came from. Each publish of a changed build adds about 8 MB to the repository,
+# The preview is marked "noindex" so search engines leave it alone (the copy in docs/app is
+# not), and build.json says which commit it came from. Each publish of a changed build adds about 8 MB to the repository,
 # which is why this does not run on every push.
 #
 # This file is the same on main and on the 2.0 branch: GitHub only offers "Run workflow" for a
@@ -44,7 +48,7 @@ env:
 
 jobs:
   publish:
-    name: Publish /app2/
+    name: Publish the 2.0 web build
     runs-on: ubuntu-latest
     timeout-minutes: 240
     steps:
@@ -120,14 +124,16 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/web"
           rm -f ./*.d.ts   # type listings for programmers; the page doesn't load them
+          printf '{"commit": "%s", "from": "%s", "rust_run": %s}\n' "$SHA" "$FROM" "$RUN" > build.json
+          # the copy for /app/ (a full release only): as built, search engines welcome
+          cp -r . "$RUNNER_TEMP/release"
           sed -i 's|<meta charset="utf-8">|<meta charset="utf-8">\n  <meta name="robots" content="noindex">|' index.html
           grep -q 'name="robots" content="noindex"' index.html || {
             echo "::error::Could not add the noindex line to index.html; not publishing."
             exit 1
           }
-          printf '{"commit": "%s", "from": "%s", "rust_run": %s}\n' "$SHA" "$FROM" "$RUN" > build.json
 
-      - name: Commit it to docs/app2 on main
+      - name: Commit it to main
         env:
           SHA: ${{ steps.rust.outputs.sha }}
           FROM: ${{ steps.rust.outputs.from }}
@@ -136,13 +142,30 @@ jobs:
           mkdir -p docs/app2
           cp -r "$RUNNER_TEMP/web/." docs/app2/
           git add -f -A docs/app2
+          what="Web preview: STL Editor 2.0 at /app2/ from ${SHA:0:7} ($FROM)"
+          # A full release (a pushed tag with no suffix) is the web edition itself, at /app/.
+          release=false
+          if [ "$GITHUB_EVENT_NAME" = push ]; then
+            case "$FROM" in *-*) ;; *) release=true ;; esac
+          fi
+          if [ "$release" = true ]; then
+            mkdir -p docs/app
+            # everything but vendor/support-fins, the engine update address of installed apps
+            find docs/app -mindepth 1 -maxdepth 1 ! -name vendor -exec rm -rf {} +
+            if [ -d docs/app/vendor ]; then
+              find docs/app/vendor -mindepth 1 -maxdepth 1 ! -name support-fins -exec rm -rf {} +
+            fi
+            cp -r "$RUNNER_TEMP/release/." docs/app/
+            git add -f -A docs/app
+            what="Web edition: STL Editor ${FROM#v} at /app/ (and the /app2/ preview)"
+          fi
           if git diff --cached --quiet; then
-            echo "docs/app2 already holds this build; nothing to publish."
+            echo "main already holds this build; nothing to publish."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -q -m "Web preview: STL Editor 2.0 at /app2/ from ${SHA:0:7} ($FROM)" \
+          git commit -q -m "$what" \
             -m "Published by the Web preview (2.0) workflow from the web build of a Rust run that passed."
           for try in 1 2 3; do
             if git push origin HEAD:main; then break; fi
@@ -154,4 +177,7 @@ jobs:
           {
             echo "Published ${SHA:0:7} ($FROM) to docs/app2."
             echo "Live in a minute or two: https://natterman12.github.io/STL-Editor/app2/"
+            if [ "$release" = true ]; then
+              echo "A full release: also published to docs/app, https://natterman12.github.io/STL-Editor/app/"
+            fi
           } >> "$GITHUB_STEP_SUMMARY"

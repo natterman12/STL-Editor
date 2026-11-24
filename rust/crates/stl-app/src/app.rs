@@ -40,9 +40,8 @@ use egui::{Align2, Area, CornerRadius, Frame, Id, Margin, Order, Pos2, Rect, Ric
 use std::collections::{BTreeMap, HashMap};
 
 const DESKTOP_URL: &str = "https://natterman12.github.io/STL-Editor/#download";
-/// Help › User Guide. The 2.0 branch's guide while 2.0 is in test builds: the guide on `main`
-/// is 1.x's and has no "What's different in 2.0". Back to `blob/main` when 2.0 moves to `main`.
-const GUIDE_URL: &str = "https://github.com/natterman12/STL-Editor/blob/v2-main/USER_GUIDE.md";
+/// Help › User Guide: the guide on `main`, which covers 2.0 since the 2.0.0 release.
+const GUIDE_URL: &str = "https://github.com/natterman12/STL-Editor/blob/main/USER_GUIDE.md";
 const ISSUES_URL: &str = "https://github.com/natterman12/STL-Editor/issues/new/choose";
 /// The link "Third-party licences" in Help › About. Not a web address: the page travels with the
 /// app (see [`StlApp::open_licences`]).

@@ -6,36 +6,38 @@ goes into an editable history (the timeline), so you can change an earlier step 
 
 ## Start
 
-**STL Editor 2.0 (beta)** is one file per system, from the
+**STL Editor 2.0** is one file per system, from the
+[website](https://natterman12.github.io/STL-Editor/) or the
 [release page](https://github.com/natterman12/STL-Editor/releases). Nothing is installed.
 
 - **Windows:** download **STL-Editor-2-Windows.exe**, put it anywhere and double-click it. It
   isn't code-signed yet, so Windows may say "Windows protected your PC": click
   **More info › Run anyway**.
 - **Mac and Linux:** see *Linux and Mac (beta)* below.
-- **In your browser:** open https://natterman12.github.io/STL-Editor/app2/ in Chrome, Edge,
+- **In your browser:** open https://natterman12.github.io/STL-Editor/app/ in Chrome, Edge,
   Firefox or Safari. See *Web edition* below for what's different.
 - Drag files onto the window to insert them, or use **Open mesh…** on the start page.
 - If something goes wrong, the log is in `%LOCALAPPDATA%\STL Editor 2\log.txt`.
 
-**STL Editor 1.x** is still the version the website's download button gives:
+**STL Editor 1.x** still works, and its downloads stay on the
+[release page](https://github.com/natterman12/STL-Editor/releases) (the newest is 1.17.1):
 
 - Portable version: double-click **STL Editor.exe** in the unzipped folder.
 - Installed from source with `install.ps1`: double-click **STL Editor** on the Desktop (or the Start Menu).
 - Right-click any `.stl`, `.3mf` or `.obj` file → **Edit in STL Editor** (after `install.ps1`).
 - `STL Editor (debug).bat` starts it with a console window if something goes wrong.
   The log is in `%LOCALAPPDATA%\STL Editor\log.txt`.
-- Web edition: open https://natterman12.github.io/STL-Editor/app/ in Chrome, Edge, Firefox or Safari.
+- Web edition: the 1.x one has moved to https://natterman12.github.io/STL-Editor/app1/ (the
+  old address now opens 2.0). Work it autosaved in your browser is still there.
 
 1.x and 2.0 can sit side by side: neither replaces the other, and 1.x does not update itself
 to 2.0.
 
 ## What's different in 2.0
 
-STL Editor 2.0 is the same editor rebuilt from the ground up. It is in beta: ready to try, and
-still being tested. The tools, the timeline and `.stlx` projects work as described in the rest
-of this guide, except for what is listed here. Things marked **(2.0)** further down are only
-in 2.0.
+STL Editor 2.0 is the same editor rebuilt from the ground up. The tools, the timeline and
+`.stlx` projects work as described in the rest of this guide, except for what is listed here.
+Things marked **(2.0)** further down are only in 2.0.
 
 **Your projects.** A project made in 1.x opens in 2.0 and rebuilds the same. Going the other
 way is not promised: a project that uses something new in 2.0 (a dovetail, a screw head pocket,
@@ -162,7 +164,7 @@ orbiting turns around the middle of your parts.
 - *File › Recent* reopens files you opened or saved in place (Chrome and Edge; the browser may
   ask for permission again). In Firefox and Safari it lasts until you close the tab.
 - **Installing:** use the install icon in the browser's address bar. There is no
-  *Help › Install STL Editor* item. The installed app is called *STL Editor 2*.
+  *Help › Install STL Editor* item. The installed app is called *STL Editor*.
 - **A new version:** a small bar at the bottom offers *Reload now*. Save your project first.
 - Cancel can stop a job that is already running in a recent browser (Chrome or Edge 137,
   Firefox 153, Safari 27, or newer). In older ones the job finishes first.
