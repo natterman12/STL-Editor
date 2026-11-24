@@ -59,7 +59,7 @@ function __wbg_get_imports() {
             const ret = arg0.WorkerGlobalScope;
             return ret;
         },
-        __wbg___stlYield_f715e8154c3de1d5: ((__inner) => new WebAssembly.Suspending(function(...args) {
+        __wbg___stlYield_32ddd017cf695ceb: ((__inner) => new WebAssembly.Suspending(function(...args) {
             try { return __inner.apply(this, args); }
             catch (e) { return Promise.reject(e); }
         }))(function() {
