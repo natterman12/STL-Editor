@@ -34,10 +34,12 @@ pub fn run(args: impl Iterator<Item = String>) -> Result<(), String> {
     if check {
         let old = fs::read_to_string(&page).map_err(|e| format!("no {}: {e}", page.display()))?;
         // a Windows checkout may have turned the line ends into CRLF
-        if unix_lines(&old) != new {
+        let old = unix_lines(&old);
+        if old != new {
             return Err(format!(
-                "{} is out of date: run `cargo run -p xtask -- licences` from rust/ and commit it",
-                page.display()
+                "{} is out of date: run `cargo run -p xtask -- licences` from rust/ and commit it\n{}",
+                page.display(),
+                first_difference(&old, &new)
             ));
         }
         println!("licences: up to date ({} KB)", new.len() / 1024);
@@ -114,6 +116,28 @@ fn escape(s: &str) -> String {
 
 fn unix_lines(s: &str) -> String {
     s.replace("\r\n", "\n")
+}
+
+/// Where the committed page and the one just built first part, for the message of `--check`.
+fn first_difference(old: &str, new: &str) -> String {
+    let short = |s: &str| s.chars().take(160).collect::<String>();
+    let (mut a, mut b) = (old.lines(), new.lines());
+    let mut n = 1;
+    loop {
+        match (a.next(), b.next()) {
+            (Some(x), Some(y)) if x == y => n += 1,
+            (None, None) => return "the two differ only in their last line end".into(),
+            (x, y) => {
+                return format!(
+                    "first difference at line {n} ({} lines committed, {} built)\n  committed: {:?}\n  built:     {:?}",
+                    old.lines().count(),
+                    new.lines().count(),
+                    short(x.unwrap_or("(the page ends)")),
+                    short(y.unwrap_or("(the page ends)"))
+                );
+            }
+        }
+    }
 }
 
 #[cfg(test)]
