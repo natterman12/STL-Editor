@@ -3,7 +3,7 @@
 //
 // `cargo run -p xtask -- web` fills in BUILD and FILES when it copies this file into the build.
 // As written here (the two markers below) it keeps nothing and the page works online only.
-const BUILD = '1691e0e4a01282e8';
+const BUILD = '17cdc47509430ce7';
 const FILES = ["coverage_worker.js","icon-192.png","icon-32.png","icon-512.png","icon-maskable.png","index.html","licences.html","manifest.webmanifest","stl-app.js","stl-app_bg.wasm","support-fins/VERSION.json","support-fins/engine.iife.js","worker.js"];
 // Not "stl-editor-": the 1.x web edition on the same site removes every cache with that prefix
 // that isn't its own.
