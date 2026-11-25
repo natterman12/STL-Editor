@@ -38,7 +38,7 @@ pub const RESTARTING: &str = "Restarting STL Editor…";
 /// 1.x's banner line for a copy that can update itself (the portable build's).
 pub const INSTALL_LINE: &str =
     "Update now downloads it, swaps it in and restarts STL Editor. Unsaved work is kept for Recover Unsaved Work.";
-/// The banner line for a copy that can't (not run from the install folder). 1.x says "Download
+/// The banner line for a copy that can't (its folder can't be written to). 1.x says "Download
 /// the new zip, unzip it, and use it instead of this copy."; 2.0 ships a plain exe.
 pub const DOWNLOAD_LINE: &str = "Download the new version and use it instead of this copy.";
 /// Update now while another 2.0 window is open (spec 2.7 decision 2). New text.
@@ -183,7 +183,7 @@ mod desktop {
     pub struct Updates {
         api: String,
         current: String,
-        /// The running exe, when this copy can update itself (it runs from the install folder).
+        /// The running exe, when this copy can update itself (see [`can_update_itself`]).
         running_exe: Option<PathBuf>,
         /// `data_dir()/windows`: one locked file per open 2.0 window.
         windows_dir: PathBuf,
@@ -209,11 +209,11 @@ mod desktop {
 
     impl Updates {
         /// The app's, made once per window at start-up: GitHub, this build's version, and
-        /// Update now only for the installed Windows exe (the releases carry only a Windows
-        /// asset). Takes this window's lock in `data_dir()/windows`.
+        /// Update now for a Windows exe that can replace itself where it is (the updater knows
+        /// only the Windows asset). Takes this window's lock in `data_dir()/windows`.
         pub fn new() -> Updates {
             let exe = std::env::current_exe().ok();
-            let installed = cfg!(windows) && exe.as_deref().is_some_and(is_installed);
+            let installed = cfg!(windows) && exe.as_deref().is_some_and(can_update_itself);
             Updates::custom(
                 update::RELEASES_API,
                 env!("CARGO_PKG_VERSION"),
@@ -770,12 +770,28 @@ mod desktop {
         found
     }
 
-    /// Does `exe` run from the install folder (`xtask install`)? Only that copy updates itself;
-    /// a build run from elsewhere (a `cargo` target folder) offers Download instead.
-    pub fn is_installed(exe: &Path) -> bool {
-        let dir = stl_platform::paths::install_dir();
-        let canon = |p: &Path| std::fs::canonicalize(p).unwrap_or_else(|_| p.to_path_buf());
-        exe.parent().is_some_and(|p| canon(p) == canon(&dir))
+    /// Can the copy at `exe` put a new version in its own place? Any copy can, wherever it was
+    /// downloaded to (the Downloads folder, the desktop, the install folder), as long as its
+    /// folder can be written to. A build in a `cargo` target folder never does (the folder's
+    /// `CACHEDIR.TAG` marks it), and a copy in a folder that can't be written to offers Download.
+    pub fn can_update_itself(exe: &Path) -> bool {
+        let Some(dir) = exe.parent() else {
+            return false;
+        };
+        if exe
+            .ancestors()
+            .skip(1)
+            .take(5)
+            .any(|d| d.join("CACHEDIR.TAG").is_file())
+        {
+            return false;
+        }
+        let probe = dir.join(format!("stl-editor-2.{}.probe", std::process::id()));
+        let made = OpenOptions::new().write(true).create_new(true).open(&probe).is_ok();
+        if made {
+            let _ = std::fs::remove_file(&probe);
+        }
+        made
     }
 
     /// After the first frame: the new copy started, so the previous exe can go.

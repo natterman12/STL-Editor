@@ -550,6 +550,38 @@ fn help_menu_items() {
     settle(&mut u, &p, 1_800_000_000.0);
 }
 
+/// A copy updates itself wherever it was downloaded to, as long as its folder can be written to;
+/// a build in a `cargo` target folder (this test program is one) never does.
+#[test]
+fn a_copy_anywhere_updates_itself_but_a_cargo_build_does_not() {
+    let downloads = temp("downloads");
+    let exe = downloads.join("STL-Editor-2-Windows.exe");
+    std::fs::write(&exe, b"exe").unwrap();
+    assert!(updates::can_update_itself(&exe));
+    let left: Vec<_> = std::fs::read_dir(&downloads)
+        .unwrap()
+        .flatten()
+        .map(|e| e.file_name())
+        .collect();
+    assert_eq!(left.len(), 1, "the check leaves nothing behind: {left:?}");
+
+    assert!(
+        !updates::can_update_itself(&downloads.join("gone").join("STL-Editor-2-Windows.exe")),
+        "a folder that can't be written to"
+    );
+
+    let target = temp("target");
+    std::fs::write(
+        target.join("CACHEDIR.TAG"),
+        b"Signature: 8a477f597d28d172789f06886806bc55",
+    )
+    .unwrap();
+    let release = target.join("release");
+    std::fs::create_dir_all(&release).unwrap();
+    assert!(!updates::can_update_itself(&release.join("stl-editor-2.exe")));
+    assert!(!updates::can_update_itself(&std::env::current_exe().unwrap()));
+}
+
 /// The Support Fins engine check at start-up follows the same switches as 1.x: "Check for new
 /// versions" (`update_check`) and `supportfins_update`, both on unless turned off.
 #[test]

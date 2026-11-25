@@ -389,7 +389,7 @@ Nathan answered these on 2026-11-14: accepted unless marked otherwise.
   (not `/latest`), comparing versions by semver (pre-releases count). Every download redirect must stay on GitHub's
   hosts, the size must match and a listed `sha256:` digest must match; there is no fallback to a checksum line in the
   release notes. A new setting `update_checking` stops two windows checking at the same moment.
-- **Accepted (2026-11-14): Update now** is offered only for the installed Windows exe (other copies get "Download"), refuses while another 2.0
+- **Accepted (2026-11-14): Update now** is offered for a Windows exe that can replace itself where it is (since 2.0.3: any folder it can write to; a `cargo` build and a read-only folder get "Download"), refuses while another 2.0
   window is open ("Close the other STL Editor 2.0 windows first, then press Update now again."), shows "Downloading
   update…" with no percentage, and keeps `stl-editor-2.old.exe` until the new build draws its first frame. New messages:
   the wrong-size, not-from-GitHub, download-error and rollback messages, and "Download the new version and use it instead

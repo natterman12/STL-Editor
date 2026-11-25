@@ -148,8 +148,10 @@ orbiting turns around the middle of your parts.
 - **Help › About STL Editor** has a *Third-party licences* link. It opens a page in your
   browser with the licence of every open-source project 2.0 is built from. The page is
   inside the app, so it opens with no connection.
-- **Update now** works for the installed Windows app. Close other STL Editor 2.0 windows
-  first. Other copies get a *Download* button.
+- **Update now** works on Windows wherever you keep the app (the Downloads folder, the
+  desktop, a USB stick): it downloads the new version and puts it in place of the one you
+  have, under the same name, so your shortcuts keep working. Close other STL Editor 2.0
+  windows first. A copy in a folder Windows won't let it change gets a *Download* button.
 - **If the graphics driver restarts,** 2.0 saves your work, tells you, and starts again with
   your work open.
 - **If the engine stops unexpectedly,** a **Restart** button reopens the last project you
