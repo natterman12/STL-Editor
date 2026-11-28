@@ -33,7 +33,7 @@
    {
     "error": null,
     "id": "f2",
-    "info": "Support Fins 1.0.12: 8 walls, 0 tines",
+    "info": "Support Fins 1.0.13: 8 walls, 0 tines",
     "warning": null
    }
   ]
@@ -77,7 +77,7 @@
    {
     "error": null,
     "id": "f3",
-    "info": "Support Fins 1.0.12: 3 walls, 0 tines (1 drawn by hand)",
+    "info": "Support Fins 1.0.13: 3 walls, 0 tines (1 drawn by hand)",
     "warning": null
    }
   ]
@@ -116,7 +116,7 @@
    {
     "error": null,
     "id": "f2",
-    "info": "Support Fins 1.0.12: 8 walls, 0 tines (1 drawn by hand)",
+    "info": "Support Fins 1.0.13: 8 walls, 0 tines (1 drawn by hand)",
     "warning": null
    }
   ]
@@ -155,7 +155,7 @@
    {
     "error": null,
     "id": "f2",
-    "info": "Support Fins 1.0.12: 8 walls, 0 tines (1 drawn by hand)",
+    "info": "Support Fins 1.0.13: 8 walls, 0 tines (1 drawn by hand)",
     "warning": null
    }
   ]
@@ -204,7 +204,7 @@
    {
     "error": null,
     "id": "f2",
-    "info": "Support Fins 1.0.12: 0 walls, 0 tines",
+    "info": "Support Fins 1.0.13: 0 walls, 0 tines",
     "warning": "\"holed_block\" has no overhangs in this position. Rotate it to the way you want to print it, then add fins."
    }
   ]
@@ -243,7 +243,7 @@
    {
     "error": null,
     "id": "f2",
-    "info": "Support Fins 1.0.12: 3 walls, 0 tines",
+    "info": "Support Fins 1.0.13: 3 walls, 0 tines",
     "warning": null
    }
   ]
@@ -282,7 +282,7 @@
    {
     "error": null,
     "id": "f2",
-    "info": "Support Fins 1.0.12: 6 walls, 0 tines",
+    "info": "Support Fins 1.0.13: 6 walls, 0 tines",
     "warning": null
    }
   ]
@@ -343,7 +343,7 @@
    {
     "error": null,
     "id": "f2",
-    "info": "Support Fins 1.0.12: 8 walls, 0 tines",
+    "info": "Support Fins 1.0.13: 8 walls, 0 tines",
     "warning": null
    }
   ]
@@ -558,7 +558,7 @@
    {
     "error": null,
     "id": "f2",
-    "info": "Support Fins 1.0.12: 8 walls, 0 tines",
+    "info": "Support Fins 1.0.13: 8 walls, 0 tines",
     "warning": null
    }
   ]
@@ -624,7 +624,7 @@
    {
     "error": null,
     "id": "f3",
-    "info": "Support Fins 1.0.12: 3 walls, 12 tines",
+    "info": "Support Fins 1.0.13: 3 walls, 12 tines",
     "warning": "\"open_box\" isn't a watertight solid, so the supports were added as a separate body."
    }
   ]
@@ -663,7 +663,7 @@
    {
     "error": null,
     "id": "f2",
-    "info": "Support Fins 1.0.12: 8 walls, 0 tines (1 removed)",
+    "info": "Support Fins 1.0.13: 8 walls, 0 tines (1 removed)",
     "warning": null
    }
   ]
@@ -702,7 +702,7 @@
    {
     "error": null,
     "id": "f2",
-    "info": "Support Fins 1.0.12: 8 walls, 0 tines",
+    "info": "Support Fins 1.0.13: 8 walls, 0 tines",
     "warning": "1 fin(s) you removed aren't there any more in this build, so nothing was removed for them."
    }
   ]
