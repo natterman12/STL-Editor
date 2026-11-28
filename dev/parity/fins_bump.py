@@ -6,6 +6,7 @@ workflow does this on a branch off main). The golden files that depend on the en
   rust/tests/parity/features_golden/supportfins.json, supportwall.json   (make_golden.py, BATCH5 only)
   rust/tests/parity/fins_golden.json                                     (make_fins_golden.py)
   rust/tests/parity/fins_replay.json                                     (record_fins_replay.py)
+  rust/tests/parity/tools/supportfins.json, supportwall.json             (js/tools_golden.mjs; needs node)
 
 Then each is compared with what was committed, with the old version number put in place of the new:
   - the same (within make_golden's tolerances; replayed answers equal as values): the committed file is
@@ -31,6 +32,7 @@ sys.path.insert(0, str(ROOT / "dev" / "parity"))
 PARITY = ROOT / "rust" / "tests" / "parity"
 REPLAY = PARITY / "fins_replay.json"
 FINS_GOLDEN = PARITY / "fins_golden.json"
+TOOL_PANELS = [PARITY / "tools" / "supportfins.json", PARITY / "tools" / "supportwall.json"]
 VERSION_JSON = ROOT / "web" / "vendor" / "support-fins" / "VERSION.json"
 
 
@@ -120,6 +122,16 @@ def bump(summary_path: Path | None) -> int:
     else:
         out["changed"].append(rel(REPLAY))
         out["notes"].append(f"{rel(REPLAY)}: some replayed engine answers changed")
+
+    # the Supports panels, which are built from the engine's options: a new or changed option
+    before = {p: read(p) for p in TOOL_PANELS}
+    r = subprocess.run(["node", str(ROOT / "dev/parity/js/tools_golden.mjs")], cwd=ROOT)
+    if r.returncode:
+        return r.returncode
+    for p in TOOL_PANELS:
+        if read(p) != before[p]:
+            out["changed"].append(rel(p))
+            out["notes"].append(f"{rel(p)}: the engine's options changed, so the tool's panel did")
     return finish(out, summary_path)
 
 
